@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchTokenHistory, type TokenLedgerEntry } from "@/services/api/tokens";
 import type { TokenWallet } from "@/hooks/useTokenWallet";
+import TokenPlanCards from "./TokenPlanCards";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
 
 /* -------------------------------------------------------------------------- */
@@ -26,10 +27,10 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     detail. The allowance is shown because it is real and it resets; a      */
 /*     button would 404.                                                       */
 /*                                                                            */
-/*  2. A working upgrade button. The tiers are real and published, but the     */
-/*     backend has no subscription checkout — see                              */
-/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. The plans are listed */
-/*     with an honest note until one exists.                                   */
+/*  2. A way to CHANGE or CANCEL an existing plan. Buying a first plan works    */
+/*     (TokenPlanCards), but switching or stopping needs Stripe's billing        */
+/*     portal, which the backend has no route for — see                         */
+/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md.                       */
 /*                                                                            */
 /*  No streaks, no "you've used X% of your month", no comparison, no praise    */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */
@@ -65,6 +66,7 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
   const renewsOn = formatShortDate(ready?.periodEndsAt ?? null);
   const prices = wallet.prices;
+
 
   return (
     <div className="w-full">
@@ -103,8 +105,14 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
               )}
             </p>
             {/* The one place two limits legitimately disagree: a full balance
-                and no reviews left. Said plainly, or it reads as a bug. */}
-            {ready.coachReviews.remaining <= 0 ? (
+                and no reviews left. Said plainly, or it reads as a bug.
+
+                GATED ON allowed > 0. On free the allowance IS zero, so a bare
+                `remaining <= 0` told those users they had "used your coach
+                reviews for this month" directly under "0 of 0 used" — claiming
+                they spent something they never had. Exhausted means they had
+                some and spent them; having none is a property of the plan. */}
+            {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {TOKENS_COPY.coachReviewsExhausted(renewsOn)}
               </p>
@@ -136,32 +144,14 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
         {prices && Object.keys(prices.tiers).length > 0 ? (
           <section className="mt-7">
             <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletPlansTitle}</h3>
-            <ul className="mt-2 space-y-2.5">
-              {/* Ascending by price so the list reads as a ladder. Presented as
-                  MONTHLY PLANS, never as packs or credits: the allowance
-                  resets, and copy that implies a one-time purchase makes the
-                  first reset feel like theft. */}
-              {Object.entries(prices.tiers)
-                .sort((a, b) => a[1].usdPerMonth - b[1].usdPerMonth)
-                .map(([name, tier]) => (
-                  <li key={name} className="text-[13px]">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-medium capitalize">{name}</span>
-                      <span className="text-muted-foreground">
-                        {TOKENS_COPY.walletPerMonth(tier.usdPerMonth)}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      {TOKENS_COPY.walletTierTokens(formatTokens(tier.tokensPerMonth))}
-                      {" · "}
-                      {TOKENS_COPY.walletTierReviews(tier.coachReviewsPerMonth)}
-                    </div>
-                  </li>
-                ))}
-            </ul>
-            <p className="mt-3 text-[12px] text-muted-foreground">
-              {TOKENS_COPY.walletUpgradeUnavailable}
-            </p>
+            <div className="mt-3">
+              {/* Three prices, three CTAs (founder 2026-07-31). The cards own
+                  the buying flow; this panel just says where they go. */}
+              <TokenPlanCards
+                tiers={prices.tiers}
+                currentTier={ready?.tier ?? null}
+              />
+            </div>
           </section>
         ) : null}
 

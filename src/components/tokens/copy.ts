@@ -41,16 +41,6 @@ export function formatShortDate(iso: string | null): string | null {
 }
 
 export const TOKENS_COPY = {
-  /* ------------------------------- the chip ------------------------------ */
-
-  /** The renewal date is load-bearing, not decoration: without it a user who
-   *  watches the number fall has no idea it comes back, and a falling balance
-   *  reads as a countdown to being locked out. With it, low is "wait or top
-   *  up". Never drop the clause to save space. */
-  chip: (balance: string, renewsOn: string | null) =>
-    renewsOn ? `${balance} · renews ${renewsOn}` : balance,
-  chipLabel: "Your token balance",
-
   /* ------------------------------- the row ------------------------------- */
 
   /** The hamburger row that replaces the legacy Credits row when pricing is
@@ -77,13 +67,47 @@ export const TOKENS_COPY = {
   walletHistoryEmpty: "Nothing spent yet.",
   walletHistoryMore: "Show more",
   walletPlansTitle: "Plans",
+  /** Per-card lines. Factual, from the served tier payload — no invented
+   *  marketing claims, and deliberately NO "most popular" badge: that is a
+   *  claim about other users' behaviour and there is no data behind it. If the
+   *  founder wants one, it should be a deliberate choice, not my default. */
+  planCardTokens: (tokens: string) => `${tokens} tokens`,
+  planCardPerMonth: "per month",
+  planCardReviews: (n: number) =>
+    n === 0
+      ? "No coach reviews"
+      : n === 1
+        ? "1 coach review"
+        : `${n} coach reviews`,
+  planCardCta: (tier: string) => `Choose ${tier}`,
+  /** You are on this one already. */
+  planCardCurrent: "Your plan",
+  /** The free tier is never a card with a CTA — you do not check out to pay
+   *  nothing. It is stated as a line so the ladder still starts somewhere. */
+  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens a month, no coach reviews.`,
   walletPerMonth: (usd: number) => (usd === 0 ? "Free" : `$${usd} / month`),
   walletTierTokens: (tokens: string) => `${tokens} tokens a month`,
   walletTierReviews: (n: number) =>
     n === 0 ? "No coach reviews" : n === 1 ? "1 coach review a month" : `${n} coach reviews a month`,
   /** Shown against the plan list because there is no subscription checkout in
    *  the product yet. Honest beats a button that goes nowhere. */
+  /** The CTA on a plan you can actually buy. */
+  walletChoosePlan: "Choose",
+  walletChoosePlanBusy: "Opening Stripe…",
+  /** Shown against the plan list when NOTHING is purchasable (Stripe or the
+   *  price map unconfigured). Honest beats a button that cannot work. */
   walletUpgradeUnavailable: "Changing plan isn't available here yet.",
+  /** You are already paying for this one. */
+  walletCurrentPlan: "Current plan",
+  /** On a paid plan already: switching and cancelling both need the billing
+   *  portal, which the backend has no route for yet, so say so rather than
+   *  offering a second checkout that would charge twice. */
+  walletManageUnavailable:
+    "To change or cancel your plan, email support and we'll sort it.",
+  /** Back from Stripe. The tier arrives by webhook a moment later, so this
+   *  promises an update rather than asserting a balance we cannot see yet. */
+  walletPlanSuccess: "Payment received. Your new plan is being applied.",
+  walletPlanCancelled: "No change made.",
 
   /* --------------------------- coach reviews ----------------------------- */
 
@@ -91,7 +115,12 @@ export const TOKENS_COPY = {
    *  calendar and cannot be bought past, so there is no "buy more" here at
    *  any balance. */
   coachReviewsTitle: "Coach reviews",
-  coachReviewsUsed: (used: number, allowed: number) => `${used} of ${allowed} used this month`,
+  coachReviewsUsed: (used: number, allowed: number) =>
+    // A zero allowance is a property of the PLAN, not a tally. "0 of 0 used
+    // this month" reads as a broken counter, so say what is actually true.
+    allowed === 0
+      ? "Not included on your plan"
+      : `${used} of ${allowed} used this month`,
   /** The one place two limits can disagree: plenty of tokens AND no reviews
    *  left. Say why plainly or it reads as a bug. */
   coachReviewsExhausted: (renewsOn: string | null) =>
