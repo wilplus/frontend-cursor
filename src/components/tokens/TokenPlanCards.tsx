@@ -27,6 +27,13 @@ import { TOKENS_COPY, formatTokens } from "./copy";
 /*  is a design choice rather than an assertion. If the founder wants a label,   */
 /*  it should be chosen, not inherited from a template.                         */
 /*                                                                            */
+/*  PALETTE (founder 2026-08-01): black and white, with orange as an ACCENT      */
+/*  ONLY. Every card is monochrome — black type, neutral rules — and the single  */
+/*  orange element on the screen is the recommended plan's filled CTA. That is   */
+/*  what makes it read as the recommendation without a badge claiming anything.  */
+/*  Orange comes from `--primary` (the documented primary-action token), never a */
+/*  literal, so a theme change carries it.                                      */
+/*                                                                            */
 /*  Every tier comes from the BE's served list — names, prices, allowances. The  */
 /*  only thing resolved locally is whether a plan can be BOUGHT, which is a      */
 /*  server capability, not a price.                                             */
@@ -103,34 +110,47 @@ export default function TokenPlanCards({
             <div
               key={name}
               className={cn(
-                "relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition-shadow",
-                emphasised &&
-                  "border-primary shadow-md ring-2 ring-primary/25 sm:z-[1] sm:scale-[1.03]"
+                "relative flex flex-col rounded-2xl border bg-card p-6 transition-shadow",
+                // Emphasis is WEIGHT, not colour: a black rule against the
+                // neutral ones. Keeps the page monochrome so the one orange
+                // element on it is unmistakably the action.
+                emphasised
+                  ? "border-foreground shadow-md sm:z-[1] sm:scale-[1.03]"
+                  : "border-border"
               )}
             >
-              <h3 className="text-lg font-bold capitalize text-foreground">{name}</h3>
-              <p className="mt-1 text-3xl font-bold tracking-tight">
+              <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {name}
+              </h3>
+              <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">
                 ${tier.usdPerMonth}
-                <span className="text-base font-normal text-muted-foreground">
-                  {" "}
-                  {TOKENS_COPY.planCardPerMonth}
-                </span>
               </p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {TOKENS_COPY.planCardTokens(formatTokens(tier.tokensPerMonth))}
+              <p className="text-[13px] text-muted-foreground">
+                {TOKENS_COPY.planCardPerMonth}
               </p>
-              <p className="mt-1 flex-1 text-sm text-muted-foreground">
-                {TOKENS_COPY.planCardReviews(tier.coachReviewsPerMonth)}
-              </p>
+              <div className="mt-4 flex-1 space-y-1 border-t border-border pt-4">
+                <p className="text-sm font-medium text-foreground">
+                  {TOKENS_COPY.planCardTokens(formatTokens(tier.tokensPerMonth))}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {TOKENS_COPY.planCardReviews(tier.coachReviewsPerMonth)}
+                </p>
+              </div>
 
               {isCurrent ? (
-                <p className="mt-5 text-center text-sm font-medium text-muted-foreground">
+                <p className="mt-5 text-center text-sm font-medium text-foreground">
                   {TOKENS_COPY.planCardCurrent}
                 </p>
               ) : canBuy ? (
                 <Button
                   type="button"
-                  className="mt-5 w-full"
+                  className={cn(
+                    "mt-5 w-full rounded-full",
+                    emphasised
+                      ? // THE one orange element on the page.
+                        "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "border-foreground bg-transparent text-foreground hover:bg-foreground hover:text-background"
+                  )}
                   variant={emphasised ? "default" : "outline"}
                   disabled={busyTier !== null}
                   onClick={() => void buy(name)}
