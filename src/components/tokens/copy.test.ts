@@ -30,14 +30,11 @@ describe("formatShortDate", () => {
 });
 
 describe("the menu row", () => {
-  it("carries the renewal date with the balance", () => {
-    // Load-bearing: without it a falling balance reads as a countdown to being
-    // locked out rather than "wait for the reset".
-    expect(TOKENS_COPY.menuRowValue("41,500", "28 Aug")).toBe("41,500 · 28 Aug");
-  });
-
-  it("shows the bare balance when the renewal date is unknown", () => {
-    expect(TOKENS_COPY.menuRowValue("41,500", null)).toBe("41,500");
+  it("is the number and nothing else", () => {
+    // The renewal date moved off this row (founder 2026-08-01). The wallet it
+    // links to still states it in full, so the "a falling number needs to say
+    // it comes back" rule is satisfied one tap away rather than lost.
+    expect(TOKENS_COPY.menuRowValue("41,500")).toBe("41,500");
   });
 });
 

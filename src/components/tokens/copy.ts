@@ -47,10 +47,14 @@ export const TOKENS_COPY = {
    *  live. Founder 2026-07-31: the balance belongs in the menu, not the navbar
    *  — the same rule the credits row has always followed. */
   menuRowLabel: "Tokens",
-  /** Value shown on the right of that row. The renewal date rides along here
-   *  too: it is the difference between "running out" and "wait or top up". */
-  menuRowValue: (balance: string, renewsOn: string | null) =>
-    renewsOn ? `${balance} · ${renewsOn}` : balance,
+  /** Value shown on the right of that row: THE NUMBER ONLY.
+   *
+   *  It carried the renewal date until 2026-08-01. The founder removed it, and
+   *  the original reason for having it there is satisfied elsewhere now: the
+   *  wallet this row links to states "Renews 30 Aug" in full, so a user
+   *  watching the number fall still has somewhere that says it comes back. A
+   *  menu row is a glance, not an explanation. */
+  menuRowValue: (balance: string) => balance,
 
   /* ------------------------------ the wallet ----------------------------- */
 
@@ -63,9 +67,17 @@ export const TOKENS_COPY = {
   walletRenewsUnknown: "Renews monthly",
   walletBalanceUnknown: "Balance unavailable right now.",
   walletPricesTitle: "What things cost",
+  /** The one disclosure that keeps this page a single view: prices, coach
+   *  reviews and the ledger all live behind it. The plans are the point of the
+   *  screen; the mechanics are reference material you go looking for. */
+  walletShowMore: "Show more",
+  walletShowLess: "Show less",
   walletHistoryTitle: "Recent activity",
   walletHistoryEmpty: "Nothing spent yet.",
-  walletHistoryMore: "Show more",
+  /** The LEDGER's pagination, which now sits inside the page-level "Show more".
+   *  Two controls a few lines apart both reading "Show more" would be a coin
+   *  toss for the user, so this one names what it actually fetches. */
+  walletHistoryMore: "Older activity",
   walletPlansTitle: "Plans",
   /** Per-card lines. Factual, from the served tier payload — no invented
    *  marketing claims, and deliberately NO "most popular" badge: that is a
