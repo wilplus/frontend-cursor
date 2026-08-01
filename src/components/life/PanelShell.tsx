@@ -1,16 +1,23 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { Settings2, X } from "lucide-react";
 import PanelNotFound from "@/components/life/PanelNotFound";
 import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
-import { PANEL } from "@/lib/life/copy";
+import { PANEL, VIEWS } from "@/lib/life/copy";
 import {
   hasConsented,
   principlesTabView,
@@ -42,6 +49,20 @@ import {
 /*                                                                            */
 /*  Under every view is the document dock (`PanelUpload`), which is the same   */
 /*  upload setup opens with, on every screen instead of one.                   */
+/*                                                                            */
+/*  THE WAY TO YOUR DATA RIDES THE SAME ROW, left of the X. It was a standing  */
+/*  link in a footer until the chrome pass took the footer with everything     */
+/*  else, and it has to be SOMEWHERE: the consent screen promises export and   */
+/*  hard delete "live in the panel, two clicks away, not buried in settings",  */
+/*  and a promise with nothing behind it is the worst of the three states.     */
+/*                                                                            */
+/*  It is NOT a menu entry, and that is the whole point of putting it here     */
+/*  rather than in `LIFE_VIEWS`. `panelMenu` hands back `state.menu` wholesale */
+/*  whenever the server sends one, so a data entry added to the derived list   */
+/*  would silently vanish for exactly the allowlisted users the server         */
+/*  enumerates — the promise would hold for most people and quietly break for  */
+/*  some. A person with data must always be able to take it out or erase it,   */
+/*  so this link is gated on consent and on nothing else.                      */
 /* -------------------------------------------------------------------------- */
 
 interface LifePanelContextValue {
@@ -133,7 +154,15 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
         {onboarding ? null : (
-          <PanelNav menu={panelMenu(state)} pathname={pathname} />
+          <PanelNav
+            menu={panelMenu(state)}
+            pathname={pathname}
+            /* Consent, not participation: someone who has written anything can
+               always reach the export and the delete. Onboarding never gets
+               here at all, which is the other half of the old footer's rule —
+               a user still filling in the form has written nothing yet. */
+            showData={hasConsented(state)}
+          />
         )}
         {/* A flex COLUMN, not a plain block: the setup flow pins its Back/Next
             bar to the bottom with `mt-auto`, which needs its own height to
@@ -165,10 +194,27 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
 function PanelNav({
   menu,
   pathname,
+  showData,
 }: {
   menu: LifeMenuEntry[];
   pathname: string | null;
+  /** Whether to offer the way to export and hard delete. Deliberately a plain
+   *  boolean and not a menu entry — see the note at the top of this file. */
+  showData: boolean;
 }) {
+  const stripRef = useRef<HTMLDivElement | null>(null);
+
+  /* `inline: "nearest"` so a pill already fully visible does not move: the row
+   * must not slide on every navigation, only when the pill just landed on
+   * would otherwise be clipped. `block: "nearest"` keeps it horizontal —
+   * without it the browser scrolls the PAGE to bring the row into view, which
+   * on a long view yanks the reader back to the top for no reason. */
+  useEffect(() => {
+    stripRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [pathname]);
+
   if (menu.length === 0) return null;
   return (
     <nav
@@ -176,10 +222,19 @@ function PanelNav({
       className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur"
     >
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2">
-        {/* The scrolling strip is shortened by exactly the X, rather than
-            scrolling under it: a pill half-hidden behind a button reads as a
-            rendering fault, and the last pill is the one people reach for. */}
-        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+        {/* The scrolling strip is shortened by exactly the controls beside it,
+            rather than scrolling under them: a pill half-hidden behind a button
+            reads as a rendering fault.
+            
+            AND THE ACTIVE PILL IS SCROLLED INTO VIEW, which is the other half
+            of that. This strip has always been narrower than its contents on a
+            phone, so on any given screen SOME pill is cut by the right edge —
+            that is what a scrolling row is. Adding the data control narrowed it
+            again and made the cut land one pill earlier. Fine for a pill you
+            are not on; wrong for the one you are, because an active black pill
+            sliced flat reads as a broken render rather than as "scroll for
+            more". */}
+        <div ref={stripRef} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
           {menu.map((entry) => {
             const active =
               !entry.external &&
@@ -202,16 +257,41 @@ function PanelNav({
                 {entry.label}
               </a>
             ) : (
-              <Link key={entry.key} href={entry.href} className={className}>
+              <Link
+                key={entry.key}
+                href={entry.href}
+                className={className}
+                data-active={active || undefined}
+              >
                 {entry.label}
               </Link>
             );
           })}
         </div>
 
+        {/* Two controls, in the order they are reached for. Neither is a pill:
+            the strip above holds the views, and these are what you do to the
+            panel rather than places inside it. */}
+        {showData ? (
+          <Link
+            href="/panel/data"
+            aria-label={VIEWS.data.title}
+            title={VIEWS.data.title}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted hover:text-foreground ${
+              pathname === "/panel/data"
+                ? "bg-foreground text-background hover:bg-foreground hover:text-background"
+                : "text-muted-foreground"
+            }`}
+          >
+            <Settings2 className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : null}
+
         {/* The panel's only exit, now that the header carrying the logo is
             off every one of these screens. It lands where the 404's own way
-            out lands, so leaving the panel means one place, not two. */}
+            out lands, so leaving the panel means one place, not two. Last on
+            the row because a close control that is not at the end is a close
+            control people miss. */}
         <Link
           href="/chat"
           aria-label={PANEL.closeLabel}
