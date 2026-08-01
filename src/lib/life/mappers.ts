@@ -527,7 +527,21 @@ export function mapStrategyDiff(raw: unknown): LifeStrategyDiff | null {
 
 export function mapTimelineEvents(raw: unknown): LifeTimelineEvent[] {
   const r = rec(raw);
-  const list = Array.isArray(raw) ? raw : arr(r?.events);
+  // GET /v2/life/timeline answers with FOUR lists, and this read only ever
+  // took one of them. Its own docstring promises "events + goals that carry a
+  // parsed date, plus the bets as colour bands"; `goals` and `bets` were
+  // dropped on the floor here, so a person whose panel held goals and no
+  // `event` rows — which is everyone who filled setup from a document — got an
+  // empty canvas from a payload that was not empty.
+  //
+  // `undated` is deliberately NOT among them. Those are goals whose due_label
+  // did not parse, which is exactly what the date guard below refuses: they
+  // cannot be placed on a calendar. The backend separates them so they can be
+  // LISTED somewhere instead, which is a surface with its own copy, not a
+  // silent extra row on the canvas.
+  const list = Array.isArray(raw)
+    ? raw
+    : [...arr(r?.events), ...arr(r?.goals), ...arr(r?.bets)];
   return list.flatMap((row) => {
     const e = rec(row);
     if (!e) return [];
@@ -543,7 +557,15 @@ export function mapTimelineEvents(raw: unknown): LifeTimelineEvent[] {
         title: str(e.title),
         at,
         endAt: strOrNull(e.end_at),
-        betKey: betKey(e.bet_key ?? e.category),
+        // `collection` is the field that actually carries the bet on a life
+        // item — serialize_item emits it, and `bet` / `collection` is what
+        // apply-proposed accepts on the way in. Neither `bet_key` nor
+        // `category` is ever sent, so this read resolved to null for every
+        // row and the canvas put ALL of them in the orphan lane beneath the
+        // three bets. The old names are kept as fallbacks rather than
+        // replaced: they cost nothing and this mapper is fed by more than one
+        // shape of row.
+        betKey: betKey(e.collection ?? e.bet_key ?? e.category),
         body: strOrNull(e.body),
         kind: kind === "goal" || kind === "bet" ? kind : "event",
         dueLabel: strOrNull(e.due_label),
