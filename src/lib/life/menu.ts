@@ -81,9 +81,11 @@ export const LIFE_VIEWS: readonly LifeViewSpec[] = [
 ];
 
 /**
- * The entries to render, for the hamburger and for the panel's own nav.
+ * Every panel entry this user has: the PANEL's own nav renders all of them.
  *
- * Both surfaces call this so they can never disagree about what exists.
+ * Still the single source of what exists — `hamburgerMenu` is derived from it
+ * below rather than listing views again, so the two surfaces can differ in
+ * what they SHOW without ever disagreeing about what there IS.
  */
 export function panelMenu(state: LifeState | null): LifeMenuEntry[] {
   if (!state) return [];
@@ -96,4 +98,30 @@ export function panelMenu(state: LifeState | null): LifeMenuEntry[] {
   return LIFE_VIEWS.filter((view) => !view.needsSetup || unlocked).map(
     ({ key, label, href }) => ({ key, label, href })
   );
+}
+
+/** The panel views that live INSIDE the Principles tab — everything the tab's
+ *  own nav already puts one tap away. Principles itself is not here: it is the
+ *  door, and the door belongs in the hamburger. */
+const PANEL_SUBVIEW_KEYS: ReadonlySet<string> = new Set(
+  LIFE_VIEWS.filter((view) => view.key !== "principles").map((v) => v.key)
+);
+
+/**
+ * The entries the APP-WIDE hamburger renders (founder 2026-08-01).
+ *
+ * Principles only. The other eight are reached from inside the Principles tab,
+ * whose pill row still lists every one of them, so putting them in the global
+ * menu too made one set of destinations appear in two places and turned the
+ * app menu into a table of contents for a single feature.
+ *
+ * FILTERED, NOT RE-LISTED. It takes `panelMenu`'s answer and removes the
+ * sub-views, so a view added to LIFE_VIEWS later is automatically inside the
+ * tab rather than in the hamburger, and a key this file does not know — a
+ * server-sent entry such as Prayer, which is its own app rather than part of
+ * the panel — is KEPT. The hamburger drops what belongs to Principles; it does
+ * not become a hardcoded list of one.
+ */
+export function hamburgerMenu(state: LifeState | null): LifeMenuEntry[] {
+  return panelMenu(state).filter((entry) => !PANEL_SUBVIEW_KEYS.has(entry.key));
 }

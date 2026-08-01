@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIFE_VIEWS, panelMenu } from "./menu";
+import { LIFE_VIEWS, hamburgerMenu, panelMenu } from "./menu";
 import type { LifeState } from "./types";
 
 const base: LifeState = {
@@ -108,5 +108,66 @@ describe("panelMenu", () => {
     for (const state of [base, consented, active]) {
       expect(panelMenu(state).some((e) => e.href === "/panel/data")).toBe(false);
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  The hamburger vs the panel's own nav (founder 2026-08-01)                   */
+/*                                                                             */
+/*  One function used to feed both, so the eight views inside the Principles   */
+/*  tab were also listed in the app-wide menu — the same destinations offered  */
+/*  twice. The hamburger now shows the door only. The risk this block exists   */
+/*  to hold: filtering the SHARED list instead of splitting it would have made */
+/*  those views unreachable from anywhere.                                     */
+/* -------------------------------------------------------------------------- */
+
+describe("hamburgerMenu", () => {
+  it("shows Principles and nothing else once the panel is unlocked", () => {
+    expect(hamburgerMenu(active).map((e) => e.key)).toEqual(["principles"]);
+  });
+
+  it("still shows Principles before setup, because it is the door", () => {
+    expect(hamburgerMenu(consented).map((e) => e.key)).toEqual(["principles"]);
+    expect(hamburgerMenu(base).map((e) => e.key)).toEqual(["principles"]);
+  });
+
+  it("does not take the views away from the panel's own nav", () => {
+    // The whole point of splitting rather than filtering. If this ever equals
+    // the hamburger, the eight views have nowhere left to be reached from.
+    const inside = panelMenu(active).map((e) => e.key);
+    expect(inside).toContain("goals");
+    expect(inside).toContain("timeline");
+    expect(inside.length).toBeGreaterThan(hamburgerMenu(active).length);
+  });
+
+  it("drops every view the Principles tab already lists", () => {
+    // Stated as a relationship, not a hardcoded list, so a view added to
+    // LIFE_VIEWS later lands inside the tab rather than in the hamburger.
+    const hamburger = new Set(hamburgerMenu(active).map((e) => e.key));
+    for (const view of LIFE_VIEWS) {
+      if (view.key === "principles") continue;
+      expect(hamburger.has(view.key)).toBe(false);
+    }
+  });
+
+  it("keeps an entry that is not a panel view at all", () => {
+    // Prayer is its own app, not a room inside Principles, so a server-sent
+    // entry the panel does not own must survive the filter.
+    const withPrayer: LifeState = {
+      ...active,
+      menu: [
+        { key: "principles", label: "Principles", href: "/panel/principles" },
+        { key: "goals", label: "Goals", href: "/panel/goals" },
+        { key: "prayer", label: "Prayer", href: "/prayer" },
+      ],
+    };
+    expect(hamburgerMenu(withPrayer).map((e) => e.key)).toEqual([
+      "principles",
+      "prayer",
+    ]);
+  });
+
+  it("is empty with no state, exactly as the panel nav is", () => {
+    expect(hamburgerMenu(null)).toEqual([]);
   });
 });
