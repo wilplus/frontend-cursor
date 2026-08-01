@@ -149,6 +149,7 @@ describe("applyConfirmedItems", () => {
     body: "",
     titleCut: null,
     horizon: null,
+    strategyHorizon: null,
     dueLabel: null,
     bet: "wall",
     externalId: null,

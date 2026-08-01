@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIFE_VIEWS, panelMenu } from "./menu";
+import { LIFE_VIEWS, hamburgerMenu, panelChrome, panelMenu } from "./menu";
 import type { LifeState } from "./types";
 
 const base: LifeState = {
@@ -108,5 +108,116 @@ describe("panelMenu", () => {
     for (const state of [base, consented, active]) {
       expect(panelMenu(state).some((e) => e.href === "/panel/data")).toBe(false);
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  The hamburger vs the panel's own nav (founder 2026-08-01)                   */
+/*                                                                             */
+/*  One function used to feed both, so the eight views inside the Principles   */
+/*  tab were also listed in the app-wide menu — the same destinations offered  */
+/*  twice. The hamburger now shows the door only. The risk this block exists   */
+/*  to hold: filtering the SHARED list instead of splitting it would have made */
+/*  those views unreachable from anywhere.                                     */
+/* -------------------------------------------------------------------------- */
+
+describe("hamburgerMenu", () => {
+  it("shows Principles and nothing else once the panel is unlocked", () => {
+    expect(hamburgerMenu(active).map((e) => e.key)).toEqual(["principles"]);
+  });
+
+  it("still shows Principles before setup, because it is the door", () => {
+    expect(hamburgerMenu(consented).map((e) => e.key)).toEqual(["principles"]);
+    expect(hamburgerMenu(base).map((e) => e.key)).toEqual(["principles"]);
+  });
+
+  it("does not take the views away from the panel's own nav", () => {
+    // The whole point of splitting rather than filtering. If this ever equals
+    // the hamburger, the eight views have nowhere left to be reached from.
+    const inside = panelMenu(active).map((e) => e.key);
+    expect(inside).toContain("goals");
+    expect(inside).toContain("timeline");
+    expect(inside.length).toBeGreaterThan(hamburgerMenu(active).length);
+  });
+
+  it("drops every view the Principles tab already lists", () => {
+    // Stated as a relationship, not a hardcoded list, so a view added to
+    // LIFE_VIEWS later lands inside the tab rather than in the hamburger.
+    const hamburger = new Set(hamburgerMenu(active).map((e) => e.key));
+    for (const view of LIFE_VIEWS) {
+      if (view.key === "principles") continue;
+      expect(hamburger.has(view.key)).toBe(false);
+    }
+  });
+
+  it("keeps an entry that is not a panel view at all", () => {
+    // Prayer is its own app, not a room inside Principles, so a server-sent
+    // entry the panel does not own must survive the filter.
+    const withPrayer: LifeState = {
+      ...active,
+      menu: [
+        { key: "principles", label: "Principles", href: "/panel/principles" },
+        { key: "goals", label: "Goals", href: "/panel/goals" },
+        { key: "prayer", label: "Prayer", href: "/prayer" },
+      ],
+    };
+    expect(hamburgerMenu(withPrayer).map((e) => e.key)).toEqual([
+      "principles",
+      "prayer",
+    ]);
+  });
+
+  it("is empty with no state, exactly as the panel nav is", () => {
+    expect(hamburgerMenu(null)).toEqual([]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  panelChrome (founder 2026-08-01)                                           */
+/*                                                                             */
+/*  The bug: setup stripped the WHOLE bar, and the gear linking to /panel/data */
+/*  went with it. The Principles tab IS the setup form until setup finishes,   */
+/*  and the pre-setup menu holds Principles alone, so that one line closed     */
+/*  every route to the export and the hard delete — while the consent screen   */
+/*  went on promising both were two clicks away.                               */
+/* -------------------------------------------------------------------------- */
+
+describe("panelChrome", () => {
+  it("offers the data control DURING setup", () => {
+    // The regression itself. Consenting and saving answers is already writing
+    // something, so the way to erase it has to exist from that moment.
+    expect(panelChrome(consented, true).showData).toBe(true);
+  });
+
+  it("still withholds the views during setup", () => {
+    // The rule that stripped this chrome originally is intact: one thing on
+    // the screen, no pill row reading "Principles" over "Your three bets".
+    expect(panelChrome(consented, true).showViews).toBe(false);
+    expect(panelChrome(active, false).showViews).toBe(true);
+  });
+
+  it("withholds the exit during setup, where the wizard draws its own", () => {
+    // Two X buttons on one screen is worse than none.
+    expect(panelChrome(consented, true).showExit).toBe(false);
+    expect(panelChrome(active, false).showExit).toBe(true);
+  });
+
+  it("offers no data control before consent, setup or not", () => {
+    // Nothing written yet, so there is nothing to take out or erase.
+    expect(panelChrome(base, true).showData).toBe(false);
+    expect(panelChrome(base, false).showData).toBe(false);
+  });
+
+  it("keeps offering the data control after setup completes", () => {
+    expect(panelChrome(active, false).showData).toBe(true);
+  });
+
+  it("offers nothing at all with no state", () => {
+    // The kill switch is upstream of everything here.
+    expect(panelChrome(null, false)).toEqual({
+      showViews: true,
+      showData: false,
+      showExit: true,
+    });
   });
 });

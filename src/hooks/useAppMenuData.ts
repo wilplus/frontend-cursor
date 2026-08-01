@@ -6,7 +6,7 @@ import { useUserProfile } from "@/components/willab/useUserProfile";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
-import { panelMenu } from "@/lib/life/menu";
+import { hamburgerMenu, panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, formatShortDate, formatTokens } from "@/components/tokens/copy";
@@ -104,7 +104,10 @@ export function useAppMenuData(): AppMenuData {
     }
     let cancelled = false;
     const apply = (state: Parameters<typeof panelMenu>[0]) => {
-      if (!cancelled) setLifeMenu(panelMenu(state));
+      // hamburgerMenu, not panelMenu: the app menu shows Principles as the
+      // door, and the eight views inside it are reached from that tab's own
+      // nav rather than listed a second time out here.
+      if (!cancelled) setLifeMenu(hamburgerMenu(state));
     };
     void loadLifeState().then(apply);
     const unsubscribe = subscribeLifeState(apply);
