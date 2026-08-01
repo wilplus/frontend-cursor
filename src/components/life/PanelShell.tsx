@@ -16,6 +16,7 @@ import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelChrome, panelMenu } from "@/lib/life/menu";
+import { warmPanelView } from "@/lib/life/prefetch";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { PANEL, VIEWS } from "@/lib/life/copy";
 import {
@@ -290,6 +291,12 @@ function PanelNav({
                 href={entry.href}
                 className={className}
                 data-active={active || undefined}
+                /* Start the view's read before the tap lands. Next already
+                   prefetches the route's JS; this is the DATA half, which is
+                   what the spinner was actually waiting for. Touch-start
+                   rather than click because it fires first. */
+                onPointerEnter={() => warmPanelView(entry.href)}
+                onTouchStart={() => warmPanelView(entry.href)}
               >
                 {entry.label}
               </Link>

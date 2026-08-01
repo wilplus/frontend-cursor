@@ -15,7 +15,7 @@ import {
  *  principles-app list; only the data source changed. */
 export default function WinsPage() {
   const load = useCallback(() => fetchItems("win"), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("items:win", load);
 
   return (
     <>

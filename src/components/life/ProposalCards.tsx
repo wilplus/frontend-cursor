@@ -47,7 +47,7 @@ export default function ProposalDeck({
   title?: string;
 }) {
   const load = useCallback(() => fetchProposals(), []);
-  const { data, loaded, failed } = usePanelResource(load);
+  const { data, loaded, failed } = usePanelResource("proposals", load);
 
   // The deck is a supplement on someone else's page, so it renders nothing at
   // all while loading and nothing at all if the read fails. A "that did not
@@ -93,7 +93,7 @@ export function ProposalItems({ proposals }: { proposals: LifeProposal[] }) {
  *  saying out loud rather than rendering as blank space. */
 export function ProposalList() {
   const load = useCallback(() => fetchProposals(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("proposals", load);
   return (
     <Resource resource={resource}>
       {(list) =>

@@ -71,7 +71,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 
 export default function ReminderSettings() {
   const load = useCallback(() => fetchReminders(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("reminders", load);
 
   return (
     <PanelCard>
