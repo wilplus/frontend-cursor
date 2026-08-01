@@ -15,7 +15,7 @@ import PanelNotFound from "@/components/life/PanelNotFound";
 import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
-import { panelMenu } from "@/lib/life/menu";
+import { panelChrome, panelMenu } from "@/lib/life/menu";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { PANEL, VIEWS } from "@/lib/life/copy";
 import {
@@ -113,6 +113,10 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
   const onboarding = state ? isOnboarding(state, pathname) : false;
+  // The three answers live in lib/life/menu so they are testable without
+  // rendering: the bug this replaced was a chrome decision, and it silently
+  // removed the only route to the hard delete.
+  const chrome = panelChrome(state, onboarding);
 
   /* Rows created from the dock are the surrounding view's own content, and the
    * views hold their reads in their own hooks, out of reach from here. Bumping
@@ -151,19 +155,35 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   return (
     <LifeStateContext.Provider value={{ state, refresh }}>
       <div className="flex min-h-full flex-col bg-background">
-        {/* Same derivation as the hamburger, so the two can never disagree
-            about which views exist. */}
-        {onboarding ? null : (
-          <PanelNav
-            menu={panelMenu(state)}
-            pathname={pathname}
-            /* Consent, not participation: someone who has written anything can
-               always reach the export and the delete. Onboarding never gets
-               here at all, which is the other half of the old footer's rule —
-               a user still filling in the form has written nothing yet. */
-            showData={hasConsented(state)}
-          />
-        )}
+        {/* Consent, not participation: someone who has written anything can
+            always reach the export and the delete.
+
+            ONBOARDING KEEPS THE DATA CONTROL (founder 2026-08-01). This used
+            to render nothing at all during setup, reasoning that "a user still
+            filling in the form has written nothing yet". That was not true: by
+            the second step they have consented, saved answers on every step —
+            the form itself says "Saved. You can close this and come back to
+            it" — and may have uploaded documents.
+
+            It also closed the LAST door to /panel/data. The Principles tab IS
+            the form until setup finishes, the pre-setup menu is Principles
+            alone, and the gear that links to the data screen lived in exactly
+            the chrome this branch removed. So a person half-way through setup
+            could not erase it without typing the URL by hand, while the
+            consent screen went on promising the export and the delete were two
+            clicks away. This is the re-hang the note under <main> asks for.
+
+            THE VIEWS STILL DO NOT RENDER: an empty menu means no pill row, so
+            the "one thing on the screen" rule that stripped this chrome
+            originally is intact. Only the way to the data survives — and not
+            the X, because the wizard carries its own and two close controls on
+            one screen is worse than none. */}
+        <PanelNav
+          menu={chrome.showViews ? panelMenu(state) : []}
+          pathname={pathname}
+          showData={chrome.showData}
+          showExit={chrome.showExit}
+        />
         {/* A flex COLUMN, not a plain block: the setup flow pins its Back/Next
             bar to the bottom with `mt-auto`, which needs its own height to
             come from this column rather than from its content. Stacked
@@ -195,12 +215,17 @@ function PanelNav({
   menu,
   pathname,
   showData,
+  showExit = true,
 }: {
   menu: LifeMenuEntry[];
   pathname: string | null;
   /** Whether to offer the way to export and hard delete. Deliberately a plain
    *  boolean and not a menu entry — see the note at the top of this file. */
   showData: boolean;
+  /** False during setup, where the wizard renders its own close control. Two
+   *  X buttons on one screen is worse than none: they look like a mistake, and
+   *  the user has to guess which one abandons what. */
+  showExit?: boolean;
 }) {
   const stripRef = useRef<HTMLDivElement | null>(null);
 
@@ -215,7 +240,10 @@ function PanelNav({
       ?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [pathname]);
 
-  if (menu.length === 0) return null;
+  // An empty menu is no longer the same thing as nothing to render: during
+  // setup the views are deliberately withheld while the data control is not.
+  // Only when there is genuinely nothing left does the bar disappear.
+  if (menu.length === 0 && !showData && !showExit) return null;
   return (
     <nav
       aria-label="Panel"
@@ -292,14 +320,16 @@ function PanelNav({
             out lands, so leaving the panel means one place, not two. Last on
             the row because a close control that is not at the end is a close
             control people miss. */}
-        <Link
-          href="/chat"
-          aria-label={PANEL.closeLabel}
-          title={PANEL.closeLabel}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </Link>
+        {showExit ? (
+          <Link
+            href="/chat"
+            aria-label={PANEL.closeLabel}
+            title={PANEL.closeLabel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : null}
       </div>
     </nav>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIFE_VIEWS, hamburgerMenu, panelMenu } from "./menu";
+import { LIFE_VIEWS, hamburgerMenu, panelChrome, panelMenu } from "./menu";
 import type { LifeState } from "./types";
 
 const base: LifeState = {
@@ -169,5 +169,55 @@ describe("hamburgerMenu", () => {
 
   it("is empty with no state, exactly as the panel nav is", () => {
     expect(hamburgerMenu(null)).toEqual([]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  panelChrome (founder 2026-08-01)                                           */
+/*                                                                             */
+/*  The bug: setup stripped the WHOLE bar, and the gear linking to /panel/data */
+/*  went with it. The Principles tab IS the setup form until setup finishes,   */
+/*  and the pre-setup menu holds Principles alone, so that one line closed     */
+/*  every route to the export and the hard delete — while the consent screen   */
+/*  went on promising both were two clicks away.                               */
+/* -------------------------------------------------------------------------- */
+
+describe("panelChrome", () => {
+  it("offers the data control DURING setup", () => {
+    // The regression itself. Consenting and saving answers is already writing
+    // something, so the way to erase it has to exist from that moment.
+    expect(panelChrome(consented, true).showData).toBe(true);
+  });
+
+  it("still withholds the views during setup", () => {
+    // The rule that stripped this chrome originally is intact: one thing on
+    // the screen, no pill row reading "Principles" over "Your three bets".
+    expect(panelChrome(consented, true).showViews).toBe(false);
+    expect(panelChrome(active, false).showViews).toBe(true);
+  });
+
+  it("withholds the exit during setup, where the wizard draws its own", () => {
+    // Two X buttons on one screen is worse than none.
+    expect(panelChrome(consented, true).showExit).toBe(false);
+    expect(panelChrome(active, false).showExit).toBe(true);
+  });
+
+  it("offers no data control before consent, setup or not", () => {
+    // Nothing written yet, so there is nothing to take out or erase.
+    expect(panelChrome(base, true).showData).toBe(false);
+    expect(panelChrome(base, false).showData).toBe(false);
+  });
+
+  it("keeps offering the data control after setup completes", () => {
+    expect(panelChrome(active, false).showData).toBe(true);
+  });
+
+  it("offers nothing at all with no state", () => {
+    // The kill switch is upstream of everything here.
+    expect(panelChrome(null, false)).toEqual({
+      showViews: true,
+      showData: false,
+      showExit: true,
+    });
   });
 });
