@@ -8,6 +8,7 @@ import {
   mapPrincipleDetail,
   mapProposal,
   mapProposals,
+  mapLifeItem,
   mapTimelineEvents,
 } from "./mappers";
 import { isParticipating, principlesTabView } from "./types";
@@ -36,11 +37,70 @@ describe("mapLifeState", () => {
   });
 
   it("drops menu rows that cannot be linked, rather than rendering a dead entry", () => {
+    // A row with no key at all, and a key this side does not know: neither
+    // can be turned into a link. `{key: "wins"}` is deliberately NOT here any
+    // more — a KNOWN key needs no href, because the href is looked up. See
+    // the "server sends bare keys" block below.
     const state = mapLifeState({
       ...payload,
-      menu: [{ key: "wins", label: "Wins" }, { href: "/panel/x" }],
+      menu: [{ href: "/panel/x" }, { key: "not_a_view" }],
     })!;
     expect(state.menu).toHaveLength(0);
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /*  The server sends bare KEYS (founder 2026-08-01)                          */
+  /*                                                                          */
+  /*  /v2/life/state sends menu: ["principles", "wins", …]. This required     */
+  /*  objects carrying {key, href}, so every entry was discarded and          */
+  /*  state.menu was permanently empty. Two things broke silently: the server */
+  /*  could not add or pull a surface without an FE deploy, and Prayer could  */
+  /*  never appear for the allowlisted user it is enumerated for.             */
+  /* ------------------------------------------------------------------------ */
+
+  it("resolves the bare keys the backend actually sends", () => {
+    const state = mapLifeState({
+      ...payload,
+      menu: ["principles", "wins", "timeline"],
+    })!;
+    expect(state.menu.map((m) => m.key)).toEqual([
+      "principles",
+      "wins",
+      "timeline",
+    ]);
+    // The href comes from this side, so the backend never has to know routes.
+    expect(state.menu[1].href).toBe("/panel/wins");
+    expect(state.menu[1].label).toBe("Wins");
+  });
+
+  it("resolves prayer, and marks it as leaving the app", () => {
+    const state = mapLifeState({ ...payload, menu: ["principles", "prayer"] })!;
+    const prayer = state.menu.find((m) => m.key === "prayer")!;
+    expect(prayer.external).toBe(true);
+    expect(prayer.href).toContain("pompeiana");
+  });
+
+  it("keeps the server's own object when it sends one", () => {
+    // The override still overrides: a payload that wants a different label or
+    // a key pointed somewhere new says so, and this side does not argue.
+    const state = mapLifeState({
+      ...payload,
+      menu: [{ key: "wins", label: "Victories", href: "/panel/elsewhere" }],
+    })!;
+    expect(state.menu[0].label).toBe("Victories");
+    expect(state.menu[0].href).toBe("/panel/elsewhere");
+  });
+
+  it("fills in what a partial object leaves out", () => {
+    const state = mapLifeState({ ...payload, menu: [{ key: "wins" }] })!;
+    expect(state.menu[0].href).toBe("/panel/wins");
+    expect(state.menu[0].label).toBe("Wins");
+  });
+
+  it("drops an unknown key that carries no href of its own", () => {
+    // Rendering it would be a dead entry; guessing a route would be worse.
+    const state = mapLifeState({ ...payload, menu: ["nope", 42, null] })!;
+    expect(state.menu).toEqual([]);
   });
 
   it("returns null without a required consent version", () => {
@@ -533,5 +593,50 @@ describe("mapChatCard", () => {
     })!;
     expect(card.lines).toEqual(["a", "b"]);
     expect(card.awaitingApproval).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  mapLifeItem — the bet a row belongs to (founder 2026-08-01)                */
+/*                                                                            */
+/*  betKey read `bet_key ?? bet_id`. serialize_item emits neither in a usable  */
+/*  form — bet_id is a uuid, which betKey() rejects — so this resolved to null */
+/*  for every row the backend has ever sent. The field that carries the bet is */
+/*  `collection`.                                                             */
+/* -------------------------------------------------------------------------- */
+
+describe("mapLifeItem — betKey", () => {
+  const base = { id: "i1", kind: "goal", title: "Ship it" };
+
+  it("reads the bet from collection, which is what the backend sends", () => {
+    expect(mapLifeItem({ ...base, collection: "company" })!.betKey).toBe(
+      "company"
+    );
+  });
+
+  it("leaves collection itself alone", () => {
+    // Both fields are on the item: one is the lane, one is the raw column.
+    const item = mapLifeItem({ ...base, collection: "life" })!;
+    expect(item.betKey).toBe("life");
+    expect(item.collection).toBe("life");
+  });
+
+  it("ignores a uuid bet_id rather than reading it as a bet", () => {
+    // The old expression's first usable-looking candidate. A uuid is not one
+    // of the three keys, so it must not become a lane.
+    const item = mapLifeItem({
+      ...base,
+      bet_id: "3f1a5c8e-0000-4000-8000-000000000000",
+    })!;
+    expect(item.betKey).toBeNull();
+  });
+
+  it("still honours the older names when a payload uses them", () => {
+    expect(mapLifeItem({ ...base, bet_key: "dream" })!.betKey).toBe("dream");
+  });
+
+  it("is null for a collection that is not a bet", () => {
+    // Phrases carry collection "wall". That is a shelf, not a bet.
+    expect(mapLifeItem({ ...base, collection: "wall" })!.betKey).toBeNull();
   });
 });

@@ -87,7 +87,7 @@ export default function SetupFlow({
   // yielded nothing must say so, or the user walks into eight empty screens
   // believing they were filled.
   const [fill, setFill] = useState<
-    "idle" | "working" | "done" | "none" | "failed"
+    "idle" | "working" | "done" | "none" | "unreadable" | "failed"
   >("idle");
   // The fill is an await on a model call, so it can be slow, and `answers` can
   // move under it: Back to the bets step and a word typed into a meaning is
@@ -181,16 +181,31 @@ export default function SetupFlow({
    *  before Next ever saves it as an answer. Rows with no screen to land on
    *  (habits, distractions, bets) come back as the remainder and are reviewed
    *  on the last screen instead. */
-  async function fillFromDocument() {
+  /** `documentId` re-runs the fill against a document already uploaded
+   *  (founder 2026-08-01). Omitted on upload, where the backend reads the
+   *  newest processed file, which is the one just handed over. */
+  async function fillFromDocument(documentId?: string) {
     setFill("working");
     try {
-      const { documentId, items } = await proposeFromDocument();
-      setDraftDocumentId(documentId);
+      const draft = await proposeFromDocument(
+        documentId ? { documentId } : {}
+      );
+      setDraftDocumentId(draft.documentId);
       // answersRef, never the captured `answers`: see the ref's declaration.
-      const result = foldDraftIntoAnswers(items, answersRef.current!);
+      const result = foldDraftIntoAnswers(draft.items, answersRef.current!);
       setAnswers(result.answers);
       setDraft(result.remainder.length > 0 ? result.remainder : null);
-      setFill(result.filledGoals > 0 ? "done" : "none");
+      // "We could not read it" and "it holds no goals" are different
+      // sentences, and only one of them is about the document. Telling
+      // someone their file was empty when the READ is what broke sends them
+      // to rewrite a document that was fine.
+      setFill(
+        !draft.extractionOk
+          ? "unreadable"
+          : result.filledGoals > 0
+            ? "done"
+            : "none"
+      );
       // Persist straight away rather than waiting for Next. The fill IS this
       // screen's answer, and save-and-resume is the only door back into an
       // interrupted setup: losing it would send the user to re-upload a
@@ -270,6 +285,8 @@ export default function SetupFlow({
         ) : step.kind === "document" ? (
           <DocumentUpload
             docs={docs}
+            busy={fill === "working"}
+            onReuse={(doc) => void fillFromDocument(doc.id)}
             onUploaded={(doc) => {
               setDocs((prev) => [doc, ...prev]);
               // An unreadable file has nothing to fill from, and its own card
@@ -289,6 +306,11 @@ export default function SetupFlow({
             {fill === "none" ? (
               <p className="text-sm text-muted-foreground">
                 {SETUP.documentFillNone}
+              </p>
+            ) : null}
+            {fill === "unreadable" ? (
+              <p className="text-sm text-muted-foreground">
+                {SETUP.documentFillUnreadable}
               </p>
             ) : null}
             {fill === "failed" ? (
