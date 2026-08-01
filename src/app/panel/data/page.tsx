@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DELETE, EXPORT, STATUS } from "@/lib/life/copy";
 import { deleteLifeData, exportLifeData } from "@/services/api/life";
+import { dropViews } from "@/lib/life/viewCache";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { PanelCard } from "@/components/life/primitives";
 import ReminderSettings from "@/components/life/ReminderSettings";
@@ -97,6 +98,10 @@ function DeleteCard() {
     setFailed(false);
     try {
       await deleteLifeData(DELETE.confirmWord);
+      // The cached view answers must not outlive the data they were read
+      // from: a wiped account showing yesterday's principles from memory
+      // would be the promise broken on the very screen that made it.
+      dropViews();
       invalidateLifeState();
       router.push("/chat");
     } catch {

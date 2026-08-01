@@ -63,7 +63,7 @@ export default function PrinciplesPage() {
 
 function PrinciplesResults() {
   const load = useCallback(() => fetchPrinciples(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(load, "principles");
 
   return (
     <>

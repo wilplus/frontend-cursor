@@ -16,10 +16,13 @@ import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelChrome, panelMenu } from "@/lib/life/menu";
+import { PANEL_VIEW_LOADERS } from "@/lib/life/panelViews";
+import { dropViews, warmViews } from "@/lib/life/viewCache";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { PANEL, VIEWS } from "@/lib/life/copy";
 import {
   hasConsented,
+  isParticipating,
   principlesTabView,
   type LifeMenuEntry,
   type LifeState,
@@ -124,7 +127,24 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
    * plumbed-through reload because it is one line and it cannot miss a view:
    * the next screen someone docks an upload under gets it for free. */
   const [contentNonce, setContentNonce] = useState(0);
-  const reloadContent = useCallback(() => setContentNonce((n) => n + 1), []);
+  const reloadContent = useCallback(() => {
+    // Rows were just created, so every cached view answer is known-stale.
+    // Drop the lot and start the re-reads NOW: by the time a pill is tapped
+    // the fresh answer is usually already back, and the remounted view joins
+    // its own re-read in flight rather than issuing a twin.
+    dropViews();
+    warmViews(PANEL_VIEW_LOADERS);
+    setContentNonce((n) => n + 1);
+  }, []);
+
+  /* Warm every view's read the moment the panel is open and unlocked. This is
+   * what makes the pill row feel instant: the reads run once, in parallel,
+   * behind whichever view is on screen — instead of one at a time, each
+   * behind its own tap. Before setup completes most reads would 404 into
+   * error states worth nothing, so the warm-up waits for participation. */
+  useEffect(() => {
+    if (state && isParticipating(state)) warmViews(PANEL_VIEW_LOADERS);
+  }, [state]);
 
   if (loading) {
     return (

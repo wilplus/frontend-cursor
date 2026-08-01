@@ -51,7 +51,7 @@ import {
 
 export default function TodayPage() {
   const load = useCallback(() => fetchDay(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(load, "today");
 
   // The user's rewording of the mantra lines (founder 2026-07-30, "my copy
   // as default, editable"). Fetched alongside the day card and NEVER

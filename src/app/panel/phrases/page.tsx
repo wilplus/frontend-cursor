@@ -43,7 +43,7 @@ function collectionLabel(key: string): string {
 
 export default function PhrasesPage() {
   const load = useCallback(() => fetchItems("phrase"), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(load, "phrases");
 
   return (
     <>
