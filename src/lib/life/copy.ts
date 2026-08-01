@@ -124,6 +124,14 @@ export const EMPTY = {
   applications: "Not cited anywhere yet.",
 } as const;
 
+/** The chip on a goal whose date has passed (founder-directed 2026-08-02:
+ *  "there can be no errors like that" — a stale task must never read as
+ *  current). Factual, not an accusation, and not a number (N3 / N4): it names
+ *  the state of the ROW, and says nothing about the person. */
+export const GOAL_ORDER = {
+  pastDue: "Past its date",
+} as const;
+
 /** View chrome. Short, factual, no exhortation. */
 export const VIEWS = {
   principles: {
