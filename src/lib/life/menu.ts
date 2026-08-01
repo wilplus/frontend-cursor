@@ -29,7 +29,12 @@
 /* -------------------------------------------------------------------------- */
 
 import { VIEWS } from "./copy";
-import { isParticipating, type LifeMenuEntry, type LifeState } from "./types";
+import {
+  hasConsented,
+  isParticipating,
+  type LifeMenuEntry,
+  type LifeState,
+} from "./types";
 
 interface LifeViewSpec {
   key: string;
@@ -124,4 +129,47 @@ const PANEL_SUBVIEW_KEYS: ReadonlySet<string> = new Set(
  */
 export function hamburgerMenu(state: LifeState | null): LifeMenuEntry[] {
   return panelMenu(state).filter((entry) => !PANEL_SUBVIEW_KEYS.has(entry.key));
+}
+
+/* -------------------------------------------------------------------------- */
+/*  panelChrome — what the bar above the panel offers (founder 2026-08-01)     */
+/*                                                                            */
+/*  Pure and here rather than inline in PanelShell, because the bug it exists  */
+/*  to prevent was invisible from inside that component: setup stripped the    */
+/*  WHOLE bar, and the gear linking to /panel/data went with it. The Principles*/
+/*  tab IS the setup form until setup finishes, and the pre-setup menu holds   */
+/*  Principles alone, so that one line removed every route to the export and   */
+/*  the hard delete — while the consent screen kept promising both were two    */
+/*  clicks away. A user half-way through setup could not erase it.             */
+/*                                                                            */
+/*  Three independent answers, not one flag, because they have three different */
+/*  reasons: the views are withheld to keep one thing on the screen, the data  */
+/*  control is offered to anyone who has written anything, and the exit is     */
+/*  withheld only where the wizard already draws its own.                      */
+/* -------------------------------------------------------------------------- */
+
+export interface PanelChrome {
+  /** The pill row of panel views. */
+  showViews: boolean;
+  /** The way to the export and the hard delete. */
+  showData: boolean;
+  /** The panel's own close control. */
+  showExit: boolean;
+}
+
+/** `onboarding` is "this screen is the setup form" — true on /panel/setup and
+ *  on /panel/principles until setup finishes, which is the mount most people
+ *  actually meet. */
+export function panelChrome(
+  state: LifeState | null,
+  onboarding: boolean
+): PanelChrome {
+  return {
+    showViews: !onboarding,
+    // Consent, not participation, and NOT gated on onboarding: consenting and
+    // saving answers is already writing something, so the way to erase it has
+    // to exist from that moment.
+    showData: hasConsented(state),
+    showExit: !onboarding,
+  };
 }
