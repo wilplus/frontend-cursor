@@ -38,7 +38,7 @@ import {
 
 export default function WeekPage() {
   const load = useCallback(() => fetchWeek(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(load, "week");
 
   return (
     <>

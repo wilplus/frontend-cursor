@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { STATUS } from "@/lib/life/copy";
+import { fetchView, readView } from "@/lib/life/viewCache";
 import { VoiceMark } from "@/components/willab/LoadingState";
 
 /* -------------------------------------------------------------------------- */
@@ -127,33 +128,61 @@ export interface PanelResource<T> {
  * `load` must be stable (wrap it in useCallback at the call site) or this
  * refetches on every render.
  */
-export function usePanelResource<T>(load: () => Promise<T>): PanelResource<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
+export function usePanelResource<T>(
+  load: () => Promise<T>,
+  cacheKey?: string
+): PanelResource<T> {
+  /* `cacheKey` opts a view into the shell's stale-while-revalidate cache
+   * (lib/life/viewCache): a cached answer renders on the FIRST frame and a
+   * silent refresh swaps fresh data in when it lands. `undefined` means
+   * absent — `null` is a real cached answer (fetchDay resolves to null), so
+   * every test here is `!== undefined`, never truthiness. Keyless callers
+   * (the principle detail, proposal cards) behave exactly as before. */
+  const cached = cacheKey ? readView<T>(cacheKey) : undefined;
+  const [data, setData] = useState<T | null>(
+    cached !== undefined ? cached : null
+  );
+  const [loaded, setLoaded] = useState(cached !== undefined);
+  const [loading, setLoading] = useState(cached === undefined);
   const [failed, setFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFailed(false);
-    void load()
+    const had = cacheKey ? readView<T>(cacheKey) : undefined;
+    if (had !== undefined) {
+      // Serve the cache now; the fetch below is a revalidation, not a load,
+      // so the view must not flicker back into its loading state.
+      setData(had);
+      setLoaded(true);
+      setLoading(false);
+      setFailed(false);
+    } else {
+      setLoading(true);
+      setFailed(false);
+    }
+    // fetchView JOINS a request the shell's warm-up already has in flight,
+    // so opening a view mid-warm-up costs one request, not two.
+    void (cacheKey ? fetchView(cacheKey, load) : load())
       .then((value) => {
         if (cancelled) return;
         setData(value);
         setLoaded(true);
         setLoading(false);
+        setFailed(false);
       })
       .catch(() => {
         if (cancelled) return;
-        setFailed(true);
         setLoading(false);
+        // STALE BEATS ERROR: a failed refresh keeps the data on screen. A
+        // failed FIRST load is still the honest error state — there is
+        // nothing truthful to show instead.
+        if (had === undefined) setFailed(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [load, nonce]);
+  }, [load, nonce, cacheKey]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { data, loaded, loading, failed, reload };

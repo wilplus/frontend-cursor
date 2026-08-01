@@ -14,7 +14,7 @@ import {
  *  this view is inside the app and reads the same rows every other view does. */
 export default function TimelinePage() {
   const load = useCallback(() => fetchTimeline(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(load, "timeline");
 
   return (
     <>
