@@ -411,6 +411,101 @@ describe("mapTimelineEvents", () => {
     expect(events.map((e) => e.id)).toEqual(["1"]);
     expect(events[0].kind).toBe("goal");
   });
+
+  /* ------------------------------------------------------------------------ */
+  /*  The endpoint answers with FOUR lists (founder 2026-08-01)                */
+  /*                                                                          */
+  /*  {events, goals, undated, bets}. This read took `events` alone, so a      */
+  /*  panel holding goals and no event rows — everyone who filled setup from   */
+  /*  a document — drew an empty canvas from a payload that was not empty.     */
+  /* ------------------------------------------------------------------------ */
+
+  const payload = {
+    events: [{ id: "e1", title: "Talk", due_at: "2027-08-01", kind: "event" }],
+    goals: [
+      {
+        id: "g1",
+        title: "A marriage with years on it",
+        due_at: "2031-07-01",
+        kind: "goal",
+        collection: "life",
+        due_label: "to July 2031",
+      },
+      {
+        id: "g2",
+        title: "Profitable",
+        due_at: "2026-12-31",
+        kind: "goal",
+        collection: "company",
+      },
+    ],
+    undated: [{ id: "u1", title: "Someday", due_at: null, kind: "goal" }],
+    bets: [{ id: "b1", title: "The Life", kind: "bet", collection: "life" }],
+  };
+
+  it("reads the goals, not only the events", () => {
+    const ids = mapTimelineEvents(payload).map((e) => e.id);
+    expect(ids).toContain("g1");
+    expect(ids).toContain("g2");
+    expect(ids).toContain("e1");
+  });
+
+  it("puts a goal in its bet's lane instead of the orphan row", () => {
+    // The canvas lanes are keyed by betKey. `collection` is the field that
+    // carries it; bet_key and category are never sent, so this used to
+    // resolve to null for every row and pile all of them under the three.
+    const byId = new Map(mapTimelineEvents(payload).map((e) => [e.id, e]));
+    expect(byId.get("g1")!.betKey).toBe("life");
+    expect(byId.get("g2")!.betKey).toBe("company");
+  });
+
+  it("keeps the goal's own due label for the read-out", () => {
+    const g1 = mapTimelineEvents(payload).find((e) => e.id === "g1")!;
+    expect(g1.dueLabel).toBe("to July 2031");
+    expect(g1.kind).toBe("goal");
+  });
+
+  it("leaves the undated list off the canvas", () => {
+    // Not an oversight: a goal whose label did not parse cannot be placed on
+    // a calendar, and guessing a date would render a fact nobody wrote.
+    expect(mapTimelineEvents(payload).map((e) => e.id)).not.toContain("u1");
+  });
+
+  it("carries a bet only when it has a date to be a band between", () => {
+    // Bets are READ, so the moment one carries dates it draws as a band. As
+    // serialized today they have none, so they fall to the same guard as
+    // anything else undateable — read, not silently special-cased.
+    expect(mapTimelineEvents(payload).map((e) => e.id)).not.toContain("b1");
+    const dated = mapTimelineEvents({
+      bets: [
+        {
+          id: "b2",
+          title: "The Company",
+          kind: "bet",
+          collection: "company",
+          due_at: "2026-01-01",
+          end_at: "2031-01-01",
+        },
+      ],
+    });
+    expect(dated).toHaveLength(1);
+    expect(dated[0].kind).toBe("bet");
+    expect(dated[0].betKey).toBe("company");
+    expect(dated[0].endAt).toBe("2031-01-01");
+  });
+
+  it("still accepts a bare array, and the older field names", () => {
+    const out = mapTimelineEvents([
+      { id: "x", title: "Old shape", at: "2027-01-01", bet_key: "dream" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].betKey).toBe("dream");
+  });
+
+  it("is empty for a payload holding none of the four", () => {
+    expect(mapTimelineEvents({})).toEqual([]);
+    expect(mapTimelineEvents(null)).toEqual([]);
+  });
 });
 
 describe("mapChatCard", () => {
