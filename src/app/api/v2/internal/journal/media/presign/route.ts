@@ -7,7 +7,7 @@ import { getBackendUrl } from "@/app/api/getAuth";
  * BFF passthrough for the Journal CMS (presigned direct-to-storage upload for a cover).
  *
  * Password-gated on the BACKEND: the admin password rides in the request body,
- * exactly like the internal credits tool, so this proxy adds no auth of its own
+ * exactly like the other internal tools, so this proxy adds no auth of its own
  * and requires no Supabase session. It relays the upstream status + body
  * verbatim so the CMS can show 401 (wrong password) and 503 (password not
  * configured) distinctly.

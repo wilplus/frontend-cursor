@@ -44,7 +44,7 @@ import {
 /*                                                                            */
 /*  NOT linked in any nav, NOT under (protected), and NOT role-gated: auth is   */
 /*  the shared admin password checked on the BACKEND (it rides in each request  */
-/*  body), the same pattern as /admin/credits. The password is held in state    */
+/*  body), the established internal-tool pattern. The password is held in state    */
 /*  and mirrored to sessionStorage only — never localStorage, so it dies with   */
 /*  the tab.                                                                    */
 /*                                                                            */

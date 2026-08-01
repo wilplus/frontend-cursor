@@ -24,7 +24,7 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  /admin/learning — developer learning-trace (backlog item 11)              */
 /*                                                                            */
-/*  NOT linked in nav. Mirrors /admin/credits: a bare internal tool whose     */
+/*  NOT linked in nav. A bare internal tool whose     */
 /*  gate is SERVER-SIDE — credits gates on a BE body password; this page      */
 /*  gates on the Supabase JWT the BFF forwards to @require_admin (the trace   */
 /*  endpoint is admin-ONLY, not admin-or-coach: BLIND COACH — it shows        */
