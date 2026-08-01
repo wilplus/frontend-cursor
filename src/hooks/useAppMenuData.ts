@@ -9,7 +9,7 @@ import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
-import { TOKENS_COPY, formatShortDate, formatTokens } from "@/components/tokens/copy";
+import { TOKENS_COPY, formatTokens } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -137,10 +137,7 @@ export function useAppMenuData(): AppMenuData {
   // appears.
   const tokensLabel =
     wallet.enabled === true && wallet.balance.kind === "ready"
-      ? TOKENS_COPY.menuRowValue(
-          formatTokens(wallet.balance.balance),
-          formatShortDate(wallet.balance.periodEndsAt)
-        )
+      ? TOKENS_COPY.menuRowValue(formatTokens(wallet.balance.balance))
       : null;
   return {
     authState,
