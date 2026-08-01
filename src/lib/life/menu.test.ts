@@ -93,4 +93,20 @@ describe("panelMenu", () => {
     const early = LIFE_VIEWS.filter((v) => !v.needsSetup).map((v) => v.key);
     expect(early).toEqual(["principles"]);
   });
+
+  it("never carries the data screen, on any payload", () => {
+    // L-6 / FE-10. Export and hard delete are promised on the consent screen
+    // as living in the panel two clicks away, so the way to them must not be
+    // something a payload can remove. A `menu` sent by the server REPLACES the
+    // derived list wholesale (the test above pins that), so a data entry added
+    // to LIFE_VIEWS would hold for most users and silently vanish for exactly
+    // the allowlisted ones the server enumerates.
+    //
+    // PanelShell renders that link itself, gated on consent and nothing else.
+    // This test is what stops the next person "tidying" it into the list.
+    expect(LIFE_VIEWS.some((v) => v.key === "data")).toBe(false);
+    for (const state of [base, consented, active]) {
+      expect(panelMenu(state).some((e) => e.href === "/panel/data")).toBe(false);
+    }
+  });
 });
