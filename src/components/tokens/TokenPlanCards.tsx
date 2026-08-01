@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { fetchPurchasableTiers, startPlanCheckout } from "@/services/api/subscribe";
+import { startPlanCheckout } from "@/services/api/subscribe";
 import type { TokenTier } from "@/services/api/tokens";
 import { TOKENS_COPY, formatTokens } from "./copy";
 
@@ -51,19 +51,12 @@ export default function TokenPlanCards({
    *  might already be subscribed is offered a second subscription. */
   currentTier: string | null;
 }) {
-  const [purchasable, setPurchasable] = useState<string[]>([]);
   const [busyTier, setBusyTier] = useState<string | null>(null);
+  // Starts true and only ever goes false, when the server tells us it cannot
+  // sell. No probe: the BE owns the price map, so this is discovered on use.
+  const [sellable, setSellable] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchPurchasableTiers().then((t) => {
-      if (!cancelled) setPurchasable(t);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const onFree = currentTier === "free" || currentTier === null;
 
@@ -79,6 +72,9 @@ export default function TokenPlanCards({
     }
     setBusyTier(null);
     setError(r.message);
+    // A server that cannot sell anything should stop offering: hide the CTAs
+    // rather than leave three buttons that will each fail the same way.
+    if (r.reason === "unavailable") setSellable(false);
   };
 
   // Only plans the BE actually published, in ladder order.
@@ -104,7 +100,11 @@ export default function TokenPlanCards({
           // Offering checkout to a subscriber would create a SECOND
           // subscription and charge them twice; switching needs the billing
           // portal the BE has no route for yet.
-          const canBuy = purchasable.includes(name) && onFree && !isCurrent;
+          // Every published paid tier is offered. Only the BE holds the price
+          // map, so the FE cannot pre-check sellability without keeping a second
+          // copy of it — and a duplicated price → tier map is how someone pays
+          // for Pro and is granted Starter. A refusal surfaces inline instead.
+          const canBuy = sellable && onFree && !isCurrent;
 
           return (
             <div
@@ -173,7 +173,7 @@ export default function TokenPlanCards({
       {/* One explanation, and only when it is true: nothing configured for sale,
           or already on a paid plan (where a change needs the billing portal the
           BE has no route for, so a human beats a double-charging button). */}
-      {purchasable.length === 0 ? (
+      {!sellable ? (
         <p className="text-[12px] text-muted-foreground">
           {TOKENS_COPY.walletUpgradeUnavailable}
         </p>
