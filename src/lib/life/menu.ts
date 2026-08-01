@@ -105,6 +105,69 @@ export function panelMenu(state: LifeState | null): LifeMenuEntry[] {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Resolving a server-sent key (founder 2026-08-01)                          */
+/*                                                                            */
+/*  /v2/life/state sends `menu` as a list of KEYS — ["principles", "wins", …] */
+/*  — and this side required objects carrying {key, href}. Every entry was    */
+/*  therefore discarded and `state.menu` was always empty, which meant the    */
+/*  derived list below is what has always rendered. Two things were broken by */
+/*  that and neither was visible: the server could not pull or add a surface  */
+/*  without an FE deploy, and PRAYER COULD NEVER APPEAR for the allowlisted   */
+/*  user the server enumerates it for.                                        */
+/*                                                                            */
+/*  So a key resolves HERE, against this file, and the label stays in copy.ts */
+/*  where copy lives. The alternative — the backend sending labels and hrefs  */
+/*  — would put user-facing wording in two repos and let them drift.          */
+/*                                                                            */
+/*  Prayer is resolvable but NOT derivable: it is in this table and not in    */
+/*  LIFE_VIEWS, so it appears when the server names it and never otherwise.   */
+/*  That is the allowlist working as intended, rather than this side guessing.*/
+/* -------------------------------------------------------------------------- */
+export const RESOLVABLE_VIEWS: ReadonlyMap<string, LifeMenuEntry> = new Map(
+  [
+    ...LIFE_VIEWS.map(({ key, label, href }) => [key, { key, label, href }]),
+    [
+      "prayer",
+      {
+        key: "prayer",
+        label: VIEWS.prayer.title,
+        // Its own subdomain, its own service worker scope, its own PWA
+        // install — so it leaves the app rather than routing inside it.
+        href: "https://pompeiana.willpowerlab.com",
+        external: true,
+      },
+    ],
+    ["data", { key: "data", label: VIEWS.data.title, href: "/panel/data" }],
+  ] as [string, LifeMenuEntry][]
+);
+
+/** One server-sent entry → something renderable, or null.
+ *
+ *  Accepts BOTH shapes on purpose: a bare key (what the backend sends today)
+ *  and a full object (what a future payload might send to override a label or
+ *  point a key somewhere new). An object still wins over the table, so the
+ *  server keeps the last word; a key it does not recognise is dropped rather
+ *  than rendered as a dead entry. */
+export function resolveMenuEntry(raw: unknown): LifeMenuEntry | null {
+  if (typeof raw === "string") return RESOLVABLE_VIEWS.get(raw) ?? null;
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Record<string, unknown>;
+  const key = typeof m.key === "string" ? m.key : null;
+  if (!key) return null;
+  const known = RESOLVABLE_VIEWS.get(key);
+  const href = typeof m.href === "string" ? m.href : known?.href;
+  if (!href) return null;
+  return {
+    key,
+    label:
+      typeof m.label === "string" && m.label ? m.label : known?.label ?? key,
+    href,
+    external:
+      typeof m.external === "boolean" ? m.external : known?.external ?? false,
+  };
+}
+
 /** The panel views that live INSIDE the Principles tab — everything the tab's
  *  own nav already puts one tap away. Principles itself is not here: it is the
  *  door, and the door belongs in the hamburger. */
