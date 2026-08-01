@@ -47,6 +47,7 @@ import {
   mapStrategyDiff,
   mapTimelineEvents,
 } from "@/lib/life/mappers";
+import { invalidatePanelData } from "@/lib/life/panelCache";
 import type {
   LifeBetKey,
   LifeDay,
@@ -116,6 +117,19 @@ async function call(
         : undefined;
     throw new LifeRequestError(res.status, message);
   }
+
+  // EVERY SUCCESSFUL WRITE DROPS THE READ CACHE, here rather than at the call
+  // sites. The panel has a dozen writes — habit ticks, the evening review, the
+  // week, an inline edit, a proposal decision, the drafted rows, the hard
+  // delete — and a cache invalidated by remembering to invalidate it is a
+  // cache that eventually serves a row the user just deleted. One choke point
+  // cannot be forgotten by the next write added above it.
+  //
+  // Wholesale, and cheap: it costs one refetch per view actually revisited,
+  // and the alternative (mapping each endpoint to the views it touches) is a
+  // second contract to keep in sync with the first.
+  if (method !== "GET") invalidatePanelData();
+
   return data;
 }
 
@@ -237,6 +251,8 @@ export async function uploadSetupDocument(
   }
   const doc = mapSetupDocument(data.document);
   if (!doc) throw new LifeRequestError(res.status);
+  // Multipart does not go through `call`, so it drops the cache itself.
+  invalidatePanelData();
   return doc;
 }
 
