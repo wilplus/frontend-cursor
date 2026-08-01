@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import { EMPTY, VIEWS } from "@/lib/life/copy";
+import { EMPTY, GOAL_ORDER, VIEWS } from "@/lib/life/copy";
+import { isPastDue, orderGoals } from "@/lib/life/goalOrder";
 import { betByKey } from "@/lib/life/types";
 import { fetchGoals } from "@/services/api/life";
 import {
@@ -70,7 +71,10 @@ export default function GoalsPage() {
                         </p>
                       ) : (
                         <ul className="mt-3 divide-y divide-border rounded-2xl border border-border">
-                          {bet.goals.map((goal) => (
+                          {/* Ordered, not served order: dated-soonest first,
+                              undated in the backend's own order, past-their-
+                              date last and said so. See lib/life/goalOrder. */}
+                          {orderGoals(bet.goals).map((goal) => (
                             <li
                               key={goal.id}
                               className="flex items-start justify-between gap-4 px-4 py-3"
@@ -85,11 +89,18 @@ export default function GoalsPage() {
                                   </p>
                                 ) : null}
                               </div>
-                              {goal.dueLabel ? (
-                                <span className="shrink-0 whitespace-nowrap rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
-                                  {goal.dueLabel}
-                                </span>
-                              ) : null}
+                              <span className="flex shrink-0 flex-col items-end gap-1">
+                                {goal.dueLabel ? (
+                                  <span className="whitespace-nowrap rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                                    {goal.dueLabel}
+                                  </span>
+                                ) : null}
+                                {isPastDue(goal) ? (
+                                  <span className="whitespace-nowrap rounded-full border border-dashed border-border px-2.5 py-0.5 text-[11px] text-muted-foreground/80">
+                                    {GOAL_ORDER.pastDue}
+                                  </span>
+                                ) : null}
+                              </span>
                             </li>
                           ))}
                         </ul>
