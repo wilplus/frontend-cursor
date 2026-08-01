@@ -148,6 +148,10 @@ export const VIEWS = {
   },
   strategy: { title: "Strategy", lede: "" },
   data: { title: "Your data", lede: "" },
+  // Its own app on its own subdomain (spec §3.4), founder-allowlisted. Named
+  // here so a server-sent menu entry has a word to render; it is never
+  // DERIVED, because this side cannot know the allowlist.
+  prayer: { title: "Prayer", lede: "" },
   setup: {
     title: "Setup",
     // FE-10 — retired. This grey supporting paragraph rendered on setup screen
@@ -306,6 +310,16 @@ export const SETUP = {
     "Nothing that reads as a goal came out of that document. The next screens are yours to fill in.",
   documentFillFailed:
     "Your document could not be read into goals. The next screens are yours to fill in, or you can try another file.",
+  /** extraction_ok === false. DISTINCT from documentFillNone, which claims the
+   *  document held no goals — untrue when the read is what broke. Founder
+   *  wording, 2026-08-01, verbatim. */
+  documentFillUnreadable:
+    "We couldn't finish analyzing your document. Please check the file and try uploading it again.",
+  /** Re-run the extraction against a document already uploaded (founder
+   *  2026-08-01). The fill used to run once, on upload, so a read that failed
+   *  or a document handed over before a fix left no way to try again short of
+   *  uploading the same file a second time. */
+  documentReuseLabel: "Fill from this document",
 
   /** The same upload, still open after setup, on the Goals view. Setup runs
    *  once and a strategy does not, so the door stays open. */
