@@ -24,7 +24,7 @@ import {
 
 export default function DistractionsPage() {
   const load = useCallback(() => fetchItems("distraction"), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("items:distraction", load);
 
   return (
     <>

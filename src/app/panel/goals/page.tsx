@@ -33,7 +33,7 @@ import {
 
 export default function GoalsPage() {
   const load = useCallback(() => fetchGoals(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("goals", load);
 
   return (
     <>
