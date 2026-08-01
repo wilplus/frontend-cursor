@@ -16,11 +16,12 @@ import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelChrome, panelMenu } from "@/lib/life/menu";
-import { warmPanelView } from "@/lib/life/prefetch";
+import { warmAllPanelViews, warmPanelView } from "@/lib/life/prefetch";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { PANEL, VIEWS } from "@/lib/life/copy";
 import {
   hasConsented,
+  isParticipating,
   principlesTabView,
   type LifeMenuEntry,
   type LifeState,
@@ -125,7 +126,26 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
    * plumbed-through reload because it is one line and it cannot miss a view:
    * the next screen someone docks an upload under gets it for free. */
   const [contentNonce, setContentNonce] = useState(0);
-  const reloadContent = useCallback(() => setContentNonce((n) => n + 1), []);
+  const reloadContent = useCallback(() => {
+    // The write already dropped the cache (the API client does it at the
+    // choke point). Start the re-reads NOW rather than at the next tap, so
+    // the rows just created are usually back before a pill is pressed.
+    warmAllPanelViews();
+    setContentNonce((n) => n + 1);
+  }, []);
+
+  /* Warm every view's read the moment the panel is open and the user is
+   * participating. This is what makes the FIRST tap instant too, not just the
+   * return: the reads run in parallel behind whichever view is on screen, and
+   * nothing waits for them.
+   *
+   * The participation gate is the point, not a nicety. Before setup finishes
+   * most of these reads 404, so warming earlier would fire eight requests to
+   * collect eight errors while the user is busy with the one screen that
+   * matters. */
+  useEffect(() => {
+    if (state && isParticipating(state)) warmAllPanelViews();
+  }, [state]);
 
   if (loading) {
     return (
