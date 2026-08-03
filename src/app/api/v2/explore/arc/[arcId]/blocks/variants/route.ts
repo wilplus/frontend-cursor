@@ -6,9 +6,11 @@ export const runtime = "nodejs";
 /**
  * GET /api/v2/explore/arc/[arcId]/blocks/variants
  *
- * BFF proxy — the VARIANT PICKER read (BLOCK_VARIANTS_ENABLED). Status
- * passthrough: 404 is the feature-off signal the FE detects on, so it must
- * arrive intact, never be rewritten into an error shape.
+ * BFF proxy — the block-variant PICKER read (BLOCK_VARIANTS_ENABLED). Every
+ * text each block has ever had: take variants (verbatim, take-badged) plus
+ * the student's latest edit. Verbatim relay: 404 is a first-class state
+ * (flag off / pre-migration arc / not owner) meaning "render nothing new",
+ * never an error.
  */
 export async function GET(
   req: NextRequest,
@@ -25,10 +27,11 @@ export async function GET(
       { status: 502 }
     );
   }
-  const arc = encodeURIComponent(params.arcId);
+
+  const id = encodeURIComponent(params.arcId);
   let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/explore/arc/${arc}/blocks/variants`, {
+    upstream = await fetch(`${backend}/v2/explore/arc/${id}/blocks/variants`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
     });
@@ -39,6 +42,7 @@ export async function GET(
       { status: 502 }
     );
   }
+
   const text = await upstream.text();
   if (!text) return new NextResponse(null, { status: upstream.status });
   let data: unknown;
