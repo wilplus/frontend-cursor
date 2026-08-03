@@ -19,7 +19,7 @@ import {
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
-import { fetchGuestLabReadout } from "@/services/api/labRecording";
+import { useLabReadoutLive } from "./useLabReadoutLive";
 import {
   readProcessingTake,
   clearProcessingTake,
@@ -405,56 +405,90 @@ export default function Lounge({
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
-  // server-side; resume its persisted marker and poll until terminal. Re-runs
-  // whenever the Lab overlay CLOSES (state-driven, not mount-only — the Lounge
-  // is always-mounted, so a marker written mid-session must be picked up the
+  // server-side; resume its persisted marker and subscribe until terminal:
+  // push-first via the readout SSE bridge, with the original 5s poll as the
+  // automatic fallback tier inside useLabReadoutLive. Re-arms whenever the Lab
+  // overlay CLOSES (state-driven, not mount-only — the Lounge is
+  // always-mounted, so a marker written mid-session must be picked up the
   // moment the user comes back from the Lab). While the Lab is open it owns
-  // the live poll, so this stands down.
+  // the live subscription, so this stands down.
   const [processingResume, setProcessingResume] = useState<{
     takeIndex: number | null;
     status: "analyzing" | "failed";
   } | null>(null);
+  const [resumeWatch, setResumeWatch] = useState<{
+    sessionId: string;
+    takeIndex: number | null;
+    startedAt: number;
+  } | null>(null);
+  // The failure note lingers briefly, then clears itself; a fresh analyzing
+  // marker cancels a pending clear so it can't wipe the new chip.
+  const failNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearFailNoteTimer = useCallback(() => {
+    if (failNoteTimerRef.current) {
+      clearTimeout(failNoteTimerRef.current);
+      failNoteTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => clearFailNoteTimer, [clearFailNoteTimer]);
   useEffect(() => {
-    if (isLabOverlay(state)) return; // the LabOverlay owns the poll while open
+    if (isLabOverlay(state)) {
+      // The LabOverlay owns the live subscription while open.
+      setResumeWatch(null);
+      return;
+    }
     const marker = readProcessingTake();
     if (!marker) {
       setProcessingResume(null);
+      setResumeWatch(null);
       return;
     }
-    const stale = () => Date.now() - marker.startedAt > 30 * 60_000;
     // A marker older than 30 min is stale (the accepted redeploy-mid-job gap
     // leaves `processing` forever) — clear quietly instead of an eternal chip.
-    if (stale()) {
+    if (Date.now() - marker.startedAt > 30 * 60_000) {
       clearProcessingTake(marker.sessionId);
+      setResumeWatch(null);
       return;
     }
+    clearFailNoteTimer();
     setProcessingResume({ takeIndex: marker.takeIndex, status: "analyzing" });
-    let active = true;
-    let failTimer: ReturnType<typeof setTimeout> | null = null;
-    const id = setInterval(() => void tick(), 5000);
-    async function tick() {
-      // The stale cutoff applies inside the loop too — a long-lived tab must
-      // not keep an orphaned "analyzing" chip alive forever.
-      if (stale()) {
-        clearProcessingTake(marker!.sessionId);
-        setProcessingResume(null);
-        clearInterval(id);
-        return;
-      }
-      const r = await fetchGuestLabReadout(marker!.sessionId);
-      if (!active || !r) return;
+    setResumeWatch({
+      sessionId: marker.sessionId,
+      takeIndex: marker.takeIndex,
+      startedAt: marker.startedAt,
+    });
+  }, [state, clearFailNoteTimer]);
+  // The stale cutoff applies while watching too — a long-lived tab must not
+  // keep an orphaned "analyzing" chip alive forever.
+  useEffect(() => {
+    if (!resumeWatch) return;
+    const id = setTimeout(() => {
+      clearProcessingTake(resumeWatch.sessionId);
+      setProcessingResume(null);
+      setResumeWatch(null);
+    }, Math.max(0, resumeWatch.startedAt + 30 * 60_000 - Date.now()));
+    return () => clearTimeout(id);
+  }, [resumeWatch]);
+  useLabReadoutLive(
+    resumeWatch?.sessionId ?? null,
+    (r) => {
+      if (!resumeWatch) return;
       const hasContent =
         r.readout.snippets.length > 0 ||
         r.readout.instantChunks.length > 0 ||
         r.readout.fullTranscriptChunks.length > 0;
       if (r.state === "failed") {
-        clearProcessingTake(marker!.sessionId);
-        setProcessingResume({ takeIndex: marker!.takeIndex, status: "failed" });
-        clearInterval(id);
+        clearProcessingTake(resumeWatch.sessionId);
+        setProcessingResume({
+          takeIndex: resumeWatch.takeIndex,
+          status: "failed",
+        });
+        setResumeWatch(null);
         // The failure note lingers briefly, then clears itself.
-        failTimer = setTimeout(() => {
-          if (active) setProcessingResume(null);
-        }, 10_000);
+        failNoteTimerRef.current = setTimeout(
+          () => setProcessingResume(null),
+          10_000
+        );
         return;
       }
       if (
@@ -462,24 +496,17 @@ export default function Lounge({
         r.state === "readout_ready" ||
         (r.state !== "processing" && hasContent)
       ) {
-        clearProcessingTake(marker!.sessionId);
+        clearProcessingTake(resumeWatch.sessionId);
         setProcessingResume(null);
-        clearInterval(id);
+        setResumeWatch(null);
         // FE-B — analysis just completed with the user back in the Lounge; the
         // BE appended the ideal-text bubble at the end of the pipeline, so
         // pull it into the thread now.
         void reload();
       }
-    }
-    void tick();
-    return () => {
-      active = false;
-      clearInterval(id);
-      if (failTimer) clearTimeout(failTimer);
-    };
-    // state is the re-arm trigger; everything else is read fresh per run.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+    },
+    5000
+  );
 
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
