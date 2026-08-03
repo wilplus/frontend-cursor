@@ -80,8 +80,26 @@ const HORIZONS = new Set<string>([
 ]);
 const BET_KEYS = new Set<string>(["life", "company", "dream"]);
 
-const betKey = (v: unknown): LifeBetKey | null =>
-  typeof v === "string" && BET_KEYS.has(v) ? (v as LifeBetKey) : null;
+// The backend labels a day's bets with TITLE strings, emoji and all
+// ("🔵 The Company"), not keys. The titles resolve back to keys here so the
+// card's BetTag still knows the rank; "the career" is this side's own label
+// for `company` and resolves too, so a payload echoing our rename survives.
+const BET_TITLES: Record<string, LifeBetKey> = {
+  "the life": "life",
+  "the company": "company",
+  "the career": "company",
+  "the dream": "dream",
+};
+
+const betKey = (v: unknown): LifeBetKey | null => {
+  if (typeof v !== "string") return null;
+  if (BET_KEYS.has(v)) return v as LifeBetKey;
+  const folded = v
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+  return BET_TITLES[folded] ?? null;
+};
 
 /* --------------------------------- state ---------------------------------- */
 
@@ -252,6 +270,15 @@ export function mapPrincipleDetail(raw: unknown): LifePrincipleDetail | null {
 /* --------------------------------- the day -------------------------------- */
 
 function mapChecks(raw: unknown): LifeCheck[] {
+  // `life_days.morning_checks` is stored as a RECORD, {"habit title": bool},
+  // so that shape reads too. The title is the id — it is what a tick has to
+  // send back, because it is the only name the row has.
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return Object.entries(raw as Record<string, unknown>).flatMap(
+      ([label, done]) =>
+        label.trim() ? [{ id: label, label, done: done === true }] : []
+    );
+  }
   return arr(raw).flatMap((row, i) => {
     const r = rec(row);
     if (!r) return [];
@@ -261,10 +288,20 @@ function mapChecks(raw: unknown): LifeCheck[] {
   });
 }
 
+/** The line `build_daily_card` seeds `evening_line` with. Until the user
+ *  writes their answer, the row carries the QUESTION in the answer's column —
+ *  so a value equal to it must render as the question, never as prose the
+ *  user supposedly wrote (and must never be saved back as their answer). */
+const SEEDED_EVENING_QUESTION = "am i becoming the man i described?";
+
 export function mapLifeDay(raw: unknown): LifeDay | null {
-  const r = rec(raw);
-  if (!r) return null;
-  const date = strOrNull(r.date);
+  const outer = rec(raw);
+  if (!outer) return null;
+  // `GET /v2/life/day` wraps the row: {"day": {...,"day": "2026-08-03"}}. The
+  // wrapper's `day` is a record where the row's own `day` is the date string,
+  // which is how the two are told apart.
+  const r = rec(outer.day) ?? outer;
+  const date = strOrNull(r.date) ?? strOrNull(r.day);
   if (!date) return null;
 
   // The 05:00 fields may arrive nested under `morning` (the two-pass shape) or
@@ -273,7 +310,15 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
   const m = rec(r.morning) ?? r;
   const evening = rec(r.evening) ?? {};
 
+  // The user's evening prose lives in `evening_line` (`answer` in the nested
+  // shape). A value equal to the seeded question is the frame, not their
+  // words.
+  const rawLine = str(evening.answer ?? evening.line ?? r.evening_line);
+  const lineIsSeed =
+    rawLine.trim().toLowerCase() === SEEDED_EVENING_QUESTION;
+
   return {
+    id: strOrNull(r.id),
     date,
     morning: {
       generatedAt: strOrNull(m.generated_at ?? r.morning_generated_at),
@@ -282,6 +327,10 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
       // With Bet 3 eligible for daily tasks, the bet is what makes the rank
       // visible on the card the rank governs.
       oneThingBet: betKey(m.one_thing_bet),
+      oneThingBetLabel: str(m.one_thing_bet),
+      oneThingGoal: str(m.one_thing_goal),
+      oneThingGoalId: strOrNull(m.one_thing_goal_id),
+      oneThingMeasure: str(m.one_thing_measure),
       focusBlocks: arr(m.focus_blocks).flatMap((row) => {
         const b = rec(row);
         if (!b) return [];
@@ -290,6 +339,7 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
             text: str(b.text),
             box: strOrNull(b.box),
             betKey: betKey(b.bet ?? b.bet_key),
+            betLabel: str(b.bet ?? b.bet_key),
           },
         ];
       }),
@@ -328,12 +378,14 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
       summary: arr(evening.summary).flatMap((line) =>
         typeof line === "string" && line.trim() ? [line] : []
       ),
-      habitsRan: bool(evening.habits_ran),
-      oneThingDone: bool(evening.one_thing),
-      distraction: str(evening.distraction),
-      question: str(evening.question),
-      // `line` is the legacy column name for the user's own answer.
-      answer: str(evening.answer ?? evening.line),
+      // The review's own fields are stored FLAT on the row (`evening_*`);
+      // the nested names stay readable for the two-pass shape.
+      habitsRan: bool(evening.habits_ran ?? r.evening_habits_ran),
+      oneThingDone: bool(evening.one_thing ?? r.evening_one_thing),
+      distraction: str(evening.distraction ?? r.evening_distraction),
+      question: str(evening.question) || (lineIsSeed ? rawLine : ""),
+      answer: lineIsSeed ? "" : rawLine,
+      measure: str(evening.measure ?? r.evening_measure),
     },
   };
 }
@@ -360,9 +412,17 @@ function pairRow(
 }
 
 export function mapLifeWeek(raw: unknown): LifeWeek | null {
-  const r = rec(raw);
-  if (!r) return null;
-  const weekOf = strOrNull(r.week_of ?? r.date ?? r.reviewed_on);
+  const outer = rec(raw);
+  if (!outer) return null;
+  // `GET /v2/life/week` sends the review row under `week`, with the ranked
+  // batch, the untagged notes and the displaced goal riding as SIBLINGS.
+  // Both layouts read: the row's own fields off `w`, the siblings off the
+  // outer record (on a flat payload they are the same object).
+  const w = rec(outer.week) ?? outer;
+  const r = { ...outer, ...w };
+  const weekOf = strOrNull(
+    r.week_of ?? r.date ?? r.reviewed_on ?? r.week_start
+  );
   if (!weekOf) return null;
 
   return {
@@ -400,6 +460,16 @@ export function mapLifeWeek(raw: unknown): LifeWeek | null {
           createdAt: strOrNull(n.created_at),
         },
       ];
+    }),
+    // The gate's read: name and due wording only, exactly as served. Anything
+    // else the backend might ever add (a count, a streak) is dropped here so
+    // it cannot reach a render (AC-9 / N3).
+    displacedGoals: arr(r.displaced_goals).flatMap((row) => {
+      const g = rec(row);
+      const id = strOrNull(g?.id);
+      const title = str(g?.title);
+      if (!id || !title.trim()) return [];
+      return [{ id, title, dueLabel: strOrNull(g?.due_label) }];
     }),
   };
 }
