@@ -49,6 +49,20 @@ import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
+import {
+  fetchBlockVariants,
+  fetchIdealTextRevisions,
+  restoreIdealTextRevision,
+  selectBlockVariant,
+  type BlockVariant,
+  type IdealTextRevision,
+  type VariantBlock,
+} from "@/services/api/blockVariants";
+import {
+  BlockVariantSheet,
+  RevisionTimelineSheet,
+  TimelineEntryButton,
+} from "./BlockVariantPicker";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
@@ -129,6 +143,52 @@ export default function IdealTextOverlay({
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
+  // BLOCK_VARIANTS — the picker pool, the revision timeline, and their open
+  // sheets. null = feature off (the GET 404s) / not loaded: nothing new
+  // renders anywhere.
+  const [variantBlocks, setVariantBlocks] = useState<VariantBlock[] | null>(
+    null
+  );
+  const [revisions, setRevisions] = useState<IdealTextRevision[] | null>(null);
+  const [pickerBlock, setPickerBlock] = useState<VariantBlock | null>(null);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  // Staleness fence for the variants/revisions GETs (same rule as the
+  // document GET): a select/restore bumps the generation so an in-flight
+  // pre-write read can never land on top of the post-write pool.
+  const variantsGenRef = useRef(0);
+
+  /** BLOCK_VARIANTS — pull the picker pool, then the timeline, AFTER the
+   *  document GET (§5 refetch order). 404 = feature off → clear (render
+   *  nothing new, never an error). A read FAILURE keeps the previous pool:
+   *  the pool is append-only so every id in it stays valid, and an empty
+   *  picker would lie (§4.1). */
+  const refreshVariants = useCallback(() => {
+    const gen = ++variantsGenRef.current;
+    void fetchBlockVariants(arcId).then((v) => {
+      if (gen !== variantsGenRef.current) return;
+      if (v.kind === "off") {
+        setVariantBlocks(null);
+        setRevisions(null);
+        return;
+      }
+      if (v.kind !== "ready") return;
+      setVariantBlocks(v.blocks);
+      void fetchIdealTextRevisions(arcId).then((rv) => {
+        if (gen !== variantsGenRef.current) return;
+        if (rv.kind === "ready") setRevisions(rv.revisions);
+        else if (rv.kind === "off") setRevisions(null);
+      });
+    });
+  }, [arcId]);
+
+  // A different arc = a fresh pool; nothing renders until ITS reads land.
+  useEffect(() => {
+    variantsGenRef.current++;
+    setVariantBlocks(null);
+    setRevisions(null);
+    setPickerBlock(null);
+    setTimelineOpen(false);
+  }, [arcId]);
   // A different arc = a fresh document; clear any local moment folds.
   useEffect(() => {
     stars.resetFolds();
@@ -226,6 +286,10 @@ export default function IdealTextOverlay({
         versionArmedRef.current = true;
         if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
+        // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
+        // landed (§5 order), and only on the SD lane (the pool only exists
+        // where the master model does).
+        refreshVariants();
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
@@ -243,7 +307,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce]);
+  }, [arcId, refetchNonce, refreshVariants]);
 
   const displayText = notes ?? ideal?.text ?? "";
 
@@ -282,6 +346,9 @@ export default function IdealTextOverlay({
             ? { ...prev, version: versionRef.current, userEdited: true }
             : prev
         );
+        // BLOCK_VARIANTS (§5) — a saved edit also lands block-level in the
+        // pool, so the picker may have grown a "My edit" entry.
+        refreshVariants();
         return true;
       }
       if (r.reason === "superseded") {
@@ -308,7 +375,48 @@ export default function IdealTextOverlay({
       setSaveFailed(true);
       return false;
     },
-    [arcId, ideal?.text]
+    [arcId, ideal?.text, refreshVariants]
+  );
+
+  /** BLOCK_VARIANTS — pick one variant for one block (fear 3: mix & match).
+   *  Non-destructive always (the displaced text heals back into the pool),
+   *  silent by design (no bubble — the student did it themselves, in place):
+   *  the refetch is the update. ok/gone/stale all close the sheet and
+   *  refetch in §5 order; only a transport failure keeps it open on the
+   *  retry line. */
+  const selectVariant = useCallback(
+    async (block: VariantBlock, variant: BlockVariant): Promise<boolean> => {
+      // Display-only rows never render a select button; belt-and-braces.
+      if (block.blockKey === null || !variant.variantId) return true;
+      const r = await selectBlockVariant(arcId, block.blockKey, variant.variantId);
+      if (r.kind === "error") return false;
+      setPickerBlock(null);
+      // ok → the document reassembled synchronously inside the POST. gone /
+      // stale → the pool changed under us (rare) — the same silent recovery,
+      // never an error toast (§9). Either way: document GET first, then the
+      // pool + timeline (the main effect chains them).
+      fetchGenRef.current++;
+      setRefetchNonce((n) => n + 1);
+      return true;
+    },
+    [arcId]
+  );
+
+  /** BLOCK_VARIANTS — restore (fear 2): repoint the head at what `revision`
+   *  recorded. The head that comes back is a NEW revision — restore is
+   *  itself history, and itself undoable. Never presented as deletion. */
+  const restoreRevision = useCallback(
+    async (revision: number): Promise<boolean> => {
+      const r = await restoreIdealTextRevision(arcId, revision);
+      if (r.kind === "error") return false;
+      setTimelineOpen(false);
+      // gone (flag off / revision unknown) refetches silently too — the
+      // timeline hides itself if the feature went away.
+      fetchGenRef.current++;
+      setRefetchNonce((n) => n + 1);
+      return true;
+    },
+    [arcId]
   );
 
   /** T1 · 1.2 — put the held version back on top of the new take's text. The
@@ -475,6 +583,12 @@ export default function IdealTextOverlay({
             ideal-text screens cannot head themselves differently again. */}
         <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
         <div className="flex items-center gap-2.5">
+          {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
+              timeline has rows: an empty list is a real state (pre-migration
+              arc) and hides it entirely (§4.3). */}
+          {status === "ready" && sd && !editing && revisions && revisions.length > 0 ? (
+            <TimelineEntryButton onOpen={() => setTimelineOpen(true)} />
+          ) : null}
           {(status === "ready" || status === "instant") && !editing ? (
             <button
               type="button"
@@ -687,6 +801,10 @@ export default function IdealTextOverlay({
                   // payload keeps its classic underline links).
                   sdStars={sd !== null}
                   onOpenSwap={setSwapOpen}
+                  // BLOCK_VARIANTS — the per-block picker entry (chips zip
+                  // to paragraphs; feature off → null → nothing new).
+                  variantBlocks={sd ? variantBlocks : null}
+                  onOpenPicker={setPickerBlock}
                   // SLIDES — each paragraph reads under the slide it was
                   // delivered on (deckless arcs pass null: today's view).
                   deck={deckRef ? { presentationRef: deckRef } : null}
@@ -823,6 +941,21 @@ export default function IdealTextOverlay({
           }
           return true;
         }}
+      />
+      {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological — the
+          student browses and chooses) and the revision timeline with restore.
+          Kept separate from the offer sheet above BY DESIGN (§6): the offer
+          pushes, the picker pulls. */}
+      <BlockVariantSheet
+        block={pickerBlock}
+        onSelect={selectVariant}
+        onClose={() => setPickerBlock(null)}
+      />
+      <RevisionTimelineSheet
+        open={timelineOpen}
+        revisions={revisions ?? []}
+        onRestore={restoreRevision}
+        onClose={() => setTimelineOpen(false)}
       />
       {/* SD — the shared key-moment sheet (free playback → the suggestion to
           Approve, or the coach's message behind the moments unlock). */}
