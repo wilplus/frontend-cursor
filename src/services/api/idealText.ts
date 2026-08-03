@@ -350,6 +350,12 @@ export function mapDocumentSuggestions(
  *  swapped yet — the challenger awaiting the user's decision (the glow). */
 export interface IdealPiece {
   pieceKey: number;
+  /** The KEYED pill→picker join (variant-picker handoff 2026-08-03): the
+   *  master block this paragraph's words belong to. The variants sheet
+   *  deep-links on THIS key — never by index-zipping two lists that merely
+   *  happen to sort the same. Safe-ahead: absent/null (legacy or misaligned
+   *  lanes) = no pill deep-link; the header entry still covers the block. */
+  blockKey?: number | null;
   /** The deck slide this piece's words were delivered on (0-based PDF page).
    *  Safe-ahead: absent/null until the BE serves `slide_index` — the FE then
    *  falls back to the exact-count zip (paragraph i = page i) or shows no
@@ -411,6 +417,10 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
         : null;
     out.push({
       pieceKey,
+      blockKey:
+        typeof r.block_key === "number" && Number.isFinite(r.block_key)
+          ? r.block_key
+          : null,
       slideIndex:
         typeof r.slide_index === "number" &&
         Number.isFinite(r.slide_index) &&
