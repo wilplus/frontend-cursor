@@ -13,10 +13,13 @@ import {
 } from "@/lib/life/types";
 import {
   fetchDay,
+  fetchGoals,
   fetchUserCopy,
   saveDayEvening,
   saveUserCopy,
   setDayCheck,
+  swapDayOneThing,
+  type LifeBetGroup,
   type LifeUserCopy,
 } from "@/services/api/life";
 import ProposalDeck from "@/components/life/ProposalCards";
@@ -82,6 +85,7 @@ export default function TodayPage() {
               day={day}
               overrides={overrides}
               onOverrides={setOverrides}
+              onChanged={resource.reload}
             />
           )
         }
@@ -94,10 +98,14 @@ function DayCards({
   day,
   overrides,
   onOverrides,
+  onChanged,
 }: {
   day: LifeDay;
   overrides: LifeUserCopy | null;
   onOverrides: (next: LifeUserCopy) => void;
+  /** Re-reads the day after a write that changes more than the box it was
+   *  made on (the swap rewrites the one thing, its bet and its goal). */
+  onChanged: () => void;
 }) {
   return (
     <div className="space-y-10">
@@ -106,12 +114,18 @@ function DayCards({
       </p>
       <MantraHeader overrides={overrides} onOverrides={onOverrides} />
       <MorningCard
+        dayId={day.id}
         morning={day.morning}
         distractionQuestion={
           overrides?.distractionQuestion ?? DAY.distractionQuestion
         }
+        onChanged={onChanged}
       />
-      <EveningCard evening={day.evening} />
+      <EveningCard
+        dayId={day.id}
+        morning={day.morning}
+        evening={day.evening}
+      />
     </div>
   );
 }
@@ -278,13 +292,18 @@ function CopyField({
 /* --------------------------------- 05:00 ---------------------------------- */
 
 function MorningCard({
+  dayId,
   morning,
   distractionQuestion,
+  onChanged,
 }: {
+  /** Null on a payload without a row id: the card renders read-only. */
+  dayId: string | null;
   morning: LifeDayMorning;
   /** The founder's default, or the user's own rewording (edited from the
    *  mantra block's pencil). */
   distractionQuestion: string;
+  onChanged: () => void;
 }) {
   const empty =
     !morning.oneThing &&
@@ -303,7 +322,7 @@ function MorningCard({
         <>
           {morning.checks.length > 0 ? (
             <Block label={DAY.morningLabel}>
-              <CheckList checks={morning.checks} />
+              <CheckList dayId={dayId} checks={morning.checks} />
             </Block>
           ) : null}
 
@@ -319,9 +338,30 @@ function MorningCard({
             {/* Which bet this serves. Load-bearing since Bet 3 became eligible
                 for daily tasks: with all three in play, an unlabelled card
                 makes the rank invisible on the surface the rank governs. */}
-            <BetTag betKey={morning.oneThingBet} className="mt-2" />
+            <BetTag
+              betKey={morning.oneThingBet}
+              label={morning.oneThingBetLabel}
+              className="mt-2"
+            />
+            {/* What the drafted action is TOWARD — the goal's own name
+                (BE 2026-08-02). Only when the two are different words: a
+                hand-built card holds the goal title itself, and "toward:
+                itself" would be noise. */}
+            {morning.oneThingGoal &&
+            morning.oneThingGoal.trim() !== morning.oneThing.trim() ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {DAY.towardPrefix} {morning.oneThingGoal}
+              </p>
+            ) : null}
             <p className="mt-3 text-xs text-muted-foreground">{DAY.frameNote}</p>
             <p className="mt-1 text-xs text-muted-foreground">{DAY.editHint}</p>
+            {dayId ? (
+              <SwapPicker
+                dayId={dayId}
+                currentGoalId={morning.oneThingGoalId}
+                onSwapped={onChanged}
+              />
+            ) : null}
           </div>
 
           {morning.focusBlocks.length > 0 ? (
@@ -336,7 +376,11 @@ function MorningCard({
                       <span className="text-[15px] text-foreground">
                         {block.text}
                       </span>
-                      <BetTag betKey={block.betKey} className="mt-1" />
+                      <BetTag
+                        betKey={block.betKey}
+                        label={block.betLabel}
+                        className="mt-1"
+                      />
                     </span>
                     {block.box ? (
                       <span className="shrink-0 text-xs text-muted-foreground">
@@ -406,7 +450,7 @@ function MorningCard({
 
           {morning.habits.length > 0 ? (
             <Block label={DAY.habitsLabel}>
-              <CheckList checks={morning.habits} />
+              <CheckList dayId={dayId} checks={morning.habits} />
             </Block>
           ) : null}
         </>
@@ -415,9 +459,137 @@ function MorningCard({
   );
 }
 
+/**
+ * The swap (BE 2026-08-02): put a different goal in the one-thing slot.
+ *
+ * The goals are fetched when the picker opens, not with the card — most
+ * mornings the ranked one thing IS the day and the list is never needed.
+ * Picking one names the DISPLACED ranked goal for the Sunday-review gate on
+ * the backend; nothing about the choice is learned, and the bet RANK is
+ * untouched (L-2a) — this chooses today's work, not the order of the bets.
+ */
+function SwapPicker({
+  dayId,
+  currentGoalId,
+  onSwapped,
+}: {
+  dayId: string;
+  currentGoalId: string | null;
+  onSwapped: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [groups, setGroups] = useState<LifeBetGroup[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function openPicker() {
+    setOpen(true);
+    setFailed(false);
+    if (groups === null) {
+      try {
+        setGroups(await fetchGoals());
+      } catch {
+        setGroups([]);
+        setFailed(true);
+      }
+    }
+  }
+
+  async function pick(goalId: string) {
+    if (busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await swapDayOneThing(dayId, goalId);
+      setOpen(false);
+      onSwapped();
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => void openPicker()}
+        className="mt-3 rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+      >
+        {DAY.swapLabel}
+      </button>
+    );
+  }
+
+  const choices = (groups ?? [])
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .flatMap((group) =>
+      group.goals
+        .filter((goal) => goal.id !== currentGoalId)
+        .map((goal) => ({ group, goal }))
+    );
+
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-background p-3">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        {DAY.swapTitle}
+      </p>
+      {groups === null ? (
+        <p className="mt-2 text-sm text-muted-foreground">{STATUS.loading}</p>
+      ) : choices.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">{EMPTY.goals}</p>
+      ) : (
+        <ul className="mt-2 space-y-1">
+          {choices.map(({ group, goal }) => {
+            const meta = betByKey(group.key);
+            return (
+              <li key={goal.id}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void pick(goal.id)}
+                  className="w-full rounded-lg px-2 py-1.5 text-left text-[15px] text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  {goal.title}
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span aria-hidden>{meta?.glyph} </span>
+                    {group.rank}. {meta?.label || group.label}
+                    {goal.dueLabel ? ` · ${goal.dueLabel}` : ""}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {failed ? (
+        <p className="mt-2 text-sm text-muted-foreground">{DAY.swapFailed}</p>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        disabled={busy}
+        className="mt-2 rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground disabled:opacity-40"
+      >
+        {DAY.swapCancelLabel}
+      </button>
+    </div>
+  );
+}
+
 /* --------------------------------- 23:00 ---------------------------------- */
 
-function EveningCard({ evening }: { evening: LifeDayEvening }) {
+function EveningCard({
+  dayId,
+  morning,
+  evening,
+}: {
+  dayId: string | null;
+  morning: LifeDayMorning;
+  evening: LifeDayEvening;
+}) {
   const written = evening.generatedAt !== null;
 
   return (
@@ -455,27 +627,42 @@ function EveningCard({ evening }: { evening: LifeDayEvening }) {
 
       {/* The user's half. Answerable whenever they get to it, not only after
           the summary lands. */}
-      <EveningReview evening={evening} />
+      <EveningReview dayId={dayId} morning={morning} evening={evening} />
     </section>
   );
 }
 
-function EveningReview({ evening }: { evening: LifeDayEvening }) {
+function EveningReview({
+  dayId,
+  morning,
+  evening,
+}: {
+  dayId: string | null;
+  morning: LifeDayMorning;
+  evening: LifeDayEvening;
+}) {
   const [habitsRan, setHabitsRan] = useState(evening.habitsRan);
   const [oneThingDone, setOneThingDone] = useState(evening.oneThingDone);
   const [distraction, setDistraction] = useState(evening.distraction);
   const [answer, setAnswer] = useState(evening.answer);
+  const [measure, setMeasure] = useState(evening.measure);
   const [savedDistraction, setSavedDistraction] = useState(evening.distraction);
   const [savedAnswer, setSavedAnswer] = useState(evening.answer);
+  const [savedMeasure, setSavedMeasure] = useState(evening.measure);
+
+  // A payload without a row id has nowhere to write. Inputs disable rather
+  // than pretend: a tick that cannot save must not look like one that did.
+  const readOnly = dayId === null;
 
   async function toggle(
     field: "habitsRan" | "oneThingDone",
     next: boolean,
     apply: (v: boolean) => void
   ) {
+    if (dayId === null) return;
     apply(next);
     try {
-      await saveDayEvening({ [field]: next });
+      await saveDayEvening(dayId, { [field]: next });
     } catch {
       // Put the box back. A tick that did not save must not look like one
       // that did.
@@ -484,17 +671,18 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
   }
 
   async function commitText(
-    field: "distraction" | "answer",
+    field: "distraction" | "answer" | "measure",
     value: string,
     saved: string,
     setSaved: (v: string) => void,
     reset: (v: string) => void
   ) {
+    if (dayId === null) return;
     const next = value.trim();
     if (next === saved) return;
     setSaved(next);
     try {
-      await saveDayEvening({ [field]: next });
+      await saveDayEvening(dayId, { [field]: next });
     } catch {
       setSaved(saved);
       reset(saved);
@@ -512,6 +700,7 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
           <input
             type="checkbox"
             checked={habitsRan}
+            disabled={readOnly}
             onChange={(e) =>
               void toggle("habitsRan", e.target.checked, setHabitsRan)
             }
@@ -523,6 +712,7 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
           <input
             type="checkbox"
             checked={oneThingDone}
+            disabled={readOnly}
             onChange={(e) =>
               void toggle("oneThingDone", e.target.checked, setOneThingDone)
             }
@@ -539,6 +729,7 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
         <textarea
           value={distraction}
           rows={2}
+          disabled={readOnly}
           onChange={(e) => setDistraction(e.target.value)}
           onBlur={() =>
             void commitText(
@@ -552,6 +743,47 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
           className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-foreground/30"
         />
       </label>
+
+      {/* The metric read-back (piece 3, founder-approved copy). The morning's
+          goal carried its own measure; the evening holds the day against it,
+          in the user's words. Free text, stored verbatim, never computed
+          against (AC-9) — and absent entirely on a card whose goal named no
+          measure, because a question about a measure nobody set would be the
+          system inventing homework. */}
+      {morning.oneThingMeasure ? (
+        <div className="mt-5 border-t border-border pt-4">
+          <p className="text-[15px] italic leading-relaxed text-foreground/80">
+            {DAY.measurePrefix}{" "}
+            <em className="font-medium not-italic">
+              {morning.oneThingMeasure}
+            </em>
+            {". "}
+            {DAY.measureQuestion}
+          </p>
+          <label className="mt-2 block">
+            <span className="mb-1.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              {DAY.measureAnswerLabel}
+            </span>
+            {/* No placeholder, same rule as the answer below (L-1 / N6). */}
+            <textarea
+              value={measure}
+              rows={2}
+              disabled={readOnly}
+              onChange={(e) => setMeasure(e.target.value)}
+              onBlur={() =>
+                void commitText(
+                  "measure",
+                  measure,
+                  savedMeasure,
+                  setSavedMeasure,
+                  setMeasure
+                )
+              }
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[15px] leading-[1.7] outline-none focus:border-foreground/30"
+            />
+          </label>
+        </div>
+      ) : null}
 
       <div className="mt-5 border-t border-border pt-4">
         <p className="text-[15px] italic leading-relaxed text-foreground/80">
@@ -567,6 +799,7 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
           <textarea
             value={answer}
             rows={3}
+            disabled={readOnly}
             onChange={(e) => setAnswer(e.target.value)}
             onBlur={() =>
               void commitText("answer", answer, savedAnswer, setSavedAnswer, setAnswer)
@@ -589,13 +822,25 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
  *  carries no bet, rather than guessing one. */
 function BetTag({
   betKey,
+  label = "",
   className = "",
 }: {
   betKey: LifeBetKey | null;
+  /** The payload's own wording. The fallback when the key does not resolve:
+   *  a bet named in words this build does not know still gets named, rather
+   *  than the card silently dropping which bet the day serves. */
+  label?: string;
   className?: string;
 }) {
   const meta = betByKey(betKey);
-  if (!meta) return null;
+  if (!meta) {
+    if (!label.trim()) return null;
+    return (
+      <span className={`block text-xs text-muted-foreground ${className}`}>
+        {label}
+      </span>
+    );
+  }
   return (
     <span
       className={`block text-xs text-muted-foreground ${className}`}
@@ -621,48 +866,53 @@ function Block({
   );
 }
 
-function CheckList({ checks }: { checks: LifeCheck[] }) {
-  return (
-    <ul className="space-y-1.5">
-      {checks.map((check) => (
-        <li key={check.id}>
-          <CheckRow check={check} />
-        </li>
-      ))}
-    </ul>
-  );
-}
+function CheckList({
+  dayId,
+  checks,
+}: {
+  dayId: string | null;
+  checks: LifeCheck[];
+}) {
+  // The ticks save the WHOLE record (see setDayCheck), so the list owns the
+  // live state and each row reports its toggle up.
+  const [state, setState] = useState(checks);
 
-function CheckRow({ check }: { check: LifeCheck }) {
-  const [done, setDone] = useState(check.done);
-  const [pending, setPending] = useState(false);
-
-  async function toggle(next: boolean) {
-    if (pending) return;
-    setPending(true);
-    setDone(next);
+  async function toggle(checkId: string, next: boolean) {
+    if (dayId === null) return;
+    const before = state;
+    setState(before.map((c) => (c.id === checkId ? { ...c, done: next } : c)));
     try {
-      await setDayCheck(check.id, next);
+      await setDayCheck(dayId, before, checkId, next);
     } catch {
-      setDone(!next);
-    } finally {
-      setPending(false);
+      // Put the box back. A tick that did not save must not look like one
+      // that did.
+      setState(before);
     }
   }
 
   return (
-    <label className="flex items-center gap-2.5 text-[15px] text-foreground">
-      <input
-        type="checkbox"
-        checked={done}
-        disabled={pending}
-        onChange={(e) => void toggle(e.target.checked)}
-        className="h-4 w-4 accent-foreground"
-      />
-      <span className={done ? "text-muted-foreground line-through" : ""}>
-        {check.label}
-      </span>
-    </label>
+    <ul className="space-y-1.5">
+      {state.map((check) => (
+        <li key={check.id}>
+          <label className="flex items-center gap-2.5 text-[15px] text-foreground">
+            <input
+              type="checkbox"
+              checked={check.done}
+              disabled={dayId === null}
+              onChange={(e) => void toggle(check.id, e.target.checked)}
+              className="h-4 w-4 accent-foreground"
+            />
+            <span
+              className={
+                check.done ? "text-muted-foreground line-through" : ""
+              }
+            >
+              {check.label}
+            </span>
+          </label>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -50,6 +50,7 @@ import {
 import { invalidatePanelData } from "@/lib/life/panelCache";
 import type {
   LifeBetKey,
+  LifeCheck,
   LifeDay,
   LifeItem,
   LifeItemKind,
@@ -541,47 +542,87 @@ export async function fetchDay(): Promise<LifeDay | null> {
 /**
  * Tick a checkbox on today's card.
  *
- * NOT IN THE FE PROMPT'S ENDPOINT LIST, and flagged as a contract item to
- * confirm with the backend. It is here because the card's frame includes
- * habit checkboxes, and a checkbox that cannot be ticked is not a checkbox.
- * The alternative reading, that every tick goes through `#edit` in the chat,
- * makes the morning routine a typing exercise.
+ * Every day write goes to `PATCH /day/<id>` — the row id rides on the mapped
+ * day. `morning_checks` is stored as a record of {"habit title": bool}, and
+ * the backend takes the WHOLE value, so a tick sends the full current state
+ * of the boxes with the one toggle applied. The caller has that state on
+ * screen; sending it beats a read-modify-write race against ourselves.
  *
- * This writes a BOOLEAN on a box the user is looking at. It does not touch the
+ * This writes BOOLEANS on boxes the user is looking at. It does not touch the
  * one thing, the focus blocks or any strategy text: those change through #edit
  * and through approved proposals, so the approve step stays where it belongs.
  */
 export async function setDayCheck(
+  dayId: string,
+  checks: LifeCheck[],
   checkId: string,
   done: boolean
 ): Promise<void> {
-  await call("/day", {
+  const morning_checks: Record<string, boolean> = {};
+  for (const check of checks) {
+    morning_checks[check.label] = check.id === checkId ? done : check.done;
+  }
+  await call(`/day/${encodeURIComponent(dayId)}`, {
     method: "PATCH",
-    body: { checks: [{ id: checkId, done }] },
+    body: { morning_checks },
   });
 }
 
 /**
- * Save the evening review: the two booleans, what pulled at you, and the answer
- * to the closing question.
+ * Save the evening review: the two booleans, what pulled at you, the answer
+ * to the closing question, and where the day landed against the one thing's
+ * own measure.
  *
- * Same endpoint, same reasoning as `setDayCheck`. `answer` is the user's own
- * prose and is only ever sent because they typed it. Nothing here asks the
- * system to draft it, and the field is rendered with no placeholder that would
- * write for them (L-1 / N6).
+ * Same endpoint, same reasoning as `setDayCheck`. `answer` and `measure` are
+ * the user's own prose and are only ever sent because they typed them.
+ * Nothing here asks the system to draft either, and neither field renders
+ * with a placeholder that would write for them (L-1 / N6). The measure is
+ * stored verbatim and never computed against (AC-9).
  */
-export async function saveDayEvening(patch: {
-  habitsRan?: boolean;
-  oneThingDone?: boolean;
-  distraction?: string;
-  answer?: string;
-}): Promise<void> {
-  const evening: Record<string, unknown> = {};
-  if (patch.habitsRan !== undefined) evening.habits_ran = patch.habitsRan;
-  if (patch.oneThingDone !== undefined) evening.one_thing = patch.oneThingDone;
-  if (patch.distraction !== undefined) evening.distraction = patch.distraction;
-  if (patch.answer !== undefined) evening.answer = patch.answer;
-  await call("/day", { method: "PATCH", body: { evening } });
+export async function saveDayEvening(
+  dayId: string,
+  patch: {
+    habitsRan?: boolean;
+    oneThingDone?: boolean;
+    distraction?: string;
+    answer?: string;
+    measure?: string;
+  }
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (patch.habitsRan !== undefined) body.evening_habits_ran = patch.habitsRan;
+  if (patch.oneThingDone !== undefined) {
+    body.evening_one_thing = patch.oneThingDone;
+  }
+  if (patch.distraction !== undefined) {
+    body.evening_distraction = patch.distraction;
+  }
+  if (patch.answer !== undefined) body.evening_line = patch.answer;
+  if (patch.measure !== undefined) body.evening_measure = patch.measure;
+  await call(`/day/${encodeURIComponent(dayId)}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+/**
+ * Put a different goal in the one-thing slot (the swap, BE 2026-08-02).
+ *
+ * The backend resolves the goal, promotes its drafted action if today's card
+ * holds one, and names the DISPLACED ranked goal for the Sunday-review gate.
+ * Priority is gated, never learned: nothing about this call teaches the
+ * drafting model anything (docs/life-checkin-learning-contract.md), and the
+ * bet RANK itself is untouched — this chooses today's work, not the order of
+ * the bets (L-2a).
+ */
+export async function swapDayOneThing(
+  dayId: string,
+  goalId: string
+): Promise<void> {
+  await call(`/day/${encodeURIComponent(dayId)}`, {
+    method: "PATCH",
+    body: { one_thing_goal_id: goalId },
+  });
 }
 
 /* --------------------------------- the week ------------------------------- */

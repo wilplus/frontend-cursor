@@ -281,6 +281,72 @@ describe("mapLifeDay", () => {
     expect(day.morning.bets[0].rank).toBe(2);
   });
 
+  it("reads the wire shape GET /v2/life/day actually sends", () => {
+    // The backend wraps the row and keys the date as `day`; morning_checks is
+    // a record of {"habit title": bool}; the bet is a TITLE string; the goal,
+    // its id and its measure ride flat (BE serialize_day, pieces 1-3).
+    const day = mapLifeDay({
+      day: {
+        id: "d1",
+        day: "2026-08-03",
+        morning_checks: { Pompeiana: true, "Cold shower": false },
+        one_thing: "Send the deck to two investors",
+        one_thing_bet: "🔵 The Company",
+        one_thing_goal: "Raise the round",
+        one_thing_goal_id: "g7",
+        one_thing_measure: "two replies by Friday",
+        focus_blocks: [{ text: "Deck", box: false, bet: "🟢 The Life" }],
+        evening_habits_ran: true,
+        evening_one_thing: false,
+        evening_distraction: "phone",
+        evening_measure: "one reply landed",
+        evening: { generated_at: "2026-08-03T23:00:00Z", summary: {} },
+      },
+    })!;
+    expect(day.id).toBe("d1");
+    expect(day.date).toBe("2026-08-03");
+    expect(day.morning.checks).toEqual([
+      { id: "Pompeiana", label: "Pompeiana", done: true },
+      { id: "Cold shower", label: "Cold shower", done: false },
+    ]);
+    expect(day.morning.oneThingBet).toBe("company");
+    expect(day.morning.oneThingBetLabel).toBe("🔵 The Company");
+    expect(day.morning.oneThingGoal).toBe("Raise the round");
+    expect(day.morning.oneThingGoalId).toBe("g7");
+    expect(day.morning.oneThingMeasure).toBe("two replies by Friday");
+    expect(day.morning.focusBlocks[0].betKey).toBe("life");
+    expect(day.evening.habitsRan).toBe(true);
+    expect(day.evening.oneThingDone).toBe(false);
+    expect(day.evening.distraction).toBe("phone");
+    expect(day.evening.measure).toBe("one reply landed");
+    // The recap object is not a list of lines; it must read as an empty
+    // summary rather than crash or invent prose (L-1).
+    expect(day.evening.summary).toEqual([]);
+  });
+
+  it("never reads the seeded question as the user's answer", () => {
+    // build_daily_card seeds evening_line with the question itself. Until the
+    // user writes, that value is FRAME: it renders as the question and the
+    // answer stays empty, so a blur cannot save the system's own sentence
+    // back as the user's reflection (L-1 / N6).
+    const seeded = mapLifeDay({
+      day: {
+        id: "d1",
+        day: "2026-08-03",
+        evening_line: "am I becoming the man I described?",
+      },
+    })!;
+    expect(seeded.evening.answer).toBe("");
+    expect(seeded.evening.question).toBe(
+      "am I becoming the man I described?"
+    );
+
+    const answered = mapLifeDay({
+      day: { id: "d1", day: "2026-08-03", evening_line: "closer than in June" },
+    })!;
+    expect(answered.evening.answer).toBe("closer than in June");
+  });
+
   it("reads the same fields nested under `morning`", () => {
     // The two-pass shape. Both must work so the backend can send either.
     const day = mapLifeDay({
@@ -413,6 +479,42 @@ describe("mapLifeWeek", () => {
     expect(week.habitsFailed[0].label).toBe("Pompeiana");
     expect(week.habitsFailed[0].why).toBe("");
     expect(week.goalsMoved[0].title).toBe("Ship the panel");
+  });
+
+  it("reads the wire shape GET /v2/life/week actually sends", () => {
+    // The review row rides under `week` (keyed by week_start), with the
+    // displaced goal, the ranked batch and the untagged notes as SIBLINGS.
+    const week = mapLifeWeek({
+      week: { week_start: "2026-08-02", main_distraction: "phone" },
+      displaced_goals: [
+        { id: "g7", title: "Raise the round", due_label: "this month" },
+      ],
+      untagged_notes: [{ id: "n1", body: "a thought", created_at: "2026-08-01" }],
+      proposals: [],
+      queued_held_back: 0,
+    })!;
+    expect(week.weekOf).toBe("2026-08-02");
+    expect(week.mainDistraction).toBe("phone");
+    expect(week.untagged[0].body).toBe("a thought");
+    expect(week.displacedGoals).toEqual([
+      { id: "g7", title: "Raise the round", dueLabel: "this month" },
+    ]);
+  });
+
+  it("keeps the displaced goal to its name and due wording only", () => {
+    // The gate's read is the goal's own words, nothing else. A backend that
+    // ever grew a count or a streak here must find it dropped at the border
+    // (AC-9 / N3), and a row with no name has nothing compliant to render.
+    const week = mapLifeWeek({
+      week: { week_start: "2026-08-02" },
+      displaced_goals: [
+        { id: "g7", title: "Raise the round", displaced_count: 3 },
+        { id: "g8", title: "   " },
+      ],
+    })!;
+    expect(week.displacedGoals).toEqual([
+      { id: "g7", title: "Raise the round", dueLabel: null },
+    ]);
   });
 
   it("CAPS the batch at three, whatever the backend queued", () => {
