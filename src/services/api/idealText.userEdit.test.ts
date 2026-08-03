@@ -189,4 +189,21 @@ describe("fetchIdealText — the T1 · 1.2 additive fields", () => {
     if (r.kind !== "single") throw new Error("expected single");
     expect(r.priorEdit).toEqual({ text: "held words", version: null });
   });
+
+  it("feature-detects presentation_ref (slides layer); null when absent/blank", async () => {
+    mockFetch({
+      status: 200,
+      body: { ...base, presentation_ref: "https://cdn.example/deck.pdf" },
+    });
+    const r = await fetchIdealText("arc1");
+    if (r.kind !== "single") throw new Error("expected single");
+    expect(r.presentationRef).toBe("https://cdn.example/deck.pdf");
+
+    for (const body of [base, { ...base, presentation_ref: "" }, { ...base, presentation_ref: 7 }]) {
+      mockFetch({ status: 200, body });
+      const rn = await fetchIdealText("arc1");
+      if (rn.kind !== "single") throw new Error("expected single");
+      expect(rn.presentationRef).toBeNull();
+    }
+  });
 });

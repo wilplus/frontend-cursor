@@ -20,6 +20,7 @@ import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
+import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedEditor from "./MarkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
@@ -130,6 +131,9 @@ export default function IdealTextReadout({
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
+    /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
+     *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
+    presentationRef: string | null;
     /** T1 · 1.2 — the served text IS the student's edit. Drives the star
      *  fence below (an edited document carries no honest anchors). */
     userEdited: boolean;
@@ -228,6 +232,7 @@ export default function IdealTextReadout({
           suggestions: r.suggestions,
           saved: r.saved,
           keyPoints: r.keyPoints,
+          presentationRef: r.presentationRef,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
@@ -468,6 +473,9 @@ export default function IdealTextReadout({
     },
     [arcId, markDirty]
   );
+
+  // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
+  const deckRef = useArcDeckRef(arcId, sd?.presentationRef ?? null, sdSettled);
 
   // SD — the shared star layer (sheet, Approve/Revert folds, moments unlock).
   const stars = useMomentStars({
@@ -712,6 +720,9 @@ export default function IdealTextReadout({
           textSizeClass="text-[17px]"
           onOpenSwap={setSwapOpen}
           tint={tint}
+          // SLIDES — each paragraph reads under the slide it was delivered
+          // on (deckless arcs pass null: today's view).
+          deck={deckRef ? { presentationRef: deckRef } : null}
         />
       ) : (
         // FE-1 — this fallback (no SD payload: guest, or the flag off) used to
