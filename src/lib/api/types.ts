@@ -6,61 +6,6 @@ export interface ApiError {
   error: string;
 }
 
-export interface PreRecordingQuestion {
-  id: UUID;
-  question_text: string;
-  order_index: number;
-  created_at?: ISODateString;
-}
-
-// v1 planned-session types
-export type Mode = "guided" | "open";
-export type ThemeCode =
-  | "presence_grounding"
-  | "clarity_simplicity"
-  | "pacing_rhythm"
-  | "energy_conviction"
-  | "confidence_comfort"
-  | "structure_organization"
-  | "story_narrative";
-export type PreQuestionType = "scale_1_5" | "binary_yes_no" | "binary_choice" | "text_short";
-
-export interface PreQuestion extends PreRecordingQuestion {
-  code: string;
-  question_type: PreQuestionType;
-}
-
-export interface CommandOption {
-  option_id: "A" | "B" | "C";
-  intent: string;
-  tier: number;
-  mode: Mode;
-  prompt_text_snapshot: string;
-  is_primary: boolean;
-}
-
-export type PostQuestionType = "scale" | "binary" | "free_text";
-export type PostQuestionSetId = number; // 1-20
-
-export interface PostRecordingQuestion {
-  id: UUID;
-  question_text: string;
-  question_type: PostQuestionType; // "scale" (1-5), "binary" (YES/NO), "free_text"
-  question_set_id?: PostQuestionSetId; // Which set this question belongs to (1-20)
-  order_index: number; // 0, 1, or 2 (within the set)
-  created_at?: ISODateString;
-}
-
-export interface PreRecordingAnswerInput {
-  question_id: UUID;
-  answer_text: string;
-}
-
-export interface PostRecordingAnswerInput {
-  question_id: UUID;
-  answer_text: string; // For scale: "1"-"5", for binary: "YES"/"NO", for free_text: user's text
-}
-
 export interface StoredAnswer {
   id: UUID;
   question_id: UUID;
@@ -106,135 +51,6 @@ export interface PerformanceScore {
   readiness_score?: number; // 0.0 - 1.0 (normalized from 1-10)
 }
 
-// Admin Feedback Types
-export interface AdminFeedbackRequest {
-  user_id: UUID;
-  recording_id?: UUID; // Optional: link feedback to specific recording
-  general_notes?: string; // General observations about the user
-  custom_instructions?: string; // Custom instructions for AI analysis
-  max_words?: number; // Max words for analysis report (default: 120)
-  specific_questions?: Array<{
-    question_text: string;
-    question_type: "pre" | "post";
-  }>;
-}
-
-export interface AdminFeedbackResponse {
-  success: boolean;
-  message?: string;
-}
-
-export interface UserAdminContext {
-  general_notes: string | null;
-  max_words: number;
-  specific_questions: Array<{
-    id: UUID;
-    question_text: string;
-    question_type: "pre" | "post";
-    created_at: ISODateString;
-  }>;
-  updated_at: ISODateString | null;
-  user_email?: string | null;
-  /**
-   * Smart EBCP routing flag — true once the user has completed the
-   * 4-turn EBCP calibration script in any session. Backend uses it
-   * to decide whether the next session enforces the hardcoded EBCP
-   * opener or routes straight into LLM-driven coaching. The
-   * "Reset Acoustic Baseline" admin action flips this back to false.
-   */
-  baseline_established?: boolean | null;
-  baseline_established_at?: ISODateString | null;
-}
-
-export interface RecordingForAdmin {
-  recording_id: UUID;
-  user_id: UUID;
-  user_email?: string;
-  session_id: UUID;
-  transcription_text: string | null;
-  analysis_report: string | null;
-  metrics: RecordingMetrics;
-  created_at: ISODateString;
-  has_feedback: boolean; // Whether admin has provided feedback for this user
-}
-
-export interface AdminRecordingsListResponse {
-  recordings: RecordingForAdmin[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface SessionStatusResponse {
-  has_active_session: boolean;
-  session_id: UUID | null;
-
-  pre_questions_completed: boolean;
-  recording_completed: boolean;
-  post_questions_completed: boolean;
-
-  recording_id: UUID | null;
-
-  created_at?: ISODateString;
-  completed_at?: ISODateString | null;
-  abandoned_at?: ISODateString | null;
-}
-
-export interface PreRecordingQuestionnaireInput {
-  mood: "positive" | "negative"; // 🙂 or 🙁
-  readiness: number; // 1-10 (body and mind readiness)
-  inspiration_needed: boolean; // Maps to structure: true="guided", false="open"
-  theme_code?: ThemeCode;
-  mode?: Mode;
-}
-
-export interface SessionStartRequest {
-  session_id?: UUID; // Resume: return same plan idempotently
-  questionnaire?: PreRecordingQuestionnaireInput;
-}
-
-export interface SessionStartResponse {
-  session_id: UUID;
-  cursor?: number;
-  mode?: Mode;
-  structure?: Mode; // rollout compat
-  theme_recommended_code?: ThemeCode;
-  theme_recommended_reason?: string;
-  theme_chosen_code: ThemeCode;
-  theme_chosen_source: "system" | "user" | "admin";
-  pre_questions: PreQuestion[]; // v1: length 1
-  command_options: CommandOption[]; // v1: length 3
-}
-
-export interface SubmitPreAnswersRequest {
-  session_id: UUID;
-  answers: PreRecordingAnswerInput[];
-}
-
-export interface SubmitPreAnswersResponse {
-  session_id: UUID;
-  pre_questions_completed: true;
-}
-
-export interface UploadRecordingResponse {
-  recording_id: UUID;
-  status: "recording_uploaded";
-  post_questions: PostRecordingQuestion[];
-}
-
-export interface SubmitPostAnswersRequest {
-  recording_id: UUID;
-  session_id: UUID;
-  answers: PostRecordingAnswerInput[];
-}
-
-export interface SubmitPostAnswersResponse {
-  recording_id: UUID;
-  session_id: UUID;
-  post_questions_completed: true;
-  performance_score?: PerformanceScore; // Optional: calculated after submission
-}
-
 export interface GetRecordingResponse {
   recording_id: UUID;
   session_id: UUID;
@@ -272,21 +88,6 @@ export interface ListRecordingsResponse {
   total?: number;
 }
 
-export interface UserIdentity {
-  id: UUID;
-  email: string;
-}
-
-export interface UserProfileResponse {
-  user: UserIdentity;
-  summary: {
-    total_recordings: number;
-    average_wpm?: number | null;
-    average_filler_count?: number | null;
-  };
-  latest_recordings: RecordingListItemLite[];
-}
-
 /**
  * Snippet-sharing consent surface. One-time global question asked after
  * the user rates their very first snippet (see ChatInterview consent
@@ -298,4 +99,3 @@ export interface SharingConsentResponse {
   has_answered: boolean;
   opt_in: boolean | null;
 }
-
