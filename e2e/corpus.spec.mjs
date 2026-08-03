@@ -9,11 +9,9 @@
 /*  fails the second file so per-file failure can be seen not to abort a run.  */
 /* -------------------------------------------------------------------------- */
 
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
-const { chromium } = pw;
+import { launchChromium } from "./_launch.mjs";
 
 const BASE = process.env.CORPUS_URL ?? "http://localhost:3111/dev/corpus";
-const CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
@@ -24,7 +22,7 @@ const calls = (page) => page.evaluate(() => window.__corpusCalls ?? []);
 const labels = async (page) =>
   (await calls(page)).filter((c) => c.url.includes("/confidence-label"));
 
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector("text=Training corpus");

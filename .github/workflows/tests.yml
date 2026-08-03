@@ -1,0 +1,96 @@
+name: tests
+
+# The FE's first CI gate (testing-strategy overhaul). Two tiers:
+#
+#   unit — vitest (935 cases), next lint, tsc --noEmit. All three were green
+#          at the commit that introduced this gate; a red here is a NEW
+#          defect, not environmental noise. BLOCKING.
+#
+#   e2e  — the five self-contained real-browser specs against `next dev`
+#          (see e2e/README.md; record-flow needs a live backend and is not
+#          run here). NON-BLOCKING (continue-on-error) for an observation
+#          period — real-browser timing can flake in CI, and a gate that
+#          cries wolf gets ignored. Flip it blocking once it has a quiet
+#          track record.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vitest
+        run: npm run test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start next dev and warm the harness pages
+        env:
+          # The harness contract (e2e/README.md): the star-verdicts fixture
+          # seeds an sb-dummy-* auth cookie, so the URL's project ref MUST
+          # be "dummy". Placeholders only — nothing connects to them.
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+        run: |
+          npx next dev -p 3111 > /tmp/nextdev.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3111/ && break
+            sleep 2
+          done
+          # First-compile warmup: a spec that navigates mid-compile races
+          # its own selectors. Compile each harness page before any spec.
+          for p in dev/life-bets dev/corpus dev/game dev/star-verdicts dev/marked-editor; do
+            curl -sf -o /dev/null "http://localhost:3111/$p" || true
+          done
+
+      - name: Run the self-contained specs
+        run: |
+          node e2e/bets-reorder.spec.mjs
+          node e2e/corpus.spec.mjs
+          node e2e/game.spec.mjs
+          node e2e/star-verdicts.spec.mjs
+          MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
+
+      - name: Dev-server log on failure
+        if: failure()
+        run: tail -50 /tmp/nextdev.log
