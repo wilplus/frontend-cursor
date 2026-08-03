@@ -3,6 +3,7 @@ import { mapIdealPieces, type IdealPiece } from "./idealText";
 import {
   latestTakeIndex,
   sliceSegmentsByParagraphs,
+  slidePagesForParagraphs,
   splitBadgeParagraphSpans,
   splitBadgeParagraphs,
 } from "@/lib/willab/pieceBadges";
@@ -180,5 +181,57 @@ describe("latestTakeIndex", () => {
   });
   it("null when nothing carries an index", () => {
     expect(latestTakeIndex([{ ...base, takeIndex: null }])).toBeNull();
+  });
+});
+
+describe("mapIdealPieces — slide_index (slides layer, safe-ahead)", () => {
+  const row = (extra: Record<string, unknown>) => ({
+    piece_key: 0,
+    text: "words",
+    take_index: 1,
+    snippet_id: "s",
+    take_session_id: "t",
+    status: "settled",
+    challenger: null,
+    ...extra,
+  });
+  it("reads a 0-based slide_index; absent/negative/junk degrade to null", () => {
+    expect(mapIdealPieces([row({ slide_index: 2 })])?.[0].slideIndex).toBe(2);
+    expect(mapIdealPieces([row({ slide_index: 0 })])?.[0].slideIndex).toBe(0);
+    expect(mapIdealPieces([row({})])?.[0].slideIndex).toBeNull();
+    expect(mapIdealPieces([row({ slide_index: -1 })])?.[0].slideIndex).toBeNull();
+    expect(mapIdealPieces([row({ slide_index: "2" })])?.[0].slideIndex).toBeNull();
+  });
+});
+
+describe("slidePagesForParagraphs (never a guessed slide)", () => {
+  const withSlides = (idx: Array<number | null>) =>
+    idx.map((slideIndex) => ({ slideIndex }));
+
+  it("per-piece slide_index wins when every piece carries one in range", () => {
+    expect(slidePagesForParagraphs(3, withSlides([0, 0, 2]), 4)).toEqual([
+      0, 0, 2,
+    ]);
+  });
+
+  it("an out-of-range or missing slide_index kills the explicit mapping", () => {
+    // Out of range → not even the count fallback may fire from bad indices…
+    expect(slidePagesForParagraphs(3, withSlides([0, 1, 5]), 3)).toBeNull();
+    // …but a piece row with NO index falls back to the exact-count zip.
+    expect(slidePagesForParagraphs(3, withSlides([0, null, 2]), 3)).toEqual([
+      0, 1, 2,
+    ]);
+  });
+
+  it("without pieces: paragraph i = page i ONLY on an exact count match", () => {
+    expect(slidePagesForParagraphs(3, null, 3)).toEqual([0, 1, 2]);
+    expect(slidePagesForParagraphs(3, null, 4)).toBeNull();
+    expect(slidePagesForParagraphs(4, null, 3)).toBeNull();
+  });
+
+  it("no pages / nothing to map → null", () => {
+    expect(slidePagesForParagraphs(3, null, null)).toBeNull();
+    expect(slidePagesForParagraphs(0, null, 3)).toBeNull();
+    expect(slidePagesForParagraphs(3, null, 0)).toBeNull();
   });
 });

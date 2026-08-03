@@ -63,6 +63,15 @@ function usePdfDocument(url: string | null): {
   return state;
 }
 
+/** The deck's page count, or null while loading / on failure / without a url.
+ *  Rides the same cached document promise the pages render from, so by the
+ *  time a page could draw the count has already resolved — gating a layout on
+ *  it costs no extra fetch and no extra wait. */
+export function useDeckPageCount(url: string | null): number | null {
+  const { doc } = usePdfDocument(url);
+  return doc ? doc.numPages : null;
+}
+
 /** Render one PDF page (0-based `pageIndex`) to a canvas scaled to the container
  *  width. Calls `onError` on any failure so the parent falls back to text. */
 export function PdfPage({
