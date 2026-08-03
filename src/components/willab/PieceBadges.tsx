@@ -60,16 +60,24 @@ export const WHY_COPY: Record<SwapWhy, string> = {
 };
 
 /** The version pill. Settled: quiet provenance — tap shows a transient
- *  "Kept from Take N." tooltip (FE-4), nothing else. Pending: the glow — tap
- *  opens the comparison sheet. Fresh (take == latest) wears the tint. */
+ *  "Kept from Take N." tooltip (FE-4), nothing else; with the VARIANT
+ *  PICKER on and this block choiceful, the tap deep-links into the picker
+ *  instead (keyed on blockKey — never index-zipped). Pending: the glow —
+ *  tap opens the comparison sheet; the OFFER lane always outranks the
+ *  picker on a pending pill (the two lanes stay distinct — spec §6).
+ *  Fresh (take == latest) wears the tint. */
 function PiecePill({
   piece,
   fresh,
   onOpenSwap,
+  onOpenVariants,
 }: {
   piece: IdealPiece;
   fresh: boolean;
   onOpenSwap: (piece: IdealPiece) => void;
+  /** Present only when the picker is on AND this piece's block has a real
+   *  choice — the host gates it; this component never guesses. */
+  onOpenVariants?: (blockKey: number) => void;
 }) {
   const [tip, setTip] = useState(false);
   const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +99,21 @@ function PiecePill({
       >
         {label}
         <span className="sr-only">, a newer take is waiting</span>
+      </button>
+    );
+  }
+  const blockKey = piece.blockKey;
+  if (onOpenVariants && typeof blockKey === "number") {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenVariants(blockKey)}
+        className={`ml-1.5 inline-flex -translate-y-px items-center rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium tabular-nums ${
+          fresh ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {label}
+        <span className="sr-only">, choose a version</span>
       </button>
     );
   }
@@ -157,6 +180,8 @@ export function PieceBadgeText({
   sdStars,
   textSizeClass,
   onOpenSwap,
+  onOpenVariants,
+  variantBlockKeys,
   tint,
   deck,
 }: {
@@ -181,6 +206,11 @@ export function PieceBadgeText({
   sdStars?: boolean;
   textSizeClass?: string;
   onOpenSwap: (piece: IdealPiece) => void;
+  /** VARIANT PICKER (2026-08-03) — a settled pill whose block is in
+   *  `variantBlockKeys` deep-links into the picker. Both absent = today's
+   *  tooltip behavior exactly. */
+  onOpenVariants?: (blockKey: number) => void;
+  variantBlockKeys?: Set<number> | null;
   /** The arc's deck PDF for the slide-per-paragraph read. null/absent = no
    *  deck → no slides, today's view exactly. */
   deck?: { presentationRef: string } | null;
@@ -366,6 +396,13 @@ export function PieceBadgeText({
             piece={piece}
             fresh={latest !== null && piece.takeIndex === latest}
             onOpenSwap={onOpenSwap}
+            onOpenVariants={
+              onOpenVariants &&
+              typeof piece.blockKey === "number" &&
+              variantBlockKeys?.has(piece.blockKey)
+                ? onOpenVariants
+                : undefined
+            }
           />
         );
         // FE-3+FE-4 compose: tracked changes render the words, the version

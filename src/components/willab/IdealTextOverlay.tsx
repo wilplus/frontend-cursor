@@ -49,6 +49,18 @@ import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
+import {
+  blockHasChoice,
+  fetchBlockVariants,
+  fetchIdealRevisions,
+  restoreIdealRevision,
+  selectBlockVariant,
+  type BlockVariantsPayload,
+  type IdealRevision,
+} from "@/services/api/blockVariants";
+import { BlockVariantsSheet } from "./BlockVariantsSheet";
+import { IdealRevisionsSheet } from "./IdealRevisionsSheet";
+import { VARIANT_PICKER_COPY } from "./variantPickerCopy";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
@@ -129,6 +141,15 @@ export default function IdealTextOverlay({
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
+  // VARIANT PICKER (BLOCK_VARIANTS_ENABLED, spec FE-HANDOFF-2026-08-03) —
+  // the pool payload (null = feature off / not loaded: render nothing new),
+  // the open picker sheet (with its deep-linked block), and the timeline.
+  const [variants, setVariants] = useState<BlockVariantsPayload | null>(null);
+  const [variantsSheet, setVariantsSheet] = useState<{
+    initialBlockKey: number | null;
+  } | null>(null);
+  const [revisions, setRevisions] = useState<IdealRevision[] | null>(null);
+  const [revisionsOpen, setRevisionsOpen] = useState(false);
   // A different arc = a fresh document; clear any local moment folds.
   useEffect(() => {
     stars.resetFolds();
@@ -239,6 +260,22 @@ export default function IdealTextOverlay({
       } else {
         setStatus(r.kind);
       }
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcId, refetchNonce]);
+
+  // VARIANT PICKER — feature-detect + refresh beside the document fetch
+  // (spec §3: 404 = off, render nothing new; §5: every successful write
+  // bumps refetchNonce, which re-runs this too). A refetch that fails
+  // keeps the payload we have — same no-blanking rule as the document.
+  useEffect(() => {
+    let active = true;
+    void fetchBlockVariants(arcId).then((r) => {
+      if (!active) return;
+      if (r.kind === "ready") setVariants(r.payload);
+      else if (r.kind === "off") setVariants(null);
     });
     return () => {
       active = false;
@@ -361,6 +398,52 @@ export default function IdealTextOverlay({
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
   const heldEdit = sd?.priorEdit?.text ?? superseded;
+
+  // VARIANT PICKER — the affordances follow the badge-hiding rules (spec
+  // §9): nothing on a saved (frozen) view, nothing on the student's own
+  // edited document, and only when at least one block has a real choice.
+  const pickerOn =
+    variants !== null &&
+    !edited &&
+    sd?.saved !== true &&
+    variants.blocks.some(blockHasChoice);
+  // The choiceful blocks — a settled pill deep-links only into these.
+  const variantBlockKeys = useMemo(
+    () =>
+      variants
+        ? new Set(
+            variants.blocks.filter(blockHasChoice).map((b) => b.blockKey)
+          )
+        : null,
+    [variants]
+  );
+  const loadRevisions = useCallback(async () => {
+    const r = await fetchIdealRevisions(arcId);
+    setRevisions(r.kind === "ready" ? r.revisions : []);
+  }, [arcId]);
+  /** Select round-trip (spec §5): saved OR silently-stale both refetch the
+   *  document + picker (one nonce bump feeds both effects) and count as
+   *  settled; only a hard failure keeps the sheet's retry line up. */
+  const handleSelectVariant = useCallback(
+    async (blockKey: number, variantId: string) => {
+      const r = await selectBlockVariant(arcId, blockKey, variantId);
+      if (r.kind === "error") return false;
+      setRefetchNonce((n) => n + 1);
+      if (revisionsOpen) void loadRevisions();
+      return true;
+    },
+    [arcId, revisionsOpen, loadRevisions]
+  );
+  const handleRestore = useCallback(
+    async (revision: number) => {
+      const r = await restoreIdealRevision(arcId, revision);
+      if (r.kind === "error") return false;
+      setRefetchNonce((n) => n + 1);
+      void loadRevisions();
+      return true;
+    },
+    [arcId, loadRevisions]
+  );
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
   // text; Keep mine = the suggestion is refused and never re-offered. Both
@@ -605,6 +688,33 @@ export default function IdealTextOverlay({
                   Approve all
                 </button>
               ) : null}
+              {/* VARIANT PICKER (spec §8) — the pull lane's header entry:
+                  browse every block's versions + the composition history.
+                  Hidden entirely (flag off / saved / edited / no choices):
+                  pickerOn already folds the badge-hiding rules in. */}
+              {!arranging && pickerOn ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVariantsSheet({ initialBlockKey: null })
+                    }
+                    className="rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    {VARIANT_PICKER_COPY.entry}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRevisionsOpen(true);
+                      void loadRevisions();
+                    }}
+                    className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {VARIANT_PICKER_COPY.historyEntry}
+                  </button>
+                </div>
+              ) : null}
               {/* Founder 2026-07-29 — the Full text / Key words toggle is
                   retired: the notebook always shows the full text. */}
               {/* T1 · 1.2 — a take landed while the student was editing. The
@@ -687,6 +797,17 @@ export default function IdealTextOverlay({
                   // payload keeps its classic underline links).
                   sdStars={sd !== null}
                   onOpenSwap={setSwapOpen}
+                  // VARIANT PICKER — a settled pill on a choiceful block
+                  // deep-links into the picker (keyed on blockKey). A
+                  // pending pill keeps the OFFER sheet — the lanes stay
+                  // distinct (spec §6).
+                  onOpenVariants={
+                    pickerOn
+                      ? (blockKey) =>
+                          setVariantsSheet({ initialBlockKey: blockKey })
+                      : undefined
+                  }
+                  variantBlockKeys={variantBlockKeys}
                   // SLIDES — each paragraph reads under the slide it was
                   // delivered on (deckless arcs pass null: today's view).
                   deck={deckRef ? { presentationRef: deckRef } : null}
@@ -824,6 +945,27 @@ export default function IdealTextOverlay({
           return true;
         }}
       />
+      {/* VARIANT PICKER (spec §8) — stays open across selections: mixing
+          several blocks in one sitting is the point (fear #3). Every
+          successful pick refetches; the fresh payload flows back down and
+          is_current moves in place. */}
+      {variantsSheet && variants ? (
+        <BlockVariantsSheet
+          payload={variants}
+          initialBlockKey={variantsSheet.initialBlockKey}
+          onSelect={handleSelectVariant}
+          onClose={() => setVariantsSheet(null)}
+        />
+      ) : null}
+      {/* The composition timeline (fear #2) — restore repoints, never
+          deletes, and is itself a new revision. */}
+      {revisionsOpen ? (
+        <IdealRevisionsSheet
+          revisions={revisions ?? []}
+          onRestore={handleRestore}
+          onClose={() => setRevisionsOpen(false)}
+        />
+      ) : null}
       {/* SD — the shared key-moment sheet (free playback → the suggestion to
           Approve, or the coach's message behind the moments unlock). */}
       <MomentSheet
