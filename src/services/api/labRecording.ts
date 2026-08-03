@@ -344,6 +344,24 @@ export interface LabReadoutReread {
   setup: LabSessionContext | null;
 }
 
+/** Map the readout envelope — the JSON body GET …/readout returns AND the
+ *  byte-identical `status` SSE event payload — into the FE shape. Shared by
+ *  the fetch poll below and useLabReadoutLive so the two transports cannot
+ *  drift. */
+export function mapLabReadoutRereadBody(
+  body: Record<string, unknown>
+): LabReadoutReread {
+  const readoutObj = {
+    ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
+    ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
+  };
+  return {
+    state: typeof body.state === "string" ? body.state : null,
+    readout: mapReadoutPayload(readoutObj),
+    setup: mapReadoutSetup(body.setup),
+  };
+}
+
 export async function fetchGuestLabReadout(
   sessionId: string
 ): Promise<LabReadoutReread | null> {
@@ -364,14 +382,5 @@ export async function fetchGuestLabReadout(
 
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return null;
-
-  const readoutObj = {
-    ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
-    ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
-  };
-  return {
-    state: typeof body.state === "string" ? body.state : null,
-    readout: mapReadoutPayload(readoutObj),
-    setup: mapReadoutSetup(body.setup),
-  };
+  return mapLabReadoutRereadBody(body);
 }
