@@ -47,13 +47,21 @@ a char range into `text`, whatever you have) and the FE re-anchors before the §
 
 ---
 
-## RESOLVED — BE confirmed all three (2026-08-03)
+## ~~RESOLVED — BE confirmed all three (2026-08-03)~~ CORRECTED SAME DAY — checkbox 3 was WRONG
 
-`block_key == piece_key` is guaranteed, so the FE now uses it as a cross-check on top of
-the confirmed positional zip (`alignVariantBlocksWithPieces`,
-`src/services/api/blockVariants.ts`): when the served `pieces[]` are in hand, every
-`blocks[i].blockKey` must equal `pieces[i].pieceKey` PAIRWISE or every chip hides — a
-lagging/diverged payload that counts alone can't catch now degrades safely instead of
-silently. Where there are no pieces to check against (saved/frozen document, legacy
-payload), the BE-confirmed positional rule stands alone. Nothing further blocks the §10
-sweep from the FE side.
+**The third confirmation above was never true and was not BE-confirmed.** `block_key` is
+the skeleton's GAPPED key (0, 10, 20, … — gaps by design, so a candidate can sit between
+two blocks; see `add_ideal_text_blocks.sql`), while `piece_key` is the served paragraph
+INDEX (0, 1, 2, …). They coincide only on a single-block document. The pairwise-equality
+cross-check built on it therefore returned null on every multi-block arc — failing closed
+(every chip hid; no misattribution possible), but making the per-paragraph picker entry
+silently vanish exactly where it matters most.
+
+**The real answer to "tell us what the stable join is": backend #318 (merged 2026-08-03).**
+The ideal-text GET's `pieces[]` entries now carry `block_key` themselves (master lane;
+`null` on legacy/misaligned lanes — spec §4.1 updated). The FE join is now KEYED:
+paragraph *i*'s chip is the block whose `blockKey` matches `pieces[i].blockKey`, wherever
+it sits in the pool (`alignVariantBlocksWithPieces` returns a paragraph-aligned array; an
+unmatched key stubs only ITS paragraph choiceless). Pieces without `block_key` (older BE)
+fall back to the pairwise positional rule, which keeps failing closed. Checkboxes 1–2
+stand. Nothing further blocks the §10 sweep from the FE side.

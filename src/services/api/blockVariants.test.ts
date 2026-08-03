@@ -221,10 +221,12 @@ describe("hasVariantChoice / pickerBlockForParagraph", () => {
 });
 
 describe("alignVariantBlocksWithPieces", () => {
-  /* BE-CONFIRMED 2026-08-03 (anchoring handoff): block_key == piece_key —
-   * the stronger join. When pieces are in hand the keys must match PAIRWISE
-   * or every chip hides; without pieces the confirmed positional rule
-   * stands alone. */
+  /* THE KEYED JOIN (backend #318): pieces[] carry block_key, and paragraph
+   * i's chip is the block whose key MATCHES pieces[i].blockKey. Block keys
+   * are GAPPED by design (0, 10, 20…) while piece keys are paragraph
+   * indexes (0, 1, 2…) — the retired "block_key == piece_key" pairwise
+   * rule hid every chip on any multi-block document; these tests pin the
+   * corrected world plus the legacy (keyless) fallback. */
   const blockWithKey = (blockKey: number | null): VariantBlock => ({
     blockKey,
     label: null,
@@ -232,27 +234,57 @@ describe("alignVariantBlocksWithPieces", () => {
     variants: [],
   });
 
-  it("passes aligned blocks through untouched", () => {
+  it("KEYED: gapped block keys align to paragraph indexes by key match", () => {
+    const blocks = [blockWithKey(0), blockWithKey(10), blockWithKey(20)];
+    const pieces = [
+      { pieceKey: 0, blockKey: 0 },
+      { pieceKey: 1, blockKey: 10 },
+      { pieceKey: 2, blockKey: 20 },
+    ];
+    const out = alignVariantBlocksWithPieces(blocks, pieces);
+    expect(out).not.toBeNull();
+    expect(out!.map((b) => b.blockKey)).toEqual([0, 10, 20]);
+  });
+
+  it("KEYED: an unmatched key stubs ONLY its paragraph — never the whole layer", () => {
+    const blocks = [blockWithKey(0), blockWithKey(20)];
+    const pieces = [
+      { pieceKey: 0, blockKey: 0 },
+      { pieceKey: 1, blockKey: 10 }, // pool lags — no block 10 served
+      { pieceKey: 2, blockKey: 20 },
+    ];
+    const out = alignVariantBlocksWithPieces(blocks, pieces);
+    expect(out!.map((b) => b.blockKey)).toEqual([0, null, 20]);
+    expect(out![1].variants).toEqual([]); // choiceless stub → its chip hides
+  });
+
+  it("LEGACY (no per-piece block_key): multi-block hides every chip — the gapped keys can never pairwise-match paragraph indexes", () => {
     const blocks = [blockWithKey(0), blockWithKey(10)];
-    const pieces = [{ pieceKey: 0 }, { pieceKey: 10 }];
+    const pieces = [{ pieceKey: 0 }, { pieceKey: 1 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
+  });
+
+  it("LEGACY: a single-block document still aligns positionally (0 == 0)", () => {
+    const blocks = [blockWithKey(0)];
+    const pieces = [{ pieceKey: 0 }];
     expect(alignVariantBlocksWithPieces(blocks, pieces)).toBe(blocks);
   });
 
-  it("hides EVERY chip on a pairwise key mismatch", () => {
-    const blocks = [blockWithKey(0), blockWithKey(10)];
-    const pieces = [{ pieceKey: 0 }, { pieceKey: 20 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
-  });
-
-  it("hides EVERY chip when the two payloads disagree on count", () => {
+  it("LEGACY: hides EVERY chip when the two payloads disagree on count", () => {
     const blocks = [blockWithKey(0)];
-    const pieces = [{ pieceKey: 0 }, { pieceKey: 10 }];
+    const pieces = [{ pieceKey: 0 }, { pieceKey: 1 }];
     expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
   });
 
-  it("treats an unverifiable (null-key) block row as misaligned", () => {
+  it("LEGACY: treats an unverifiable (null-key) block row as misaligned", () => {
     const blocks = [blockWithKey(null)];
     const pieces = [{ pieceKey: 0 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
+  });
+
+  it("MIXED keys (some pieces keyless) falls back to the legacy rule, never a half-keyed guess", () => {
+    const blocks = [blockWithKey(0), blockWithKey(10)];
+    const pieces = [{ pieceKey: 0, blockKey: 0 }, { pieceKey: 1 }];
     expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
   });
 

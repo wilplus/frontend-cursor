@@ -116,20 +116,40 @@ export function hasVariantChoice(block: VariantBlock): boolean {
   );
 }
 
-/** BE-CONFIRMED (2026-08-03, anchoring handoff): `block_key` EQUALS
- *  `piece_key` — the pool's blocks and the served pieces are the same rows.
- *  This is the stronger join the positional zip below rides on: when the
- *  pieces are in hand, verify the keys PAIRWISE and hide every chip on any
- *  divergence (a lagging payload counts alone can't catch). No pieces to
- *  check against (saved/frozen document, legacy payload) → the blocks pass
- *  through unchanged and the BE-confirmed positional rule stands alone.
- *  Returns the blocks to zip with, or null = render no chips. Pure. */
+/** THE KEYED JOIN (backend #318, 2026-08-03 — the answer to the anchoring
+ *  handoff): the served `pieces[]` now carry `block_key`, so paragraph i's
+ *  chip is the block whose key MATCHES `pieces[i].blockKey`, wherever it
+ *  sits in the pool. The earlier "block_key equals piece_key" assumption
+ *  was WRONG on any multi-block document — block keys are gapped by design
+ *  (0, 10, 20…) while piece keys are paragraph indexes (0, 1, 2…) — so the
+ *  old pairwise-equality check failed closed and hid every chip there.
+ *
+ *  Returns an array ALIGNED TO THE PARAGRAPHS (out[i] = paragraph i's
+ *  block); a paragraph whose key finds no block gets a choiceless stub, so
+ *  only ITS chip hides — never the whole layer, and never a guessed attach.
+ *  Pieces without block_key (older BE payload) fall back to the positional
+ *  zip, verified pairwise — unverifiable IS misaligned, chips hide. No
+ *  pieces at all (saved/frozen document, legacy lane) → the blocks pass
+ *  through for the count-gated positional rule. null = render no chips.
+ *  Pure. */
 export function alignVariantBlocksWithPieces(
   blocks: VariantBlock[] | null,
-  pieces: Array<{ pieceKey: number }> | null
+  pieces: Array<{ pieceKey: number; blockKey?: number | null }> | null
 ): VariantBlock[] | null {
   if (!blocks) return null;
   if (!pieces || pieces.length === 0) return blocks;
+  if (pieces.every((p) => typeof p.blockKey === "number")) {
+    const byKey = new Map(blocks.map((b) => [b.blockKey, b]));
+    return pieces.map(
+      (p) =>
+        byKey.get(p.blockKey as number) ?? {
+          blockKey: null,
+          label: null,
+          takeIndex: null,
+          variants: [],
+        }
+    );
+  }
   if (blocks.length !== pieces.length) return null;
   for (let i = 0; i < blocks.length; i++) {
     // A null blockKey cannot be verified against its piece — with the key
