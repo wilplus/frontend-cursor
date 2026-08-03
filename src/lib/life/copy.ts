@@ -138,7 +138,9 @@ export const GOAL_ORDER = {
  *  never as a meter (window honesty, AC-9/N4), the failure line never says
  *  the wins teach nothing, and nothing nudges. */
 export const WINS_DERIVE = {
-  button: "What do these wins teach?",
+  /** Founder's word, sign-off 2026-08-03: the label is "Wins". The handoff's
+   *  working name ("What do these wins teach?") was not kept. */
+  button: "Wins",
   workingLabel: "Reading your wins",
   proposedTitle: "From your wins",
   groundingLabel: "Read out of these wins",
