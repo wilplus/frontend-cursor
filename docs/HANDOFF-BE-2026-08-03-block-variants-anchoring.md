@@ -34,15 +34,26 @@ today:
 
 ## Please confirm (one line each)
 
-- [ ] `blocks[]` in §4.1 is always served in the same order the blocks appear in the
+- [x] `blocks[]` in §4.1 is always served in the same order the blocks appear in the
       assembled document text.
-- [ ] Every block in `blocks[]` contributes exactly one `"\n\n"`-joined segment to the
+- [x] Every block in `blocks[]` contributes exactly one `"\n\n"`-joined segment to the
       served `text` (no zero-text blocks, no blocks excluded from the read while present in
       the variants payload — note §4.2 says candidate blocks are already excluded; we're
       assuming that holds for the GET too).
-- [ ] `block_key` is NOT guaranteed to equal `piece_key` (we deliberately don't join on
-      it — say so if it IS guaranteed, since that would let us drop the positional
-      assumption for something stronger).
+- [x] `block_key` **IS** guaranteed to equal `piece_key` (BE confirmed the stronger join).
 
 If any of these doesn't hold, tell us what the stable join is (`block_key` ↔ `piece_key`,
 a char range into `text`, whatever you have) and the FE re-anchors before the §10 sweep.
+
+---
+
+## RESOLVED — BE confirmed all three (2026-08-03)
+
+`block_key == piece_key` is guaranteed, so the FE now uses it as a cross-check on top of
+the confirmed positional zip (`alignVariantBlocksWithPieces`,
+`src/services/api/blockVariants.ts`): when the served `pieces[]` are in hand, every
+`blocks[i].blockKey` must equal `pieces[i].pieceKey` PAIRWISE or every chip hides — a
+lagging/diverged payload that counts alone can't catch now degrades safely instead of
+silently. Where there are no pieces to check against (saved/frozen document, legacy
+payload), the BE-confirmed positional rule stands alone. Nothing further blocks the §10
+sweep from the FE side.

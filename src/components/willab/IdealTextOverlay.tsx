@@ -50,6 +50,7 @@ import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
+  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   fetchIdealTextRevisions,
   restoreIdealTextRevision,
@@ -803,7 +804,14 @@ export default function IdealTextOverlay({
                   onOpenSwap={setSwapOpen}
                   // BLOCK_VARIANTS — the per-block picker entry (chips zip
                   // to paragraphs; feature off → null → nothing new).
-                  variantBlocks={sd ? variantBlocks : null}
+                  // Cross-checked against the SERVED pieces via the
+                  // BE-confirmed block_key == piece_key join — sd.pieces,
+                  // not the display pieces, which a save blanks.
+                  variantBlocks={
+                    sd
+                      ? alignVariantBlocksWithPieces(variantBlocks, sd.pieces)
+                      : null
+                  }
                   onOpenPicker={setPickerBlock}
                   // SLIDES — each paragraph reads under the slide it was
                   // delivered on (deckless arcs pass null: today's view).

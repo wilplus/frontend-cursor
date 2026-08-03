@@ -116,12 +116,38 @@ export function hasVariantChoice(block: VariantBlock): boolean {
   );
 }
 
+/** BE-CONFIRMED (2026-08-03, anchoring handoff): `block_key` EQUALS
+ *  `piece_key` — the pool's blocks and the served pieces are the same rows.
+ *  This is the stronger join the positional zip below rides on: when the
+ *  pieces are in hand, verify the keys PAIRWISE and hide every chip on any
+ *  divergence (a lagging payload counts alone can't catch). No pieces to
+ *  check against (saved/frozen document, legacy payload) → the blocks pass
+ *  through unchanged and the BE-confirmed positional rule stands alone.
+ *  Returns the blocks to zip with, or null = render no chips. Pure. */
+export function alignVariantBlocksWithPieces(
+  blocks: VariantBlock[] | null,
+  pieces: Array<{ pieceKey: number }> | null
+): VariantBlock[] | null {
+  if (!blocks) return null;
+  if (!pieces || pieces.length === 0) return blocks;
+  if (blocks.length !== pieces.length) return null;
+  for (let i = 0; i < blocks.length; i++) {
+    // A null blockKey cannot be verified against its piece — with the key
+    // join available, unverifiable IS misaligned (never a guessed chip).
+    if (blocks[i].blockKey === null) return null;
+    if (blocks[i].blockKey !== pieces[i].pieceKey) return null;
+  }
+  return blocks;
+}
+
 /** Zip the pool's blocks to the reading view's paragraphs — the SAME
- *  slot-order rule as the piece badges (the BE assembles the master text by
- *  joining block texts with "\n\n", in block order). Any count mismatch (a
- *  user edit reshaped paragraphs, a lagging payload) hides every picker
- *  affordance rather than misattribute one. Returns the block for paragraph
- *  `i`, already gated on it offering a real choice. Pure. */
+ *  slot-order rule as the piece badges. BE-CONFIRMED (2026-08-03):
+ *  `blocks[]` is served in document order and every block contributes
+ *  exactly one "\n\n"-joined segment of the served text, so the zip is
+ *  exact on the machine lane. Any count mismatch (a user edit reshaped
+ *  paragraphs, a lagging payload) still hides every picker affordance
+ *  rather than misattribute one. Returns the block for paragraph `i`,
+ *  already gated on it offering a real choice. Pure. */
 export function pickerBlockForParagraph(
   blocks: VariantBlock[] | null,
   paragraphCount: number,

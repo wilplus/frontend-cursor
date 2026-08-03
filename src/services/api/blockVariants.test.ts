@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   fetchIdealTextRevisions,
   hasVariantChoice,
@@ -216,6 +217,50 @@ describe("hasVariantChoice / pickerBlockForParagraph", () => {
     // render (a misattributed picker would swap the WRONG block).
     expect(pickerBlockForParagraph([b], 2, 0)).toBeNull();
     expect(pickerBlockForParagraph(null, 1, 0)).toBeNull();
+  });
+});
+
+describe("alignVariantBlocksWithPieces", () => {
+  /* BE-CONFIRMED 2026-08-03 (anchoring handoff): block_key == piece_key —
+   * the stronger join. When pieces are in hand the keys must match PAIRWISE
+   * or every chip hides; without pieces the confirmed positional rule
+   * stands alone. */
+  const blockWithKey = (blockKey: number | null): VariantBlock => ({
+    blockKey,
+    label: null,
+    takeIndex: 1,
+    variants: [],
+  });
+
+  it("passes aligned blocks through untouched", () => {
+    const blocks = [blockWithKey(0), blockWithKey(10)];
+    const pieces = [{ pieceKey: 0 }, { pieceKey: 10 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBe(blocks);
+  });
+
+  it("hides EVERY chip on a pairwise key mismatch", () => {
+    const blocks = [blockWithKey(0), blockWithKey(10)];
+    const pieces = [{ pieceKey: 0 }, { pieceKey: 20 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
+  });
+
+  it("hides EVERY chip when the two payloads disagree on count", () => {
+    const blocks = [blockWithKey(0)];
+    const pieces = [{ pieceKey: 0 }, { pieceKey: 10 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
+  });
+
+  it("treats an unverifiable (null-key) block row as misaligned", () => {
+    const blocks = [blockWithKey(null)];
+    const pieces = [{ pieceKey: 0 }];
+    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
+  });
+
+  it("passes blocks through when there are no pieces to check against", () => {
+    const blocks = [blockWithKey(0)];
+    expect(alignVariantBlocksWithPieces(blocks, null)).toBe(blocks);
+    expect(alignVariantBlocksWithPieces(blocks, [])).toBe(blocks);
+    expect(alignVariantBlocksWithPieces(null, [{ pieceKey: 0 }])).toBeNull();
   });
 });
 

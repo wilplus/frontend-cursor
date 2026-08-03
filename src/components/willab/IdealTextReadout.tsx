@@ -20,6 +20,7 @@ import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
+  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   selectBlockVariant,
   type BlockVariant,
@@ -786,8 +787,11 @@ export default function IdealTextReadout({
           textSizeClass="text-[17px]"
           onOpenSwap={setSwapOpen}
           // BLOCK_VARIANTS — the per-block picker entry (chips zip to
-          // paragraphs; feature off → null → nothing new).
-          variantBlocks={variantBlocks}
+          // paragraphs; feature off → null → nothing new). Cross-checked
+          // against the SERVED pieces via the BE-confirmed
+          // block_key == piece_key join — sd.pieces, not the display
+          // pieces, which a save blanks.
+          variantBlocks={alignVariantBlocksWithPieces(variantBlocks, sd.pieces)}
           onOpenPicker={setPickerBlock}
           tint={tint}
           // SLIDES — each paragraph reads under the slide it was delivered
