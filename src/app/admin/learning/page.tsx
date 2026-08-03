@@ -112,14 +112,11 @@ export default function LearningTracePage() {
   const t = state.trace;
   const shadow = t.lane_shadow ?? null;
   const ann = t.lane_annotations ?? null;
-  const ac = t.lane_acoustic ?? null;
   const lanes = t.pipeline_docs?.lanes ?? [];
   const agreement = shadow?.shadow_agreement ?? null;
   const weeks = shadow?.agreement_over_time ?? [];
   const orate = overrideRate(ann);
   const lastExport = ann?.export_runs?.[0] ?? null;
-  const stressModel = ac?.stress_baseline_model ?? null;
-  const stressMd = (stressModel?.metadata ?? {}) as Record<string, unknown>;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
@@ -127,7 +124,7 @@ export default function LearningTracePage() {
         <div>
           <h1 className="text-[20px] font-semibold text-neutral-900">Learning trace</h1>
           <p className="mt-1 text-[13px] text-neutral-500">
-            How coach labels and admin annotations become models — the three
+            How coach labels and admin annotations become models — the two
             learning lanes, their corpora, decision points, and what is
             currently promoted. Developer observability; admin-only.
           </p>
@@ -280,54 +277,12 @@ export default function LearningTracePage() {
           </div>
         </LaneCard>
 
-        {/* ── lane 3: acoustic baseline ───────────────────────────────── */}
-        <LaneCard
-          title="Lane 3 — acoustic stress baseline"
-          subtitle="coach clip labels → 17-feature logistic regression → quality gate → gate-guarded promote → clip selection only"
-        >
-          <div className="flex flex-wrap gap-3">
-            <StatTile
-              label="stress clips labeled"
-              value={`${fmtNum((ac?.stress_snippets?.labeled_stress ?? 0) + (ac?.stress_snippets?.labeled_no_stress ?? 0))} / ${fmtNum(ac?.stress_snippets?.total ?? null)}`}
-              sub={`stress ${fmtNum(ac?.stress_snippets?.labeled_stress ?? null)} · no_stress ${fmtNum(ac?.stress_snippets?.labeled_no_stress ?? null)}`}
-            />
-            <StatTile
-              label="charisma clips labeled"
-              value={`${fmtNum((ac?.charisma_snippets?.labeled_charisma ?? 0) + (ac?.charisma_snippets?.labeled_no_charisma ?? 0))} / ${fmtNum(ac?.charisma_snippets?.total ?? null)}`}
-              sub={`charisma ${fmtNum(ac?.charisma_snippets?.labeled_charisma ?? null)} · no_charisma ${fmtNum(ac?.charisma_snippets?.labeled_no_charisma ?? null)}`}
-            />
-            <StatTile
-              label="snippet_labels (multi-labeler)"
-              value={fmtNum(ac?.snippet_labels?.labels_total ?? null)}
-              sub={`high ${fmtNum(ac?.snippet_labels?.confidence_high ?? null)} · low ${fmtNum(ac?.snippet_labels?.confidence_low ?? null)}`}
-            />
-          </div>
-
-          <div className="rounded-md border border-neutral-200 bg-white p-3">
-            <p className="text-[12px] font-medium text-neutral-600">
-              Promoted stress model (runtime_config stress_baseline_model_path)
-            </p>
-            {stressModel ? (
-              <div className="mt-1 space-y-0.5">
-                <p className="break-all font-mono text-[11px] text-neutral-800">
-                  {stressModel.value}
-                </p>
-                <p className="text-[11px] text-neutral-500">
-                  promoted {fmtDate(stressModel.updated_at)} by{" "}
-                  {stressModel.updated_by ?? "—"}
-                  {typeof stressMd.quality_gate_ok === "boolean"
-                    ? ` · quality gate ${stressMd.quality_gate_ok ? "PASSED" : "FAILED"}`
-                    : " · gate outcome not recorded (promoted before the gate fix)"}
-                  {stressMd.force_promote === true ? " · FORCE-PROMOTED" : ""}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-1 text-[12px] text-neutral-400">
-                no promoted model — heuristic suspicion scoring only
-              </p>
-            )}
-          </div>
-        </LaneCard>
+        {/* Lane 3 (acoustic stress baseline) is GONE — the founder pivoted
+            stress recognition into the peer-review validation loop
+            (2026-08-03). The lane's corpus, promote path and runtime_config
+            key are being deleted BE-side; see
+            docs/HANDOFF-BE-2026-08-03-stress-lane-deletion-and-peer-review.md.
+            The trace's `lane_acoustic` section is ignored if still served. */}
       </div>
 
       {/* ── known gaps ───────────────────────────────────────────────── */}

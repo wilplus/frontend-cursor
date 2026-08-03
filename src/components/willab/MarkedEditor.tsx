@@ -273,7 +273,15 @@ export default function MarkedEditor({
           insertTextAtCaret(plain);
           emit();
         }}
-        className={`flex w-full flex-col gap-4 rounded-2xl border border-primary bg-background px-4 py-4 outline-none ${textSizeClass}`}
+        /* Task #62 — BLOCK flow, not flex. A contentEditable that is a flex
+           container is a known WebKit hazard: text nodes become anonymous flex
+           items, a <br> stops breaking lines, and editing restructures blocks
+           unpredictably — the paragraph structure the paint just built decays
+           from the first keystroke. Paragraph spacing is the sibling margin
+           ([&>p+p]:mt-4, the old gap-4), and whitespace-pre-line on the root
+           keeps line breaks visible even when the browser leaves bare text
+           nodes outside any <p> (select-all-then-type). */
+        className={`block w-full whitespace-pre-line rounded-2xl border border-primary bg-background px-4 py-4 outline-none [&>p+p]:mt-4 ${textSizeClass}`}
       />
     </div>
   );

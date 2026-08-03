@@ -92,17 +92,6 @@ export type LaneAnnotations = {
   copilot_model?: RuntimeConfigRow;
 } | null;
 
-export type LaneAcoustic = {
-  stress_snippets?: Record<string, number> | null;
-  charisma_snippets?: Record<string, number> | null;
-  stress_baseline_model?: RuntimeConfigRow;
-  snippet_labels?: {
-    labels_total?: number;
-    confidence_high?: number;
-    confidence_low?: number;
-  } | null;
-} | null;
-
 export type PipelineStage = {
   stage: string;
   file?: string;
@@ -129,7 +118,9 @@ export type LearningTrace = {
   audience?: string;
   lane_shadow?: LaneShadow;
   lane_annotations?: LaneAnnotations;
-  lane_acoustic?: LaneAcoustic;
+  /* lane_acoustic (the stress baseline) was deleted 2026-08-03 — stress
+   * recognition pivoted into the peer-review validation loop. A trace that
+   * still serves the section is tolerated (extra keys are simply unread). */
   pipeline_docs?: { source?: string; lanes?: PipelineLane[] } | null;
   known_gaps?: KnownGap[] | null;
   errors?: TraceError[];

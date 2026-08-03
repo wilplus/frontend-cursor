@@ -11,11 +11,9 @@
 /*  plus the video when attached.                                              */
 /* -------------------------------------------------------------------------- */
 
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
-const { chromium } = pw;
+import { launchChromium } from "./_launch.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://localhost:3111/dev/game";
-const CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
@@ -31,7 +29,7 @@ const noPageScroll = (page) =>
     return fits(main) && fits(slot);
   });
 
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 420, height: 800 } });
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector("text=Does this sound confident?");
