@@ -237,6 +237,17 @@ export const DAY = {
   copyCancelLabel: "Cancel",
 
   oneThingLabel: "Today's one thing",
+  /** SIGN-OFF — under a drafted action, naming the goal it serves. Rendered
+   *  only when the action and the goal are different words, so a hand-built
+   *  card never says a thing is toward itself. */
+  towardPrefix: "Toward:",
+  /** SIGN-OFF — the swap affordance. It chooses today's work; the rank of
+   *  the bets never moves from here (L-2a), and the copy must not suggest
+   *  it could. */
+  swapLabel: "Put a different goal here",
+  swapTitle: "Which goal takes the slot?",
+  swapCancelLabel: "Cancel",
+  swapFailed: "That did not save. The card is unchanged.",
   focusLabel: "Focus blocks",
   distractionLabel: "Before you start",
   morningLabel: "Morning",
@@ -261,6 +272,15 @@ export const DAY = {
   /** The fallback when the payload carries no question of its own. */
   questionFallback: "Am I becoming the man I described?",
   answerLabel: "Your answer",
+
+  /** FOUNDER-APPROVED VERBATIM (2026-08-03, "option 2"): the metric
+   *  read-back at check-out. The measure is the user's own sentence from the
+   *  morning's goal, italicised between these two parts; the answer is free
+   *  text, stored verbatim, never computed against (AC-9). */
+  measurePrefix: "You said you'd know by:",
+  measureQuestion: "What actually happened?",
+  /** SIGN-OFF — the label over the free-text answer to it. */
+  measureAnswerLabel: "Where it landed, in your words",
 } as const;
 
 /** The Sunday review. Reads what happened; it does not grade it. */
@@ -278,6 +298,15 @@ export const WEEK = {
   untaggedLabel: "Notes you left untagged",
   untaggedHint: "Captured, and nothing was done with them. That was the point.",
   whyPlaceholderNote: "",
+
+  /** SIGN-OFF — the displaced goal (the learning contract's gate). The copy
+   *  states the fact and the three decisions, and stops. No count of how
+   *  often it was displaced, no "you keep avoiding this" (AC-9 / N3): the
+   *  goal's own name and due wording, and a conscious choice. */
+  displacedLabel: "A goal that kept stepping aside",
+  displacedHint:
+    "Something else kept taking its place in the day. Decide what happens to it: retire it, give it a new date, or keep it as it is. The goals screen holds the edit.",
+  displacedActionLabel: "Open the goals screen",
 } as const;
 
 export const SETUP = {

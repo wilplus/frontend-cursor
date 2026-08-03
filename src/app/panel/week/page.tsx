@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { EMPTY, VIEWS, WEEK } from "@/lib/life/copy";
 import type { LifeWeek } from "@/lib/life/types";
 import { fetchWeek, saveWeek } from "@/services/api/life";
@@ -146,6 +147,46 @@ function WeekReview({ week }: { week: LifeWeek }) {
           onSave={(becomingSentence) => saveWeek({ becomingSentence })}
         />
       </section>
+
+      {/* The learning contract's gate (BE 2026-08-02). A goal repeatedly
+          displaced from the one-thing slot arrives ONCE, here, for a
+          conscious decision - retire, re-date, or keep. The goal's own name
+          and due wording only: no count of how often, no streak, no verdict
+          (AC-9 / N3). The decision itself is an ordinary goal edit, so this
+          links to the goals screen rather than growing its own editor. */}
+      {week.displacedGoals.length > 0 ? (
+        <section className="border-t border-border pt-8">
+          <Eyebrow>{WEEK.displacedLabel}</Eyebrow>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {WEEK.displacedHint}
+          </p>
+          <ul className="mt-4 space-y-3">
+            {week.displacedGoals.map((goal) => (
+              <li
+                key={goal.id}
+                className="rounded-2xl border border-border bg-background p-4"
+              >
+                <p className="flex items-baseline justify-between gap-3">
+                  <span className="text-[15px] text-foreground">
+                    {goal.title}
+                  </span>
+                  {goal.dueLabel ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {goal.dueLabel}
+                    </span>
+                  ) : null}
+                </p>
+                <Link
+                  href="/panel/goals"
+                  className="mt-3 inline-block rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {WEEK.displacedActionLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {week.proposals.length > 0 ? (
         <section className="border-t border-border pt-8">
