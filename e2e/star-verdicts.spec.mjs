@@ -12,11 +12,9 @@
 /*  summary bookkeeping never renders.                                         */
 /* -------------------------------------------------------------------------- */
 
-import pw from "/opt/node22/lib/node_modules/playwright/index.js";
-const { chromium } = pw;
+import { launchChromium } from "./_launch.mjs";
 
 const BASE = process.env.STARS_URL ?? "http://localhost:3111/dev/star-verdicts";
-const CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
@@ -29,7 +27,7 @@ const progress = async (page) =>
   (await page.locator("header, div").first().innerText().catch(() => "")) &&
   page.locator("text=/\\d+ of \\d+ reviewed/").first().innerText().catch(() => "");
 
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector("ul > li");
