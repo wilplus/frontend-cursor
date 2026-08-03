@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetchSignedAudioUrl } from "@/lib/api/client";
 import { VoiceMark } from "@/components/willab/LoadingState";
-import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
 import type { GetRecordingResponse } from "@/lib/api/types";
 
@@ -16,7 +15,6 @@ interface CompletedCardProps {
 
 export default function CompletedCard({ recording }: CompletedCardProps) {
   const router = useRouter();
-  const reset = useSessionStore((s) => s.reset);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -26,7 +24,6 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
   const isDev = process.env.NEXT_PUBLIC_ENV === "development";
 
   const handleFinishLesson = () => {
-    reset();
     router.push("/dashboard");
   };
 
@@ -89,23 +86,6 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
         <div>
           <h4 className="text-sm font-semibold mb-2">Report</h4>
           <p className="text-sm leading-relaxed">{analysis.report}</p>
-        </div>
-      )}
-
-      {/* Performance Score / KPI */}
-      {recording.performance_score && (
-        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold">Performance Score</h4>
-            <span className="text-2xl font-bold text-primary">
-              {Math.round(recording.performance_score.final_kpi * 100)}%
-            </span>
-          </div>
-          {Object.keys(recording.performance_score.bonuses || {}).length > 0 && (
-            <div className="text-xs text-muted-foreground mt-2">
-              Bonuses: {Object.keys(recording.performance_score.bonuses).join(", ")}
-            </div>
-          )}
         </div>
       )}
 
