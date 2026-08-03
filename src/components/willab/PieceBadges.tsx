@@ -27,6 +27,11 @@ import {
   type IdealText,
   type SwapWhy,
 } from "@/services/api/idealText";
+import {
+  pickerBlockForParagraph,
+  type VariantBlock,
+} from "@/services/api/blockVariants";
+import { VariantChip } from "./BlockVariantPicker";
 import type { LocalFold } from "./MomentStars";
 
 /* -------------------------------------------------------------------------- */
@@ -159,6 +164,8 @@ export function PieceBadgeText({
   onOpenSwap,
   tint,
   deck,
+  variantBlocks,
+  onOpenPicker,
 }: {
   /** FE-7 — document-absolute key-point ranges to accent in the full read.
    *  Paragraphs carry their own `start`, so each one resolves the cues that
@@ -184,6 +191,13 @@ export function PieceBadgeText({
   /** The arc's deck PDF for the slide-per-paragraph read. null/absent = no
    *  deck → no slides, today's view exactly. */
   deck?: { presentationRef: string } | null;
+  /** BLOCK_VARIANTS — the picker pool, zipped to paragraphs by the SAME
+   *  slot-order rule as the pieces (count mismatch hides every chip, never a
+   *  misattributed one). null/absent (flag off / 404) → no chips, today's
+   *  view exactly. INDEPENDENT of `pieces` on purpose: a saved document
+   *  hides its take pills but the picker must still open (handoff §10). */
+  variantBlocks?: VariantBlock[] | null;
+  onOpenPicker?: (block: VariantBlock) => void;
 }) {
   // SLIDES — the deck the paragraphs may read under. One failure hides every
   // slide (the text is the floor); a new deck source gets a fresh chance.
@@ -210,6 +224,16 @@ export function PieceBadgeText({
       spans
     );
   }, [pieces, spans, text, ideal.keyPhrases, ideal.keyMoments]);
+  // BLOCK_VARIANTS — the picker chip for paragraph i of a count-paragraph
+  // view. Gated inside pickerBlockForParagraph: blocks must zip 1:1 with the
+  // paragraphs AND the block must offer a real choice (§8.3), else nothing
+  // renders. The chip rides `trailing` beside (never instead of) the pill —
+  // the pill stays provenance/offer, the chip is the neutral picker entry.
+  const chipAt = (i: number, count: number) => {
+    if (!onOpenPicker) return null;
+    const b = pickerBlockForParagraph(variantBlocks ?? null, count, i);
+    return b ? <VariantChip block={b} onOpen={onOpenPicker} /> : null;
+  };
   // D-2 (paragraph spacing) — even WITHOUT the piece-badge layer, split the
   // same "\n\n" paragraphs the BE joins on (offset-safe: no chars change) and
   // slice the document segments per paragraph, so the no-pieces fallback spaces
@@ -277,6 +301,7 @@ export function PieceBadgeText({
                   suggestions={rebaseSuggestionsToSpan(suggestions ?? null, span)}
                   onDecide={onDecideTracked}
                   textSizeClass={textSizeClass}
+                  trailing={chipAt(i, fbSpans.length)}
                   srcOffset={span.start}
                   tint={tint}
                 />
@@ -291,6 +316,10 @@ export function PieceBadgeText({
           suggestions={suggestions ?? null}
           onDecide={onDecideTracked}
           textSizeClass={textSizeClass}
+          // One paragraph rendered as one block can still zip (1:1); a
+          // multi-paragraph doc rendered as ONE block cannot anchor a
+          // per-block chip honestly, so none renders.
+          trailing={fbSpans.length === 1 ? chipAt(0, 1) : undefined}
           tint={tint}
         />
       );
@@ -317,6 +346,7 @@ export function PieceBadgeText({
                 foldFor={foldFor}
                 sdStars={sdStars}
                 textSizeClass={textSizeClass}
+                trailing={chipAt(i, fbSpans.length)}
                 srcOffset={span.start}
                 tint={tint}
               />
@@ -333,6 +363,8 @@ export function PieceBadgeText({
         foldFor={foldFor}
         sdStars={sdStars}
         textSizeClass={textSizeClass}
+        // Same honest-anchor rule as the tracked single block above.
+        trailing={fbSpans.length === 1 ? chipAt(0, 1) : undefined}
         tint={tint}
       />
     );
@@ -361,12 +393,19 @@ export function PieceBadgeText({
     <div className="flex flex-col gap-4">
       {spans.map((span, i) => {
         const piece = pieces[i];
+        // The picker chip rides BESIDE the pill: the pill keeps its two jobs
+        // (provenance tooltip / the glowing OFFER) and the chip stays the
+        // neutral picker entry — the two lanes never merge into one ranked
+        // affordance (§6).
         const pill = (
-          <PiecePill
-            piece={piece}
-            fresh={latest !== null && piece.takeIndex === latest}
-            onOpenSwap={onOpenSwap}
-          />
+          <>
+            <PiecePill
+              piece={piece}
+              fresh={latest !== null && piece.takeIndex === latest}
+              onOpenSwap={onOpenSwap}
+            />
+            {chipAt(i, spans.length)}
+          </>
         );
         // FE-3+FE-4 compose: tracked changes render the words, the version
         // pill still rides at the paragraph's end. Suggestions are rebased to
