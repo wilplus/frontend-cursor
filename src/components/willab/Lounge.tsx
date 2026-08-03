@@ -683,7 +683,11 @@ export default function Lounge({
       <div
         ref={scrollRef}
         onScroll={handleThreadScroll}
-        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
+        /* `overflow-x-hidden` is load-bearing: `overflow-y-auto` alone computes
+           overflow-x to auto, so any bubble content wider than the column (a
+           long unbroken token, a wide card) makes the WHOLE thread pan
+           sideways — every bubble slides off the left edge of the screen. */
+        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain"
       >
         {thread.hasMore && (
           <button
@@ -1231,7 +1235,7 @@ function SequentialBotBubbles({
       {chunks.slice(0, revealed).map((part, i) => (
         <div
           key={`${i}-${part.slice(0, 12)}`}
-          className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
+          className="whitespace-pre-wrap break-words rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
           {/* FE-13 — Will's replies carry booking links; they were dead text. */}
           <Linkified text={part} />
@@ -1308,7 +1312,7 @@ function Bubble({
   }
   if (message.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
+      <div className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
         {/* FE-13 — both sides of the thread, so a link the user pasted works
             the same as one Will sent. */}
         <Linkified text={message.body} />
@@ -1341,7 +1345,7 @@ function Bubble({
   }
   // system / status → centered meta line
   return (
-    <div className="mx-auto max-w-[90%] text-center text-[12px] text-muted-foreground">
+    <div className="mx-auto max-w-[90%] break-words text-center text-[12px] text-muted-foreground">
       {message.body}
     </div>
   );
