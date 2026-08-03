@@ -77,6 +77,41 @@ export function sliceSegmentsByParagraphs(
   return out;
 }
 
+/** Which deck PDF page sits above each paragraph of the reading view, or null
+ *  for no slides at all. Two provable mappings, nothing else (founder
+ *  2026-08-03 — "we don't know to which slide this text is" must never be
+ *  answered with a guess):
+ *
+ *   1. Every piece carries a BE-served slide_index in range → use them
+ *      verbatim (pieces zip with paragraphs in slot order, the badge rule).
+ *   2. Otherwise, the paragraph count EXACTLY equals the PDF's page count →
+ *      paragraph i = page i (the BE assembles a deck arc's master text as one
+ *      piece per slide, joined "\n\n" in slide order).
+ *
+ *  Any mismatch — a user edit that reshaped paragraphs, a lagging piece row,
+ *  a deck longer or shorter than the document — hides the slides entirely
+ *  rather than attach text to the wrong slide. Pure. */
+export function slidePagesForParagraphs(
+  paragraphCount: number,
+  pieces: Pick<IdealPiece, "slideIndex">[] | null,
+  pageCount: number | null
+): number[] | null {
+  if (pageCount === null || pageCount <= 0 || paragraphCount <= 0) return null;
+  if (pieces && pieces.length === paragraphCount) {
+    const idx = pieces.map((p) =>
+      typeof p.slideIndex === "number" && Number.isFinite(p.slideIndex)
+        ? p.slideIndex
+        : null
+    );
+    if (idx.every((n): n is number => n !== null)) {
+      return idx.every((n) => n >= 0 && n < pageCount) ? idx : null;
+    }
+  }
+  return pageCount === paragraphCount
+    ? Array.from({ length: paragraphCount }, (_, i) => i)
+    : null;
+}
+
 /** The arc's newest take across every piece (incumbents AND challengers) —
  *  a piece from this take wears the tinted "fresh" pill. Pure. */
 export function latestTakeIndex(pieces: IdealPiece[]): number | null {

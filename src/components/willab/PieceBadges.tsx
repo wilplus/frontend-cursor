@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import { MomentStarText } from "./MomentStars";
 import { RichText } from "./RichText";
+import { PdfPage, useDeckPageCount } from "./pdfSlides";
 import {
   latestTakeIndex,
   sliceSegmentsByParagraphs,
+  slidePagesForParagraphs,
   splitBadgeParagraphSpans,
 } from "@/lib/willab/pieceBadges";
 import {
@@ -116,10 +118,34 @@ function PiecePill({
   );
 }
 
+/** One deck page interleaved above its paragraph in the reading view. The
+ *  document text is the floor: any render failure hides the image (via the
+ *  host's onError → every slide unmounts), never a placeholder card. */
+function ParagraphSlide({
+  url,
+  pageIndex,
+  onError,
+}: {
+  url: string;
+  pageIndex: number;
+  onError: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-muted">
+      <PdfPage url={url} pageIndex={pageIndex} onError={onError} className="w-full" />
+    </div>
+  );
+}
+
 /** The badged reading view: MomentStarText per paragraph + its piece's pill.
  *  pieces null (flag off) or a paragraph/piece count mismatch → ONE plain
  *  MomentStarText, exactly today's view. The star lanes are untouched: stars
- *  own how to deliver, badges own which take (FE-5). */
+ *  own how to deliver, badges own which take (FE-5).
+ *
+ *  SLIDES (founder 2026-08-03) — with `deck` set, each paragraph reads under
+ *  the slide it was delivered on: slide → its text → next slide → next text.
+ *  Only when the slide↔paragraph mapping is provable (slidePagesForParagraphs);
+ *  otherwise, and for every deckless arc, exactly today's view. */
 export function PieceBadgeText({
   text,
   ideal,
@@ -132,6 +158,7 @@ export function PieceBadgeText({
   textSizeClass,
   onOpenSwap,
   tint,
+  deck,
 }: {
   /** FE-7 — document-absolute key-point ranges to accent in the full read.
    *  Paragraphs carry their own `start`, so each one resolves the cues that
@@ -154,7 +181,18 @@ export function PieceBadgeText({
   sdStars?: boolean;
   textSizeClass?: string;
   onOpenSwap: (piece: IdealPiece) => void;
+  /** The arc's deck PDF for the slide-per-paragraph read. null/absent = no
+   *  deck → no slides, today's view exactly. */
+  deck?: { presentationRef: string } | null;
 }) {
+  // SLIDES — the deck the paragraphs may read under. One failure hides every
+  // slide (the text is the floor); a new deck source gets a fresh chance.
+  const deckUrl = deck?.presentationRef ?? null;
+  const pageCount = useDeckPageCount(deckUrl);
+  const [slidesFailed, setSlidesFailed] = useState(false);
+  useEffect(() => setSlidesFailed(false), [deckUrl]);
+  const onSlideError = useCallback(() => setSlidesFailed(true), []);
+  const slideUrl = deckUrl && !slidesFailed ? deckUrl : null;
   // ONE document-level segmentation (review R-db1): anchors match at their
   // single first-occurrence-in-document position, exactly as the un-badged
   // view, then the segments are SLICED at paragraph boundaries. Re-running
@@ -211,36 +249,83 @@ export function PieceBadgeText({
     (resolveTrackedSuggestions(t, list ?? null).length > 0 ||
       resolveAdviceSpans(t, list ?? null).length > 0);
   if (!pieces || !spans || !perParagraph) {
-    // No badges (no pieces, or a paragraph/piece mismatch) — the document
-    // still renders its tracked changes when the BE serves them.
-    return rendersTracked(text, suggestions) && onDecideTracked ? (
-      <TrackedText
-        text={text}
-        suggestions={suggestions ?? null}
-        onDecide={onDecideTracked}
-        textSizeClass={textSizeClass}
-        tint={tint}
-      />
-    ) : fbSlices ? (
+    // SLIDES without the piece layer: only the exact-count mapping is provable
+    // (no per-piece slide_index to lean on).
+    const fbPages = slideUrl
+      ? slidePagesForParagraphs(fbSpans.length, null, pageCount)
+      : null;
+    if (rendersTracked(text, suggestions) && onDecideTracked) {
+      // Tracked lane. With a provable slide mapping the document renders per
+      // paragraph — suggestions rebased to each span exactly as the badged
+      // path below does (a straddler is dropped, never guessed) — so every
+      // paragraph can sit under its slide. No mapping → one block, today's
+      // view exactly.
+      if (fbPages) {
+        return (
+          <div className="flex flex-col gap-4">
+            {fbSpans.map((span, i) => (
+              <div key={i} className="flex flex-col gap-2.5">
+                {i === 0 || fbPages[i] !== fbPages[i - 1] ? (
+                  <ParagraphSlide
+                    url={slideUrl!}
+                    pageIndex={fbPages[i]}
+                    onError={onSlideError}
+                  />
+                ) : null}
+                <TrackedText
+                  text={span.text}
+                  suggestions={rebaseSuggestionsToSpan(suggestions ?? null, span)}
+                  onDecide={onDecideTracked}
+                  textSizeClass={textSizeClass}
+                  srcOffset={span.start}
+                  tint={tint}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      }
+      return (
+        <TrackedText
+          text={text}
+          suggestions={suggestions ?? null}
+          onDecide={onDecideTracked}
+          textSizeClass={textSizeClass}
+          tint={tint}
+        />
+      );
+    }
+    if (fbSlices) {
       // D-2 — multi-paragraph doc without pieces: one MomentStarText per
       // paragraph in a gap-4 stack, so paragraphs read spaced (no pills).
-      <div className="flex flex-col gap-4">
-        {fbSpans.map((span, i) => (
-          <MomentStarText
-            key={i}
-            text={span.text}
-            segments={fbSlices[i]}
-            ideal={ideal}
-            onMomentTap={onMomentTap}
-            foldFor={foldFor}
-            sdStars={sdStars}
-            textSizeClass={textSizeClass}
-            srcOffset={span.start}
-            tint={tint}
-          />
-        ))}
-      </div>
-    ) : (
+      return (
+        <div className="flex flex-col gap-4">
+          {fbSpans.map((span, i) => (
+            <div key={i} className="flex flex-col gap-2.5">
+              {fbPages && (i === 0 || fbPages[i] !== fbPages[i - 1]) ? (
+                <ParagraphSlide
+                  url={slideUrl!}
+                  pageIndex={fbPages[i]}
+                  onError={onSlideError}
+                />
+              ) : null}
+              <MomentStarText
+                text={span.text}
+                segments={fbSlices[i]}
+                ideal={ideal}
+                onMomentTap={onMomentTap}
+                foldFor={foldFor}
+                sdStars={sdStars}
+                textSizeClass={textSizeClass}
+                srcOffset={span.start}
+                tint={tint}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    const single = (
       <MomentStarText
         text={text}
         ideal={ideal}
@@ -251,8 +336,27 @@ export function PieceBadgeText({
         tint={tint}
       />
     );
+    // A one-paragraph document under a one-page deck still earns its slide.
+    // (fbSlices needs 2+ paragraphs, so a single paragraph lands here.)
+    return fbSpans.length === 1 && fbPages ? (
+      <div className="flex flex-col gap-2.5">
+        <ParagraphSlide
+          url={slideUrl!}
+          pageIndex={fbPages[0]}
+          onError={onSlideError}
+        />
+        {single}
+      </div>
+    ) : (
+      single
+    );
   }
   const latest = latestTakeIndex(pieces);
+  // SLIDES — the pieces' own slide_index wins when the BE serves it; else the
+  // exact-count zip. Both provable; anything else renders no slides.
+  const piecePages = slideUrl
+    ? slidePagesForParagraphs(spans.length, pieces, pageCount)
+    : null;
   return (
     <div className="flex flex-col gap-4">
       {spans.map((span, i) => {
@@ -270,31 +374,43 @@ export function PieceBadgeText({
         // the decision is PER PARAGRAPH — a paragraph whose suggestions all
         // went stale keeps its stars instead of going bare.
         const local = rebaseSuggestionsToSpan(suggestions ?? null, span);
-        return rendersTracked(span.text, local) && onDecideTracked ? (
-          <TrackedText
-            key={piece.pieceKey}
-            text={span.text}
-            suggestions={local}
-            onDecide={onDecideTracked}
-            textSizeClass={textSizeClass}
-            trailing={pill}
-            srcOffset={span.start}
-            tint={tint}
-          />
-        ) : (
-          <MomentStarText
-            key={piece.pieceKey}
-            text={span.text}
-            segments={perParagraph[i]}
-            ideal={ideal}
-            onMomentTap={onMomentTap}
-            foldFor={foldFor}
-            sdStars={sdStars}
-            textSizeClass={textSizeClass}
-            trailing={pill}
-            srcOffset={span.start}
-            tint={tint}
-          />
+        const body =
+          rendersTracked(span.text, local) && onDecideTracked ? (
+            <TrackedText
+              text={span.text}
+              suggestions={local}
+              onDecide={onDecideTracked}
+              textSizeClass={textSizeClass}
+              trailing={pill}
+              srcOffset={span.start}
+              tint={tint}
+            />
+          ) : (
+            <MomentStarText
+              text={span.text}
+              segments={perParagraph[i]}
+              ideal={ideal}
+              onMomentTap={onMomentTap}
+              foldFor={foldFor}
+              sdStars={sdStars}
+              textSizeClass={textSizeClass}
+              trailing={pill}
+              srcOffset={span.start}
+              tint={tint}
+            />
+          );
+        return (
+          <div key={piece.pieceKey} className="flex flex-col gap-2.5">
+            {/* Two pieces on one slide show it once, above the first. */}
+            {piecePages && (i === 0 || piecePages[i] !== piecePages[i - 1]) ? (
+              <ParagraphSlide
+                url={slideUrl!}
+                pageIndex={piecePages[i]}
+                onError={onSlideError}
+              />
+            ) : null}
+            {body}
+          </div>
         );
       })}
     </div>

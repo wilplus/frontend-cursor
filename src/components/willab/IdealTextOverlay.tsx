@@ -51,6 +51,7 @@ import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
+import { useArcDeckRef } from "./useArcDeckRef";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
 import DocumentArranger from "./DocumentArranger";
@@ -116,6 +117,9 @@ export default function IdealTextOverlay({
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
+    /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
+     *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
+    presentationRef: string | null;
     /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
     userEdited: boolean;
     /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
@@ -213,6 +217,7 @@ export default function IdealTextOverlay({
           suggestions: r.suggestions,
           saved: r.saved,
           keyPoints: r.keyPoints,
+          presentationRef: r.presentationRef,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
@@ -412,6 +417,15 @@ export default function IdealTextOverlay({
     }
     return true;
   };
+
+  // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
+  // Resolved only under SD (the legacy lanes have no piece structure to
+  // attach slides to), after the GET settles.
+  const deckRef = useArcDeckRef(
+    arcId,
+    sd?.presentationRef ?? null,
+    status === "ready" && sd !== null
+  );
 
   // SD — the shared star layer owns the sheet, the Approve/Revert folds and
   // the moments unlock. The notebook keeps only its legacy wrapper below.
@@ -673,6 +687,9 @@ export default function IdealTextOverlay({
                   // payload keeps its classic underline links).
                   sdStars={sd !== null}
                   onOpenSwap={setSwapOpen}
+                  // SLIDES — each paragraph reads under the slide it was
+                  // delivered on (deckless arcs pass null: today's view).
+                  deck={deckRef ? { presentationRef: deckRef } : null}
                 />
               )}
             </div>

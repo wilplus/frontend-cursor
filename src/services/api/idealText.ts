@@ -350,6 +350,11 @@ export function mapDocumentSuggestions(
  *  swapped yet — the challenger awaiting the user's decision (the glow). */
 export interface IdealPiece {
   pieceKey: number;
+  /** The deck slide this piece's words were delivered on (0-based PDF page).
+   *  Safe-ahead: absent/null until the BE serves `slide_index` — the FE then
+   *  falls back to the exact-count zip (paragraph i = page i) or shows no
+   *  slides at all, never a guessed attachment. */
+  slideIndex?: number | null;
   /** The piece's CURRENT text (machine lane). Badges anchor to the top-level
    *  `text`'s paragraphs, never to a reconstruction from these. */
   text: string;
@@ -406,6 +411,12 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
         : null;
     out.push({
       pieceKey,
+      slideIndex:
+        typeof r.slide_index === "number" &&
+        Number.isFinite(r.slide_index) &&
+        r.slide_index >= 0
+          ? r.slide_index
+          : null,
       text,
       takeIndex: take(r.take_index),
       snippetId: str(r.snippet_id),
@@ -565,6 +576,12 @@ export type IdealTextResult =
        *  per block). null (flag off / older BE) → the full↔key-words toggle
        *  stays hidden, today's view unchanged. */
       keyPoints: KeyPoint[] | null;
+      /** The arc's deck PDF (slide-per-paragraph reading view). Safe-ahead:
+       *  null until the BE echoes `presentation_ref` here (the coach lane
+       *  already does) — the hosts then fall back to the cached deck / the
+       *  best-presentation ref, and a deckless arc renders exactly today's
+       *  view. */
+      presentationRef: string | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -886,6 +903,11 @@ export async function fetchIdealText(
       // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
       // toggle stays hidden.
       keyPoints: mapKeyPoints(body.key_points),
+      presentationRef:
+        typeof body.presentation_ref === "string" &&
+        body.presentation_ref.length > 0
+          ? body.presentation_ref
+          : null,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
