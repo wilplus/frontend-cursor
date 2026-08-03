@@ -6,9 +6,10 @@ export const runtime = "nodejs";
 /**
  * POST /api/v2/explore/arc/[arcId]/blocks/[blockKey]/select
  *
- * BFF proxy — MIX AND MATCH: point one block at any pooled variant
- * (BLOCK_VARIANTS_ENABLED). Status passthrough so the FE can treat 404/409
- * as a silent refetch (the state moved under us) rather than an error.
+ * BFF proxy — pick one variant from the block's pool (mix & match). Status
+ * passthrough so the FE can treat 404 (pool changed / flag off) and 409
+ * (NOT_PENDING) as a silent picker refetch rather than an error. The write
+ * is non-destructive by design: the displaced text goes back to the pool.
  */
 export async function POST(
   req: NextRequest,

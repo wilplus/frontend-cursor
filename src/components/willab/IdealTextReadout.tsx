@@ -19,6 +19,14 @@ import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
+import {
+  alignVariantBlocksWithPieces,
+  fetchBlockVariants,
+  selectBlockVariant,
+  type BlockVariant,
+  type VariantBlock,
+} from "@/services/api/blockVariants";
+import { BlockVariantSheet } from "./BlockVariantPicker";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
@@ -151,6 +159,29 @@ export default function IdealTextReadout({
   const sdGenRef = useRef(0);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
+  // BLOCK_VARIANTS — the picker pool and its open sheet. null = feature off
+  // (the GET 404s) / not loaded: nothing new renders. The timeline lives on
+  // the notebook overlay only (§8.2); this screen carries just the picker.
+  const [variantBlocks, setVariantBlocks] = useState<VariantBlock[] | null>(
+    null
+  );
+  const [pickerBlock, setPickerBlock] = useState<VariantBlock | null>(null);
+  // Staleness fence for the pool GET (same rule as the SD GET).
+  const variantsGenRef = useRef(0);
+
+  /** BLOCK_VARIANTS — pull the picker pool AFTER the document GET (§5
+   *  order). 404 = off → clear; a read FAILURE keeps the previous pool
+   *  (append-only — every id in it stays valid; an empty picker lies). */
+  const refreshVariants = useCallback(() => {
+    const aid = arcIdRef.current;
+    if (!aid) return;
+    const gen = ++variantsGenRef.current;
+    void fetchBlockVariants(aid).then((v) => {
+      if (gen !== variantsGenRef.current) return;
+      if (v.kind === "off") setVariantBlocks(null);
+      else if (v.kind === "ready") setVariantBlocks(v.blocks);
+    });
+  }, []);
   // FE-3 (bug 1c) — true once the SD fetch has RESOLVED (any outcome). Until
   // then a signed-in user sees a brief loading rather than the locally composed
   // text that then swaps to the star layer — the "stars pop in late" bug.
@@ -191,6 +222,14 @@ export default function IdealTextReadout({
   );
   textRef.current = text;
   arcIdRef.current = arcId;
+
+  // BLOCK_VARIANTS — a different arc = a fresh pool; the chips must never
+  // render one arc's blocks against another arc's paragraphs.
+  useEffect(() => {
+    variantsGenRef.current++;
+    setVariantBlocks(null);
+    setPickerBlock(null);
+  }, [arcId]);
 
   // Automatic delivery — no send button. Once, when signed in with a session.
   useEffect(() => {
@@ -243,6 +282,10 @@ export default function IdealTextReadout({
           savedTextRef.current = r.ideal.text;
           setText(r.ideal.text);
         }
+        // BLOCK_VARIANTS — refresh the pool AFTER the document landed (§5
+        // order), and only on the SD lane (the pool only exists where the
+        // master model does).
+        refreshVariants();
       }
       // Resolve the gate whatever the outcome — flag OFF / pending must not
       // hang the screen on the loading state forever.
@@ -251,7 +294,7 @@ export default function IdealTextReadout({
     return () => {
       active = false;
     };
-  }, [signedIn, arcId, sdNonce]);
+  }, [signedIn, arcId, sdNonce, refreshVariants]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
   // Each chained save reads textRef at execution, so the newest words always
@@ -277,6 +320,9 @@ export default function IdealTextReadout({
           invalidTextRef.current = null;
           setTooLong(false);
           setSaveState(textRef.current === t ? "saved" : "idle");
+          // BLOCK_VARIANTS (§5) — a saved edit also lands block-level in
+          // the pool, so the picker may have grown a "My edit" entry.
+          refreshVariants();
           return;
         }
         if (r.reason === "superseded") {
@@ -308,6 +354,27 @@ export default function IdealTextReadout({
         }
         setSaveState("failed");
       });
+    },
+    [markDirty, refreshVariants]
+  );
+
+  /** BLOCK_VARIANTS — pick one variant for one block (fear 3). Same edit-
+   *  lane release as a swap accept: the user's pick IS the newer intent, so
+   *  no debounce may PUT the pre-select words back over the reassembled
+   *  document. ok/gone/stale all close and refetch silently (§9); only a
+   *  transport failure keeps the sheet open on its retry line. */
+  const selectVariant = useCallback(
+    async (block: VariantBlock, variant: BlockVariant): Promise<boolean> => {
+      const aid = arcIdRef.current;
+      // Display-only rows never render a select button; belt-and-braces.
+      if (!aid || block.blockKey === null || !variant.variantId) return true;
+      const r = await selectBlockVariant(aid, block.blockKey, variant.variantId);
+      if (r.kind === "error") return false;
+      setPickerBlock(null);
+      markDirty(false);
+      savedTextRef.current = null;
+      setSdNonce((n) => n + 1);
+      return true;
     },
     [markDirty]
   );
@@ -719,6 +786,13 @@ export default function IdealTextReadout({
           sdStars
           textSizeClass="text-[17px]"
           onOpenSwap={setSwapOpen}
+          // BLOCK_VARIANTS — the per-block picker entry (chips zip to
+          // paragraphs; feature off → null → nothing new). Cross-checked
+          // against the SERVED pieces via the BE-confirmed
+          // block_key == piece_key join — sd.pieces, not the display
+          // pieces, which a save blanks.
+          variantBlocks={alignVariantBlocksWithPieces(variantBlocks, sd.pieces)}
+          onOpenPicker={setPickerBlock}
           tint={tint}
           // SLIDES — each paragraph reads under the slide it was delivered
           // on (deckless arcs pass null: today's view).
@@ -869,6 +943,14 @@ export default function IdealTextReadout({
           }
           return true;
         }}
+      />
+      {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological).
+          Kept visually separate from the offer sheet above BY DESIGN (§6):
+          the offer pushes, the picker pulls. */}
+      <BlockVariantSheet
+        block={pickerBlock}
+        onSelect={selectVariant}
+        onClose={() => setPickerBlock(null)}
       />
       <MomentSheet
         moment={stars.momentOpen}

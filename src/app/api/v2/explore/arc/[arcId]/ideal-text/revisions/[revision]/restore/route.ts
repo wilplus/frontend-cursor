@@ -6,9 +6,10 @@ export const runtime = "nodejs";
 /**
  * POST /api/v2/explore/arc/[arcId]/ideal-text/revisions/[revision]/restore
  *
- * BFF proxy — GO BACK: repoint the document at an earlier composition
- * (BLOCK_VARIANTS_ENABLED). Restore repoints what the revision recorded and
- * lands as a NEW revision — it never deletes. Status passthrough.
+ * BFF proxy — repoint the composition head at what an earlier revision
+ * recorded. Restore never deletes: the answer carries a NEW head revision
+ * (restore is itself history, and is itself undoable). Status passthrough:
+ * 404 = flag off / not owner / revision unknown → silent refetch FE-side.
  */
 export async function POST(
   req: NextRequest,
@@ -36,7 +37,6 @@ export async function POST(
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
-          "Content-Type": "application/json",
         },
         cache: "no-store",
       }

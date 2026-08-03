@@ -6,8 +6,9 @@ export const runtime = "nodejs";
 /**
  * GET /api/v2/explore/arc/[arcId]/ideal-text/revisions
  *
- * BFF proxy — the composition TIMELINE (BLOCK_VARIANTS_ENABLED). Status
- * passthrough: 404 is the feature-off signal.
+ * BFF proxy — the composition's revision timeline (newest first, max 50).
+ * Verbatim relay: 404 = feature off (render nothing new); an empty list is
+ * a real state (pre-migration arc) and hides the timeline entirely.
  */
 export async function GET(
   req: NextRequest,
@@ -24,26 +25,25 @@ export async function GET(
       { status: 502 }
     );
   }
-  const arc = encodeURIComponent(params.arcId);
+
+  const id = encodeURIComponent(params.arcId);
   let upstream: Response;
   try {
     upstream = await fetch(
-      `${backend}/v2/explore/arc/${arc}/ideal-text/revisions`,
+      `${backend}/v2/explore/arc/${id}/ideal-text/revisions`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         cache: "no-store",
       }
     );
   } catch (err) {
     console.error("GET ideal-text/revisions — fetch failed:", err);
     return NextResponse.json(
-      { error: "History service unavailable." },
+      { error: "Revisions service unavailable." },
       { status: 502 }
     );
   }
+
   const text = await upstream.text();
   if (!text) return new NextResponse(null, { status: upstream.status });
   let data: unknown;
