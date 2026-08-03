@@ -23,6 +23,8 @@
 /*    GET    /v2/life/strategy              current version                    */
 /*    POST   /v2/life/strategy/upload       { body } → a diff to approve       */
 /*    POST   /v2/life/strategy/apply        { version, lines }                 */
+/*    POST   /v2/life/wins/derive           wins → proposed principles (p6)    */
+/*    POST   /v2/life/principles/:id/retire { retires_id, decision }           */
 /*    POST   /v2/life/export                everything, as a file              */
 /*    DELETE /v2/life/data                  { confirm } irreversible           */
 /*                                                                            */
@@ -471,6 +473,141 @@ export async function applyConfirmedItems(
     },
   })) as Record<string, unknown> | null;
   return typeof raw?.count === "number" ? raw.count : ticked.length;
+}
+
+/* --------------------------- wins → principles ---------------------------- */
+/* Piece 6 (founder-agreed 2026-08-02): the case engine's positive mirror.
+ * #mistake works a principle out of what went wrong; this reads the Wins wall
+ * and proposes the principles it teaches. Founder-initiated only, propose-
+ * never-commit (every row lands status "proposed"), grounded or dropped. */
+
+export interface WinsProposal {
+  id: string;
+  title: string;
+  body: string;
+  /** The wins this line was read out of. The grounding that keeps a proposal
+   *  honest: a lesson the model could not point at a win never arrives at
+   *  all. `[]` on rows written before the provenance migration ran. */
+  originWinIds: string[];
+}
+
+export interface WinsDerivation {
+  outcome: "ok" | "no_wins" | "no_derivation";
+  proposed: WinsProposal[];
+  /** Window honesty (the queued_held_back class): the read covers the most
+   *  recent wins, and a partial read must never look like a full one. Prose
+   *  only on screen, never a meter (AC-9/N4). */
+  winsRead: number;
+  winsTotal: number;
+  alreadyHeld: number;
+}
+
+export async function deriveFromWins(): Promise<WinsDerivation> {
+  const raw = (await call("/wins/derive", { method: "POST", body: {} })) as
+    | Record<string, unknown>
+    | null;
+
+  const list = Array.isArray(raw?.proposed) ? raw.proposed : [];
+  const proposed = (list as unknown[]).flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const r = row as Record<string, unknown>;
+    const id = typeof r.id === "string" ? r.id : "";
+    const title = typeof r.title === "string" ? r.title.trim() : "";
+    if (!id || !title) return [];
+    const ids = Array.isArray(r.origin_win_ids)
+      ? (r.origin_win_ids as unknown[]).filter(
+          (v): v is string => typeof v === "string"
+        )
+      : [];
+    return [
+      {
+        id,
+        title,
+        body: typeof r.body === "string" ? r.body : "",
+        originWinIds: ids,
+      },
+    ];
+  });
+
+  const outcome =
+    raw?.outcome === "ok" ||
+    raw?.outcome === "no_wins" ||
+    raw?.outcome === "no_derivation"
+      ? raw.outcome
+      : // An outcome we do not know: with rows in hand the run plainly worked,
+        // and without them "try again" is the only claim that cannot be a lie
+        // ("your wins teach nothing" would be).
+        proposed.length > 0
+        ? "ok"
+        : "no_derivation";
+
+  const num = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
+
+  return {
+    outcome,
+    proposed,
+    winsRead: num(raw?.wins_read),
+    winsTotal: num(raw?.wins_total),
+    alreadyHeld: num(raw?.already_held),
+  };
+}
+
+/** The retire question the approve PATCH can hand back: the new principle
+ *  looks like it supersedes an existing one. The QUESTION is the backend's
+ *  copy (BE-7, already signed off) and renders verbatim; the veto is absolute
+ *  and a "no" is remembered, so the pair is never asked about again. */
+export interface RetirePrompt {
+  question: string;
+  retiresId: string;
+  retiresTitle: string;
+}
+
+function mapRetirePrompt(raw: unknown): RetirePrompt | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const question = typeof r.question === "string" ? r.question : "";
+  const retires =
+    r.retires && typeof r.retires === "object"
+      ? (r.retires as Record<string, unknown>)
+      : null;
+  const retiresId = typeof retires?.id === "string" ? retires.id : "";
+  // A prompt without a question cannot render and one without the existing
+  // principle's id cannot act, so either gap degrades to "no prompt" rather
+  // than to a broken dialog. The approve itself has already landed.
+  if (!question || !retiresId) return null;
+  return {
+    question,
+    retiresId,
+    retiresTitle: typeof retires?.title === "string" ? retires.title : "",
+  };
+}
+
+/** Approve or dismiss a PROPOSED item. Distinct from `updateItem` on purpose:
+ *  that path edits the user's own text and must never accept a model
+ *  proposal, while this IS the explicit decision act (N5) — a button pressed
+ *  on a fully displayed card. The PATCH itself retires nothing; a non-null
+ *  prompt only asks. */
+export async function setItemStatus(
+  id: string,
+  status: "active" | "dismissed"
+): Promise<{ retirePrompt: RetirePrompt | null }> {
+  const raw = (await call(`/items/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { status },
+  })) as Record<string, unknown> | null;
+  return { retirePrompt: mapRetirePrompt(raw?.retire_prompt) };
+}
+
+export async function answerRetirePrompt(
+  newPrincipleId: string,
+  retiresId: string,
+  decision: "yes" | "no"
+): Promise<void> {
+  await call(`/principles/${encodeURIComponent(newPrincipleId)}/retire`, {
+    method: "POST",
+    body: { retires_id: retiresId, decision },
+  });
 }
 
 /* ------------------------------ principles -------------------------------- */
