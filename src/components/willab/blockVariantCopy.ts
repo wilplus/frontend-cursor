@@ -2,9 +2,10 @@
 /*  blockVariantCopy — every user-visible string in the block variant picker,   */
 /*  the revision timeline and restore (BLOCK_VARIANTS_ENABLED), in ONE place.  */
 /*                                                                            */
-/*  ALL OF IT IS PLACEHOLDER, PENDING FOUNDER SIGN-OFF (LIVE LOOP fence, R13   */
-/*  — BE handoff 2026-08-03 §7: "treat the table as intent, not final          */
-/*  strings"). One file to read for the sign-off, one file to change.          */
+/*  FOUNDER-SIGNED-OFF 2026-08-03 ("Copy is fine, ship it as is") — these      */
+/*  exact strings ship. The LIVE LOOP gate (R13) is closed for THIS wording    */
+/*  only: any change to any string here re-opens it and needs a fresh          */
+/*  founder sign-off before merge. One file to read, one file to change.       */
 /*                                                                            */
 /*  AC-9 guard on the words themselves: nothing here may compare versions      */
 /*  ("better", "best", "improved"), rank them, or surface a count/score. The   */
