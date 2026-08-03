@@ -157,3 +157,87 @@ describe("serializeEditor — what the user's edits do to the markers", () => {
     expect(serializeEditor(root)).toBe("");
   });
 });
+
+describe("serializeEditor — task #62: browser-restructured DOM keeps its paragraphs", () => {
+  it("a block wrapper around the paragraphs keeps them blank-line separated", () => {
+    // WebKit wraps paragraphs in a <div> during editing. The old serializer
+    // read only the root's direct children as blocks, so this DOM came out as
+    // ONE flat run — every paragraph break silently destroyed on save.
+    const root = document.createElement("div");
+    const wrap = document.createElement("div");
+    for (const text of ["one alpha", "two beta", "three gamma"]) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      wrap.appendChild(p);
+    }
+    root.appendChild(wrap);
+    expect(serializeEditor(root)).toBe("one alpha\n\ntwo beta\n\nthree gamma");
+  });
+
+  it("loose inline content at the root survives next to blocks, in order", () => {
+    // Select-all-then-type plus an Enter can leave bare text beside a <p>.
+    // The old serializer dropped the bare text entirely (word loss).
+    const root = document.createElement("div");
+    root.appendChild(document.createTextNode("lead words"));
+    const p = document.createElement("p");
+    p.textContent = "middle words";
+    root.appendChild(p);
+    root.appendChild(document.createTextNode("tail words"));
+    expect(serializeEditor(root)).toBe(
+      "lead words\n\nmiddle words\n\ntail words"
+    );
+  });
+
+  it("an empty spacer block (<div><br></div>) is one blank line, not three", () => {
+    const root = document.createElement("div");
+    const p1 = document.createElement("p");
+    p1.textContent = "one";
+    const spacer = document.createElement("div");
+    spacer.appendChild(document.createElement("br"));
+    const p2 = document.createElement("p");
+    p2.textContent = "two";
+    root.append(p1, spacer, p2);
+    expect(serializeEditor(root)).toBe("one\n\ntwo");
+  });
+
+  it("nested blocks two levels down still bound paragraphs", () => {
+    const root = document.createElement("div");
+    const outer = document.createElement("div");
+    const inner = document.createElement("div");
+    const p1 = document.createElement("p");
+    p1.textContent = "deep one";
+    const p2 = document.createElement("p");
+    p2.textContent = "deep two";
+    inner.append(p1, p2);
+    outer.appendChild(inner);
+    root.appendChild(outer);
+    expect(serializeEditor(root)).toBe("deep one\n\ndeep two");
+  });
+
+  it("a styled span survives its paragraph being div-wrapped", () => {
+    const root = document.createElement("div");
+    const wrap = document.createElement("div");
+    const p = document.createElement("p");
+    p.appendChild(document.createTextNode("say it "));
+    const span = document.createElement("span");
+    span.dataset.open = "**";
+    span.dataset.close = "**";
+    span.textContent = "louder";
+    p.appendChild(span);
+    wrap.appendChild(p);
+    root.appendChild(wrap);
+    expect(serializeEditor(root)).toBe("say it **louder**");
+  });
+
+  it("whitespace-only stray text between blocks adds no paragraph", () => {
+    const root = document.createElement("div");
+    const p1 = document.createElement("p");
+    p1.textContent = "one";
+    const p2 = document.createElement("p");
+    p2.textContent = "two";
+    root.appendChild(p1);
+    root.appendChild(document.createTextNode("  "));
+    root.appendChild(p2);
+    expect(serializeEditor(root)).toBe("one\n\ntwo");
+  });
+});
