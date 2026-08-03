@@ -132,6 +132,28 @@ export const GOAL_ORDER = {
   pastDue: "Past its date",
 } as const;
 
+/** SIGN-OFF — the wins → principles derivation (piece 6). Every string here
+ *  is a PLACEHOLDER AWAITING THE FOUNDER'S OWN WORDS (the BE handoff names
+ *  all five). House rules hold meanwhile: the counts render as prose and
+ *  never as a meter (window honesty, AC-9/N4), the failure line never says
+ *  the wins teach nothing, and nothing nudges. */
+export const WINS_DERIVE = {
+  button: "What do these wins teach?",
+  workingLabel: "Reading your wins",
+  proposedTitle: "From your wins",
+  groundingLabel: "Read out of these wins",
+  emptyWall: "No wins on the wall yet, so there is nothing to read.",
+  failed: "That did not work. Your wins are unchanged, try again.",
+  nothingNew:
+    "Your wins were read. Nothing new to propose, what they teach your principles already hold.",
+  partialWindow: (read: number, total: number) =>
+    `Read your last ${read} wins of ${total}.`,
+  alreadyHeld: (n: number) =>
+    n === 1
+      ? "1 lesson your archive already holds."
+      : `${n} lessons your archive already holds.`,
+} as const;
+
 /** View chrome. Short, factual, no exhortation. */
 export const VIEWS = {
   principles: {

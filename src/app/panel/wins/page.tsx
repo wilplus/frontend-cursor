@@ -10,6 +10,7 @@ import {
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
+import WinsDerive from "@/components/life/WinsDerive";
 
 /** FE-9 — Wins. Trophy rows with inline edit. The UI is a port of the
  *  principles-app list; only the data source changed. */
@@ -25,13 +26,21 @@ export default function WinsPage() {
           wins.length === 0 ? (
             <EmptyState>{EMPTY.wins}</EmptyState>
           ) : (
-            <ul className="divide-y divide-border rounded-2xl border border-border">
+            <>
+              {/* Piece 6 — the wall proposes principles, on the founder's
+                  press and never on its own. Above the list because its
+                  proposals are ABOUT the list, and only rendered when there
+                  are wins to read: an empty wall keeps its empty state and
+                  no button offers to read nothing. */}
+              <WinsDerive wins={wins} />
+              <ul className="divide-y divide-border rounded-2xl border border-border">
               {wins.map((win) => (
                 <li key={win.id} className="px-4 py-3.5">
                   <WinRow win={win} />
                 </li>
               ))}
-            </ul>
+              </ul>
+            </>
           )
         }
       </Resource>
