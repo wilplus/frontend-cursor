@@ -233,6 +233,9 @@ export interface LifeApplication {
  *  23:00 either: the card and the summary are simply there when the panel or
  *  the chat is next opened. */
 export interface LifeDay {
+  /** The `life_days` row id. Every write goes to `PATCH /day/<id>`, so a day
+   *  the backend served without one is read-only. */
+  id: string | null;
   date: string;
   morning: LifeDayMorning;
   evening: LifeDayEvening;
@@ -254,11 +257,31 @@ export interface LifeDayMorning {
    * and the only way to see that being honoured is to name the bet.
    */
   oneThingBet: LifeBetKey | null;
+  /** The backend labels the bet with a TITLE string ("The Company"), not a
+   *  key. When the title resolves to a known key, `oneThingBet` carries it;
+   *  either way the raw label is kept so the card can still name the bet on a
+   *  payload whose wording this build does not know. */
+  oneThingBetLabel: string;
+  /**
+   * Which GOAL the one thing is toward - the goal's name and id only
+   * (BE 2026-08-02). Set when the morning drafted a day-sized action for a
+   * ranked goal; empty on a hand-built card. The id is what a swap sends
+   * back, the name is what the card renders under the drafted action.
+   */
+  oneThingGoal: string;
+  oneThingGoalId: string | null;
+  /**
+   * The goal's own measure, carried so the evening can hold the day against
+   * it. The founder's sentence, never a computed number (AC-9): it renders
+   * inside the check-out question and nowhere becomes a score.
+   */
+  oneThingMeasure: string;
   /** Each block carries its bet, for the same reason. */
   focusBlocks: Array<{
     text: string;
     box: string | null;
     betKey: LifeBetKey | null;
+    betLabel: string;
   }>;
   distractionFlagged: string | null;
   bets: Array<{
@@ -294,6 +317,12 @@ export interface LifeDayEvening {
   /** The user's answer to it. Written by them, never drafted, and rendered
    *  with no placeholder that would write for them (L-1 / N6). */
   answer: string;
+  /**
+   * Where the day landed against the goal's own measure, in the user's words
+   * (BE `evening_measure`, piece 3). Free text, stored verbatim, never
+   * computed against (AC-9). Empty until they write it.
+   */
+  measure: string;
 }
 
 export interface LifeCheck {
@@ -336,6 +365,14 @@ export interface LifeWeek {
   proposals: LifeProposal[];
   /** Notes that carried no tag. Captured, never executed. */
   untagged: Array<{ id: string; body: string; createdAt: string | null }>;
+  /**
+   * The learning contract's gate (BE 2026-08-02): a goal repeatedly displaced
+   * from the one-thing slot arrives here for a CONSCIOUS decision - retire,
+   * re-date, or keep. The goal's own name and due wording only; no count, no
+   * streak, no verdict rides along (AC-9 / N3), and the decision itself
+   * happens through the existing goal edit surfaces, not a new endpoint.
+   */
+  displacedGoals: Array<{ id: string; title: string; dueLabel: string | null }>;
 }
 
 /* ------------------------------- proposals -------------------------------- */
