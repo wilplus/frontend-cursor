@@ -20,22 +20,9 @@
 /*  PLAYWRIGHT_BROWSERS_PATH. Exits non-zero on any failure.                   */
 /* -------------------------------------------------------------------------- */
 
-import { createRequire } from "node:module";
-import { execSync } from "node:child_process";
+import { launchChromium } from "./_launch.mjs";
 
-/** Resolve playwright from the project first, then the global root. */
-function loadPlaywright() {
-  const require = createRequire(import.meta.url);
-  try {
-    return require("playwright");
-  } catch {
-    const globalRoot = execSync("npm root -g").toString().trim();
-    return createRequire(`${globalRoot}/`)("playwright");
-  }
-}
-const { chromium } = loadPlaywright();
-
-const BASE = "http://localhost:3123/dev/marked-editor";
+const BASE = process.env.MARKED_URL ?? "http://localhost:3123/dev/marked-editor";
 const results = [];
 let browser;
 
@@ -103,10 +90,7 @@ async function caretIn(page, needle, offset) {
 }
 
 (async () => {
-  // PLAYWRIGHT_BROWSERS_PATH holds versioned dirs; take the first chromium.
-  browser = await chromium.launch(
-    process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}
-  );
+  browser = await launchChromium();
 
   // 1 — the document renders styled, with no marker syntax on screen.
   {
