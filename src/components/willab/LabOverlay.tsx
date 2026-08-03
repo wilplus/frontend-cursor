@@ -8,6 +8,7 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
+import { useLabReadoutLive } from "./useLabReadoutLive";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
@@ -260,7 +261,6 @@ export default function LabOverlay({
   // (the poll keeps going — the cap only swaps the copy + offers re-record).
   const [pollSessionId, setPollSessionId] = useState<string | null>(null);
   const [pollSlow, setPollSlow] = useState(false);
-  const pollStartRef = useRef(0);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -489,71 +489,64 @@ export default function LabOverlay({
     };
   }, [state, blob, context, goTo, cancelMic, retryNonce]);
 
-  // Async analysis poll (delivery layer): every ~2s until the daemon flips the
-  // session to ready (→ readout) or failed (→ retry). Null responses (network
-  // blips) just keep polling; past 3 min the copy flips to "taking longer" but
-  // the poll continues — the analysis genuinely finishes server-side.
+  // Async analysis (delivery layer): push-first via the readout SSE bridge —
+  // one streaming connection instead of a 2s fetch loop — with the original
+  // 2s poll kept as useLabReadoutLive's automatic fallback tier, so the worst
+  // case is exactly the old behavior. Blips just keep listening; past 3 min
+  // the copy flips to "taking longer" but the subscription continues — the
+  // analysis genuinely finishes server-side.
+  const liveSessionId =
+    pollSessionId && state === "lab_processing" ? pollSessionId : null;
   useEffect(() => {
-    if (!pollSessionId || state !== "lab_processing") return;
-    pollStartRef.current = Date.now();
+    if (!liveSessionId) return;
     setPollSlow(false);
-    let active = true;
-    const tick = async () => {
-      const r = await fetchGuestLabReadout(pollSessionId);
-      if (!active) return;
-      if (r) {
-        const hasContent =
-          r.readout.snippets.length > 0 ||
-          r.readout.instantChunks.length > 0 ||
-          r.readout.fullTranscriptChunks.length > 0;
-        if (r.state === "failed") {
-          // Discard the stashed arc bookkeeping — a failed take must not
-          // advance the arc, so the retry reuses the original take_index.
-          pendingCarryRef.current = null;
-          clearProcessingTake(pollSessionId);
-          setPollSessionId(null);
-          setPollSlow(false);
-          setUploadError(
-            "The analysis hit a snag on our side. Your recording is safe. Try again."
-          );
-          return;
-        }
-        if (
-          r.state === "ready" ||
-          r.state === "readout_ready" ||
-          (r.state !== "processing" && hasContent)
-        ) {
-          // Success — NOW commit the arc bookkeeping stashed at the 202 accept.
-          const carried = pendingCarryRef.current;
-          if (carried && carried.sessionId === pollSessionId) {
-            writeExploreArc(
-              carried.returnedArcId,
-              carried.nextIdx,
-              carried.deck,
-              carried.sessionId
-            );
-            setArcId(carried.returnedArcId);
-            setArcTakeIndex(carried.nextIdx);
-          }
-          pendingCarryRef.current = null;
-          clearProcessingTake(pollSessionId);
-          setPollSessionId(null);
-          setPollSlow(false);
-          setReadout(r.readout);
-          setUploadError(null);
-          goTo("readout");
-          return;
-        }
+    const slowId = setTimeout(() => setPollSlow(true), 180_000);
+    return () => clearTimeout(slowId);
+  }, [liveSessionId]);
+  useLabReadoutLive(liveSessionId, (r) => {
+    if (!liveSessionId) return;
+    const hasContent =
+      r.readout.snippets.length > 0 ||
+      r.readout.instantChunks.length > 0 ||
+      r.readout.fullTranscriptChunks.length > 0;
+    if (r.state === "failed") {
+      // Discard the stashed arc bookkeeping — a failed take must not
+      // advance the arc, so the retry reuses the original take_index.
+      pendingCarryRef.current = null;
+      clearProcessingTake(liveSessionId);
+      setPollSessionId(null);
+      setPollSlow(false);
+      setUploadError(
+        "The analysis hit a snag on our side. Your recording is safe. Try again."
+      );
+      return;
+    }
+    if (
+      r.state === "ready" ||
+      r.state === "readout_ready" ||
+      (r.state !== "processing" && hasContent)
+    ) {
+      // Success — NOW commit the arc bookkeeping stashed at the 202 accept.
+      const carried = pendingCarryRef.current;
+      if (carried && carried.sessionId === liveSessionId) {
+        writeExploreArc(
+          carried.returnedArcId,
+          carried.nextIdx,
+          carried.deck,
+          carried.sessionId
+        );
+        setArcId(carried.returnedArcId);
+        setArcTakeIndex(carried.nextIdx);
       }
-      if (Date.now() - pollStartRef.current > 180_000) setPollSlow(true);
-    };
-    void tick(); // immediate first read — a fast daemon shouldn't wait 2s
-    const id = setInterval(() => void tick(), 2000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [pollSessionId, state, goTo]);
+      pendingCarryRef.current = null;
+      clearProcessingTake(liveSessionId);
+      setPollSessionId(null);
+      setPollSlow(false);
+      setReadout(r.readout);
+      setUploadError(null);
+      goTo("readout");
+    }
+  });
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
