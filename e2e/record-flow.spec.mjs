@@ -19,18 +19,7 @@
 /*  Exits non-zero on failure.                                                 */
 /* -------------------------------------------------------------------------- */
 
-import { createRequire } from "node:module";
-import { execSync } from "node:child_process";
-
-function loadPlaywright() {
-  const require = createRequire(import.meta.url);
-  try {
-    return require("playwright");
-  } catch {
-    return createRequire(`${execSync("npm root -g").toString().trim()}/`)("playwright");
-  }
-}
-const { chromium } = loadPlaywright();
+import { launchChromium } from "./_launch.mjs";
 const BASE = process.env.BASE_URL || "http://localhost:3142";
 const failures = [];
 function expect(name, actual, needle) {
@@ -38,9 +27,7 @@ function expect(name, actual, needle) {
   if (!ok) failures.push(name);
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}` + (ok ? "" : `\n      wanted "${needle}" in: ${actual}`));
 }
-const b = await chromium.launch(
-  process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}
-);
+const b = await launchChromium();
 const ctx = await b.newContext({ viewport: { width: 390, height: 800 } });
 
 // Serve a fake trainings payload so the "existing project" path is reachable
