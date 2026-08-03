@@ -14,7 +14,15 @@ const PUBLIC_ROUTES = ["/"];
 /** Query param names that must never be in URLs (avoid sharing auth when link is shared). */
 const AUTH_PARAMS = ["access_token", "refresh_token", "token", "api_key", "supabase_key"];
 
-function getCspDirectives(): string {
+/** Per-request CSP nonce (base64 of 16 random bytes, Web Crypto — edge-safe). */
+function generateNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function getCspDirectives(nonce: string): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const isDev = process.env.NODE_ENV === "development";
@@ -49,18 +57,39 @@ function getCspDirectives(): string {
   // policy is unchanged.
   const mediaUploadOrigin = process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ORIGIN || "";
   if (mediaUploadOrigin) connectSrc.push(mediaUploadOrigin);
-  
+
+  // Nonce-based script-src: inline scripts run only with this request's nonce
+  // (Next stamps it on its own tags when the CSP rides the REQUEST headers —
+  // see the middleware body; requires per-request rendering, forced in the
+  // root layout). 'unsafe-eval' is dev-only: React Refresh evals; the prod
+  // runtime doesn't, and pdf.js feature-detects eval and falls back cleanly.
+  const scriptSrc = ["'self'", `'nonce-${nonce}'`];
+  if (isDev) scriptSrc.push("'unsafe-eval'");
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
+    "form-action 'self'",
     `connect-src ${connectSrc.join(" ")}`,
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: data: https:",
+    // Style stays 'unsafe-inline': inline style= attributes (print export,
+    // email-ish markup) and Next's dev style injection need it. Script is the
+    // XSS vector this policy exists to close; styles are the follow-up.
     "style-src 'self' 'unsafe-inline'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+    `script-src ${scriptSrc.join(" ")}`,
+    // Same-origin workers only: the bundled pdf.js worker and /sw.js.
+    "worker-src 'self'",
   ].join("; ");
+}
+
+/** Stamp the enforced CSP (+ legacy alias) onto an outgoing response. */
+function applyCsp(res: NextResponse, csp: string): NextResponse {
+  res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("X-Content-Security-Policy", csp);
+  return res;
 }
 
 function isProtected(pathname: string) {
@@ -95,15 +124,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const nonce = generateNonce();
+  const cspDirectives = getCspDirectives(nonce);
+
   // If user landed on dashboard with auth callback params (e.g. Supabase redirect URL was set to /dashboard), send to callback then update-password
   if (pathname === "/dashboard" && (searchParams.has("code") || searchParams.get("type") === "recovery")) {
     const callbackUrl = new URL("/auth/callback", req.url);
     searchParams.forEach((value, key) => callbackUrl.searchParams.set(key, value));
-    const redirect = NextResponse.redirect(callbackUrl);
-    const redirectCsp = getCspDirectives();
-    redirect.headers.set("Content-Security-Policy", redirectCsp);
-    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-    return redirect;
+    return applyCsp(NextResponse.redirect(callbackUrl), cspDirectives);
   }
 
   // Strip auth tokens from URL so sharing a link never passes credentials to another person
@@ -113,22 +141,24 @@ export async function middleware(req: NextRequest) {
     searchParams.forEach((value, key) => {
       if (!AUTH_PARAMS.includes(key)) cleanUrl.searchParams.set(key, value);
     });
-    const redirect = NextResponse.redirect(cleanUrl);
-    const redirectCsp = getCspDirectives();
-    redirect.headers.set("Content-Security-Policy", redirectCsp);
-    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-    return redirect;
+    return applyCsp(NextResponse.redirect(cleanUrl), cspDirectives);
   }
+
+  // The CSP rides the REQUEST headers too: that's how Next's App Router learns
+  // the nonce and stamps it on every framework <script> tag it renders.
+  // `x-nonce` lets route handlers that hand-write HTML (auth/callback) stamp
+  // their own inline scripts with the same nonce.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("content-security-policy", cspDirectives);
+  requestHeaders.set("x-nonce", nonce);
 
   let res = NextResponse.next({
     request: {
-      headers: req.headers,
+      headers: requestHeaders,
     },
   });
 
-  const cspDirectives = getCspDirectives();
-  res.headers.set("Content-Security-Policy", cspDirectives);
-  res.headers.set("X-Content-Security-Policy", cspDirectives);
+  applyCsp(res, cspDirectives);
 
   // Public funnel routes are always reachable, regardless of auth state.
   // Anonymous visitors must reach /try/shaky-voice; logged-in users are not redirected away.
@@ -186,11 +216,7 @@ export async function middleware(req: NextRequest) {
     if (!session) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("redirectTo", pathname + (url.search || ""));
-      const redirect = NextResponse.redirect(loginUrl);
-      const redirectCsp = getCspDirectives();
-      redirect.headers.set("Content-Security-Policy", redirectCsp);
-      redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-      return redirect;
+      return applyCsp(NextResponse.redirect(loginUrl), cspDirectives);
     }
     return res;
   }
@@ -202,12 +228,8 @@ export async function middleware(req: NextRequest) {
       // Preserve full URL including query parameters
       const fullPath = pathname + (url.search ? url.search : "");
       loginUrl.searchParams.set("redirectTo", fullPath);
-      
-      const redirect = NextResponse.redirect(loginUrl);
-      const redirectCsp = getCspDirectives();
-      redirect.headers.set("Content-Security-Policy", redirectCsp);
-      redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-      return redirect;
+
+      return applyCsp(NextResponse.redirect(loginUrl), cspDirectives);
     }
     // Allow access - AdminAuthGuard will verify admin role
     return res;
@@ -219,21 +241,13 @@ export async function middleware(req: NextRequest) {
     const fullPath = pathname + (url.search ? url.search : "");
     loginUrl.searchParams.set("redirectTo", fullPath);
 
-    const redirect = NextResponse.redirect(loginUrl);
-    const redirectCsp = getCspDirectives();
-    redirect.headers.set("Content-Security-Policy", redirectCsp);
-    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-    return redirect;
+    return applyCsp(NextResponse.redirect(loginUrl), cspDirectives);
   }
 
   // Redirect logged-in users away from login/signup/reset-password, but NOT from /update-password
   // (user must set new password there after clicking the reset link)
   if (session && isAuthRoute(pathname) && pathname !== "/update-password") {
-    const redirect = NextResponse.redirect(new URL("/chat", req.url));
-    const redirectCsp = getCspDirectives();
-    redirect.headers.set("Content-Security-Policy", redirectCsp);
-    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
-    return redirect;
+    return applyCsp(NextResponse.redirect(new URL("/chat", req.url)), cspDirectives);
   }
 
   return res;

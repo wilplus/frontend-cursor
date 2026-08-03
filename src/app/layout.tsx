@@ -57,6 +57,13 @@ export const viewport = {
   userScalable: true,
 };
 
+// The nonce-based CSP (middleware.ts) needs every page rendered per request:
+// build-time-prerendered HTML ships inline bootstrap scripts without the
+// request's nonce, and script-src 'nonce-…' would block them (dead page).
+// Middleware already runs a per-request Supabase auth check on every page,
+// so per-request rendering is the marginal cost, not a new one.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {

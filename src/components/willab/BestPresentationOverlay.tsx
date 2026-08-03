@@ -108,7 +108,10 @@ export default function BestPresentationOverlay({
   // formatting + key phrases + game deep links. Client-side, zero deps.
   function handleExport() {
     if (!result) return;
-    const w = window.open("", "_blank", "noopener,noreferrer");
+    // No `noopener` here: window.open returns null under it, and we need the
+    // handle to write the document. The window only ever holds content we
+    // author ourselves, so keeping the opener link is safe.
+    const w = window.open("", "_blank");
     if (!w) return; // popup blocked — nothing to break
     const esc = (t: string) =>
       t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -135,9 +138,16 @@ export default function BestPresentationOverlay({
     )}</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:32px auto;padding:0 20px;color:#111">
       <h1 style="font-size:20px;margin:0 0 20px">${esc(result.name ?? "Ideal Text")}</h1>
       ${sectionsHtml}
-      <script>window.onload = function () { window.print(); };</script>
     </body></html>`);
     w.document.close();
+    // about:blank inherits the opener's CSP, so an inline <script> in the
+    // written document is nonce-blocked — trigger print from here instead.
+    const triggerPrint = () => {
+      w.focus();
+      w.print();
+    };
+    if (w.document.readyState === "complete") triggerPrint();
+    else w.addEventListener("load", triggerPrint);
   }
 
   // Founder redesign — for the COACH the ideal-text editor IS the whole view:

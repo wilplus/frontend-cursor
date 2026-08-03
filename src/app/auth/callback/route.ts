@@ -55,13 +55,18 @@ export async function GET(req: NextRequest) {
     }
 
     // No code but type=recovery or next=/update-password - Supabase sent hash fragments
-    // Return HTML page that preserves hash and redirects client-side immediately
+    // Return HTML page that preserves hash and redirects client-side immediately.
+    // The inline scripts must carry the request's CSP nonce (middleware
+    // forwards it as x-nonce) or script-src 'nonce-…' blocks them and the
+    // hash — i.e. the recovery token — never reaches /update-password.
+    // Charset guard so a forged header can't break out of the attribute.
+    const nonce = (req.headers.get("x-nonce") || "").replace(/[^A-Za-z0-9+/=_-]/g, "");
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <title>Redirecting to Password Reset...</title>
-          <script>
+          <script nonce="${nonce}">
             // Immediately preserve hash and redirect to update-password
             // This must run before any other scripts
             (function() {
@@ -89,7 +94,7 @@ export async function GET(req: NextRequest) {
             <p>Redirecting to password reset page...</p>
             <p style="font-size: 0.875rem; color: #666;">If you're not redirected, <a href="/update-password">click here</a>.</p>
           </div>
-          <script>
+          <script nonce="${nonce}">
             // Fallback redirect after a short delay
             setTimeout(function() {
               const hash = window.location.hash || '';
