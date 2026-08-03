@@ -9,13 +9,7 @@
        LIVE-ACTION signals only (send-active, recording pulse, official-
        recording dot, coach-insights accent, logo active state) — every
        other surface is black/white/gray. When everything is orange,
-       nothing is.
-
-       Legacy palette tokens that were dashboard/funnel/neuro-wheel
-       scoped have been left in place (they're orphaned by the BE
-       clearance and will retire with the surfaces that consumed them);
-       this block redefines only the root palette every shared
-       primitive (button, input, card, etc.) reads from. */
+       nothing is. */
     --background: 0 0% 100%;
     --foreground: 0 0% 7%;
     --card: 0 0% 100%;
@@ -29,100 +23,25 @@
     --input: 0 0% 92%;
     --ring: 22 100% 52%;
     --border: 0 0% 92%;
-    --secondary: 0 0% 96%;
     --primary: 22 100% 52%;
-    --radius: 0.75rem;
     /* Journal: one warm off-white for audio/media panels. The Journal is
        otherwise strictly neutral — `primary` (orange) is reserved for
        live-action signals and never appears there. */
     --journal-media: 40 30% 97%;
-    /* System font stack — zero FOIT, no 200KB Inter download, honours
-       the user's OS preference. DM Sans / DM Serif Display are retired. */
-    --font-heading:
-      ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-      "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-    --font-body:
-      ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-      "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     --step-completed: 142 76% 36%;
     --step-pending: 210 40% 96.1%;
-    /* Dartboard ring strokes (1px), HSL-compatible */
-    --dartboard-ring-outer: 220 13% 91%;
-    --dartboard-ring-mid: 220 13% 85%;
-    --dartboard-ring-inner: 220 13% 78%;
-    /* Neuro-performance wheel: cognitive alignment palette (HSL, use with hsl(var(--neuro-*))) */
-    --neuro-perfect: 190 90% 65%;
-    --neuro-weak: 210 85% 55%;
-    --neuro-strong: 28 85% 60%;
-    --neuro-slow: 240 70% 60%;
-    --neuro-fast: 50 95% 65%;
-    --neuro-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    /* Apple-precision wheel: white + orange, on-brand */
-    --np-orange: 24 95% 55%;
-    --np-orange-soft: 24 90% 70%;
-    --np-gray-soft: 0 0% 92%;
-    --np-gray-mid: 0 0% 85%;
-    --np-gray-deep: 0 0% 75%;
-    /* Coach email template (Willab assignment email) */
-    --email-bg: 220 14% 96%;
-    --email-divider: 220 13% 91%;
     --primary-foreground: 0 0% 100%;
 
-    /* Chat bubbles — black user bubble (high authority, the user's
-       voice), light-gray bot bubble (quiet scaffolding). Orange is
+    /* Chat bubbles — light-gray bot bubble (quiet scaffolding). Orange is
        NEVER on a passive history bubble; that would dilute the
        signal-only role of the accent. */
     --chat-bubble-bot: 0 0% 96%;
-    --chat-bubble-user: 0 0% 7%;
-    --chat-bubble-user-foreground: 0 0% 100%;
-    --recording-pulse: 22 100% 52%;
 
-    /*
-     * Charisma Awareness Dashboard tokens — light, minimalist palette
-     * scoped under `dash-*` so the dashboard can sit on a pure-white
-     * canvas without disturbing the rest of the app's warm off-white
-     * background. Apply via Tailwind arbitrary-value selectors:
-     *   bg-[hsl(var(--dash-bg))]   text-[hsl(var(--dash-foreground))]
-     *   border-[hsl(var(--dash-border))]   etc.
-     */
-    --dash-bg: 0 0% 100%;
-    --dash-surface: 240 5% 98%;
-    --dash-surface-2: 240 5% 96%;
-    --dash-border: 240 6% 90%;
-    --dash-foreground: 240 10% 10%;
-    --dash-muted: 240 5% 45%;
-    --dash-brand: 25 95% 55%;
-    --dash-brand-glow: 25 100% 65%;
-    --dash-success: 152 76% 40%;
-    --dash-danger: 0 84% 55%;
-
-    /* Chat-slot semantic tokens (Single-Slot UI spec). Charisma maps
-       to success-emerald, stress to danger-red. Used by slots/
-       CharismaStress + any future slot that needs valence colour
-       without coupling to the more generic --destructive surface
+    /* Success-emerald valence colour for surfaces that need a positive
+       signal without coupling to the more generic --destructive surface
        (which the rest of the app already uses for delete confirms,
        error toasts, etc). */
     --success: 152 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --danger: 0 84% 60%;
-    --danger-foreground: 0 0% 100%;
-
-    /* Compound assets (gradients + shadow). These can't live as raw HSL
-       triplets because Tailwind's arbitrary-value engine wraps them in
-       hsl(); instead they're full CSS values, ready to drop into
-       bg-[image:var(--gradient-brand)] / shadow-[var(--shadow-glow)]. */
-    --gradient-brand: linear-gradient(
-      135deg,
-      hsl(25 95% 55%),
-      hsl(12 95% 55%)
-    );
-    --gradient-glow: radial-gradient(
-      60% 60% at 50% 0%,
-      hsl(25 95% 55% / 0.08) 0%,
-      transparent 70%
-    );
-    --shadow-glow: 0 0 0 1px hsl(25 95% 55% / 0.15),
-      0 10px 30px -10px hsl(25 95% 55% / 0.25);
   }
 
   /*
@@ -146,19 +65,6 @@
     /* inherits :root — the rebrand palette. No overrides. */
   }
 
-  /* Email template scope: design system for assignment email (backend can replicate) */
-  .coach-email {
-    --primary: 25 95% 53%;
-    --foreground: 220 25% 14%;
-    --background: 0 0% 100%;
-    --muted-foreground: 220 9% 46%;
-    --secondary: 220 14% 96%;
-    --border: 220 13% 91%;
-    --email-bg: 220 14% 96%;
-    --email-divider: 220 13% 91%;
-    --primary-foreground: 0 0% 100%;
-  }
-
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -173,169 +79,7 @@
     --primary: 24 95% 53%;
     --step-completed: 142 76% 36%;
     --step-pending: 217.2 32.6% 17.5%;
-    --dartboard-ring-outer: 217.2 32.6% 25%;
-    --dartboard-ring-mid: 217.2 32.6% 30%;
-    --dartboard-ring-inner: 217.2 32.6% 35%;
-    --neuro-perfect: 190 85% 70%;
-    --neuro-weak: 210 80% 58%;
-    --neuro-strong: 28 80% 62%;
-    --neuro-slow: 240 65% 62%;
-    --neuro-fast: 50 90% 68%;
-    --neuro-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --np-orange: 24 95% 55%;
-    --np-orange-soft: 24 90% 68%;
-    --np-gray-soft: 0 0% 90%;
-    --np-gray-mid: 0 0% 78%;
-    --np-gray-deep: 0 0% 65%;
   }
-}
-
-/* Apple-precision wheel: surgical transitions, no bounce */
-.apple-transition {
-  transition:
-    stroke 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Optional: apply when recording starts for polish */
-.apple-wheel-enter {
-  animation: apple-wheel-in 250ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes apple-wheel-in {
-  from {
-    transform: scale(0.96);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out forwards;
-}
-
-@keyframes fade-in-short {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in-short {
-  animation: fade-in-short 0.2s ease-out forwards;
-}
-
-/* Strength/pace dartboard: gentle pulse when user is off target (biofeedback) */
-@keyframes dartboard-ball-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.06);
-  }
-}
-
-.dartboard-ball-pulse {
-  transform-origin: center;
-  animation: dartboard-ball-pulse 1.2s ease-in-out infinite;
-}
-
-/* Perfect-state glow circle (softer breathing feel) */
-.dartboard-perfect-glow-circle {
-  animation: dartboard-perfect-glow-breathe 4s ease-in-out infinite;
-}
-
-@keyframes dartboard-perfect-glow-breathe {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-/* Neuro-performance wheel: micro-frequency pulse (subtle brightness, no flash) */
-@keyframes neuro-pulse-slight {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.88;
-  }
-}
-
-@keyframes neuro-pulse-strong {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-
-.neuro-ball-pulse-slight {
-  animation: neuro-pulse-slight 833ms ease-in-out infinite; /* ~1.2Hz */
-}
-
-.neuro-ball-pulse-strong {
-  animation: neuro-pulse-strong 500ms ease-in-out infinite; /* 2Hz */
-}
-
-/* Neural coherence: calm 8s breathe when aligned */
-@keyframes neuro-coherence-breathe {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.neuro-coherence-glow {
-  animation: neuro-coherence-breathe 8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-}
-
-/* Neuro dartboard: deliberate easing for all transitions (no bounce/elastic) */
-.neuro-dartboard-transition {
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Admin panel: spec palette (orange primary, etc.) — applied via .admin-panel wrapper */
-.admin-panel {
-  --primary: 24 95% 53%;
-  --background: 0 0% 99%;
-  --foreground: 220 20% 10%;
-  --card: 0 0% 100%;
-  --muted: 220 14% 96%;
-  --muted-foreground: 220 10% 46%;
-  --accent: 24 100% 97%;
-  --accent-foreground: 24 95% 40%;
-  --border: 220 13% 91%;
-  --destructive: 0 84% 60%;
 }
 
 html,
@@ -360,73 +104,6 @@ body {
     font-size: 16px !important;
     scroll-margin-top: 1.5rem;
   }
-}
-
-/*
- * Charisma Dashboard utilities.
- *
- * .dash-glass — Card surface for dashboard sections. Light off-white
- *   gradient between --dash-surface and --dash-surface-2, blurred backdrop
- *   so any ambient brand-glow showing through has a soft frosted feel,
- *   1px hairline border and a barely-there shadow. Designed to read as
- *   "card on white paper", not the dark-glass material from the original
- *   Lovable spec.
- * .dash-glow-ring — Brand-orange ring + soft drop shadow for accent
- *   elements (archetype pill, primary CTA). Pairs with --shadow-glow.
- */
-.dash-glass {
-  background-image: linear-gradient(
-    180deg,
-    hsl(var(--dash-surface) / 0.95),
-    hsl(var(--dash-surface-2) / 0.95)
-  );
-  border: 1px solid hsl(var(--dash-border));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.6) inset,
-    0 1px 2px hsl(240 6% 10% / 0.04),
-    0 4px 12px hsl(240 6% 10% / 0.04);
-}
-
-.dash-glow-ring {
-  border: 1px solid hsl(var(--dash-brand) / 0.5);
-  box-shadow: var(--shadow-glow);
-}
-
-/* Slow ambient pulse for the live-status dot inside the archetype pill.
-   Distinct from the dartboard pulse — quieter (1.5s cycle, 50%–100%
-   opacity) so it whispers "this is current data" rather than yelling. */
-@keyframes dash-pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.85);
-  }
-}
-
-.dash-pulse-dot {
-  animation: dash-pulse-dot 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Slow grow-in for the Trinity bar fills + heatmap points. Uses a long
-   0.7s ease so the dashboard feels "data settling" rather than snappy. */
-@keyframes dash-bar-grow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.dash-bar-grow {
-  transform-origin: left center;
-  animation: dash-bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Logo voice-dot — three-dot speaking/EQ rhythm. Each dot in the
@@ -455,7 +132,6 @@ body {
    bubble fade-in-up). One-shot transitions are left alone. */
 @media (prefers-reduced-motion: reduce) {
   .animate-voice-dot,
-  .animate-pulse-ring,
   .animate-fade-in-up {
     animation: none !important;
   }
