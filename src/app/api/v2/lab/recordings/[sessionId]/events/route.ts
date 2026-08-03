@@ -3,17 +3,19 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Vercel duration cap for ONE SSE connection. Jobs that outlive it see the
-// stream end cleanly; useLabReadoutLive reconnects and the bridge re-sends
-// current state, so a lower plan-level cap degrades to shorter connections,
-// never to a broken loop.
-export const maxDuration = 300;
+// Vercel duration cap for ONE SSE connection — 60 is the FREE (Hobby) plan's
+// hard ceiling, and a higher value FAILS DEPLOYMENT there (Vercel rejects the
+// build rather than clamping). We deploy on Hobby: do not raise this. Jobs
+// that outlive a connection see the stream end cleanly; useLabReadoutLive
+// reconnects and the bridge re-sends current state, so a long analysis rides
+// a chain of ≤60s connections instead of one long one.
+export const maxDuration = 60;
 
 const POLL_MS = 2000;
 const HEARTBEAT_MS = 15_000;
 // Close a little before maxDuration so the stream ends as a clean EOF the
 // client treats as "reconnect", not a mid-frame kill.
-const BRIDGE_WINDOW_MS = 290_000;
+const BRIDGE_WINDOW_MS = 55_000;
 // Bounds the SERVER loop only — the FE client owns the real terminal decision
 // (it also treats a non-processing state WITH content as done), exactly as it
 // did when it polled.
