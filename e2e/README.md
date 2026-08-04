@@ -1,13 +1,14 @@
 # e2e specs — real-browser checks for what jsdom can't answer
 
-Six standalone Playwright scripts (not a test-runner suite): each boots
-Chromium, drives a `/dev/*` harness page served by `next dev`, prints
-PASS/FAIL lines, and exits non-zero on any failure.
+Seven standalone Playwright scripts (not a test-runner suite): each boots
+Chromium, drives a page, prints PASS/FAIL lines, and exits non-zero on any
+failure.
 
 | spec | harness page | default target |
 | --- | --- | --- |
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
+| `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
 | `game.spec.mjs` | `/dev/game` | `GAME_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
@@ -18,6 +19,16 @@ needed for them. **record-flow is the exception**: it drives the real
 record flow at `/chat`, which calls the backend through the BFF — it needs
 the full local stack (backend up + real env) and is therefore not part of
 the CI e2e job.
+
+**csp-violations is the other exception, in the opposite direction.** It
+needs no backend, but it must run against a PRODUCTION build (`next build`
++ `next start`) rather than `next dev` — `script-src` carries
+`'unsafe-eval'` only in dev, and dev injects styles for HMR that production
+never ships, so dev would miss the real policy and flag violations users
+never meet. It has its own BLOCKING `csp` job in CI, separate from the
+non-blocking `e2e` job, because the failure it guards against (#242) took
+every route down while the build, the unit tier, and a hand audit of the
+rendered HTML were all green.
 
 ## Run them
 

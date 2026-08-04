@@ -1,6 +1,6 @@
 name: tests
 
-# The FE's first CI gate (testing-strategy overhaul). Two tiers:
+# The FE's first CI gate (testing-strategy overhaul). Three tiers:
 #
 #   unit — vitest (935 cases), next lint, tsc --noEmit. All three were green
 #          at the commit that introduced this gate; a red here is a NEW
@@ -12,6 +12,15 @@ name: tests
 #          period — real-browser timing can flake in CI, and a gate that
 #          cries wolf gets ignored. Flip it blocking once it has a quiet
 #          track record.
+#
+#   csp  — one real-browser spec against a PRODUCTION build, asserting the
+#          Content-Security-Policy blocks nothing the app actually loads.
+#          BLOCKING from the start, unlike e2e: this tier exists because #242
+#          shipped a policy that broke every route, and it passed a green
+#          build, a green unit tier and a hand audit of the rendered HTML.
+#          The stylesheet it blocked is written at RUNTIME by a dependency,
+#          so a browser is the only thing that can see it. A flake here costs
+#          a re-run; a miss here costs a total outage.
 
 on:
   push:
@@ -100,3 +109,48 @@ jobs:
       - name: Dev-server log on failure
         if: failure()
         run: tail -50 /tmp/nextdev.log
+
+  csp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # A PRODUCTION build on purpose, not `next dev`: script-src carries
+      # 'unsafe-eval' only in dev, and dev injects styles for HMR that
+      # production never ships — so dev would both miss the real policy and
+      # report violations users never meet. Env values are placeholders in the
+      # same shape the e2e tier uses; nothing connects to them, and the build
+      # only needs them to be present.
+      - name: Build and start the production server
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
+          OPENAI_API_KEY: sk-dummy-never-called
+        run: |
+          npx next build
+          npx next start -p 3140 > /tmp/nextstart.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3140/ && break
+            sleep 2
+          done
+
+      - name: CSP violations in a real browser
+        run: BASE_URL=http://localhost:3140 node e2e/csp-violations.spec.mjs
+
+      - name: Server log on failure
+        if: failure()
+        run: tail -50 /tmp/nextstart.log
