@@ -355,9 +355,9 @@ export default function Lounge({
   // text-only — keeps the Lounge composer visually distinct from the
   // Lab's "Start official recording" CTA so users never confuse the
   // calm off-stage surface with the high-stakes on-stage one. The
-  // Web Speech machinery (`useSpeechInput`) stays in the tree for
-  // now in case a future surface (e.g. an accessibility opt-in) wants
-  // to bring it back, but the Lounge no longer calls it.
+  // Web Speech machinery (`useSpeechInput`) was deleted in the
+  // founder-approved dead-code sweep; recover it from git history if
+  // a future surface (e.g. an accessibility opt-in) wants it back.
 
   // Jump to bottom once the thread finishes loading — always open at the latest
   // message. Re-pin after the next frame + a short delay so async content
