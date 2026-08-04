@@ -16,15 +16,70 @@
 // The policy below replaces the one-size-fits-all rule that made the bump
 // necessary in the first place, so this should be the last bump that has to
 // rescue anybody rather than just tidy up.
-const CACHE_NAME = "willab-shell-v5";
+const CACHE_NAME = "willab-shell-v6";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
+/* ────────────────────────────────────────────────────────────────────────
+   INSTALL MUST NOT BE ABLE TO FAIL (2026-08-04)
+
+   It could, and that is why v5 did not rescue anybody.
+
+   The old handler was `cache.addAll(SHELL_ASSETS)` inside `waitUntil`.
+   addAll is ATOMIC, and `cache.put()` REJECTS a redirected Response outright
+   — a documented Cache API restriction, not a quirk. All three shell assets
+   are matched by the middleware (its matcher excludes only api/_next/image
+   extensions), and the middleware redirects: signed-out users off protected
+   routes, signed-in users off auth routes.
+
+   So one redirect on one optional asset rejected addAll, which rejected
+   waitUntil, which FAILED THE INSTALL. A worker that fails to install never
+   activates, so the browser stays pinned to the worker it already has —
+   permanently, across every reload and every deploy. The cache-name bump
+   cannot help, because the worker that would run it never starts.
+
+   That is the worst possible property for this file: the upgrade path IS the
+   rescue path. Precaching an offline shell is an optimisation. It is now
+   strictly best-effort, and nothing optional is allowed to gate the install
+   again.
+   ──────────────────────────────────────────────────────────────────────── */
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
-  );
+  // First and unconditionally: the new worker takes over even if every line
+  // below fails.
   self.skipWaiting();
+  event.waitUntil(precacheShell());
 });
+
+/** Best-effort precache. MUST NOT reject — see the block above. */
+async function precacheShell() {
+  let cache;
+  try {
+    cache = await caches.open(CACHE_NAME);
+  } catch {
+    return; // No storage at all (private mode, quota). Still install.
+  }
+  await Promise.all(SHELL_ASSETS.map((url) => precacheOne(cache, url)));
+}
+
+async function precacheOne(cache, url) {
+  try {
+    const response = await fetch(url, { cache: "reload" });
+    if (!response.ok) return;
+    // Rebuilding a redirected response as a plain 200 keeps the body and
+    // drops the flag `cache.put` refuses, so a route that redirects costs one
+    // uncached asset instead of the entire install.
+    const storable = response.redirected
+      ? new Response(await response.blob(), {
+          status: 200,
+          statusText: "OK",
+          headers: response.headers,
+        })
+      : response;
+    await cache.put(url, storable);
+  } catch {
+    /* This one asset is not precached. Never fatal. */
+  }
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(

@@ -29,6 +29,9 @@ type Handler = (event: any) => void;
 interface Scope {
   fetchHandler: Handler;
   activateHandler: Handler;
+  installHandler: Handler;
+  /** True once the worker has committed to taking over. */
+  skipWaitingCalled: () => boolean;
   /** Everything the worker actually wrote, by URL. */
   store: Map<string, string>;
   /** Every URL the worker went to the network for. */
@@ -39,13 +42,42 @@ interface Scope {
 }
 
 /** A response the worker will consider cacheable (200 + same-origin). */
-function ok(body: string) {
+function ok(body: string, extra: { redirected?: boolean } = {}) {
   return {
     status: 200,
+    ok: true,
     type: "basic",
+    redirected: extra.redirected ?? false,
+    headers: {},
     body,
+    async blob() {
+      return body;
+    },
     clone() {
-      return ok(body);
+      return ok(body, extra);
+    },
+  };
+}
+
+/** What the middleware hands back for a route it redirects. `cache.put` throws
+ *  on one of these in a real browser, which is the whole point. */
+function redirectedTo(body: string) {
+  return ok(body, { redirected: true });
+}
+
+function notFound() {
+  return {
+    status: 404,
+    ok: false,
+    type: "basic",
+    redirected: false,
+    headers: {},
+    body: "not found",
+    async blob() {
+      return "not found";
+    },
+    clone() {
+      return notFound();
     },
   };
 }
@@ -69,18 +101,34 @@ function bootWorker(): Scope {
       return hit ? ok(hit) : undefined;
     },
     put: async (req: any, res: any) => {
+      // The real Cache API REFUSES a redirected response. Modelling that is
+      // the only way this suite can see the install bug it exists to catch.
+      if (res?.redirected) {
+        throw new TypeError("Cache.put() encountered a redirected response");
+      }
       store.set(keyOf(req), res.body);
     },
     addAll: async (urls: string[]) => {
-      for (const u of urls) store.set(keyOf(u), `precached:${u}`);
+      // Atomic, exactly like the real thing: any failure rejects the lot.
+      const responses = urls.map((u) => network(new URL(u, ORIGIN).toString()));
+      for (const r of responses) {
+        if (r?.redirected) {
+          throw new TypeError("Cache.put() encountered a redirected response");
+        }
+        if (r?.ok === false) throw new TypeError("Request failed");
+      }
+      urls.forEach((u, i) => store.set(keyOf(u), responses[i].body));
     },
   });
 
+  let skipWaiting = false;
   const scope: any = {
     addEventListener: (name: string, fn: Handler) => {
       handlers[name] = fn;
     },
-    skipWaiting: () => {},
+    skipWaiting: () => {
+      skipWaiting = true;
+    },
     clients: { claim: () => {} },
     registration: {
       navigationPreload: { enable: async () => {} },
@@ -116,6 +164,8 @@ function bootWorker(): Scope {
   return {
     fetchHandler: handlers.fetch,
     activateHandler: handlers.activate,
+    installHandler: handlers.install,
+    skipWaitingCalled: () => skipWaiting,
     store,
     networkCalls,
     cacheNames,
@@ -320,5 +370,77 @@ describe("the service worker caching policy", () => {
     await request(sw, "https://willpowerlab.com/icon");
     await request(sw, "https://willpowerlab.com/_next/static/chunks/x-1.js");
     await request(sw, "https://willpowerlab.com/", { mode: "navigate" });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  INSTALL — the rescue path, which must never be blockable                   */
+/*                                                                            */
+/*  v5 shipped a correct caching policy that reached nobody: install used      */
+/*  `cache.addAll`, which is atomic, and `cache.put` rejects a redirected      */
+/*  response. All three shell assets run through the middleware, which         */
+/*  redirects. So the install failed, the worker never activated, and every    */
+/*  browser stayed pinned to the worker it already had — through every reload  */
+/*  and every deploy. These tests exist so that cannot come back.              */
+/* -------------------------------------------------------------------------- */
+
+/** Run the install handler and report whether it survived. */
+async function install(sw: Scope) {
+  const pending: Promise<any>[] = [];
+  sw.installHandler({ waitUntil: (p: Promise<any>) => pending.push(p) });
+  try {
+    await Promise.all(pending);
+    return { installed: true as const };
+  } catch (err) {
+    return { installed: false as const, err };
+  }
+}
+
+describe("the service worker install", () => {
+  let sw: Scope;
+  beforeEach(() => {
+    sw = bootWorker();
+  });
+
+  it("survives a shell asset that REDIRECTS", async () => {
+    // Exactly the production case: middleware 307s `/` for a signed-in user.
+    sw.setNetwork((url) =>
+      url.endsWith("/") ? redirectedTo("<html>dashboard</html>") : ok(`fresh:${url}`)
+    );
+
+    const result = await install(sw);
+
+    expect(result.installed).toBe(true);
+    // And the assets that did NOT redirect are still precached, so one awkward
+    // route costs one entry rather than the offline shell.
+    expect(sw.store.has(`${ORIGIN}/icon`)).toBe(true);
+  });
+
+  it("survives a shell asset that 404s", async () => {
+    sw.setNetwork((url) => (url.endsWith("/icon") ? notFound() : ok(`fresh:${url}`)));
+
+    const result = await install(sw);
+
+    expect(result.installed).toBe(true);
+    expect(sw.store.has(`${ORIGIN}/icon`)).toBe(false);
+    expect(sw.store.has(`${ORIGIN}/manifest.webmanifest`)).toBe(true);
+  });
+
+  it("survives the network being gone entirely", async () => {
+    sw.setNetwork(() => {
+      throw new Error("offline");
+    });
+    expect((await install(sw)).installed).toBe(true);
+  });
+
+  it("takes over even when precaching fails completely", async () => {
+    // skipWaiting is what makes the new worker replace the broken one. If it
+    // were gated on a successful precache, a user stuck on a bad worker would
+    // stay stuck — which is the whole failure this file is about.
+    sw.setNetwork(() => {
+      throw new Error("offline");
+    });
+    await install(sw);
+    expect(sw.skipWaitingCalled()).toBe(true);
   });
 });
