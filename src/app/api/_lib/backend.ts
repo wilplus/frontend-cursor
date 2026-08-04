@@ -11,6 +11,11 @@ import { proxyResponse } from "@/app/api/proxyResponse";
 /*  streaming/upload routes that need their own abort mapping, backendFetch(). */
 /*  No route constructs an Authorization header or a backend URL itself —      */
 /*  scripts/check-bff-single-idiom.mjs enforces that in CI.                    */
+/*                                                                            */
+/*  The ONE sanctioned lane around this file: long media uploads may go        */
+/*  browser → Cloudflare Worker → backend (cloudflare/upload-proxy, founder    */
+/*  2026-08-04) to escape the permanent Vercel Hobby 300s ceiling. The Worker  */
+/*  mirrors this file's trust model (forward, never mint) and envelope.        */
 /* -------------------------------------------------------------------------- */
 
 /** Private URL for BFF→backend (e.g. Railway: http://backend.railway.internal:PORT). When set, used instead of public URL. */

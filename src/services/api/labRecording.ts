@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
 import { mapRecordingProgress, type RecordingProgress } from "./recordingProgress";
 import { type PresentationSlide } from "@/components/willab/presentation";
@@ -231,14 +232,31 @@ export async function submitLabRecording(
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/lab/recordings", {
+  // Cloudflare Worker lane first when configured (no Vercel 300s ceiling, so
+  // the backend's session_id-bearing 504 survives); BFF lane as the fallback
+  // on any network-level failure — enabling the Worker can only degrade to
+  // exactly today's behavior. FormData re-serializes per fetch, so the same
+  // body object safely backs both attempts.
+  const post = (url: string) =>
+    fetch(url, {
       method: "POST",
       headers,
       body: form,
       credentials: "include",
     });
+
+  let res: Response;
+  try {
+    const proxyBase = uploadProxyBase();
+    let viaProxy: Response | null = null;
+    if (proxyBase) {
+      try {
+        viaProxy = await post(`${proxyBase}/v2/lab/recordings`);
+      } catch {
+        viaProxy = null; // CORS, DNS, offline — fall back to the BFF lane.
+      }
+    }
+    res = viaProxy ?? (await post("/api/v2/lab/recordings"));
   } catch {
     return {
       kind: "error",
