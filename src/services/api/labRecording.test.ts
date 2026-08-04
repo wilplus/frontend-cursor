@@ -102,6 +102,24 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
   });
 });
 
+describe("submitLabRecording — F2 §2 the named state rides both emotion lanes", () => {
+  it("sends feeling AND named_emotion from the one captured value", async () => {
+    await submitLabRecording({ ...baseInput(), feeling: "nervous" });
+    const form = captured as FormData;
+
+    expect(form.get("feeling")).toBe("nervous");
+    expect(form.get("named_emotion")).toBe("nervous");
+  });
+
+  it("no naming → neither field arrives (never a null on the wire)", async () => {
+    await submitLabRecording(baseInput());
+    const form = captured as FormData;
+
+    expect(form.get("feeling")).toBeNull();
+    expect(form.get("named_emotion")).toBeNull();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /*  FE handoff 2026-08-03 §A — the new backend error envelope on the upload.   */
 /*                                                                            */
