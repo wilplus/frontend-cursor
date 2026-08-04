@@ -45,6 +45,7 @@ import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
+import ReflectionGamePrompt from "./ReflectionGamePrompt";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -776,6 +777,16 @@ export default function Lounge({
             In-thread means it scrolls with the conversation and cannot cover a
             running take; the wrapper holds the stay-out-of-the-Lab rule. */}
         <LoungeSpeakerSexPrompt state={state} threadLoading={thread.loading} />
+
+        {/* F2 §1 — the Reflection Game card: the machine's clipped moment as a
+            question, in-thread for the same LIVE-LOOP reason as the ask above.
+            Server-capped at 2/day; renders nothing when there's nothing to
+            ask (or for guests). */}
+        <ReflectionGamePrompt
+          signedIn={thread.signedIn}
+          threadLoading={thread.loading}
+          active={!isLabOverlay(state)}
+        />
 
         {botThinking && <TypingDots />}
       </div>
