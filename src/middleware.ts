@@ -191,6 +191,12 @@ export async function middleware(req: NextRequest) {
       // here even while the browser held a valid one. setAll is what persists
       // the token getUser() refreshes below, so navigation renews an idle
       // tab's session instead of leaving it to expire (handoff §C2).
+      //
+      // NEVER add httpOnly here. @supabase/ssr's BROWSER client reads the auth
+      // token from document.cookie, so writing these back httpOnly blinds the
+      // client to its own session: the server still sees a valid user (no
+      // redirect to /login) while the client renders as signed-out. That is
+      // exactly the blank /dashboard this block shipped once already.
       cookies: {
         getAll() {
           return req.cookies.getAll();
@@ -203,7 +209,6 @@ export async function middleware(req: NextRequest) {
               ...options,
               secure: isProd,
               sameSite: "lax",
-              httpOnly: true,
               path: "/",
             })
           );
