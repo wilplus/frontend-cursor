@@ -22,7 +22,9 @@ function generateNonce(): string {
   return btoa(bin);
 }
 
-function getCspDirectives(nonce: string): string {
+/** Exported for the CSP regression test — the policy is a live-loop dependency
+ *  (a missing source is a dead page), so its sources are asserted, not assumed. */
+export function getCspDirectives(nonce: string): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const isDev = process.env.NODE_ENV === "development";
@@ -31,6 +33,13 @@ function getCspDirectives(nonce: string): string {
     "'self'",
     "https://*.supabase.co",
     "https://*.supabase.io",
+    // Supabase Realtime is a WEBSOCKET, and CSP matches the scheme: an
+    // `https://` source does NOT authorize a `wss://` connection to the same
+    // host. Without these two the realtime handshake is refused and
+    // realtime-js throws "WebSocket not available" synchronously out of
+    // .subscribe() — which is a dead page, not a degraded one.
+    "wss://*.supabase.co",
+    "wss://*.supabase.io",
     // Cloudflare R2 (S3 API). Media uploads go DIRECT from the browser to
     // object storage via a presigned PUT, and the backend is dual-host:
     // R2 whenever the R2_* env vars are set, else a Supabase Storage signed
@@ -49,7 +58,13 @@ function getCspDirectives(nonce: string): string {
   }
   
   if (apiUrl) connectSrc.push(apiUrl);
-  if (supabaseUrl) connectSrc.push(supabaseUrl);
+  if (supabaseUrl) {
+    connectSrc.push(supabaseUrl);
+    // Same host, websocket scheme — needed as its own source (see above), and
+    // derived rather than hardcoded so a self-hosted or custom-domain Supabase
+    // (which the *.supabase.co wildcards never match) keeps Realtime working.
+    connectSrc.push(supabaseUrl.replace(/^https:\/\//, "wss://"));
+  }
 
   // Escape hatch for a storage origin the defaults above don't cover: an R2
   // CUSTOM domain, or a CDN in front of the bucket. The two default hosts
