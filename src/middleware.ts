@@ -22,7 +22,10 @@ function generateNonce(): string {
   return btoa(bin);
 }
 
-function getCspDirectives(nonce: string): string {
+/** Exported for `csp.test.ts`. The policy is the single piece of this file
+ *  that can take every route down at once, so it is worth asserting directly
+ *  rather than only through a running browser. */
+export function getCspDirectives(nonce: string): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const isDev = process.env.NODE_ENV === "development";
@@ -31,6 +34,12 @@ function getCspDirectives(nonce: string): string {
     "'self'",
     "https://*.supabase.co",
     "https://*.supabase.io",
+    // Supabase Realtime is a WebSocket, and `https://` does NOT authorise
+    // `wss://` — CSP scheme-matching treats them as separate schemes, so the
+    // wss:// origins must be named even though the https:// ones are already
+    // here. Chrome is lenient about this and Safari is not.
+    "wss://*.supabase.co",
+    "wss://*.supabase.io",
     // Cloudflare R2 (S3 API). Media uploads go DIRECT from the browser to
     // object storage via a presigned PUT, and the backend is dual-host:
     // R2 whenever the R2_* env vars are set, else a Supabase Storage signed
@@ -49,7 +58,22 @@ function getCspDirectives(nonce: string): string {
   }
   
   if (apiUrl) connectSrc.push(apiUrl);
-  if (supabaseUrl) connectSrc.push(supabaseUrl);
+  if (supabaseUrl) {
+    connectSrc.push(supabaseUrl);
+    // Supabase Realtime opens a WebSocket, and `https://host` does NOT
+    // authorise `wss://host`: CSP scheme-matching treats them as different
+    // schemes, so the wss:// origin has to be named in its own right.
+    //
+    // Chrome is lenient about this and Safari is not, which is how it went
+    // unnoticed — realtime worked on desktop while iOS logged "Refused to
+    // connect to wss://…" followed by "WebSocket not available: The operation
+    // is insecure".
+    try {
+      connectSrc.push(`wss://${new URL(supabaseUrl).host}`);
+    } catch {
+      /* malformed env value → leave the policy as it was */
+    }
+  }
 
   // Escape hatch for a storage origin the defaults above don't cover: an R2
   // CUSTOM domain, or a CDN in front of the bucket. The two default hosts
@@ -89,22 +113,27 @@ function getCspDirectives(nonce: string): string {
     `connect-src ${connectSrc.join(" ")}`,
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: data: https:",
-    // CSP Level 2 fallback, kept as-is for browsers that don't understand the
-    // -elem/-attr split below. Where they ARE understood they override this,
-    // so the effective policy is the tighter pair.
+    // ROLLED BACK 2026-08-04. #242 split this into `style-src-elem 'self'` +
+    // `style-src-attr 'unsafe-inline'`, and it took the app down on Safari.
+    //
+    // Its premise was "the app ships zero <style> tags, verified across /,
+    // /login, /blog, /about and /chat". That is true of the RENDERED HTML —
+    // the production build emits zero <style> tags, so the check could not
+    // have caught this. The blocks are injected at RUNTIME by a dependency:
+    // `sonner` writes its stylesheet into a <style> element when the toaster
+    // first mounts. Nothing in the markup, or in our own source, names it.
+    //
+    // Blocking it did not merely lose the toast styling. Safari refused the
+    // stylesheet, webpack's chunk load rejected with it, and the rejection
+    // surfaced as `a[e] is not a function` out of the module registry —
+    // caught by the error boundary as "Something went wrong" on every route.
+    // Chrome was more forgiving, which is why this read as an iOS-only fault.
+    //
+    // Re-landing it is worth doing, but it needs the injected block ACCOUNTED
+    // FOR first: either a hash for sonner's stylesheet, or its styles imported
+    // through the bundle so they arrive from /_next/static/css like everything
+    // else. Shipping the directive before then just reintroduces the outage.
     "style-src 'self' 'unsafe-inline'",
-    // No inline <style> blocks, no third-party stylesheets. The app ships zero
-    // <style> tags and loads CSS only from /_next/static/css — verified across
-    // /, /login, /blog, /about and /chat. This is the half of 'unsafe-inline'
-    // an injection would actually exploit at scale: one <style> block can
-    // carry selectors that exfiltrate attribute values a character at a time.
-    "style-src-elem 'self'",
-    // Inline style ATTRIBUTES stay allowed, because they cannot be locked
-    // down: a nonce never applies to a style= attribute, and hashing is out
-    // since the values are computed at runtime (progress fills, sized
-    // spinners, timeline offsets, thumbnail dimensions). Removing this would
-    // mean refactoring every dynamically-sized element in the app.
-    "style-src-attr 'unsafe-inline'",
     `script-src ${scriptSrc.join(" ")}`,
     // Same-origin workers only: the bundled pdf.js worker and /sw.js.
     "worker-src 'self'",
