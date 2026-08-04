@@ -89,10 +89,22 @@ function getCspDirectives(nonce: string): string {
     `connect-src ${connectSrc.join(" ")}`,
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: data: https:",
-    // Style stays 'unsafe-inline': inline style= attributes (print export,
-    // email-ish markup) and Next's dev style injection need it. Script is the
-    // XSS vector this policy exists to close; styles are the follow-up.
+    // CSP Level 2 fallback, kept as-is for browsers that don't understand the
+    // -elem/-attr split below. Where they ARE understood they override this,
+    // so the effective policy is the tighter pair.
     "style-src 'self' 'unsafe-inline'",
+    // No inline <style> blocks, no third-party stylesheets. The app ships zero
+    // <style> tags and loads CSS only from /_next/static/css — verified across
+    // /, /login, /blog, /about and /chat. This is the half of 'unsafe-inline'
+    // an injection would actually exploit at scale: one <style> block can
+    // carry selectors that exfiltrate attribute values a character at a time.
+    "style-src-elem 'self'",
+    // Inline style ATTRIBUTES stay allowed, because they cannot be locked
+    // down: a nonce never applies to a style= attribute, and hashing is out
+    // since the values are computed at runtime (progress fills, sized
+    // spinners, timeline offsets, thumbnail dimensions). Removing this would
+    // mean refactoring every dynamically-sized element in the app.
+    "style-src-attr 'unsafe-inline'",
     `script-src ${scriptSrc.join(" ")}`,
     // Same-origin workers only: the bundled pdf.js worker and /sw.js.
     "worker-src 'self'",
