@@ -20,9 +20,9 @@ describe("mapLifeState", () => {
     menu: [
       { key: "principles", label: "Principles", href: "/panel/principles" },
       {
-        key: "prayer",
-        label: "Prayer",
-        href: "https://pompeiana.willpowerlab.com",
+        key: "somewhere_else",
+        label: "Somewhere else",
+        href: "https://example.willpowerlab.com",
         external: true,
       },
     ],
@@ -32,7 +32,10 @@ describe("mapLifeState", () => {
     const state = mapLifeState(payload)!;
     expect(state.consent.acceptedVersion).toBeNull();
     expect(state.setup.resumeStep).toBe("quarterly");
-    expect(state.menu.map((m) => m.key)).toEqual(["principles", "prayer"]);
+    expect(state.menu.map((m) => m.key)).toEqual([
+      "principles",
+      "somewhere_else",
+    ]);
     expect(state.menu[1].external).toBe(true);
   });
 
@@ -54,8 +57,8 @@ describe("mapLifeState", () => {
   /*  /v2/life/state sends menu: ["principles", "wins", …]. This required     */
   /*  objects carrying {key, href}, so every entry was discarded and          */
   /*  state.menu was permanently empty. Two things broke silently: the server */
-  /*  could not add or pull a surface without an FE deploy, and Prayer could  */
-  /*  never appear for the allowlisted user it is enumerated for.             */
+  /*  could not add or pull a surface without an FE deploy, and a server-sent */
+  /*  list could never take effect at all.                                    */
   /* ------------------------------------------------------------------------ */
 
   it("resolves the bare keys the backend actually sends", () => {
@@ -73,11 +76,13 @@ describe("mapLifeState", () => {
     expect(state.menu[1].label).toBe("Wins");
   });
 
-  it("resolves prayer, and marks it as leaving the app", () => {
+  /* Prayer is a SEPARATE app on pompeiana.willpowerlab.com, reached through
+   * the shared WillpowerLab login rather than from inside this one (founder
+   * 2026-08-04). A prayer key on the wire is a key this app does not serve, so
+   * it takes the unknown-key path: dropped, quietly, with nothing thrown. */
+  it("drops a prayer key rather than linking another app from this one", () => {
     const state = mapLifeState({ ...payload, menu: ["principles", "prayer"] })!;
-    const prayer = state.menu.find((m) => m.key === "prayer")!;
-    expect(prayer.external).toBe(true);
-    expect(prayer.href).toContain("pompeiana");
+    expect(state.menu.map((m) => m.key)).toEqual(["principles"]);
   });
 
   it("keeps the server's own object when it sends one", () => {

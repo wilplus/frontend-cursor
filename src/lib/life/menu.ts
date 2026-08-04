@@ -20,9 +20,9 @@
 /*  exists and how far through the gate this user is.                          */
 /*                                                                            */
 /*  THE SERVER STILL WINS when it wants to. A non-empty `state.menu` replaces  */
-/*  this list wholesale, which is the only way an allowlisted entry can ever   */
-/*  appear: Prayer is founder-only, the FE cannot know the allowlist, so it is */
-/*  never derived here. A payload that wants Prayer sends the whole menu.      */
+/*  this list wholesale, which is how a surface gets added or pulled without   */
+/*  an FE deploy. What it cannot do is conjure a surface this app does not     */
+/*  serve: a key with no route on this side is dropped, not rendered.          */
 /*                                                                            */
 /*  The kill switch is untouched and upstream of all of it: no state at all    */
 /*  (`/v2/life/state` 404s) means no entries, whatever this file says.         */
@@ -45,41 +45,86 @@ interface LifeViewSpec {
   needsSetup: boolean;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Why the labels below are read through a function (outage, 2026-08-04)      */
+/*                                                                            */
+/*  The tables in this file are module-scope constants, so every label read    */
+/*  runs at IMPORT time. `VIEWS.prayer.title` was one of them, and in          */
+/*  production `VIEWS.prayer` came back undefined — so the read threw while    */
+/*  the module was still initialising.                                        */
+/*                                                                            */
+/*  That is the whole outage. A throw at module scope happens BEFORE React     */
+/*  has anything mounted, so no error boundary can catch it, and this module   */
+/*  is reached from the app menu in the root layout: every route died, the     */
+/*  error route included. The user saw "Something went wrong" on every page    */
+/*  and a reload could not clear it.                                          */
+/*                                                                            */
+/*  The prayer entry is gone (it was never this app's to render). This         */
+/*  accessor closes the CLASS of bug: a copy key that is missing, renamed, or  */
+/*  absent from whatever build of copy.ts the browser actually loaded now      */
+/*  degrades to a plain fallback word. One menu entry reads wrong instead of   */
+/*  the entire app failing to boot.                                           */
+/* -------------------------------------------------------------------------- */
+function viewTitle(key: string, fallback: string): string {
+  const view = (VIEWS as Record<string, { title?: string } | undefined>)[key];
+  return typeof view?.title === "string" && view.title ? view.title : fallback;
+}
+
 /** In the order the spec's §6.3 menu lists them. */
 export const LIFE_VIEWS: readonly LifeViewSpec[] = [
   {
     key: "principles",
-    label: VIEWS.principles.title,
+    label: viewTitle("principles", "Principles"),
     href: "/panel/principles",
     needsSetup: false,
   },
-  { key: "wins", label: VIEWS.wins.title, href: "/panel/wins", needsSetup: true },
+  {
+    key: "wins",
+    label: viewTitle("wins", "Wins"),
+    href: "/panel/wins",
+    needsSetup: true,
+  },
   {
     key: "phrases",
-    label: VIEWS.phrases.title,
+    label: viewTitle("phrases", "Phrases"),
     href: "/panel/phrases",
     needsSetup: true,
   },
-  { key: "today", label: VIEWS.today.title, href: "/panel/today", needsSetup: true },
+  {
+    key: "today",
+    label: viewTitle("today", "Today"),
+    href: "/panel/today",
+    needsSetup: true,
+  },
   // The Sunday review. Sits next to Today because it is the same loop at a
   // different cadence, and because that is where the L-2b batch of three lands.
-  { key: "week", label: VIEWS.week.title, href: "/panel/week", needsSetup: true },
-  { key: "goals", label: VIEWS.goals.title, href: "/panel/goals", needsSetup: true },
+  {
+    key: "week",
+    label: viewTitle("week", "Week"),
+    href: "/panel/week",
+    needsSetup: true,
+  },
+  {
+    key: "goals",
+    label: viewTitle("goals", "Goals"),
+    href: "/panel/goals",
+    needsSetup: true,
+  },
   {
     key: "timeline",
-    label: VIEWS.timeline.title,
+    label: viewTitle("timeline", "Timeline"),
     href: "/panel/timeline",
     needsSetup: true,
   },
   {
     key: "distractions",
-    label: VIEWS.distractions.title,
+    label: viewTitle("distractions", "Distractions"),
     href: "/panel/distractions",
     needsSetup: true,
   },
   {
     key: "strategy",
-    label: VIEWS.strategy.title,
+    label: viewTitle("strategy", "Strategy"),
     href: "/panel/strategy",
     needsSetup: true,
   },
@@ -95,8 +140,8 @@ export const LIFE_VIEWS: readonly LifeViewSpec[] = [
 export function panelMenu(state: LifeState | null): LifeMenuEntry[] {
   if (!state) return [];
   // An explicit server list is authoritative, including when it is shorter
-  // than this one. That is how Prayer arrives, and how a surface gets pulled
-  // without an FE deploy.
+  // than this one. That is how a surface gets added or pulled without an FE
+  // deploy.
   if (state.menu.length > 0) return state.menu;
 
   const unlocked = isParticipating(state);
@@ -113,32 +158,31 @@ export function panelMenu(state: LifeState | null): LifeMenuEntry[] {
 /*  therefore discarded and `state.menu` was always empty, which meant the    */
 /*  derived list below is what has always rendered. Two things were broken by */
 /*  that and neither was visible: the server could not pull or add a surface  */
-/*  without an FE deploy, and PRAYER COULD NEVER APPEAR for the allowlisted   */
-/*  user the server enumerates it for.                                        */
+/*  without an FE deploy, and a server-sent list could never take effect at   */
+/*  all.                                                                      */
 /*                                                                            */
 /*  So a key resolves HERE, against this file, and the label stays in copy.ts */
 /*  where copy lives. The alternative — the backend sending labels and hrefs  */
 /*  — would put user-facing wording in two repos and let them drift.          */
 /*                                                                            */
-/*  Prayer is resolvable but NOT derivable: it is in this table and not in    */
-/*  LIFE_VIEWS, so it appears when the server names it and never otherwise.   */
-/*  That is the allowlist working as intended, rather than this side guessing.*/
+/*  PRAYER IS NOT IN THIS TABLE, and must not be put back (founder            */
+/*  2026-08-04). willpowerlab.com is the voice app. Prayer is a separate web  */
+/*  app on pompeiana.willpowerlab.com, joined to this one by the shared       */
+/*  WillpowerLab login and nothing else. It is not a surface of this app, so  */
+/*  this app does not link to it and holds no label for it.                   */
+/*                                                                            */
+/*  A `"prayer"` key from the server therefore resolves to null and is        */
+/*  dropped, exactly like any other key this side does not serve — the same   */
+/*  path an unknown key has always taken. Nothing throws and nothing renders  */
+/*  as a dead entry.                                                          */
 /* -------------------------------------------------------------------------- */
 export const RESOLVABLE_VIEWS: ReadonlyMap<string, LifeMenuEntry> = new Map(
   [
     ...LIFE_VIEWS.map(({ key, label, href }) => [key, { key, label, href }]),
     [
-      "prayer",
-      {
-        key: "prayer",
-        label: VIEWS.prayer.title,
-        // Its own subdomain, its own service worker scope, its own PWA
-        // install — so it leaves the app rather than routing inside it.
-        href: "https://pompeiana.willpowerlab.com",
-        external: true,
-      },
+      "data",
+      { key: "data", label: viewTitle("data", "Your data"), href: "/panel/data" },
     ],
-    ["data", { key: "data", label: VIEWS.data.title, href: "/panel/data" }],
   ] as [string, LifeMenuEntry][]
 );
 
@@ -185,10 +229,9 @@ const PANEL_SUBVIEW_KEYS: ReadonlySet<string> = new Set(
  *
  * FILTERED, NOT RE-LISTED. It takes `panelMenu`'s answer and removes the
  * sub-views, so a view added to LIFE_VIEWS later is automatically inside the
- * tab rather than in the hamburger, and a key this file does not know — a
- * server-sent entry such as Prayer, which is its own app rather than part of
- * the panel — is KEPT. The hamburger drops what belongs to Principles; it does
- * not become a hardcoded list of one.
+ * tab rather than in the hamburger, and a server-sent entry that is not a
+ * panel view at all is KEPT. The hamburger drops what belongs to Principles;
+ * it does not become a hardcoded list of one.
  */
 export function hamburgerMenu(state: LifeState | null): LifeMenuEntry[] {
   return panelMenu(state).filter((entry) => !PANEL_SUBVIEW_KEYS.has(entry.key));
