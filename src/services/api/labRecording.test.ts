@@ -191,3 +191,67 @@ describe("submitLabRecording — §A1 generic error copy + ref", () => {
     expect(res.message).toContain("Analysis failed (HTTP 502)");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*  Cloudflare upload-proxy lane (founder 2026-08-04: no Vercel Pro, ever).    */
+/*  NEXT_PUBLIC_UPLOAD_PROXY_URL set → the Worker is tried FIRST; any          */
+/*  network-level failure falls back to the BFF lane, so enabling the Worker   */
+/*  can only degrade to exactly the pre-Worker behavior. Unset → BFF only.     */
+/* -------------------------------------------------------------------------- */
+
+describe("submitLabRecording — Cloudflare upload-proxy routing", () => {
+  const okBody = {
+    session_id: "sess_1",
+    state: "readout_ready",
+    readout: { snippets: [] },
+  };
+  const okResponse = () =>
+    Promise.resolve({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(okBody),
+    } as unknown as Response);
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("posts to the Worker when the env is set (trailing slash trimmed)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com/");
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      return okResponse();
+    });
+    const res = await submitLabRecording(baseInput());
+    expect(res.kind).toBe("ok");
+    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
+  });
+
+  it("falls back to the BFF lane when the Worker is unreachable", async () => {
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      if (url.startsWith("https://upload.example.com")) {
+        return Promise.reject(new TypeError("Failed to fetch"));
+      }
+      return okResponse();
+    });
+    const res = await submitLabRecording(baseInput());
+    expect(res.kind).toBe("ok");
+    expect(urls).toEqual([
+      "https://upload.example.com/v2/lab/recordings",
+      "/api/v2/lab/recordings",
+    ]);
+  });
+
+  it("uses only the BFF lane when the env is unset", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      return okResponse();
+    });
+    const res = await submitLabRecording(baseInput());
+    expect(res.kind).toBe("ok");
+    expect(urls).toEqual(["/api/v2/lab/recordings"]);
+  });
+});

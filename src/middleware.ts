@@ -58,6 +58,20 @@ function getCspDirectives(nonce: string): string {
   const mediaUploadOrigin = process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ORIGIN || "";
   if (mediaUploadOrigin) connectSrc.push(mediaUploadOrigin);
 
+  // Cloudflare upload proxy (cloudflare/upload-proxy) in CROSS-origin mode
+  // (workers.dev / custom subdomain): the browser posts long uploads straight
+  // to the Worker, so its origin must be connectable. Route mode
+  // (willpowerlab.com/cf-upload) is same-origin and already covered by
+  // 'self'; a relative/malformed value is treated the same. Unset = inert.
+  const uploadProxyUrl = process.env.NEXT_PUBLIC_UPLOAD_PROXY_URL || "";
+  if (uploadProxyUrl) {
+    try {
+      connectSrc.push(new URL(uploadProxyUrl).origin);
+    } catch {
+      /* not an absolute URL → same-origin route mode, 'self' covers it */
+    }
+  }
+
   // Nonce-based script-src: inline scripts run only with this request's nonce
   // (Next stamps it on its own tags when the CSP rides the REQUEST headers —
   // see the middleware body; requires per-request rendering, forced in the
