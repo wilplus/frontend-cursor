@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
 
 /** Browser-visible backend base, mirroring `presentationExtract`. Empty =
@@ -411,11 +412,16 @@ export async function importTrainingAudio(input: {
     });
 
   let res: Response | null = null;
-  if (PUBLIC_BACKEND_URL) {
+  // Direct-lane preference: the Cloudflare upload proxy (no Vercel body/time
+  // ceilings, and it also carries the auth header) beats a bare public
+  // backend URL, which beats the size-capped BFF fallback below.
+  const directBases = [uploadProxyBase(), PUBLIC_BACKEND_URL].filter(Boolean);
+  for (const base of directBases) {
     try {
-      res = await post(`${PUBLIC_BACKEND_URL}/v2/coach/training-imports`);
+      res = await post(`${base}/v2/coach/training-imports`);
+      break;
     } catch {
-      res = null; // CORS, DNS, offline — fall back below.
+      res = null; // CORS, DNS, offline — try the next lane.
     }
   }
   if (!res) {

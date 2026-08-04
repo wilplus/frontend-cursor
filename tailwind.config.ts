@@ -36,8 +36,6 @@ const config: Config = {
         background: "hsl(var(--background))",
         primary: "hsl(var(--primary))",
         "primary-foreground": "hsl(var(--primary-foreground))",
-        "step-completed": "hsl(var(--step-completed))",
-        "step-pending": "hsl(var(--step-pending))",
         foreground: "hsl(var(--foreground))",
         card: {
           DEFAULT: "hsl(var(--card))",

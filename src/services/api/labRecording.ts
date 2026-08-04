@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
 import { mapRecordingProgress, type RecordingProgress } from "./recordingProgress";
 import { type PresentationSlide } from "@/components/willab/presentation";
@@ -85,12 +86,16 @@ export interface LabUploadInput {
 
 export type LabUploadResult =
   | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null; recordingProgress: RecordingProgress | null }
-  /** Async analysis (delivery layer): the BE accepted the upload (202) and is
-   *  finishing the analysis in a background daemon — poll the readout until
+  /** Async analysis (delivery layer): the BE accepted the upload (202) — or its
+   *  sync budget ran out (504 PROCESSING_TIMEOUT, handoff §A2: NOT a failure) —
+   *  and the analysis finishes in the background. Poll the readout until
    *  `ready`/`failed`. Survives a closed tab / locked phone. */
   | { kind: "processing"; sessionId: string; arcId: string | null; takeIndex: number | null; takeCount: number | null }
   | { kind: "rejected"; message: string } // 422 — min-content gate
-  | { kind: "error"; status: number; message: string };
+  /** `code` is the stable branch key (§A1 — never branch on `error` text);
+   *  `ref` joins the generic copy to the real exception in backend logs and is
+   *  already folded into `message` ("Reference: …") for display. */
+  | { kind: "error"; status: number; message: string; code?: string; ref?: string };
 
 /** FE-1 (P0, 2026-07-20) — the recording state machine's ONE invariant, at the
  *  single choke point every upload passes through.
@@ -227,14 +232,31 @@ export async function submitLabRecording(
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/lab/recordings", {
+  // Cloudflare Worker lane first when configured (no Vercel 300s ceiling, so
+  // the backend's session_id-bearing 504 survives); BFF lane as the fallback
+  // on any network-level failure — enabling the Worker can only degrade to
+  // exactly today's behavior. FormData re-serializes per fetch, so the same
+  // body object safely backs both attempts.
+  const post = (url: string) =>
+    fetch(url, {
       method: "POST",
       headers,
       body: form,
       credentials: "include",
     });
+
+  let res: Response;
+  try {
+    const proxyBase = uploadProxyBase();
+    let viaProxy: Response | null = null;
+    if (proxyBase) {
+      try {
+        viaProxy = await post(`${proxyBase}/v2/lab/recordings`);
+      } catch {
+        viaProxy = null; // CORS, DNS, offline — fall back to the BFF lane.
+      }
+    }
+    res = viaProxy ?? (await post("/api/v2/lab/recordings"));
   } catch {
     return {
       kind: "error",
@@ -243,12 +265,24 @@ export async function submitLabRecording(
     };
   }
 
+  // One parse for every branch. Error bodies are JSON everywhere now — the BE
+  // returns JSON even for unknown routes and uncaught errors (handoff §A1) —
+  // so a null here is a platform (non-BFF) response, e.g. a Vercel kill page.
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const bodyCode = typeof body?.code === "string" ? body.code : undefined;
+  const bodyError =
+    typeof body?.error === "string" && body.error.trim() ? body.error : undefined;
+  const bodyRef = typeof body?.ref === "string" && body.ref ? body.ref : undefined;
+  /** §A1 — `ref` is the join key to the real exception in backend logs; shown
+   *  small + copyable so support can diagnose the generic copy. */
+  const withRef = (message: string) =>
+    bodyRef ? `${message} (Reference: ${bodyRef})` : message;
+
   if (res.status === 422) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
     return {
       kind: "rejected",
       message:
-        body?.error ??
+        bodyError ??
         "That take was too short or had no clear speech, so let's try again.",
     };
   }
@@ -259,6 +293,7 @@ export async function submitLabRecording(
     return {
       kind: "error",
       status: 402,
+      code: bodyCode,
       message:
         "Your recording is safe. This take is part of the full audit. Unlock it on the pricing page to continue.",
     };
@@ -267,22 +302,59 @@ export async function submitLabRecording(
     // Bug 1 — the FE guard (validateAudioUpload) should catch this before the
     // request goes out; this is the fallback for anything that slips through
     // (a raw 413 from Vercel's ~4.5MB serverless body limit reads as a scary
-    // generic failure otherwise).
+    // generic failure otherwise). The BE now enforces the cap on real bytes
+    // read (§A3), so this arrives as a clean FILE_TOO_LARGE instead of a
+    // confusing downstream failure.
     return {
       kind: "error",
       status: 413,
+      code: bodyCode,
       message: "That file is too large to upload. Try a shorter audio file.",
     };
   }
+  // §A2 — the sync path's wall-clock budget ran out (BE 600s, or the BFF's own
+  // abort). NOT a failure: the audio is stored and the session row exists.
+  // With a session_id this is exactly the async-queue 202 — poll the readout.
+  // Never "recording failed", never a re-record prompt: that would lose a take
+  // that is still processing.
+  if (res.status === 504 || bodyCode === "PROCESSING_TIMEOUT") {
+    if (typeof body?.session_id === "string" && body.session_id.length > 0) {
+      return {
+        kind: "processing",
+        sessionId: body.session_id,
+        arcId: typeof body.arc_id === "string" ? body.arc_id : null,
+        takeIndex: typeof body.take_index === "number" ? body.take_index : null,
+        takeCount: typeof body.take_count === "number" ? body.take_count : null,
+      };
+    }
+    // No session_id to poll (the BFF aborted before the BE could answer, or a
+    // platform 504). Calm copy, no re-record prompt — the take is processing
+    // server-side and lands in the library/lounge when done.
+    return {
+      kind: "error",
+      status: 504,
+      code: bodyCode ?? "PROCESSING_TIMEOUT",
+      ref: bodyRef,
+      message: withRef(
+        bodyError ??
+          "That recording is taking longer than expected — it's still processing, check back shortly."
+      ),
+    };
+  }
   if (!res.ok) {
+    // §A1 — `error` is safe, generic, human-readable copy now: render it
+    // as-is. Branch on `code`/status only, never on the copy.
     return {
       kind: "error",
       status: res.status,
-      message: `Analysis failed (HTTP ${res.status}). Try again in a moment.`,
+      code: bodyCode,
+      ref: bodyRef,
+      message: withRef(
+        bodyError ?? `Analysis failed (HTTP ${res.status}). Try again in a moment.`
+      ),
     };
   }
 
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) {
     return { kind: "error", status: res.status, message: "Empty response from the lab." };
   }

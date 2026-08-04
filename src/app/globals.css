@@ -28,8 +28,6 @@
        otherwise strictly neutral — `primary` (orange) is reserved for
        live-action signals and never appears there. */
     --journal-media: 40 30% 97%;
-    --step-completed: 142 76% 36%;
-    --step-pending: 210 40% 96.1%;
     --primary-foreground: 0 0% 100%;
 
     /* Chat bubbles — light-gray bot bubble (quiet scaffolding). Orange is
@@ -77,8 +75,6 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
     --primary: 24 95% 53%;
-    --step-completed: 142 76% 36%;
-    --step-pending: 217.2 32.6% 17.5%;
   }
 }
 

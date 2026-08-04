@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 // "/panel" — the Life Panel is signed-in only. The SECOND gate (feature flag,
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
@@ -57,6 +57,20 @@ function getCspDirectives(nonce: string): string {
   // policy is unchanged.
   const mediaUploadOrigin = process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ORIGIN || "";
   if (mediaUploadOrigin) connectSrc.push(mediaUploadOrigin);
+
+  // Cloudflare upload proxy (cloudflare/upload-proxy) in CROSS-origin mode
+  // (workers.dev / custom subdomain): the browser posts long uploads straight
+  // to the Worker, so its origin must be connectable. Route mode
+  // (willpowerlab.com/cf-upload) is same-origin and already covered by
+  // 'self'; a relative/malformed value is treated the same. Unset = inert.
+  const uploadProxyUrl = process.env.NEXT_PUBLIC_UPLOAD_PROXY_URL || "";
+  if (uploadProxyUrl) {
+    try {
+      connectSrc.push(new URL(uploadProxyUrl).origin);
+    } catch {
+      /* not an absolute URL → same-origin route mode, 'self' covers it */
+    }
+  }
 
   // Nonce-based script-src: inline scripts run only with this request's nonce
   // (Next stamps it on its own tags when the CSP rides the REQUEST headers —
@@ -148,20 +162,17 @@ export async function middleware(req: NextRequest) {
   // the nonce and stamps it on every framework <script> tag it renders.
   // `x-nonce` lets route handlers that hand-write HTML (auth/callback) stamp
   // their own inline scripts with the same nonce.
-  // Rebuilt on each call rather than hoisted: a Supabase session refresh
-  // mirrors the new cookies back onto `req`, and the pass-through response
-  // must carry those, not a snapshot taken before the refresh.
-  const nextWithCsp = () => {
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set("content-security-policy", cspDirectives);
-    requestHeaders.set("x-nonce", nonce);
-    return applyCsp(
-      NextResponse.next({ request: { headers: requestHeaders } }),
-      cspDirectives
-    );
-  };
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("content-security-policy", cspDirectives);
+  requestHeaders.set("x-nonce", nonce);
 
-  let res = nextWithCsp();
+  let res = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  applyCsp(res, cspDirectives);
 
   // Public funnel routes are always reachable, regardless of auth state.
   // Anonymous visitors must reach /try/shaky-voice; logged-in users are not redirected away.
@@ -169,31 +180,37 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // getAll/setAll, NOT the legacy get/set/remove triplet: only this API sees
-  // Supabase's CHUNKED cookies (`sb-*-auth-token.0`, `.1`, …), which a
-  // single-name `get` misses entirely — the same failure /auth/callback hit.
-  //
-  // Cookie options are passed through EXACTLY as Supabase supplies them. Do
-  // not force `httpOnly` here: @supabase/ssr's browser client reads the auth
-  // token from document.cookie, so an httpOnly rewrite blinds the client to
-  // its own session on every protected page while the server still sees it —
-  // a signed-in user who is never redirected and never renders.
+  const isProd = process.env.NODE_ENV === "production";
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // getAll/setAll (not the legacy get/set/remove): Supabase chunks a large
+      // session across auth-token.0/.1/... cookies, and only getAll lets it
+      // reassemble them — with get(name) a chunked session read as "no user"
+      // here even while the browser held a valid one. setAll is what persists
+      // the token getUser() refreshes below, so navigation renews an idle
+      // tab's session instead of leaving it to expire (handoff §C2).
+      //
+      // NEVER add httpOnly here. @supabase/ssr's BROWSER client reads the auth
+      // token from document.cookie, so writing these back httpOnly blinds the
+      // client to its own session: the server still sees a valid user (no
+      // redirect to /login) while the client renders as signed-out. That is
+      // exactly the blank /dashboard this block shipped once already.
       cookies: {
         getAll() {
           return req.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          // Mirror onto the request so whatever renders in this same pass
-          // sees the refreshed session, then rebuild the response so the new
-          // cookies (and the CSP headers) ride it.
-          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-          res = nextWithCsp();
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options)
+            res.cookies.set({
+              name,
+              value,
+              ...options,
+              secure: isProd,
+              sameSite: "lax",
+              path: "/",
+            })
           );
         },
       },
