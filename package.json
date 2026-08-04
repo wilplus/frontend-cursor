@@ -8,6 +8,7 @@
     "postinstall": "node scripts/copy-pdf-worker.mjs",
     "start": "next start",
     "lint": "next lint",
+    "check:bff": "node scripts/check-bff-single-idiom.mjs",
     "test": "vitest run",
     "tm": "task-master",
     "tm:next": "task-master next",

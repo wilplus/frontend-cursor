@@ -255,6 +255,10 @@ export default function LabOverlay({
   // True when the upload failure was a 402 — Processing then shows a neutral
   // paywall panel (unlock link, no retry) instead of the destructive error.
   const [uploadPaywall, setUploadPaywall] = useState(false);
+  // §A2 — PROCESSING_TIMEOUT with no session_id to poll: the take is stored
+  // and still processing server-side. Neutral panel, NO retry/re-record — a
+  // retry would upload the same take twice.
+  const [uploadStillProcessing, setUploadStillProcessing] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   // Async analysis (delivery layer): the session being polled after a 202
   // accept, and whether the poll has crossed the 3-min "taking longer" cap
@@ -444,6 +448,7 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadPaywall(false);
+        setUploadStillProcessing(false);
         onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
       } else if (result.kind === "processing") {
@@ -462,6 +467,7 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadPaywall(false);
+        setUploadStillProcessing(false);
         writeProcessingTake({
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
@@ -482,6 +488,9 @@ export default function LabOverlay({
       } else {
         setUploadError(result.message);
         setUploadPaywall(result.status === 402);
+        // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
+        // failure — the calm panel replaces the destructive retry one.
+        setUploadStillProcessing(result.code === "PROCESSING_TIMEOUT");
       }
     })();
     return () => {
@@ -866,10 +875,12 @@ export default function LabOverlay({
           <Processing
             error={uploadError}
             paywall={uploadPaywall}
+            stillProcessing={uploadStillProcessing}
             slow={pollSlow}
             onRetry={() => {
               setUploadError(null);
               setUploadPaywall(false);
+              setUploadStillProcessing(false);
               setPollSlow(false);
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
@@ -1236,6 +1247,7 @@ const PROCESSING_LINES = [
 function Processing({
   error,
   paywall,
+  stillProcessing = false,
   slow = false,
   onRetry,
   onReRecord,
@@ -1245,6 +1257,10 @@ function Processing({
   /** True when the failure was a 402 — a paywall is never an error: neutral
    *  styling, no retry (it would just 402 again), a route to the unlock. */
   paywall: boolean;
+  /** §A2 — PROCESSING_TIMEOUT with nothing to poll: the take is stored and
+   *  still processing server-side. Neutral styling, NO retry and NO re-record
+   *  offer — either would duplicate a take that is not lost. */
+  stillProcessing?: boolean;
   /** Async analysis: the poll crossed the 3-min cap — swap to the calm
    *  "taking longer than usual" copy + offer a re-record. Never an error. */
   slow?: boolean;
@@ -1308,6 +1324,26 @@ function Processing({
         >
           Unlock the full audit
         </Link>
+      </div>
+    );
+  }
+  if (error && stillProcessing) {
+    // The message is the §A2 envelope's own copy ("…still processing, check
+    // back shortly"). The take keeps processing server-side and lands in the
+    // library when done — the only honest action here is to head back.
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <VoiceMark size={72} />
+        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+          {error}
+        </p>
+        <Button
+          onClick={onClose}
+          variant="outline"
+          className="rounded-full px-6"
+        >
+          Back to Lounge
+        </Button>
       </div>
     );
   }

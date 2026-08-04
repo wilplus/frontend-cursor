@@ -2,43 +2,13 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getAccessToken, getSupabase } from "@/app/api/_lib/backend";
 
-/** Private URL for BFF→backend (e.g. Railway: http://backend.railway.internal:PORT). When set, used instead of public URL. */
-const RAW_INTERNAL = process.env.BACKEND_URL_INTERNAL?.trim().replace(/\/+$/, "");
-const RAW_PUBLIC =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.BACKEND_URL ||
-  "";
-/** Base URL with no trailing slash. Prefers BACKEND_URL_INTERNAL when set (server-side only). */
-const BACKEND_URL = (RAW_INTERNAL || RAW_PUBLIC).replace(/\/+$/, "");
-
-export function getBackendUrl(): string {
-  return BACKEND_URL;
-}
-
-function createRequestSupabaseClient(req: NextRequest) {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      // Modern getAll cookie API — the legacy get(name) variant only
-      // returns the raw cookie value for one name and can't reassemble
-      // Supabase's chunked auth-token cookies (.0/.1/...). On a session
-      // big enough to chunk, getSession() then returns null even when
-      // the browser has a valid session — which was producing 401s on
-      // every BFF call after a successful client-side OAuth exchange.
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        // No-op writers — read-only client; route handlers that need
-        // to write cookies have their own response-bound adapter.
-        setAll() {},
-      },
-    }
-  );
-}
+// The backend base URL + the request-bound Supabase client both live in
+// _lib/backend.ts now (FE handoff 2026-08-03 §C) — one idiom, one file.
+// Re-exported so the 80 existing `from "@/app/api/getAuth"` imports keep
+// working while routes migrate to callBackend in batches.
+export { getBackendUrl } from "@/app/api/_lib/backend";
 
 function toTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -95,13 +65,13 @@ function deriveInitials(displayName: string | null, email: string | null): strin
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase() || null;
 }
 
-export async function getCurrentUserIdentity(req: NextRequest): Promise<{
+export async function getCurrentUserIdentity(_req: NextRequest): Promise<{
   id: string | null;
   email: string | null;
   displayName: string | null;
   initials: string | null;
 }> {
-  const supabase = createRequestSupabaseClient(req);
+  const supabase = await getSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -120,22 +90,15 @@ export async function getCurrentUserIdentity(req: NextRequest): Promise<{
 }
 
 /**
- * Get the current user's Supabase access token for admin BFF requests.
- * Uses Authorization header first, then cookie session.
+ * Get the current user's Supabase access token for BFF requests.
+ * Authorization header first, then cookie session — now via the shared
+ * _lib/backend.ts helper, which VALIDATES the session (getUser) and
+ * PERSISTS a refreshed token instead of silently dropping it. Kept as a
+ * shim so unmigrated routes get the refresh fix without touching them;
+ * new/converted routes should use callBackend directly.
  */
-export async function getV2AccessToken(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7).trim();
-    if (token && token !== "undefined" && token !== "null") return token;
-  }
-
-  const supabase = createRequestSupabaseClient(req);
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
+export async function getV2AccessToken(_req: NextRequest): Promise<string | null> {
+  return getAccessToken();
 }
 
 /**
