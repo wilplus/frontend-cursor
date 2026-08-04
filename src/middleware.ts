@@ -171,30 +171,28 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // getAll/setAll (not the legacy get/set/remove): Supabase chunks a large
+      // session across auth-token.0/.1/... cookies, and only getAll lets it
+      // reassemble them — with get(name) a chunked session read as "no user"
+      // here even while the browser held a valid one. setAll is what persists
+      // the token getUser() refreshes below, so navigation renews an idle
+      // tab's session instead of leaving it to expire (handoff §C2).
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-            secure: isProd,
-            sameSite: "lax",
-            httpOnly: true,
-            path: "/",
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          res.cookies.set({
-            name,
-            value: "",
-            ...options,
-            secure: isProd,
-            sameSite: "lax",
-            path: "/",
-          });
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set({
+              name,
+              value,
+              ...options,
+              secure: isProd,
+              sameSite: "lax",
+              httpOnly: true,
+              path: "/",
+            })
+          );
         },
       },
     }
