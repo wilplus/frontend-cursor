@@ -46,6 +46,7 @@ import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
 import ReflectionGamePrompt from "./ReflectionGamePrompt";
+import CoachReflectionQueue from "./CoachReflectionQueue";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -784,6 +785,18 @@ export default function Lounge({
             ask (or for guests). */}
         <ReflectionGamePrompt
           signedIn={thread.signedIn}
+          threadLoading={thread.loading}
+          active={!isLabOverlay(state)}
+        />
+
+        {/* F2 §1d — the coach's BLIND clip verification, the half that closes
+            the loop (no verdict, no Confident Voices entry). Mounted LAST on
+            purpose: text verification outranks clip verification (founder
+            decision), and the review-queue bubbles above are that text work,
+            so a backed-up coach meets them first. Renders nothing for
+            non-coaches or an empty queue. */}
+        <CoachReflectionQueue
+          isCoach={isCoach}
           threadLoading={thread.loading}
           active={!isLabOverlay(state)}
         />
