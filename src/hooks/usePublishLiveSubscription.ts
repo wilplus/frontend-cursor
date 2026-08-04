@@ -65,39 +65,54 @@ export function usePublishLiveSubscription(
       return;
     }
 
-    const channel = supabase
-      .channel(`session-publish-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "v2_sessions",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload: {
-          old?: Record<string, unknown> | null;
-          new?: Record<string, unknown> | null;
-        }) => {
-          if (isPublishTransition(payload)) {
-            onPublish();
+    // The websocket is constructed SYNCHRONOUSLY inside .subscribe(), so an
+    // environment that refuses it — CSP connect-src without a `wss:` source,
+    // a corporate proxy blocking websockets — throws right here rather than
+    // reporting CHANNEL_ERROR to the status callback below. Uncaught in an
+    // effect that is a blank page behind the error boundary, which is the one
+    // outcome tier 2 exists to prevent: catch, and fall through to the poll.
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel(`session-publish-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "v2_sessions",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload: {
+            old?: Record<string, unknown> | null;
+            new?: Record<string, unknown> | null;
+          }) => {
+            if (isPublishTransition(payload)) {
+              onPublish();
+            }
           }
-        }
-      )
-      .subscribe((status: string) => {
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          // No-op in production; the polling fallback below covers
-          // the gap. Log so engineering can spot a misconfigured
-          // realtime publication during dev / triage.
-          console.warn(
-            `chat.realtime_fallback surface=fe status="${status}" fallback_ms=${FALLBACK_POLL_MS}`
-          );
-        }
-      });
+        )
+        .subscribe((status: string) => {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            // No-op in production; the polling fallback below covers
+            // the gap. Log so engineering can spot a misconfigured
+            // realtime publication during dev / triage.
+            console.warn(
+              `chat.realtime_fallback surface=fe status="${status}" fallback_ms=${FALLBACK_POLL_MS}`
+            );
+          }
+        });
+    } catch (err) {
+      channel = null;
+      console.warn(
+        `chat.realtime_fallback surface=fe status="THREW" fallback_ms=${FALLBACK_POLL_MS}`,
+        err
+      );
+    }
 
     const pollId = setInterval(onPublish, FALLBACK_POLL_MS);
 
@@ -105,7 +120,7 @@ export function usePublishLiveSubscription(
       // C4: tear down BOTH the channel and the interval. Leaked
       // channels eat Supabase Free-tier connection slots.
       try {
-        void supabase.removeChannel(channel);
+        if (channel) void supabase.removeChannel(channel);
       } catch {
         // removeChannel can throw if the channel is already
         // closed — never let it surface up to the user.
