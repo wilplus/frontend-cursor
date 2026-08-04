@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
 import WillabPendingSend from "@/components/willab/WillabPendingSend";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
-// Use system fonts instead of Google Fonts to avoid build-time network dependency
-// Inter font will be loaded at runtime if available
+// Body copy stays on the system stack (font-sans). Headings opt in to DM
+// Serif Display via Tailwind's `font-heading`, whose stack reads
+// var(--font-dm-serif) — defined here. Self-hosted woff2 (latin subset) so
+// the build has no Google Fonts network dependency. Founder-approved
+// 2026-08-04: headings shifting to DM Serif is the intended design.
+const dmSerifDisplay = localFont({
+  src: "./fonts/DMSerifDisplay-Regular-latin.woff2",
+  weight: "400",
+  style: "normal",
+  display: "swap",
+  variable: "--font-dm-serif",
+});
 
 // Honest positioning (founder 2026-07-17): metadata promises the deliverable
 // (the ideal text of your talk + your strongest moments), not "charisma now".
@@ -70,7 +81,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={dmSerifDisplay.variable}>
       {/*
         Body owns the global viewport-locked column: content fills the
         remaining height (flex-1 + overflow-y-auto), Footer sits pinned at
