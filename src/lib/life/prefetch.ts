@@ -67,9 +67,6 @@ const WARMABLE: readonly WarmableView[] = [
 /** Menu keys with deliberately no loader, and the reason. The test reads this,
  *  so an exemption has to be written down rather than assumed. */
 export const NOT_WARMED: Readonly<Record<string, string>> = {
-  // Its own subdomain and service worker scope (spec §3.4). Nothing to read
-  // here, and a cross-origin warm-up would be a request to another app.
-  prayer: "external",
   // Not a list and not a pill: the export, the hard delete and the reminders,
   // behind the settings control. Warming a screen reached deliberately once in
   // a while buys nothing and costs a read on every panel open.

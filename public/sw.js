@@ -3,7 +3,16 @@
 // added below, otherwise users keep running the old SW that still
 // intercepts /auth/* navigations. (v4: push + notificationclick handlers for
 // the opt-in Life Panel reminders, founder decision 2026-07-30.)
-const CACHE_NAME = "willab-shell-v4";
+//
+// v5 (2026-08-04) — THE BUMP IS THE FIX, not housekeeping. The fetch handler
+// below is cache-first for every non-API GET and nothing ever evicts, so this
+// cache accumulates build assets across deploys and a bump is the only flush
+// there is. A browser holding a bad mix of them could not be talked out of it
+// by a reload, which is why the module-scope throw in life/menu (fixed in the
+// same change) read to users as "the app is gone" rather than "the app is
+// broken until the next deploy". The `activate` handler deletes every cache
+// whose name is not this one, so the new name empties the old contents.
+const CACHE_NAME = "willab-shell-v5";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 self.addEventListener("install", (event) => {

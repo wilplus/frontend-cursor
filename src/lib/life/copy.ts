@@ -180,10 +180,13 @@ export const VIEWS = {
   },
   strategy: { title: "Strategy", lede: "" },
   data: { title: "Your data", lede: "" },
-  // Its own app on its own subdomain (spec §3.4), founder-allowlisted. Named
-  // here so a server-sent menu entry has a word to render; it is never
-  // DERIVED, because this side cannot know the allowlist.
-  prayer: { title: "Prayer", lede: "" },
+  /* Prayer is NOT here, and must not be added back (founder 2026-08-04).
+   *
+   * willpowerlab.com is the voice app. Prayer is a SEPARATE web app on
+   * pompeiana.willpowerlab.com, joined to this one only by the shared
+   * WillpowerLab login. It is not a view of this app, not an entry in this
+   * app's menu, and this app holds no word for it. A title here is what let
+   * it be linked from a menu at all, so the copy goes with the entry. */
   setup: {
     title: "Setup",
     // FE-10 — retired. This grey supporting paragraph rendered on setup screen

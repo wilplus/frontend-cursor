@@ -217,8 +217,8 @@ export default function AppMenu({
             <>
               {lifeMenu.map((entry) =>
                 entry.external ? (
-                  // Prayer lives on its own subdomain: separate service worker
-                  // scope, separate PWA install, works signed out and offline.
+                  // A server-sent entry that points off this app: a plain
+                  // anchor, so it leaves rather than routing inside.
                   <a
                     key={entry.key}
                     ref={firstRef()}

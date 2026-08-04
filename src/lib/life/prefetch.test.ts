@@ -42,9 +42,9 @@ describe("the warm-up registry", () => {
   });
 
   it("exempts only what genuinely has nothing to warm", () => {
-    // Prayer is another origin; the data screen is chrome behind a control,
-    // not a pill. An exemption has to be written down to exist.
-    expect(Object.keys(NOT_WARMED).sort()).toEqual(["data", "prayer"]);
+    // The data screen is chrome behind a control, not a pill. An exemption has
+    // to be written down to exist.
+    expect(Object.keys(NOT_WARMED).sort()).toEqual(["data"]);
   });
 
   it("warms nothing the menu does not offer", () => {
