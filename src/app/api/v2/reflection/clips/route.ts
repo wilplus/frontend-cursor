@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
-import { proxyResponse } from "@/app/api/proxyResponse";
+import { NextRequest } from "next/server";
+import { callBackend } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -12,34 +11,6 @@ export const runtime = "nodejs";
  * explicit allowlist — nothing here may add fields, because the network tab
  * is a user surface and decoy identity must never reach it.
  */
-export async function GET(req: NextRequest) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHORIZED", error: "Sign in required" },
-      { status: 401 }
-    );
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/reflection/clips`, {
-      method: "GET",
-      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/v2/reflection/clips — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Reflection service unavailable." },
-      { status: 502 }
-    );
-  }
-  return proxyResponse(upstream);
+export async function GET(_req: NextRequest) {
+  return callBackend("/v2/reflection/clips", { method: "GET" });
 }
