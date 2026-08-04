@@ -18,8 +18,10 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  /blog/[slug] — one Journal post                                         */
 /*                                                                            */
-/*  Server-rendered with ISR. Drafts and unknown slugs 404 (the public backend  */
-/*  only serves published posts, so a null read IS the 404).                    */
+/*  Server-rendered per request (root layout force-dynamic — build-time HTML   */
+/*  can't carry the CSP nonce, so no SSG/ISR here). Drafts and unknown slugs   */
+/*  404 (the public backend only serves published posts, so a null read IS      */
+/*  the 404).                                                                  */
 /*                                                                            */
 /*  The body is PLAIN TEXT: paragraphs split on blank lines and render as <p>   */
 /*  elements, plus the two line-level media tokens ([image: url | alt] and      */
@@ -30,18 +32,11 @@ import {
 /*  surface still carries no XSS surface at all.                                */
 /* -------------------------------------------------------------------------- */
 
-export const revalidate = 300;
-
 /** The post's media box. ONE definition for image and video so a post's cover
  *  occupies the same proportion of the page either way, and so the two can
  *  never drift apart. 16:9 matches the widest common source and keeps the
  *  cover subordinate to the article rather than filling the first screen. */
 const COVER_BOX = "aspect-video overflow-hidden rounded-3xl bg-muted";
-
-export async function generateStaticParams() {
-  const posts = await fetchJournalPosts();
-  return posts.map((p) => ({ slug: p.slug }));
-}
 
 export async function generateMetadata({
   params,

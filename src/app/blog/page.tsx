@@ -13,9 +13,11 @@ import JournalIndex from "./page.client";
 /*  Chrome note: pages compose SiteHeader themselves (same as /about); the     */
 /*  Footer is rendered globally by the root layout, so this page must NOT       */
 /*  render one or the site gets two.                                          */
+/*                                                                            */
+/*  Rendered per request (root layout force-dynamic): the nonce-based CSP     */
+/*  needs fresh HTML, so the old 300s ISR window is gone — same markup for     */
+/*  crawlers, the fetch just runs on every view now.                          */
 /* -------------------------------------------------------------------------- */
-
-export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Journal | WillpowerLab",

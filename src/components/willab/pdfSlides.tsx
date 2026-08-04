@@ -10,9 +10,11 @@ import { bulletLines } from "./presentation";
 /*  The FE renders the BE-served PDF (presentation_ref) via PDF.js — page index */
 /*  = slide index. It NEVER parses the raw upload (the BE converts pptx/pdf →    */
 /*  one PDF). pdfjs is imported dynamically (client-only, never SSR'd → no node  */
-/*  `canvas` bundling) and its worker is pinned to the installed version via     */
-/*  unpkg. ANY failure (CORS, network, corrupt) degrades to the text card: the   */
-/*  rendered deck is an enhancement over a guaranteed text floor.               */
+/*  `canvas` bundling) and its worker is copied from the installed package and   */
+/*  served same-origin (workers can't load cross-origin, so a CDN workerSrc      */
+/*  silently degrades to main-thread rendering). ANY failure (CORS, network,     */
+/*  corrupt) degrades to the text card: the rendered deck is an enhancement      */
+/*  over a guaranteed text floor.                                               */
 /* -------------------------------------------------------------------------- */
 
 type PdfDoc = PDFDocumentProxy;
@@ -26,7 +28,10 @@ function loadPdf(url: string): Promise<PdfDoc> {
   if (!p) {
     p = (async () => {
       const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      // Same-origin worker copied from the installed package by
+      // scripts/copy-pdf-worker.mjs (postinstall) — always version-matched;
+      // ?v= busts browser caches when pdfjs-dist upgrades.
+      pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs?v=${pdfjs.version}`;
       return pdfjs.getDocument({ url }).promise;
     })();
     docCache.set(url, p);
