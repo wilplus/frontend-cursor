@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { LIFE_VIEWS, hamburgerMenu, panelChrome, panelMenu } from "./menu";
+import { describe, expect, it, vi } from "vitest";
+import {
+  LIFE_VIEWS,
+  RESOLVABLE_VIEWS,
+  hamburgerMenu,
+  panelChrome,
+  panelMenu,
+  resolveMenuEntry,
+} from "./menu";
 import type { LifeState } from "./types";
 
 const base: LifeState = {
@@ -48,30 +55,41 @@ describe("panelMenu", () => {
     ]);
   });
 
-  it("lets an explicit server menu win, which is the only way Prayer appears", () => {
-    // Prayer is allowlisted and the FE cannot know the allowlist, so it is
-    // never derived. A payload that wants it sends the whole list.
-    const withPrayer: LifeState = {
+  it("lets an explicit server menu win, including an entry that leaves the app", () => {
+    // A server-sent object carrying its own absolute href is rendered as an
+    // anchor. This side derives no such entry; the server has to send one.
+    const withExternal: LifeState = {
       ...active,
       menu: [
         { key: "principles", label: "Principles", href: "/panel/principles" },
         {
-          key: "prayer",
-          label: "Prayer",
-          href: "https://pompeiana.willpowerlab.com",
+          key: "somewhere_else",
+          label: "Somewhere else",
+          href: "https://example.willpowerlab.com",
           external: true,
         },
       ],
     };
-    expect(panelMenu(withPrayer).map((e) => e.key)).toEqual([
+    expect(panelMenu(withExternal).map((e) => e.key)).toEqual([
       "principles",
-      "prayer",
+      "somewhere_else",
     ]);
-    expect(panelMenu(withPrayer)[1].external).toBe(true);
+    expect(panelMenu(withExternal)[1].external).toBe(true);
   });
 
-  it("never derives an allowlisted entry", () => {
+  /* Prayer is a SEPARATE app on pompeiana.willpowerlab.com, joined to this one
+   * by the shared login and nothing else (founder 2026-08-04). This app is the
+   * voice app: it neither derives nor resolves a prayer entry, and it holds no
+   * label for one. These two guard the regression that took the whole app
+   * down — `VIEWS.prayer.title` read at module scope, throwing before React
+   * could mount anything, on every route including the error route. */
+  it("does not derive a prayer entry", () => {
     expect(LIFE_VIEWS.some((v) => v.key === "prayer")).toBe(false);
+  });
+
+  it("does not resolve a prayer key the server sends, and does not throw on one", () => {
+    expect(resolveMenuEntry("prayer")).toBeNull();
+    expect(RESOLVABLE_VIEWS.has("prayer")).toBe(false);
   });
 
   it("lets the server pull a view without an FE deploy", () => {
@@ -151,19 +169,20 @@ describe("hamburgerMenu", () => {
   });
 
   it("keeps an entry that is not a panel view at all", () => {
-    // Prayer is its own app, not a room inside Principles, so a server-sent
-    // entry the panel does not own must survive the filter.
-    const withPrayer: LifeState = {
+    // A server-sent entry the panel does not own is not a room inside
+    // Principles, so it must survive the filter rather than being swept up
+    // with the sub-views.
+    const withOutsider: LifeState = {
       ...active,
       menu: [
         { key: "principles", label: "Principles", href: "/panel/principles" },
         { key: "goals", label: "Goals", href: "/panel/goals" },
-        { key: "prayer", label: "Prayer", href: "/prayer" },
+        { key: "somewhere_else", label: "Somewhere else", href: "/elsewhere" },
       ],
     };
-    expect(hamburgerMenu(withPrayer).map((e) => e.key)).toEqual([
+    expect(hamburgerMenu(withOutsider).map((e) => e.key)).toEqual([
       "principles",
-      "prayer",
+      "somewhere_else",
     ]);
   });
 
@@ -219,5 +238,42 @@ describe("panelChrome", () => {
       showData: false,
       showExit: true,
     });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  The outage guard (2026-08-04)                                             */
+/*                                                                            */
+/*  What actually took willpowerlab.com down was not a bad label. It was WHERE */
+/*  the label was read: `VIEWS.prayer.title`, evaluated at module scope while  */
+/*  this file's tables were being built. `VIEWS.prayer` was undefined in the   */
+/*  bundle the browser ran, so the read threw during import — before React had */
+/*  mounted anything, which is why no error boundary caught it and why the     */
+/*  error route died with everything else. This module is reached from the app */
+/*  menu in the root layout, so that was every page of the app.               */
+/*                                                                            */
+/*  This test does not care about prayer. It holds the invariant that outlives */
+/*  it: importing this module must not throw, whatever copy.ts turns out to    */
+/*  hold. A missing copy key is allowed to cost one wrong word in a menu. It   */
+/*  is never again allowed to cost the whole app.                             */
+/* -------------------------------------------------------------------------- */
+describe("importing the menu module", () => {
+  it("survives a copy module with every view title missing", async () => {
+    vi.resetModules();
+    vi.doMock("./copy", () => ({ VIEWS: {} }));
+
+    const menu = await import("./menu");
+
+    // It imported at all — that is the assertion the outage failed.
+    expect(menu.LIFE_VIEWS.length).toBeGreaterThan(0);
+    // And it degraded rather than blanked: every entry still has a word and a
+    // route, so the menu renders instead of showing empty pills.
+    for (const view of menu.LIFE_VIEWS) {
+      expect(view.label.trim(), view.key).not.toBe("");
+      expect(view.href, view.key).toBe(`/panel/${view.key}`);
+    }
+
+    vi.doUnmock("./copy");
+    vi.resetModules();
   });
 });

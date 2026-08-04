@@ -41,7 +41,9 @@ export interface LifeMenuEntry {
   key: string;
   label: string;
   href: string;
-  /** Prayer links out to pompeiana.willpowerlab.com (spec §3.4). */
+  /** The entry leaves this app: rendered as a plain anchor rather than routed.
+   *  Only ever set by a server-sent menu object that carries its own absolute
+   *  href — this side derives no external entry of its own. */
   external?: boolean;
 }
 

@@ -294,8 +294,8 @@ function PanelNav({
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:text-foreground"
             }`;
-            // Prayer leaves the app entirely: its own subdomain, its own service
-            // worker scope, its own PWA install (spec §3.4).
+            // A server-sent entry can point off this app entirely, in which
+            // case it is an anchor rather than a route.
             return entry.external ? (
               <a
                 key={entry.key}
