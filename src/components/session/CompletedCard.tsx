@@ -52,7 +52,7 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
       setLoadingAudio(true);
       fetchSignedAudioUrl(recording.recording_id)
         .then((response) => {
-          const url = response.signed_url;
+          const url = response.audio_url;
           // Check for dev-placeholder in signed URL response
           if (!url || url.startsWith("dev-placeholder://")) {
             setAudioError(true);

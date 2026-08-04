@@ -70,9 +70,9 @@ export interface GetRecordingResponse {
   created_at?: ISODateString;
 }
 
+/** Fresh signed playback URL (BE /v2/recordings/{id}/playback-url). */
 export interface GetSignedAudioUrlResponse {
-  signed_url: string;
-  expires_in: number;
+  audio_url: string;
 }
 
 export interface RecordingListItemLite {
