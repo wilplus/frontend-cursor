@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import {
+  backendFetch,
+  getAccessToken,
+  BackendNotConfiguredError,
+} from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 // LibreOffice conversion can be slow (esp. the first, cold `soffice` warmup);
 // abort below the platform cap and let the FE fall back to manual entry.
+// Ordering (handoff §B): client abort < BFF abort (55s) < maxDuration (60s).
 export const maxDuration = 60;
+const BFF_ABORT_MS = 55_000;
 
 /**
  * POST /api/v2/lab/presentation/extract
@@ -17,14 +24,6 @@ export const maxDuration = 60;
  * unchanged so the client can read 413 / 415 / 422 distinctly.
  */
 export async function POST(req: NextRequest) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
   let form: FormData;
   try {
     form = await req.formData();
@@ -35,23 +34,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const token = await getV2AccessToken(req); // optional
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const token = await getAccessToken(); // optional
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 55_000);
+  const timeoutId = setTimeout(() => controller.abort(), BFF_ABORT_MS);
+  // A closed tab means nobody is waiting on the parse — stop the backend too.
+  req.signal.addEventListener("abort", () => controller.abort());
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/lab/presentation/extract`, {
+    upstream = await backendFetch("/v2/lab/presentation/extract", {
       method: "POST",
-      headers,
       body: form,
       signal: controller.signal,
-      cache: "no-store",
+      token,
     });
   } catch (err) {
+    if (err instanceof BackendNotConfiguredError) {
+      return NextResponse.json(
+        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+        { status: 502 }
+      );
+    }
     if (err instanceof Error && err.name === "AbortError") {
       return NextResponse.json(
         {

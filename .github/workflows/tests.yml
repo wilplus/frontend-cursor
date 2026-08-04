@@ -45,6 +45,12 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      # One BFF idiom (handoff §C3.4): no new direct backend fetch outside
+      # src/app/api/_lib/backend.ts. Ratchet — the baseline shrinks as route
+      # batches migrate to callBackend.
+      - name: BFF single-idiom guard
+        run: npm run check:bff
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25

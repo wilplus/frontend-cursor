@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { backendFetch, BackendNotConfiguredError } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  /api/v2/coach/training-imports  →  BE /v2/coach/training-imports           */
@@ -17,17 +18,15 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 /* -------------------------------------------------------------------------- */
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+// Abort upstream before Vercel kills the function so a long import returns
+// JSON, not a platform 504 HTML page (handoff §B ordering:
+// client abort < BFF abort < maxDuration).
+const BFF_ABORT_MS = 280_000;
 
 export async function POST(req: NextRequest) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
     const token = await getV2AccessToken(req);
     if (!token) {
       return NextResponse.json(
@@ -52,20 +51,46 @@ export async function POST(req: NextRequest) {
     const out = new FormData();
     for (const [key, value] of inbound.entries()) out.append(key, value);
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), BFF_ABORT_MS);
+    // A closed tab means nobody is waiting — stop the backend work too.
+    req.signal.addEventListener("abort", () => controller.abort());
+
     let upstream: Response;
     try {
-      upstream = await fetch(`${backend}/v2/coach/training-imports`, {
+      upstream = await backendFetch("/v2/coach/training-imports", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         body: out,
-        cache: "no-store",
+        signal: controller.signal,
+        token,
       });
     } catch (err) {
+      if (err instanceof BackendNotConfiguredError) {
+        return NextResponse.json(
+          { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+          { status: 502 }
+        );
+      }
+      if (err instanceof Error && err.name === "AbortError") {
+        // The import (Whisper + cutting pass) keeps running server-side; the
+        // corpus index picks it up when it lands. Same envelope as the lab
+        // upload's timeout (§A2) — a timeout is not a failure.
+        return NextResponse.json(
+          {
+            code: "PROCESSING_TIMEOUT",
+            error:
+              "That recording is taking longer than expected — it's still processing, check back shortly.",
+          },
+          { status: 504 }
+        );
+      }
       console.error("coach_training_import.bff_thrown surface=fe-bff", err);
       return NextResponse.json(
         { code: "PROXY_ERROR", error: "Import service unavailable." },
         { status: 502 }
       );
+    } finally {
+      clearTimeout(timer);
     }
     const data = await upstream.json().catch(() => ({}));
     return NextResponse.json(data, { status: upstream.status });
