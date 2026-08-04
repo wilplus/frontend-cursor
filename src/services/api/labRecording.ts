@@ -210,6 +210,12 @@ export async function submitLabRecording(
   // Pre-recording feeling — private correlation input; AC-9 bars it from any
   // user-facing surface. Omit when absent so the field never arrives as "null".
   if (input.feeling) form.append("feeling", input.feeling);
+  // F2 §2 — the same named state also rides the new closed-vocabulary lane
+  // (named_emotion → intake_context → coach context + the internal drift
+  // metric). One naming, two lanes: the BE normalizes against its vocabulary
+  // and silently drops a key outside it ("unsure"), so this can never invent
+  // an emotion the user didn't name.
+  if (input.feeling) form.append("named_emotion", input.feeling);
   // R5 — the pre-take priming framing the user saw; private correlation input.
   if (input.primingCondition) form.append("priming_condition", input.primingCondition);
   if (input.primingPhrase) form.append("priming_phrase", input.primingPhrase);
