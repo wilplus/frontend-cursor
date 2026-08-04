@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { fetchRecording, fetchSignedAudioUrl } from "@/lib/api/client";
+import { fetchRecording } from "@/lib/api/client";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import CompletedCard from "@/components/session/CompletedCard";
 import LoadingState from "@/components/willab/LoadingState";
