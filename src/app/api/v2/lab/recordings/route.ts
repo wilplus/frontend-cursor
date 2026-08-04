@@ -10,11 +10,14 @@ export const dynamic = "force-dynamic";
 // Without this Vercel kills the function at the plan default. A lab take is
 // minutes of audio: the upload alone can exceed the default, and the analysis
 // runs behind it. The handoff's full ordering wants this ABOVE the backend's
-// 600s sync budget (i.e. 800, Vercel Pro's fluid ceiling) — but we deploy on
-// Hobby, where the fluid ceiling is 300 and a higher value REJECTS THE BUILD
-// (see the events route's cap note; training-imports ships 300 today). On a
-// Pro upgrade: raise to 800 and BFF_ABORT_MS to 780_000 to restore
-//   client abort < BFF abort < BFF maxDuration, backend budget below all.
+// 600s sync budget — but we deploy on Vercel Hobby BY DECISION (founder,
+// 2026-08-04: no Pro upgrade, ever), where the fluid ceiling is 300 and a
+// higher value REJECTS THE BUILD (see the events route's cap note). 300 is
+// the permanent Vercel-side guard; the escape hatch for payloads that outrun
+// it is NOT a plan change — it's routing the upload through Cloudflare
+// (Worker/proxy) straight to the backend, bypassing this function entirely.
+// Until that lands, an upload slower than BFF_ABORT_MS returns the §A2
+// still-processing envelope (no session_id) and the take finishes server-side.
 export const maxDuration = 300;
 // Abort upstream slightly BEFORE Vercel kills us, so the client gets a real
 // JSON error instead of a platform 504 with an HTML body.
