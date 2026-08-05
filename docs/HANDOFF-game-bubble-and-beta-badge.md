@@ -37,19 +37,19 @@ bans surfacing numbers to users.
 
 ---
 
-## 2 · Beta Badge — open, needs the founder
+## 2 · Beta Badge — DECIDED: the whole Life panel
 
-`src/app/panel/` has 14 routes (`data`, `goals`, `phrases`, **`principles`**, `today`, `week`, `wins`,
-…). Principles is one of them.
+**Founder decision, 2026-08-05: the chip goes on the entire Life panel, not just Principles.**
 
-**Recommendation: Principles only.** A chip in `components/life/PanelShell.tsx` appears on all 14 and
-so claims `today`/`week`/`wins` are unfinished too. Where that's false and the user can see it, the
-badge stops being believed where it's true. Widening later is one line.
+Put it in **`src/components/life/PanelShell.tsx`** so it renders across all 14 routes (`data`,
+`distractions`, `goals`, `phrases`, `principles`, `setup`, `strategy`, `timeline`, `today`, `week`,
+`wins`, …). One placement, one chip, no per-route logic.
 
-Make it a small reusable `<BetaChip />` so scope is a placement decision, not a rewrite.
+Build it as a small reusable `<BetaChip />` even so — scope then stays a placement decision rather
+than a rewrite if it ever narrows.
 
-**"Beta" is user-facing copy — founder sign-off before it ships.**
+*(Recommendation had been Principles-only, on the grounds that a panel-wide chip also claims
+`today`/`week`/`wins` are unfinished. Founder chose panel-wide. Recorded, not reopened.)*
 
----
-
-**Back to the founder:** badge scope — Principles only, or a named list of routes?
+**"Beta" is user-facing copy — founder sign-off on the exact string before it ships.** Build the
+component, leave the text in a constant.
