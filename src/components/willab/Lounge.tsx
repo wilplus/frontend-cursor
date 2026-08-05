@@ -27,6 +27,7 @@ import {
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
+import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
@@ -833,12 +834,20 @@ export default function Lounge({
             <VoiceMark size={18} />
           )}
           {processingResume.status === "failed"
-            ? "That take's analysis failed. Record it again when you're ready."
-            : `Still analyzing your ${
-                processingResume.takeIndex
-                  ? `take ${batchTake(processingResume.takeIndex)}`
-                  : "recording"
-              }…`}
+            ? FLOW_COPY.failed
+            : FLOW_COPY.analysing}
+        </p>
+      ) : null}
+      {/* The SECOND line — what happens next (docs/ideal-text-flow-
+          communication.md, rule 3: one line of state, one of what's next).
+          On the analysing path it grants permission to leave, which is what
+          stops someone sitting and staring; on the failure path it bounds the
+          damage before offering the retry. */}
+      {processingResume ? (
+        <p className="mb-1.5 px-4 text-center text-[12px] leading-relaxed text-muted-foreground">
+          {processingResume.status === "failed"
+            ? FLOW_COPY.failedNext
+            : FLOW_COPY.analysingNext}
         </p>
       ) : null}
 
@@ -989,12 +998,37 @@ export default function Lounge({
             with the wrong continue_arc_id lands in the wrong project, splits
             the arc, and corrupts the cross-take comparison the ideal text is
             ranked across. */}
+        {/* WITHHELD WHILE A TAKE IS STILL LANDING (founder 2026-08-05: "there
+            is no new button to record unless the text is displayed and
+            waiting is finished").
+
+            Disabled, not removed — an entry point that vanishes reads as a
+            broken app, and the chip above already says why it is waiting.
+
+            This is a correctness rule as much as a UX one: the ideal-text
+            version is now the SPOKEN TAKE COUNT, so a take started while the
+            previous one is still assembling races the version being written.
+            A failed analysis does NOT hold the button — that is exactly when
+            someone needs to record again. */}
         <button
           type="button"
           onClick={onStart}
-          className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+          disabled={processingResume?.status === "analyzing"}
+          title={
+            processingResume?.status === "analyzing"
+              ? FLOW_COPY.recordHeld
+              : undefined
+          }
+          className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:border-border/60 disabled:text-muted-foreground disabled:hover:bg-background"
         >
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              processingResume?.status === "analyzing"
+                ? "bg-muted-foreground/40"
+                : "bg-red-500"
+            }`}
+            aria-hidden
+          />
           Record
         </button>
       </form>
