@@ -3,57 +3,47 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import IdealReadMic from "./IdealReadMic";
 import { saveIdealText } from "@/services/api/saveIdealText";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
-/*  IdealTextActions — the master document's three buttons (FE-3, founder      */
-/*  2026-07-22), in this order and with this gating:                          */
+/*  IdealTextActions — the master document's controls.                        */
+/*                                                                            */
+/*  TWO buttons since founder 2026-08-05, down from three:                    */
 /*                                                                            */
 /*    1. Save the ideal text — accept-and-freeze. Resolves the pending state  */
 /*       server-side, so afterwards the take badges go and the clean script   */
-/*       shows. Saving is what UNLOCKS the re-read.                           */
-/*    2. Record a re-read — only after a save: you read aloud what you have    */
-/*       settled on, never a script still carrying open offers. The reading    */
-/*       goes to the coach and is never rendered back (no bubble, no version,  */
-/*       no document change — the BE guarantees this since #228).             */
-/*    3. Record the next official take — the full pipeline, as today. The      */
-/*       master then shows any new block-level upgrade offers.                */
+/*       shows.                                                               */
+/*    2. Record the next official take — the full pipeline.                   */
 /*                                                                            */
-/*  SAFE-AHEAD: mounted only when the BE actually serves the save lane        */
-/*  (`saved` is a boolean, not null). Until then the host keeps today's        */
-/*  single two-state mic — a live affordance is never hidden behind a field   */
-/*  that does not exist yet.                                                  */
+/*  REMOVED: "Record a re-read" sat between them, gated on the save. Reading  */
+/*  the settled text back into the mic produced nothing the coach or the user */
+/*  could act on, so the lane is gone end to end (BE rejects it 422). What is */
+/*  left is the loop that actually improves the text: take after take.        */
+/*                                                                            */
+/*  Losing the re-read also removed this component's whole busy-state problem.*/
+/*  The next-take button used to be WITHHELD while a reading was live or      */
+/*  still analysing, because it sat directly under a hot mic and tapping it   */
+/*  there orphaned the reading's stream. With one lane there is no second     */
+/*  recorder to collide with.                                                 */
 /* -------------------------------------------------------------------------- */
 
 export default function IdealTextActions({
   arcId,
-  version,
-  title,
-  latestTakeSessionId,
-  rereadDone,
-  rereadProcessing = null,
   canRecordTake = null,
   saved,
   onBeforeSave,
   onSaved,
   onNewTake,
-  onReadUploaded,
 }: {
   arcId: string;
-  version: number | null;
-  title: string | null;
-  latestTakeSessionId: string | null;
-  rereadDone: boolean;
-  /** §4 — the BE's re-read-in-flight signal, threaded to the read mic. */
-  rereadProcessing?: boolean | null;
-  /** The BE's gate on recording a new OFFICIAL take (button 3). Gates ONLY on
-   *  an explicit false; null / absent leaves the button exactly as today. The
-   *  re-read (button 2) is untouched: it is not an official take. */
+  /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
+   *  explicit false; null / absent leaves the button available. */
   canRecordTake?: boolean | null;
-  /** Whether THIS version is already saved (drives the re-read gate). */
-  saved: boolean;
+  /** Whether THIS version is already saved. null = the BE does not serve the
+   *  save lane yet (SAFE-AHEAD) — the save button is withheld entirely rather
+   *  than rendered against a field that does not exist. */
+  saved: boolean | null;
   /** MASTER DOCUMENT (review R-md1) — commit any pending local edit BEFORE
    *  the freeze: the snapshot must be the text on screen, not the last text a
    *  debounce happened to send. Resolving false means the edit could not be
@@ -65,13 +55,9 @@ export default function IdealTextActions({
   onSaved: () => void;
   /** Route into the regular record flow for the next official take. */
   onNewTake: () => void;
-  onReadUploaded: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  // Reported by the read mic: a reading is recording, sending, or still being
-  // analysed. Withholds button 3 for that span (see below).
-  const [readBusy, setReadBusy] = useState(false);
   // Released only when the host's refetch reports `saved` (review R-md3):
   // dropping `saving` on the POST's resolution re-enables the button for the
   // whole refetch round trip, and a second tap re-runs accept-and-freeze.
@@ -111,8 +97,9 @@ export default function IdealTextActions({
 
   return (
     <div className="mt-1 flex flex-col items-stretch gap-2 border-t border-border pt-4">
-      {/* 1 — Save. Once saved it states the fact instead of offering again. */}
-      {saved ? (
+      {/* 1 — Save. Once saved it states the fact instead of offering again.
+          Withheld entirely while the BE does not serve the lane (saved null). */}
+      {saved === null ? null : saved ? (
         <p className="flex items-center justify-center gap-1.5 text-[13px] text-muted-foreground">
           <Check className="h-4 w-4 text-success" aria-hidden />
           Saved. This is your script.
@@ -140,54 +127,24 @@ export default function IdealTextActions({
         </p>
       ) : null}
 
-      {/* 2 — Re-read, unlocked by the save. */}
-      {saved ? (
-        <IdealReadMic
-          arcId={arcId}
-          version={version}
-          title={title}
-          latestTakeSessionId={latestTakeSessionId}
-          rereadDone={rereadDone}
-          rereadProcessing={rereadProcessing}
-          onNewTake={onNewTake}
-          onReadUploaded={onReadUploaded}
-          onBusyChange={setReadBusy}
-          micOnly
-        />
+      {/* 2 — The next official take. Disabled rather than removed when the BE
+          closes its gate, so the entry to the record loop never silently
+          disappears from this screen. */}
+      <Button
+        type="button"
+        onClick={onNewTake}
+        disabled={canRecordTake === false}
+        variant="outline"
+        className="h-11 w-full rounded-full text-[15px] font-medium"
+      >
+        <Mic className="mr-2 h-4 w-4" aria-hidden />
+        Record the next take
+      </Button>
+      {canRecordTake === false ? (
+        <p className="text-center text-[12px] text-muted-foreground">
+          {IDEAL_EDIT_COPY.recordUnavailable}
+        </p>
       ) : null}
-
-      {/* 3 — The next official take, once there is nothing else in flight.
-          Available unless the BE explicitly closes its gate; disabled rather
-          than removed in that case, so the entry to the record loop never
-          silently disappears from this screen.
-
-          Founder 2026-07-30 — WITHHELD, not disabled, while a reading is live
-          or still being analysed. The read mic already withholds its own
-          next-take button for that span and puts "Finishing up your reading…"
-          in its place; this second button sat right underneath, still
-          offering the next take over a hot mic and through the whole
-          analysis. Tapping it there leaves the reading's stream orphaned and
-          drops a take into a project mid-update. It comes back the moment the
-          reading is genuinely done. */}
-      {readBusy ? null : (
-        <>
-          <Button
-            type="button"
-            onClick={onNewTake}
-            disabled={canRecordTake === false}
-            variant="outline"
-            className="h-11 w-full rounded-full text-[15px] font-medium"
-          >
-            <Mic className="mr-2 h-4 w-4" aria-hidden />
-            Record the next take
-          </Button>
-          {canRecordTake === false ? (
-            <p className="text-center text-[12px] text-muted-foreground">
-              {IDEAL_EDIT_COPY.recordUnavailable}
-            </p>
-          ) : null}
-        </>
-      )}
     </div>
   );
 }

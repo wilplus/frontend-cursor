@@ -183,9 +183,12 @@ export default function ReportCard({
               Instant ideal text
             </p>
           </div>
-          {message.body ? (
-            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-              {message.body}
+          {/* Title + date, same rule as the version cards (founder
+              2026-08-05): a bubble is read once on arrival and a hundred
+              times on scroll-back, so the BE's prose does not live here. */}
+          {reportDateLabel(message.client_created_at) ? (
+            <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+              {reportDateLabel(message.client_created_at)}
             </p>
           ) : null}
         </div>
@@ -200,7 +203,9 @@ export default function ReportCard({
         arcId={arcId}
         version={version}
         frozenVerified={verified}
-        meta={message.body || null}
+        // The DATE, not message.body. The BE's sentence used to sit here;
+        // founder 2026-08-05 cut it to "just the title, date and the CTA".
+        date={reportDateLabel(message.client_created_at)}
         onOpen={openable ? open : null}
       />
     );
@@ -415,9 +420,14 @@ function IdealRecordingCard({
   onOpen,
 }: {
   title: string;
-  /** Second line under the title (a date, or the BE's sentence). null hides it. */
+  /** The DATE line under the title. null hides it.
+   *
+   *  Founder 2026-08-05: this used to carry the BE's sentence, which on takes
+   *  1 and 2 was "your ideal text gets sharper with more takes — three is
+   *  where it really lands". That is gone. "not text that it really lands on
+   *  the 3rd time; on the bubble never; just the title, date and the CTA." */
   meta: string | null;
-  /** The version/take badge, e.g. "22.0". null hides the chip. */
+  /** The version badge, e.g. "2.0" — the take this version came from. */
   badge: string | null;
   verified: boolean;
   ctaLabel: string;
@@ -426,13 +436,11 @@ function IdealRecordingCard({
 }) {
   return (
     <div className="my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]">
-      {/* Attachment label — marks the card as an artifact, not chat text. */}
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-        <Sparkles className="h-3 w-3" aria-hidden />
-        Ideal recording
-      </div>
-      {/* Header: icon tile + title/meta + version chip. */}
-      <div className="mt-3 flex items-start gap-3">
+      {/* Header: icon tile + title/date + version chip. The uppercase
+          "IDEAL RECORDING" attachment label sat above this; it went with the
+          minimisation — the icon tile already says "artifact, not chat", and
+          the founder's list is title, date, CTA. */}
+      <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
           <FileText className="h-5 w-5" aria-hidden />
         </span>
@@ -517,15 +525,18 @@ function LiveStatusIdealTextCard({
   arcId,
   version,
   frozenVerified,
-  meta,
+  date,
   onOpen,
 }: {
   arcId: string | null;
-  /** The bubble's OWN version — fixed forever, never the live document's. */
+  /** The bubble's OWN version — fixed forever, never the live document's.
+   *  Since founder 2026-08-05 the version IS the take: take 1 → 1.0, take
+   *  2 → 2.0, each with its own verification. */
   version: number | null;
   /** True when the BE wrote this bubble as a verified one (variant). */
   frozenVerified: boolean;
-  meta: string | null;
+  /** The bubble's own date, from its FE-stamped timestamp. */
+  date: string | null;
   onOpen: (() => void) | null;
 }) {
   const [live, setLive] = useState<LiveIdealDoc | null>(null);
@@ -549,7 +560,7 @@ function LiveStatusIdealTextCard({
   return (
     <IdealRecordingCard
       title={live?.title?.trim() || "Your ideal text"}
-      meta={meta}
+      meta={date}
       badge={version !== null ? `${version}.0` : null}
       verified={verified}
       ctaLabel="Open your ideal text"

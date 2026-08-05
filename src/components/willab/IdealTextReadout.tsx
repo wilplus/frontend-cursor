@@ -36,7 +36,6 @@ import IdealTextHeading from "./IdealTextHeading";
 import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
-import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
 import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
@@ -133,8 +132,6 @@ export default function IdealTextReadout({
     explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
-    rereadDone: boolean;
-    rereadProcessing: boolean | null;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
@@ -265,8 +262,6 @@ export default function IdealTextReadout({
           explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
-          rereadDone: r.rereadDone,
-          rereadProcessing: r.rereadProcessing,
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
@@ -836,55 +831,27 @@ export default function IdealTextReadout({
           Create an account to keep this text
         </Button>
       ) : sd && arcId && onReRead ? (
-        // FE-D — the ONE two-state mic: reread_done false → record the reading
-        // IN PLACE (recording_kind "read", paired to the latest spoken take);
-        // true → "Record another take" into the regular record flow. FE-6 —
-        // the take nudge sits under it on the 1st/2nd version only.
-        <>
-          {sd.saved !== null ? (
-            // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
-            <IdealTextActions
-              arcId={arcId}
-              version={sd.version}
-              title={sd.title}
-              latestTakeSessionId={sd.latestTakeSessionId}
-              rereadDone={sd.rereadDone}
-              rereadProcessing={sd.rereadProcessing}
-              canRecordTake={sd.canRecordTake}
-              saved={sd.saved}
-              // The freeze waits for the edit lane (R-md1).
-              onBeforeSave={flushEdits}
-              onSaved={() => {
-                // The server now holds the student's newest words AND has
-                // frozen them, so the local edit lane is settled — release it
-                // or the refetch below refuses to adopt the served text.
-                markDirty(false);
-                savedTextRef.current = null;
-                setSdNonce((n) => n + 1);
-              }}
-              onNewTake={onReRead}
-              onReadUploaded={() => setSdNonce((n) => n + 1)}
-            />
-          ) : (
-            <IdealReadMic
-              arcId={arcId}
-              version={sd.version}
-              title={sd.title}
-              latestTakeSessionId={sd.latestTakeSessionId}
-              rereadDone={sd.rereadDone}
-              rereadProcessing={sd.rereadProcessing}
-              canRecordTake={sd.canRecordTake}
-              onNewTake={onReRead}
-              onReadUploaded={() => setSdNonce((n) => n + 1)}
-            />
-          )}
-          {sd.version === 1 || sd.version === 2 ? (
-            <p className="max-w-xs self-center text-center text-[12px] leading-relaxed text-muted-foreground">
-              Your ideal text gets sharper with more takes. Three is where it
-              really lands. Record another when you&apos;re ready.
-            </p>
-          ) : null}
-        </>
+        // MASTER DOCUMENT — Save, then the next official take. Reading the
+        // text back into the mic used to sit between them; retired (founder
+        // 2026-08-05). The take nudge that sat under this went with it:
+        // "not text that it really lands on the 3rd time; on the bubble
+        // never" — and it was no better as a standing line on the document.
+        <IdealTextActions
+          arcId={arcId}
+          canRecordTake={sd.canRecordTake}
+          saved={sd.saved}
+          // The freeze waits for the edit lane (R-md1).
+          onBeforeSave={flushEdits}
+          onSaved={() => {
+            // The server now holds the student's newest words AND has
+            // frozen them, so the local edit lane is settled — release it
+            // or the refetch below refuses to adopt the served text.
+            markDirty(false);
+            savedTextRef.current = null;
+            setSdNonce((n) => n + 1);
+          }}
+          onNewTake={onReRead}
+        />
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
