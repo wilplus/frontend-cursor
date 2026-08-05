@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { Settings2, X } from "lucide-react";
 import PanelNotFound from "@/components/life/PanelNotFound";
 import PanelUpload from "@/components/life/PanelUpload";
+import BetaChip from "@/components/life/BetaChip";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelChrome, panelMenu } from "@/lib/life/menu";
@@ -283,6 +284,11 @@ function PanelNav({
             are not on; wrong for the one you are, because an active black pill
             sliced flat reads as a broken render rather than as "scroll for
             more". */}
+        {/* BETA — the WHOLE panel, not one tab (founder 2026-08-05). It leads
+            the row and sits OUTSIDE the scrolling strip on purpose: inside, it
+            would scroll away with the pills, and a testing-phase marker that
+            is only sometimes on screen is not a marker. */}
+        <BetaChip />
         <div ref={stripRef} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
           {menu.map((entry) => {
             const active =

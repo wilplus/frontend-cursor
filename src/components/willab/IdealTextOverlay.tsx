@@ -9,6 +9,7 @@ import {
   Lock,
   Mic,
   PencilLine,
+  Play,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -67,8 +68,8 @@ import {
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
-import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
+import PresentMode from "./PresentMode";
 import DocumentArranger from "./DocumentArranger";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
@@ -91,10 +92,11 @@ export default function IdealTextOverlay({
 }: {
   arcId: string;
   onClose: () => void;
-  /** SD — "Read it aloud": the host closes this overlay into the record flow
-   *  for this presentation (a re-read is just another recording). Receives the
-   *  current version as a take-count hint for the arc seed. Optional: without
-   *  it the CTA hides. */
+  /** The host closes this overlay into the record flow for the NEXT official
+   *  take of this presentation. Receives the current version as a take-count
+   *  hint for the arc seed. Optional: without it the CTA hides.
+   *  (Named for the retired "read it aloud" lane; it is the next-take route
+   *  now — kept as-is so the two call sites don't churn.) */
   onReadAloud?: (version: number | null) => void;
 }) {
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
@@ -126,8 +128,6 @@ export default function IdealTextOverlay({
     explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
-    rereadDone: boolean;
-    rereadProcessing: boolean | null;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
@@ -203,6 +203,9 @@ export default function IdealTextOverlay({
   // this screen into. `superseded` HOLDS the student's words after a take
   // landed mid-edit; they are never re-sent without a tap.
   const [arranging, setArranging] = useState(false);
+  // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
+  // scroll-through-the-deck read. Read-only; recording stays in the Lab.
+  const [presenting, setPresenting] = useState(false);
   const [superseded, setSuperseded] = useState<string | null>(null);
   const [tooLong, setTooLong] = useState(false);
   const [editLocked, setEditLocked] = useState(false);
@@ -272,8 +275,6 @@ export default function IdealTextOverlay({
           explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
-          rereadDone: r.rereadDone,
-          rereadProcessing: r.rereadProcessing,
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
@@ -584,6 +585,26 @@ export default function IdealTextOverlay({
             ideal-text screens cannot head themselves differently again. */}
         <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
         <div className="flex items-center gap-2.5">
+          {/* PRESENT — the PowerPoint move: a play glyph that throws the
+              document fullscreen to deliver it. First in the row because it
+              is the one control you reach for while standing up. Needs text
+              on screen; hidden while editing/arranging (you are not
+              presenting a document you are mid-edit on). */}
+          {(status === "ready" || status === "instant") &&
+          !editing &&
+          !arranging &&
+          displayText.trim() ? (
+            <button
+              type="button"
+              onClick={() => setPresenting(true)}
+              aria-label="Present mode"
+              title="Present mode"
+              className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Play className="h-4 w-4" aria-hidden />
+              <span className="text-[13px] font-medium">Present</span>
+            </button>
+          ) : null}
           {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
               timeline has rows: an empty list is a real state (pre-migration
               arc) and hides it entirely (§4.3). */}
@@ -849,12 +870,11 @@ export default function IdealTextOverlay({
         </div>
       ) : null}
 
-      {/* FE-3 — the re-read mic as a PERSISTENT bottom control (it used to be
-          a card buried in the header chrome). Reading the corrected text aloud
-          is the next take, and it is the main way this text keeps improving. */}
+      {/* The PERSISTENT bottom control. Reading the text out loud used to sit
+          here as a second, gated mic; it is retired (founder 2026-08-05 — it
+          brought no value to the coach or the user). What remains is one lane:
+          take after take, each an official recording. */}
       {status === "ready" && !editing && sd && onReadAloud ? (
-        // FE-D — the ONE two-state mic: an in-place read of the ideal text, or
-        // "Record another take" once this version has been read.
         <div className="shrink-0 bg-background px-4 pb-4">
           {/* Confidence game (founder 2026-07-28) — the per-arc first-time
               entry lives HERE, in the same place as the re-read, once the
@@ -872,35 +892,25 @@ export default function IdealTextOverlay({
               Play the confidence game
             </button>
           ) : null}
-          {sd.saved !== null ? (
-            // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
-            <IdealTextActions
-              arcId={arcId}
-              version={sd.version}
-              title={sd.title}
-              latestTakeSessionId={sd.latestTakeSessionId}
-              rereadDone={sd.rereadDone}
-              rereadProcessing={sd.rereadProcessing}
-              canRecordTake={sd.canRecordTake}
-              saved={sd.saved}
-              onSaved={() => setRefetchNonce((n) => n + 1)}
-              onNewTake={() => onReadAloud(sd.version)}
-              onReadUploaded={() => setRefetchNonce((n) => n + 1)}
-            />
-          ) : (
-            <IdealReadMic
-              arcId={arcId}
-              version={sd.version}
-              title={sd.title}
-              latestTakeSessionId={sd.latestTakeSessionId}
-              rereadDone={sd.rereadDone}
-              rereadProcessing={sd.rereadProcessing}
-              canRecordTake={sd.canRecordTake}
-              onNewTake={() => onReadAloud(sd.version)}
-              onReadUploaded={() => setRefetchNonce((n) => n + 1)}
-            />
-          )}
+          {/* MASTER DOCUMENT — Save, then the next official take. */}
+          <IdealTextActions
+            arcId={arcId}
+            canRecordTake={sd.canRecordTake}
+            saved={sd.saved}
+            onSaved={() => setRefetchNonce((n) => n + 1)}
+            onNewTake={() => onReadAloud(sd.version)}
+          />
         </div>
+      ) : null}
+
+      {/* PRESENT MODE — fullscreen, over everything. Nothing but the X. */}
+      {presenting ? (
+        <PresentMode
+          text={displayText}
+          pieces={sd?.pieces ?? null}
+          presentationRef={deckRef}
+          onClose={() => setPresenting(false)}
+        />
       ) : null}
 
       {/* The deep-linked feedback page, stacked over the notebook. */}

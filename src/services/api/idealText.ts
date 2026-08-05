@@ -554,18 +554,9 @@ export type IdealTextResult =
        *  version). null until #236 deploys → the badge falls back to
        *  `version`, exactly today's behavior. */
       takeCount: number | null;
-      /** The latest SPOKEN take (excludes reads) — the re-read pairing target.
-       *  null → the in-place read mic hides (a read without a pair is
-       *  invisible on every surface). */
+      /** The latest SPOKEN take (excludes reads). Still the pairing target
+       *  for a delivery-star snippet re-record. */
       latestTakeSessionId: string | null;
-      /** True when this version has already been re-read → the mic becomes
-       *  "Record another take". */
-      rereadDone: boolean;
-      /** True while a re-read of THIS version is still being analysed (BE
-       *  serves it; §4). The two-state mic shows the loading line in the
-       *  button's place until this clears. null/absent → the FE falls back to
-       *  its local submission latch. */
-      rereadProcessing: boolean | null;
       /** DISCERNMENT — per-piece provenance (the version-badge layer). null =
        *  the key was absent (flag off / pre-migration): render exactly
        *  today's view, no badges. */
@@ -892,11 +883,6 @@ export async function fetchIdealText(
         typeof body.latest_take_session_id === "string" &&
         body.latest_take_session_id
           ? body.latest_take_session_id
-          : null,
-      rereadDone: body.reread_done === true,
-      rereadProcessing:
-        typeof body.reread_processing === "boolean"
-          ? body.reread_processing
           : null,
       pieces: mapIdealPieces(body.pieces),
       // BE tracked_changes serves the lane as `changes`; keep `suggestions`
