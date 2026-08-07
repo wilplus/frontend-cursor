@@ -158,3 +158,45 @@ describe("buildRatingBody refuses to fabricate a label", () => {
     ).toMatchObject({ note: "clipped" });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*  THE LIFECYCLE LOCK                                                         */
+/*                                                                            */
+/*  The cycle is strictly                                                      */
+/*    record -> analysing -> ideal text -> record -> analysing -> ideal text   */
+/*                                                                            */
+/*  The record button has held during analysis for a while. The DELIVERABLE    */
+/*  never did, so a take could land and the student could open the ideal text  */
+/*  while the next version was still being written — reading the previous      */
+/*  take's words as if they were this take's, with nothing saying they were    */
+/*  stale. Both halves of the cycle have to hold or the order is not enforced. */
+/* -------------------------------------------------------------------------- */
+
+describe("the record -> analyse -> read cycle is locked in both directions", () => {
+  const LOUNGE = join("components", "willab", "Lounge.tsx");
+
+  it("the record button holds while a take is analysing", () => {
+    expect(code(LOUNGE)).toContain(
+      'disabled={processingResume?.status === "analyzing"}'
+    );
+  });
+
+  it("opening the ideal text holds while a take is analysing", () => {
+    // The asymmetry between these two gates WAS the bug.
+    const src = code(LOUNGE);
+    const handler = src.slice(src.indexOf("onOpenIdealText={"));
+    const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
+    expect(body).toContain('processingResume?.status === "analyzing"');
+    expect(body).toContain("return");
+  });
+
+  it("the hold introduces no new user-facing copy", () => {
+    // LIVE LOOP: user-facing copy needs founder sign-off. The analysing chip
+    // is already on screen saying what is happening, so the hold is silent by
+    // design rather than by omission.
+    const src = code(LOUNGE);
+    const handler = src.slice(src.indexOf("onOpenIdealText={"));
+    const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
+    expect(body).not.toMatch(/alert\(|toast|"[A-Z][a-z]+ [a-z]/);
+  });
+});

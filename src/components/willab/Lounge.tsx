@@ -745,6 +745,19 @@ export default function Lounge({
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={(arcId) => {
+            // THE LIFECYCLE LOCK. The cycle is strictly
+            //   record -> analysing -> ideal text -> record -> analysing -> ...
+            // and this is the second half of enforcing it. The record button
+            // has held during analysis for a while (see its `disabled` below);
+            // the deliverable never did, so a take could land and the student
+            // could open the ideal text WHILE the next version was still being
+            // written — reading last take's words as if they were this take's,
+            // with no indication they were stale.
+            //
+            // Held, not queued: the analysing chip is already on screen saying
+            // "Working on your take", so there is no silent dead end, and no
+            // new user-facing copy is needed (LIVE LOOP — copy needs sign-off).
+            if (processingResume?.status === "analyzing") return;
             // FE-5 — opening the deliverable is the "seen" signal now that the
             // legacy insight walker is gone; without this the status machine
             // would stick in insights_ready forever.
