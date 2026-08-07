@@ -144,6 +144,34 @@ export interface IdealText {
  *  the FE renders fixed copy per key and NOTHING for anything else. */
 export type SwapWhy = "energy" | "steadiness" | "coverage" | "overall";
 
+/** The reason keys a TRACKED CHANGE may carry. Two vocabularies, deliberately
+ *  not merged:
+ *
+ *    the four SwapWhy keys — CROSS-TAKE comparison ("This take carried more
+ *      energy…"). They only make sense when a second take exists, so they
+ *      reach a change from `prior_take` / `new_take` and nowhere else.
+ *    clarity / emphasis   — the non-comparison lanes (founder copy
+ *      2026-08-07). `clarity` for a change that alters the words,
+ *      `emphasis` for one that styles words already there.
+ *
+ *  Splitting on what the change DOES to the text — not on which lane emitted
+ *  it — is the same composition/accentuation line the locking spec draws, and
+ *  it is what stops "helps your main point stand out" landing on a word swap.
+ *
+ *  The BE sends a KEY and the FE holds the copy, so no model-authored prose
+ *  can reach the screen: an unrecognised value renders NO line rather than
+ *  itself. */
+export type ChangeWhy = SwapWhy | "clarity" | "emphasis";
+
+export const CHANGE_WHY_KEYS: readonly ChangeWhy[] = [
+  "energy",
+  "steadiness",
+  "coverage",
+  "overall",
+  "clarity",
+  "emphasis",
+];
+
 /* ------------------------- tracked changes (BE-C) ------------------------- */
 
 /** LIVING TRANSCRIPT (founder 2026-07-20) — the document is the FULL literal
@@ -185,8 +213,9 @@ export interface DocumentSuggestion {
     | "list_of_three"
     | null;
   /** Template key for the reason line, or null → no reason line (never
-   *  invent one). Shares the four-key vocabulary with the swap sheet. */
-  why: SwapWhy | null;
+   *  invent one). See ChangeWhy: the swap sheet's four comparison keys plus
+   *  the two non-comparison ones. */
+  why: ChangeWhy | null;
   source:
     | "polish"
     | "prior_take"
@@ -309,9 +338,10 @@ export function mapDocumentSuggestions(
         continue;
       }
     }
-    // The four-key reason rides `why_key` (BE tracked_changes); `why` is
-    // free-text/null there. Prefer the key, validate it to the closed set.
-    const why = r.why_key ?? r.why;
+    // The reason rides `why_key` (BE tracked_changes); `why` is free-text or
+    // null there. Prefer the key, and validate it to the closed set — model
+    // prose arriving on either field renders NO line rather than itself.
+    const whyRaw = r.why_key ?? r.why;
     const status = r.status;
     out.push({
       id,
@@ -321,13 +351,9 @@ export function mapDocumentSuggestions(
       kind,
       proposedText: proposed,
       device,
-      why:
-        why === "energy" ||
-        why === "steadiness" ||
-        why === "coverage" ||
-        why === "overall"
-          ? why
-          : null,
+      why: CHANGE_WHY_KEYS.includes(whyRaw as ChangeWhy)
+        ? (whyRaw as ChangeWhy)
+        : null,
       source,
       status:
         status === "pending" || status === "approved" || status === "dismissed"

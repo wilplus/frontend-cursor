@@ -25,8 +25,8 @@ import {
   type IdealKeyMomentLink,
   type IdealPiece,
   type IdealText,
-  type SwapWhy,
 } from "@/services/api/idealText";
+import { WHY_COPY } from "@/lib/willab/trackedChangeWhy";
 import {
   pickerBlockForParagraph,
   type VariantBlock,
@@ -54,15 +54,11 @@ import type { LocalFold } from "./MomentStars";
 /*  AC-9: no percentages, no counts, no scores — version numbers only.         */
 /* -------------------------------------------------------------------------- */
 
-/** The one fixed line behind each swap reason. Closed key set (BE-clamped);
- *  anything else renders NO line — never guess. Copy pending founder
- *  sign-off. */
-export const WHY_COPY: Record<SwapWhy, string> = {
-  energy: "This take carried more energy in the delivery.",
-  steadiness: "This take gave the words more room to breathe.",
-  coverage: "This take stayed tighter to your slide.",
-  overall: "This take simply landed better overall.",
-};
+/** Re-exported for import compatibility. The copy itself moved to
+ *  lib/willab/trackedChangeWhy — one auditable home for every string a
+ *  reason line can say, and a plain module so the fence is testable (vitest
+ *  cannot parse this project's .tsx). */
+export { WHY_COPY };
 
 /** The version pill. Settled: quiet provenance — tap shows a transient
  *  "Kept from Take N." tooltip (FE-4), nothing else. Pending: the glow — tap
