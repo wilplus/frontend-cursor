@@ -10,8 +10,13 @@ import {
   uploadBreakthroughVideo,
   type CoachReviewSnippet,
   type CoachSnippetState,
-  type DirectionLabel,
 } from "@/services/api/coachReview";
+import {
+  buildRatingBody,
+  saveStateRating,
+  CONFIDENCE_QUESTION,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
 import CoachVideoRecorder from "./CoachVideoRecorder";
 import {
@@ -49,14 +54,30 @@ import {
 /*  audience rule (checked 2026-07-30, when the plumbing was unified and this  */
 /*  deliberately was not).                                                     */
 /*                                                                            */
-/*  Label hygiene (§S.3): no best/worst pre-fill, no AI direction guess in     */
-/*  the UI. The coach labels blind, in the chronological order BE returns.    */
+/*  Label hygiene (§S.3): no best/worst pre-fill, no machine guess in the UI.  */
+/*  The coach labels blind, in the chronological order BE returns.            */
+/*                                                                            */
+/*  BLIND FOR REAL, 2026-08-07. This card used to render the acoustic needle   */
+/*  (`acousticRead`) above the label controls. The backend stamps              */
+/*  `saw_model_output: false` on every ternary rating it writes, so collecting */
+/*  a label under a visible machine read would have written that assertion as  */
+/*  a LIE — unrecoverable once in the corpus, and indistinguishable from a     */
+/*  genuinely blind row. The needle moved to the adjudication lane, which is   */
+/*  where judging the machine's output belongs.                                */
+/*                                                                            */
+/*  The F2 direction chips (challenge / ambiguous / threat) are GONE with it.  */
+/*  That construct is retired and must not surface anywhere in the FE.         */
 /* -------------------------------------------------------------------------- */
 
-const DIRECTIONS: { value: DirectionLabel; label: string }[] = [
-  { value: "challenge", label: "Challenge" },
-  { value: "ambiguous", label: "Ambiguous" },
-  { value: "threat", label: "Threat" },
+/* The fixed answer space. "Ambiguous" is the third CHIP because it is a
+ * judgment about the MOMENT (it reads as middling) — the same class the
+ * backend calls `neutral`. "Unrateable" is a judgment about the RATER and
+ * therefore sits below, apart, as a secondary control: different quantity,
+ * different shape. */
+const RATINGS: { value: TernaryValue; label: string }[] = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+  { value: "neutral", label: "Ambiguous" },
 ];
 
 export default function CoachSnippetReviewCard({
@@ -97,6 +118,18 @@ export default function CoachSnippetReviewCard({
   coachStateRef.current = coachState;
   const [savingField, setSavingField] = useState<"breakthrough" | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // The BLIND RATING lane. Deliberately NOT part of CoachSnippetState:
+  //   * it persists to its own endpoint (the state-generic ternary), and
+  //   * it saves IMMEDIATELY, not at the overlay's Save.
+  // That timing follows this file's own audience rule: note/tag/surfaced batch
+  // because they are USER-FACING and a half-written note must not reach the
+  // student early. A rating is never user-facing, so it has nothing to gate —
+  // the same reason the star-verdict lane saves live.
+  const [rating, setRating] = useState<TernaryValue | null>(null);
+  const [unrateable, setUnrateable] = useState(false);
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
 
   // #191 — no pre-fill: the coach writes the note from scratch (that IS the
   // training signal). The BE now sends note="" and no ai_draft_coach_note.
@@ -160,8 +193,39 @@ export default function CoachSnippetReviewCard({
     saveBreakthroughRef
   );
 
-  function pickDirection(value: DirectionLabel) {
-    applyLocal({ directionLabel: value });
+  // One writer for both controls so the XOR can never be violated from the UI:
+  // picking a value clears `unrateable`, and abstaining clears the value. The
+  // backend rejects a body carrying both; constructing one here would be a bug
+  // that only shows up as a 400 the coach cannot act on.
+  const submitRating = useCallback(
+    async (nextValue: TernaryValue | null, nextUnrateable: boolean) => {
+      const body = buildRatingBody(nextValue, nextUnrateable);
+      if (!body) return;
+      setRating(nextValue);
+      setUnrateable(nextUnrateable);
+      setRatingSaving(true);
+      setRatingError(null);
+      const result = await saveStateRating(snippet.id, body);
+      setRatingSaving(false);
+      if (!result.ok) {
+        setRatingError(result.error ?? "Couldn't save that. Try again.");
+      }
+    },
+    [snippet.id]
+  );
+
+  function pickRating(value: TernaryValue) {
+    void submitRating(value, false);
+  }
+
+  function toggleUnrateable() {
+    // Re-tapping an active abstention returns to "unanswered" locally; it does
+    // not send anything, because there is no body that means "never mind".
+    if (unrateable) {
+      setUnrateable(false);
+      return;
+    }
+    void submitRating(null, true);
   }
 
   function toggleSurfaced() {
@@ -195,16 +259,17 @@ export default function CoachSnippetReviewCard({
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set
-  //   "Training only"  — direction set, not surfaced (private-lane only)
+  //   "Training only"  — rated, not surfaced (private-lane only)
   //   "Sent to user"   — surfaced (user-lane active)
+  const rated = rating !== null || unrateable;
   const statusLabel = coachState.surfaced
     ? "Sent to user"
-    : coachState.directionLabel
+    : rated
     ? "Training only"
     : "Skipped";
   const statusTone = coachState.surfaced
     ? "text-success"
-    : coachState.directionLabel
+    : rated
     ? "text-primary"
     : "text-muted-foreground";
 
@@ -237,42 +302,68 @@ export default function CoachSnippetReviewCard({
         />
       ) : null}
 
+      {/* Audio + transcript ONLY. acousticRead / features are the machine's
+          read and are deliberately NOT passed: the backend stamps
+          saw_model_output=false on every rating written below, so showing
+          them here would make that stamp a lie. Judging the machine's output
+          is the adjudication lane's job, on its own screen. */}
       <SnippetReadoutBlock
         audioRef={snippet.audioRef}
         startOffsetMs={snippet.startOffsetMs}
         durationMs={snippet.durationMs}
         transcript={snippet.transcript}
-        acousticRead={snippet.acousticRead}
-        features={snippet.features}
       />
 
       {/* Coach controls — the §F.3 split-sink surface */}
       <div className="border-t border-border pt-4">
-        {/* Direction (private — training lane only, NEVER user-visible per AC-9) */}
+        {/* The blind rating (private — training lane only, NEVER user-visible
+            per AC-9). The QUESTION is on screen because the answer space is
+            fixed and state-generic: without it, "Yes" is unanchored. */}
         <div>
           <p className="text-sm font-semibold text-foreground">
-            Direction
+            {CONFIDENCE_QUESTION}
             <CoachEyebrow className="ml-2">Private · training</CoachEyebrow>
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {DIRECTIONS.map((d) => (
+            {RATINGS.map((r) => (
               <CoachChip
-                key={d.value}
-                active={coachState.directionLabel === d.value}
-                onClick={() => pickDirection(d.value)}
+                key={r.value}
+                active={rating === r.value && !unrateable}
+                onClick={() => pickRating(r.value)}
               >
-                {d.label}
+                {r.label}
               </CoachChip>
             ))}
           </div>
+
+          {/* SECONDARY, and below the answers on purpose. This is not a fourth
+              answer — it is an abstention, a statement about the rater rather
+              than the moment. Giving it the same weight as the chips is what
+              books bad audio as a real middling rating. */}
+          <button
+            type="button"
+            onClick={toggleUnrateable}
+            aria-pressed={unrateable}
+            className={`mt-3 text-[12px] underline underline-offset-2 transition-colors ${
+              unrateable
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {unrateable ? "Marked unrateable" : "Can't rate this — audio unclear"}
+          </button>
+
+          {ratingSaving ? (
+            <p className="mt-1 text-[12px] text-muted-foreground">Saving…</p>
+          ) : null}
+          {ratingError ? <CoachErrorLine>{ratingError}</CoachErrorLine> : null}
         </div>
 
-        {/* Moment video — appears once the snippet is labeled challenge OR
-            threat (FP-3), so the coach can attach a short clip about the
-            moment either way. The BE stores both; BE-6 surfaces the threat
-            ones on the student feedback page. */}
-        {coachState.directionLabel === "challenge" ||
-        coachState.directionLabel === "threat" ? (
+        {/* Moment video — appears once the coach has made a DEFINITE call
+            (yes or no), so they can attach a short clip about the moment
+            either way. Deliberately not on "Ambiguous" or an abstention:
+            there is no moment to talk about yet. */}
+        {!unrateable && (rating === "yes" || rating === "no") ? (
           <div className="mt-4">
             <p className="text-sm font-semibold text-foreground">
               Video
@@ -406,9 +497,7 @@ export default function CoachSnippetReviewCard({
           ) : (
             <span
               className={`inline-block h-2 w-2 rounded-full ${
-                coachState.directionLabel
-                  ? "bg-primary"
-                  : "bg-muted-foreground/40"
+                rated ? "bg-primary" : "bg-muted-foreground/40"
               }`}
               aria-hidden
             />

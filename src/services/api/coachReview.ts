@@ -30,17 +30,22 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
   if (meta.durationSec != null) form.append("duration", String(meta.durationSec));
 }
 
-export type DirectionLabel = "threat" | "ambiguous" | "challenge";
 export type CoachTag = "strong" | "to_work_on";
+
+/* DirectionLabel ("threat" | "ambiguous" | "challenge") was REMOVED
+ * 2026-08-07. The F2 direction construct is retired and must not surface
+ * anywhere in the FE. Blind labeling now uses the state-generic ternary
+ * instrument (services/api/stateRatings.ts) — yes / no / neutral plus a
+ * separate `unrateable`, which is a different lane with its own endpoint and
+ * its own save timing. */
 
 /** Per-snippet coach authoring state — what's persisted, what's read back. */
 export interface CoachSnippetState {
-  directionLabel: DirectionLabel | null;
   note: string;
   tag: CoachTag | null;
   surfaced: boolean;
-  /** Per-snippet coach video (coach upload). Public URL or null. Authored when
-   *  the coach labels the snippet "challenge" OR "threat" (FP-3). */
+  /** Per-snippet coach video (coach upload). Public URL or null. Authored
+   *  whenever the coach has committed a definite rating on the snippet. */
   breakthroughVideoRef: string | null;
 }
 
@@ -138,7 +143,6 @@ export interface CoachReviewSession {
  *  validates: note requires tag; tag standalone is OK; direction is
  *  independent. Echoes back the persisted state for confirmation. */
 export interface CoachSnippetSavePatch {
-  directionLabel?: DirectionLabel | null;
   note?: string;
   tag?: CoachTag | null;
   surfaced?: boolean;
@@ -148,11 +152,6 @@ export interface CoachSnippetSavePatch {
 
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
 
-function pickDirection(raw: unknown): DirectionLabel | null {
-  if (raw === "threat" || raw === "ambiguous" || raw === "challenge") return raw;
-  return null;
-}
-
 function pickTag(raw: unknown): CoachTag | null {
   if (raw === "strong" || raw === "to_work_on") return raw;
   return null;
@@ -161,7 +160,6 @@ function pickTag(raw: unknown): CoachTag | null {
 function pickCoachState(raw: unknown): CoachSnippetState {
   const r = (raw ?? {}) as Record<string, unknown>;
   return {
-    directionLabel: pickDirection(r.direction_label),
     note: typeof r.note === "string" ? r.note : "",
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
@@ -406,17 +404,15 @@ export async function uploadBreakthroughVideo(
 }
 
 /** Save a per-snippet patch. Returns the persisted state on success
- *  (echo from BE) or null on failure. The two-lane split is preserved:
- *  the BE persists `direction_label` to `training_labels` and
- *  `note`/`tag`/`surfaced` to `insights_payload` in independent writes. */
+ *  (echo from BE) or null on failure. This is the USER-FACING lane only —
+ *  `note`/`tag`/`surfaced` to `insights_payload`. The blind rating lane is
+ *  services/api/stateRatings.ts and never rides on this patch. */
 export async function saveCoachSnippet(
   sessionId: string,
   snippetId: string,
   patch: CoachSnippetSavePatch
 ): Promise<CoachSnippetState | null> {
   const body: Record<string, unknown> = {};
-  if (patch.directionLabel !== undefined)
-    body.direction_label = patch.directionLabel;
   if (patch.note !== undefined) body.note = patch.note;
   if (patch.tag !== undefined) body.tag = patch.tag;
   if (patch.surfaced !== undefined) body.surfaced = patch.surfaced;
