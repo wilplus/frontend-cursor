@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 
@@ -477,6 +478,31 @@ export interface KeyPoint {
   end: number | null;
 }
 
+/** Map the GET's `parts` block (SPEC §3.1, Step 0).
+ *
+ *  ABSENT/unusable → null, and the FE mints identity locally — today's view
+ *  exactly, with ids that exist from the first render instead of from the
+ *  first save. An EMPTY list stays an empty list: "no stored identity" and
+ *  "the document is empty" are different states and the BE never conflates
+ *  them, so neither does this.
+ *
+ *  A row missing an id or text is dropped rather than repaired. A repaired
+ *  part would carry an id the server does not have, and the next save would
+ *  claim to be updating a part that never existed. Pure. */
+export function mapParts(raw: unknown): Part[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: Part[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const id = typeof r.id === "string" ? r.id : "";
+    const text = typeof r.text === "string" ? r.text : "";
+    if (!id || !text.trim()) continue;
+    out.push({ id, text });
+  }
+  return out;
+}
+
 /** Map the GET's `key_points` block. ABSENT (flag off / older BE) → null: the
  *  toggle stays hidden, today's view exactly. A row with no cue text is dropped. */
 export function mapKeyPoints(raw: unknown): KeyPoint[] | null {
@@ -609,6 +635,17 @@ export type IdealTextResult =
        *  best-presentation ref, and a deckless arc renders exactly today's
        *  view. */
       presentationRef: string | null;
+      /** PARTS (SPEC-parts-locking-and-layers §3.1, Step 0) — the document's
+       *  stored identity: an ordered list whose ids survive reorder and
+       *  reword, so PR 3 has something a lock can hang on.
+       *
+       *  null means the BE sent NO key — this document has no stored identity
+       *  yet (or the stored parts no longer join to the served text, which the
+       *  BE refuses to serve rather than point at words that moved). The FE
+       *  then mints ids locally, so a part has an id from its first render
+       *  either way. An EMPTY list is a different thing (an empty document)
+       *  and the BE never conflates the two. */
+      parts: Part[] | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -925,6 +962,7 @@ export async function fetchIdealText(
       // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
       // toggle stays hidden.
       keyPoints: mapKeyPoints(body.key_points),
+      parts: mapParts(body.parts),
       presentationRef:
         typeof body.presentation_ref === "string" &&
         body.presentation_ref.length > 0
@@ -973,7 +1011,7 @@ export async function saveIdealUserEdit(
   arcId: string,
   text: string,
   version: number | null,
-  opts?: { reapplied?: boolean }
+  opts?: { reapplied?: boolean; parts?: readonly Part[] | null }
 ): Promise<UserEditSaveResult> {
   // Refuse a doomed PUT locally: the BE rejects past its ceiling with 400,
   // and the student's words must survive either way.
@@ -995,6 +1033,15 @@ export async function saveIdealUserEdit(
           text,
           version,
           ...(opts?.reapplied ? { reapplied: true } : {}),
+          // PARTS (SPEC §3.1, Step 0) — the document's identity, sent only
+          // when the caller has it. The key must be ABSENT otherwise: the BE
+          // treats present-and-empty as "this document is empty" and would
+          // wipe the stored ids. It also refuses a list that does not join
+          // back to `text`, so the two are always written together or not at
+          // all.
+          ...(opts?.parts && opts.parts.length > 0
+            ? { parts: opts.parts.map((p) => ({ id: p.id, text: p.text })) }
+            : {}),
         }),
       }
     );

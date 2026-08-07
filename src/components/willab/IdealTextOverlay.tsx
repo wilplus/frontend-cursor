@@ -71,6 +71,7 @@ import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import PresentMode from "./PresentMode";
 import DocumentArranger from "./DocumentArranger";
+import { reconcileParts, type Part } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
@@ -135,6 +136,10 @@ export default function IdealTextOverlay({
     /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
      *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
     presentationRef: string | null;
+    /** The document's stored part ids (SPEC §3.1, Step 0). null → none
+     *  stored, and the arranger mints locally so a part has an id from its
+     *  first render either way. */
+    parts: Part[] | null;
     /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
     userEdited: boolean;
     /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
@@ -216,6 +221,11 @@ export default function IdealTextOverlay({
   // stamp and no edit may persist.
   const versionRef = useRef<number | null>(null);
   const versionArmedRef = useRef(false);
+  // The document's parts, as last served or last saved. A REF, not state:
+  // every write already re-renders through `sd`/`ideal`, and identity must be
+  // readable by the serialized save chain without re-creating the callback
+  // (which would let two quick arrangements capture different lists).
+  const partsRef = useRef<readonly Part[] | null>(null);
   // Saves run one at a time (same rule as the readout's edit lane).
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   const [copied, setCopied] = useState(false);
@@ -280,12 +290,17 @@ export default function IdealTextOverlay({
           saved: r.saved,
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
+          parts: r.parts,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
+        // The document's stored identity. null = the BE has none for this
+        // document (or refused to serve stale ones), and the arranger mints
+        // locally — so a part always has an id, whether or not it was saved.
+        partsRef.current = r.parts;
         if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
         // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
@@ -323,8 +338,15 @@ export default function IdealTextOverlay({
    *  for a one-tap re-apply. Resolves true when the words are safe (saved, or
    *  held for re-apply), false when the caller should keep its editor open. */
   const saveDocument = useCallback(
-    async (next: string): Promise<boolean> => {
+    async (next: string, nextParts?: readonly Part[] | null): Promise<boolean> => {
       if (!versionArmedRef.current) return false;
+      // PARTS (SPEC §3.1, Step 0). The arranger hands its parts straight
+      // through, ids intact. The TEXTAREA lane does not have any — so
+      // reconcile against what we hold, which keeps the id of every paragraph
+      // the student did not touch. Re-minting them all would discard the locks
+      // PR 3 will hang on those ids, on paragraphs that never changed.
+      const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
+      partsRef.current = parts;
       const before = ideal?.text ?? "";
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
       setTooLong(false);
@@ -334,7 +356,7 @@ export default function IdealTextOverlay({
       // the version the FIRST one just consumed — a 409 that looks exactly
       // like a take landing when nothing of the sort happened.
       const run = chainRef.current.then(() =>
-        saveIdealUserEdit(arcId, next, versionRef.current)
+        saveIdealUserEdit(arcId, next, versionRef.current, { parts })
       );
       chainRef.current = run.then(
         () => undefined,
@@ -794,7 +816,8 @@ export default function IdealTextOverlay({
                 // Each action persists the whole joined document.
                 <DocumentArranger
                   text={displayText}
-                  onChange={(next) => void saveDocument(next)}
+                  parts={sd.parts}
+                  onChange={(next, parts) => void saveDocument(next, parts)}
                   textSizeClass="text-[18px]"
                 />
               ) : edited ? (
