@@ -8,13 +8,16 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * `POST /v2/coach/sessions/<sid>/snippets/<sid>` on the BE.
  *
  * Body accepts any subset of:
- *   { direction_label?, note?, tag?, surfaced? }
+ *   { note?, tag?, surfaced?, breakthrough_video_ref? }
  *
- * The BE writes to TWO INDEPENDENT TABLES per the §S.1.2 split-sink wall:
- *   - direction_label → training_labels  (private lane, classifier only)
- *   - note/tag/surfaced → insights_payload  (user lane, library-bound)
- * No cross-derivation. Even if a single request sets both, the handler
- * dispatches one write per lane — one can succeed while the other 400s.
+ * USER LANE ONLY — note/tag/surfaced → insights_payload (library-bound).
+ *
+ * `direction_label` was removed from the FE 2026-08-07 with the F2 direction
+ * construct. This proxy is verbatim pass-through, so the BE still accepts the
+ * key from any other caller; nothing in this app sends it. Blind labeling now
+ * writes the state-generic ternary through
+ * PUT /api/v2/coach/snippets/<id>/confidence-label — a SEPARATE route, which
+ * is the split-sink wall doing its job rather than two lanes sharing a body.
  *
  * Returns the echoed `coach_state` on success so the FE can confirm
  * without an extra fetch (optimistic UI works against the echo).
