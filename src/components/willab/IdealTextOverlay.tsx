@@ -29,6 +29,7 @@ import {
   type LocalFold,
 } from "./MomentStars";
 import {
+  type Addition,
   fetchIdealText,
   isUnappliedPolish,
   saveIdealNotes,
@@ -71,6 +72,8 @@ import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import PresentMode from "./PresentMode";
 import DocumentArranger from "./DocumentArranger";
+import AdditionsPanel from "./AdditionsPanel";
+import { setPartLock } from "@/services/api/partLock";
 import { reconcileParts, type Part } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
@@ -140,6 +143,8 @@ export default function IdealTextOverlay({
      *  stored, and the arranger mints locally so a part has an id from its
      *  first render either way. */
     parts: Part[] | null;
+    /** MATERIAL RECOVERY — words said on a slide the script has no block for. */
+    additions: Addition[];
     /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
     userEdited: boolean;
     /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
@@ -291,6 +296,7 @@ export default function IdealTextOverlay({
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
           parts: r.parts,
+          additions: r.additions,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
@@ -337,6 +343,46 @@ export default function IdealTextOverlay({
    *  while they were editing, so we adopt the fresh text and HOLD their words
    *  for a one-tap re-apply. Resolves true when the words are safe (saved, or
    *  held for re-apply), false when the caller should keep its editor open. */
+  // SPEC §4 — lock or unlock one section. The echo is the document on screen:
+  // a lock is a claim about SPECIFIC WORDS, and the server refuses one made
+  // against a document that has moved rather than settling a paragraph the
+  // student never read.
+  const toggleLock = useCallback(
+    async (part: Part, locked: boolean): Promise<"ok" | "blocked" | "failed"> => {
+      const r = await setPartLock(arcId, part.id, locked, displayText);
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "error") return "failed";
+      if (r.kind === "stale") {
+        setRefetchNonce((n) => n + 1);
+        return "failed";
+      }
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === part.id ? { ...p, locked } : p
+      );
+      setRefetchNonce((n) => n + 1);
+      return "ok";
+    },
+    [arcId, displayText]
+  );
+
+  // MATERIAL RECOVERY — accept promotes the candidate block into the master;
+  // "Not now" drops the offer, and the same words may be offered again if said
+  // in a later take. Routes through the block-decide endpoint already in use.
+  const decideAddition = useCallback(
+    async (addition: Addition, accept: boolean): Promise<boolean> => {
+      const r = await decideBlock(
+        arcId,
+        addition.blockKey,
+        accept ? "accept" : "keep",
+        addition.takeSessionId
+      );
+      if (r.kind === "error") return false;
+      setRefetchNonce((n) => n + 1);
+      return true;
+    },
+    [arcId]
+  );
+
   const saveDocument = useCallback(
     async (next: string, nextParts?: readonly Part[] | null): Promise<boolean> => {
       if (!versionArmedRef.current) return false;
@@ -818,6 +864,7 @@ export default function IdealTextOverlay({
                   text={displayText}
                   parts={sd.parts}
                   onChange={(next, parts) => void saveDocument(next, parts)}
+                  onToggleLock={toggleLock}
                   textSizeClass="text-[18px]"
                 />
               ) : edited ? (
@@ -862,6 +909,20 @@ export default function IdealTextOverlay({
                   deck={deckRef ? { presentationRef: deckRef } : null}
                 />
               )}
+
+              {/* MATERIAL RECOVERY — words the speaker SAID on a slide their
+                  script has no block for. Below the document, not inside it:
+                  there is nothing in the text to anchor to, which is exactly
+                  why forcing it into the tracked-change shape made it reach
+                  nobody. Hidden while arranging — that mode is about the words
+                  already in the script. */}
+              {sd && !arranging && sd.additions.length > 0 ? (
+                <AdditionsPanel
+                  additions={sd.additions}
+                  onDecide={decideAddition}
+                  textSizeClass="text-[18px]"
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

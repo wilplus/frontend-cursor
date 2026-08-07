@@ -11,6 +11,7 @@ import {
   keyPointTintRanges,
   saveIdealUserEdit,
   type DocumentSuggestion,
+  type Addition,
   type IdealPiece,
   type IdealText,
   type KeyPoint,
@@ -35,6 +36,8 @@ import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
+import AdditionsPanel from "./AdditionsPanel";
+import { setPartLock } from "@/services/api/partLock";
 import { reconcileParts, type Part } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
@@ -148,6 +151,8 @@ export default function IdealTextReadout({
      *  stored; the arranger mints locally so a part has an id from its first
      *  render either way. */
     parts: Part[] | null;
+    /** MATERIAL RECOVERY — words said on a slide the script has no block for. */
+    additions: Addition[];
     /** T1 · 1.2 — the served text IS the student's edit. Drives the star
      *  fence below (an edited document carries no honest anchors). */
     userEdited: boolean;
@@ -280,6 +285,7 @@ export default function IdealTextReadout({
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
           parts: r.parts,
+          additions: r.additions,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
@@ -377,7 +383,7 @@ export default function IdealTextReadout({
         setSaveState("failed");
       });
     },
-    [markDirty, refreshVariants]
+    [markDirty, partsFor, refreshVariants]
   );
 
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3). Same edit-
@@ -441,7 +447,7 @@ export default function IdealTextReadout({
     setSuperseded(null);
     sdGenRef.current++;
     setSdNonce((n) => n + 1);
-  }, [markDirty, sd?.priorEdit, superseded]);
+  }, [markDirty, partsFor, sd?.priorEdit, superseded]);
 
   useEffect(() => {
     if (!dirtyRef.current || !canPersist || !arcId) return;
@@ -483,7 +489,7 @@ export default function IdealTextReadout({
         });
       }
     },
-    []
+    [partsFor]
   );
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
@@ -609,6 +615,59 @@ export default function IdealTextReadout({
   // dirty, reset the save flash, update the text (the debounce effect
   // persists it). Add/move go through here too, so the whole joined document
   // rides the same single save lane.
+  // SPEC §4 — lock or unlock one section. The ECHO is the document currently
+  // on screen: a lock is a claim about SPECIFIC WORDS, and the server refuses
+  // one made against a document that has moved (a take assembled, the coach
+  // verified) rather than settling a paragraph the student never read.
+  const toggleLock = useCallback(
+    async (part: Part, locked: boolean): Promise<"ok" | "blocked" | "failed"> => {
+      const aid = arcIdRef.current;
+      if (!aid) return "failed";
+      const r = await setPartLock(aid, part.id, locked, textRef.current);
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "stale") {
+        // The same silent-refetch the block-decide lane already uses: the text
+        // visibly refreshing IS the message, so there is no copy for it.
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error") return "failed";
+      // Adopt the server's answer rather than assuming it — a lock drawn that
+      // the server did not grant is the one state worth never rendering.
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === part.id ? { ...p, locked } : p
+      );
+      setSdNonce((n) => n + 1);
+      return "ok";
+    },
+    []
+  );
+
+  // MATERIAL RECOVERY — accept promotes the candidate block into the master
+  // document; "Not now" deletes the offer, and the same words may honestly be
+  // offered again if said in a later take. Both route through the block decide
+  // endpoint the upgrade lane already uses.
+  const decideAddition = useCallback(
+    async (addition: Addition, accept: boolean): Promise<boolean> => {
+      const aid = arcIdRef.current;
+      if (!aid) return false;
+      const r = await decideBlock(
+        aid,
+        addition.blockKey,
+        accept ? "accept" : "keep",
+        addition.takeSessionId
+      );
+      if (r.kind === "error") return false;
+      // Stale counts as handled: a newer take moved the offer, and the refetch
+      // brings whatever replaced it.
+      sdGenRef.current++;
+      setSdNonce((n) => n + 1);
+      return true;
+    },
+    []
+  );
+
   const applyEdit = useCallback(
     (next: string, parts?: readonly Part[] | null) => {
       markDirty(true);
@@ -792,6 +851,8 @@ export default function IdealTextReadout({
           text={text}
           parts={sd?.parts}
           onChange={applyEdit}
+          // Locking needs a persisted arc; a guest's parts are local-only.
+          onToggleLock={arcId ? toggleLock : undefined}
         />
       ) : sd && edited ? (
         // T1 · 1.2 — the student's own document: their words, their markers,
@@ -839,6 +900,19 @@ export default function IdealTextReadout({
         // gets the same renderer.
         <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
       )}
+
+      {/* MATERIAL RECOVERY — words the speaker SAID on a slide their script
+          has no block for. Below the document, not inside it: there is nothing
+          in the text to anchor to, which is exactly why forcing it into the
+          tracked-change shape made it reach nobody. Hidden while editing or
+          arranging — those modes are about the words already in the script. */}
+      {sd && arcId && !editing && !arranging && sd.additions.length > 0 ? (
+        <AdditionsPanel
+          additions={sd.additions}
+          onDecide={decideAddition}
+          textSizeClass="text-[17px]"
+        />
+      ) : null}
 
       {tooLong ? (
         <p className="text-[12px] leading-relaxed text-muted-foreground">

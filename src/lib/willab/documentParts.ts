@@ -30,6 +30,10 @@ export interface Part {
   /** Stable across reorder and reword. Never regenerated for the same part. */
   id: string;
   text: string;
+  /** SPEC §4 — locked sections take ACCENTUATION only (styling), open ones
+   *  take COMPOSITION (rewrites). Server-owned: absent/false until the BE says
+   *  otherwise, and never set optimistically from a failed request. */
+  locked?: boolean;
 }
 
 /** A v4 uuid. `crypto.randomUUID` where it exists (every current browser on a
@@ -126,7 +130,7 @@ export function reconcileParts(
     const at = prevTexts.indexOf(t);
     if (at < 0 || used[at]) return;
     used[at] = true;
-    out[i] = { id: prev[at].id, text: t };
+    out[i] = { id: prev[at].id, text: t, locked: prev[at].locked };
   });
 
   // Pass 2 — the repeats, in reading order.
@@ -135,7 +139,7 @@ export function reconcileParts(
     for (let j = 0; j < prev.length; j += 1) {
       if (!used[j] && prevTexts[j] === t) {
         used[j] = true;
-        out[i] = { id: prev[j].id, text: t };
+        out[i] = { id: prev[j].id, text: t, locked: prev[j].locked };
         return;
       }
     }
@@ -158,7 +162,7 @@ export function partsForDocument(
   served: readonly Part[] | null | undefined
 ): Part[] {
   if (served && served.length > 0 && partsToText(served) === text.trim()) {
-    return served.map((p) => ({ id: p.id, text: p.text }));
+    return served.map((p) => ({ id: p.id, text: p.text, locked: p.locked }));
   }
   return reconcileParts(text, served ?? []);
 }
@@ -201,7 +205,7 @@ export function updatePart(parts: Part[], at: number, text: string): Part[] {
   if (parts[at].text === words) return parts;
   const next = parts.slice();
   if (!words) next.splice(at, 1);
-  else next[at] = { id: parts[at].id, text: words };
+  else next[at] = { id: parts[at].id, text: words, locked: parts[at].locked };
   return next;
 }
 

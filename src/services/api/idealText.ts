@@ -478,6 +478,66 @@ export interface KeyPoint {
   end: number | null;
 }
 
+/** MATERIAL RECOVERY (SPEC §3.1 lane, founder 2026-08-07) — words the speaker
+ *  SAID, on a slide their script has no block for.
+ *
+ *  Not a suggestion and not feedback: it is the student's own material,
+ *  currently missing from their document because the master's structure locked
+ *  on take 1 and this slide was not in it. It carries NO span — there is
+ *  nothing in the document to anchor to, and forcing it into the tracked-change
+ *  shape as a zero-width `insert` is exactly why it used to reach nobody. */
+export interface Addition {
+  /** "block:<key>" — stable, and the key the decision routes on. */
+  id: string;
+  blockKey: number;
+  /** Echoed back on the decision so a superseded offer cannot be applied to a
+   *  different take (409 STALE_OFFER). */
+  takeSessionId: string;
+  /** 1-based take the words came from → the "vN.0" badge. null hides it. */
+  takeIndex: number | null;
+  /** The deck slide these words were spoken over. null → no slide shown. */
+  slideIndex: number | null;
+  label: string | null;
+  /** The speaker's own words, verbatim (L1 — nothing here is authored). */
+  text: string;
+}
+
+/** Map the GET's `additions` block. ABSENT/unusable → [] so the section simply
+ *  does not draw; there is no "no new material" state worth rendering.
+ *
+ *  A row missing its decidable identity (block key + take session) is DROPPED,
+ *  not repaired: it would render an "Add to script" button that can never
+ *  succeed, which is the same dead-control rule the tracked-change mapper
+ *  already follows. Pure. */
+export function mapAdditions(raw: unknown): Addition[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Addition[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const text = typeof r.text === "string" ? r.text.trim() : "";
+    const blockKey =
+      typeof r.block_key === "number" && Number.isFinite(r.block_key)
+        ? r.block_key
+        : null;
+    const takeSessionId =
+      typeof r.take_session_id === "string" ? r.take_session_id : "";
+    if (!text || blockKey === null || !takeSessionId) continue;
+    const num = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) ? v : null;
+    out.push({
+      id: typeof r.id === "string" && r.id ? r.id : `block:${blockKey}`,
+      blockKey,
+      takeSessionId,
+      takeIndex: num(r.take_index),
+      slideIndex: num(r.slide_index),
+      label: typeof r.label === "string" && r.label ? r.label : null,
+      text,
+    });
+  }
+  return out;
+}
+
 /** Map the GET's `parts` block (SPEC §3.1, Step 0).
  *
  *  ABSENT/unusable → null, and the FE mints identity locally — today's view
@@ -498,7 +558,9 @@ export function mapParts(raw: unknown): Part[] | null {
     const id = typeof r.id === "string" ? r.id : "";
     const text = typeof r.text === "string" ? r.text : "";
     if (!id || !text.trim()) continue;
-    out.push({ id, text });
+    // SPEC §4 — the BE sends a BOOLEAN, never the lock timestamp: the client
+    // needs to know which control to draw and nothing more.
+    out.push({ id, text, locked: r.locked === true });
   }
   return out;
 }
@@ -646,6 +708,9 @@ export type IdealTextResult =
        *  either way. An EMPTY list is a different thing (an empty document)
        *  and the BE never conflates the two. */
       parts: Part[] | null;
+      /** MATERIAL RECOVERY — words the speaker said that their script has no
+       *  block for. [] when there are none (the section does not draw). */
+      additions: Addition[];
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -963,6 +1028,7 @@ export async function fetchIdealText(
       // toggle stays hidden.
       keyPoints: mapKeyPoints(body.key_points),
       parts: mapParts(body.parts),
+      additions: mapAdditions(body.additions),
       presentationRef:
         typeof body.presentation_ref === "string" &&
         body.presentation_ref.length > 0

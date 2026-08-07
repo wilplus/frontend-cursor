@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, GripVertical, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, Lock, LockOpen, Plus, X } from "lucide-react";
 import {
   insertPart,
   movePart,
@@ -66,6 +66,7 @@ export default function DocumentArranger({
   text,
   parts: servedParts,
   onChange,
+  onToggleLock,
   textSizeClass = "text-[17px]",
 }: {
   /** The served (or locally edited) document. */
@@ -77,6 +78,10 @@ export default function DocumentArranger({
   /** The whole resulting document after an add / move / remove, and the parts
    *  it came from. Fires ONLY when the text actually changed. */
   onChange: (next: string, parts: Part[]) => void;
+  /** SPEC §4 — lock or unlock ONE section. Resolves "blocked" when R3 refuses
+   *  (undecided suggestions on that section), and the host owns the request.
+   *  Absent → no lock controls at all, today's arranger exactly. */
+  onToggleLock?: (part: Part, locked: boolean) => Promise<"ok" | "blocked" | "failed">;
   textSizeClass?: string;
 }) {
   // The served list wins only when it joins back to the served text; a stored
@@ -92,6 +97,11 @@ export default function DocumentArranger({
   const [draft, setDraft] = useState("");
   // The lifted part and the slot it would land in (0…parts.length).
   const [drag, setDrag] = useState<{ from: number; slot: number } | null>(null);
+  // R3's refusal, shown against the section it belongs to rather than as a
+  // page-level banner: the student needs to know WHICH section still has open
+  // suggestions, and a global message would not say.
+  const [lockBlocked, setLockBlocked] = useState<string | null>(null);
+  const [lockBusy, setLockBusy] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLLIElement | null>>([]);
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
@@ -110,6 +120,22 @@ export default function DocumentArranger({
       onChange(joined, next);
     },
     [onChange, text]
+  );
+
+  const toggleLock = useCallback(
+    (part: Part) => {
+      if (!onToggleLock || lockBusy) return;
+      setLockBusy(part.id);
+      setLockBlocked(null);
+      void onToggleLock(part, !part.locked).then((r: string) => {
+        setLockBusy(null);
+        // Only R3 gets a message. A stale document refetches (the text
+        // visibly changing is the message) and a failure leaves the control
+        // as it was — never a lock drawn that the server did not grant.
+        if (r === "blocked") setLockBlocked(part.id);
+      });
+    },
+    [lockBusy, onToggleLock]
   );
 
   /* --- adding ----------------------------------------------------------- */
@@ -321,6 +347,29 @@ export default function DocumentArranger({
                   as tall as three buttons, which looks like dead space under
                   a one-line part. */}
               <div className="flex shrink-0 items-center">
+                {/* SPEC §4 — locking is not a setting: it changes WHICH KIND
+                    of suggestion may fire here. Open takes rewrites; locked
+                    takes emphasis only. */}
+                {onToggleLock ? (
+                  <button
+                    type="button"
+                    aria-label={part.locked ? C.unlockPart : C.lockPart}
+                    title={part.locked ? C.unlockPart : C.lockPart}
+                    disabled={lockBusy !== null}
+                    onClick={() => toggleLock(part)}
+                    className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-muted disabled:opacity-30 ${
+                      part.locked
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {part.locked ? (
+                      <Lock className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <LockOpen className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   aria-label={C.moveUp}
@@ -353,6 +402,11 @@ export default function DocumentArranger({
                 </button>
               </div>
             </li>
+            {lockBlocked === part.id ? (
+              <li className="px-2.5 pb-1 text-[12px] leading-relaxed text-muted-foreground">
+                {C.lockBlocked}
+              </li>
+            ) : null}
             {gap(i + 1)}
           </Fragment>
         ))}
