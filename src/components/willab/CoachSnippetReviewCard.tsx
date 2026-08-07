@@ -126,8 +126,14 @@ export default function CoachSnippetReviewCard({
   // because they are USER-FACING and a half-written note must not reach the
   // student early. A rating is never user-facing, so it has nothing to gate —
   // the same reason the star-verdict lane saves live.
-  const [rating, setRating] = useState<TernaryValue | null>(null);
-  const [unrateable, setUnrateable] = useState(false);
+  // Seeded from the coach's OWN persisted answer (the BE scopes that read to
+  // the authenticated rater — never the panel's, which would anchor). Before
+  // this existed a rated snippet reopened as unanswered, so the coach either
+  // re-rated from scratch — a second, non-independent look at one clip — or
+  // skipped it as already done and left it unrated.
+  const seeded = initialState ?? snippet.coachState;
+  const [rating, setRating] = useState<TernaryValue | null>(seeded.ratingValue);
+  const [unrateable, setUnrateable] = useState(seeded.ratingUnrateable);
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
 

@@ -30,6 +30,8 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
   if (meta.durationSec != null) form.append("duration", String(meta.durationSec));
 }
 
+import type { TernaryValue } from "./stateRatings";
+
 export type CoachTag = "strong" | "to_work_on";
 
 /* DirectionLabel ("threat" | "ambiguous" | "challenge") was REMOVED
@@ -42,6 +44,12 @@ export type CoachTag = "strong" | "to_work_on";
 /** Per-snippet coach authoring state — what's persisted, what's read back. */
 export interface CoachSnippetState {
   note: string;
+  /** THIS coach's own blind rating, so a rated snippet does not read as
+   *  unanswered after a reload. Never another rater's — the BE scopes the
+   *  read to the authenticated caller, because a second answer on screen
+   *  anchors the next one and destroys inter-rater independence. */
+  ratingValue: TernaryValue | null;
+  ratingUnrateable: boolean;
   tag: CoachTag | null;
   surfaced: boolean;
   /** Per-snippet coach video (coach upload). Public URL or null. Authored
@@ -152,6 +160,10 @@ export interface CoachSnippetSavePatch {
 
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
 
+function pickRating(raw: unknown): TernaryValue | null {
+  return raw === "yes" || raw === "no" || raw === "neutral" ? raw : null;
+}
+
 function pickTag(raw: unknown): CoachTag | null {
   if (raw === "strong" || raw === "to_work_on") return raw;
   return null;
@@ -161,6 +173,8 @@ function pickCoachState(raw: unknown): CoachSnippetState {
   const r = (raw ?? {}) as Record<string, unknown>;
   return {
     note: typeof r.note === "string" ? r.note : "",
+    ratingValue: pickRating(r.rating_value),
+    ratingUnrateable: r.rating_unrateable === true,
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
     breakthroughVideoRef:

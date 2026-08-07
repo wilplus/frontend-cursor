@@ -92,6 +92,25 @@ describe("the F2 direction construct is purged from the FE", () => {
   });
 });
 
+describe("the card resumes the coach's OWN answer", () => {
+  it("seeds its rating state from the persisted coach state", () => {
+    // The amnesia fix. Without this the card reopened as unanswered, and a
+    // coach either re-rated from scratch — a second, non-independent look at
+    // one clip — or skipped it as already done and left it unrated.
+    const src = code(CARD);
+    expect(src).toContain("seeded.ratingValue");
+    expect(src).toContain("seeded.ratingUnrateable");
+  });
+
+  it("never reads a rating that is not the coach's own", () => {
+    // The BE scopes the read to the authenticated rater. Nothing here may
+    // reach for a panel/other-rater shape — that would anchor the next label
+    // exactly the way a visible machine read would.
+    const src = code(CARD);
+    expect(src).not.toMatch(/otherRat|panelRating|allRatings|raters\b/);
+  });
+});
+
 describe("buildRatingBody refuses to fabricate a label", () => {
   it("builds a plain ternary answer", () => {
     expect(buildRatingBody("yes", false)).toEqual({
