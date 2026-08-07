@@ -205,15 +205,11 @@ export default function CoachReviewOverlay({
       snippets.push({
         id: s.id,
         note: cs.note,
-        direction: cs.directionLabel,
         tag: cs.tag,
         surfaced: cs.surfaced,
       });
       if (cs.surfaced && cs.note.trim()) {
         notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? "strong" });
-      }
-      if (cs.directionLabel) {
-        labels.push({ snippet_id: s.id, value: cs.directionLabel });
       }
     }
 
