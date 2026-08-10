@@ -280,13 +280,15 @@ export default function StudentDetailOverlay({
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
+                  {/* Founder 2026-08-10 ("unify the sessions"): these rows
+                      are HISTORY, not a review entry — reviewing (labels,
+                      feedback, publish) lives in the Feedbacks review above.
+                      No tap, no review-state chips advertising a second way
+                      in; the review queue's own bubbles still reach the
+                      walker while its remaining jobs migrate. */}
                   {detail.sessions.map((s) => (
                     <li key={s.sessionId}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenReview(s.sessionId)}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
-                      >
+                      <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left">
                         <FileAudio className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[15px] text-foreground">
@@ -303,16 +305,7 @@ export default function StudentDetailOverlay({
                             {FEELING_EMOJI[s.feeling]} {s.feeling}
                           </span>
                         ) : null}
-                        {/* FE-C — 3-state chip (saved = Reviewed, founder rule);
-                            older payloads fall back to the legacy state label. */}
-                        {s.reviewState ? (
-                          <ReviewStateChip state={s.reviewState} />
-                        ) : (
-                          <span className="shrink-0 text-[12px] text-muted-foreground">
-                            {stateLabel(s.state)}
-                          </span>
-                        )}
-                      </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
