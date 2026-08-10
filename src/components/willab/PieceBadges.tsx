@@ -154,6 +154,7 @@ export function PieceBadgeText({
   text,
   ideal,
   pieces,
+  showPills = true,
   suggestions,
   onDecideTracked,
   onLockParagraph,
@@ -193,6 +194,14 @@ export function PieceBadgeText({
   text: string;
   ideal: IdealText;
   pieces: IdealPiece[] | null;
+  /** Founder 2026-08-10 (slides-per-chunk): the take PILLS and the SLIDE
+   *  mapping both ride `pieces`, but they are different decisions. "After a
+   *  save the script is clean" retires the pills — it must NOT retire the
+   *  slides, which is exactly what nulling `pieces` did: the saved document
+   *  lost its slide→chunk separation along with the badges. False hides the
+   *  pills (and their swap sheet) while every piece-driven slide keeps
+   *  rendering. Default true — every existing call is unchanged. */
+  showPills?: boolean;
   onMomentTap: (m: IdealKeyMomentLink) => void;
   foldFor?: (m: IdealKeyMomentLink) => LocalFold | null;
   sdStars?: boolean;
@@ -558,11 +567,13 @@ export function PieceBadgeText({
         // affordance (§6).
         const pill = (
           <>
-            <PiecePill
-              piece={piece}
-              fresh={latest !== null && piece.takeIndex === latest}
-              onOpenSwap={onOpenSwap}
-            />
+            {showPills ? (
+              <PiecePill
+                piece={piece}
+                fresh={latest !== null && piece.takeIndex === latest}
+                onOpenSwap={onOpenSwap}
+              />
+            ) : null}
             {chipAt(i, spans.length)}
             {lockChipAt(i, span.text)}
           </>

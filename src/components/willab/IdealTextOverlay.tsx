@@ -890,7 +890,11 @@ export default function IdealTextOverlay({
                   // DISCERNMENT — SD only; a legacy payload has pieces null and
                   // renders exactly today's view.
                   // MASTER DOCUMENT — a saved version shows the clean script.
-                  pieces={sd?.saved === true ? null : sd?.pieces ?? null}
+                  // Founder 2026-08-10 — the slide→chunk view must survive
+                  // a saved document. Pieces stay (they carry slide_index);
+                  // only the take PILLS retire on save.
+                  pieces={sd?.pieces ?? null}
+                  showPills={sd?.saved !== true}
                   // LIVING TRANSCRIPT — tracked changes own the words when the
                   // BE serves them; the version pills compose on top.
                   suggestions={sd?.suggestions ?? null}
