@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 
@@ -144,6 +145,34 @@ export interface IdealText {
  *  the FE renders fixed copy per key and NOTHING for anything else. */
 export type SwapWhy = "energy" | "steadiness" | "coverage" | "overall";
 
+/** The reason keys a TRACKED CHANGE may carry. Two vocabularies, deliberately
+ *  not merged:
+ *
+ *    the four SwapWhy keys — CROSS-TAKE comparison ("This take carried more
+ *      energy…"). They only make sense when a second take exists, so they
+ *      reach a change from `prior_take` / `new_take` and nowhere else.
+ *    clarity / emphasis   — the non-comparison lanes (founder copy
+ *      2026-08-07). `clarity` for a change that alters the words,
+ *      `emphasis` for one that styles words already there.
+ *
+ *  Splitting on what the change DOES to the text — not on which lane emitted
+ *  it — is the same composition/accentuation line the locking spec draws, and
+ *  it is what stops "helps your main point stand out" landing on a word swap.
+ *
+ *  The BE sends a KEY and the FE holds the copy, so no model-authored prose
+ *  can reach the screen: an unrecognised value renders NO line rather than
+ *  itself. */
+export type ChangeWhy = SwapWhy | "clarity" | "emphasis";
+
+export const CHANGE_WHY_KEYS: readonly ChangeWhy[] = [
+  "energy",
+  "steadiness",
+  "coverage",
+  "overall",
+  "clarity",
+  "emphasis",
+];
+
 /* ------------------------- tracked changes (BE-C) ------------------------- */
 
 /** LIVING TRANSCRIPT (founder 2026-07-20) — the document is the FULL literal
@@ -185,8 +214,9 @@ export interface DocumentSuggestion {
     | "list_of_three"
     | null;
   /** Template key for the reason line, or null → no reason line (never
-   *  invent one). Shares the four-key vocabulary with the swap sheet. */
-  why: SwapWhy | null;
+   *  invent one). See ChangeWhy: the swap sheet's four comparison keys plus
+   *  the two non-comparison ones. */
+  why: ChangeWhy | null;
   source:
     | "polish"
     | "prior_take"
@@ -309,9 +339,10 @@ export function mapDocumentSuggestions(
         continue;
       }
     }
-    // The four-key reason rides `why_key` (BE tracked_changes); `why` is
-    // free-text/null there. Prefer the key, validate it to the closed set.
-    const why = r.why_key ?? r.why;
+    // The reason rides `why_key` (BE tracked_changes); `why` is free-text or
+    // null there. Prefer the key, and validate it to the closed set — model
+    // prose arriving on either field renders NO line rather than itself.
+    const whyRaw = r.why_key ?? r.why;
     const status = r.status;
     out.push({
       id,
@@ -321,13 +352,9 @@ export function mapDocumentSuggestions(
       kind,
       proposedText: proposed,
       device,
-      why:
-        why === "energy" ||
-        why === "steadiness" ||
-        why === "coverage" ||
-        why === "overall"
-          ? why
-          : null,
+      why: CHANGE_WHY_KEYS.includes(whyRaw as ChangeWhy)
+        ? (whyRaw as ChangeWhy)
+        : null,
       source,
       status:
         status === "pending" || status === "approved" || status === "dismissed"
@@ -449,6 +476,93 @@ export interface KeyPoint {
    *  when the BE omits it (the cue still renders, it just can't anchor). */
   start: number | null;
   end: number | null;
+}
+
+/** MATERIAL RECOVERY (SPEC §3.1 lane, founder 2026-08-07) — words the speaker
+ *  SAID, on a slide their script has no block for.
+ *
+ *  Not a suggestion and not feedback: it is the student's own material,
+ *  currently missing from their document because the master's structure locked
+ *  on take 1 and this slide was not in it. It carries NO span — there is
+ *  nothing in the document to anchor to, and forcing it into the tracked-change
+ *  shape as a zero-width `insert` is exactly why it used to reach nobody. */
+export interface Addition {
+  /** "block:<key>" — stable, and the key the decision routes on. */
+  id: string;
+  blockKey: number;
+  /** Echoed back on the decision so a superseded offer cannot be applied to a
+   *  different take (409 STALE_OFFER). */
+  takeSessionId: string;
+  /** 1-based take the words came from → the "vN.0" badge. null hides it. */
+  takeIndex: number | null;
+  /** The deck slide these words were spoken over. null → no slide shown. */
+  slideIndex: number | null;
+  label: string | null;
+  /** The speaker's own words, verbatim (L1 — nothing here is authored). */
+  text: string;
+}
+
+/** Map the GET's `additions` block. ABSENT/unusable → [] so the section simply
+ *  does not draw; there is no "no new material" state worth rendering.
+ *
+ *  A row missing its decidable identity (block key + take session) is DROPPED,
+ *  not repaired: it would render an "Add to script" button that can never
+ *  succeed, which is the same dead-control rule the tracked-change mapper
+ *  already follows. Pure. */
+export function mapAdditions(raw: unknown): Addition[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Addition[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const text = typeof r.text === "string" ? r.text.trim() : "";
+    const blockKey =
+      typeof r.block_key === "number" && Number.isFinite(r.block_key)
+        ? r.block_key
+        : null;
+    const takeSessionId =
+      typeof r.take_session_id === "string" ? r.take_session_id : "";
+    if (!text || blockKey === null || !takeSessionId) continue;
+    const num = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) ? v : null;
+    out.push({
+      id: typeof r.id === "string" && r.id ? r.id : `block:${blockKey}`,
+      blockKey,
+      takeSessionId,
+      takeIndex: num(r.take_index),
+      slideIndex: num(r.slide_index),
+      label: typeof r.label === "string" && r.label ? r.label : null,
+      text,
+    });
+  }
+  return out;
+}
+
+/** Map the GET's `parts` block (SPEC §3.1, Step 0).
+ *
+ *  ABSENT/unusable → null, and the FE mints identity locally — today's view
+ *  exactly, with ids that exist from the first render instead of from the
+ *  first save. An EMPTY list stays an empty list: "no stored identity" and
+ *  "the document is empty" are different states and the BE never conflates
+ *  them, so neither does this.
+ *
+ *  A row missing an id or text is dropped rather than repaired. A repaired
+ *  part would carry an id the server does not have, and the next save would
+ *  claim to be updating a part that never existed. Pure. */
+export function mapParts(raw: unknown): Part[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: Part[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const id = typeof r.id === "string" ? r.id : "";
+    const text = typeof r.text === "string" ? r.text : "";
+    if (!id || !text.trim()) continue;
+    // SPEC §4 — the BE sends a BOOLEAN, never the lock timestamp: the client
+    // needs to know which control to draw and nothing more.
+    out.push({ id, text, locked: r.locked === true });
+  }
+  return out;
 }
 
 /** Map the GET's `key_points` block. ABSENT (flag off / older BE) → null: the
@@ -583,6 +697,20 @@ export type IdealTextResult =
        *  best-presentation ref, and a deckless arc renders exactly today's
        *  view. */
       presentationRef: string | null;
+      /** PARTS (SPEC-parts-locking-and-layers §3.1, Step 0) — the document's
+       *  stored identity: an ordered list whose ids survive reorder and
+       *  reword, so PR 3 has something a lock can hang on.
+       *
+       *  null means the BE sent NO key — this document has no stored identity
+       *  yet (or the stored parts no longer join to the served text, which the
+       *  BE refuses to serve rather than point at words that moved). The FE
+       *  then mints ids locally, so a part has an id from its first render
+       *  either way. An EMPTY list is a different thing (an empty document)
+       *  and the BE never conflates the two. */
+      parts: Part[] | null;
+      /** MATERIAL RECOVERY — words the speaker said that their script has no
+       *  block for. [] when there are none (the section does not draw). */
+      additions: Addition[];
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -899,6 +1027,8 @@ export async function fetchIdealText(
       // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
       // toggle stays hidden.
       keyPoints: mapKeyPoints(body.key_points),
+      parts: mapParts(body.parts),
+      additions: mapAdditions(body.additions),
       presentationRef:
         typeof body.presentation_ref === "string" &&
         body.presentation_ref.length > 0
@@ -947,7 +1077,7 @@ export async function saveIdealUserEdit(
   arcId: string,
   text: string,
   version: number | null,
-  opts?: { reapplied?: boolean }
+  opts?: { reapplied?: boolean; parts?: readonly Part[] | null }
 ): Promise<UserEditSaveResult> {
   // Refuse a doomed PUT locally: the BE rejects past its ceiling with 400,
   // and the student's words must survive either way.
@@ -969,6 +1099,15 @@ export async function saveIdealUserEdit(
           text,
           version,
           ...(opts?.reapplied ? { reapplied: true } : {}),
+          // PARTS (SPEC §3.1, Step 0) — the document's identity, sent only
+          // when the caller has it. The key must be ABSENT otherwise: the BE
+          // treats present-and-empty as "this document is empty" and would
+          // wipe the stored ids. It also refuses a list that does not join
+          // back to `text`, so the two are always written together or not at
+          // all.
+          ...(opts?.parts && opts.parts.length > 0
+            ? { parts: opts.parts.map((p) => ({ id: p.id, text: p.text })) }
+            : {}),
         }),
       }
     );
