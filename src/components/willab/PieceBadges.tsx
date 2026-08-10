@@ -269,28 +269,19 @@ export function PieceBadgeText({
       fbSpans.length > 1 ? sliceSegmentsByParagraphs(fbSegments, fbSpans) : null,
     [fbSpans, fbSegments]
   );
-  // ── SPEC-lockin-loop §2 — the Accept → "Lock it" state machine, per
-  // paragraph. Accept ARMS the lock (it does not lock); the chip appears at
-  // the paragraph's end and locking is the student's explicit second tap.
-  //
-  // The state lives HERE and not in TrackedText for one load-bearing reason:
-  // an accept triggers a refetch, the decided suggestion stops being served,
-  // and any chip keyed to the suggestion's span vanishes with it — exactly
-  // when the founder's flow says the button must appear. Keyed by paragraph
-  // INDEX (stable across an in-place accept); cleared when the paragraph
-  // COUNT changes, because then the indices name different paragraphs. A
-  // survived-but-shifted index cannot lock the wrong words regardless: the
-  // host verifies index → part against the words on screen (lockTargetAt)
-  // and the server verifies the echo — a tap only ever locks what is
-  // visibly at that position. ──
-  const [lockArmed, setLockArmed] = useState<ReadonlySet<number>>(
-    () => new Set()
-  );
+  // ── The lock rides the DECISION (founder 2026-08-10, superseding the
+  // post-accept chip: "I don't know where to lock the text, it should be
+  // that if you accept or reject you can lock it or not; not yet lock in /
+  // lock in"). After a suggestion is decided — accepted OR kept — the
+  // popover offers the lock choice right there; nothing to hunt for at the
+  // paragraph's end. This component still owns the paragraph→lock plumbing
+  // (index bound in the closure, verified at tap time by the host); the
+  // popover only renders the step. lockDone marks a locked paragraph with a
+  // quiet padlock; cleared when the paragraph COUNT changes, because then
+  // the indices name different paragraphs. ──
   const [lockDone, setLockDone] = useState<ReadonlySet<number>>(
     () => new Set()
   );
-  const [lockBusyAt, setLockBusyAt] = useState<number | null>(null);
-  const [lockBlockedAt, setLockBlockedAt] = useState<number | null>(null);
   const paraCount = useMemo(
     () => splitBadgeParagraphSpans(text).length,
     [text]
@@ -299,88 +290,41 @@ export function PieceBadgeText({
   useEffect(() => {
     if (prevCountRef.current === paraCount) return;
     prevCountRef.current = paraCount;
-    setLockArmed(new Set());
     setLockDone(new Set());
-    setLockBusyAt(null);
-    setLockBlockedAt(null);
   }, [paraCount]);
 
-  const decideAndArm = useCallback(
-    async (
-      s: DocumentSuggestion,
-      d: TrackedDecision,
-      at: number
-    ): Promise<boolean> => {
+  const decideAt = useCallback(
+    async (s: DocumentSuggestion, d: TrackedDecision): Promise<boolean> => {
       if (!onDecideTracked) return false;
-      const ok = await onDecideTracked(s, d);
-      if (ok) {
-        // Any decision on this paragraph shrinks its pending set, so the
-        // R3 "decide everything first" note is stale the moment one lands.
-        setLockBlockedAt((prev) => (prev === at ? null : prev));
-        if (d === "accept" && onLockParagraph) {
-          setLockArmed((prev) => new Set(prev).add(at));
-        }
-      }
-      return ok;
+      return onDecideTracked(s, d);
     },
-    [onDecideTracked, onLockParagraph]
+    [onDecideTracked]
   );
 
-  const lockNow = useCallback(
-    (at: number, paragraphText: string) => {
-      if (!onLockParagraph || lockBusyAt !== null) return;
-      setLockBusyAt(at);
-      setLockBlockedAt(null);
-      void onLockParagraph(at, paragraphText).then((r) => {
-        setLockBusyAt(null);
-        if (r === "ok") {
-          setLockDone((prev) => new Set(prev).add(at));
-          setLockArmed((prev) => {
-            const next = new Set(prev);
-            next.delete(at);
-            return next;
-          });
-          return;
-        }
-        if (r === "blocked") setLockBlockedAt(at);
-        // "failed" → the chip stays, so the student can simply try again.
-      });
+  /** The popover's lock step calls this — resolves like the host's
+   *  lockParagraph and records the padlock on "ok". */
+  const lockParagraphAt = useCallback(
+    async (
+      at: number,
+      paragraphText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      if (!onLockParagraph) return "failed";
+      const r = await onLockParagraph(at, paragraphText);
+      if (r === "ok") setLockDone((prev) => new Set(prev).add(at));
+      return r;
     },
-    [onLockParagraph, lockBusyAt]
+    [onLockParagraph]
   );
 
-  /** The chip for paragraph `i`, riding the SAME trailing slot as the picker
-   *  chip — and on BOTH text lanes, because the post-accept refetch can flip
-   *  a paragraph from the tracked lane back to the star lane and the armed
-   *  button must survive that flip. */
-  const lockChipAt = (i: number, paragraphText: string): React.ReactNode => {
-    if (!onLockParagraph) return null;
-    if (lockDone.has(i)) {
-      return (
-        <span className="ml-1.5 inline-flex -translate-y-0.5 items-center rounded-full bg-muted px-1.5 py-0.5">
-          <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />
-          <span className="sr-only">Locked</span>
-        </span>
-      );
-    }
-    if (!lockArmed.has(i)) return null;
+  /** The quiet padlock on a paragraph locked this session — the only thing
+   *  left in the trailing slot (the decide popover owns the lock CHOICE). */
+  const lockChipAt = (i: number, _paragraphText: string): React.ReactNode => {
+    if (!onLockParagraph || !lockDone.has(i)) return null;
     return (
-      <>
-        <button
-          type="button"
-          onClick={() => lockNow(i, paragraphText)}
-          disabled={lockBusyAt !== null}
-          className="ml-1.5 inline-flex -translate-y-0.5 items-center gap-1 rounded-full border border-border bg-background px-2.5 py-0.5 text-[12px] font-medium text-foreground transition-opacity hover:opacity-80 disabled:opacity-50"
-        >
-          <Lock className="h-3 w-3" aria-hidden />
-          {IDEAL_EDIT_COPY.lockIt}
-        </button>
-        {lockBlockedAt === i ? (
-          <span className="ml-1.5 text-[12px] text-muted-foreground">
-            {IDEAL_EDIT_COPY.lockBlocked}
-          </span>
-        ) : null}
-      </>
+      <span className="ml-1.5 inline-flex -translate-y-0.5 items-center rounded-full bg-muted px-1.5 py-0.5">
+        <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />
+        <span className="sr-only">Locked</span>
+      </span>
     );
   };
 
@@ -448,7 +392,12 @@ export function PieceBadgeText({
                   <TrackedText
                     text={span.text}
                     suggestions={local}
-                    onDecide={(s, d) => decideAndArm(s, d, i)}
+                    onDecide={decideAt}
+                  onLockPart={
+                    onLockParagraph
+                      ? () => lockParagraphAt(i, span.text)
+                      : undefined
+                  }
                     textSizeClass={textSizeClass}
                     trailing={chips}
                     srcOffset={span.start}
@@ -482,10 +431,11 @@ export function PieceBadgeText({
         <TrackedText
           text={text}
           suggestions={suggestions ?? null}
-          onDecide={
-            fbSpans.length === 1
-              ? (s, d) => decideAndArm(s, d, 0)
-              : onDecideTracked
+          onDecide={decideAt}
+          onLockPart={
+            onLockParagraph && fbSpans.length === 1
+              ? () => lockParagraphAt(0, text)
+              : undefined
           }
           textSizeClass={textSizeClass}
           // One paragraph rendered as one block can still zip (1:1); a
@@ -590,7 +540,12 @@ export function PieceBadgeText({
             <TrackedText
               text={span.text}
               suggestions={local}
-              onDecide={(s, d) => decideAndArm(s, d, i)}
+              onDecide={decideAt}
+                  onLockPart={
+                    onLockParagraph
+                      ? () => lockParagraphAt(i, span.text)
+                      : undefined
+                  }
               textSizeClass={textSizeClass}
               trailing={pill}
               srcOffset={span.start}

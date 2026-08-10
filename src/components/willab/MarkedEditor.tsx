@@ -140,6 +140,7 @@ export default function MarkedEditor({
   onChange,
   textSizeClass = "text-[17px]",
   autoFocus = false,
+  compact = false,
 }: {
   /** The marker text. */
   value: string;
@@ -148,6 +149,10 @@ export default function MarkedEditor({
   textSizeClass?: string;
   /** Focus on mount — for a surface where entering edit mode IS the gesture. */
   autoFocus?: boolean;
+  /** Per-paragraph mode (founder 2026-08-10, chunked editing): the toolbar
+   *  shows only while THIS chunk holds focus, so a stack of chunks reads as
+   *  one editor with one toolbar — the one beside the caret. */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   // What we last handed the host. Repainting on our own echo would reset the
@@ -254,8 +259,10 @@ export default function MarkedEditor({
   );
 
   return (
-    <div className="flex flex-col gap-2">
-      <Toolbar onApply={applyMark} />
+    <div className="group flex flex-col gap-2">
+      <div className={compact ? "hidden group-focus-within:block" : undefined}>
+        <Toolbar onApply={applyMark} />
+      </div>
       <div
         ref={ref}
         role="textbox"
