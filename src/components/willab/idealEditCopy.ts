@@ -34,12 +34,11 @@ export const IDEAL_EDIT_COPY = {
   persistenceNote:
     "Rewording sticks. Anything you add or move here is yours to keep, and when a new take lands you get one tap to put it back.",
 
-  /* --- a new take landed mid-edit (409 VERSION_SUPERSEDED) ---------------- */
-  supersededTitle: "A new take just landed",
-  supersededBody:
-    "This is the fresh text from your latest take. Your version is safe, put it back whenever you want.",
-  supersededReapply: "Put my version back",
-  supersededDismiss: "Keep the new text",
+  /* --- a new take landed mid-edit (409 VERSION_SUPERSEDED) ----------------
+     The card that lived here is RETIRED (founder 2026-08-10, option A). With
+     per-part persistence the typed paragraphs arrive PINNED inside the
+     refetched document, so there is nothing to hold and offer back — R7
+     satisfied structurally, not by deleting an apology. */
 
   /* --- the BE's recording gate (can_record_take === false) --------------- */
   /* Reason-free ON PURPOSE: the BE does not tell us WHY it closed the gate,

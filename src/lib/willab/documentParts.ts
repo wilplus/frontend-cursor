@@ -167,6 +167,33 @@ export function partsForDocument(
   return reconcileParts(text, served ?? []);
 }
 
+/** AUTO-LOCK (founder 2026-08-10, "typed = committed"). Mark as locked every
+ *  part the edit TOUCHED, judged against the last served baseline:
+ *
+ *    - a part whose id the baseline has, with the same words → untouched;
+ *      it keeps the baseline's lock state. A pure MOVE lands here on purpose:
+ *      rearranging is arrangement, not authorship, and must not lock.
+ *    - a part whose id the baseline lacks, or whose words changed → the
+ *      student typed here → locked.
+ *
+ *  Locking is one-way from this path: a baseline lock is never dropped, which
+ *  mirrors the server rule (the PUT only ADDS locks; removal is the R5-gated
+ *  endpoint's job). Pure. */
+export function autoLockTouched(
+  parts: readonly Part[],
+  baseline: readonly Part[] | null | undefined
+): Part[] {
+  const byId = new Map((baseline ?? []).map((p) => [p.id, p]));
+  return parts.map((p) => {
+    const base = byId.get(p.id);
+    const untouched = base !== undefined && base.text.trim() === p.text.trim();
+    return {
+      ...p,
+      locked: untouched ? (base.locked ?? false) || (p.locked ?? false) : true,
+    };
+  });
+}
+
 /* --- the arranger's operations, on parts rather than strings --------------- */
 /*  Same semantics as documentSegments', so behaviour is unchanged; the whole
  *  difference is that a part carries its id THROUGH the operation instead of
