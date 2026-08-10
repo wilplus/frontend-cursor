@@ -152,9 +152,40 @@ export function TrackedText({
                 tint={tint}
               />
             );
-          if (s.kind === "advice") {
-            // FE-3 — coaching, NOT a text change: the amber star + modal it
-            // has always had. No strike, no Accept.
+          if (s.pendingBetterVersion) {
+            // SPEC-lockin-loop §2 — the ONE thing a locked paragraph still
+            // shows: a Confident Voice detected on it in a later take. The
+            // words stay exactly as locked; a small muted pill carries the
+            // founder's copy. No strike, no Accept, no popover — a prompt,
+            // not an offer. No copy from the BE → nothing renders (we never
+            // mint the string ourselves; LIVE LOOP).
+            return (
+              <span key={i}>
+                <RichText
+                  text={seg.text}
+                  srcOffset={segOffsets[i]}
+                  tint={tint}
+                />
+                {s.pendingCopy ? (
+                  <span className="ml-1 inline-flex -translate-y-0.5 items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                    <Star className="h-3 w-3" fill="none" aria-hidden />
+                    {s.pendingCopy}
+                  </span>
+                ) : null}
+              </span>
+            );
+          }
+          // SPEC-lockin-loop §3 — the BE's rendering registry decides the
+          // affordance when present (star = Confident Voice, underline =
+          // rewrite, bold = accent); kind keeps deciding only for older
+          // payloads that carry no `visual`.
+          const asStar =
+            s.visual === "star" || (!s.visual && s.kind === "advice");
+          const asBold =
+            s.visual === "bold" || (!s.visual && s.kind === "bold");
+          if (asStar) {
+            // Coaching / Confident Voice — NOT a text change: the star +
+            // modal treatment. No strike, no Accept.
             return (
               <button
                 key={i}
@@ -178,7 +209,7 @@ export function TrackedText({
               </button>
             );
           }
-          if (s.kind === "bold") {
+          if (asBold) {
             return (
               <button
                 key={i}
