@@ -31,6 +31,12 @@ import {
   type ArcStar,
   type StarVerdict,
 } from "@/services/api/starVerdicts";
+import {
+  buildLabelBody,
+  fetchConfidenceQueue,
+  saveConfidenceLabel,
+  type QueuePiece,
+} from "@/services/api/trainingCorpus";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachStarVerdictOverlay — FEEDBACKS REVIEW: the coach's one scrollable     */
@@ -78,9 +84,15 @@ import {
 
 export default function CoachStarVerdictOverlay({
   arcId,
+  sessionIds,
   onClose,
 }: {
   arcId: string;
+  /** The arc's take sessions — the confident-voice labeling rows at the top
+   *  of the list aggregate each session's blind queue (founder 2026-08-10:
+   *  "confident voice feedbacks should always be at the top of the list").
+   *  Absent → no CV rows, the panel renders exactly as before. */
+  sessionIds?: string[];
   onClose: () => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
@@ -120,6 +132,72 @@ export default function CoachStarVerdictOverlay({
       active = false;
     };
   }, [arcId]);
+
+  // ── CONFIDENT-VOICE FEEDBACKS, FIRST (founder 2026-08-10). The blind
+  // labeling rows for this arc's sessions, aggregated. The queue payload is
+  // blind BY CONSTRUCTION (the BE serves words + audio and "NOTHING that
+  // could hint at an answer"), so BLIND COACH holds per-row even though this
+  // panel shows machine guesses further down: a CV row carries no guess to
+  // see. Best-effort per session — a queue that fails to load just isn't
+  // shown. ──
+  const [cvRows, setCvRows] = useState<
+    Array<QueuePiece & { sessionKey: string }>
+  >([]);
+  const [cvSaving, setCvSaving] = useState<string | null>(null);
+  const [cvErrors, setCvErrors] = useState<Record<string, string>>({});
+  const sessionsKey = (sessionIds ?? []).join(",");
+  useEffect(() => {
+    let active = true;
+    const ids = sessionsKey ? sessionsKey.split(",") : [];
+    if (ids.length === 0) {
+      setCvRows([]);
+      return;
+    }
+    void Promise.all(ids.map((sid) => fetchConfidenceQueue(sid))).then(
+      (queues) => {
+        if (!active) return;
+        const out: Array<QueuePiece & { sessionKey: string }> = [];
+        queues.forEach((q, i) => {
+          for (const piece of q?.queue ?? []) {
+            out.push({ ...piece, sessionKey: ids[i] });
+          }
+        });
+        setCvRows(out);
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, [sessionsKey]);
+
+  const labelVoice = (row: QueuePiece, confident: boolean) => {
+    if (cvSaving !== null) return;
+    const body = buildLabelBody(confident);
+    if (!body) return;
+    setCvSaving(row.snippetId);
+    setCvErrors((e) => {
+      const { [row.snippetId]: _gone, ...rest } = e;
+      return rest;
+    });
+    void saveConfidenceLabel(row.snippetId, body).then((r) => {
+      setCvSaving(null);
+      if (!r.ok) {
+        setCvErrors((e) => ({
+          ...e,
+          [row.snippetId]:
+            r.error ?? "Couldn't save this label. Try again.",
+        }));
+        return;
+      }
+      setCvRows((rows) =>
+        rows.map((x) =>
+          x.snippetId === row.snippetId
+            ? { ...x, label: { confident, intensity: null, note: null } }
+            : x
+        )
+      );
+    });
+  };
 
   // Progress derives from the rows on screen, so it can never disagree with
   // them; the payload's summary block is deliberately not used (and its
@@ -258,6 +336,56 @@ export default function CoachStarVerdictOverlay({
       </div>
 
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+        {cvRows.length > 0 ? (
+          // CONFIDENT-VOICE FEEDBACKS — always at the top of the list
+          // (founder 2026-08-10). Blind rows: play, read, answer. The copy
+          // is the corpus view's shipped coach copy, verbatim.
+          <div className="flex flex-col gap-3">
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+              Confident voices
+            </span>
+            {cvRows.map((row) => (
+              <CoachCard key={row.snippetId}>
+                {row.audioRef && row.durationMs > 0 ? (
+                  <MediaPlayer
+                    src={row.audioRef}
+                    startOffsetMs={row.startOffsetMs}
+                    durationMs={row.durationMs}
+                  />
+                ) : null}
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                  <p className="text-[15px] leading-relaxed text-foreground">
+                    {row.transcript}
+                  </p>
+                </div>
+                <p className="text-[13px] font-medium text-foreground">
+                  Was this voice confident?
+                </p>
+                <div className="flex gap-2">
+                  <CoachChip
+                    active={row.label?.confident === true}
+                    disabled={cvSaving === row.snippetId}
+                    onClick={() => labelVoice(row, true)}
+                  >
+                    Yes
+                  </CoachChip>
+                  <CoachChip
+                    active={row.label?.confident === false}
+                    disabled={cvSaving === row.snippetId}
+                    onClick={() => labelVoice(row, false)}
+                  >
+                    No
+                  </CoachChip>
+                  {cvSaving === row.snippetId ? <VoiceMark size={20} /> : null}
+                </div>
+                {cvErrors[row.snippetId] ? (
+                  <CoachErrorLine>{cvErrors[row.snippetId]}</CoachErrorLine>
+                ) : null}
+              </CoachCard>
+            ))}
+          </div>
+        ) : null}
         {verifiedVoices.length > 0 ? (
           // The strip: confident voices at the TOP of the star review — the
           // founder's fold of what used to be a separate panel. Horizontal,
@@ -299,7 +427,16 @@ export default function CoachStarVerdictOverlay({
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {stars.map((s) => {
+            {/* Founder 2026-08-10: confident-voice feedbacks first. Stable
+                within each half, so the server's unjudged-first order still
+                holds on both sides of the split. */}
+            {[...stars]
+              .sort(
+                (a, b) =>
+                  Number(b.trigger === "charisma") -
+                  Number(a.trigger === "charisma")
+              )
+              .map((s) => {
               const key = starRowKey(s);
               return (
               <CoachCard as="li" key={key}>
