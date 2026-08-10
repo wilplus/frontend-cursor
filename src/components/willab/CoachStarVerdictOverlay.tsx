@@ -31,6 +31,14 @@ import {
   type ArcStar,
   type StarVerdict,
 } from "@/services/api/starVerdicts";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import {
+  fetchCoachReviewState,
+  type CoachReviewState,
+  type PublishBlocker,
+} from "@/services/api/coachReviewState";
+import { publishArc } from "@/services/api/arcBatch";
 import {
   buildLabelBody,
   fetchConfidenceQueue,
@@ -81,6 +89,21 @@ import {
 /*  Coach-only surface; BE enforces require_admin_or_coach. Copy on this       */
 /*  screen is coach-facing (LIVE LOOP: flagged for founder sign-off).          */
 /* -------------------------------------------------------------------------- */
+
+/** Map a publish blocker to the disabled-PUBLISH reason. DUPLICATED from the
+ *  review walker on purpose: importing it would put a blind-labeler file on
+ *  this panel's import graph (N1), and three strings are cheaper than a
+ *  breached fence. Keep the wording identical to the walker's. */
+function blockerReason(b: PublishBlocker): string {
+  switch (b) {
+    case "TAKES_NOT_SAVED":
+      return "Save each recording's feedback first";
+    case "IDEAL_TEXT_NOT_APPROVED":
+      return "Verify the ideal text first";
+    case "NO_TAKES":
+      return "No recordings to publish yet";
+  }
+}
 
 export default function CoachStarVerdictOverlay({
   arcId,
@@ -196,6 +219,42 @@ export default function CoachStarVerdictOverlay({
             : x
         )
       );
+    });
+  };
+
+  // ── PUBLISH, FOLDED IN (founder 2026-08-10, "GO the publish fold-in").
+  // The same arc-scoped action the review walker's wrap-up carries, with the
+  // same server-mirrored gate (review-state's can_publish + blockers) and
+  // the same shipped copy — so the coach finishes a review WHERE they
+  // review, and the SESSIONS rows stop being a second way in. ──
+  const [reviewState, setReviewState] = useState<CoachReviewState | null>(
+    null
+  );
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void fetchCoachReviewState(arcId).then((r) => {
+      if (active) setReviewState(r);
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcId]);
+  const handlePublish = () => {
+    if (publishing || reviewState?.published) return;
+    setPublishing(true);
+    setPublishError(null);
+    void publishArc(arcId).then((r) => {
+      setPublishing(false);
+      if (r.kind === "ok") {
+        setReviewState((prev) =>
+          prev ? { ...prev, published: true, canPublish: false } : prev
+        );
+        return;
+      }
+      setPublishError(r.message);
+      void fetchCoachReviewState(arcId).then((rs) => setReviewState(rs));
     });
   };
 
@@ -695,6 +754,40 @@ export default function CoachStarVerdictOverlay({
             })}
           </ul>
         )}
+        {reviewState ? (
+          reviewState.published ? (
+            <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
+              <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                onClick={handlePublish}
+                disabled={!reviewState.canPublish || publishing}
+                className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
+              >
+                {publishing ? (
+                  <Loader2
+                    className="mr-1.5 h-4 w-4 animate-spin"
+                    aria-hidden
+                  />
+                ) : null}
+                Publish the full analysis
+              </Button>
+              {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
+                <p className="text-center text-[12px] text-muted-foreground">
+                  {reviewState.blockers.map(blockerReason).join(" · ")}
+                </p>
+              ) : null}
+              {publishError ? (
+                <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
+                  {publishError}
+                </p>
+              ) : null}
+            </div>
+          )
+        ) : null}
       </div>
     </div>
   );
