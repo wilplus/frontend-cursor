@@ -7,9 +7,26 @@
  * poll reaches a terminal state — so a user who left mid-analysis sees a calm
  * "still analyzing" indicator on return (the Lounge resumes the poll) instead
  * of a silently swallowed take.
+ *
+ * TWO PHASES (SPEC-lockin-loop §1, closing handoff §6.4 S3/S4). The readout
+ * going terminal is NOT the text being ready: the arc-level ideal-text
+ * reassembly lands at pipeline end, after `readout_ready`. Clearing there
+ * opened a window where the blocking screen dropped and the PREVIOUS document
+ * rendered as current — the founder's exact symptom. So the marker now names
+ * which wait it is:
+ *
+ *   "analysis"  — the take itself is processing (the readout watch owns
+ *                 clearing/transitioning this);
+ *   "document"  — the readout is done, the document is assembling (the
+ *                 settle probe owns clearing this, by observing the served
+ *                 ideal text — lib/willab/documentSettle.ts).
+ *
+ * A marker with no phase is an "analysis" one written by an older tab.
  */
 
 const KEY = "willab_processing_take";
+
+export type ProcessingPhase = "analysis" | "document";
 
 export interface ProcessingTake {
   sessionId: string;
@@ -18,6 +35,12 @@ export interface ProcessingTake {
   takeIndex: number | null;
   /** Epoch ms when the upload was accepted — drives the "taking longer" cap. */
   startedAt: number;
+  /** Which wait this is. Older markers deserialize as "analysis". */
+  phase: ProcessingPhase;
+  /** Epoch ms when the CURRENT phase began — the document-settle cap runs
+   *  from here, not from the upload (a slow analysis must not eat the
+   *  document phase's budget). */
+  phaseStartedAt: number;
 }
 
 export function readProcessingTake(): ProcessingTake | null {
@@ -26,23 +49,54 @@ export function readProcessingTake(): ProcessingTake | null {
     if (!raw) return null;
     const v = JSON.parse(raw) as Record<string, unknown>;
     if (typeof v.sessionId !== "string" || v.sessionId.length === 0) return null;
+    const startedAt =
+      typeof v.startedAt === "number" ? v.startedAt : Date.now();
     return {
       sessionId: v.sessionId,
       arcId: typeof v.arcId === "string" ? v.arcId : null,
       takeIndex: typeof v.takeIndex === "number" ? v.takeIndex : null,
-      startedAt: typeof v.startedAt === "number" ? v.startedAt : Date.now(),
+      startedAt,
+      phase: v.phase === "document" ? "document" : "analysis",
+      phaseStartedAt:
+        typeof v.phaseStartedAt === "number" ? v.phaseStartedAt : startedAt,
     };
   } catch {
     return null;
   }
 }
 
-export function writeProcessingTake(t: ProcessingTake): void {
+export function writeProcessingTake(
+  t: Omit<ProcessingTake, "phase" | "phaseStartedAt"> &
+    Partial<Pick<ProcessingTake, "phase" | "phaseStartedAt">>
+): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(t));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        ...t,
+        phase: t.phase ?? "analysis",
+        phaseStartedAt: t.phaseStartedAt ?? t.startedAt,
+      })
+    );
   } catch {
     // storage quota — not fatal; the return-visit indicator just won't show
   }
+}
+
+/** The readout went terminal but the document is still assembling: move THIS
+ *  session's marker into the "document" phase instead of clearing it. A
+ *  different session's marker is left alone (same scoping rule as clear). */
+export function transitionProcessingTakeToDocument(sessionId: string): void {
+  try {
+    const cur = readProcessingTake();
+    if (!cur || cur.sessionId !== sessionId) return;
+    if (cur.phase === "document") return;
+    writeProcessingTake({
+      ...cur,
+      phase: "document",
+      phaseStartedAt: Date.now(),
+    });
+  } catch {}
 }
 
 export function clearProcessingTake(sessionId?: string): void {
