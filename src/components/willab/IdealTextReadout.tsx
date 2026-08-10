@@ -886,7 +886,11 @@ export default function IdealTextReadout({
           ideal={sd.ideal}
           // MASTER DOCUMENT — after a save the script is clean: the take
           // badges go (the pending state is resolved server-side).
-          pieces={sd.saved === true ? null : sd.pieces}
+          // Founder 2026-08-10 — the slide→chunk view must survive a saved
+          // document. Pieces stay (they carry each block's slide_index);
+          // only the take PILLS retire on save ("the script is clean").
+          pieces={sd.pieces}
+          showPills={sd.saved !== true}
           // LIVING TRANSCRIPT — when the BE serves span-anchored tracked
           // changes they render the words (strikes, proposals, advice stars)
           // and the version pills still compose on top; absent → today's
