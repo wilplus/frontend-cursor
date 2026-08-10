@@ -11,6 +11,7 @@ import {
   keyPointTintRanges,
   saveIdealUserEdit,
   type DocumentSuggestion,
+  type Addition,
   type IdealPiece,
   type IdealText,
   type KeyPoint,
@@ -35,6 +36,9 @@ import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
+import AdditionsPanel from "./AdditionsPanel";
+import { setPartLock } from "@/services/api/partLock";
+import { reconcileParts, type Part } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
 import { MomentSheet, useMomentStars } from "./MomentStars";
@@ -121,6 +125,10 @@ export default function IdealTextReadout({
   // hands us the current version. Until then (flag OFF / guest) edits are
   // local-only, exactly the pre-#214 behavior.
   const versionRef = useRef<number | null>(null);
+  // The document's parts, as last served or last saved. A REF: every save site
+  // reads textRef, and identity has to be readable from the serialized save
+  // chain without re-creating the callback.
+  const partsRef = useRef<readonly Part[] | null>(null);
   // SD — the served living document: its text (the star anchors live in it),
   // verification status, and the moments entitlement. null until the GET lands
   // (or forever when the flag is OFF), and the screen stays exactly as before.
@@ -139,6 +147,12 @@ export default function IdealTextReadout({
     /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
      *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
     presentationRef: string | null;
+    /** The document's stored part ids (SPEC §3.1, Step 0). null → none
+     *  stored; the arranger mints locally so a part has an id from its first
+     *  render either way. */
+    parts: Part[] | null;
+    /** MATERIAL RECOVERY — words said on a slide the script has no block for. */
+    additions: Addition[];
     /** T1 · 1.2 — the served text IS the student's edit. Drives the star
      *  fence below (an edited document carries no honest anchors). */
     userEdited: boolean;
@@ -252,6 +266,9 @@ export default function IdealTextReadout({
       if (!active || gen !== sdGenRef.current) return;
       if (r.kind === "single") {
         versionRef.current = r.version;
+        // Adopt the server's identity for this document. null = none stored,
+        // and the arranger mints locally on first render.
+        partsRef.current = r.parts;
         persistArmedRef.current = true;
         setCanPersist(true);
         setSd({
@@ -267,6 +284,8 @@ export default function IdealTextReadout({
           saved: r.saved,
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
+          parts: r.parts,
+          additions: r.additions,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
@@ -300,6 +319,20 @@ export default function IdealTextReadout({
   // current version. That retry re-sent pre-take words over the text a
   // just-landed take had assembled. Now: hold the words, adopt the new
   // version, offer the words back. Nothing dropped, nothing clobbered.
+  // PARTS (SPEC §3.1, Step 0) — the document's identity, reconciled against
+  // the EXACT text about to be sent. Every save site reads textRef, which a
+  // late keystroke can move after the arranger computed its list; deriving
+  // here rather than storing a list means text and parts can never disagree,
+  // which is what the BE refuses the pair for.
+  //
+  // Reconcile (not re-split) so a paragraph the student did not touch KEEPS
+  // its id — those ids are what PR 3 hangs locks on.
+  const partsFor = useCallback((t: string): Part[] => {
+    const next = reconcileParts(t, partsRef.current ?? []);
+    partsRef.current = next;
+    return next;
+  }, []);
+
   const enqueueSave = useCallback(
     (aid: string) => {
       chainRef.current = chainRef.current.then(async () => {
@@ -308,7 +341,7 @@ export default function IdealTextReadout({
         // The exact document the BE already refused — don't re-send it on
         // every keystroke. Any other words get a fresh attempt.
         if (invalidTextRef.current === t) return;
-        const r = await saveIdealUserEdit(aid, t, versionRef.current);
+        const r = await saveIdealUserEdit(aid, t, versionRef.current, { parts: partsFor(t) });
         if (r.ok) {
           versionRef.current = r.version ?? versionRef.current;
           savedTextRef.current = t;
@@ -350,7 +383,7 @@ export default function IdealTextReadout({
         setSaveState("failed");
       });
     },
-    [markDirty, refreshVariants]
+    [markDirty, partsFor, refreshVariants]
   );
 
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3). Same edit-
@@ -386,7 +419,10 @@ export default function IdealTextReadout({
     // from a GET can be re-applied while an ordinary save is still in flight,
     // and the two must not race for the version stamp.
     const run = chainRef.current.then(() =>
-      saveIdealUserEdit(aid, words, versionRef.current, { reapplied: true })
+      saveIdealUserEdit(aid, words, versionRef.current, {
+        reapplied: true,
+        parts: partsFor(words),
+      })
     );
     chainRef.current = run.then(
       () => undefined,
@@ -411,7 +447,7 @@ export default function IdealTextReadout({
     setSuperseded(null);
     sdGenRef.current++;
     setSdNonce((n) => n + 1);
-  }, [markDirty, sd?.priorEdit, superseded]);
+  }, [markDirty, partsFor, sd?.priorEdit, superseded]);
 
   useEffect(() => {
     if (!dirtyRef.current || !canPersist || !arcId) return;
@@ -448,10 +484,12 @@ export default function IdealTextReadout({
         dirtyRef.current &&
         savedTextRef.current !== textRef.current
       ) {
-        void saveIdealUserEdit(aid, textRef.current, versionRef.current);
+        void saveIdealUserEdit(aid, textRef.current, versionRef.current, {
+          parts: partsFor(textRef.current),
+        });
       }
     },
-    []
+    [partsFor]
   );
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
@@ -577,11 +615,68 @@ export default function IdealTextReadout({
   // dirty, reset the save flash, update the text (the debounce effect
   // persists it). Add/move go through here too, so the whole joined document
   // rides the same single save lane.
+  // SPEC §4 — lock or unlock one section. The ECHO is the document currently
+  // on screen: a lock is a claim about SPECIFIC WORDS, and the server refuses
+  // one made against a document that has moved (a take assembled, the coach
+  // verified) rather than settling a paragraph the student never read.
+  const toggleLock = useCallback(
+    async (part: Part, locked: boolean): Promise<"ok" | "blocked" | "failed"> => {
+      const aid = arcIdRef.current;
+      if (!aid) return "failed";
+      const r = await setPartLock(aid, part.id, locked, textRef.current);
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "stale") {
+        // The same silent-refetch the block-decide lane already uses: the text
+        // visibly refreshing IS the message, so there is no copy for it.
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error") return "failed";
+      // Adopt the server's answer rather than assuming it — a lock drawn that
+      // the server did not grant is the one state worth never rendering.
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === part.id ? { ...p, locked } : p
+      );
+      setSdNonce((n) => n + 1);
+      return "ok";
+    },
+    []
+  );
+
+  // MATERIAL RECOVERY — accept promotes the candidate block into the master
+  // document; "Not now" deletes the offer, and the same words may honestly be
+  // offered again if said in a later take. Both route through the block decide
+  // endpoint the upgrade lane already uses.
+  const decideAddition = useCallback(
+    async (addition: Addition, accept: boolean): Promise<boolean> => {
+      const aid = arcIdRef.current;
+      if (!aid) return false;
+      const r = await decideBlock(
+        aid,
+        addition.blockKey,
+        accept ? "accept" : "keep",
+        addition.takeSessionId
+      );
+      if (r.kind === "error") return false;
+      // Stale counts as handled: a newer take moved the offer, and the refetch
+      // brings whatever replaced it.
+      sdGenRef.current++;
+      setSdNonce((n) => n + 1);
+      return true;
+    },
+    []
+  );
+
   const applyEdit = useCallback(
-    (next: string) => {
+    (next: string, parts?: readonly Part[] | null) => {
       markDirty(true);
       setSaveState("idle");
       setText(next);
+      // The arranger already carried ids through the operation — adopt them
+      // so the save lane does not have to re-derive identity from position,
+      // which is the one thing a reorder makes impossible.
+      if (parts) partsRef.current = parts;
     },
     [markDirty]
   );
@@ -752,7 +847,13 @@ export default function IdealTextReadout({
         // T1 · 1.2 — the parts view: tap a gap to add, drag a part to move it.
         // Every action emits the whole joined document into the SAME save
         // lane the editor uses.
-        <DocumentArranger text={text} onChange={applyEdit} />
+        <DocumentArranger
+          text={text}
+          parts={sd?.parts}
+          onChange={applyEdit}
+          // Locking needs a persisted arc; a guest's parts are local-only.
+          onToggleLock={arcId ? toggleLock : undefined}
+        />
       ) : sd && edited ? (
         // T1 · 1.2 — the student's own document: their words, their markers,
         // NO star layer and NO version pills. Both are anchored to machine
@@ -799,6 +900,19 @@ export default function IdealTextReadout({
         // gets the same renderer.
         <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
       )}
+
+      {/* MATERIAL RECOVERY — words the speaker SAID on a slide their script
+          has no block for. Below the document, not inside it: there is nothing
+          in the text to anchor to, which is exactly why forcing it into the
+          tracked-change shape made it reach nobody. Hidden while editing or
+          arranging — those modes are about the words already in the script. */}
+      {sd && arcId && !editing && !arranging && sd.additions.length > 0 ? (
+        <AdditionsPanel
+          additions={sd.additions}
+          onDecide={decideAddition}
+          textSizeClass="text-[17px]"
+        />
+      ) : null}
 
       {tooLong ? (
         <p className="text-[12px] leading-relaxed text-muted-foreground">

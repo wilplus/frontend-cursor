@@ -49,4 +49,29 @@ export const IDEAL_EDIT_COPY = {
   /* --- failures ---------------------------------------------------------- */
   tooLong:
     "That is longer than this text can hold. Nothing was lost, trim it a little and it saves.",
+
+  /* --- MATERIAL RECOVERY (founder-approved 2026-08-07) -------------------- */
+  /* Words the speaker SAID, on a slide their script has no block for. Not a
+     suggestion and not feedback: it is their own material, currently missing.
+     "Not now" is honest about what happens — the offer is dropped, and if they
+     say it again in a later take it is offered again. */
+  additionsHeading: "New material detected",
+  additionAccept: "Add to script",
+  additionDecline: "Not now",
+
+  /* --- LOCKING (founder-approved 2026-08-07) ------------------------------ */
+  /* A lock is not a setting: it changes WHICH KIND of suggestion may fire on
+     that section. Open takes rewrites; locked takes emphasis only. */
+  lockPart: "Lock section",
+  unlockPart: "Unlock section",
+  /* R3 — a section with undecided suggestions cannot be locked, because
+     locking would make those suggestions unreachable. Auto-deciding them would
+     write a decision the student never made. */
+  lockBlocked:
+    "Please approve or disregard pending suggestions before locking.",
+  /* 409 STALE_DOCUMENT has NO string, deliberately. The document moved under
+     the student (a take assembled, or the coach verified), and the existing
+     lane already answers that by silently refetching — the text visibly
+     refreshing IS the message. A seventh line here would be un-signed-off copy
+     saying what the screen already says. */
 } as const;

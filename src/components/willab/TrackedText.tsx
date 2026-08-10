@@ -5,8 +5,8 @@ import { Check, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
-import { WHY_COPY } from "./PieceBadges";
 import { DELIVERY_COPY } from "./MomentStars";
+import { whyLine } from "@/lib/willab/trackedChangeWhy";
 import { RichText } from "./RichText";
 import { buildTrackedSegments } from "@/lib/willab/trackedChanges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
@@ -255,7 +255,7 @@ function TrackedPopover({
   const close = () => {
     if (!busy) onClose();
   };
-  const why = suggestion.why ? WHY_COPY[suggestion.why] : null;
+  const why = whyLine(suggestion);
   const decide = (d: TrackedDecision) => {
     if (busy) return;
     setBusy(true);
