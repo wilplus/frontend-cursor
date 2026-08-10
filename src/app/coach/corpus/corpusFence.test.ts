@@ -71,21 +71,18 @@ describe("training corpus fences", () => {
       if (isCorpusOwned(rel) || isDevFixture(rel)) continue;
       if (CORPUS_LINK.test(readFileSync(file, "utf8"))) linkers.push(rel);
     }
-    // ONLY the two header mounts and the coach's Lab panel name the route;
-    // AppMenu takes it as a prop and so never contains the path itself. A new
-    // name in this list is a new way in — check it is coach-gated before
-    // adding it.
+    // ONLY the two header mounts name the route; AppMenu takes it as a prop
+    // and so never contains the path itself. A new name in this list is a new
+    // way in — check it is coach-gated before adding it.
     //
-    // The Lab panel (SPEC-lockin-loop §5, founder 2026-08-10): the training
-    // corpus is "a separate view in the same design language", reachable from
-    // the Lab's head. The panel is coach-only twice over — the BE enforces
-    // require_admin_or_coach on its data, and it mounts only from the coach's
-    // student-detail flow — so the link adds no user-reachable way in.
+    // The feedbacks-review panel held a link here for a few hours on
+    // 2026-08-10 and the founder removed it the same day: "training corpus
+    // should stay in the hamburger menu … delete the training corpus link."
+    // The menu is the one way in again.
     expect(linkers.sort()).toEqual(
       [
         join("components", "SiteHeader.tsx"),
         join("components", "dashboard", "DashboardHeader.tsx"),
-        join("components", "willab", "CoachStarVerdictOverlay.tsx"),
       ].sort()
     );
   });

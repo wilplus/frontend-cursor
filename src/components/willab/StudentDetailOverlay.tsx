@@ -247,7 +247,9 @@ export default function StudentDetailOverlay({
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground">
-                      Star review
+                      {/* Founder 2026-08-10: "it should be called feedbacks
+                          review" — his word, verbatim-cased. */}
+                      Feedbacks review
                       {starArcs.length > 1 ? (
                         <span className="ml-2 font-normal text-muted-foreground">
                           · {topic}
