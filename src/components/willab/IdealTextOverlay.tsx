@@ -319,10 +319,13 @@ export default function IdealTextOverlay({
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
-        // The document's stored identity. null = the BE has none for this
-        // document (or refused to serve stale ones), and the arranger mints
-        // locally — so a part always has an id, whether or not it was saved.
-        partsRef.current = r.parts;
+        // The document's stored identity. When the BE has none (nothing
+        // saved yet, or stale rows refused), the baseline is DERIVED from the
+        // served machine text — unlocked, ids minted locally. Without this
+        // the first typed save would have no baseline, and auto-lock's
+        // "no baseline = all authorship" rule would lock every MACHINE
+        // paragraph the student never touched, freezing refresh everywhere.
+        partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
         if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
         // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
