@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Star, X } from "lucide-react";
+import { Check, Lock as LockIcon, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import { DELIVERY_COPY } from "./MomentStars";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { whyLine } from "@/lib/willab/trackedChangeWhy";
 import { RichText } from "./RichText";
 import { buildTrackedSegments } from "@/lib/willab/trackedChanges";
@@ -61,6 +62,7 @@ export function TrackedText({
   text,
   suggestions,
   onDecide,
+  onLockPart,
   trailing,
   textSizeClass = "text-[17px]",
   srcOffset = 0,
@@ -76,6 +78,12 @@ export function TrackedText({
   /** Report the decision. Returning false leaves the suggestion on screen
    *  (the save failed), so the student can try again. */
   onDecide: (s: DocumentSuggestion, d: TrackedDecision) => Promise<boolean>;
+  /** Founder 2026-08-10 — the lock choice rides the DECISION: after a
+   *  suggestion is decided (accepted or kept), the popover offers
+   *  "Lock in" / "Not yet lock in" for THIS paragraph. The host resolves
+   *  and persists; absent → the popover closes on decide, exactly as
+   *  before. */
+  onLockPart?: () => Promise<"ok" | "blocked" | "failed">;
   /** Rendered inside the closing paragraph — the discernment version pill
    *  sits inline at the paragraph's end, same slot as MomentStarText. */
   trailing?: React.ReactNode;
@@ -253,6 +261,7 @@ export function TrackedText({
         <TrackedPopover
           suggestion={open}
           onClose={() => setOpen(null)}
+          onLock={onLockPart}
           onDecide={async (d) => {
             const ok = await onDecide(open, d);
             if (!ok) return false;
@@ -261,7 +270,9 @@ export function TrackedText({
             } else {
               setKept((prev) => new Set(prev).add(open.id));
             }
-            setOpen(null);
+            // With a lock choice to offer, the popover stays open and shows
+            // it; without one it closes here, exactly as before.
+            if (!onLockPart) setOpen(null);
             return true;
           }}
         />
@@ -275,13 +286,20 @@ function TrackedPopover({
   suggestion,
   onClose,
   onDecide,
+  onLock,
 }: {
   suggestion: DocumentSuggestion;
   onClose: () => void;
   onDecide: (d: TrackedDecision) => Promise<boolean>;
+  /** Present → a successful decision moves the popover to the lock step
+   *  ("Lock in" / "Not yet lock in" — the founder's words) instead of
+   *  closing. */
+  onLock?: () => Promise<"ok" | "blocked" | "failed">;
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [step, setStep] = useState<"decide" | "lock">("decide");
+  const [lockBlocked, setLockBlocked] = useState(false);
   useBackDismiss(onClose, () => busy);
   const close = () => {
     if (!busy) onClose();
@@ -293,9 +311,83 @@ function TrackedPopover({
     setFailed(false);
     void onDecide(d).then((ok) => {
       setBusy(false);
-      if (!ok) setFailed(true);
+      if (!ok) {
+        setFailed(true);
+        return;
+      }
+      if (onLock) setStep("lock");
     });
   };
+  const lockNow = () => {
+    if (busy || !onLock) return;
+    setBusy(true);
+    setFailed(false);
+    setLockBlocked(false);
+    void onLock().then((r) => {
+      setBusy(false);
+      if (r === "ok") {
+        onClose();
+        return;
+      }
+      if (r === "blocked") setLockBlocked(true);
+      else setFailed(true);
+    });
+  };
+  if (step === "lock") {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+        onClick={close}
+        role="presentation"
+      >
+        <div
+          className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="Lock this paragraph"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[14px] font-semibold text-foreground">
+              {IDEAL_EDIT_COPY.lockIn}
+            </p>
+            <OverlayCloseButton onClick={close} ariaLabel="Close" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={lockNow}
+                disabled={busy}
+                className="h-10 flex-1 rounded-full bg-foreground text-[14px] text-background hover:bg-foreground/90"
+              >
+                <LockIcon className="mr-1.5 h-4 w-4" aria-hidden />
+                {IDEAL_EDIT_COPY.lockIn}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={close}
+                disabled={busy}
+                className="h-10 flex-1 rounded-full text-[14px]"
+              >
+                {IDEAL_EDIT_COPY.lockNotYet}
+              </Button>
+            </div>
+            {lockBlocked ? (
+              <p className="text-[12px] text-muted-foreground">
+                {IDEAL_EDIT_COPY.lockBlocked}
+              </p>
+            ) : null}
+            {failed ? (
+              <p className="text-[12px] text-muted-foreground">
+                Couldn&apos;t save that just now. Give it another go.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
