@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, ListPlus, Mic, PencilLine } from "lucide-react";
+import { Check, Copy, ListPlus, Loader2, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
@@ -34,6 +34,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedEditor from "./MarkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
+import { FLOW_COPY } from "./flowCopy";
 import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
@@ -96,6 +97,7 @@ export default function IdealTextReadout({
   onSignUp,
   onReRead,
   onClose,
+  analysisPending = false,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
@@ -103,6 +105,12 @@ export default function IdealTextReadout({
    *  null (guest / standalone upload) → edits stay local. */
   arcId?: string | null;
   signedIn: boolean | null;
+  /** SPEC-lockin-loop §1 — the take's document is still assembling. While
+   *  true this screen BLOCKS with the founder's "Working on your text" line
+   *  instead of rendering the prior take's document as current (handoff §6.4
+   *  S3-in-Lab); when it flips false the SD fetch re-runs and the fresh
+   *  document swaps in. */
+  analysisPending?: boolean;
   /** Fires once after the automatic send succeeds (review-pending bookkeeping). */
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
@@ -261,6 +269,12 @@ export default function IdealTextReadout({
   // is what the BE serves back anyway.
   useEffect(() => {
     if (!signedIn || !arcId) return;
+    // SPEC-lockin-loop §1 (W4's rule, applied here) — a fetch during the
+    // document phase would come back with the PRIOR take's document and this
+    // screen would adopt it as current (handoff §6.4 S3-in-Lab: "fetches
+    // instantly and never re-pulls"). Hold instead; the flip of
+    // `analysisPending` re-runs this effect and fetches the fresh one.
+    if (analysisPending) return;
     let active = true;
     const gen = ++sdGenRef.current;
     void fetchIdealText(arcId).then((r) => {
@@ -308,7 +322,7 @@ export default function IdealTextReadout({
     return () => {
       active = false;
     };
-  }, [signedIn, arcId, sdNonce, refreshVariants]);
+  }, [signedIn, arcId, analysisPending, sdNonce, refreshVariants]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
   // Each chained save reads textRef at execution, so the newest words always
@@ -699,6 +713,33 @@ export default function IdealTextReadout({
   const edited = sd?.userEdited === true || dirty;
   // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
   const canEdit = !editLocked && text.trim().length > 0;
+
+  // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
+  // the old text is INACCESSIBLE: no reading it, no copying it, no editing
+  // it — "no browse-with-banner". Only the way out stays, because the block
+  // is on the text, not on leaving. When the settle probe clears the marker
+  // the host flips `analysisPending`, the SD effect refetches, and the FRESH
+  // document renders through the normal path below.
+  if (analysisPending) {
+    return (
+      <div className="flex flex-1 flex-col">
+        {onClose ? (
+          <div className="flex items-center justify-end">
+            <OverlayCloseButton onClick={onClose} />
+          </div>
+        ) : null}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+          <Loader2
+            className="h-6 w-6 animate-spin text-muted-foreground"
+            aria-hidden
+          />
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            {FLOW_COPY.workingOnText}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4">

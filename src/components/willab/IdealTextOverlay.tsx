@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   ListPlus,
+  Loader2,
   Lock,
   Mic,
   PencilLine,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
+import { FLOW_COPY } from "./flowCopy";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
@@ -759,7 +761,25 @@ export default function IdealTextOverlay({
       <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
           {status === "loading" ? (
-            <LoadingState />
+            analysisPending ? (
+              // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
+              // an ordinary load: the old text is deliberately inaccessible
+              // while the take's document assembles, and the line is the
+              // founder's copy verbatim. When the settle probe clears the
+              // marker, `analysisPending` flips and the fetch effect pulls
+              // the fresh document into this same view.
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+                <Loader2
+                  className="h-6 w-6 animate-spin text-muted-foreground"
+                  aria-hidden
+                />
+                <p className="text-[15px] leading-relaxed text-muted-foreground">
+                  {FLOW_COPY.workingOnText}
+                </p>
+              </div>
+            ) : (
+              <LoadingState />
+            )
           ) : status === "pending" ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Your coach is still shaping your ideal text. It lands here the

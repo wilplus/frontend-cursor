@@ -15,6 +15,7 @@ import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
 import ProjectPicker from "./ProjectPicker";
 import IdealTextOverlay from "./IdealTextOverlay";
+import { useDocumentSettle } from "./useDocumentSettle";
 import {
   clearExploreArc,
   readExploreArc,
@@ -57,6 +58,10 @@ export default function WillabSurface({
   // that project, which is its ideal text. Only "Start a new topic" goes into
   // the recording onboarding.
   const [pickedArcId, setPickedArcId] = useState<string | null>(null);
+  // SPEC-lockin-loop §1 — the picker-mounted overlay's pending truth. Only
+  // probing while that overlay is actually open; the Lounge and the Lab run
+  // their own instances when they own the screen.
+  const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
   const userId = useUserId();
   // Reconcile the at-home status (review_pending / insights) with server truth
@@ -187,6 +192,11 @@ export default function WillabSurface({
       {pickedArcId && (
         <IdealTextOverlay
           arcId={pickedArcId}
+          // SPEC-lockin-loop §1 (handoff §6.4 S6) — this mount used to fetch
+          // with the pending gate hard-false regardless of the marker, so a
+          // take mid-analysis rendered the OLD document as current from this
+          // one route. Same blocking truth as every other mount now.
+          analysisPending={pickerSettle.pending}
           onClose={() => setPickedArcId(null)}
           // "Read it aloud" — the re-read is just the next take of THIS
           // project. The arc was seeded when it was picked, so the Lab restores
