@@ -108,7 +108,9 @@ export default function StudentDetailOverlay({
    *  machine's guesses, so its way in must never be the blind labeling flow
    *  (the review overlay the session rows open) — a separate screen, a
    *  separate navigation entry. Optional: absent, no entry renders. */
-  onOpenStarVerdicts?: (arcId: string) => void;
+  /** sessionIds: the arc's take sessions — the panel's confident-voice
+   *  labeling rows aggregate their blind queues (founder 2026-08-10). */
+  onOpenStarVerdicts?: (arcId: string, sessionIds: string[]) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -238,7 +240,14 @@ export default function StudentDetailOverlay({
                   <button
                     key={`stars-${arcId}`}
                     type="button"
-                    onClick={() => onOpenStarVerdicts(arcId)}
+                    onClick={() =>
+                      onOpenStarVerdicts(
+                        arcId,
+                        detail.sessions
+                          .filter((s) => s.arcId === arcId)
+                          .map((s) => s.sessionId)
+                      )
+                    }
                     className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
                   >
                     <Star

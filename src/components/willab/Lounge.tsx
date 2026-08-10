@@ -173,7 +173,10 @@ export default function Lounge({
   // A SIBLING of the review overlay on purpose (N1): the verdict surface
   // shows the machine's guesses, so it never mounts inside the blind
   // labeling flow — the two only meet here, in the hub.
-  const [starVerdictArcId, setStarVerdictArcId] = useState<string | null>(null);
+  const [starVerdictArcId, setStarVerdictArcId] = useState<{
+    arcId: string;
+    sessionIds: string[];
+  } | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // F2/F7 — the offer (install / legacy joke) whose action pair is open in
@@ -1156,7 +1159,9 @@ export default function Lounge({
           // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
           // in every state, pre-3-takes included — never a dead end).
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
+          onOpenStarVerdicts={(arcId, sessionIds) =>
+            setStarVerdictArcId({ arcId, sessionIds })
+          }
         />
       )}
       {/* FP-4 — per-student drill-down opened from a grouped review bubble.
@@ -1172,7 +1177,9 @@ export default function Lounge({
           }}
           onOpenReview={openReview}
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
+          onOpenStarVerdicts={(arcId, sessionIds) =>
+            setStarVerdictArcId({ arcId, sessionIds })
+          }
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1246,7 +1253,8 @@ export default function Lounge({
           opened from the review overlay (N1 — that flow labels blind). */}
       {starVerdictArcId && (
         <CoachStarVerdictOverlay
-          arcId={starVerdictArcId}
+          arcId={starVerdictArcId.arcId}
+          sessionIds={starVerdictArcId.sessionIds}
           onClose={() => setStarVerdictArcId(null)}
         />
       )}
