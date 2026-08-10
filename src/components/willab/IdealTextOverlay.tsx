@@ -76,6 +76,7 @@ import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
+  lockTargetAt,
   reconcileParts,
   type Part,
 } from "@/lib/willab/documentParts";
@@ -378,6 +379,41 @@ export default function IdealTextOverlay({
       partsRef.current = (partsRef.current ?? []).map((p) =>
         p.id === part.id ? { ...p, locked } : p
       );
+      setRefetchNonce((n) => n + 1);
+      return "ok";
+    },
+    [arcId, displayText]
+  );
+
+  // SPEC-lockin-loop §2 — the Accept→"Lock it" tap, addressed by rendered
+  // paragraph index. Resolved AT TAP TIME against the words on screen
+  // (lockTargetAt refuses a mismatch rather than guessing); `seedParts`
+  // covers the DoD flow, where a student who never manually edited has no
+  // server-stored identity to lock against.
+  const lockParagraph = useCallback(
+    async (
+      at: number,
+      paragraphText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      partsRef.current = parts;
+      const target = lockTargetAt(parts, at, paragraphText);
+      if (!target) return "failed";
+      if (target.locked) return "ok"; // already settled — nothing to write
+      const r = await setPartLock(arcId, target.id, true, displayText, {
+        seedParts: parts,
+      });
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "stale") {
+        setRefetchNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error") return "failed";
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === target.id ? { ...p, locked: true } : p
+      );
+      // Refetch so the layer filter sees the lock — open offers on this
+      // paragraph stop being served, which the student just asked for.
       setRefetchNonce((n) => n + 1);
       return "ok";
     },
@@ -839,6 +875,9 @@ export default function IdealTextOverlay({
                   // BE serves them; the version pills compose on top.
                   suggestions={sd?.suggestions ?? null}
                   onDecideTracked={decideTracked}
+                  // SPEC-lockin-loop §2 — Accept arms, "Lock it" locks. The
+                  // chip state lives in PieceBadgeText; this is persistence.
+                  onLockParagraph={lockParagraph}
                   onMomentTap={(m) => void openMoment(m)}
                   foldFor={stars.foldFor}
                   // FE-2 — the star treatment only under SD (a legacy "ready"

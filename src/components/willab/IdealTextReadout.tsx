@@ -40,6 +40,7 @@ import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
+  lockTargetAt,
   reconcileParts,
   type Part,
 } from "@/lib/willab/documentParts";
@@ -611,6 +612,49 @@ export default function IdealTextReadout({
     []
   );
 
+  // SPEC-lockin-loop §2 — the Accept→"Lock it" tap, addressed by rendered
+  // paragraph index. Resolution happens AT TAP TIME against the words on
+  // screen: the parts are re-derived from the current text (ids kept where
+  // words match), the index→part claim is verified (lockTargetAt refuses a
+  // mismatch rather than guessing), and the echo lets the server refuse a
+  // document that moved. `seedParts` covers the founder's DoD flow — a
+  // student who never manually edited has no server-stored identity, and
+  // without the seed this lock could only ever 409.
+  const lockParagraph = useCallback(
+    async (
+      at: number,
+      paragraphText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      const aid = arcIdRef.current;
+      if (!aid) return "failed";
+      const parts = reconcileParts(textRef.current, partsRef.current ?? []);
+      partsRef.current = parts;
+      const target = lockTargetAt(parts, at, paragraphText);
+      if (!target) return "failed";
+      if (target.locked) return "ok"; // already settled — nothing to write
+      const r = await setPartLock(aid, target.id, true, textRef.current, {
+        seedParts: parts,
+      });
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "stale") {
+        // Same silent-refetch as toggleLock: the text visibly refreshing IS
+        // the message.
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error") return "failed";
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === target.id ? { ...p, locked: true } : p
+      );
+      // Refetch so the layer filter sees the lock — open offers on this
+      // paragraph stop being served, which the student just asked for.
+      setSdNonce((n) => n + 1);
+      return "ok";
+    },
+    []
+  );
+
   // MATERIAL RECOVERY — accept promotes the candidate block into the master
   // document; "Not now" deletes the offer, and the same words may honestly be
   // offered again if said in a later take. Both route through the block decide
@@ -808,6 +852,9 @@ export default function IdealTextReadout({
           // star/quote view, unchanged.
           suggestions={sd.suggestions}
           onDecideTracked={decideTracked}
+          // SPEC-lockin-loop §2 — Accept arms, "Lock it" locks. The chip
+          // state lives in PieceBadgeText; this is only the persistence.
+          onLockParagraph={arcId ? lockParagraph : undefined}
           onMomentTap={(m) => void stars.openMoment(m)}
           foldFor={stars.foldFor}
           sdStars

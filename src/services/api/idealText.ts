@@ -1128,8 +1128,19 @@ export async function saveIdealUserEdit(
           // wipe the stored ids. It also refuses a list that does not join
           // back to `text`, so the two are always written together or not at
           // all.
+          //
+          // `locked` MUST ride: auto-lock ("typed = committed") is computed
+          // client-side by autoLockTouched, and the BE stamps locked_at only
+          // for parts sent locked. Dropping the flag here silently unwound
+          // the whole feature — the parts landed, every one open.
           ...(opts?.parts && opts.parts.length > 0
-            ? { parts: opts.parts.map((p) => ({ id: p.id, text: p.text })) }
+            ? {
+                parts: opts.parts.map((p) => ({
+                  id: p.id,
+                  text: p.text,
+                  ...(p.locked === true ? { locked: true } : {}),
+                })),
+              }
             : {}),
         }),
       }
