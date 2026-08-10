@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import { MomentStarText } from "./MomentStars";
 import { RichText } from "./RichText";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { PdfPage, useDeckPageCount } from "./pdfSlides";
 import {
   latestTakeIndex,
@@ -24,6 +26,7 @@ import {
   type DocumentSuggestion,
   type IdealKeyMomentLink,
   type IdealPiece,
+  type IdealSegment,
   type IdealText,
 } from "@/services/api/idealText";
 import { WHY_COPY } from "@/lib/willab/trackedChangeWhy";
@@ -153,6 +156,7 @@ export function PieceBadgeText({
   pieces,
   suggestions,
   onDecideTracked,
+  onLockParagraph,
   onMomentTap,
   foldFor,
   sdStars,
@@ -176,6 +180,16 @@ export function PieceBadgeText({
     s: DocumentSuggestion,
     d: TrackedDecision
   ) => Promise<boolean>;
+  /** SPEC-lockin-loop §2 — lock the part behind rendered paragraph
+   *  `paragraphIndex`. The HOST resolves index → part (lockTargetAt verifies
+   *  the words) and persists; this component owns the armed/busy/locked chip
+   *  state, because IT knows which paragraph each accept happened in — the
+   *  index is bound in the closure, no span arithmetic anywhere. Absent →
+   *  accepts behave exactly as today (no chip). */
+  onLockParagraph?: (
+    paragraphIndex: number,
+    paragraphText: string
+  ) => Promise<"ok" | "blocked" | "failed">;
   text: string;
   ideal: IdealText;
   pieces: IdealPiece[] | null;
@@ -237,35 +251,156 @@ export function PieceBadgeText({
   // Passing the pre-sliced `segments` avoids re-matching a recurring anchor's
   // star into every paragraph it textually appears in.
   const fbSpans = useMemo(() => splitBadgeParagraphSpans(text), [text]);
+  const fbSegments = useMemo(
+    () => segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
+    [text, ideal.keyPhrases, ideal.keyMoments]
+  );
   const fbSlices = useMemo(
     () =>
-      fbSpans.length > 1
-        ? sliceSegmentsByParagraphs(
-            segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
-            fbSpans
-          )
-        : null,
-    [fbSpans, text, ideal.keyPhrases, ideal.keyMoments]
+      fbSpans.length > 1 ? sliceSegmentsByParagraphs(fbSegments, fbSpans) : null,
+    [fbSpans, fbSegments]
   );
-  // Which lane owns the WORDS. Two hard conditions (review R-lt6/R-lt1):
+  // ── SPEC-lockin-loop §2 — the Accept → "Lock it" state machine, per
+  // paragraph. Accept ARMS the lock (it does not lock); the chip appears at
+  // the paragraph's end and locking is the student's explicit second tap.
+  //
+  // The state lives HERE and not in TrackedText for one load-bearing reason:
+  // an accept triggers a refetch, the decided suggestion stops being served,
+  // and any chip keyed to the suggestion's span vanishes with it — exactly
+  // when the founder's flow says the button must appear. Keyed by paragraph
+  // INDEX (stable across an in-place accept); cleared when the paragraph
+  // COUNT changes, because then the indices name different paragraphs. A
+  // survived-but-shifted index cannot lock the wrong words regardless: the
+  // host verifies index → part against the words on screen (lockTargetAt)
+  // and the server verifies the echo — a tap only ever locks what is
+  // visibly at that position. ──
+  const [lockArmed, setLockArmed] = useState<ReadonlySet<number>>(
+    () => new Set()
+  );
+  const [lockDone, setLockDone] = useState<ReadonlySet<number>>(
+    () => new Set()
+  );
+  const [lockBusyAt, setLockBusyAt] = useState<number | null>(null);
+  const [lockBlockedAt, setLockBlockedAt] = useState<number | null>(null);
+  const paraCount = useMemo(
+    () => splitBadgeParagraphSpans(text).length,
+    [text]
+  );
+  const prevCountRef = useRef(paraCount);
+  useEffect(() => {
+    if (prevCountRef.current === paraCount) return;
+    prevCountRef.current = paraCount;
+    setLockArmed(new Set());
+    setLockDone(new Set());
+    setLockBusyAt(null);
+    setLockBlockedAt(null);
+  }, [paraCount]);
+
+  const decideAndArm = useCallback(
+    async (
+      s: DocumentSuggestion,
+      d: TrackedDecision,
+      at: number
+    ): Promise<boolean> => {
+      if (!onDecideTracked) return false;
+      const ok = await onDecideTracked(s, d);
+      if (ok) {
+        // Any decision on this paragraph shrinks its pending set, so the
+        // R3 "decide everything first" note is stale the moment one lands.
+        setLockBlockedAt((prev) => (prev === at ? null : prev));
+        if (d === "accept" && onLockParagraph) {
+          setLockArmed((prev) => new Set(prev).add(at));
+        }
+      }
+      return ok;
+    },
+    [onDecideTracked, onLockParagraph]
+  );
+
+  const lockNow = useCallback(
+    (at: number, paragraphText: string) => {
+      if (!onLockParagraph || lockBusyAt !== null) return;
+      setLockBusyAt(at);
+      setLockBlockedAt(null);
+      void onLockParagraph(at, paragraphText).then((r) => {
+        setLockBusyAt(null);
+        if (r === "ok") {
+          setLockDone((prev) => new Set(prev).add(at));
+          setLockArmed((prev) => {
+            const next = new Set(prev);
+            next.delete(at);
+            return next;
+          });
+          return;
+        }
+        if (r === "blocked") setLockBlockedAt(at);
+        // "failed" → the chip stays, so the student can simply try again.
+      });
+    },
+    [onLockParagraph, lockBusyAt]
+  );
+
+  /** The chip for paragraph `i`, riding the SAME trailing slot as the picker
+   *  chip — and on BOTH text lanes, because the post-accept refetch can flip
+   *  a paragraph from the tracked lane back to the star lane and the armed
+   *  button must survive that flip. */
+  const lockChipAt = (i: number, paragraphText: string): React.ReactNode => {
+    if (!onLockParagraph) return null;
+    if (lockDone.has(i)) {
+      return (
+        <span className="ml-1.5 inline-flex -translate-y-0.5 items-center rounded-full bg-muted px-1.5 py-0.5">
+          <Lock className="h-3 w-3 text-muted-foreground" aria-hidden />
+          <span className="sr-only">Locked</span>
+        </span>
+      );
+    }
+    if (!lockArmed.has(i)) return null;
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => lockNow(i, paragraphText)}
+          disabled={lockBusyAt !== null}
+          className="ml-1.5 inline-flex -translate-y-0.5 items-center gap-1 rounded-full border border-border bg-background px-2.5 py-0.5 text-[12px] font-medium text-foreground transition-opacity hover:opacity-80 disabled:opacity-50"
+        >
+          <Lock className="h-3 w-3" aria-hidden />
+          {IDEAL_EDIT_COPY.lockIt}
+        </button>
+        {lockBlockedAt === i ? (
+          <span className="ml-1.5 text-[12px] text-muted-foreground">
+            {IDEAL_EDIT_COPY.lockBlocked}
+          </span>
+        ) : null}
+      </>
+    );
+  };
+
+  // Which lane owns the WORDS — decided PER PARAGRAPH (SPEC-lockin-loop §3;
+  // this retired the document-level `starsPresent` kill switch). Two hard
+  // conditions (review R-lt6/R-lt1), the first now scoped to the paragraph:
   //
   //  1. The tracked lane may never DELETE the star layer. key_moments carries
   //     the moment stars, approve folds, the moment sheet (the only entry to
-  //     the moments unlock) and the delivery re-record. Under BE-C those
-  //     lanes MERGE into `suggestions`, so the BE stops sending key_moments —
-  //     which is exactly when this flips on. While both are served, today's
-  //     view wins and the new lane simply is not drawn yet.
+  //     the moments unlock) and the delivery re-record — so a paragraph WITH
+  //     a star anchor inside it keeps the star lane, always. But one star
+  //     anywhere no longer silences every other paragraph's chips: stars and
+  //     chips coexist ACROSS the document, which is the founder's spec (the
+  //     rendering registry serves both through one budget). Where the
+  //     per-paragraph star read is impossible (slicing refused), the WHOLE
+  //     document's anchors decide — the old behavior exactly.
   //  2. Gate on what actually RESOLVES, not the raw list: an all-advice,
   //     all-stale or all-decided payload resolves to nothing, and rendering
   //     the tracked lane then would paint a bare paragraph with no stars,
   //     no pills and no affordances at all.
-  const starsPresent = ideal.keyMoments.length > 0;
+  const starsIn = (segs: IdealSegment[] | null | undefined): boolean =>
+    !!segs && segs.some((s) => s.moment !== undefined);
   const rendersTracked = (
     t: string,
-    list: DocumentSuggestion[] | null | undefined
+    list: DocumentSuggestion[] | null | undefined,
+    segs: IdealSegment[] | null | undefined
   ): boolean =>
     !!onDecideTracked &&
-    !starsPresent &&
+    !starsIn(segs) &&
     (resolveTrackedSuggestions(t, list ?? null).length > 0 ||
       resolveAdviceSpans(t, list ?? null).length > 0);
   if (!pieces || !spans || !perParagraph) {
@@ -274,81 +409,102 @@ export function PieceBadgeText({
     const fbPages = slideUrl
       ? slidePagesForParagraphs(fbSpans.length, null, pageCount)
       : null;
-    if (rendersTracked(text, suggestions) && onDecideTracked) {
-      // Tracked lane. With a provable slide mapping the document renders per
-      // paragraph — suggestions rebased to each span exactly as the badged
-      // path below does (a straddler is dropped, never guessed) — so every
-      // paragraph can sit under its slide. No mapping → one block, today's
-      // view exactly.
-      if (fbPages) {
-        return (
-          <div className="flex flex-col gap-4">
-            {fbSpans.map((span, i) => (
+    if (fbSlices) {
+      // Multi-paragraph, sliceable: ONE gap-4 stack, each paragraph choosing
+      // its own lane. A paragraph whose suggestions resolve (and which holds
+      // no star anchor) renders tracked — rebased to its span, a straddler
+      // dropped, never guessed — the rest keep the star view. This replaces
+      // BOTH the all-tracked and the all-star stacks that used to sit here.
+      return (
+        <div className="flex flex-col gap-4">
+          {fbSpans.map((span, i) => {
+            const local = rebaseSuggestionsToSpan(suggestions ?? null, span);
+            const chips = (
+              <>
+                {chipAt(i, fbSpans.length)}
+                {lockChipAt(i, span.text)}
+              </>
+            );
+            return (
               <div key={i} className="flex flex-col gap-2.5">
-                {i === 0 || fbPages[i] !== fbPages[i - 1] ? (
+                {fbPages && (i === 0 || fbPages[i] !== fbPages[i - 1]) ? (
                   <ParagraphSlide
                     url={slideUrl!}
                     pageIndex={fbPages[i]}
                     onError={onSlideError}
                   />
                 ) : null}
-                <TrackedText
-                  text={span.text}
-                  suggestions={rebaseSuggestionsToSpan(suggestions ?? null, span)}
-                  onDecide={onDecideTracked}
-                  textSizeClass={textSizeClass}
-                  trailing={chipAt(i, fbSpans.length)}
-                  srcOffset={span.start}
-                  tint={tint}
-                />
+                {rendersTracked(span.text, local, fbSlices[i]) &&
+                onDecideTracked ? (
+                  <TrackedText
+                    text={span.text}
+                    suggestions={local}
+                    onDecide={(s, d) => decideAndArm(s, d, i)}
+                    textSizeClass={textSizeClass}
+                    trailing={chips}
+                    srcOffset={span.start}
+                    tint={tint}
+                  />
+                ) : (
+                  <MomentStarText
+                    text={span.text}
+                    segments={fbSlices[i]}
+                    ideal={ideal}
+                    onMomentTap={onMomentTap}
+                    foldFor={foldFor}
+                    sdStars={sdStars}
+                    textSizeClass={textSizeClass}
+                    trailing={chips}
+                    srcOffset={span.start}
+                    tint={tint}
+                  />
+                )}
               </div>
-            ))}
-          </div>
-        );
-      }
-      return (
+            );
+          })}
+        </div>
+      );
+    }
+    // One paragraph, or a document whose slicing was refused (a styled
+    // segment straddles a boundary) — the whole-document segments decide,
+    // which for the refused case is the old document-level gate exactly.
+    if (rendersTracked(text, suggestions, fbSegments) && onDecideTracked) {
+      const single = (
         <TrackedText
           text={text}
           suggestions={suggestions ?? null}
-          onDecide={onDecideTracked}
+          onDecide={
+            fbSpans.length === 1
+              ? (s, d) => decideAndArm(s, d, 0)
+              : onDecideTracked
+          }
           textSizeClass={textSizeClass}
           // One paragraph rendered as one block can still zip (1:1); a
           // multi-paragraph doc rendered as ONE block cannot anchor a
-          // per-block chip honestly, so none renders.
-          trailing={fbSpans.length === 1 ? chipAt(0, 1) : undefined}
+          // per-block chip honestly, so none renders — the lock chip follows
+          // the same rule.
+          trailing={
+            fbSpans.length === 1 ? (
+              <>
+                {chipAt(0, 1)}
+                {lockChipAt(0, text)}
+              </>
+            ) : undefined
+          }
           tint={tint}
         />
       );
-    }
-    if (fbSlices) {
-      // D-2 — multi-paragraph doc without pieces: one MomentStarText per
-      // paragraph in a gap-4 stack, so paragraphs read spaced (no pills).
-      return (
-        <div className="flex flex-col gap-4">
-          {fbSpans.map((span, i) => (
-            <div key={i} className="flex flex-col gap-2.5">
-              {fbPages && (i === 0 || fbPages[i] !== fbPages[i - 1]) ? (
-                <ParagraphSlide
-                  url={slideUrl!}
-                  pageIndex={fbPages[i]}
-                  onError={onSlideError}
-                />
-              ) : null}
-              <MomentStarText
-                text={span.text}
-                segments={fbSlices[i]}
-                ideal={ideal}
-                onMomentTap={onMomentTap}
-                foldFor={foldFor}
-                sdStars={sdStars}
-                textSizeClass={textSizeClass}
-                trailing={chipAt(i, fbSpans.length)}
-                srcOffset={span.start}
-                tint={tint}
-              />
-            </div>
-          ))}
+      return fbSpans.length === 1 && fbPages ? (
+        <div className="flex flex-col gap-2.5">
+          <ParagraphSlide
+            url={slideUrl!}
+            pageIndex={fbPages[0]}
+            onError={onSlideError}
+          />
+          {single}
         </div>
+      ) : (
+        single
       );
     }
     const single = (
@@ -360,7 +516,14 @@ export function PieceBadgeText({
         sdStars={sdStars}
         textSizeClass={textSizeClass}
         // Same honest-anchor rule as the tracked single block above.
-        trailing={fbSpans.length === 1 ? chipAt(0, 1) : undefined}
+        trailing={
+          fbSpans.length === 1 ? (
+            <>
+              {chipAt(0, 1)}
+              {lockChipAt(0, text)}
+            </>
+          ) : undefined
+        }
         tint={tint}
       />
     );
@@ -401,6 +564,7 @@ export function PieceBadgeText({
               onOpenSwap={onOpenSwap}
             />
             {chipAt(i, spans.length)}
+            {lockChipAt(i, span.text)}
           </>
         );
         // FE-3+FE-4 compose: tracked changes render the words, the version
@@ -410,11 +574,12 @@ export function PieceBadgeText({
         // went stale keeps its stars instead of going bare.
         const local = rebaseSuggestionsToSpan(suggestions ?? null, span);
         const body =
-          rendersTracked(span.text, local) && onDecideTracked ? (
+          rendersTracked(span.text, local, perParagraph[i]) &&
+          onDecideTracked ? (
             <TrackedText
               text={span.text}
               suggestions={local}
-              onDecide={onDecideTracked}
+              onDecide={(s, d) => decideAndArm(s, d, i)}
               textSizeClass={textSizeClass}
               trailing={pill}
               srcOffset={span.start}

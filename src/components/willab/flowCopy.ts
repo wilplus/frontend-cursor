@@ -58,6 +58,12 @@ export const FLOW_COPY = {
    *  pressure on the tenth scroll-back. */
   versionReady: "Your ideal text is ready.",
 
+  /** SPEC-lockin-loop §1, FOUNDER COPY VERBATIM (2026-08-10): "Users must be
+   *  locked out of the old text with a 'Working on your text' screen until
+   *  the new text is ready." The blocking screen's line — signed off by
+   *  being quoted; this exact string, nothing longer. */
+  workingOnText: "Working on your text",
+
   /** S6 · the invitation back. An invitation, never an instruction. The next
    *  take exists because it improves the text, not because the app asked. */
   recordAgain: "Record it again whenever you're ready.",

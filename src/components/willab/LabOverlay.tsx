@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
 import { useLabReadoutLive } from "./useLabReadoutLive";
+import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
@@ -45,6 +46,7 @@ import {
 import {
   writeProcessingTake,
   clearProcessingTake,
+  transitionProcessingTakeToDocument,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
 import { restoredSetupFor } from "./restoredSetup";
@@ -450,6 +452,24 @@ export default function LabOverlay({
         setUploadPaywall(false);
         setUploadStillProcessing(false);
         onRecordingProgress?.(result.recordingProgress);
+        // SPEC-lockin-loop §1 (handoff §6.4 S4: "201 writes no marker"). A
+        // sync accept means the TRANSCRIPT is done — the arc's document
+        // still reassembles at pipeline end. Write the marker directly in
+        // its document phase so the blocking screen holds until the settle
+        // probe sees the new text, instead of the readout adopting the
+        // PRIOR take's document as current. No session id → nothing to
+        // scope a clear to, so no marker (the pre-marker behavior).
+        if (result.sessionId && (result.arcId ?? arcId)) {
+          writeProcessingTake({
+            sessionId: result.sessionId,
+            arcId: result.arcId ?? arcId,
+            takeIndex:
+              result.takeIndex ?? (exploreEnabled ? arcTakeIndex : null),
+            startedAt: Date.now(),
+            phase: "document",
+            phaseStartedAt: Date.now(),
+          });
+        }
         goTo("readout");
       } else if (result.kind === "processing") {
         // Async analysis (delivery layer): the BE accepted the upload (202)
@@ -548,7 +568,11 @@ export default function LabOverlay({
         setArcTakeIndex(carried.nextIdx);
       }
       pendingCarryRef.current = null;
-      clearProcessingTake(liveSessionId);
+      // SPEC-lockin-loop §1 (handoff §6.4 S3). The readout being ready is
+      // NOT the text being ready — the arc's document reassembles at
+      // pipeline end. Transition the marker to its document phase instead
+      // of clearing it; the settle probe clears it on evidence.
+      transitionProcessingTakeToDocument(liveSessionId);
       setPollSessionId(null);
       setPollSlow(false);
       setReadout(r.readout);
@@ -556,6 +580,13 @@ export default function LabOverlay({
       goTo("readout");
     }
   });
+
+  // SPEC-lockin-loop §1 — while the document phase runs, the in-Lab readout
+  // blocks with "Working on your text" instead of adopting the PRIOR take's
+  // document (handoff §6.4 S3-in-Lab). The hook probes the served text and
+  // clears the marker on evidence; the flip of `pending` re-runs the
+  // readout's fetch (its effect depends on it), pulling the fresh document.
+  const documentSettle = useDocumentSettle({ enabled: state === "readout" });
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -930,6 +961,9 @@ export default function LabOverlay({
             sessionId={labSessionId}
             arcId={arcId}
             signedIn={signedIn}
+            // SPEC-lockin-loop §1 — hold the SD fetch (and the text) behind
+            // the blocking screen until the document settles.
+            analysisPending={documentSettle.pending}
             // The ✕ this screen draws in its own head. Same handler the bare
             // header used, so closing a readout still PARKS it (§4) — it is
             // the exit that moved, not what it does.

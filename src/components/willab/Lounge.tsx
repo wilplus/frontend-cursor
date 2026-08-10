@@ -20,9 +20,11 @@ import {
   splitBotMessage,
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
+import { useDocumentSettle } from "./useDocumentSettle";
 import {
   readProcessingTake,
   clearProcessingTake,
+  transitionProcessingTakeToDocument,
 } from "@/lib/willab/processingTake";
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
@@ -452,6 +454,13 @@ export default function Lounge({
       return;
     }
     setProcessingResume({ takeIndex: marker.takeIndex, status: "analyzing" });
+    if (marker.phase === "document") {
+      // SPEC-lockin-loop §1 — the readout is done, the DOCUMENT is still
+      // assembling. There is no readout to watch in this phase; the settle
+      // hook below probes the served text and clears the marker on evidence.
+      setResumeWatch(null);
+      return;
+    }
     setResumeWatch({
       sessionId: marker.sessionId,
       takeIndex: marker.takeIndex,
@@ -498,17 +507,39 @@ export default function Lounge({
         r.state === "readout_ready" ||
         (r.state !== "processing" && hasContent)
       ) {
-        clearProcessingTake(resumeWatch.sessionId);
-        setProcessingResume(null);
+        // SPEC-lockin-loop §1 (handoff §6.4 S3) — the readout going terminal
+        // is NOT the text being ready: the arc's document reassembles at
+        // pipeline end. Hand the marker to the document phase instead of
+        // clearing it; the settle hook probes the served text, clears the
+        // marker on evidence, and reload() moved there with it (the
+        // ideal-text bubble also lands at pipeline end, not here). The
+        // "analyzing" chip deliberately stays up through this phase.
+        transitionProcessingTakeToDocument(resumeWatch.sessionId);
         setResumeWatch(null);
-        // FE-B — analysis just completed with the user back in the Lounge; the
-        // BE appended the ideal-text bubble at the end of the pipeline, so
-        // pull it into the thread now.
-        void reload();
       }
     },
     5000
   );
+
+  // SPEC-lockin-loop §1 — the document-phase authority. Probes the served
+  // ideal text while a take's document assembles and clears the marker on
+  // evidence the new text landed (or the bounded cap). Disabled under the
+  // Lab, which owns its own settle watch there.
+  const documentSettle = useDocumentSettle({
+    enabled: !isLabOverlay(state),
+    onSettled: () => {
+      setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
+      // FE-B — the pipeline is done with the user in the Lounge; the BE
+      // appended the ideal-text bubble at pipeline end, so pull it now.
+      void reload();
+    },
+  });
+  // The ONE in-flight predicate: the analysis phase (chip + resume watch)
+  // or the document phase (settle hook). Record holds and the ideal text
+  // blocks on the SAME truth, so the two can never disagree about whether
+  // a take is being worked.
+  const takeInFlight =
+    processingResume?.status === "analyzing" || documentSettle.pending;
 
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
@@ -1023,19 +1054,13 @@ export default function Lounge({
         <button
           type="button"
           onClick={onStart}
-          disabled={processingResume?.status === "analyzing"}
-          title={
-            processingResume?.status === "analyzing"
-              ? FLOW_COPY.recordHeld
-              : undefined
-          }
+          disabled={takeInFlight}
+          title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
           className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:border-border/60 disabled:text-muted-foreground disabled:hover:bg-background"
         >
           <span
             className={`h-2.5 w-2.5 rounded-full ${
-              processingResume?.status === "analyzing"
-                ? "bg-muted-foreground/40"
-                : "bg-red-500"
+              takeInFlight ? "bg-muted-foreground/40" : "bg-red-500"
             }`}
             aria-hidden
           />
@@ -1061,11 +1086,12 @@ export default function Lounge({
       {idealTextArcId && (
         <IdealTextOverlay
           arcId={idealTextArcId}
-          // W4/W5 — while a take is analysing the overlay shows its loading
+          // W4/W5 — while a take is in flight (EITHER phase: analysing, or
+          // the document still assembling) the overlay shows its blocking
           // state instead of last take's words; when this flips false (the
-          // resume watch resolves) the overlay refetches, so a completion
+          // settle hook resolves) the overlay refetches, so a completion
           // that lands while the student is READING arrives in place too.
-          analysisPending={processingResume?.status === "analyzing"}
+          analysisPending={takeInFlight}
           onClose={() => {
             setIdealTextArcId(null);
           }}

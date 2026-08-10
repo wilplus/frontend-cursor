@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   autoLockTouched,
   insertPart,
+  lockTargetAt,
   movePart,
   newPartId,
   partsForDocument,
@@ -276,6 +277,35 @@ describe("autoLockTouched — typed = committed (founder 2026-08-10)", () => {
   it("no baseline locks everything — a first save is all authorship", () => {
     const out = autoLockTouched(reconcileParts("One.\n\nTwo."), null);
     expect(out.every((p) => p.locked === true)).toBe(true);
+  });
+});
+
+describe("lockTargetAt — the Accept→'Lock it' resolution (SPEC-lockin-loop §2)", () => {
+  const parts: Part[] = [
+    { id: "a", text: "First paragraph." },
+    { id: "b", text: "Second paragraph.", locked: true },
+  ];
+
+  it("resolves the part at the paragraph index when the words agree", () => {
+    expect(lockTargetAt(parts, 0, "First paragraph.")).toBe(parts[0]);
+    expect(lockTargetAt(parts, 1, "Second paragraph.")).toBe(parts[1]);
+  });
+
+  it("whitespace differences do not break the claim (both sides trim)", () => {
+    expect(lockTargetAt(parts, 0, "  First paragraph.\n")).toBe(parts[0]);
+  });
+
+  it("REFUSES a words mismatch rather than guessing", () => {
+    // The one state worth never producing: a lock settled on a paragraph
+    // the student was not looking at. Same never-guess-an-anchor rule as
+    // every tracked change.
+    expect(lockTargetAt(parts, 0, "Second paragraph.")).toBeNull();
+  });
+
+  it("refuses an out-of-range index", () => {
+    expect(lockTargetAt(parts, -1, "First paragraph.")).toBeNull();
+    expect(lockTargetAt(parts, 2, "First paragraph.")).toBeNull();
+    expect(lockTargetAt([], 0, "First paragraph.")).toBeNull();
   });
 });
 

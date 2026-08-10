@@ -63,6 +63,10 @@ export const IDEAL_EDIT_COPY = {
      that section. Open takes rewrites; locked takes emphasis only. */
   lockPart: "Lock section",
   unlockPart: "Unlock section",
+  /* SPEC-lockin-loop §2, FOUNDER COPY VERBATIM (2026-08-10): "on Accept, the
+     chip becomes a 'Lock it' button". Signed off by being quoted — this exact
+     string, nothing longer. */
+  lockIt: "Lock it",
   /* R3 — a section with undecided suggestions cannot be locked, because
      locking would make those suggestions unreachable. Auto-deciding them would
      write a decision the student never made. */

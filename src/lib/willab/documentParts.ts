@@ -194,6 +194,27 @@ export function autoLockTouched(
   });
 }
 
+/** SPEC-lockin-loop §2 — resolve the part behind rendered paragraph `index`,
+ *  VERIFIED against the words on screen, or null.
+ *
+ *  The render split (`splitBadgeParagraphSpans`) and the parts split
+ *  (`splitSegments`) are the same function over the same string, both
+ *  dropping blanks — so index i in one IS index i in the other. That makes
+ *  the index mapping provable, and the text check is the proof carried at
+ *  runtime: if the part's words are not the paragraph's words, something
+ *  moved between derivation and tap, and locking would settle a paragraph
+ *  the student never read. Null then; never a guess — the same rule every
+ *  anchor in this codebase follows. Pure. */
+export function lockTargetAt(
+  parts: readonly Part[],
+  index: number,
+  paragraphText: string
+): Part | null {
+  if (index < 0 || index >= parts.length) return null;
+  const part = parts[index];
+  return part.text.trim() === paragraphText.trim() ? part : null;
+}
+
 /* --- the arranger's operations, on parts rather than strings --------------- */
 /*  Same semantics as documentSegments', so behaviour is unchanged; the whole
  *  difference is that a part carries its id THROUGH the operation instead of

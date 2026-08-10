@@ -35,7 +35,18 @@ export async function setPartLock(
   arcId: string,
   partId: string,
   locked: boolean,
-  textEcho: string
+  textEcho: string,
+  opts?: {
+    /** SEED-ON-LOCK (SPEC-lockin-loop §2). The founder's loop locks a
+     *  paragraph the student never manually edited — and an unedited document
+     *  has no server-stored identity, so the lock used to 409 STALE forever
+     *  on exactly the DoD flow. Sending the client-derived list lets the BE
+     *  validate and adopt it (same trust model as the user-edit PUT: client
+     *  mints, server validates). Ignored server-side whenever stored identity
+     *  already exists; lock flags are NOT sent — the seed lands all open and
+     *  only this request's target locks, behind the R3 gate. */
+    seedParts?: ReadonlyArray<{ id: string; text: string }> | null;
+  }
 ): Promise<PartLockResult> {
   const token = await getAuthToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -50,7 +61,15 @@ export async function setPartLock(
         method: "PUT",
         headers,
         credentials: "include",
-        body: JSON.stringify({ locked, text_echo: textEcho }),
+        body: JSON.stringify({
+          locked,
+          text_echo: textEcho,
+          ...(opts?.seedParts && opts.seedParts.length > 0
+            ? {
+                parts: opts.seedParts.map((p) => ({ id: p.id, text: p.text })),
+              }
+            : {}),
+        }),
       }
     );
   } catch {

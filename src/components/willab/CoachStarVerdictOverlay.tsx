@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Star, Video } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Star, Video } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -33,7 +34,28 @@ import {
 } from "@/services/api/starVerdicts";
 
 /* -------------------------------------------------------------------------- */
-/*  CoachStarVerdictOverlay — the coach judges the machine's stars (2026-07-27) */
+/*  CoachStarVerdictOverlay — THE LAB: the coach's one scrollable panel        */
+/*  (SPEC-lockin-loop §5, founder-decided 2026-08-10; handoff B7).             */
+/*                                                                            */
+/*  Structure, the founder's own: star review as the BODY, confident voices    */
+/*  as a STRIP at the top (the kept — coach-verified — moments of this arc,    */
+/*  playable; no separate panel), and a two-state toggle in the head:          */
+/*                                                                            */
+/*    Live users          → the full feedback loop: verdicts, the edit lane    */
+/*                          (what the star says), notes, video.                */
+/*    Uploaded recordings → "Confident-voice recognition ONLY — no ideal       */
+/*                          text rewriting since there is no next official     */
+/*                          recording." Verdict chips + playback stay; the     */
+/*                          edit/note/video lanes hide.                        */
+/*                                                                            */
+/*  The YouTube/uploaded-video labeling stays a SEPARATE VIEW in the same      */
+/*  design language (/coach/corpus — linked from the head, never embedded:     */
+/*  that flow labels BLIND, and this panel shows the machine's guesses).       */
+/*                                                                            */
+/*  KNOWN RESIDUAL: both states read this arc's stars — the per-source split   */
+/*  (only stars from uploaded, non-live sessions in the uploaded state) needs  */
+/*  the BE to stamp a recording-kind on each star row. The states already      */
+/*  differ in what the coach can DO, which is the fence that matters.          */
 /*                                                                            */
 /*  For every star the system fired on this arc: Keep / Wrong kind… /          */
 /*  Shouldn't fire. The verdicts are the training corpus that teaches the      */
@@ -93,6 +115,10 @@ export default function CoachStarVerdictOverlay({
   const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
   const [whyDrafts, setWhyDrafts] = useState<Record<string, string>>({});
   const [replDrafts, setReplDrafts] = useState<Record<string, string>>({});
+  // SPEC §5 — the Lab's two states. "live" is the full loop; "uploaded" is
+  // confident-voice recognition only (the labels below are the founder's own
+  // words from the spec table).
+  const [lane, setLane] = useState<"live" | "uploaded">("live");
 
   useEffect(() => {
     let active = true;
@@ -209,28 +235,90 @@ export default function CoachStarVerdictOverlay({
     );
   }
 
+  // SPEC §5 — the confident-voices strip: this arc's KEPT stars, i.e. the
+  // moments the coach has verified, playable in place. Derived from the same
+  // rows the body renders, so the strip and the review can never disagree.
+  const verifiedVoices =
+    stars?.filter(
+      (s) => s.verdict === "keep" && s.audioRef && s.durationMs > 0
+    ) ?? [];
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[15px] font-semibold text-foreground">
-            Star review
-          </span>
-          {/* The established audience-lane label — this judgment trains the
-              machine and is never shown to the student. */}
-          <CoachEyebrow className="shrink-0">Coach only · training</CoachEyebrow>
-        </span>
-        <span className="flex shrink-0 items-center gap-3">
-          {status === "ready" && stars && stars.length > 0 ? (
-            <span className="text-[12px] tabular-nums text-muted-foreground">
-              {reviewed} of {stars.length} reviewed
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-[15px] font-semibold text-foreground">
+              The Lab
             </span>
-          ) : null}
-          <OverlayCloseButton onClick={onClose} ariaLabel="Close star review" />
-        </span>
+            {/* The established audience-lane label — this judgment trains the
+                machine and is never shown to the student. */}
+            <CoachEyebrow className="shrink-0">
+              Coach only · training
+            </CoachEyebrow>
+          </span>
+          <span className="flex shrink-0 items-center gap-3">
+            {status === "ready" && stars && stars.length > 0 ? (
+              <span className="text-[12px] tabular-nums text-muted-foreground">
+                {reviewed} of {stars.length} reviewed
+              </span>
+            ) : null}
+            <OverlayCloseButton onClick={onClose} ariaLabel="Close the Lab" />
+          </span>
+        </div>
+        {/* SPEC §5 — the two states, plus the corpus as a SEPARATE view (it
+            labels blind; linking is the closest this panel may come to it). */}
+        <div className="flex items-center gap-2">
+          <CoachChip active={lane === "live"} onClick={() => setLane("live")}>
+            Live users
+          </CoachChip>
+          <CoachChip
+            active={lane === "uploaded"}
+            onClick={() => setLane("uploaded")}
+          >
+            Uploaded recordings
+          </CoachChip>
+          <Link
+            href="/coach/corpus"
+            className="ml-auto shrink-0 text-[12px] font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Training corpus
+          </Link>
+        </div>
       </div>
 
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+        {verifiedVoices.length > 0 ? (
+          // The strip: confident voices at the TOP of the star review — the
+          // founder's fold of what used to be a separate panel. Horizontal,
+          // playback-only; judging still happens on the rows below.
+          <div className="flex flex-col gap-2">
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+              Confident voices
+            </span>
+            <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+              {verifiedVoices.map((s) => (
+                <div
+                  key={starRowKey(s)}
+                  className="w-64 shrink-0 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-3"
+                >
+                  <MediaPlayer
+                    src={s.audioRef!}
+                    startOffsetMs={s.startOffsetMs}
+                    durationMs={s.durationMs}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {lane === "uploaded" ? (
+          // The founder's rule for this state, verbatim from the spec.
+          <p className="text-[12px] text-muted-foreground">
+            Confident-voice recognition only.
+          </p>
+        ) : null}
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
             <VoiceMark size={48} />
@@ -379,7 +467,11 @@ export default function CoachStarVerdictOverlay({
                     sent by the next Keep / Wrong-kind / Shouldn't-fire tap;
                     with one already saved, "Save wording" re-sends the SAME
                     verdict carrying the new text (the PUT is an upsert). */}
-                {editOpen[key] ? (
+                {/* SPEC §5 — the edit / note / video lanes are the FULL
+                    feedback loop, which only the Live state carries. The
+                    uploaded state is confident-voice recognition only:
+                    verdicts + playback, nothing that rewrites ideal text. */}
+                {lane === "live" && editOpen[key] ? (
                   <div className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
                     <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       What this star says
@@ -432,8 +524,9 @@ export default function CoachStarVerdictOverlay({
                       </p>
                     )}
                   </div>
-                ) : effectiveWhy(s) !== null ||
-                  effectiveReplacement(s) !== null ? (
+                ) : lane === "live" &&
+                  (effectiveWhy(s) !== null ||
+                    effectiveReplacement(s) !== null) ? (
                   <button
                     type="button"
                     onClick={() => setEditOpen((n) => ({ ...n, [key]: true }))}
@@ -443,7 +536,7 @@ export default function CoachStarVerdictOverlay({
                   </button>
                 ) : null}
 
-                {noteOpen[key] ? (
+                {lane === "uploaded" ? null : noteOpen[key] ? (
                   <div className="flex flex-col gap-1.5">
                     <textarea
                       value={noteDrafts[key] ?? s.note ?? ""}
@@ -489,14 +582,16 @@ export default function CoachStarVerdictOverlay({
 
                 {/* Say it instead of writing it (founder 2026-07-30). One step
                     below the note, same slot, same audience. Recording IS the
-                    approval — see StarVideoSlot. */}
-                <StarVideoSlot
-                  snippetId={s.snippetId}
-                  videoRef={s.videoRef}
-                  busy={savingKeys[key] === true}
-                  onSaved={(ref) => void onVideoSaved(s, ref)}
-                  onDeleted={() => void onVideoDeleted(s)}
-                />
+                    approval — see StarVideoSlot. Live state only (§5). */}
+                {lane === "live" ? (
+                  <StarVideoSlot
+                    snippetId={s.snippetId}
+                    videoRef={s.videoRef}
+                    busy={savingKeys[key] === true}
+                    onSaved={(ref) => void onVideoSaved(s, ref)}
+                    onDeleted={() => void onVideoDeleted(s)}
+                  />
+                ) : null}
 
                 {errors[key] ? (
                   <CoachErrorLine>{errors[key]}</CoachErrorLine>

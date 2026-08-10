@@ -176,26 +176,72 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
   const LOUNGE = join("components", "willab", "Lounge.tsx");
   const OVERLAY = join("components", "willab", "IdealTextOverlay.tsx");
 
-  it("the record button holds while a take is analysing", () => {
+  it("the record button holds while a take is in flight", () => {
+    // Third generation (SPEC-lockin-loop §1): the predicate widened from
+    // "analysing" to "in flight" — the document phase (readout done, text
+    // still assembling) holds the button too, because a take started then
+    // races the version being written exactly the same way.
+    expect(code(LOUNGE)).toContain("disabled={takeInFlight}");
+  });
+
+  it("record and the ideal text block on the SAME truth", () => {
+    // One predicate, two consumers. If these ever split, the button and the
+    // blocking screen can disagree about whether a take is being worked —
+    // which is how stale text gets read behind a live Record button.
     expect(code(LOUNGE)).toContain(
-      'disabled={processingResume?.status === "analyzing"}'
+      'processingResume?.status === "analyzing" || documentSettle.pending'
     );
   });
 
   it("the ideal text opens into a WAIT, never onto stale words", () => {
-    // Second generation of this gate (founder 2026-08-10). The first held the
-    // tap with a silent `return` — order enforced, user routed nowhere. Now
-    // the tap opens the overlay with `analysisPending`, which holds the fetch
-    // in the loading state: a fetch mid-analysis would return LAST take's
-    // document and render it as this take's, which is the original bug.
-    expect(code(LOUNGE)).toContain(
-      'analysisPending={processingResume?.status === "analyzing"}'
-    );
+    // Third generation of this gate (SPEC-lockin-loop §1). The first held
+    // the tap with a silent `return`; the second opened the overlay with
+    // `analysisPending` derived from the analysis phase only — which cleared
+    // at readout_ready, BEFORE the document assembled (handoff §6.4 S3).
+    // Now the prop rides `takeInFlight`, which stays true through the
+    // document phase until the settle probe sees the new text.
+    expect(code(LOUNGE)).toContain("analysisPending={takeInFlight}");
     const overlay = code(OVERLAY);
     const effect = overlay.slice(overlay.indexOf("const firstLoad"));
     const gate = effect.slice(0, effect.indexOf("fetchIdealText"));
     expect(gate).toContain("analysisPending");
     expect(gate).toContain("return");
+  });
+
+  it("the readout going terminal TRANSITIONS the marker — it never clears it", () => {
+    // Handoff §6.4 S3 — the exact window the founder kept hitting: marker
+    // cleared at readout_ready, document still the previous version, blocking
+    // screen gone. Both watchers now hand the marker to the document phase,
+    // and only the settle probe (or its bounded cap) may clear it.
+    const lounge = code(LOUNGE);
+    const terminal = lounge.slice(
+      lounge.indexOf('r.state === "readout_ready"'),
+      lounge.indexOf("const documentSettle")
+    );
+    expect(terminal).toContain("transitionProcessingTakeToDocument");
+    expect(terminal).not.toContain("clearProcessingTake");
+    const lab = code(join("components", "willab", "LabOverlay.tsx"));
+    const labTerminal = lab.slice(
+      lab.indexOf('r.state === "readout_ready"'),
+      lab.indexOf("setReadout(r.readout)")
+    );
+    expect(labTerminal).toContain("transitionProcessingTakeToDocument");
+    expect(labTerminal).not.toContain("clearProcessingTake");
+  });
+
+  it("the in-Lab readout blocks too — S3's other half", () => {
+    // IdealTextReadout used to fetch on mount and adopt the PRIOR take's
+    // document, with no pending gate and no completion-driven refetch.
+    const readout = code(join("components", "willab", "IdealTextReadout.tsx"));
+    expect(readout).toContain("if (analysisPending) return;");
+    expect(readout).toMatch(/\[signedIn, arcId, analysisPending, sdNonce/);
+    const lab = code(join("components", "willab", "LabOverlay.tsx"));
+    expect(lab).toContain("analysisPending={documentSettle.pending}");
+  });
+
+  it("the picker-mounted overlay is no longer the unguarded back door (S6)", () => {
+    const surface = code(join("components", "willab", "WillabSurface.tsx"));
+    expect(surface).toContain("analysisPending={pickerSettle.pending}");
   });
 
   it("completion reaches an OPEN document too", () => {

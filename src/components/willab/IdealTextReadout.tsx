@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, ListPlus, Mic, PencilLine } from "lucide-react";
+import { Check, Copy, ListPlus, Loader2, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
@@ -34,12 +34,14 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedEditor from "./MarkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
+import { FLOW_COPY } from "./flowCopy";
 import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
+  lockTargetAt,
   reconcileParts,
   type Part,
 } from "@/lib/willab/documentParts";
@@ -95,6 +97,7 @@ export default function IdealTextReadout({
   onSignUp,
   onReRead,
   onClose,
+  analysisPending = false,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
@@ -102,6 +105,12 @@ export default function IdealTextReadout({
    *  null (guest / standalone upload) → edits stay local. */
   arcId?: string | null;
   signedIn: boolean | null;
+  /** SPEC-lockin-loop §1 — the take's document is still assembling. While
+   *  true this screen BLOCKS with the founder's "Working on your text" line
+   *  instead of rendering the prior take's document as current (handoff §6.4
+   *  S3-in-Lab); when it flips false the SD fetch re-runs and the fresh
+   *  document swaps in. */
+  analysisPending?: boolean;
   /** Fires once after the automatic send succeeds (review-pending bookkeeping). */
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
@@ -260,6 +269,12 @@ export default function IdealTextReadout({
   // is what the BE serves back anyway.
   useEffect(() => {
     if (!signedIn || !arcId) return;
+    // SPEC-lockin-loop §1 (W4's rule, applied here) — a fetch during the
+    // document phase would come back with the PRIOR take's document and this
+    // screen would adopt it as current (handoff §6.4 S3-in-Lab: "fetches
+    // instantly and never re-pulls"). Hold instead; the flip of
+    // `analysisPending` re-runs this effect and fetches the fresh one.
+    if (analysisPending) return;
     let active = true;
     const gen = ++sdGenRef.current;
     void fetchIdealText(arcId).then((r) => {
@@ -307,7 +322,7 @@ export default function IdealTextReadout({
     return () => {
       active = false;
     };
-  }, [signedIn, arcId, sdNonce, refreshVariants]);
+  }, [signedIn, arcId, analysisPending, sdNonce, refreshVariants]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
   // Each chained save reads textRef at execution, so the newest words always
@@ -611,6 +626,49 @@ export default function IdealTextReadout({
     []
   );
 
+  // SPEC-lockin-loop §2 — the Accept→"Lock it" tap, addressed by rendered
+  // paragraph index. Resolution happens AT TAP TIME against the words on
+  // screen: the parts are re-derived from the current text (ids kept where
+  // words match), the index→part claim is verified (lockTargetAt refuses a
+  // mismatch rather than guessing), and the echo lets the server refuse a
+  // document that moved. `seedParts` covers the founder's DoD flow — a
+  // student who never manually edited has no server-stored identity, and
+  // without the seed this lock could only ever 409.
+  const lockParagraph = useCallback(
+    async (
+      at: number,
+      paragraphText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      const aid = arcIdRef.current;
+      if (!aid) return "failed";
+      const parts = reconcileParts(textRef.current, partsRef.current ?? []);
+      partsRef.current = parts;
+      const target = lockTargetAt(parts, at, paragraphText);
+      if (!target) return "failed";
+      if (target.locked) return "ok"; // already settled — nothing to write
+      const r = await setPartLock(aid, target.id, true, textRef.current, {
+        seedParts: parts,
+      });
+      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "stale") {
+        // Same silent-refetch as toggleLock: the text visibly refreshing IS
+        // the message.
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error") return "failed";
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === target.id ? { ...p, locked: true } : p
+      );
+      // Refetch so the layer filter sees the lock — open offers on this
+      // paragraph stop being served, which the student just asked for.
+      setSdNonce((n) => n + 1);
+      return "ok";
+    },
+    []
+  );
+
   // MATERIAL RECOVERY — accept promotes the candidate block into the master
   // document; "Not now" deletes the offer, and the same words may honestly be
   // offered again if said in a later take. Both route through the block decide
@@ -655,6 +713,33 @@ export default function IdealTextReadout({
   const edited = sd?.userEdited === true || dirty;
   // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
   const canEdit = !editLocked && text.trim().length > 0;
+
+  // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
+  // the old text is INACCESSIBLE: no reading it, no copying it, no editing
+  // it — "no browse-with-banner". Only the way out stays, because the block
+  // is on the text, not on leaving. When the settle probe clears the marker
+  // the host flips `analysisPending`, the SD effect refetches, and the FRESH
+  // document renders through the normal path below.
+  if (analysisPending) {
+    return (
+      <div className="flex flex-1 flex-col">
+        {onClose ? (
+          <div className="flex items-center justify-end">
+            <OverlayCloseButton onClick={onClose} />
+          </div>
+        ) : null}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+          <Loader2
+            className="h-6 w-6 animate-spin text-muted-foreground"
+            aria-hidden
+          />
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            {FLOW_COPY.workingOnText}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -808,6 +893,9 @@ export default function IdealTextReadout({
           // star/quote view, unchanged.
           suggestions={sd.suggestions}
           onDecideTracked={decideTracked}
+          // SPEC-lockin-loop §2 — Accept arms, "Lock it" locks. The chip
+          // state lives in PieceBadgeText; this is only the persistence.
+          onLockParagraph={arcId ? lockParagraph : undefined}
           onMomentTap={(m) => void stars.openMoment(m)}
           foldFor={stars.foldFor}
           sdStars
