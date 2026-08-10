@@ -424,25 +424,23 @@ export default function Lounge({
     takeIndex: number | null;
     startedAt: number;
   } | null>(null);
-  // The failure note lingers briefly, then clears itself; a fresh analyzing
-  // marker cancels a pending clear so it can't wipe the new chip.
-  const failNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearFailNoteTimer = useCallback(() => {
-    if (failNoteTimerRef.current) {
-      clearTimeout(failNoteTimerRef.current);
-      failNoteTimerRef.current = null;
-    }
-  }, []);
-  useEffect(() => clearFailNoteTimer, [clearFailNoteTimer]);
   useEffect(() => {
     if (isLabOverlay(state)) {
-      // The LabOverlay owns the live subscription while open.
+      // The LabOverlay owns the live subscription while open. Entering the
+      // Lab is also the ACT that retires a failure note (W6): the note's
+      // second line points at recording again, and this is that path.
+      setProcessingResume((prev) => (prev?.status === "failed" ? null : prev));
       setResumeWatch(null);
       return;
     }
     const marker = readProcessingTake();
     if (!marker) {
-      setProcessingResume(null);
+      // W6 (founder 2026-08-10) — a FAILED note survives idle state changes.
+      // It used to be wiped here by the first state flip after the 10s timer
+      // was removed, which re-created the vanishing it was meant to fix: a
+      // failed take must stay on screen until the user acts on it (opens the
+      // Lab) or a fresh take replaces it below.
+      setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
       setResumeWatch(null);
       return;
     }
@@ -453,14 +451,13 @@ export default function Lounge({
       setResumeWatch(null);
       return;
     }
-    clearFailNoteTimer();
     setProcessingResume({ takeIndex: marker.takeIndex, status: "analyzing" });
     setResumeWatch({
       sessionId: marker.sessionId,
       takeIndex: marker.takeIndex,
       startedAt: marker.startedAt,
     });
-  }, [state, clearFailNoteTimer]);
+  }, [state]);
   // The stale cutoff applies while watching too — a long-lived tab must not
   // keep an orphaned "analyzing" chip alive forever.
   useEffect(() => {
@@ -487,11 +484,13 @@ export default function Lounge({
           status: "failed",
         });
         setResumeWatch(null);
-        // The failure note lingers briefly, then clears itself.
-        failNoteTimerRef.current = setTimeout(
-          () => setProcessingResume(null),
-          10_000
-        );
+        // W6 (founder 2026-08-10) — the failure note used to clear itself
+        // after 10 seconds. A failed take that vanishes from the screen is
+        // halfway to a failed take that never happened: look away for ten
+        // seconds and there is no evidence anything went wrong. It now stays
+        // until the user ACTS — opening the Lab (the retry path, which this
+        // note's second line points at) clears it via the state effect above,
+        // and a fresh analysing marker replaces it. Same copy, longer life.
         return;
       }
       if (
@@ -745,19 +744,17 @@ export default function Lounge({
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={(arcId) => {
-            // THE LIFECYCLE LOCK. The cycle is strictly
+            // THE LIFECYCLE LOCK, second generation. The cycle is strictly
             //   record -> analysing -> ideal text -> record -> analysing -> ...
-            // and this is the second half of enforcing it. The record button
-            // has held during analysis for a while (see its `disabled` below);
-            // the deliverable never did, so a take could land and the student
-            // could open the ideal text WHILE the next version was still being
-            // written — reading last take's words as if they were this take's,
-            // with no indication they were stale.
-            //
-            // Held, not queued: the analysing chip is already on screen saying
-            // "Working on your take", so there is no silent dead end, and no
-            // new user-facing copy is needed (LIVE LOOP — copy needs sign-off).
-            if (processingResume?.status === "analyzing") return;
+            // The first generation HELD this tap during analysis (a silent
+            // `return`), which enforced the order but routed nowhere: the tap
+            // did nothing, and the only way to learn why was the chip. Now the
+            // tap OPENS the deliverable into its existing loading state and the
+            // overlay resolves itself to the fresh document the moment the
+            // analysis lands (`analysisPending` below flips false -> refetch).
+            // The wrong order is still impossible — stale text never renders —
+            // but the user is routed THROUGH the wait instead of bounced off
+            // it. No new copy: the overlay's loading state already exists.
             // FE-5 — opening the deliverable is the "seen" signal now that the
             // legacy insight walker is gone; without this the status machine
             // would stick in insights_ready forever.
@@ -1064,6 +1061,11 @@ export default function Lounge({
       {idealTextArcId && (
         <IdealTextOverlay
           arcId={idealTextArcId}
+          // W4/W5 — while a take is analysing the overlay shows its loading
+          // state instead of last take's words; when this flips false (the
+          // resume watch resolves) the overlay refetches, so a completion
+          // that lands while the student is READING arrives in place too.
+          analysisPending={processingResume?.status === "analyzing"}
           onClose={() => {
             setIdealTextArcId(null);
           }}

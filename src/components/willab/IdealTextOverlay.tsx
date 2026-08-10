@@ -74,7 +74,11 @@ import PresentMode from "./PresentMode";
 import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
-import { reconcileParts, type Part } from "@/lib/willab/documentParts";
+import {
+  autoLockTouched,
+  reconcileParts,
+  type Part,
+} from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
@@ -91,10 +95,18 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 export default function IdealTextOverlay({
   arcId,
+  analysisPending = false,
   onClose,
   onReadAloud,
 }: {
   arcId: string;
+  /** W4/W5 — true while a take for this arc is still analysing. While true
+   *  the overlay shows its LOADING state instead of fetching (a fetch now
+   *  would return LAST take's document and render it as if it were this
+   *  take's); when it flips false the overlay fetches fresh. This is the
+   *  routing half of the lifecycle lock: the old behaviour was a silent
+   *  no-op tap in the Lounge, which enforced the order but led nowhere. */
+  analysisPending?: boolean;
   onClose: () => void;
   /** The host closes this overlay into the record flow for the NEXT official
    *  take of this presentation. Receives the current version as a take-count
@@ -147,8 +159,6 @@ export default function IdealTextOverlay({
     additions: Addition[];
     /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
     userEdited: boolean;
-    /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
-    priorEdit: { text: string; version: number | null } | null;
     /** The BE's gate on a new official take. null (absent) never gates. */
     canRecordTake: boolean | null;
   } | null>(null);
@@ -209,14 +219,11 @@ export default function IdealTextOverlay({
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  // T1 · 1.2 — add/move mode, and the states the user-edit contract can put
-  // this screen into. `superseded` HOLDS the student's words after a take
-  // landed mid-edit; they are never re-sent without a tap.
+  // T1 · 1.2 — add/move mode.
   const [arranging, setArranging] = useState(false);
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
-  const [superseded, setSuperseded] = useState<string | null>(null);
   const [tooLong, setTooLong] = useState(false);
   const [editLocked, setEditLocked] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -259,6 +266,16 @@ export default function IdealTextOverlay({
      * reader losing their place mid-paragraph. */
     const firstLoad = loadedArcRef.current !== arcId;
     if (firstLoad) setStatus("loading");
+    // W4 — a fetch during analysis would come back with LAST take's document
+    // and show it as current. Hold in the loading state instead; this effect
+    // re-runs when `analysisPending` flips false and fetches the fresh one.
+    // W5 falls out of the same dependency: if the analysis completes while
+    // the document is OPEN, the flip triggers a refetch of the new version
+    // (which, per the first-load rule above, swaps in place — no blank).
+    if (analysisPending) {
+      if (firstLoad) loadedArcRef.current = null;
+      return;
+    }
     const gen = ++fetchGenRef.current;
     void fetchIdealText(arcId).then((r) => {
       if (!active || gen !== fetchGenRef.current) return;
@@ -298,15 +315,17 @@ export default function IdealTextOverlay({
           parts: r.parts,
           additions: r.additions,
           userEdited: r.userEdited,
-          priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
-        // The document's stored identity. null = the BE has none for this
-        // document (or refused to serve stale ones), and the arranger mints
-        // locally — so a part always has an id, whether or not it was saved.
-        partsRef.current = r.parts;
+        // The document's stored identity. When the BE has none (nothing
+        // saved yet, or stale rows refused), the baseline is DERIVED from the
+        // served machine text — unlocked, ids minted locally. Without this
+        // the first typed save would have no baseline, and auto-lock's
+        // "no baseline = all authorship" rule would lock every MACHINE
+        // paragraph the student never touched, freezing refresh everywhere.
+        partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
         if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
         // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
@@ -330,7 +349,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce, refreshVariants]);
+  }, [arcId, analysisPending, refetchNonce, refreshVariants]);
 
   const displayText = notes ?? ideal?.text ?? "";
 
@@ -391,7 +410,15 @@ export default function IdealTextOverlay({
       // reconcile against what we hold, which keeps the id of every paragraph
       // the student did not touch. Re-minting them all would discard the locks
       // PR 3 will hang on those ids, on paragraphs that never changed.
-      const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
+      // AUTO-LOCK ("typed = committed"): every part this edit touched is
+      // sent locked, judged against the last served baseline — a pure move
+      // stays unlocked (arrangement is not authorship). The BE pins locked
+      // paragraphs across takes from here on, which is what retired the
+      // superseded-edit card.
+      const parts = autoLockTouched(
+        reconcileParts(next, nextParts ?? partsRef.current ?? []),
+        partsRef.current
+      );
       partsRef.current = parts;
       const before = ideal?.text ?? "";
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
@@ -422,7 +449,9 @@ export default function IdealTextOverlay({
         return true;
       }
       if (r.reason === "superseded") {
-        setSuperseded(next);
+        // A take landed mid-edit. Under per-part persistence the refetch
+        // below returns the COMPOSED document — the typed paragraphs arrive
+        // pinned inside it — so there is nothing to hold and offer back.
         if (r.currentVersion !== null) versionRef.current = r.currentVersion;
         setSd((prev) =>
           prev ? { ...prev, version: versionRef.current } : prev
@@ -489,48 +518,6 @@ export default function IdealTextOverlay({
     [arcId]
   );
 
-  /** T1 · 1.2 — put the held version back on top of the new take's text. The
-   *  only caller that sends `reapplied`, and the only way a pre-take edit
-   *  wins over a newer version: because the student asked, having seen it. */
-  const reapplyEdit = useCallback(async () => {
-    const words = sd?.priorEdit?.text ?? superseded;
-    if (!words || !versionArmedRef.current) return;
-    const run = chainRef.current.then(() =>
-      saveIdealUserEdit(arcId, words, versionRef.current, { reapplied: true })
-    );
-    chainRef.current = run.then(
-      () => undefined,
-      () => undefined
-    );
-    const r = await run;
-    if (!r.ok) {
-      if (r.reason === "invalid") setTooLong(true);
-      else if (r.reason === "superseded") {
-        // Another take landed in between: re-stamp, keep the offer up so one
-        // more tap re-applies against the newest version.
-        if (r.currentVersion !== null) versionRef.current = r.currentVersion;
-        setSd((prev) => (prev ? { ...prev, version: versionRef.current } : prev));
-        fetchGenRef.current++;
-        setRefetchNonce((n) => n + 1);
-      } else setSaveFailed(true);
-      return;
-    }
-    versionRef.current = r.version ?? versionRef.current;
-    setSuperseded(null);
-    setIdeal((prev) => (prev ? { ...prev, text: words } : prev));
-    setSd((prev) =>
-      prev
-        ? {
-            ...prev,
-            version: versionRef.current,
-            priorEdit: null,
-            userEdited: true,
-          }
-        : prev
-    );
-    fetchGenRef.current++;
-    setRefetchNonce((n) => n + 1);
-  }, [arcId, sd?.priorEdit?.text, superseded]);
 
   // T1 · 1.2 — the star fence: while the document is the student's own edit
   // the BE serves no decoration, and re-anchoring stars into edited words
@@ -538,7 +525,6 @@ export default function IdealTextOverlay({
   const edited = sd?.userEdited === true;
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
-  const heldEdit = sd?.priorEdit?.text ?? superseded;
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
   // text; Keep mine = the suggestion is refused and never re-offered. Both
@@ -811,40 +797,6 @@ export default function IdealTextOverlay({
               ) : null}
               {/* Founder 2026-07-29 — the Full text / Key words toggle is
                   retired: the notebook always shows the full text. */}
-              {/* T1 · 1.2 — a take landed while the student was editing. The
-                  fresh text is already on screen; their version is held and
-                  goes back with one tap. Never applied for them. */}
-              {heldEdit ? (
-                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3">
-                  <p className="text-[13px] font-medium text-foreground">
-                    {IDEAL_EDIT_COPY.supersededTitle}
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">
-                    {IDEAL_EDIT_COPY.supersededBody}
-                  </p>
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => void reapplyEdit()}
-                      className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background"
-                    >
-                      {IDEAL_EDIT_COPY.supersededReapply}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSuperseded(null);
-                        setSd((prev) =>
-                          prev ? { ...prev, priorEdit: null } : prev
-                        );
-                      }}
-                      className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground hover:text-foreground"
-                    >
-                      {IDEAL_EDIT_COPY.supersededDismiss}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
 
               {tooLong ? (
                 <p className="text-[12px] leading-relaxed text-muted-foreground">

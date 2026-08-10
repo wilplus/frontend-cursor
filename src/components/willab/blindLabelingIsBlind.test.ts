@@ -174,6 +174,7 @@ describe("buildRatingBody refuses to fabricate a label", () => {
 
 describe("the record -> analyse -> read cycle is locked in both directions", () => {
   const LOUNGE = join("components", "willab", "Lounge.tsx");
+  const OVERLAY = join("components", "willab", "IdealTextOverlay.tsx");
 
   it("the record button holds while a take is analysing", () => {
     expect(code(LOUNGE)).toContain(
@@ -181,22 +182,66 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     );
   });
 
-  it("opening the ideal text holds while a take is analysing", () => {
-    // The asymmetry between these two gates WAS the bug.
+  it("the ideal text opens into a WAIT, never onto stale words", () => {
+    // Second generation of this gate (founder 2026-08-10). The first held the
+    // tap with a silent `return` — order enforced, user routed nowhere. Now
+    // the tap opens the overlay with `analysisPending`, which holds the fetch
+    // in the loading state: a fetch mid-analysis would return LAST take's
+    // document and render it as this take's, which is the original bug.
+    expect(code(LOUNGE)).toContain(
+      'analysisPending={processingResume?.status === "analyzing"}'
+    );
+    const overlay = code(OVERLAY);
+    const effect = overlay.slice(overlay.indexOf("const firstLoad"));
+    const gate = effect.slice(0, effect.indexOf("fetchIdealText"));
+    expect(gate).toContain("analysisPending");
+    expect(gate).toContain("return");
+  });
+
+  it("completion reaches an OPEN document too", () => {
+    // W5 — the flip of `analysisPending` must re-run the fetch effect, so a
+    // student reading while the analysis lands gets the fresh document in
+    // place rather than a stale one until they touch something.
+    expect(code(OVERLAY)).toMatch(
+      /\[arcId, analysisPending, refetchNonce/
+    );
+  });
+
+  it("the tap no longer dead-ends in a silent return", () => {
     const src = code(LOUNGE);
     const handler = src.slice(src.indexOf("onOpenIdealText={"));
     const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
-    expect(body).toContain('processingResume?.status === "analyzing"');
-    expect(body).toContain("return");
+    expect(body).not.toMatch(/processingResume.*return/s);
   });
 
-  it("the hold introduces no new user-facing copy", () => {
-    // LIVE LOOP: user-facing copy needs founder sign-off. The analysing chip
-    // is already on screen saying what is happening, so the hold is silent by
-    // design rather than by omission.
+  it("the routing introduces no new user-facing copy", () => {
+    // LIVE LOOP: the overlay's existing loading state carries the wait; no
+    // new string may ship from this change.
     const src = code(LOUNGE);
     const handler = src.slice(src.indexOf("onOpenIdealText={"));
     const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
     expect(body).not.toMatch(/alert\(|toast|"[A-Z][a-z]+ [a-z]/);
+  });
+});
+
+describe("a failed take stays on screen until the user acts (W6)", () => {
+  const LOUNGE = join("components", "willab", "Lounge.tsx");
+
+  it("no self-clearing timer remains", () => {
+    // 10 seconds of visibility is halfway to "never happened": look away
+    // once and there is no evidence anything went wrong.
+    const src = code(LOUNGE);
+    expect(src).not.toContain("failNoteTimerRef");
+    expect(src).not.toMatch(/setTimeout\(\s*\(\)\s*=>\s*setProcessingResume\(null\)/);
+  });
+
+  it("idle state changes preserve a failed note; entering the Lab clears it", () => {
+    const src = code(LOUNGE);
+    expect(src).toContain(
+      'setProcessingResume((prev) => (prev?.status === "failed" ? prev : null))'
+    );
+    expect(src).toContain(
+      'setProcessingResume((prev) => (prev?.status === "failed" ? null : prev))'
+    );
   });
 });
