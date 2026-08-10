@@ -61,7 +61,7 @@ export default function StudentRosterOverlay({
   onOpenArcIdeal?: (arcId: string) => void;
   /** Star Verdict — open an arc's star-review overlay (threaded to the
    *  Lounge; the entry itself renders on the student detail screen, N1). */
-  onOpenStarVerdicts?: (arcId: string) => void;
+  onOpenStarVerdicts?: (arcId: string, sessionIds: string[]) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
