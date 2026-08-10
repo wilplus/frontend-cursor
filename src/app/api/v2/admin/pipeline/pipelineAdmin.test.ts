@@ -65,6 +65,23 @@ describe("pipeline admin — the sweep secret is never carried", () => {
     expect(code).not.toContain("X-Internal-Secret");
   });
 
+  it("the proxy goes through callBackend, never a direct fetch", () => {
+    /*
+     * `npm run check:bff` enforces this repo-wide and caught the first
+     * version of this proxy, which copied the neighbouring learning proxy's
+     * direct fetch — that file only predates the rule (one of 95
+     * grandfathered files) and new code does not inherit the exemption.
+     *
+     * Restated here because the reason matters at THIS surface specifically:
+     * a direct fetch is a call site that can grow its own headers, and the
+     * one header this whole design exists to never send is a machine secret.
+     * callBackend owns the header set, so there is no place to add it.
+     */
+    const code = codeOnly(join(SRC, "app/api/v2/admin/pipeline/proxy.ts"));
+    expect(code).toContain("callBackend");
+    expect(code).not.toMatch(/\bfetch\s*\(/);
+  });
+
   it("every pipeline BFF route goes through the shared proxy", () => {
     const base = join(SRC, "app/api/v2/admin/pipeline");
     for (const route of ["health", "jobs", "sweep"]) {
