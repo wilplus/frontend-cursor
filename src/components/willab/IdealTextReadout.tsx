@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, ListPlus, Loader2, Mic, PencilLine } from "lucide-react";
+import { Check, Copy, Loader2, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
@@ -31,17 +31,18 @@ import { BlockVariantSheet } from "./BlockVariantPicker";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import MarkedEditor from "./MarkedEditor";
+import ChunkedEditor from "./ChunkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import { FLOW_COPY } from "./flowCopy";
 import OverlayCloseButton from "./OverlayCloseButton";
-import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
   lockTargetAt,
+  partsForDocument,
+  partsToText,
   reconcileParts,
   type Part,
 } from "@/lib/willab/documentParts";
@@ -128,9 +129,6 @@ export default function IdealTextReadout({
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [editing, setEditing] = useState(false);
-  // T1 · 1.2 — the add/move mode: tap a gap to add a part, drag one to move
-  // it. A sibling of the textarea, never a step before recording.
-  const [arranging, setArranging] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
@@ -601,39 +599,13 @@ export default function IdealTextReadout({
   // on screen: a lock is a claim about SPECIFIC WORDS, and the server refuses
   // one made against a document that has moved (a take assembled, the coach
   // verified) rather than settling a paragraph the student never read.
-  const toggleLock = useCallback(
-    async (part: Part, locked: boolean): Promise<"ok" | "blocked" | "failed"> => {
-      const aid = arcIdRef.current;
-      if (!aid) return "failed";
-      const r = await setPartLock(aid, part.id, locked, textRef.current);
-      if (r.kind === "undecided") return "blocked";
-      if (r.kind === "stale") {
-        // The same silent-refetch the block-decide lane already uses: the text
-        // visibly refreshing IS the message, so there is no copy for it.
-        sdGenRef.current++;
-        setSdNonce((n) => n + 1);
-        return "failed";
-      }
-      if (r.kind === "error") return "failed";
-      // Adopt the server's answer rather than assuming it — a lock drawn that
-      // the server did not grant is the one state worth never rendering.
-      partsRef.current = (partsRef.current ?? []).map((p) =>
-        p.id === part.id ? { ...p, locked } : p
-      );
-      setSdNonce((n) => n + 1);
-      return "ok";
-    },
-    []
-  );
-
-  // SPEC-lockin-loop §2 — the Accept→"Lock it" tap, addressed by rendered
-  // paragraph index. Resolution happens AT TAP TIME against the words on
-  // screen: the parts are re-derived from the current text (ids kept where
-  // words match), the index→part claim is verified (lockTargetAt refuses a
-  // mismatch rather than guessing), and the echo lets the server refuse a
-  // document that moved. `seedParts` covers the founder's DoD flow — a
-  // student who never manually edited has no server-stored identity, and
-  // without the seed this lock could only ever 409.
+  // SPEC-lockin-loop §2 — the "Lock in" tap from the decide popover,
+  // addressed by rendered paragraph index. Resolution happens AT TAP TIME
+  // against the words on screen: the parts are re-derived from the current
+  // text (ids kept where words match), the index→part claim is verified
+  // (lockTargetAt refuses a mismatch rather than guessing), and the echo
+  // lets the server refuse a document that moved. `seedParts` covers the
+  // never-manually-edited document, which has no server-stored identity.
   const lockParagraph = useCallback(
     async (
       at: number,
@@ -651,8 +623,6 @@ export default function IdealTextReadout({
       });
       if (r.kind === "undecided") return "blocked";
       if (r.kind === "stale") {
-        // Same silent-refetch as toggleLock: the text visibly refreshing IS
-        // the message.
         sdGenRef.current++;
         setSdNonce((n) => n + 1);
         return "failed";
@@ -770,32 +740,9 @@ export default function IdealTextReadout({
               <Copy className="h-4 w-4" aria-hidden />
             )}
           </button>
-          {/* T1 · 1.2 — add / move parts. Hidden while the raw editor is open
-              (the textarea already owns the whole document) and whenever
-              there is nothing assembled to arrange. */}
-          {canEdit && !editing ? (
-            <button
-              type="button"
-              onClick={() => setArranging((a) => !a)}
-              aria-label={
-                arranging
-                  ? IDEAL_EDIT_COPY.arrangeDone
-                  : IDEAL_EDIT_COPY.arrangeOpen
-              }
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
-                arranging
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {arranging ? (
-                <Check className="h-4 w-4" aria-hidden />
-              ) : (
-                <ListPlus className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          ) : null}
-          {canEdit && !arranging ? (
+          {/* Founder 2026-08-10 — the separate arrange state is retired; its
+              add / move / remove operations live inside the chunked editor. */}
+          {canEdit ? (
             <button
               type="button"
               onClick={() => setEditing((e) => !e)}
@@ -826,9 +773,9 @@ export default function IdealTextReadout({
           individually, so every approval is separately recorded and revertible.
           Hidden while editing: folds live in the render layer, so approving
           behind the raw textarea would look like it did nothing (R-p1). Same
-          reason while arranging, and while the document is the student's own
+          reason while the document is the student's own
           edit (no stars are drawn there at all — T1 · 1.2). */}
-      {editing || arranging || edited ? null : stars.bulkApplied ? (
+      {editing || edited ? null : stars.bulkApplied ? (
         <button
           type="button"
           onClick={() => stars.revertAllPolish(allPolish)}
@@ -849,27 +796,21 @@ export default function IdealTextReadout({
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}
       {editing ? (
-        // FE-1 — the editor shows STYLED text, never the marker source: a user
-        // must not see "{{orange:" while editing either. Saving serializes
-        // back to markers, byte-exact for any span they did not touch.
-        <MarkedEditor value={text} onChange={applyEdit} textSizeClass="text-[17px]" />
+        // Founder 2026-08-10 — editing is PER PARAGRAPH: one chunk per part,
+        // markers styled (never "{{orange:"), the arranger's move/add/remove
+        // folded in. Every operation reports the whole parts list into the
+        // SAME save lane (auto-lock "typed = committed" included).
+        <ChunkedEditor
+          parts={partsForDocument(text, partsRef.current)}
+          onChange={(next) => applyEdit(partsToText(next), next)}
+          textSizeClass="text-[17px]"
+        />
       ) : signedIn && arcId && !sdSettled ? (
         // FE-3 — hold until the served text + its stars are in hand, so they
         // land together instead of the text rendering then stars popping in.
         <p className="py-10 text-center text-[13px] text-muted-foreground">
           Putting your ideal text together…
         </p>
-      ) : arranging ? (
-        // T1 · 1.2 — the parts view: tap a gap to add, drag a part to move it.
-        // Every action emits the whole joined document into the SAME save
-        // lane the editor uses.
-        <DocumentArranger
-          text={text}
-          parts={sd?.parts}
-          onChange={applyEdit}
-          // Locking needs a persisted arc; a guest's parts are local-only.
-          onToggleLock={arcId ? toggleLock : undefined}
-        />
       ) : sd && edited ? (
         // T1 · 1.2 — the student's own document: their words, their markers,
         // NO star layer and NO version pills. Both are anchored to machine
@@ -928,8 +869,8 @@ export default function IdealTextReadout({
           has no block for. Below the document, not inside it: there is nothing
           in the text to anchor to, which is exactly why forcing it into the
           tracked-change shape made it reach nobody. Hidden while editing or
-          arranging — those modes are about the words already in the script. */}
-      {sd && arcId && !editing && !arranging && sd.additions.length > 0 ? (
+          editing — that mode is about the words already in the script. */}
+      {sd && arcId && !editing && sd.additions.length > 0 ? (
         <AdditionsPanel
           additions={sd.additions}
           onDecide={decideAddition}

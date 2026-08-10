@@ -23,6 +23,7 @@ import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import MarkedEditor from "./MarkedEditor";
+import ChunkedEditor from "./ChunkedEditor";
 import IdealTextHeading from "./IdealTextHeading";
 import {
   MomentSheet,
@@ -73,12 +74,13 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import PresentMode from "./PresentMode";
-import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
   lockTargetAt,
+  partsForDocument,
+  partsToText,
   reconcileParts,
   type Part,
 } from "@/lib/willab/documentParts";
@@ -223,7 +225,7 @@ export default function IdealTextOverlay({
   const [notes, setNotes] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   // T1 · 1.2 — add/move mode.
-  const [arranging, setArranging] = useState(false);
+  const [chunkEditing, setChunkEditing] = useState(false);
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
@@ -680,11 +682,11 @@ export default function IdealTextOverlay({
           {/* PRESENT — the PowerPoint move: a play glyph that throws the
               document fullscreen to deliver it. First in the row because it
               is the one control you reach for while standing up. Needs text
-              on screen; hidden while editing/arranging (you are not
+              on screen; hidden while editing (you are not
               presenting a document you are mid-edit on). */}
           {(status === "ready" || status === "instant") &&
           !editing &&
-          !arranging &&
+          !chunkEditing &&
           displayText.trim() ? (
             <button
               type="button"
@@ -717,34 +719,31 @@ export default function IdealTextOverlay({
               )}
             </button>
           ) : null}
-          {/* T1 · 1.2 — add / move parts of the living document. SD only (the
-              legacy personal-notes lane has no version to stamp a PUT with),
-              and never while nothing is assembled to arrange. */}
+          {/* Founder 2026-08-10 — the separate arrange state is retired: this
+              button now opens the CHUNKED editor (one chunk per paragraph,
+              markers styled, move/add/remove folded in). SD only (the legacy
+              personal-notes lane has its own pencil below). */}
           {status === "ready" && sd && !editing && !editLocked && displayText.trim() ? (
             <button
               type="button"
-              onClick={() => setArranging((a) => !a)}
-              aria-label={
-                arranging
-                  ? IDEAL_EDIT_COPY.arrangeDone
-                  : IDEAL_EDIT_COPY.arrangeOpen
-              }
+              onClick={() => setChunkEditing((a) => !a)}
+              aria-label={chunkEditing ? "Done editing" : "Edit the text"}
               className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-muted ${
-                arranging
+                chunkEditing
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {arranging ? (
+              {chunkEditing ? (
                 <Check className="h-4 w-4" aria-hidden />
               ) : (
-                <ListPlus className="h-4 w-4" aria-hidden />
+                <PencilLine className="h-4 w-4" aria-hidden />
               )}
             </button>
           ) : null}
           {/* Personal-notes editing is a legacy perfected-lane feature — no
               pencil on the instant draft or in the SD living document. */}
-          {status === "ready" && !editing && !arranging && !editLocked ? (
+          {status === "ready" && !editing && !chunkEditing && !editLocked ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -834,7 +833,7 @@ export default function IdealTextOverlay({
                   Polish only; acoustic and structural stars stay per-star.
                   Hidden while arranging and on an edited document: no stars
                   are drawn there, so approving would look like a dead tap. */}
-              {arranging || edited ? null : sd && stars.bulkApplied ? (
+              {chunkEditing || edited ? null : sd && stars.bulkApplied ? (
                 <button
                   type="button"
                   onClick={() => stars.revertAllPolish(allPolish)}
@@ -865,14 +864,16 @@ export default function IdealTextOverlay({
                 </p>
               ) : null}
 
-              {arranging && sd ? (
-                // T1 · 1.2 — the parts view: tap a gap to add, drag to move.
-                // Each action persists the whole joined document.
-                <DocumentArranger
-                  text={displayText}
-                  parts={sd.parts}
-                  onChange={(next, parts) => void saveDocument(next, parts)}
-                  onToggleLock={toggleLock}
+              {chunkEditing && sd ? (
+                // Founder 2026-08-10 — editing is PER PARAGRAPH: one chunk
+                // per part, the arranger's move/add/remove folded in. Every
+                // operation persists the whole joined document through the
+                // same save lane (auto-lock "typed = committed" included).
+                <ChunkedEditor
+                  parts={partsForDocument(displayText, sd.parts)}
+                  onChange={(next) =>
+                    void saveDocument(partsToText(next), next)
+                  }
                   textSizeClass="text-[18px]"
                 />
               ) : edited ? (
@@ -929,9 +930,9 @@ export default function IdealTextOverlay({
                   script has no block for. Below the document, not inside it:
                   there is nothing in the text to anchor to, which is exactly
                   why forcing it into the tracked-change shape made it reach
-                  nobody. Hidden while arranging — that mode is about the words
-                  already in the script. */}
-              {sd && !arranging && sd.additions.length > 0 ? (
+                  nobody. Hidden while the chunk editor is open — that mode
+                  is about the words already in the script. */}
+              {sd && !chunkEditing && sd.additions.length > 0 ? (
                 <AdditionsPanel
                   additions={sd.additions}
                   onDecide={decideAddition}
