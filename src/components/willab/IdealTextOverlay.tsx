@@ -91,10 +91,18 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 export default function IdealTextOverlay({
   arcId,
+  analysisPending = false,
   onClose,
   onReadAloud,
 }: {
   arcId: string;
+  /** W4/W5 — true while a take for this arc is still analysing. While true
+   *  the overlay shows its LOADING state instead of fetching (a fetch now
+   *  would return LAST take's document and render it as if it were this
+   *  take's); when it flips false the overlay fetches fresh. This is the
+   *  routing half of the lifecycle lock: the old behaviour was a silent
+   *  no-op tap in the Lounge, which enforced the order but led nowhere. */
+  analysisPending?: boolean;
   onClose: () => void;
   /** The host closes this overlay into the record flow for the NEXT official
    *  take of this presentation. Receives the current version as a take-count
@@ -259,6 +267,16 @@ export default function IdealTextOverlay({
      * reader losing their place mid-paragraph. */
     const firstLoad = loadedArcRef.current !== arcId;
     if (firstLoad) setStatus("loading");
+    // W4 — a fetch during analysis would come back with LAST take's document
+    // and show it as current. Hold in the loading state instead; this effect
+    // re-runs when `analysisPending` flips false and fetches the fresh one.
+    // W5 falls out of the same dependency: if the analysis completes while
+    // the document is OPEN, the flip triggers a refetch of the new version
+    // (which, per the first-load rule above, swaps in place — no blank).
+    if (analysisPending) {
+      if (firstLoad) loadedArcRef.current = null;
+      return;
+    }
     const gen = ++fetchGenRef.current;
     void fetchIdealText(arcId).then((r) => {
       if (!active || gen !== fetchGenRef.current) return;
@@ -330,7 +348,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce, refreshVariants]);
+  }, [arcId, analysisPending, refetchNonce, refreshVariants]);
 
   const displayText = notes ?? ideal?.text ?? "";
 
