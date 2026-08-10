@@ -38,7 +38,11 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
-import { reconcileParts, type Part } from "@/lib/willab/documentParts";
+import {
+  autoLockTouched,
+  reconcileParts,
+  type Part,
+} from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
 import { MomentSheet, useMomentStars } from "./MomentStars";
@@ -156,9 +160,6 @@ export default function IdealTextReadout({
     /** T1 · 1.2 — the served text IS the student's edit. Drives the star
      *  fence below (an edited document carries no honest anchors). */
     userEdited: boolean;
-    /** T1 · 1.2 — a superseded edit the BE offers back (pending BE; null on
-     *  every payload today, and the local buffer covers it). */
-    priorEdit: { text: string; version: number | null } | null;
     /** The BE's gate on a new official take. null (absent) never gates. */
     canRecordTake: boolean | null;
   } | null>(null);
@@ -211,7 +212,6 @@ export default function IdealTextReadout({
   // T1 · 1.2 — a newer version assembled while the student was typing. Their
   // words are HELD here, never re-sent automatically (that would overwrite
   // the take that just landed), and offered back for one tap.
-  const [superseded, setSuperseded] = useState<string | null>(null);
   // 409 NOTHING_TO_EDIT — nothing is assembled yet, so the edit affordances
   // have nothing to act on and hide entirely.
   const [editLocked, setEditLocked] = useState(false);
@@ -287,7 +287,6 @@ export default function IdealTextReadout({
           parts: r.parts,
           additions: r.additions,
           userEdited: r.userEdited,
-          priorEdit: r.priorEdit,
           canRecordTake: r.canRecordTake,
         });
         // A document exists again → the edit affordances come back.
@@ -328,7 +327,14 @@ export default function IdealTextReadout({
   // Reconcile (not re-split) so a paragraph the student did not touch KEEPS
   // its id — those ids are what PR 3 hangs locks on.
   const partsFor = useCallback((t: string): Part[] => {
-    const next = reconcileParts(t, partsRef.current ?? []);
+    // AUTO-LOCK ("typed = committed"): the parts this edit touched go up
+    // locked, judged against the last served/saved baseline. The BE pins
+    // locked paragraphs across takes, which is what retired the
+    // superseded-edit card.
+    const next = autoLockTouched(
+      reconcileParts(t, partsRef.current ?? []),
+      partsRef.current
+    );
     partsRef.current = next;
     return next;
   }, []);
@@ -354,7 +360,9 @@ export default function IdealTextReadout({
           return;
         }
         if (r.reason === "superseded") {
-          setSuperseded(t);
+          // A take landed mid-edit. The refetch below returns the COMPOSED
+          // document — typed paragraphs arrive pinned inside it — so there
+          // is nothing to hold and offer back.
           if (r.currentVersion !== null) versionRef.current = r.currentVersion;
           // Release the edit lane so the refetch below may adopt the NEW
           // text, and so no debounce can PUT these words back over it.
@@ -407,47 +415,6 @@ export default function IdealTextReadout({
     [markDirty]
   );
 
-  /** T1 · 1.2 — put the student's held version back, on top of whatever the
-   *  new take assembled. The ONLY path that sends `reapplied`, and the only
-   *  path that lets a pre-take edit win over a newer version: because the
-   *  student asked for it, having seen the new text first. */
-  const reapplyEdit = useCallback(async () => {
-    const aid = arcIdRef.current;
-    const words = sd?.priorEdit?.text ?? superseded;
-    if (!aid || !words) return;
-    // On the SAME lane as the debounced saves: a `prior_edit` served straight
-    // from a GET can be re-applied while an ordinary save is still in flight,
-    // and the two must not race for the version stamp.
-    const run = chainRef.current.then(() =>
-      saveIdealUserEdit(aid, words, versionRef.current, {
-        reapplied: true,
-        parts: partsFor(words),
-      })
-    );
-    chainRef.current = run.then(
-      () => undefined,
-      () => undefined
-    );
-    const r = await run;
-    if (!r.ok) {
-      if (r.reason === "invalid") setTooLong(true);
-      else if (r.reason === "superseded") {
-        // Another take landed in between. Re-stamp and leave the offer up:
-        // one more tap re-applies against the newest version.
-        if (r.currentVersion !== null) versionRef.current = r.currentVersion;
-        sdGenRef.current++;
-        setSdNonce((n) => n + 1);
-      } else setSaveState("failed");
-      return;
-    }
-    versionRef.current = r.version ?? versionRef.current;
-    savedTextRef.current = words;
-    markDirty(false);
-    setText(words);
-    setSuperseded(null);
-    sdGenRef.current++;
-    setSdNonce((n) => n + 1);
-  }, [markDirty, partsFor, sd?.priorEdit, superseded]);
 
   useEffect(() => {
     if (!dirtyRef.current || !canPersist || !arcId) return;
@@ -686,9 +653,6 @@ export default function IdealTextReadout({
   // client-side would attach a coach's read to a sentence they never saw.
   // Stars come back when the next take supersedes the edit.
   const edited = sd?.userEdited === true || dirty;
-  // A held version to re-offer: the BE's `prior_edit` when it ships, else the
-  // local buffer from the supersede we just handled.
-  const heldEdit = sd?.priorEdit?.text ?? superseded;
   // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
   const canEdit = !editLocked && text.trim().length > 0;
 
@@ -770,39 +734,6 @@ export default function IdealTextReadout({
         </div>
       </div>
 
-      {/* T1 · 1.2 — a take landed while the student was editing. The new text
-          is already on screen; their version is held and goes back with one
-          tap. Never applied for them: re-applying replaces the words the new
-          take assembled, which is their call. */}
-      {heldEdit ? (
-        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3">
-          <p className="text-[13px] font-medium text-foreground">
-            {IDEAL_EDIT_COPY.supersededTitle}
-          </p>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            {IDEAL_EDIT_COPY.supersededBody}
-          </p>
-          <div className="flex items-center gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => void reapplyEdit()}
-              className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background"
-            >
-              {IDEAL_EDIT_COPY.supersededReapply}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSuperseded(null);
-                setSd((prev) => (prev ? { ...prev, priorEdit: null } : prev));
-              }}
-              className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground hover:text-foreground"
-            >
-              {IDEAL_EDIT_COPY.supersededDismiss}
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {/* FE-2 — one tap applies every smoother-version suggestion. Polish only:
           flow smoothing is mechanical, while acoustic and structural stars are
