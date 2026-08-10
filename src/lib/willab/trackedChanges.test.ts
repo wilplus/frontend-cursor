@@ -23,6 +23,9 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
   status: o.status ?? null,
   snippetId: o.snippetId ?? "s1",
   takeSessionId: o.takeSessionId ?? "t1",
+  visual: null,
+  pendingBetterVersion: false,
+  pendingCopy: null,
 });
 
 const TEXT = "I think we can do this today.";

@@ -36,6 +36,9 @@ const sug = (o: Partial<DocumentSuggestion> = {}): DocumentSuggestion => ({
   status: null,
   snippetId: "s1",
   takeSessionId: "t1",
+  visual: null,
+  pendingBetterVersion: false,
+  pendingCopy: null,
 });
 
 describe("the founder copy is exactly what was signed off", () => {

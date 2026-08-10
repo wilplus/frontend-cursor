@@ -238,6 +238,17 @@ export interface DocumentSuggestion {
   /** MASTER DOCUMENT — the take the OFFERED wording comes from, so the
    *  comparison can show its badge ("from take 2"). null → no badge. */
   takeIndex: number | null;
+  /** SPEC-lockin-loop §3 — the BE rendering registry's verdict: Confident
+   *  Voice = "star", text rewrites = "underline", accents = "bold". The FE
+   *  renders FROM this and never re-derives a visual from `kind` when it is
+   *  present; null (older BE) → the legacy kind-based rendering. */
+  visual: "star" | "underline" | "bold" | null;
+  /** SPEC-lockin-loop §2 — the ONE thing a locked paragraph may still show:
+   *  a Confident Voice detected on it in a later take. Rendered as the
+   *  founder's small prompt (`pendingCopy`, copy is sign-off-locked), never
+   *  as a normal offer — no Accept, no strike. */
+  pendingBetterVersion: boolean;
+  pendingCopy: string | null;
   /** MASTER DOCUMENT — a `new_take` block upgrade carries the block it acts
    *  on (top-level on the payload; also baked into `id` as "block:<key>").
    *  Its decision routes to the block-decide endpoint, NOT suggestion-
@@ -367,6 +378,18 @@ export function mapDocumentSuggestions(
           ? r.take_index
           : null,
       blockKey,
+      visual:
+        r.visual === "star" || r.visual === "underline" || r.visual === "bold"
+          ? r.visual
+          : null,
+      pendingBetterVersion: r.pending_better_version === true,
+      // The copy is the founder's exact string, passed through verbatim —
+      // no fallback minted here (LIVE LOOP: copy needs sign-off, and a
+      // pending flag without its copy renders nothing rather than our words).
+      pendingCopy:
+        typeof r.pending_copy === "string" && r.pending_copy
+          ? r.pending_copy
+          : null,
     });
   }
   return out;
