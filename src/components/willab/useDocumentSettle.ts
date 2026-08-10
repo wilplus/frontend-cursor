@@ -59,6 +59,19 @@ export function useDocumentSettle({
   const [marker, setMarker] = useState<ProcessingTake | null>(null);
   const firstProbeRef = useRef<DocumentProbe | null>(null);
   const probedSessionRef = useRef<string | null>(null);
+  // THE PRE-ASSEMBLY BASELINE (founder 2026-08-10, "the analysis is taking
+  // too long like it runs twice"). The version-moved settle rule needs a
+  // baseline that PRECEDES assembly — the old first-probe baseline was
+  // captured in the DOCUMENT phase, i.e. possibly after assembly already
+  // landed, in which case no delta was ever observable and the block ran to
+  // its full 2-minute cap on every take that won no block. Assembly happens
+  // at pipeline end, strictly after the analysis phase, so a version read
+  // during ANALYSIS is a safe "before" — the first document-phase probe then
+  // confirms in seconds. Keyed by session; a late mount that missed the
+  // analysis phase falls back to the old first-probe rule + cap.
+  const baselineRef = useRef<{ sessionId: string; probe: DocumentProbe } | null>(
+    null
+  );
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
 
@@ -95,6 +108,27 @@ export function useDocumentSettle({
     onSettledRef.current?.();
   }, []);
 
+  // The analysis-phase baseline read: ONE fetch per session, while the take
+  // is still transcribing — before assembly can have moved the version.
+  useEffect(() => {
+    if (!enabled || !marker || marker.phase !== "analysis") return;
+    const { sessionId, arcId } = marker;
+    if (!arcId || baselineRef.current?.sessionId === sessionId) return;
+    let active = true;
+    void fetchIdealText(arcId).then((r) => {
+      if (!active || baselineRef.current?.sessionId === sessionId) return;
+      if (r.kind === "single") {
+        baselineRef.current = {
+          sessionId,
+          probe: probeOf({ version: r.version, pieces: r.pieces }),
+        };
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [enabled, marker]);
+
   // The document-phase probe.
   useEffect(() => {
     if (!enabled || !marker || marker.phase !== "document") return;
@@ -107,7 +141,12 @@ export function useDocumentSettle({
     }
     if (probedSessionRef.current !== sessionId) {
       probedSessionRef.current = sessionId;
-      firstProbeRef.current = null;
+      // Seed from the analysis-phase baseline when we have one — the whole
+      // point: the first probe here can then already see the version moved.
+      firstProbeRef.current =
+        baselineRef.current?.sessionId === sessionId
+          ? baselineRef.current.probe
+          : null;
     }
     let active = true;
     const probe = async () => {
