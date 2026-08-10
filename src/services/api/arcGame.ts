@@ -34,7 +34,10 @@ export interface GameSession {
 }
 
 export interface GameVerdict {
-  correct: boolean;
+  /** null = the answer was Ambiguous ("I don't know") — no verdict exists
+   *  on an abstained guess, and the reveal renders without a win/lose head
+   *  (founder 2026-08-10: yes / no / idk). */
+  correct: boolean | null;
   /** What the moment actually WAS. Drives the N5-neutral reveal line — a
    *  decoy is the user's own solid moment, never a failure. null when the BE
    *  omits it (older payloads); the reveal line simply doesn't render. */
@@ -128,12 +131,14 @@ export async function fetchArcGame(
   };
 }
 
-/** Submit an answer (true = "this was a key moment"). Returns the verdict +
- *  the "Here is why" reveal. Soft-fails to null (the FE keeps the round open). */
+/** Submit an answer — the ternary instrument ("yes" / "no" / "neutral" =
+ *  the founder's idk; booleans still accepted for older callers). Returns
+ *  the verdict + the "Here is why" reveal. Soft-fails to null (the FE keeps
+ *  the round open). */
 export async function submitGameAnswer(
   arcId: string,
   roundId: string,
-  answer: boolean
+  answer: boolean | "yes" | "no" | "neutral"
 ): Promise<GameVerdict | null> {
   const headers = await authHeaders();
   let res: Response;
@@ -162,7 +167,12 @@ export async function submitGameAnswer(
       ? body.paragraphs
       : [];
   return {
-    correct: body.correct === true || body.verdict === "correct",
+    correct:
+      body.correct === true || body.verdict === "correct"
+        ? true
+        : body.correct === false
+          ? false
+          : null,
     truthIsKey:
       body.truth_is_key === true
         ? true

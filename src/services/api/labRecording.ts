@@ -219,6 +219,19 @@ export async function submitLabRecording(
   if (input.pairedSnippetId) form.append("paired_snippet_id", input.pairedSnippetId);
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
+  // THE RETRY COLLAPSE (founder 2026-08-10, the double recording): one key
+  // per TAKE, sent on BOTH lanes below. The Worker catch cannot tell "never
+  // reached the backend" from "accepted, but our socket died", and the BFF
+  // fallback then re-posts the same audio — the BE collapses the second
+  // POST onto the first session by this key instead of minting take N+1.
+  // Deliberately NOT guest_session_id: the spent-session guard rejects id
+  // reuse by design, for a different bug.
+  try {
+    form.append("upload_idempotency_key", crypto.randomUUID());
+  } catch {
+    // No crypto.randomUUID (ancient WebView) → no key → today's behavior.
+  }
+
   const token = await getAuthToken(); // optional — public/guest endpoint
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -348,6 +361,24 @@ export async function submitLabRecording(
 
   if (!body) {
     return { kind: "error", status: res.status, message: "Empty response from the lab." };
+  }
+
+  // THE RETRY COLLAPSE echo (BE 2026-08-10): our other lane's POST already
+  // landed this take — the BE matched the idempotency key and returned the
+  // FIRST session instead of minting take N+1. Adopt it and poll; never a
+  // second take.
+  if (
+    body.duplicate === true &&
+    typeof body.session_id === "string" &&
+    body.session_id.length > 0
+  ) {
+    return {
+      kind: "processing",
+      sessionId: body.session_id,
+      arcId: typeof body.arc_id === "string" ? body.arc_id : null,
+      takeIndex: typeof body.take_index === "number" ? body.take_index : null,
+      takeCount: null,
+    };
   }
 
   // Async analysis (delivery layer): 202 = { session_id, recording_id,

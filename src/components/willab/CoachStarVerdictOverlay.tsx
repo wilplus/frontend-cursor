@@ -40,11 +40,15 @@ import {
 } from "@/services/api/coachReviewState";
 import { publishArc } from "@/services/api/arcBatch";
 import {
-  buildLabelBody,
   fetchConfidenceQueue,
-  saveConfidenceLabel,
   type QueuePiece,
 } from "@/services/api/trainingCorpus";
+import {
+  buildRatingBody,
+  saveStateRating,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachStarVerdictOverlay — FEEDBACKS REVIEW: the coach's one scrollable     */
@@ -201,16 +205,23 @@ export default function CoachStarVerdictOverlay({
     };
   }, [sessionsKey]);
 
-  const labelVoice = (row: QueuePiece, confident: boolean) => {
+  // TERNARY (founder 2026-08-10: same instrument as the coach snippet card
+  // and the game — yes / no / Ambiguous + the unrateable abstention). Saves
+  // through the same ternary write the snippet card uses.
+  const labelVoice = (
+    row: QueuePiece,
+    value: TernaryValue | null,
+    unrateable = false
+  ) => {
     if (cvSaving !== null) return;
-    const body = buildLabelBody(confident);
+    const body = buildRatingBody(value, unrateable);
     if (!body) return;
     setCvSaving(row.snippetId);
     setCvErrors((e) => {
       const { [row.snippetId]: _gone, ...rest } = e;
       return rest;
     });
-    void saveConfidenceLabel(row.snippetId, body).then((r) => {
+    void saveStateRating(row.snippetId, body).then((r) => {
       setCvSaving(null);
       if (!r.ok) {
         setCvErrors((e) => ({
@@ -223,7 +234,17 @@ export default function CoachStarVerdictOverlay({
       setCvRows((rows) =>
         rows.map((x) =>
           x.snippetId === row.snippetId
-            ? { ...x, label: { confident, intensity: null, note: null } }
+            ? {
+                ...x,
+                label: {
+                  value: unrateable ? null : value,
+                  unrateable,
+                  confident:
+                    value === "yes" ? true : value === "no" ? false : null,
+                  intensity: null,
+                  note: null,
+                },
+              }
             : x
         )
       );
@@ -426,29 +447,22 @@ export default function CoachStarVerdictOverlay({
                     {row.transcript}
                   </p>
                 </div>
-                <p className="text-[13px] font-medium text-foreground">
-                  Was this voice confident?
-                </p>
-                <div className="flex gap-2">
-                  <CoachChip
-                    active={row.label?.confident === true}
-                    disabled={cvSaving === row.snippetId}
-                    onClick={() => labelVoice(row, true)}
-                  >
-                    Yes
-                  </CoachChip>
-                  <CoachChip
-                    active={row.label?.confident === false}
-                    disabled={cvSaving === row.snippetId}
-                    onClick={() => labelVoice(row, false)}
-                  >
-                    No
-                  </CoachChip>
-                  {cvSaving === row.snippetId ? <VoiceMark size={20} /> : null}
-                </div>
-                {cvErrors[row.snippetId] ? (
-                  <CoachErrorLine>{cvErrors[row.snippetId]}</CoachErrorLine>
-                ) : null}
+                {/* THE shared instrument (founder 2026-08-10): the same
+                    component the snippet card and the game render — three
+                    answers + the abstention, no per-surface drift. The
+                    question keeps this row's shipped copy. */}
+                <ConfidenceLabelChips
+                  question="Was this voice confident?"
+                  value={row.label?.value ?? null}
+                  unrateable={row.label?.unrateable === true}
+                  disabled={cvSaving === row.snippetId}
+                  saving={cvSaving === row.snippetId}
+                  error={cvErrors[row.snippetId] ?? null}
+                  onPick={(v) => labelVoice(row, v)}
+                  onToggleUnrateable={() =>
+                    labelVoice(row, null, !(row.label?.unrateable === true))
+                  }
+                />
               </CoachCard>
             ))}
           </div>
