@@ -796,6 +796,12 @@ export default function IdealTextOverlay({
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
+              snippetId: m.snippetId,
+              anchor: m.anchor,
+              hasExplanation: m.hasExplanation === true,
+            }))}
+            arcId={arcId}
             styleChanges={sd.styleChanges}
             decisionHistory={sd.decisionHistory}
             onApplyStyle={applyStyle}

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildDeckChunks, groupChunksBySlide } from "./deckChunks";
+import {
+  buildDeckChunks,
+  coachMomentForChunk,
+  groupChunksBySlide,
+} from "./deckChunks";
 import type { Part } from "./documentParts";
 
 /* The deck's derived state machine (Lovable §2), pinned where it is pure.
@@ -121,6 +125,67 @@ describe("buildDeckChunks — status derivation", () => {
     expect(chunks).toHaveLength(3);
     expect(new Set(chunks.map((c) => c.part.id)).size).toBe(3);
     expect(chunks.every((c) => c.status === "clean")).toBe(true);
+  });
+});
+
+describe("coachMomentForChunk — the coach's feedback finds its words", () => {
+  const chunks = () => buildDeckChunks(DOC, parts(), []);
+  const moment = (over: Record<string, unknown> = {}) => ({
+    snippetId: "snip-1",
+    anchor: "Nobody believed the numbers.",
+    hasExplanation: true,
+    ...over,
+  });
+
+  it("lands on the chunk whose words the anchor sits in", () => {
+    const found = coachMomentForChunk([moment()], DOC, chunks()[1]);
+    expect(found?.snippetId).toBe("snip-1");
+    // …and on no other chunk.
+    expect(coachMomentForChunk([moment()], DOC, chunks()[0])).toBeNull();
+    expect(coachMomentForChunk([moment()], DOC, chunks()[2])).toBeNull();
+  });
+
+  it("ignores a moment the coach left nothing on — an anchor is not feedback", () => {
+    expect(
+      coachMomentForChunk([moment({ hasExplanation: false })], DOC, chunks()[1])
+    ).toBeNull();
+    expect(
+      coachMomentForChunk([moment({ hasExplanation: undefined })], DOC, chunks()[1])
+    ).toBeNull();
+  });
+
+  it("drops an anchor the document no longer contains — never guessed onto a neighbour", () => {
+    // The paragraph was locked and retyped, or a take recomposed the words.
+    const stale = moment({ anchor: "Words that are no longer anywhere." });
+    for (const c of chunks()) {
+      expect(coachMomentForChunk([stale], DOC, c)).toBeNull();
+    }
+  });
+
+  it("survives a blank or missing anchor rather than matching everything", () => {
+    // indexOf("") is 0, which would silently pin every empty anchor to the
+    // first chunk — the one bug this shape invites.
+    for (const bad of ["", "   "]) {
+      expect(coachMomentForChunk([moment({ anchor: bad })], DOC, chunks()[0]))
+        .toBeNull();
+    }
+  });
+
+  it("takes the first matching moment when a chunk carries several", () => {
+    const found = coachMomentForChunk(
+      [
+        moment({ snippetId: "a", anchor: "Nobody believed" }),
+        moment({ snippetId: "b", anchor: "the numbers." }),
+      ],
+      DOC,
+      chunks()[1]
+    );
+    expect(found?.snippetId).toBe("a");
+  });
+
+  it("no moments at all is not an error", () => {
+    expect(coachMomentForChunk(null, DOC, chunks()[0])).toBeNull();
+    expect(coachMomentForChunk([], DOC, chunks()[0])).toBeNull();
   });
 });
 

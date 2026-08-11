@@ -104,7 +104,15 @@ function payload() {
     text,
     moments_unlocked: false,
     explanations_available: false,
-    key_moments: [],
+    key_moments: [
+      {
+        id: "snip-coach",
+        snippet_id: "snip-coach",
+        anchor: P2,
+        take_session_id: "sess-1",
+        has_explanation: true,
+      },
+    ],
     user_edited: false,
     is_saved: false,
     parts: paras.map((t, i) => ({
@@ -192,6 +200,35 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         >;
         window.__deckCalls!.push({ url, method, body, t: performance.now() });
         return json({ ok: true, version: 4 });
+      }
+      if (url.includes("/feedback") && method === "GET") {
+        window.__deckCalls!.push({ url, method, body: null, t: performance.now() });
+        return json({
+          arc_id: "arc-deck",
+          ideal_ready: true,
+          takes: [
+            {
+              take_index: 1,
+              session_id: "sess-1",
+              free: true,
+              locked: false,
+              full_text: TEXT_BEFORE,
+              key_moments: [
+                {
+                  snippet_id: "snip-coach",
+                  slide_index: 1,
+                  recording_kind: "spoken",
+                  transcript: P2,
+                  audio_ref: null,
+                  start_offset_ms: 0,
+                  duration_ms: 1000,
+                  comment_text: "This is the turn — say it slower.",
+                  comment_video_ref: "https://signed.example/coach.webm",
+                },
+              ],
+            },
+          ],
+        });
       }
       if (url.startsWith("/api/")) {
         // Variants, revisions, deck ref, moments — all OFF in this harness.
