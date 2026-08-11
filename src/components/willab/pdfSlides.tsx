@@ -156,7 +156,7 @@ export function TextSlide({ title, body }: { title: string; body: string }) {
         </p>
       ) : null}
       {bullets.length > 0 ? (
-        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-relaxed text-gray-900">
+        <ul className="flex list-disc flex-col gap-2 pl-5 text-[15px] leading-relaxed text-gray-900 marker:text-[0.8em] marker:text-primary">
           {bullets.map((b, i) => (
             <li key={`${i}-${b.slice(0, 12)}`}>{b}</li>
           ))}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Square } from "lucide-react";
+import { ChevronLeft, ChevronRight, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
@@ -48,7 +48,7 @@ import {
   transitionProcessingTakeToDocument,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
-import { deckForRecording, GOLDEN_THREAD } from "@/lib/willab/defaultDeck";
+import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 
@@ -816,7 +816,14 @@ export default function LabOverlay({
           nothing in it is not neutral — it is the dead space the founder
           circled on both screens. */}
       {state === "lab_session_context" || state === "readout" ? null : (
-        <header className="flex h-12 shrink-0 items-center justify-end px-4">
+        <header className="flex h-12 shrink-0 items-center justify-between px-4">
+          {/* The recording screen names itself (founder's mock 2026-08-11).
+              Every other step keeps the bare ✕ — the label is here because
+              this is the one screen you look at while doing something else,
+              and a glance has to answer "what is this". */}
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            {state === "lab_recording" ? "Practice run" : ""}
+          </span>
           <OverlayCloseButton onClick={handleClose} />
         </header>
       )}
@@ -910,10 +917,8 @@ export default function LabOverlay({
             presentationRef={
               recordingDeck.isDefault ? null : context?.presentationRef ?? null
             }
-            goldenThread={recordingDeck.isDefault ? GOLDEN_THREAD : null}
             currentSlide={currentSlide}
             onAdvance={advanceSlide}
-            arcTake={null}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
             // (the context is already deckless-standalone, so just re-submit
             // the new blob). Live-recorded rejections keep "Record again" only.
@@ -1089,7 +1094,10 @@ function PrimingPanel({
 
 /* ------------------------- §4 step B: recording -------------------------- */
 
-function RecordingPhase({
+/** Exported for the /dev/recording harness ONLY — the recording screen is
+ *  otherwise reachable only with a live mic, which is exactly why its layout
+ *  used to go unchecked. */
+export function RecordingPhase({
   micState,
   elapsed,
   targetSec,
@@ -1099,10 +1107,8 @@ function RecordingPhase({
   onRecordAgain,
   slides,
   presentationRef,
-  goldenThread,
   currentSlide,
   onAdvance,
-  arcTake,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
@@ -1120,14 +1126,8 @@ function RecordingPhase({
   onRecordAgain: () => void;
   slides: PresentationSlide[];
   presentationRef: string | null;
-  /** The founder's deck-level line, shown only while the DEFAULT deck is what
-   *  the speaker is presenting (their own deck speaks for itself). null on
-   *  every other take. */
-  goldenThread: string | null;
   currentSlide: number;
   onAdvance: (dir: 1 | -1) => void;
-  /** Current take number when in an explore arc; null for standalone. */
-  arcTake: number | null;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
@@ -1228,89 +1228,125 @@ function RecordingPhase({
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec); // for the bar fill only
   const hasDeck = slides.length > 0;
-  return (
-    <div
-      className={`flex flex-1 flex-col items-center gap-6 text-center ${
-        hasDeck ? "justify-start pt-1" : "justify-center"
-      }`}
-    >
-      {/* T9 — the deck during recording: the user taps to advance while they
-          speak (manual). ALWAYS shown now (founder 2026-08-11) — a speaker
-          who uploaded nothing presents the default three-part deck, so every
-          take produces real slide buckets. */}
-      {hasDeck ? (
-        <>
-          <SlideStage
-            slides={slides}
-            presentationRef={presentationRef}
-            current={currentSlide}
-            onNext={() => onAdvance(1)}
-            onPrev={() => onAdvance(-1)}
-          />
-          {goldenThread ? (
-            <p className="max-w-md text-[12px] leading-snug text-muted-foreground">
-              {goldenThread}
-            </p>
-          ) : null}
-        </>
-      ) : null}
+  const atFirst = currentSlide <= 0;
+  const atLast = currentSlide >= slides.length - 1;
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-destructive">
-          <span className="h-3 w-3 animate-pulse rounded-full bg-destructive" />
-          <span className="text-[13px] font-medium">Recording</span>
-        </div>
-        {arcTake !== null ? (
-          <span className="text-[11px] font-medium uppercase tracking-wider text-primary">
-            Take {batchTake(arcTake)} of 3
-          </span>
-        ) : null}
-      </div>
+  /* THE RECORDING STRIP (respec §4) — ONE line: pulsing dot → clock →
+     progress → stop. It used to be a four-storey tower (the word
+     "Recording", a 40px clock, a bar, then an 80px button) that pushed the
+     slide off the top of a phone. Everything in it still says exactly what
+     it said before; it says it across instead of down.
 
-      {/* R5 — Apple-style countdown → red negative overrun (e.g. -0:36), on
-          EVERY take. Below it, a NUMBERLESS progress bar fills toward the target
-          and turns red + pulses once past it (no digits / no %, AC-9). No target
-          → count up + a neutral pulsing bar. */}
-      <div className="flex flex-col items-center gap-2.5">
-        <p
-          className={`text-[40px] font-semibold tabular-nums ${
-            overrun ? "text-destructive" : "text-foreground"
-          }`}
-        >
-          {clockLabel}
-        </p>
+     The clock keeps its semantics (R5): it counts DOWN to the setup target,
+     reads 0:00 there, then counts UP as a negative overrun. The bar is
+     NUMBERLESS — no digits, no percentage (AC-9) — and both turn to the
+     record red past the target, which is a nudge, never an error. */
+  const strip = (
+    <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3">
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full bg-record/50 motion-safe:animate-pulse"
+        aria-hidden
+      />
+      <span
+        className={`font-mono text-[17px] font-semibold tabular-nums ${
+          overrun ? "text-record" : "text-foreground"
+        }`}
+      >
+        {clockLabel}
+      </span>
+      <div
+        className="h-1 flex-1 overflow-hidden rounded-full bg-border"
+        aria-hidden
+      >
         <div
-          className="h-1.5 w-56 max-w-[70vw] overflow-hidden rounded-full bg-border"
-          aria-hidden
-        >
-          <div
-            className={`h-full rounded-full transition-[width] duration-200 ${
-              overrun
-                ? "animate-pulse bg-destructive"
-                : target == null
-                  ? "animate-pulse bg-muted-foreground/40"
-                  : "bg-primary"
-            }`}
-            style={{
-              width:
-                target == null
-                  ? "100%"
-                  : `${Math.min(100, (elapsed / target) * 100)}%`,
-            }}
-          />
-        </div>
+          className={`h-full rounded-full transition-[width] duration-200 ${
+            overrun
+              ? "motion-safe:animate-pulse bg-record"
+              : target == null
+                ? "motion-safe:animate-pulse bg-muted-foreground/40"
+                : "bg-primary"
+          }`}
+          style={{
+            width:
+              target == null
+                ? "100%"
+                : `${Math.min(100, (elapsed / target) * 100)}%`,
+          }}
+        />
       </div>
-
-      {/* BE-2/R6-FE5 — stop is always available; there is no minimum recording
-          time anywhere (the old 60s lock + too-short prompts are gone). */}
+      {/* BE-2/R6-FE5 — stop is always available; there is no minimum
+          recording time anywhere (the old 60s lock is gone). */}
       <button
         type="button"
         onClick={onStop}
         aria-label="Stop recording"
-        className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-transform hover:scale-105"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-record text-record-foreground transition-transform hover:scale-105"
       >
-        <Square className="h-7 w-7 fill-current" />
+        <Square className="h-3.5 w-3.5 fill-current" />
       </button>
+    </div>
+  );
+
+  if (!hasDeck) {
+    // No deck at all is a state the product no longer produces (a speaker
+    // who uploaded nothing presents the default deck), but a take with an
+    // empty slide list must still be stoppable.
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end pb-[env(safe-area-inset-bottom)]">
+        {strip}
+      </div>
+    );
+  }
+
+  /* THE COLUMN (respec §2): the slide takes the room that is going spare and
+     the dock is PINNED to the bottom, above the home indicator. The controls
+     you need mid-sentence are always in the same place — they never ride up
+     and down with the length of a slide's text. */
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      {/* T9 — the deck during recording: the user taps to advance while they
+          speak (manual). ALWAYS shown (founder 2026-08-11) — a speaker who
+          uploaded nothing presents the default three-part deck, so every take
+          produces real slide buckets. */}
+      <div className="flex flex-1 flex-col">
+        <SlideStage
+          slides={slides}
+          presentationRef={presentationRef}
+          current={currentSlide}
+          onNext={() => onAdvance(1)}
+        />
+      </div>
+
+      <div className="flex shrink-0 flex-col gap-3 pt-6 pb-[env(safe-area-inset-bottom)]">
+        {strip}
+        {/* THE NAV (respec §3) — Next is the whole width because it is the
+            one control you reach for while speaking; Back is a 56px circle
+            beside it, reachable but not competing. Both call the SAME
+            `onAdvance` the taps always did: those timestamps are the
+            word→slide bucketing input, so the layout moved and the wiring
+            did not. */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onAdvance(-1)}
+            disabled={atFirst}
+            aria-label="Previous slide"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onAdvance(1)}
+            disabled={atLast}
+            aria-label="Next slide"
+            className="flex h-14 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+          >
+            {atLast ? "Last slide" : "Next slide"}
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
