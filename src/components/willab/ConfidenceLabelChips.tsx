@@ -68,6 +68,10 @@ export default function ConfidenceLabelChips({
           <CoachChip
             key={r.value}
             active={value === r.value && !unrateable}
+            // disabled reaches the DOM button, not just the handler — a
+            // second tap must not race an in-flight save, and the e2e pins
+            // the property, not the guard.
+            disabled={disabled}
             onClick={() => {
               if (!disabled) onPick(r.value);
             }}

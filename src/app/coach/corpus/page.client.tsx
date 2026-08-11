@@ -1141,7 +1141,10 @@ function LabelScreen({
               value={abstained ? null : answered}
               unrateable={abstained}
               disabled={savingId === piece.snippetId}
-              saving={savingId === piece.snippetId}
+              // The NAV BAR owns the pending state on this screen ("Saving…"
+              // + the amber dot) — a second Saving… inside the chips would
+              // say it twice, and the e2e pins exactly one.
+              saving={false}
               onPick={(v) => void save(v)}
               onToggleUnrateable={() =>
                 void save(null, undefined, {

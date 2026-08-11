@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  PUT /api/v2/user/snippets/[snippetId]/owner-confidence-label               */
@@ -12,9 +13,11 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 /*  latency_ms. Coach + owner are the two labels that admit a snippet to      */
 /*  the game ("min twice labelled").                                          */
 /*                                                                            */
-/*  Relayed VERBATIM — the BE owns validation (a coerced value would          */
-/*  fabricate training data). Auth REQUIRED: the label must be attributable   */
-/*  and the BE ownership-gates the snippet to the caller.                     */
+/*  Relayed VERBATIM through callBackend (the single BFF idiom — check:bff;   */
+/*  the neighbouring snippet proxies only predate the rule): the BE owns      */
+/*  validation, because a coerced value would fabricate training data. Auth   */
+/*  REQUIRED — callBackend's own 401 — and the BE ownership-gates the         */
+/*  snippet to the caller (404 otherwise).                                    */
 /*                                                                            */
 /*  Success 200: { saved: true, snippet_id }                                  */
 /*  401 UNAUTHENTICATED · 404 not the caller's snippet · 5xx unavailable      */
@@ -26,66 +29,12 @@ export const maxDuration = 30;
 export async function PUT(
   req: NextRequest,
   { params }: { params: { snippetId: string } }
-) {
-  try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    const id = encodeURIComponent(params.snippetId);
-    const body = await req.text();
-
-    let upstream: Response;
-    try {
-      upstream = await fetch(
-        `${backend}/v2/user/snippets/${id}/owner-confidence-label`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: body || "{}",
-          cache: "no-store",
-        }
-      );
-    } catch (err) {
-      console.error("owner_confidence_label.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Label service unavailable." },
-        { status: 502 }
-      );
-    }
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const name = err instanceof Error ? err.name : "Unknown";
-    console.error(
-      `owner_confidence_label.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
-      err
-    );
-    return NextResponse.json(
-      {
-        code: "BFF_THROWN",
-        error: `BFF threw: ${name}: ${message}`,
-        bff_revision: "owner-confidence-label-v1",
-      },
-      { status: 500 }
-    );
-  }
+): Promise<NextResponse> {
+  const id = encodeURIComponent(params.snippetId);
+  const body = await req.text();
+  return callBackend(`/v2/user/snippets/${id}/owner-confidence-label`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: body || "{}",
+  });
 }
