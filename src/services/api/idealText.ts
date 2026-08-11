@@ -582,8 +582,61 @@ export function mapParts(raw: unknown): Part[] | null {
     const text = typeof r.text === "string" ? r.text : "";
     if (!id || !text.trim()) continue;
     // SPEC §4 — the BE sends a BOOLEAN, never the lock timestamp: the client
-    // needs to know which control to draw and nothing more.
-    out.push({ id, text, locked: r.locked === true });
+    // needs to know which control to draw and nothing more. `iteration` is
+    // the slice-2 maturity counter (how many lock-in cycles), a plain
+    // process count — absent/invalid reads 0.
+    const it =
+      typeof r.iteration === "number" &&
+      Number.isInteger(r.iteration) &&
+      r.iteration >= 0
+        ? r.iteration
+        : 0;
+    out.push({ id, text, locked: r.locked === true, iteration: it });
+  }
+  return out;
+}
+
+/** One decided proposal from the ledger, text included (slice 2). */
+export interface DecisionHistoryEntry {
+  quote: string | null;
+  proposedText: string | null;
+  why: ChangeWhy | null;
+  decision: "approved" | "disregarded" | null;
+  changeKey: string | null;
+}
+
+/** Map the GET's `decision_history` block. ABSENT → null. Rows with neither
+ *  text are useless to a reader and are dropped (the BE filters them too —
+ *  belt and braces, never invented). The why key is clamped to the same
+ *  closed vocabulary as a live change: un-signed-off prose never renders. */
+export function mapDecisionHistory(raw: unknown): DecisionHistoryEntry[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: DecisionHistoryEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const quote =
+      typeof r.quote === "string" && r.quote.trim() ? r.quote : null;
+    const proposed =
+      typeof r.proposed_text === "string" && r.proposed_text.trim()
+        ? r.proposed_text
+        : null;
+    if (!quote && !proposed) continue;
+    const why =
+      typeof r.why_key === "string" &&
+      (CHANGE_WHY_KEYS as readonly string[]).includes(r.why_key)
+        ? (r.why_key as ChangeWhy)
+        : null;
+    out.push({
+      quote,
+      proposedText: proposed,
+      why,
+      decision:
+        r.decision === "approved" || r.decision === "disregarded"
+          ? r.decision
+          : null,
+      changeKey: typeof r.change_key === "string" ? r.change_key : null,
+    });
   }
   return out;
 }
@@ -701,6 +754,14 @@ export type IdealTextResult =
       /** LIVING TRANSCRIPT (BE-C) — span-anchored tracked changes over the
        *  served text. null (absent) → today's star/quote view. */
       suggestions: DocumentSuggestion[] | null;
+      /** THE STYLE LANE (slice 2, founder 2026-08-11) — post-lock bold
+       *  proposals riding OUTSIDE the ≤3 budget. Same wire shape as
+       *  `changes`; surfaced only inside the chunk modal, never as an
+       *  underline. null = absent (older BE / none pending). */
+      styleChanges: DocumentSuggestion[] | null;
+      /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals that
+       *  still carry their text, newest first. null = absent. */
+      decisionHistory: DecisionHistoryEntry[] | null;
       /** MASTER DOCUMENT (BE-3) — whether THIS version is saved
        *  (accept-and-freeze). The BE serves it as `is_saved`, computed as
        *  saved_version == version AND no pending offers, so a document
@@ -1029,6 +1090,8 @@ export async function fetchIdealText(
       // alias was a live bypass socket: any payload carrying that key
       // rendered ungated (founder 2026-08-10, sole-gatekeeper rip).
       suggestions: mapDocumentSuggestions(body.changes),
+      styleChanges: mapDocumentSuggestions(body.style_changes),
+      decisionHistory: mapDecisionHistory(body.decision_history),
       // `is_saved` is the BE's field; `saved` tolerated as an alias so a
       // rename cannot silently strand the whole save lane.
       saved:
