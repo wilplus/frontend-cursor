@@ -30,34 +30,38 @@ export interface DeckSlide {
   body: string;
 }
 
+/* The rule lands on its OWN line in every slide — the founder's mock shows
+ * each body as two bullets, and `bulletLines` splits on newlines. Only the
+ * line break is new; not one word of the copy changed. */
 export const DEFAULT_DECK: readonly DeckSlide[] = [
   {
     title: "Intro — the hook + the promise.",
     body:
       "Grab attention (question, surprising fact, story), state why it " +
-      "matters to them, and tell them the one thing they'll get. Rule: say " +
-      "what you're going to say.",
+      "matters to them, and tell them the one thing they'll get.\n" +
+      "Rule: say what you're going to say.",
   },
   {
     title: "Body — one core message, 3 supporting points.",
     body:
       "Make a single argument, back it with ~3 points, each with " +
-      "evidence/example. Rule: say it — tell, show, prove.",
+      "evidence/example.\n" +
+      "Rule: say it — tell, show, prove.",
   },
   {
     title: "Ending — recap + call to action.",
     body:
       "Restate the one takeaway, then tell them exactly what to do/feel/" +
-      "remember next. Rule: say what you said, and close with a clear ask.",
+      "remember next.\n" +
+      "Rule: say what you said, and close with a clear ask.",
   },
 ];
 
-/** The deck-level line the founder writes under the three slides. Not a slide
- *  of its own — it is what ties them together, and it renders as guidance
- *  beside the deck rather than as something to speak. */
-export const GOLDEN_THREAD =
-  "Golden thread: one message, told three times — promise it, prove it, " +
-  "repeat it.";
+/* GOLDEN_THREAD lived here — the deck-level line printed under the three
+ * slides. Deleted with the recording-screen respec (founder 2026-08-11, §6):
+ * the screen you look at mid-sentence carries the slide and the controls,
+ * nothing to read about the deck. The three slides still carry the rules
+ * themselves, in their own bodies. */
 
 /** The deck to record against: the speaker's own if they uploaded one, else
  *  the default.

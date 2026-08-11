@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DECK,
-  GOLDEN_THREAD,
   deckForRecording,
 } from "./defaultDeck";
 
@@ -26,9 +25,6 @@ describe("DEFAULT_DECK — the founder's mock presentation", () => {
     expect(DEFAULT_DECK[1].body).toContain("Rule: say it — tell, show, prove.");
     expect(DEFAULT_DECK[2].body).toContain(
       "Rule: say what you said, and close with a clear ask."
-    );
-    expect(GOLDEN_THREAD).toBe(
-      "Golden thread: one message, told three times — promise it, prove it, repeat it."
     );
   });
 

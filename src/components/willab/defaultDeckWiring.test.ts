@@ -58,7 +58,12 @@ describe("the deckless take records against the default deck", () => {
     expect(LAB).toMatch(/recordingDeck\.isDefault\s*\?\s*null/);
   });
 
-  it("the founder's golden thread rides only the default deck", () => {
-    expect(LAB).toMatch(/goldenThread=\{recordingDeck\.isDefault \? GOLDEN_THREAD : null\}/);
+  it("the golden-thread line is gone from the recording screen", () => {
+    // Founder 2026-08-11, respec §6: "Golden-thread text deleted entirely."
+    // Asserted on the SOURCE because the line was a prop threaded through
+    // two components — deleting the render and leaving the prop is how a
+    // deleted thing comes back.
+    expect(LAB).not.toMatch(/goldenThread/);
+    expect(LAB).not.toMatch(/GOLDEN_THREAD/);
   });
 });

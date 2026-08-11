@@ -74,6 +74,13 @@ const config: Config = {
         // colour-emphasis (see globals.css for the restraint rationale).
         pending: "hsl(var(--pending))",
         emphasis: "hsl(var(--emphasis))",
+        // Live capture — the pulsing dot, the stop button, an overrun
+        // clock. NOT --destructive: recording is not an error state (see
+        // globals.css for the full rationale).
+        record: {
+          DEFAULT: "hsl(var(--record))",
+          foreground: "hsl(var(--record-foreground))",
+        },
       },
     },
   },

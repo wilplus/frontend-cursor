@@ -52,6 +52,21 @@
        both themes — the --success precedent. */
     --pending: 38 92% 50%;
     --emphasis: 9 65% 45%;
+
+    /* THE RECORD SIGNAL (founder 2026-08-11, recording-screen respec §1).
+       The live-capture red: the pulsing dot and the stop button while the
+       mic is open, and the clock once it runs past the target.
+
+       A pair of its own because the recording UI was borrowing
+       --destructive, and destructive means ERROR — delete confirms, failed
+       saves, a mic that refused. Recording is not a failure state, and
+       neither is speaking longer than you planned ("the red is only a
+       nudge"). Same family of red, opposite meaning; a surface that keeps
+       borrowing the wrong token eventually inherits the wrong behaviour.
+       Orange stays --primary's: the accent marks progress (the bar, the
+       Next slide pill), the record red marks capture. */
+    --record: 5 79% 54%;
+    --record-foreground: 0 0% 100%;
   }
 
   /*
@@ -87,6 +102,9 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
     --primary: 24 95% 53%;
+    /* The record signal reads slightly brighter on the dark surface. */
+    --record: 5 85% 60%;
+    --record-foreground: 0 0% 100%;
   }
 }
 
