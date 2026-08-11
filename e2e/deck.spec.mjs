@@ -213,14 +213,13 @@ await page.evaluate(() => {
 await page.waitForSelector("text=Locked chunk");
 check(
   "a locked chunk still shows that the coach left something on these words (the founder's rule)",
-  (await page.locator("text=From your coach").count()) === 1 &&
-    (await page.locator("button", { hasText: "See what your coach said here" }).count()) === 1
+  (await page.locator("text=Coach note:").count()) === 1
 );
 check(
   "…and nothing was fetched to say so — the metered feedback read has NOT fired",
   (await calls(page)).filter((c) => c.url.includes("/feedback")).length === 0
 );
-await page.locator("button", { hasText: "See what your coach said here" }).click();
+await page.locator("button", { hasText: "Coach note:" }).click();
 await page.waitForTimeout(500);
 check(
   "the tap loads the coach's note and video — one metered read, on a deliberate act",
@@ -238,7 +237,7 @@ check(
   await (async () => {
     await mark("clean").click();
     await page.waitForSelector("text=No feedback pending");
-    const none = (await page.locator("text=From your coach").count()) === 0;
+    const none = (await page.locator("text=Coach note:").count()) === 0;
     await page.locator('[role="dialog"] button[aria-label="Close"]').click();
     await page.waitForTimeout(150);
     return none;

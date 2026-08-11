@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Star } from "lucide-react";
+import { BadgeCheck, Crown } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
@@ -211,7 +211,7 @@ export default function StudentDetailOverlay({
                     }
                     className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
                   >
-                    <Star
+                    <BadgeCheck
                       className="h-4 w-4 shrink-0 text-muted-foreground"
                       fill="none"
                       aria-hidden

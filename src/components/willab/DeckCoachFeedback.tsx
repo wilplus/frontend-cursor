@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info, Loader2, Play } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { fetchArcFeedback } from "@/services/api/arcFeedback";
 
 /* -------------------------------------------------------------------------- */
@@ -23,6 +23,9 @@ import { fetchArcFeedback } from "@/services/api/arcFeedback";
 /*  and/or a video), and only the deliberate tap pays, exactly as opening the  */
 /*  feedback page from the Lounge does today.                                  */
 /* -------------------------------------------------------------------------- */
+
+/** The founder's copy, in full (2026-08-11). */
+const LABEL = "Coach note:";
 
 interface Loaded {
   note: string | null;
@@ -62,25 +65,24 @@ export default function DeckCoachFeedback({
     setState("ready");
   }
 
+  // ONE string on this card (founder 2026-08-11: "Change the copy to simply
+  // say: 'Coach note:'"). While it is idle the CARD is the affordance, so
+  // there is no second label to invent.
+  if (state === "idle") {
+    return (
+      <button
+        type="button"
+        onClick={() => void open()}
+        className="flex w-full items-center gap-2 rounded-2xl border border-border bg-card p-4 text-left text-[13px] font-medium text-foreground transition-colors hover:border-foreground/30"
+      >
+        {LABEL}
+      </button>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        <Info className="h-3.5 w-3.5" aria-hidden />
-        From your coach
-      </p>
-
-      {state === "idle" ? (
-        <button
-          type="button"
-          onClick={() => void open()}
-          className="self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <span className="inline-flex items-center gap-1.5">
-            <Play className="h-3.5 w-3.5" aria-hidden />
-            See what your coach said here
-          </span>
-        </button>
-      ) : null}
+      <p className="text-[13px] font-medium text-foreground">{LABEL}</p>
 
       {state === "loading" ? (
         <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -91,8 +93,7 @@ export default function DeckCoachFeedback({
 
       {state === "empty" ? (
         <p className="text-[13px] leading-relaxed text-muted-foreground">
-          Couldn&apos;t open your coach&apos;s note just now. Close this and
-          try again.
+          Couldn&apos;t open this just now. Close and try again.
         </p>
       ) : null}
 

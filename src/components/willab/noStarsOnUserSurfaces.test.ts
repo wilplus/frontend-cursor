@@ -13,18 +13,13 @@ import { join } from "node:path";
 /*  a render test only ever covers the surface it mounts. What must hold is a  */
 /*  property of the code: no USER-lane file draws a star.                     */
 /*                                                                            */
-/*  WHAT IS ALLOWED, and why it is not a hole: the COACH's star-verdict review */
-/*  (the blind labelling lane where a coach judges the machine's fired         */
-/*  suggestions) keeps its icon — the founder kept the labelling flow and cut  */
-/*  the student-facing visual. Those two files are named here, so adding a     */
-/*  seventh star anywhere else fails rather than passing unnoticed.            */
+/*  NOTHING IS EXEMPT (founder 2026-08-11, second pass: "Let's eradicate       */
+/*  'stars' completely across the entire platform"). The coach's star-verdict  */
+/*  review kept its icon for one slice; it now wears a neutral approval mark   */
+/*  like everything else. The labelling FLOW is untouched — only the glyph     */
+/*  changed — so this fence costs the coach nothing and leaves no corner       */
+/*  where a star can quietly return.                                          */
 /* -------------------------------------------------------------------------- */
-
-/** Coach-only surfaces, exempt by founder ruling (the labelling flow stays). */
-const COACH_STAR_SURFACES = new Set([
-  "src/components/willab/CoachStarVerdictOverlay.tsx",
-  "src/components/willab/StudentDetailOverlay.tsx",
-]);
 
 const ROOTS = ["src/components", "src/app"];
 
@@ -54,20 +49,19 @@ describe("no stars on user surfaces (founder 2026-08-11)", () => {
     expect(files.length).toBeGreaterThan(40);
   });
 
-  it("no user-lane component draws a star icon", () => {
-    const offenders = files
-      .filter((f) => !COACH_STAR_SURFACES.has(f))
-      .filter((f) => drawsAStar(readFileSync(f, "utf8")));
+  it("NO component draws a star icon — user lane or coach lane", () => {
+    const offenders = files.filter((f) => drawsAStar(readFileSync(f, "utf8")));
     expect(offenders).toEqual([]);
   });
 
-  it("the coach's star-verdict lane still has its icon — the labelling flow was kept, only the student-facing visual was cut", () => {
-    // Guards the exemption from rotting into a stale allowlist: if these stop
-    // drawing a star, the exemption should go with them.
-    const drawing = [...COACH_STAR_SURFACES].filter((f) =>
-      drawsAStar(readFileSync(f, "utf8"))
+  it("the coach's verdict lane still marks its rows — the glyph changed, the labelling flow did not", () => {
+    // The rip must not read as "the coach tool lost its affordance": the row
+    // still carries a mark, it is simply a neutral one.
+    const overlay = readFileSync(
+      "src/components/willab/CoachStarVerdictOverlay.tsx",
+      "utf8"
     );
-    expect(drawing.sort()).toEqual([...COACH_STAR_SURFACES].sort());
+    expect(overlay).toMatch(/<BadgeCheck/);
   });
 
   it("the star RENDERERS are gone from the tree, not merely unmounted", () => {
