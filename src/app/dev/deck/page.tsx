@@ -37,6 +37,7 @@ const TEXT_AFTER = [P0, P1_AFTER, P2, P3].join("\n\n");
  *  BE's reassembly + decisions ledger would. */
 let decided: "pending" | "approved" | "dismissed" = "pending";
 let locked1 = false; // p1's part lock, settable via the lock PUT
+let styleApplied = false; // the locked chunk's style proposal (slice 2)
 
 function payload() {
   const text = decided === "approved" ? TEXT_AFTER : TEXT_BEFORE;
@@ -73,6 +74,24 @@ function payload() {
     status: "approved",
     visual: "bold",
   });
+  // SLICE 2 — the post-lock style lane: a bold on the LOCKED chunk (p2),
+  // served beside the budgeted list. Gone once applied.
+  const sq = "changed everything";
+  const style_changes = styleApplied
+    ? []
+    : [{
+        id: "style-1",
+        snippet_id: "snip-3",
+        take_session_id: "sess-1",
+        kind: "bold",
+        source: "polish",
+        span: { start: text.indexOf(sq), end: text.indexOf(sq) + sq.length },
+        quote: sq,
+        why_key: "emphasis",
+        status: "pending",
+        visual: "bold",
+        style_lane: true,
+      }];
   return {
     arc_id: "arc-deck",
     status: "verified",
@@ -93,6 +112,8 @@ function payload() {
       ord: i,
       text: t,
       locked: i === 2 || (i === 1 && locked1),
+      // SLICE 2 — the maturity counter: p2 has survived two lock-ins.
+      iteration: i === 2 ? 2 : i === 1 && locked1 ? 1 : 0,
     })),
     pieces: paras.map((t, i) => ({
       piece_key: i,
@@ -106,6 +127,21 @@ function payload() {
     })),
     additions: [],
     changes,
+    style_changes,
+    // SLICE 2 — the decided-proposal history: one earlier round on p0's
+    // words, kept readable with its texts.
+    decision_history: [
+      {
+        change_key: "prior_take:garage",
+        decision: "disregarded",
+        lane: "lane:prior_take",
+        intervention_type: "REWRITE",
+        quote: "started this in a garage",
+        proposed_text:
+          "We began this in a garage with one borrowed mic.",
+        why_key: "energy",
+      },
+    ],
   };
 }
 
@@ -133,9 +169,11 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       if (url.includes("/suggestion-feedback") && method === "POST") {
         const body = JSON.parse(String(init?.body ?? "{}")) as {
           action?: string;
+          style_lane?: boolean;
         };
         window.__deckCalls!.push({ url, method, body, t: performance.now() });
-        decided = body.action === "applied" ? "approved" : "dismissed";
+        if (body.style_lane) styleApplied = true;
+        else decided = body.action === "applied" ? "approved" : "dismissed";
         return json({ saved: true });
       }
       if (/\/parts\/[^/]+\/lock/.test(url) && method === "PUT") {

@@ -52,6 +52,15 @@ export interface SuggestionFeedbackInput {
   /** LIVING TRANSCRIPT — the tracked change's own id, so the ledger can
    *  remember THIS span's decision (a document carries many). */
   suggestionId?: string;
+  /** PROPOSAL HISTORY (slice 2) — the texts ride the decide so the ledger
+   *  can list this proposal later; a dismissed one is otherwise
+   *  unrecoverable. Optional: older payloads simply write text-less rows. */
+  quote?: string | null;
+  proposedText?: string | null;
+  whyKey?: string | null;
+  /** THE STYLE LANE (slice 2) — marks a post-lock bold decision, which the
+   *  BE records with lane:style so it never spends a ≤3 budget slot. */
+  styleLane?: boolean;
 }
 
 export async function sendSuggestionFeedback(
@@ -71,6 +80,10 @@ export async function sendSuggestionFeedback(
   if (input.suggestionVersion != null) {
     payload.suggestion_version = input.suggestionVersion;
   }
+  if (input.quote) payload.quote = input.quote;
+  if (input.proposedText) payload.proposed_text = input.proposedText;
+  if (input.whyKey) payload.why_key = input.whyKey;
+  if (input.styleLane) payload.style_lane = true;
 
   let res: Response;
   try {

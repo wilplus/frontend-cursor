@@ -54,13 +54,21 @@ export async function decideBlock(
   arcId: string,
   blockKey: number,
   action: "accept" | "keep",
-  takeSessionId: string
+  takeSessionId: string,
+  /** PROPOSAL HISTORY (slice 2) — optional texts for the ledger. */
+  texts?: { quote?: string | null; proposedText?: string | null; whyKey?: string | null }
 ): Promise<BlockDecideResult> {
   return post(
     `/api/v2/explore/arc/${encodeURIComponent(arcId)}/blocks/${encodeURIComponent(
       String(blockKey)
     )}/decide`,
-    { action, take_session_id: takeSessionId }
+    {
+      action,
+      take_session_id: takeSessionId,
+      ...(texts?.quote ? { quote: texts.quote } : {}),
+      ...(texts?.proposedText ? { proposed_text: texts.proposedText } : {}),
+      ...(texts?.whyKey ? { why_key: texts.whyKey } : {}),
+    }
   );
 }
 
@@ -80,6 +88,8 @@ export async function decidePriorTake(
       snippet_id: s.snippetId,
       quote: s.quote,
       proposed_text: s.proposedText,
+      // PROPOSAL HISTORY (slice 2) — the rationale key for the ledger.
+      ...(s.why ? { why_key: s.why } : {}),
     }
   );
 }

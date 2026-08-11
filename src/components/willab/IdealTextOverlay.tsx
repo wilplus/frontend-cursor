@@ -36,6 +36,7 @@ import {
   saveIdealNotes,
   saveIdealUserEdit,
   segmentIdealText,
+  type DecisionHistoryEntry,
   type IdealKeyMomentLink,
   type DocumentSuggestion,
   type IdealPiece,
@@ -150,6 +151,9 @@ export default function IdealTextOverlay({
     latestTakeSessionId: string | null;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
+    /** Slice 2 — the post-lock style lane + the decided-proposal history. */
+    styleChanges: DocumentSuggestion[] | null;
+    decisionHistory: DecisionHistoryEntry[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
     /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
@@ -313,6 +317,8 @@ export default function IdealTextOverlay({
           latestTakeSessionId: r.latestTakeSessionId,
           pieces: r.pieces,
           suggestions: r.suggestions,
+          styleChanges: r.styleChanges,
+          decisionHistory: r.decisionHistory,
           saved: r.saved,
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
@@ -599,7 +605,9 @@ export default function IdealTextOverlay({
     if (s.source === "new_take") {
       if (s.blockKey === null || !s.takeSessionId) return false;
       outcome = (
-        await decideBlock(arcId, s.blockKey, accept ? "accept" : "keep", s.takeSessionId)
+        await decideBlock(arcId, s.blockKey, accept ? "accept" : "keep",
+          s.takeSessionId,
+          { quote: s.quote, proposedText: s.proposedText, whyKey: s.why })
       ).kind;
     } else if (s.source === "prior_take") {
       outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep")).kind;
@@ -611,6 +619,10 @@ export default function IdealTextOverlay({
         target: s.kind === "bold" ? "document_bold" : "document_replace",
         action: accept ? "applied" : "dismissed",
         suggestionId: s.id,
+        // PROPOSAL HISTORY (slice 2) — the ledger keeps the texts.
+        quote: s.quote,
+        proposedText: s.proposedText,
+        whyKey: s.why,
       });
       outcome = r.saved ? "ok" : "error";
     }
@@ -638,6 +650,37 @@ export default function IdealTextOverlay({
       fetchGenRef.current++; // fence any in-flight pre-decision GET
       setRefetchNonce((n) => n + 1);
     }
+    return true;
+  };
+
+  // THE STYLE LANE (slice 2): apply a post-lock emphasis. Outside the ≤3
+  // budget — styleLane marks the ledger row lane:style, which the spend
+  // counter excludes. The fold bakes server-side; the refetch brings it in.
+  const applyStyle = async (s: DocumentSuggestion): Promise<boolean> => {
+    if (!s.snippetId || !s.takeSessionId) return false;
+    const r = await sendSuggestionFeedback({
+      snippetId: s.snippetId,
+      sessionId: s.takeSessionId,
+      target: "document_bold",
+      action: "applied",
+      suggestionId: s.id,
+      quote: s.quote,
+      whyKey: s.why,
+      styleLane: true,
+    });
+    if (!r.saved) return false;
+    setSd((prev) =>
+      prev
+        ? {
+            ...prev,
+            styleChanges: (prev.styleChanges ?? []).map((x) =>
+              x.id === s.id ? { ...x, status: "approved" as const } : x
+            ),
+          }
+        : prev
+    );
+    fetchGenRef.current++;
+    setRefetchNonce((n) => n + 1);
     return true;
   };
 
@@ -784,6 +827,9 @@ export default function IdealTextOverlay({
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            styleChanges={sd.styleChanges}
+            decisionHistory={sd.decisionHistory}
+            onApplyStyle={applyStyle}
           />
           {/* MATERIAL RECOVERY — below the deck, same reasoning as before:
               nothing in the text to anchor to. */}
