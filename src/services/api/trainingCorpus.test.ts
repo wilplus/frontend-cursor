@@ -52,13 +52,51 @@ describe("mapQueuePiece — drop-not-repair", () => {
     const m = mapQueuePiece(
       piece({ label: { confident: true, intensity: 4, note: "hard to call" } })
     );
-    expect(m?.label).toEqual({ confident: true, intensity: 4, note: "hard to call" });
+    expect(m?.label).toEqual({
+      value: "yes",
+      unrateable: false,
+      confident: true,
+      intensity: 4,
+      note: "hard to call",
+    });
   });
 
   it("keeps a yes/no call that was never graded", () => {
     expect(
       mapQueuePiece(piece({ label: { confident: false } }))?.label
-    ).toEqual({ confident: false, intensity: null, note: null });
+    ).toEqual({
+      value: "no",
+      unrateable: false,
+      confident: false,
+      intensity: null,
+      note: null,
+    });
+  });
+
+  it("a stored NEUTRAL reads back as answered — never re-asked (the 2026-08-10 read bug)", () => {
+    // A neutral row carries confident=NULL by design; the old boolean-only
+    // read rendered it unlabelled and the panel re-asked forever.
+    expect(
+      mapQueuePiece(piece({ label: { value: "neutral" } }))?.label
+    ).toEqual({
+      value: "neutral",
+      unrateable: false,
+      confident: null,
+      intensity: null,
+      note: null,
+    });
+  });
+
+  it("an abstention (unrateable) reads back as a label too — a statement about the rater, not an unanswered row", () => {
+    expect(
+      mapQueuePiece(piece({ label: { unrateable: true } }))?.label
+    ).toEqual({
+      value: null,
+      unrateable: true,
+      confident: null,
+      intensity: null,
+      note: null,
+    });
   });
 
   it("treats a non-boolean confident as UNLABELLED — the piece gets asked again rather than showing a call the coach never gave", () => {

@@ -1255,6 +1255,11 @@ export default function Lounge({
         <CoachStarVerdictOverlay
           arcId={starVerdictArcId.arcId}
           sessionIds={starVerdictArcId.sessionIds}
+          // Final migration (founder 2026-08-10): the panel's per-take rows
+          // open the take review from HERE — the Lounge, the one hub allowed
+          // to know both flows, wires the walker in as a prop so the panel
+          // imports nothing from the blind-labeling lane (N1).
+          onOpenTakeReview={openReview}
           onClose={() => setStarVerdictArcId(null)}
         />
       )}

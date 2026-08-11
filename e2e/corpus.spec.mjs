@@ -430,9 +430,15 @@ await yesClick;
 await page.waitForTimeout(350);
 let put = await labels(page);
 check(
-  "Yes alone is a complete label — a real boolean, no intensity",
+  // 2026-08-10, the unified ternary instrument: a bare answer rides the
+  // ternary body (the same wire every label lane speaks now); the legacy
+  // {confident} shape survives ONLY for the graded one-judgment re-send
+  // below. The point of this check is unchanged — an answer alone is a
+  // complete label, and no intensity rides along uninvited (N3).
+  "Yes alone is a complete label — the ternary answer, no intensity",
   put.length === 1 &&
-    JSON.stringify(put[0].body) === JSON.stringify({ confident: true }),
+    JSON.stringify(put[0].body) ===
+      JSON.stringify({ state_id: "confidence", value: "yes" }),
   JSON.stringify(put[0]?.body)
 );
 check("the 1–5 row appears only now", (await page.locator("text=How strongly?").count()) === 1);

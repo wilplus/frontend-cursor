@@ -23,6 +23,12 @@ import {
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import {
+  buildRatingBody,
+  saveOwnerConfidenceLabel,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import { fetchTokenBalance } from "@/services/api/tokens";
 import { TOKENS_COPY, formatShortDate, formatTokens } from "@/components/tokens/copy";
 import { useActionPrice } from "@/components/tokens/useActionPrice";
@@ -107,6 +113,45 @@ function SheetBackDismiss({ onClose }: { onClose: () => void }) {
 /** MOMENT_SUGGESTIONS — the moment sheet body. Snippet playback is always free
  *  at the top; then either the grey suggestion card (free) or the verified
  *  coach message (paid — locked shows the blurred teaser + unlock). */
+/** The owner's blind-label block inside the moment sheet — one commit per
+ *  open; the BE upsert replaces this rater's row, so a re-open after reload
+ *  re-offering is harmless (last write wins, same rater). */
+function OwnerLabelBlock({ snippetId }: { snippetId: string }) {
+  const [value, setValue] = useState<TernaryValue | null>(null);
+  const [unrateable, setUnrateable] = useState(false);
+  const [committed, setCommitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const commit = (v: TernaryValue | null, abstain = false) => {
+    if (saving || committed) return;
+    const body = buildRatingBody(v, abstain);
+    if (!body) return;
+    setSaving(true);
+    setError(null);
+    void saveOwnerConfidenceLabel(snippetId, body).then((r) => {
+      setSaving(false);
+      if (!r.ok) {
+        setError(r.error ?? "Couldn't save that. Try again.");
+        return;
+      }
+      setValue(abstain ? null : v);
+      setUnrateable(abstain);
+      setCommitted(true);
+    });
+  };
+  return (
+    <ConfidenceLabelChips
+      value={value}
+      unrateable={unrateable}
+      disabled={saving || committed}
+      saving={saving}
+      error={error}
+      onPick={(v) => commit(v)}
+      onToggleUnrateable={() => commit(null, true)}
+    />
+  );
+}
+
 function MomentSheetBody({
   moment,
   momentContent,
@@ -155,6 +200,16 @@ function MomentSheetBody({
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <audio src={moment.snippetAudioRef} controls className="w-full" />
         )
+      ) : null}
+      {/* THE BLIND LABEL (founder 2026-08-10: "the modal in the ideal text
+          has an option to label the voice snippet"). The owner rates their
+          own voice with the same instrument every other lane renders —
+          coach + owner are the two labels that admit a snippet to the
+          game. NOT on verified moments (the coach's message is on screen,
+          so a label taken here wouldn't be blind) and not on read-only
+          history. One commit per open: the chips disable once it lands. */}
+      {!readOnly && moment.star !== "verified" && moment.snippetId ? (
+        <OwnerLabelBlock snippetId={moment.snippetId} />
       ) : null}
       {suggestion ? (
         suggestion.kind === "structure" ? (
@@ -664,16 +719,14 @@ export function MomentStarText({
       // keeping the old words while the sheet claims a swap happened.
       const fold = foldFor?.(m);
       if (fold) return { star: null, quote: null, fold };
-      const k = m.suggestion?.kind;
-      const star =
-        m.star === "verified"
-          ? ("verified" as const)
-          : m.star === "suggestion"
-            ? k === "structure" || k === "delivery"
-              ? ("practice" as const)
-              : ("suggestion" as const)
-            : null;
-      return { star, quote: quoteOf(m) };
+      // VERIFIED ONLY (founder 2026-08-10: the manager engine is the sole
+      // gatekeeper). The machine suggestion/practice stars were the
+      // ungated legacy lane — the BE no longer serves them, and a stale
+      // payload must render plain text, not resurrect a star the gate
+      // never budgeted. The coach's verified star (the Album surface)
+      // stays.
+      const star = m.star === "verified" ? ("verified" as const) : null;
+      return { star, quote: star ? quoteOf(m) : null };
     };
     // resolveWrapped closes over momentIndex — the real dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps

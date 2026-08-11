@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, FileAudio, Star } from "lucide-react";
+import { Crown, Star } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
   type CoachStudentDetail,
-  type ReviewState,
 } from "@/services/api/coachStudentDetail";
 import { useBackDismiss } from "./useBackDismiss";
 
@@ -48,44 +47,6 @@ function dateLabel(iso: string): string {
     year: "numeric",
   });
 }
-
-function stateLabel(state: string): string {
-  if (state === "review_pending") return "Awaiting review";
-  if (state === "readout_ready") return "Sent";
-  if (state === "done") return "Insights sent";
-  return state ? state.replace(/_/g, " ") : "";
-}
-
-/** FE-C — the 3-state take chip: To review (attention) / Reviewed (neutral —
- *  saved-but-unpublished reads as Reviewed, founder rule) / Delivered (green). */
-function ReviewStateChip({ state }: { state: ReviewState }) {
-  const cls =
-    state === "to_review"
-      ? "bg-primary/10 text-primary"
-      : state === "reviewed"
-      ? "bg-muted text-muted-foreground"
-      : "bg-success/10 text-success";
-  const label =
-    state === "to_review"
-      ? "To review"
-      : state === "reviewed"
-      ? "Reviewed"
-      : "Delivered";
-  return (
-    <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-const FEELING_EMOJI: Record<string, string> = {
-  nervous: "😬",
-  excited: "🔥",
-  calm: "😌",
-  unsure: "🤔",
-};
 
 export default function StudentDetailOverlay({
   userId,
@@ -270,47 +231,10 @@ export default function StudentDetailOverlay({
                 ))
               : null}
 
-            <section>
-              <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                Sessions
-              </p>
-              {detail.sessions.length === 0 ? (
-                <p className="text-[15px] text-muted-foreground">
-                  No sessions yet.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {/* Founder 2026-08-10 ("unify the sessions"): these rows
-                      are HISTORY, not a review entry — reviewing (labels,
-                      feedback, publish) lives in the Feedbacks review above.
-                      No tap, no review-state chips advertising a second way
-                      in; the review queue's own bubbles still reach the
-                      walker while its remaining jobs migrate. */}
-                  {detail.sessions.map((s) => (
-                    <li key={s.sessionId}>
-                      <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left">
-                        <FileAudio className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] text-foreground">
-                            {s.topic || "Recording"}
-                          </span>
-                          {dateLabel(s.createdAt) ? (
-                            <span className="block text-[12px] text-muted-foreground">
-                              {dateLabel(s.createdAt)}
-                            </span>
-                          ) : null}
-                        </span>
-                        {s.feeling ? (
-                          <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-                            {FEELING_EMOJI[s.feeling]} {s.feeling}
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            {/* The SESSIONS history list is DELETED (founder 2026-08-10:
+                "delete the sessions list; we just need the feedbacks
+                review list") — reviewing lives entirely in the Feedbacks
+                review above; a second list was a second way in. */}
           </>
         )}
       </div>
