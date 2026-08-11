@@ -343,6 +343,7 @@ export default function CoachReviewOverlay({
             index={i}
             total={session.snippets.length}
             presentationRef={session.presentationRef}
+            slides={session.slides}
             initialState={draftCache?.snippets[s.id] ?? null}
             onStateChange={onSnippetSaved}
           />

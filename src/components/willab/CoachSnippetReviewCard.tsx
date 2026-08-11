@@ -5,6 +5,8 @@ import { CheckCircle2, Eye, EyeOff, Video } from "lucide-react";
 import SnippetReadoutBlock from "./SnippetReadoutBlock";
 import { VoiceMark } from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
+import SnippetSlideCorrection from "./SnippetSlideCorrection";
+import type { ReadoutSlide } from "./readout";
 import {
   saveCoachSnippet,
   uploadBreakthroughVideo,
@@ -81,11 +83,15 @@ export default function CoachSnippetReviewCard({
   initialState = null,
   onStateChange,
   presentationRef,
+  slides = [],
 }: {
   sessionId: string;
   snippet: CoachReviewSnippet;
   index: number;
   total: number;
+  /** The whole deck, for the slide-correction control. Empty (the default)
+   *  hides it — there is nothing to correct a mapping to. */
+  slides?: readonly ReadoutSlide[];
   /** The session's served deck PDF (for the per-snippet slide page); null = none. */
   presentationRef: string | null;
   /** R4-8 — restore an in-progress (unpublished) edit from the overlay's crash
@@ -300,6 +306,17 @@ export default function CoachSnippetReviewCard({
           className="w-full"
         />
       ) : null}
+
+      {/* …and the one place a human can say the mapping above is WRONG
+          (founder 2026-08-11). The coach is already looking at the slide and
+          the words together, which is the only moment in the product where
+          that judgment is cheap and reliable — so the label is collected
+          here rather than on a screen built for it. */}
+      <SnippetSlideCorrection
+        snippetId={snippet.id}
+        slides={slides}
+        mappedIndex={snippet.slide ? snippet.slide.index : null}
+      />
 
       {/* Audio + transcript ONLY. acousticRead / features are the machine's
           read and are deliberately NOT passed: the backend stamps
