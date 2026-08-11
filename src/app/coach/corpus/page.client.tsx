@@ -8,7 +8,6 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import {
-  buildLabelBody,
   fetchConfidenceQueue,
   fetchTrainingImports,
   exceedsProxyLimit,
@@ -16,10 +15,7 @@ import {
   languageLabel,
   SPEAKER_SEXES,
   importTrainingAudio,
-  INTENSITY_MAX,
-  INTENSITY_MIN,
   OPTIONAL_STAGES,
-  saveConfidenceLabel,
   STAGE_COST,
   type ConfidenceQueue,
   type ImportOutcome,
@@ -38,8 +34,9 @@ import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 /*  /coach/corpus — the training corpus workbench (2026-07-28)                 */
 /*                                                                            */
 /*  Import real human speech from outside the app, then label each piece it    */
-/*  was cut into: confident yes/no, and how strongly. That corpus is what the  */
-/*  confident-snippet recogniser trains on.                                    */
+/*  was cut into with the shared ternary instrument (yes / no / ambiguous,     */
+/*  abstention separate). That corpus is what the confident-snippet            */
+/*  recogniser trains on.                                                      */
 /*                                                                            */
 /*  COACH ONLY (N4). Gated three ways, deliberately: this route is not linked  */
 /*  from any user surface, its menu row renders for coaches only, and this     */
@@ -54,9 +51,10 @@ import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 /*  circular. N2 — the queue renders in payload order, never re-sorted: the    */
 /*  order is band-shuffled precisely so position is not a tell.                */
 /*                                                                            */
-/*  N3 — "confident" is required. There is no default, no pre-selection: the   */
-/*  1–5 row does not exist until Yes or No is picked, and the body builder     */
-/*  refuses to construct an intensity-only save.                               */
+/*  N3 — an ANSWER is required. There is no default, no pre-selection, and     */
+/*  the body builder refuses to construct an answer-less save. (Founder        */
+/*  2026-08-11: the 1–5 intensity row is CUT — the instrument is pure          */
+/*  ternary now; old rows keep their historical grade, read-only.)             */
 /*                                                                            */
 /*  Copy on this screen is coach-facing and flagged for founder sign-off.      */
 /* -------------------------------------------------------------------------- */
@@ -862,21 +860,6 @@ function IndexPanel({
   );
 }
 
-/** The founder's second pass on the 1–5 scale: only the two ENDPOINTS carry
- *  a word, and which word depends on the Yes/No answer being graded — a 1
- *  means something different depending on whether the coach just said the
- *  voice was confident or wasn't. The middle three (2, 3, 4) are deliberately
- *  bare, per the founder's own table. Not symmetric on purpose: the low end
- *  of "No" is "Slightly unconfident", not "Barely unconfident" — the
- *  founder's own wording, kept verbatim rather than tidied into a mirror. */
-function intensityCaption(n: number, confident: boolean): string | null {
-  if (n !== INTENSITY_MIN && n !== INTENSITY_MAX) return null;
-  if (confident) {
-    return n === INTENSITY_MIN ? "Barely confident" : "Extremely confident";
-  }
-  return n === INTENSITY_MIN ? "Slightly unconfident" : "Extremely unconfident";
-}
-
 /* ---------------------------- FE-3: the labelling -------------------------- */
 
 function LabelScreen({
@@ -940,38 +923,28 @@ function LabelScreen({
 
   async function save(
     value: TernaryValue | null,
-    intensity?: number,
-    /** Whether to move on. Defaults to "yes, if this was a grade" — a grade
-     *  finishes a piece. A note saved on blur must NOT advance, or the coach
-     *  would be thrown to the next piece by clicking away from a text box. */
+    /** advance defaults TRUE — an answer finishes a piece now (founder
+     *  2026-08-11: the 1–5 intensity row is CUT; pure ternary). A note
+     *  saved on blur must NOT advance, or the coach would be thrown to
+     *  the next piece by clicking away from a text box. */
     opts?: { advance?: boolean; unrateable?: boolean }
   ) {
     if (!piece || inFlightRef.current) return;
     const snippetId = piece.snippetId;
     const trimmed = note.trim();
     const unrateable = opts?.unrateable === true;
-    // TWO WRITE SHAPES, one judgment each (founder 2026-08-10, the unified
-    // ternary instrument). A graded yes/no rides the LEGACY body — the one
-    // contract that carries answer + intensity as a single judgment, which
-    // is exactly the condition the BE stores intensity under. Everything
-    // else (a bare answer, Ambiguous, the abstention) is the ternary body.
-    const legacyGraded =
-      intensity !== undefined && (value === "yes" || value === "no");
-    const legacyBody = legacyGraded
-      ? buildLabelBody(value === "yes", intensity, trimmed)
-      : null;
-    const ternaryBody = legacyGraded
-      ? null
-      : buildRatingBody(value, unrateable, undefined, trimmed);
+    // ONE write shape (founder 2026-08-11): the ternary instrument,
+    // nothing else. Intensity belonged to the retired binary contract and
+    // was cut with it — if graded strength is ever needed again, it comes
+    // back as its own decision, not as a leftover lane.
+    const body = buildRatingBody(value, unrateable, undefined, trimmed);
     // Unconstructable = no real answer; the UI cannot reach here without
     // one, so this is a guard, not a flow (N3).
-    if (!legacyBody && !ternaryBody) return;
+    if (!body) return;
     inFlightRef.current = true;
     setSavingId(snippetId); // "pending" — its dot pulses until this resolves.
     setError(null);
-    const res = legacyBody
-      ? await saveConfidenceLabel(snippetId, legacyBody)
-      : await saveStateRating(snippetId, ternaryBody!);
+    const res = await saveStateRating(snippetId, body);
     inFlightRef.current = false;
     setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
     if (!res.ok) {
@@ -983,7 +956,7 @@ function LabelScreen({
       value: unrateable ? null : value,
       unrateable,
       confident: value === "yes" ? true : value === "no" ? false : null,
-      intensity: intensity ?? null,
+      intensity: null,
       note: trimmed || null,
     };
     setQueue((q) =>
@@ -996,20 +969,14 @@ function LabelScreen({
           }
         : q
     );
-    if (opts?.advance ?? intensity !== undefined) {
-      // Graded — this piece is done; move on to the next unlabelled one.
-      setPending(null);
+    setPending(null);
+    if (opts?.advance ?? true) {
+      // Answered (or abstained) — this piece is done; move on to the next
+      // unlabelled one. The note stays reachable by stepping Back.
       const next = pieces.findIndex(
         (p, i) => i > at && p.label === null && p.snippetId !== piece.snippetId
       );
       setAt(next >= 0 ? next : Math.min(at + 1, pieces.length - 1));
-    } else if (!unrateable) {
-      // An answer saves on its own — intensity is optional, so the coach can
-      // stop here — and the 1–5 row opens for an optional grade (yes/no only:
-      // "how strongly" has no meaning over Ambiguous).
-      setPending(value);
-    } else {
-      setPending(null);
     }
   }
 
@@ -1147,67 +1114,19 @@ function LabelScreen({
               saving={false}
               onPick={(v) => void save(v)}
               onToggleUnrateable={() =>
-                void save(null, undefined, {
+                void save(null, {
                   unrateable: !abstained,
                   advance: false,
                 })
               }
             />
 
-            {/* The 1–5 row exists ONLY once an answer is picked: it grades an
-                answer, and offering it first would invite a grade with no
-                answer behind it (N3). Only the two ENDPOINTS carry a word —
-                2, 3 and 4 stay bare numbers, per the founder's table — and
-                that word depends on which answer is being graded (a 1 means
-                something different under Yes than under No). No small grey
-                caption text any more: the word is the SAME colour as the
-                number beside it, not a muted aside. */}
-            {answered === "yes" || answered === "no" ? (
-              // Yes/No only: "how strongly" has no meaning over Ambiguous,
-              // and none at all over an abstention.
-              <div className="flex flex-col gap-1.5">
-                <p className="text-[12px] text-muted-foreground">
-                  How strongly? Optional.
-                </p>
-                <div className="flex gap-2">
-                  {Array.from(
-                    { length: INTENSITY_MAX - INTENSITY_MIN + 1 },
-                    (_, i) => INTENSITY_MIN + i
-                  ).map((n) => {
-                    const caption = intensityCaption(n, answered === "yes");
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        aria-pressed={piece.label?.intensity === n}
-                        aria-label={caption ? `${n} — ${caption}` : `${n}`}
-                        disabled={savingId === piece.snippetId}
-                        onClick={() => void save(answered, n)}
-                        className={`flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border text-[14px] font-medium tabular-nums transition-colors disabled:opacity-60 ${
-                          piece.label?.intensity === n
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background text-foreground hover:border-primary/50"
-                        }`}
-                      >
-                        <span>{n}</span>
-                        {caption ? (
-                          <span className="text-[11px] font-medium leading-tight">
-                            {caption}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Gated behind an answer for the same reason as the 1–5 row: a
-                note annotates a call, and the body builder refuses to write
-                one without a real boolean anyway (N3). It is the provenance
-                that explains an outlier label months later — "hard to call",
-                "background noise" — so it saves on its own, without needing a
-                grade the coach may not want to give. */}
+            {/* Gated behind an answer (or an abstention): a note annotates a
+                call, and the body builder refuses to write one without a real
+                answer anyway (N3). It is the provenance that explains an
+                outlier label months later — "hard to call", "background
+                noise" — and it saves on blur without advancing, so typing it
+                never throws the coach to the next piece. */}
             {answered !== null || abstained ? (
               <label className="flex flex-col gap-1">
                 <span className="text-[12px] text-muted-foreground">
@@ -1221,7 +1140,7 @@ function LabelScreen({
                     // Only when it actually changed: clicking through the
                     // screen must not fire a PUT per piece.
                     if (t !== (piece.label?.note ?? "")) {
-                      void save(answered, piece.label?.intensity ?? undefined, {
+                      void save(answered, {
                         advance: false,
                         unrateable: abstained,
                       });

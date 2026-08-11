@@ -32,8 +32,9 @@ export function exceedsProxyLimit(size: number): boolean {
 /*  trainingCorpus — the coach's corpus lane (2026-07-28)                      */
 /*                                                                            */
 /*  Import real human speech from outside the app, have it cut into pieces,    */
-/*  and label each piece confident yes/no and how strongly. That corpus is     */
-/*  what the confident-snippet recogniser trains on.                          */
+/*  and label each piece with the shared ternary instrument (yes / no /        */
+/*  neutral, abstention separate). That corpus is what the confident-snippet   */
+/*  recogniser trains on.                                                      */
 /*                                                                            */
 /*  COACH-ONLY, structurally (N4): this module is imported by exactly one      */
 /*  surface, and trainingCorpusSeparation.test.ts enforces both directions —   */
@@ -50,10 +51,11 @@ export function exceedsProxyLimit(size: number): boolean {
 /*    N2 — the queue is band-shuffled server-side so position is not a tell.   */
 /*      `fetchConfidenceQueue` returns it in payload order and nothing here    */
 /*      sorts, groups or re-keys it.                                          */
-/*    N3 — `confident` is required, `intensity` optional. buildLabelBody       */
-/*      REFUSES to construct a body without a real boolean, so an intensity-   */
-/*      only save (which would fabricate a confident value the coach never     */
-/*      picked) cannot be built.                                              */
+/*    N3 — an ANSWER is required. The write goes through stateRatings'         */
+/*      buildRatingBody, which refuses to construct a body without a real      */
+/*      answer or an explicit abstention — a save that would fabricate a       */
+/*      label the coach never gave cannot be built. (The 1–5 intensity grade   */
+/*      was cut 2026-08-11; this module only READS the old grades back.)       */
 /*                                                                            */
 /*  Nothing here touches the normal user's upload path (FE-4): that lane is    */
 /*  `POST /v2/lab/recordings` and is untouched — no stages, no tick UI.        */
@@ -670,7 +672,10 @@ export interface ConfidenceLabel {
   /** Legacy binary mirror (yes→true, no→false, neutral/abstained→null) —
    *  kept for older readers while they migrate to `value`. */
   confident: boolean | null;
-  /** 1–5, or null when the coach answered without grading it. */
+  /** Historical 1–5 grade, READ-ONLY: the intensity row was cut 2026-08-11
+   *  (founder: pure ternary for the MVP). Rows graded before the cut keep
+   *  their number so the stored data stays faithful; new saves never write
+   *  one. */
   intensity: number | null;
   /** The coach's own aside — "hard to call", "background noise". Kept so a
    *  saved note re-renders when the coach steps back to a piece, rather than
@@ -693,11 +698,12 @@ export interface ConfidenceQueue {
   queue: QueuePiece[];
 }
 
-/** 1–5, matching the research this is anchored to, so the numbers stay
- *  comparable to published data. Anything else is dropped rather than
- *  clamped — a clamped 9 would silently become a 5 the coach never picked. */
-export const INTENSITY_MIN = 1;
-export const INTENSITY_MAX = 5;
+/** Bounds of the RETIRED 1–5 grade (cut 2026-08-11) — kept, un-exported,
+ *  because old rows still carry grades and reading them faithfully still
+ *  means dropping anything out of range rather than clamping it: a clamped
+ *  9 would silently become a 5 the coach never picked. */
+const INTENSITY_MIN = 1;
+const INTENSITY_MAX = 5;
 
 function pickIntensity(v: unknown): number | null {
   return typeof v === "number" &&
@@ -785,67 +791,9 @@ export async function fetchConfidenceQueue(
   return mapConfidenceQueue(body);
 }
 
-/* ------------------------------ the label --------------------------------- */
-
-export interface ConfidenceLabelBody {
-  confident: boolean;
-  intensity?: number;
-  note?: string;
-}
-
-/** Build the label PUT body — the ONE constructor for a label write.
- *
- *  N3 lives here rather than in a submit handler: `confident` must be a real
- *  boolean, so a body carrying an intensity with no answer — which would
- *  fabricate training data the coach never gave — cannot be constructed at
- *  all. An out-of-range intensity is DROPPED, not clamped, for the same
- *  reason: a clamped 9 would silently become a 5 nobody picked. */
-export function buildLabelBody(
-  confident: unknown,
-  intensity?: unknown,
-  note?: string | null
-): ConfidenceLabelBody | null {
-  if (typeof confident !== "boolean") return null;
-  const body: ConfidenceLabelBody = { confident };
-  const graded = pickIntensity(intensity);
-  if (graded !== null) body.intensity = graded;
-  const trimmed = note?.trim() ?? "";
-  if (trimmed) body.note = trimmed;
-  return body;
-}
-
-export type SaveLabelResult = { ok: true } | { ok: false; error: string | null };
-
-/** Save one label (re-labelling replaces this coach's call; other raters'
- *  labels are untouched). Never throws; the caller shows `error` inline —
- *  the BE's 400 is verbatim-safe and its 500 names the missing migration. */
-export async function saveConfidenceLabel(
-  snippetId: string,
-  body: ConfidenceLabelBody
-): Promise<SaveLabelResult> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, error: null };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/confidence-label`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return { ok: false, error: null };
-  }
-  if (res.ok) return { ok: true };
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  return { ok: false, error: strOrNull(data?.error) };
-}
+/* ------------------------------ the label ---------------------------------
+ * The WRITE lives in stateRatings.ts — buildRatingBody + saveStateRating,
+ * the one ternary instrument every surface shares. The binary + 1–5
+ * constructor that used to live here (buildLabelBody / saveConfidenceLabel)
+ * was cut with the intensity row (founder 2026-08-11): this module now only
+ * READS labels back, historical grades included. */
