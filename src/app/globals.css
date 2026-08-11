@@ -40,6 +40,18 @@
        (which the rest of the app already uses for delete confirms,
        error toasts, etc). */
     --success: 152 76% 36%;
+
+    /* Transcript review deck (founder 2026-08-11, Lovable spec §5).
+       --pending is the ONE signal that feedback is waiting on a chunk:
+       the underline, the wash and the breathing lock all key off it.
+       (The spec calls this token `--star`; renamed here because there
+       are no stars in this product — founder: "no stars anywhere".)
+       --emphasis is the applied colour-emphasis inside chunk text,
+       deliberately NOT the orange accent: --primary stays reserved for
+       live-action signals per the restraint rule above. Single value in
+       both themes — the --success precedent. */
+    --pending: 38 92% 50%;
+    --emphasis: 9 65% 45%;
   }
 
   /*

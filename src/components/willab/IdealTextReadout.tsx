@@ -7,8 +7,6 @@ import { mergeSession } from "@/services/api/mergeSession";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import {
   fetchIdealText,
-  isUnappliedPolish,
-  keyPointTintRanges,
   saveIdealUserEdit,
   type DocumentSuggestion,
   type Addition,
@@ -21,14 +19,14 @@ import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
-  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   selectBlockVariant,
   type BlockVariant,
   type VariantBlock,
 } from "@/services/api/blockVariants";
 import { BlockVariantSheet } from "./BlockVariantPicker";
-import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
+import { PieceSwapSheet } from "./PieceBadges";
+import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import ChunkedEditor from "./ChunkedEditor";
@@ -44,6 +42,7 @@ import {
   partsForDocument,
   partsToText,
   reconcileParts,
+  updatePart,
   type Part,
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
@@ -566,30 +565,9 @@ export default function IdealTextReadout({
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
 
-  // FE-2 — every polish star on this text, and the subset still awaiting a
-  // decision. 2+ pending earns the bulk control; the full list is what
-  // "Undo all" walks back.
-  const allPolish = useMemo(
-    () => (sd?.ideal.keyMoments ?? []).filter(isUnappliedPolish),
-    [sd]
-  );
-  const pendingPolish = useMemo(
-    () => allPolish.filter((m) => !stars.isApplied(m)),
-    // stars.isApplied reads appliedLocal, so track the map itself.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allPolish, stars.appliedLocal]
-  );
-
-  // FE-7 — the key-point ranges the full read may accent. Computed against the
-  // text ACTUALLY on screen, not the served one: an accepted tracked change or
-  // a local edit shifts every offset after it, and a cue verified against stale
-  // text would tint the wrong words. keyPointTintRanges re-verifies each slice
-  // and drops silently on any mismatch, so an edit simply retires the cues it
-  // moved rather than mispainting them.
-  const tint = useMemo(
-    () => keyPointTintRanges(text, sd?.keyPoints ?? null),
-    [text, sd]
-  );
+  // Founder 2026-08-11 — the polish-star bulk lane, the per-star taps and
+  // the key-point tint retired with the stars; proposals decide one at a
+  // time in the deck's REVIEW modal.
 
   // The one edit path — a keystroke, a toolbar wrap, an add or a move: mark
   // dirty, reset the save flash, update the text (the debounce effect
@@ -676,11 +654,36 @@ export default function IdealTextReadout({
     [markDirty]
   );
 
-  // T1 · 1.2 — the star fence. While the document is the student's edit, the
-  // BE serves no decoration, and re-anchoring stars into edited words
-  // client-side would attach a coach's read to a sentence they never saw.
-  // Stars come back when the next take supersedes the edit.
-  const edited = sd?.userEdited === true || dirty;
+  // THE DECK's lock (slice 1a): commit the modal's draft when it changed —
+  // the edit rides the one save lane (auto-lock "typed = committed" marks
+  // the touched part locked in the same PUT) and the flush confirms it —
+  // else the plain part-lock with seeding.
+  const deckLockPart = useCallback(
+    async (
+      part: Part,
+      newText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      const parts = reconcileParts(textRef.current, partsRef.current ?? []);
+      partsRef.current = parts;
+      const at = parts.findIndex((p) => p.id === part.id);
+      if (at < 0) return "failed";
+      const trimmed = newText.trim();
+      if (trimmed && trimmed !== parts[at].text.trim()) {
+        const next = updatePart(parts, at, trimmed);
+        applyEdit(partsToText(next), next);
+        const ok = await flushEdits();
+        if (!ok) return "failed";
+        // Saved AND auto-locked in the same PUT — the lane is settled, so
+        // release it and re-pull (locks + fresh suggestions flow in).
+        markDirty(false);
+        setSdNonce((n) => n + 1);
+        return "ok";
+      }
+      return lockParagraph(at, parts[at].text);
+    },
+    [applyEdit, flushEdits, lockParagraph, markDirty]
+  );
+
   // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
   const canEdit = !editLocked && text.trim().length > 0;
 
@@ -767,32 +770,6 @@ export default function IdealTextReadout({
       </div>
 
 
-      {/* FE-2 — one tap applies every smoother-version suggestion. Polish only:
-          flow smoothing is mechanical, while acoustic and structural stars are
-          judgment calls and stay strictly per-star. Each still POSTs
-          individually, so every approval is separately recorded and revertible.
-          Hidden while editing: folds live in the render layer, so approving
-          behind the raw textarea would look like it did nothing (R-p1). Same
-          reason while the document is the student's own
-          edit (no stars are drawn there at all — T1 · 1.2). */}
-      {editing || edited ? null : stars.bulkApplied ? (
-        <button
-          type="button"
-          onClick={() => stars.revertAllPolish(allPolish)}
-          className="self-start text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          Undo all
-        </button>
-      ) : pendingPolish.length >= 2 ? (
-        <button
-          type="button"
-          onClick={() => stars.approveAllPolish(pendingPolish)}
-          className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          Approve all
-        </button>
-      ) : null}
-
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}
       {editing ? (
@@ -811,53 +788,27 @@ export default function IdealTextReadout({
         <p className="py-10 text-center text-[13px] text-muted-foreground">
           Putting your ideal text together…
         </p>
-      ) : sd && edited ? (
-        // T1 · 1.2 — the student's own document: their words, their markers,
-        // NO star layer and NO version pills. Both are anchored to machine
-        // text that this document no longer is. Same renderer as the guest
-        // fallback: it is the same document, minus the decoration.
-        <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
       ) : sd ? (
-        // SD — the SAME star layer as the notebook: grey suggestion stars to
-        // Approve, orange coach-verified stars behind the unlock.
-        // DISCERNMENT — the same star text, with each paragraph wearing its
-        // piece's version pill (badges hide on any paragraph/piece mismatch).
-        <PieceBadgeText
-          text={text}
-          ideal={sd.ideal}
-          // MASTER DOCUMENT — after a save the script is clean: the take
-          // badges go (the pending state is resolved server-side).
-          // Founder 2026-08-10 — the slide→chunk view must survive a saved
-          // document. Pieces stay (they carry each block's slide_index);
-          // only the take PILLS retire on save ("the script is clean").
-          pieces={sd.pieces}
-          showPills={sd.saved !== true}
-          // LIVING TRANSCRIPT — when the BE serves span-anchored tracked
-          // changes they render the words (strikes, proposals, advice stars)
-          // and the version pills still compose on top; absent → today's
-          // star/quote view, unchanged.
-          suggestions={sd.suggestions}
-          onDecideTracked={decideTracked}
-          // SPEC-lockin-loop §2 — Accept arms, "Lock it" locks. The chip
-          // state lives in PieceBadgeText; this is only the persistence.
-          onLockParagraph={arcId ? lockParagraph : undefined}
-          onMomentTap={(m) => void stars.openMoment(m)}
-          foldFor={stars.foldFor}
-          sdStars
-          textSizeClass="text-[17px]"
-          onOpenSwap={setSwapOpen}
-          // BLOCK_VARIANTS — the per-block picker entry (chips zip to
-          // paragraphs; feature off → null → nothing new). Cross-checked
-          // against the SERVED pieces via the BE-confirmed
-          // block_key == piece_key join — sd.pieces, not the display
-          // pieces, which a save blanks.
-          variantBlocks={alignVariantBlocksWithPieces(variantBlocks, sd.pieces)}
-          onOpenPicker={setPickerBlock}
-          tint={tint}
-          // SLIDES — each paragraph reads under the slide it was delivered
-          // on (deckless arcs pass null: today's view).
-          deck={deckRef ? { presentationRef: deckRef } : null}
-        />
+        // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
+        // star/tracked/badged paragraph stack. A user-edited or mid-edit
+        // document rides the same deck: its parts and locks are real; while
+        // the local edit is DIRTY the served suggestion spans no longer
+        // anchor this text, so none are painted until the save round-trips
+        // (the same never-mispaint rule the old layer followed).
+        <div className="flex h-[70vh] min-h-[24rem] flex-col overflow-hidden rounded-2xl border border-border">
+          <TranscriptReviewDeck
+            chrome="stage"
+            document={text}
+            parts={partsRef.current ?? sd.parts}
+            suggestions={dirty ? [] : (sd.suggestions ?? [])}
+            pieceSlideIndexes={
+              sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
+            }
+            onAccept={(s) => decideTracked(s, "accept")}
+            onKeepMine={(s) => decideTracked(s, "keep")}
+            onLockPart={deckLockPart}
+          />
+        </div>
       ) : (
         // FE-1 — this fallback (no SD payload: guest, or the flag off) used to
         // print `text` raw, markers and all. It is the same document, so it

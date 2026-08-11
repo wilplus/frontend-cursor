@@ -27,10 +27,17 @@ const config: Config = {
           "0%, 100%": { transform: "scaleY(1)" },
           "50%": { transform: "scaleY(0.6)" },
         },
+        // Transcript review deck — the waiting-feedback lock breathes
+        // (Lovable spec §2). Only ever on a chunk with pending feedback.
+        "lock-breathe": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.1)" },
+        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.5s ease-out both",
         "voice-dot": "voice-dot 1.2s ease-in-out infinite",
+        "lock-breathe": "lock-breathe 2s ease-in-out infinite",
       },
       colors: {
         background: "hsl(var(--background))",
@@ -63,6 +70,10 @@ const config: Config = {
         // Success-emerald valence colour, distinct from the generic
         // destructive so the valence is meaningful at a glance.
         success: "hsl(var(--success))",
+        // Transcript review deck — pending-feedback amber + applied
+        // colour-emphasis (see globals.css for the restraint rationale).
+        pending: "hsl(var(--pending))",
+        emphasis: "hsl(var(--emphasis))",
       },
     },
   },
