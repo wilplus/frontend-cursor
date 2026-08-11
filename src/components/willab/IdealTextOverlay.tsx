@@ -24,12 +24,7 @@ import { RichText } from "./RichText";
 import MarkedEditor from "./MarkedEditor";
 import ChunkedEditor from "./ChunkedEditor";
 import IdealTextHeading from "./IdealTextHeading";
-import {
-  MomentSheet,
-  MomentStarText,
-  useMomentStars,
-  type LocalFold,
-} from "./MomentStars";
+import MarkedParagraphs from "./MarkedParagraphs";
 import {
   type Addition,
   fetchIdealText,
@@ -44,14 +39,8 @@ import {
   type IdealText,
   type MomentSuggestion,
 } from "@/services/api/idealText";
-import {
-  fetchMomentExplanation,
-  unlockMoments,
-  type MomentExplanationResult,
-} from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
-import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
   fetchBlockVariants,
@@ -218,12 +207,6 @@ export default function IdealTextOverlay({
     setPickerBlock(null);
     setTimelineOpen(false);
   }, [arcId]);
-  // A different arc = a fresh document; clear any local moment folds.
-  useEffect(() => {
-    stars.resetFolds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arcId]);
-
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -250,11 +233,6 @@ export default function IdealTextOverlay({
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   const [copied, setCopied] = useState(false);
 
-  // The tapped key moment awaiting "Go to this moment?" confirmation.
-  const [momentAsk, setMomentAsk] = useState<IdealKeyMomentLink | null>(null);
-  // The open feedback deep-link (stacked over this overlay).
-  const [feedbackTarget, setFeedbackTarget] =
-    useState<IdealKeyMomentLink | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -693,18 +671,9 @@ export default function IdealTextOverlay({
     status === "ready" && sd !== null
   );
 
-  // SD — the shared star layer owns the sheet, the Approve/Revert folds and
-  // the moments unlock. The notebook keeps only its legacy wrapper below.
-  const stars = useMomentStars({
-    arcId,
-    momentsUnlocked: sd?.momentsUnlocked ?? false,
-    explanationsAvailable: sd?.explanationsAvailable ?? false,
-    onUnlocked: () =>
-      setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
-  });
-
-  // Founder 2026-08-11 — the polish-star bulk lane and the per-star taps
-  // retired with the stars; proposals decide one at a time in the deck.
+  // Founder 2026-08-11 — the whole star layer is gone: the bulk polish lane,
+  // the per-star taps, the moment sheet and its folds. Feedback reaches the
+  // student as chunk proposals in the deck, decided one at a time.
 
   function copyText() {
     void navigator.clipboard?.writeText(stripRichMarkers(displayText)).then(() => {
@@ -886,15 +855,11 @@ export default function IdealTextOverlay({
                   Instant draft. Your coach is polishing the full version.
                 </p>
               </div>
-              {/* No bulk control in the INSTANT lane: this view renders
-                  MomentStarText without foldFor, so an approval would record
-                  server-side while changing nothing on screen (review R-p6).
-                  The SD lane below owns it. */}
-              <MomentStarText
-                text={displayText}
-                ideal={ideal}
-                onMomentTap={setMomentAsk}
-              />
+              {/* The free machine draft: the words and their markers, and
+                  nothing else. It used to carry the star layer; stars are
+                  gone (founder 2026-08-11) and this lane has no decisions of
+                  its own — the coach's version arrives on the deck. */}
+              <MarkedParagraphs text={displayText} textSizeClass="text-[18px]" />
             </div>
           ) : editing && ideal ? (
             <NotebookEditor
@@ -958,32 +923,6 @@ export default function IdealTextOverlay({
       </div>
       )}
 
-      {/* "Go to this moment?" — the small confirm bubble for a tapped moment. */}
-      {momentAsk ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-10 flex justify-center px-4">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-lg">
-            <p className="text-[14px] text-foreground">Go to this moment?</p>
-            <Button
-              type="button"
-              onClick={() => {
-                setFeedbackTarget(momentAsk);
-                setMomentAsk(null);
-              }}
-              className="h-8 rounded-full bg-foreground px-4 text-[13px] text-background hover:bg-foreground/90"
-            >
-              Go
-            </Button>
-            <button
-              type="button"
-              onClick={() => setMomentAsk(null)}
-              className="text-[13px] text-muted-foreground hover:text-foreground"
-            >
-              Stay
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {/* The PERSISTENT bottom control. Reading the text out loud used to sit
           here as a second, gated mic; it is retired (founder 2026-08-05 — it
           brought no value to the coach or the user). What remains is one lane:
@@ -1024,17 +963,6 @@ export default function IdealTextOverlay({
           pieces={sd?.pieces ?? null}
           presentationRef={deckRef}
           onClose={() => setPresenting(false)}
-        />
-      ) : null}
-
-      {/* The deep-linked feedback page, stacked over the notebook. */}
-      {feedbackTarget ? (
-        <FeedbackOverlay
-          arcId={arcId}
-          takeSessionId={feedbackTarget.takeSessionId || null}
-          anchorSnippetId={feedbackTarget.snippetId}
-          onClose={() => setFeedbackTarget(null)}
-          topLayer
         />
       ) : null}
 
@@ -1088,30 +1016,6 @@ export default function IdealTextOverlay({
         revisions={revisions ?? []}
         onRestore={restoreRevision}
         onClose={() => setTimelineOpen(false)}
-      />
-      {/* SD — the shared key-moment sheet (free playback → the suggestion to
-          Approve, or the coach's message behind the moments unlock). */}
-      <MomentSheet
-        moment={stars.momentOpen}
-        momentContent={stars.momentContent}
-        applied={stars.momentOpen ? stars.isApplied(stars.momentOpen) : false}
-        onClose={stars.closeMoment}
-        onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
-        onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
-        onBuy={stars.buyMoments}
-        onReRecord={async (snippetId, takeSessionId, audio, durationSec) => {
-          const r = await reRecordSnippet({
-            snippetId,
-            takeSessionId,
-            topic: sd?.title ?? null,
-            audio,
-            durationSec,
-          });
-          // Re-pull the served text so the improved snippet + new version
-          // flow in; the sheet stays open on its success confirmation.
-          if (r.ok) setRefetchNonce((n) => n + 1);
-          return r.ok;
-        }}
       />
     </div>
   );

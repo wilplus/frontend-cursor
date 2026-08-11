@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Loader2, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
-import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import {
   fetchIdealText,
   saveIdealUserEdit,
@@ -48,7 +47,6 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
-import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -567,15 +565,6 @@ export default function IdealTextReadout({
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
   const deckRef = useArcDeckRef(arcId, sd?.presentationRef ?? null, sdSettled);
 
-  // SD — the shared star layer (sheet, Approve/Revert folds, moments unlock).
-  const stars = useMomentStars({
-    arcId: arcId ?? "",
-    momentsUnlocked: sd?.momentsUnlocked ?? false,
-    explanationsAvailable: sd?.explanationsAvailable ?? false,
-    onUnlocked: () =>
-      setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
-  });
-
   // Founder 2026-08-11 — the polish-star bulk lane, the per-star taps and
   // the key-point tint retired with the stars; proposals decide one at a
   // time in the deck's REVIEW modal.
@@ -997,32 +986,6 @@ export default function IdealTextReadout({
         block={pickerBlock}
         onSelect={selectVariant}
         onClose={() => setPickerBlock(null)}
-      />
-      <MomentSheet
-        moment={stars.momentOpen}
-        momentContent={stars.momentContent}
-        applied={stars.momentOpen ? stars.isApplied(stars.momentOpen) : false}
-        onClose={stars.closeMoment}
-        onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
-        onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
-        onBuy={stars.buyMoments}
-        onReRecord={
-          arcId
-            ? async (snippetId, takeSessionId, audio, durationSec) => {
-                const r = await reRecordSnippet({
-                  snippetId,
-                  takeSessionId,
-                  topic: sd?.title ?? null,
-                  audio,
-                  durationSec,
-                });
-                // Re-pull the served text so the improved snippet + new version
-                // flow in; leave the sheet open on its success confirmation.
-                if (r.ok) setSdNonce((n) => n + 1);
-                return r.ok;
-              }
-            : undefined
-        }
       />
     </div>
   );

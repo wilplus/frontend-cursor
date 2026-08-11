@@ -112,22 +112,6 @@ export interface IdealKeyMomentLink {
   durationMs?: number | null;
 }
 
-/** POLISH_AS_SUGGESTIONS — a polish star: the compose LLM's flow smoothing,
- *  offered as an approvable replace. Only these are eligible for "Approve
- *  all"; acoustic and structural stars are judgment calls and stay strictly
- *  per-star. Pure predicate over the wire shape. */
-export function isPolish(m: IdealKeyMomentLink): boolean {
-  const sg = m.suggestion;
-  return (
-    m.star === "suggestion" && sg?.kind === "replace" && sg.trigger === "polish"
-  );
-}
-
-/** A polish star the BE has NOT already folded into the served text. */
-export function isUnappliedPolish(m: IdealKeyMomentLink): boolean {
-  return isPolish(m) && m.applied !== true;
-}
-
 export interface IdealText {
   text: string;
   /** Coach key phrases (≤5) — the "bolded openings". */
