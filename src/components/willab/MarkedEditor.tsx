@@ -141,6 +141,8 @@ export default function MarkedEditor({
   textSizeClass = "text-[17px]",
   autoFocus = false,
   compact = false,
+  toolbar = true,
+  frameClass = "border border-primary bg-background",
 }: {
   /** The marker text. */
   value: string;
@@ -153,6 +155,16 @@ export default function MarkedEditor({
    *  shows only while THIS chunk holds focus, so a stack of chunks reads as
    *  one editor with one toolbar — the one beside the caret. */
   compact?: boolean;
+  /** The B / U / I / orange row. OFF on the deck's chunk modal, and not for
+   *  tidiness: its Underline button would let a student underline their own
+   *  words, and underline is RESERVED on the deck for "feedback is waiting on
+   *  this chunk" (founder 2026-08-11). A surface that cannot afford a mark
+   *  must be able to leave the marker OUT, not merely style around it. */
+  toolbar?: boolean;
+  /** The box's border + background, so a host can keep its own field styling.
+   *  Layout, padding and the paragraph rules are NOT overridable — they carry
+   *  the WebKit contentEditable fixes below. */
+  frameClass?: string;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   // What we last handed the host. Repainting on our own echo would reset the
@@ -260,9 +272,11 @@ export default function MarkedEditor({
 
   return (
     <div className="group flex flex-col gap-2">
-      <div className={compact ? "hidden group-focus-within:block" : undefined}>
-        <Toolbar onApply={applyMark} />
-      </div>
+      {toolbar ? (
+        <div className={compact ? "hidden group-focus-within:block" : undefined}>
+          <Toolbar onApply={applyMark} />
+        </div>
+      ) : null}
       <div
         ref={ref}
         role="textbox"
@@ -288,7 +302,7 @@ export default function MarkedEditor({
            ([&>p+p]:mt-4, the old gap-4), and whitespace-pre-line on the root
            keeps line breaks visible even when the browser leaves bare text
            nodes outside any <p> (select-all-then-type). */
-        className={`block w-full whitespace-pre-line rounded-2xl border border-primary bg-background px-4 py-4 outline-none [&>p+p]:mt-4 ${textSizeClass}`}
+        className={`block w-full whitespace-pre-line rounded-2xl px-4 py-4 outline-none [&>p+p]:mt-4 ${frameClass} ${textSizeClass}`}
       />
     </div>
   );

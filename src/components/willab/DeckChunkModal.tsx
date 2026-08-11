@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
+import MarkedEditor from "@/components/willab/MarkedEditor";
 import { whyLine } from "@/lib/willab/trackedChangeWhy";
 import { historyForChunk, type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
@@ -18,8 +19,8 @@ import type {
 /*                                                                            */
 /*    REVIEW (waiting + a pending proposal): what you said → suggested →       */
 /*      rationale → Accept / Keep mine.                                       */
-/*    EDITOR (accepted / locked / clean): the always-editable textarea →       */
-/*      Lock in / Discard.                                                    */
+/*    EDITOR (accepted / locked / clean): the always-editable, marker-aware    */
+/*      field → Lock in / Discard.                                            */
 /*                                                                            */
 /*  The HOST owns every network call — this component only renders state and   */
 /*  awaits the callbacks, so the three decide lanes, the user-edit PUT and     */
@@ -54,7 +55,7 @@ interface DeckChunkModalProps {
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
   /** Decide disregard ("Keep mine"). Resolves true when saved. */
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
-  /** Commit the textarea (when changed) and lock the part. */
+  /** Commit the draft (when changed) and lock the part. */
   onLockIn: (text: string) => Promise<LockOutcome>;
   onClose: () => void;
   /** THE STYLE LANE (slice 2) — a pending post-lock bold for this chunk,
@@ -233,18 +234,28 @@ export default function DeckChunkModal({
             </>
           ) : (
             <>
-              <label className="flex flex-col gap-1.5">
-                <span className="sr-only">The chunk&apos;s words</span>
-                <textarea
-                  rows={5}
-                  value={draft}
-                  onChange={(e) => {
-                    dirtyRef.current = true;
-                    setDraft(e.target.value);
-                  }}
-                  className="w-full resize-y rounded-2xl border border-pending/40 bg-pending/[0.06] px-4 py-3 text-[15px] leading-relaxed text-foreground outline-none focus:border-pending"
-                />
-              </label>
+              {/* THE CHUNK'S WORDS — a marker-AWARE field, never a raw one.
+                  This was a plain textarea, which printed the document's
+                  marker grammar at the reader: apply an emphasis, reopen the
+                  chunk, and the box said "**changed everything**". FE-1 is
+                  absolute — no character of that grammar ever reaches a
+                  reader — and this modal is the only way into the text now,
+                  so the leak sat on the one surface that cannot have it.
+                  MarkedEditor renders the SAME styled spans the deck does and
+                  serializes back byte-for-byte (a legacy ==x== the student
+                  never touched comes back as ==x==), so opening a chunk and
+                  closing it cannot rewrite the document — which is L1: their
+                  take, verbatim. No toolbar: see the prop's note. */}
+              <MarkedEditor
+                value={draft}
+                onChange={(next) => {
+                  dirtyRef.current = true;
+                  setDraft(next);
+                }}
+                toolbar={false}
+                textSizeClass="text-[15px] leading-relaxed"
+                frameClass="border border-pending/40 bg-pending/[0.06] focus:border-pending"
+              />
 
               {/* THE COACH (slice 4) — on the locked face too: a locked
                   chunk has no proposal left, and the coach's message is
