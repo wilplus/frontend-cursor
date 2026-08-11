@@ -817,12 +817,17 @@ export default function LabOverlay({
           circled on both screens. */}
       {state === "lab_session_context" || state === "readout" ? null : (
         <header className="flex h-12 shrink-0 items-center justify-between px-4">
-          {/* The recording screen names itself (founder's mock 2026-08-11).
-              Every other step keeps the bare ✕ — the label is here because
-              this is the one screen you look at while doing something else,
-              and a glance has to answer "what is this". */}
+          {/* The recording screen names itself. Every other step keeps the
+              bare ✕ — the label is here because this is the one screen you
+              look at while doing something else, and a glance has to answer
+              "what is this".
+
+              "Recording", not the mock's "Practice run" (founder 2026-08-11,
+              verdict on his own mock): every take matters, and a screen that
+              calls itself a practice run tells the speaker the opposite of
+              what the product believes. */}
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {state === "lab_recording" ? "Practice run" : ""}
+            {state === "lab_recording" ? "Recording" : ""}
           </span>
           <OverlayCloseButton onClick={handleClose} />
         </header>
