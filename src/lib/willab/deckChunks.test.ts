@@ -58,9 +58,14 @@ describe("buildDeckChunks — status derivation", () => {
     expect(chunks[0].status).toBe("waiting");
   });
 
-  it("an approved suggestion washes the chunk accepted until it is locked in", () => {
+  it("an approved suggestion reaches the SAME final state as a lock (founder 2026-08-11)", () => {
+    // The four-state model collapsed to three: "accepted" and "locked" are
+    // one state on the page. The distinction still EXISTS — the modal reads
+    // `part.locked` to decide whether to offer the lock — so the approved id
+    // has to survive the merge, which is what the second assertion holds.
     const chunks = buildDeckChunks(DOC, parts(), [sug("s1", 0, 10, "approved")]);
-    expect(chunks[0].status).toBe("accepted");
+    expect(chunks[0].status).toBe("locked");
+    expect(chunks[0].part.locked).not.toBe(true);
     expect(chunks[0].approvedIds).toEqual(["s1"]);
     expect(chunks[0].pendingIds).toEqual([]);
   });

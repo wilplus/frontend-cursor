@@ -31,23 +31,20 @@ import type {
 /*  three decide lanes + the lock PUT — passed in as callbacks — so this       */
 /*  surface cannot fork the serve/decide/lock contract it renders.             */
 /*                                                                            */
-/*  Visual grammar (the founder's rules, all four):                            */
-/*    - underline appears ONLY on a waiting chunk — it is the one signal       */
-/*      that feedback is outstanding;                                          */
-/*    - an accepted-not-locked chunk carries the amber wash, no underline;     */
-/*    - locked text is plain — a matured slide reads clean;                    */
-/*    - no stars anywhere.                                                     */
+/*  VISUAL GRAMMAR (founder 2026-08-11, rewritten): THE TEXT IS NEVER          */
+/*  PAINTED. No underline, no wash, no tint — in any state. The three states   */
+/*  live entirely in the chunk's icon, and the words stay clean.               */
 /*                                                                            */
-/*  AC-9: the footer counts work (waiting · slide · words), never quality.     */
+/*  The underline had to go because of what it did at scale rather than what   */
+/*  it meant: it marks the chunk a suggestion sits in, and when a whole talk   */
+/*  arrived as ONE chunk it striped all 233 words amber over a single pending  */
+/*  note. Even now that chunks are per-slide, a paragraph-wide underline is    */
+/*  the wrong grain for a phrase-sized remark, and it makes the one thing the  */
+/*  screen exists for — reading your own speech — harder.                      */
+/*                                                                            */
+/*  Chrome is stripped to match: no frame, no height cap, no footer. The text  */
+/*  gets the room.                                                             */
 /* -------------------------------------------------------------------------- */
-
-const CHUNK_TEXT_CLS: Record<DeckChunk["status"], string> = {
-  clean: "",
-  waiting:
-    "underline decoration-pending decoration-2 underline-offset-4 bg-pending/[0.08] rounded-sm",
-  accepted: "bg-pending/[0.14] rounded-sm",
-  locked: "",
-};
 
 export default function TranscriptReviewDeck({
   title = "",
@@ -134,8 +131,6 @@ export default function TranscriptReviewDeck({
   const [atSlide, setAtSlide] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const waiting = chunks.filter((c) => c.status === "waiting").length;
-  const words = doc.trim() ? doc.trim().split(/\s+/).length : 0;
 
   const kickerFor = (slideIndex: number | null, ord: number): string =>
     slideIndex === null ? "Your talk" : `Slide ${slideIndex + 1}`;
@@ -237,9 +232,7 @@ export default function TranscriptReviewDeck({
                     key={c.part.id}
                     className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                   >
-                    <span className={CHUNK_TEXT_CLS[c.status]}>
-                      <RichText text={c.part.text} />
-                    </span>
+                    <RichText text={c.part.text} />
                     <DeckLockMark
                       status={c.status}
                       onClick={() => setOpenPartId(c.part.id)}
@@ -275,18 +268,10 @@ export default function TranscriptReviewDeck({
         ) : null}
       </div>
 
-      {/* Footer — work counts only, never quality (AC-9). */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-        <span>
-          {waiting === 0
-            ? "Nothing waiting"
-            : `${waiting} to review`}
-        </span>
-        <span className="tabular-nums">
-          {groups.length > 1 ? `Slide ${atSlide + 1} of ${groups.length} · ` : ""}
-          {words} words
-        </span>
-      </div>
+      {/* NO FOOTER (founder 2026-08-11). The review count, the slide
+          position and the word count are all gone: the dots rail already
+          says where you are, and a running word count is a number about
+          your speech sitting under your speech. */}
 
       {openChunk ? (
         <DeckChunkModal

@@ -10,7 +10,10 @@ import IdealTextOverlay from "@/components/willab/IdealTextOverlay";
 /*  parts lock PUT (or the user-edit PUT when the draft changed).              */
 /*                                                                            */
 /*  Serves FOUR chunk states at once: clean (p0), waiting (p1, a pending      */
-/*  polish replace), locked (p2, stored part lock), accepted (p3, an approved  */
+/*  polish replace), locked (p2, a stored part lock, and p3, an approved       */
+/*  bold — two different routes into the one final state since the founder     */
+/*  merged accepted and locked on 2026-08-11; only p2's lives in `parts`,      */
+/*  which is what ?noparts=1 takes away). Formerly p3 was its own "accepted"   */
 /*  bold). Every write is recorded on window.__deckCalls.                      */
 /*                                                                            */
 /*  ?noparts=1 — THE DOCUMENT THAT HAS NO STORED IDENTITY: `parts: null`, the  */
