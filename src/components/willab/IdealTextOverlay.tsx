@@ -2,20 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Check,
-  Copy,
-  ListPlus,
-  Loader2,
-  Lock,
-  Mic,
-  Play,
-  Sparkles,
-} from "lucide-react";
+import { Check, Copy, Lock, Play, Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
+import ProcessingWait from "./ProcessingWait";
 import LoadingState from "./LoadingState";
-import { FLOW_COPY } from "./flowCopy";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
@@ -143,6 +134,8 @@ export default function IdealTextOverlay({
     /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
      *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
     presentationRef: string | null;
+    /** Slide titles by index — the deck's title slot. */
+    slideTitles: string[] | null;
     /** The document's stored part ids (SPEC §3.1, Step 0). null → none
      *  stored, and the arranger mints locally so a part has an id from its
      *  first render either way. */
@@ -291,6 +284,7 @@ export default function IdealTextOverlay({
           saved: r.saved,
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
+          slideTitles: r.slideTitles,
           parts: r.parts,
           additions: r.additions,
           userEdited: r.userEdited,
@@ -761,6 +755,7 @@ export default function IdealTextOverlay({
             pieceSlideIndexes={
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
+            slideTitles={sd.slideTitles ?? undefined}
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
@@ -793,18 +788,15 @@ export default function IdealTextOverlay({
             analysisPending ? (
               // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
               // an ordinary load: the old text is deliberately inaccessible
-              // while the take's document assembles, and the line is the
-              // founder's copy verbatim. When the settle probe clears the
-              // marker, `analysisPending` flips and the fetch effect pulls
-              // the fresh document into this same view.
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
-                <Loader2
-                  className="h-6 w-6 animate-spin text-muted-foreground"
-                  aria-hidden
-                />
-                <p className="text-[15px] leading-relaxed text-muted-foreground">
-                  {FLOW_COPY.workingOnText}
-                </p>
+              // while the take's document assembles. It used to carry its own
+              // "Working on your text" line; that copy is DELETED and both
+              // phases of the wait now render the one waiting screen (founder
+              // 2026-08-11), so the wait never changes its subject halfway
+              // through. When the settle probe clears the marker,
+              // `analysisPending` flips and the fetch effect pulls the fresh
+              // document into this same view.
+              <div className="flex flex-1 flex-col items-center justify-center py-24">
+                <ProcessingWait markSize={72} />
               </div>
             ) : (
               <LoadingState />

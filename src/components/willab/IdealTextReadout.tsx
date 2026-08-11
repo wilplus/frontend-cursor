@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Loader2, Mic } from "lucide-react";
+import { Check, Copy, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import {
@@ -32,8 +32,8 @@ import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
-import { FLOW_COPY } from "./flowCopy";
 import OverlayCloseButton from "./OverlayCloseButton";
+import ProcessingWait from "./ProcessingWait";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
@@ -157,6 +157,8 @@ export default function IdealTextReadout({
     /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
      *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
     presentationRef: string | null;
+    /** Slide titles by index — the deck's title slot. */
+    slideTitles: string[] | null;
     /** The document's stored part ids (SPEC §3.1, Step 0). null → none
      *  stored; the arranger mints locally so a part has an id from its first
      *  render either way. */
@@ -297,6 +299,7 @@ export default function IdealTextReadout({
           saved: r.saved,
           keyPoints: r.keyPoints,
           presentationRef: r.presentationRef,
+          slideTitles: r.slideTitles,
           parts: r.parts,
           additions: r.additions,
           userEdited: r.userEdited,
@@ -741,14 +744,12 @@ export default function IdealTextReadout({
             <OverlayCloseButton onClick={onClose} />
           </div>
         ) : null}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-24">
-          <Loader2
-            className="h-6 w-6 animate-spin text-muted-foreground"
-            aria-hidden
-          />
-          <p className="text-[15px] leading-relaxed text-muted-foreground">
-            {FLOW_COPY.workingOnText}
-          </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 py-16">
+          {/* THE SAME waiting screen the pipeline phase shows. It was its own
+              "Working on your text" line, and that copy is deleted rather
+              than kept as a variant — the wait is one wait, and a second
+              waiting screen that still exists is one that comes back. */}
+          <ProcessingWait markSize={72} />
           {onReRead ? (
             <button
               type="button"
@@ -840,6 +841,7 @@ export default function IdealTextReadout({
             pieceSlideIndexes={
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
+            slideTitles={sd.slideTitles ?? undefined}
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
