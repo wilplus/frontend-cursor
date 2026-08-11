@@ -69,8 +69,15 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
       "src/components/willab/DeckChunkModal.tsx",
       "utf8"
     );
-    expect(modal).toMatch(/<textarea/);
+    expect(modal).toMatch(/<MarkedEditor/);
     expect(modal).toMatch(/Lock in/);
+    // And it is the MARKER-AWARE field, never a raw one: a textarea over the
+    // marker source prints "**bold**" at the student, which FE-1 forbids —
+    // and this modal is the only way into the text.
+    expect(modal).not.toMatch(/<textarea/);
+    // No toolbar: its Underline button would let a student underline their
+    // own words, and on the deck underline means "feedback is waiting here".
+    expect(modal).toMatch(/toolbar=\{false\}/);
     // And every chunk can open it — the deck draws one mark per chunk,
     // unconditionally and never disabled (the founder's "you can always click
     // the lock and see the text of the chunk that you can edit").

@@ -18,6 +18,23 @@ const check = (name, ok, detail = "") => {
   if (!ok) failures++;
 };
 const calls = (page) => page.evaluate(() => window.__deckCalls ?? []);
+/*  The chunk editor is a marker-AWARE field (a contentEditable that paints the
+ *  same styled spans the deck does), never a textarea over the marker source.
+ *  So the spec reads what the STUDENT sees — innerText — which is also what
+ *  makes "no asterisks in the box" a checkable claim. */
+const EDITOR = '[role="dialog"] [role="textbox"][contenteditable]';
+const editorText = (page) =>
+  page.evaluate(
+    (sel) => document.querySelector(sel)?.innerText ?? null,
+    '[role="dialog"] [role="textbox"][contenteditable]'
+  );
+/** Type at the END of the editor, through real keystrokes — the boundary
+ *  guard in MarkedEditor only runs on native beforeinput. */
+async function typeAtEnd(page, text) {
+  await page.locator(EDITOR).click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type(text);
+}
 
 const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } });
@@ -123,14 +140,12 @@ check(
 check(
   "…and the modal MORPHS into the editor — never dropped back to the page mid-decision",
   (await page.locator("text=Edit this chunk").count()) === 1 &&
-    (await page.locator("textarea").count()) === 1
+    (await page.locator(EDITOR).count()) === 1 &&
+    (await page.locator("textarea").count()) === 0
 );
 check(
   "the accepted words flowed into the editor from the refetch",
-  await page.evaluate(() => {
-    const ta = document.querySelector("textarea");
-    return ta?.value.includes("trusted the figures") === true;
-  })
+  (await editorText(page))?.includes("trusted the figures") === true
 );
 
 /* --------------------- Lock in: the parts lock PUT ------------------------- */
@@ -200,7 +215,48 @@ check(
   "…and the applied style stops being offered on the refetch",
   (await page.locator("button", { hasText: "Apply emphasis" }).count()) === 0
 );
-await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+
+/* -- THE MARKER FENCE: the applied bold is now FOLDED INTO THE TEXT (the BE
+      writes **…** into the document). The editor is open on those very words.
+      A plain textarea printed the asterisks at the student — FE-1 says no
+      character of the marker grammar ever reaches a reader, and this modal is
+      the only way into the text, so the leak sat on the one surface that
+      cannot have it. */
+check(
+  "the folded emphasis reaches the editor as STYLE, not as asterisks",
+  await page.evaluate(() => {
+    const box = document.querySelector(
+      '[role="dialog"] [role="textbox"][contenteditable]'
+    );
+    const dialog = document.querySelector('[role="dialog"]');
+    const styled = box?.querySelector('span[data-open="**"]');
+    return (
+      !!box &&
+      box.innerText.includes("changed everything") &&
+      // Not in the box, and not anywhere else in the modal either.
+      !dialog?.innerText.includes("**") &&
+      !dialog?.innerText.includes("{{") &&
+      // …and the words really are bold, not merely stripped.
+      styled?.textContent === "changed everything" &&
+      styled.className.includes("font-semibold")
+    );
+  })
+);
+check(
+  "the editor carries no formatting toolbar — underline stays reserved for the waiting signal",
+  (await page.locator('[role="dialog"] button[aria-label="Underline"]').count()) === 0 &&
+    (await page.locator('[role="dialog"] button[aria-label="Bold"]').count()) === 0
+);
+// BYTE-EXACTNESS, end to end (L1: their take, verbatim). Committing a chunk
+// nobody typed in must serialize back to the SAME marker text — if the editor
+// re-spelled the fold, the host would see changed words and fire a user-edit
+// PUT, silently rewriting a document the student only looked at.
+await page.locator("button", { hasText: /^Lock in$/ }).click();
+await page.waitForTimeout(600);
+check(
+  "opening a folded chunk and locking it writes NOTHING — the marker text round-trips",
+  (await calls(page)).filter((c) => c.url.includes("/user-edit")).length === 0
+);
 await page.waitForTimeout(200);
 
 /* ------- slice 4: the coach's own feedback, on the LOCKED chunk ------------ */
@@ -255,10 +311,8 @@ check(
 await page.locator("button", { hasText: "Use this wording" }).click();
 check(
   "Use this wording loads the old proposal into the draft — committing it is a fresh lock-in, step by step",
-  await page.evaluate(() => {
-    const ta = document.querySelector("textarea");
-    return ta?.value === "We began this in a garage with one borrowed mic.";
-  })
+  (await editorText(page))?.trim() ===
+    "We began this in a garage with one borrowed mic."
 );
 await page.locator('[role="dialog"] button[aria-label="Close"]').click();
 await page.waitForTimeout(200);
@@ -266,17 +320,7 @@ await page.waitForTimeout(200);
 /* ------------- EDITOR routing from a clean chunk + lock-with-edit ---------- */
 await mark("clean").click();
 await page.waitForSelector("text=No feedback pending");
-await page.evaluate(() => {
-  const ta = document.querySelector("textarea");
-  if (ta) {
-    const setter = Object.getOwnPropertyDescriptor(
-      window.HTMLTextAreaElement.prototype,
-      "value"
-    )?.set;
-    setter?.call(ta, ta.value + " And we never looked back.");
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-});
+await typeAtEnd(page, " And we never looked back.");
 await page.locator("button", { hasText: /^Lock in$/ }).click();
 await page.waitForTimeout(700);
 const edits = (await calls(page)).filter((c) => c.url.includes("/user-edit"));
