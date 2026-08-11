@@ -11,10 +11,14 @@ import { RichText } from "@/components/willab/RichText";
 import {
   buildDeckChunks,
   groupChunksBySlide,
+  styleFor,
   type DeckChunk,
 } from "@/lib/willab/deckChunks";
 import type { Part } from "@/lib/willab/documentParts";
-import type { DocumentSuggestion } from "@/services/api/idealText";
+import type {
+  DecisionHistoryEntry,
+  DocumentSuggestion,
+} from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -56,6 +60,9 @@ export default function TranscriptReviewDeck({
   onKeepMine,
   onLockPart,
   onClose,
+  styleChanges = null,
+  onApplyStyle,
+  decisionHistory = null,
 }: {
   title?: string;
   /** Optional right-of-title chip (e.g. "Verified"). Qualitative only. */
@@ -77,6 +84,12 @@ export default function TranscriptReviewDeck({
   /** Commit `newText` for the part (when changed) and lock it. */
   onLockPart: (part: Part, newText: string) => Promise<LockOutcome>;
   onClose?: () => void;
+  /** THE STYLE LANE (slice 2) — post-lock bold proposals, outside the ≤3.
+   *  Modal-only; the page never re-marks locked text. */
+  styleChanges?: readonly DocumentSuggestion[] | null;
+  onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
+  /** PROPOSAL HISTORY (slice 2) — decided proposals, texts included. */
+  decisionHistory?: readonly DecisionHistoryEntry[] | null;
 }) {
   const chunks = useMemo(
     () => buildDeckChunks(doc, parts, suggestions),
@@ -268,6 +281,9 @@ export default function TranscriptReviewDeck({
             onLockPart(openChunk.part, text)
           }
           onClose={() => setOpenPartId(null)}
+          styleSuggestion={styleFor(styleChanges, openChunk)}
+          onApplyStyle={onApplyStyle}
+          history={decisionHistory}
         />
       ) : null}
     </div>

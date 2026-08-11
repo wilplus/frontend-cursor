@@ -67,7 +67,11 @@ export interface DeckChunk {
  *  sides: a suggestion that merely touches a boundary belongs to the chunk
  *  whose words it sits in, not its neighbour. (Zero-width spans are refused
  *  server-side and cannot reach here through the mapper's verify-or-drop.) */
-function overlaps(s: DeckSuggestionLite, start: number, end: number): boolean {
+function overlaps(
+  s: { start: number; end: number },
+  start: number,
+  end: number
+): boolean {
   return s.start < end && s.end > start;
 }
 
@@ -123,6 +127,48 @@ export function buildDeckChunks(
     });
   }
   return chunks;
+}
+
+/* ------------------------- slice 2: modal-side joins ----------------------- */
+
+/** Case/punctuation-insensitive form for joining ledger rows to chunk text.
+ *  Old spans die on every reassembly, so HISTORY joins by words — the same
+ *  reasoning as the prior-take lane's normalize_phrase. */
+export function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+/** History entries that belong to this chunk: their quote (or, failing
+ *  that, their proposed text) appears in the chunk's words. A row that
+ *  matches nothing on screen matches no chunk — never guessed in. */
+export function historyForChunk<
+  T extends { quote: string | null; proposedText: string | null },
+>(history: readonly T[] | null | undefined, chunkText: string): T[] {
+  if (!history || history.length === 0) return [];
+  const hay = ` ${normalizeForMatch(chunkText)} `;
+  return history.filter((h) => {
+    const needle = h.quote ?? h.proposedText;
+    if (!needle) return false;
+    const n = normalizeForMatch(needle);
+    return n.length > 0 && hay.includes(` ${n} `);
+  });
+}
+
+/** The first pending style-lane proposal overlapping this chunk (its spans
+ *  index the same served document). Surfaced only inside the modal — the
+ *  page never marks it (locked text is never re-underlined). */
+export function styleFor<
+  T extends {
+    start: number;
+    end: number;
+    status: "pending" | "approved" | "dismissed" | null;
+  },
+>(styleChanges: readonly T[] | null | undefined, chunk: DeckChunk): T | null {
+  for (const s of styleChanges ?? []) {
+    if (s.status === "approved" || s.status === "dismissed") continue;
+    if (overlaps(s, chunk.start, chunk.end)) return s;
+  }
+  return null;
 }
 
 /** One slide section of the deck: a kicker index + its chunks, in order. */

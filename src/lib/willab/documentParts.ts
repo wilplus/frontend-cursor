@@ -34,6 +34,9 @@ export interface Part {
    *  take COMPOSITION (rewrites). Server-owned: absent/false until the BE says
    *  otherwise, and never set optimistically from a failed request. */
   locked?: boolean;
+  /** The slice-2 maturity counter — lock-in cycles survived. Server-owned;
+   *  absent reads 0. A process count, never a score. */
+  iteration?: number;
 }
 
 /** A v4 uuid. `crypto.randomUUID` where it exists (every current browser on a
@@ -124,13 +127,20 @@ export function reconcileParts(
   const used = new Array(prev.length).fill(false);
   const out: Array<Part | null> = new Array(texts.length).fill(null);
 
-  // Pass 1 — unique on both sides. Survives an arbitrary reorder.
+  // Pass 1 — unique on both sides. Survives an arbitrary reorder. The
+  // maturity counter rides with the identity: same words = same part =
+  // same history.
   texts.forEach((t, i) => {
     if (nextCounts.get(t) !== 1 || prevCounts.get(t) !== 1) return;
     const at = prevTexts.indexOf(t);
     if (at < 0 || used[at]) return;
     used[at] = true;
-    out[i] = { id: prev[at].id, text: t, locked: prev[at].locked };
+    out[i] = {
+      id: prev[at].id,
+      text: t,
+      locked: prev[at].locked,
+      iteration: prev[at].iteration,
+    };
   });
 
   // Pass 2 — the repeats, in reading order.
@@ -139,7 +149,12 @@ export function reconcileParts(
     for (let j = 0; j < prev.length; j += 1) {
       if (!used[j] && prevTexts[j] === t) {
         used[j] = true;
-        out[i] = { id: prev[j].id, text: t, locked: prev[j].locked };
+        out[i] = {
+          id: prev[j].id,
+          text: t,
+          locked: prev[j].locked,
+          iteration: prev[j].iteration,
+        };
         return;
       }
     }
@@ -162,7 +177,12 @@ export function partsForDocument(
   served: readonly Part[] | null | undefined
 ): Part[] {
   if (served && served.length > 0 && partsToText(served) === text.trim()) {
-    return served.map((p) => ({ id: p.id, text: p.text, locked: p.locked }));
+    return served.map((p) => ({
+      id: p.id,
+      text: p.text,
+      locked: p.locked,
+      iteration: p.iteration,
+    }));
   }
   return reconcileParts(text, served ?? []);
 }

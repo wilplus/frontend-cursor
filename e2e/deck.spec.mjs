@@ -152,6 +152,76 @@ check(
   (await mark("locked").count()) === 2
 );
 
+/* -------- slice 2: the style lane on a LOCKED chunk, modal-only ------------ */
+check(
+  "a locked chunk with a PENDING style proposal is still never re-marked on the page",
+  await page.evaluate(() => {
+    const para = [...document.querySelectorAll("section p")].find((p) =>
+      p.textContent?.includes("So we moved the launch")
+    );
+    const span = para?.querySelector("span");
+    return (
+      !!span &&
+      !span.className.includes("decoration-pending") &&
+      !span.className.includes("bg-pending")
+    );
+  })
+);
+await page.evaluate(() => {
+  const para = [...document.querySelectorAll("section p")].find((p) =>
+    p.textContent?.includes("So we moved the launch")
+  );
+  para?.querySelector('button[data-status="locked"]')?.click();
+});
+await page.waitForSelector("text=Locked chunk");
+check(
+  "the locked kicker carries the maturity counter — a process count, never a score",
+  (await page.locator("text=Locked in · 2 iterations").count()) === 1
+);
+check(
+  "the style card surfaces ONLY here: Bolden the quote, with the signed-off emphasis rationale",
+  (await page.locator("text=Bolden").count()) === 1 &&
+    (await page.locator("text=changed everything").count()) >= 1 &&
+    (await page.locator("button", { hasText: "Apply emphasis" }).count()) === 1
+);
+await page.locator("button", { hasText: "Apply emphasis" }).click();
+await page.waitForTimeout(600);
+const styles = (await calls(page)).filter((c) => c.body?.style_lane === true);
+check(
+  "Apply emphasis rides the decide POST OUTSIDE the budget — style_lane marked, texts for the ledger",
+  styles.length === 1 &&
+    styles[0].body.target === "document_bold" &&
+    styles[0].body.action === "applied" &&
+    styles[0].body.quote === "changed everything",
+  JSON.stringify(styles[0]?.body)
+);
+await page.waitForTimeout(400);
+check(
+  "…and the applied style stops being offered on the refetch",
+  (await page.locator("button", { hasText: "Apply emphasis" }).count()) === 0
+);
+await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+await page.waitForTimeout(200);
+
+/* ---------- slice 2: proposal history on the chunk's own words ------------- */
+await mark("clean").click();
+await page.waitForSelector("text=No feedback pending");
+check(
+  "the editor lists proposals from earlier iterations — matched to THIS chunk's words, decided but readable",
+  (await page.locator("text=Proposals from earlier iterations · 1").count()) === 1 &&
+    (await page.locator("text=We began this in a garage with one borrowed mic.").count()) === 1
+);
+await page.locator("button", { hasText: "Use this wording" }).click();
+check(
+  "Use this wording loads the old proposal into the draft — committing it is a fresh lock-in, step by step",
+  await page.evaluate(() => {
+    const ta = document.querySelector("textarea");
+    return ta?.value === "We began this in a garage with one borrowed mic.";
+  })
+);
+await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+await page.waitForTimeout(200);
+
 /* ------------- EDITOR routing from a clean chunk + lock-with-edit ---------- */
 await mark("clean").click();
 await page.waitForSelector("text=No feedback pending");
