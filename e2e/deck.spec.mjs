@@ -290,6 +290,62 @@ check(
   JSON.stringify(edits[0]?.body?.parts?.map((p) => p.locked))
 );
 
+/* ---- REGRESSION: the document the BACKEND has no parts for (founder bug) --- */
+/*  "It can't be locked in!" — on a real arc, on every chunk. The document had  */
+/*  never been manually edited, so the BE served `parts: null`; the deck minted */
+/*  ids for its chunks and the host minted its own, and the lock — addressed by */
+/*  part id — looked itself up in a list that never contained it and gave up    */
+/*  before any request left the browser. This harness always served parts,      */
+/*  which is precisely why the e2e was green while the app was broken.          */
+const fresh = await browser.newPage({ viewport: { width: 520, height: 900 } });
+await fresh.emulateMedia({ reducedMotion: "reduce" });
+await fresh.goto(`${BASE}?noparts=1`, { waitUntil: "networkidle" });
+await fresh.waitForSelector("text=Garage pitch");
+check(
+  "with no stored parts nothing is locked — the chunks are the deck's own derivation",
+  (await fresh.locator('button[data-status="locked"]').count()) === 0 &&
+    (await fresh.locator('button[data-status="clean"]').count()) === 2
+);
+await fresh.locator('button[data-status="clean"]').first().click();
+await fresh.waitForSelector("text=No feedback pending");
+await fresh.locator("button", { hasText: /^Lock in$/ }).click();
+await fresh.waitForTimeout(700);
+const freshLocks = (await calls(fresh)).filter((c) => c.url.includes("/lock"));
+check(
+  "Lock in REACHES THE WIRE with no served identity — position + words carry the claim",
+  freshLocks.length === 1 &&
+    freshLocks[0].body.locked === true &&
+    typeof freshLocks[0].body.text_echo === "string" &&
+    Array.isArray(freshLocks[0].body.parts) &&
+    freshLocks[0].body.parts.length === 4,
+  JSON.stringify(freshLocks[0]?.body?.parts?.length ?? null)
+);
+check(
+  "…and it seeds the identity it just minted — the PUT names a part the server never sent",
+  freshLocks.length === 1 && !/part-\d/.test(freshLocks[0].url),
+  freshLocks[0]?.url
+);
+await fresh.close();
+
+/* ------- founder 2026-08-11: "The edits should not be in the top bar" ------ */
+check(
+  "the host header carries NO edit affordance — the chunk's lock is the only way in",
+  await page.evaluate(() => {
+    // The header row, found from the control that is SUPPOSED to be there.
+    const present = document.querySelector('button[aria-label="Present mode"]');
+    const header = present?.closest("div")?.parentElement ?? null;
+    if (!header) return false;
+    const labels = [...header.querySelectorAll("button[aria-label]")].map(
+      (b) => b.getAttribute("aria-label") ?? ""
+    );
+    const pencils = header.querySelectorAll('svg[class*="pencil"], svg[class*="square-pen"]').length;
+    // Present + Copy + Close survive; nothing in the row says "edit", and no
+    // pencil is drawn. (The chunk marks DO say "edit this chunk" — that is
+    // the point, and they live on the stage, not up here.)
+    return labels.length >= 3 && pencils === 0 && !labels.some((l) => /edit/i.test(l));
+  })
+);
+
 await browser.close();
 console.log(failures === 0 ? "\nPASS" : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);

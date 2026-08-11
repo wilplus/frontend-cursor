@@ -85,8 +85,17 @@ export default function TranscriptReviewDeck({
   slideTitles?: readonly (string | null)[];
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
-  /** Commit `newText` for the part (when changed) and lock it. */
-  onLockPart: (part: Part, newText: string) => Promise<LockOutcome>;
+  /** Commit `newText` for the chunk (when changed) and lock it.
+   *
+   *  The whole CHUNK goes back, not just its part: the host addresses a lock
+   *  by POSITION + WORDS, never by the part id. Identity is derived in two
+   *  places — here from the served parts, and in the host from whatever it
+   *  last held — and when the backend has no stored parts (any document
+   *  never manually edited) both sides mint their own uuids and no id can
+   *  ever match. That mismatch is what made every lock fail with
+   *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
+   *  the lock endpoint verifies anyway. */
+  onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
   onClose?: () => void;
   /** THE STYLE LANE (slice 2) — post-lock bold proposals, outside the ≤3.
    *  Modal-only; the page never re-marks locked text. */
@@ -287,7 +296,7 @@ export default function TranscriptReviewDeck({
           onAccept={onAccept}
           onKeepMine={onKeepMine}
           onLockIn={(text: string): Promise<LockOutcome> =>
-            onLockPart(openChunk.part, text)
+            onLockPart(openChunk, text)
           }
           onClose={() => setOpenPartId(null)}
           styleSuggestion={styleFor(styleChanges, openChunk)}

@@ -9,11 +9,9 @@ import {
   Loader2,
   Lock,
   Mic,
-  PencilLine,
   Play,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
@@ -21,14 +19,11 @@ import { FLOW_COPY } from "./flowCopy";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
-import MarkedEditor from "./MarkedEditor";
-import ChunkedEditor from "./ChunkedEditor";
 import IdealTextHeading from "./IdealTextHeading";
 import MarkedParagraphs from "./MarkedParagraphs";
 import {
   type Addition,
   fetchIdealText,
-  saveIdealNotes,
   saveIdealUserEdit,
   segmentIdealText,
   type DecisionHistoryEntry,
@@ -58,6 +53,7 @@ import {
 } from "./BlockVariantPicker";
 import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
@@ -67,7 +63,6 @@ import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
   lockTargetAt,
-  partsForDocument,
   partsToText,
   reconcileParts,
   updatePart,
@@ -209,14 +204,10 @@ export default function IdealTextOverlay({
   }, [arcId]);
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  // T1 · 1.2 — add/move mode.
-  const [chunkEditing, setChunkEditing] = useState(false);
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
   const [tooLong, setTooLong] = useState(false);
-  const [editLocked, setEditLocked] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   // The version every PUT is stamped with, advanced SYNCHRONOUSLY on each
   // answer so a queued second save can never re-send the version the first
@@ -314,7 +305,6 @@ export default function IdealTextOverlay({
         // "no baseline = all authorship" rule would lock every MACHINE
         // paragraph the student never touched, freezing refresh everywhere.
         partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
-        if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
         // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
         // landed (§5 order), and only on the SD lane (the pool only exists
@@ -485,9 +475,9 @@ export default function IdealTextOverlay({
       }
       if (r.reason === "nothingToEdit") {
         // Nothing is assembled — there was no document to edit. Put back what
-        // was on screen and retire the affordances.
+        // was on screen; the caller reports the refusal (there is no
+        // header-level edit mode left to retire).
         setIdeal((prev) => (prev ? { ...prev, text: before } : prev));
-        setEditLocked(true);
         return false;
       }
       if (r.reason === "invalid") {
@@ -506,20 +496,27 @@ export default function IdealTextOverlay({
   // paths; the deck cannot fork the contract.
   const deckLockPart = useCallback(
     async (
-      part: Part,
+      chunk: DeckChunk,
       newText: string
     ): Promise<"ok" | "blocked" | "failed"> => {
-      const parts = reconcileParts(displayText, partsRef.current ?? []);
-      partsRef.current = parts;
-      const at = parts.findIndex((p) => p.id === part.id);
-      if (at < 0) return "failed";
+      // BY POSITION + WORDS, never by part id. The deck derives identity from
+      // the SERVED parts and this host from whatever it last held; when the
+      // backend has none stored — every document never manually edited — the
+      // two mint independent uuids and an id lookup here can never match.
+      // That is what failed every lock on a fresh arc. The index is provable
+      // (both splits are the same scanner over the same string) and
+      // lockParagraph re-verifies the words before it writes.
+      const at = chunk.paragraphIndex;
       const trimmed = newText.trim();
-      if (trimmed && trimmed !== parts[at].text.trim()) {
+      if (trimmed && trimmed !== chunk.part.text.trim()) {
+        const parts = reconcileParts(displayText, partsRef.current ?? []);
+        partsRef.current = parts;
+        if (at < 0 || at >= parts.length) return "failed";
         const next = updatePart(parts, at, trimmed);
         const ok = await saveDocument(partsToText(next), next);
         return ok ? "ok" : "failed";
       }
-      return lockParagraph(at, parts[at].text);
+      return lockParagraph(at, chunk.part.text);
     },
     [displayText, saveDocument, lockParagraph]
   );
@@ -693,11 +690,8 @@ export default function IdealTextOverlay({
           {/* PRESENT — the PowerPoint move: a play glyph that throws the
               document fullscreen to deliver it. First in the row because it
               is the one control you reach for while standing up. Needs text
-              on screen; hidden while editing (you are not
-              presenting a document you are mid-edit on). */}
+              on screen. */}
           {(status === "ready" || status === "instant") &&
-          !editing &&
-          !chunkEditing &&
           displayText.trim() ? (
             <button
               type="button"
@@ -713,10 +707,10 @@ export default function IdealTextOverlay({
           {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
               timeline has rows: an empty list is a real state (pre-migration
               arc) and hides it entirely (§4.3). */}
-          {status === "ready" && sd && !editing && revisions && revisions.length > 0 ? (
+          {status === "ready" && sd && revisions && revisions.length > 0 ? (
             <TimelineEntryButton onOpen={() => setTimelineOpen(true)} />
           ) : null}
-          {(status === "ready" || status === "instant") && !editing ? (
+          {status === "ready" || status === "instant" ? (
             <button
               type="button"
               onClick={copyText}
@@ -730,45 +724,19 @@ export default function IdealTextOverlay({
               )}
             </button>
           ) : null}
-          {/* Founder 2026-08-10 — the separate arrange state is retired: this
-              button now opens the CHUNKED editor (one chunk per paragraph,
-              markers styled, move/add/remove folded in). SD only (the legacy
-              personal-notes lane has its own pencil below). */}
-          {status === "ready" && sd && !editing && !editLocked && displayText.trim() ? (
-            <button
-              type="button"
-              onClick={() => setChunkEditing((a) => !a)}
-              aria-label={chunkEditing ? "Done editing" : "Edit the text"}
-              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-muted ${
-                chunkEditing
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {chunkEditing ? (
-                <Check className="h-4 w-4" aria-hidden />
-              ) : (
-                <PencilLine className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          ) : null}
-          {/* Personal-notes editing is a legacy perfected-lane feature — no
-              pencil on the instant draft or in the SD living document. */}
-          {status === "ready" && !editing && !chunkEditing && !editLocked ? (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              aria-label="Edit your copy"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <PencilLine className="h-4 w-4" aria-hidden />
-            </button>
-          ) : null}
+          {/* NO EDIT PENCIL (founder 2026-08-11, verbatim: "The edits should
+              not be in the top bar"). Editing a chunk is a CHUNK act now: you
+              click the chunk's lock and edit it in the modal that opens, in
+              front of the words you are changing. The two pencils that used to
+              sit here — the chunked editor and the legacy personal-notes
+              editor — opened a whole-document mode from a header button, which
+              is a second, competing edit lane over the same text. Both are
+              gone, and with them every branch they were the only entry to. */}
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
 
-      {status === "ready" && sd && ideal && !editing && !chunkEditing ? (
+      {status === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
         // star/tracked/badged paragraph stack: chunk states + one lock per
         // chunk, REVIEW/EDITOR modals on the existing decide/lock lanes.
@@ -867,22 +835,6 @@ export default function IdealTextOverlay({
                   its own — the coach's version arrives on the deck. */}
               <MarkedParagraphs text={displayText} textSizeClass="text-[18px]" />
             </div>
-          ) : editing && ideal ? (
-            <NotebookEditor
-              arcId={arcId}
-              initial={displayText}
-              // #214 — SD edits persist through the user-edit PUT (the
-              // student's edit always wins; supersede retried inside the
-              // service). Legacy mode keeps the personal-notes PUT.
-              save={sd ? saveDocument : undefined}
-              onSaved={(text) => {
-                // Under SD, saveDocument already reconciled the document (and
-                // a supersede already queued the refetch that replaces it).
-                if (!sd) setNotes(text);
-                setEditing(false);
-              }}
-              onCancel={() => setEditing(false)}
-            />
           ) : ideal ? (
             <div className="flex flex-col gap-4">
               {/* The verification badge moved into the header (above) — a row
@@ -902,27 +854,13 @@ export default function IdealTextOverlay({
                 </p>
               ) : null}
 
-              {chunkEditing && sd ? (
-                // Founder 2026-08-10 — editing is PER PARAGRAPH: one chunk
-                // per part, the arranger's move/add/remove folded in. Every
-                // operation persists the whole joined document through the
-                // same save lane (auto-lock "typed = committed" included).
-                <ChunkedEditor
-                  parts={partsForDocument(displayText, sd.parts)}
-                  onChange={(next) =>
-                    void saveDocument(partsToText(next), next)
-                  }
-                  textSizeClass="text-[18px]"
-                />
-              ) : (
-                // Legacy (non-SD) payload — a plain, star-free read. The SD
-                // lane renders the deck above; this fading lane keeps its
-                // words and markers, nothing else (founder 2026-08-11: no
-                // stars anywhere).
-                <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
-                  <RichText text={displayText} />
-                </p>
-              )}
+              {/* Legacy (non-SD) payload — a plain, star-free read. The SD
+                  lane renders the deck above; this fading lane keeps its
+                  words and markers, nothing else (founder 2026-08-11: no
+                  stars anywhere). */}
+              <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
+                <RichText text={displayText} />
+              </p>
             </div>
           ) : null}
         </div>
@@ -933,7 +871,7 @@ export default function IdealTextOverlay({
           here as a second, gated mic; it is retired (founder 2026-08-05 — it
           brought no value to the coach or the user). What remains is one lane:
           take after take, each an official recording. */}
-      {status === "ready" && !editing && sd && onReadAloud ? (
+      {status === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
           {/* Confidence game (founder 2026-07-28) — the per-arc first-time
               entry lives HERE, in the same place as the re-read, once the
@@ -1027,79 +965,8 @@ export default function IdealTextOverlay({
   );
 }
 
-function NotebookEditor({
-  arcId,
-  initial,
-  save: saveOverride,
-  onSaved,
-  onCancel,
-}: {
-  arcId: string;
-  initial: string;
-  /** #214 — optional persistence override (the SD user-edit PUT); default is
-   *  the legacy personal-notes PUT. Returns success. */
-  save?: (text: string) => Promise<boolean>;
-  onSaved: (text: string) => void;
-  onCancel: () => void;
-}) {
-  const [draft, setDraft] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // An emptied draft can't save: the mapper reads an empty stored copy as
-  // "no personal copy" on the next load, so it would silently revert to the
-  // canonical — blocking it here keeps what you see and what persists aligned.
-  const empty = draft.trim() === "";
-
-  async function save() {
-    if (saving || empty) return;
-    setSaving(true);
-    setError(null);
-    const ok = saveOverride
-      ? await saveOverride(draft)
-      : await saveIdealNotes(arcId, draft);
-    setSaving(false);
-    if (ok) onSaved(draft);
-    else setError("Couldn't save. Try again.");
-  }
-
-  return (
-    <div className="flex flex-1 flex-col gap-3">
-      {/* FE-1 — the SAME styled editor as the readout. Both surfaces edit one
-          document, so neither may show the marker source. */}
-      <MarkedEditor
-        value={draft}
-        onChange={setDraft}
-        textSizeClass="text-[18px]"
-        autoFocus
-      />
-      <p className="text-[12px] text-muted-foreground">
-        {saveOverride
-          ? "Your edit becomes the text. Your coach sees it too."
-          : "This is your personal copy. The coach-approved original stays unchanged."}
-      </p>
-      <div className="flex items-center gap-2">
-        {/* FE-5 (bug 3b) — no "Save" CTA: the text is already saved and an
-            edit persists on exiting edit mode, so "Save" would promise
-            something that already happened. "Done" persists and closes; Cancel
-            discards. */}
-        <Button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving || empty}
-          className="h-10 rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
-        >
-          {saving ? "Saving…" : "Done"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="h-10 rounded-full px-6 text-[14px]"
-        >
-          Cancel
-        </Button>
-        {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
-      </div>
-    </div>
-  );
-}
+/* NotebookEditor lived here — a whole-document textarea behind the header's
+ * second pencil, saving through the legacy personal-notes PUT. It went out
+ * with that pencil (founder 2026-08-11: "The edits should not be in the top
+ * bar"). Its one non-legacy job — editing the SD document — is what the
+ * deck's chunk modal does now: per chunk, in front of the words. */

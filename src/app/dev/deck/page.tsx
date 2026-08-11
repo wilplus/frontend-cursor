@@ -13,6 +13,14 @@ import IdealTextOverlay from "@/components/willab/IdealTextOverlay";
 /*  polish replace), locked (p2, stored part lock), accepted (p3, an approved  */
 /*  bold). Every write is recorded on window.__deckCalls.                      */
 /*                                                                            */
+/*  ?noparts=1 — THE DOCUMENT THAT HAS NO STORED IDENTITY: `parts: null`, the  */
+/*  shape the BE serves for every document nobody has ever manually edited.    */
+/*  It is the shape a real arc has on its first read, and the reason this      */
+/*  harness let a broken lock ship: with parts served, the deck and the host   */
+/*  read the SAME ids and a lock addressed by id worked; with none, both mint  */
+/*  their own uuids, no id matches, and every lock died in the browser. The    */
+/*  lock is addressed by position + words now, so it must fire here too.       */
+/*                                                                            */
 /*  DEV ONLY. Production renders nothing and patches nothing.                  */
 /* -------------------------------------------------------------------------- */
 
@@ -38,6 +46,11 @@ const TEXT_AFTER = [P0, P1_AFTER, P2, P3].join("\n\n");
 let decided: "pending" | "approved" | "dismissed" = "pending";
 let locked1 = false; // p1's part lock, settable via the lock PUT
 let styleApplied = false; // the locked chunk's style proposal (slice 2)
+
+/** ?noparts=1 — serve the document WITHOUT its parts list (see the header). */
+const noParts =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("noparts") === "1";
 
 function payload() {
   const text = decided === "approved" ? TEXT_AFTER : TEXT_BEFORE;
@@ -115,14 +128,18 @@ function payload() {
     ],
     user_edited: false,
     is_saved: false,
-    parts: paras.map((t, i) => ({
-      id: `part-${i}`,
-      ord: i,
-      text: t,
-      locked: i === 2 || (i === 1 && locked1),
-      // SLICE 2 — the maturity counter: p2 has survived two lock-ins.
-      iteration: i === 2 ? 2 : i === 1 && locked1 ? 1 : 0,
-    })),
+    // No stored identity → null, exactly as the BE serves it. Locks live in
+    // the parts list, so this document has none: nothing is locked yet.
+    parts: noParts
+      ? null
+      : paras.map((t, i) => ({
+          id: `part-${i}`,
+          ord: i,
+          text: t,
+          locked: i === 2 || (i === 1 && locked1),
+          // SLICE 2 — the maturity counter: p2 has survived two lock-ins.
+          iteration: i === 2 ? 2 : i === 1 && locked1 ? 1 : 0,
+        })),
     pieces: paras.map((t, i) => ({
       piece_key: i,
       text: t,
