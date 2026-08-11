@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Star, Video } from "lucide-react";
+import { BadgeCheck, Sparkles, Video } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -522,9 +522,11 @@ export default function CoachStarVerdictOverlay({
               return (
               <CoachCard as="li" key={key}>
                 <div className="flex items-center gap-2">
-                  {/* Outline star = unverified machine suggestion, the same
-                      icon language the student text uses. */}
-                  <Star
+                  {/* Founder 2026-08-11: stars are eradicated platform-wide,
+                      this coach tool included. A neutral approval mark — the
+                      row is a machine suggestion awaiting the coach's
+                      verdict, and the icon should say only that. */}
+                  <BadgeCheck
                     className="h-4 w-4 shrink-0 text-muted-foreground"
                     fill="none"
                     aria-hidden
