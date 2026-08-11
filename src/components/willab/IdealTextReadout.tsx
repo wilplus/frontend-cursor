@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Loader2, Mic, PencilLine } from "lucide-react";
+import { Check, Copy, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import {
@@ -27,9 +27,9 @@ import {
 import { BlockVariantSheet } from "./BlockVariantPicker";
 import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import ChunkedEditor from "./ChunkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import { FLOW_COPY } from "./flowCopy";
@@ -39,7 +39,6 @@ import { setPartLock } from "@/services/api/partLock";
 import {
   autoLockTouched,
   lockTargetAt,
-  partsForDocument,
   partsToText,
   reconcileParts,
   updatePart,
@@ -126,7 +125,6 @@ export default function IdealTextReadout({
 }) {
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
-  const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
@@ -222,7 +220,6 @@ export default function IdealTextReadout({
   // the take that just landed), and offered back for one tap.
   // 409 NOTHING_TO_EDIT — nothing is assembled yet, so the edit affordances
   // have nothing to act on and hide entirely.
-  const [editLocked, setEditLocked] = useState(false);
   // 400 INVALID_INPUT — past the document ceiling. The words stay on screen.
   const [tooLong, setTooLong] = useState(false);
   // SEND-LATEST serialization (review R-ue2): saves run one at a time on a
@@ -305,8 +302,6 @@ export default function IdealTextReadout({
           userEdited: r.userEdited,
           canRecordTake: r.canRecordTake,
         });
-        // A document exists again → the edit affordances come back.
-        if (r.ideal.text.trim()) setEditLocked(false);
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
           setText(r.ideal.text);
@@ -390,7 +385,8 @@ export default function IdealTextReadout({
           return;
         }
         if (r.reason === "nothingToEdit") {
-          setEditLocked(true);
+          // Nothing is assembled — there is no document to write into. Stop
+          // retrying; the lock modal reports the refusal to whoever asked.
           setSaveState("idle");
           return;
         }
@@ -696,15 +692,19 @@ export default function IdealTextReadout({
   // else the plain part-lock with seeding.
   const deckLockPart = useCallback(
     async (
-      part: Part,
+      chunk: DeckChunk,
       newText: string
     ): Promise<"ok" | "blocked" | "failed"> => {
+      // BY POSITION + WORDS — see the note in IdealTextOverlay: a part id
+      // minted by the deck cannot be found in a list this host minted
+      // separately, which is what failed every lock on a document with no
+      // stored parts.
+      const at = chunk.paragraphIndex;
       const parts = reconcileParts(textRef.current, partsRef.current ?? []);
       partsRef.current = parts;
-      const at = parts.findIndex((p) => p.id === part.id);
-      if (at < 0) return "failed";
+      if (at < 0 || at >= parts.length) return "failed";
       const trimmed = newText.trim();
-      if (trimmed && trimmed !== parts[at].text.trim()) {
+      if (trimmed && trimmed !== chunk.part.text.trim()) {
         const next = updatePart(parts, at, trimmed);
         applyEdit(partsToText(next), next);
         const ok = await flushEdits();
@@ -715,13 +715,10 @@ export default function IdealTextReadout({
         setSdNonce((n) => n + 1);
         return "ok";
       }
-      return lockParagraph(at, parts[at].text);
+      return lockParagraph(at, chunk.part.text);
     },
     [applyEdit, flushEdits, lockParagraph, markDirty]
   );
-
-  // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
-  const canEdit = !editLocked && text.trim().length > 0;
 
   // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
   // the old text is INACCESSIBLE: no reading it, no copying it, no editing
@@ -779,26 +776,10 @@ export default function IdealTextReadout({
               <Copy className="h-4 w-4" aria-hidden />
             )}
           </button>
-          {/* Founder 2026-08-10 — the separate arrange state is retired; its
-              add / move / remove operations live inside the chunked editor. */}
-          {canEdit ? (
-            <button
-              type="button"
-              onClick={() => setEditing((e) => !e)}
-              aria-label={editing ? "Done editing" : "Edit the text"}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
-                editing
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {editing ? (
-                <Check className="h-4 w-4" aria-hidden />
-              ) : (
-                <PencilLine className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          ) : null}
+          {/* NO EDIT PENCIL (founder 2026-08-11: "The edits should not be in
+              the top bar"). This screen heads itself like the notebook does,
+              and the notebook's pencils are gone: editing is a CHUNK act —
+              click the chunk's lock, edit it in the modal. */}
           {onClose ? (
             <OverlayCloseButton onClick={onClose} className="ml-1" />
           ) : null}
@@ -808,17 +789,7 @@ export default function IdealTextReadout({
 
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}
-      {editing ? (
-        // Founder 2026-08-10 — editing is PER PARAGRAPH: one chunk per part,
-        // markers styled (never "{{orange:"), the arranger's move/add/remove
-        // folded in. Every operation reports the whole parts list into the
-        // SAME save lane (auto-lock "typed = committed" included).
-        <ChunkedEditor
-          parts={partsForDocument(text, partsRef.current)}
-          onChange={(next) => applyEdit(partsToText(next), next)}
-          textSizeClass="text-[17px]"
-        />
-      ) : signedIn && arcId && !sdSettled ? (
+      {signedIn && arcId && !sdSettled ? (
         // FE-3 — hold until the served text + its stars are in hand, so they
         // land together instead of the text rendering then stars popping in.
         <p className="py-10 text-center text-[13px] text-muted-foreground">
@@ -864,9 +835,8 @@ export default function IdealTextReadout({
       {/* MATERIAL RECOVERY — words the speaker SAID on a slide their script
           has no block for. Below the document, not inside it: there is nothing
           in the text to anchor to, which is exactly why forcing it into the
-          tracked-change shape made it reach nobody. Hidden while editing or
-          editing — that mode is about the words already in the script. */}
-      {sd && arcId && !editing && sd.additions.length > 0 ? (
+          tracked-change shape made it reach nobody. */}
+      {sd && arcId && sd.additions.length > 0 ? (
         <AdditionsPanel
           additions={sd.additions}
           onDecide={decideAddition}
