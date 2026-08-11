@@ -14,6 +14,8 @@ import {
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import ModeToggle from "@/components/willab/ModeToggle";
 import { VoiceMark } from "@/components/willab/LoadingState";
+import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
+import { type TernaryValue } from "@/services/api/stateRatings";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import {
@@ -331,10 +333,10 @@ function PlaybackHero({
 function GameView({ arcId, session }: { arcId: string; session: GameSession }) {
   const [verdicts, setVerdicts] = useState<Record<string, GameVerdict>>({});
   // What the user CALLED it — drives which button tints on the reveal.
-  const [picks, setPicks] = useState<Record<string, boolean>>({});
+  const [picks, setPicks] = useState<Record<string, TernaryValue>>({});
   const [current, setCurrent] = useState(0);
   const [finished, setFinished] = useState(false);
-  const [submitting, setSubmitting] = useState<boolean | null>(null);
+  const [submitting, setSubmitting] = useState<TernaryValue | null>(null);
   const [failed, setFailed] = useState(false);
   // N3 — one POST per decision, enforced SYNCHRONOUSLY. State alone is not a
   // guard: two clicks in the same tick both read it before React commits,
@@ -350,19 +352,19 @@ function GameView({ arcId, session }: { arcId: string; session: GameSession }) {
   const pick = picks[round.roundId];
   const isLast = current === session.rounds.length - 1;
 
-  async function answer(isKeyMoment: boolean) {
+  async function answer(value: TernaryValue) {
     if (inFlightRef.current || verdict) return;
     inFlightRef.current = true;
     setFailed(false);
-    setSubmitting(isKeyMoment);
-    const v = await submitGameAnswer(arcId, round.roundId, isKeyMoment);
+    setSubmitting(value);
+    const v = await submitGameAnswer(arcId, round.roundId, value);
     setSubmitting(null);
     if (v) {
-      setPicks((p) => ({ ...p, [round.roundId]: isKeyMoment }));
+      setPicks((p) => ({ ...p, [round.roundId]: value }));
       setVerdicts((prev) => ({ ...prev, [round.roundId]: v }));
       inFlightRef.current = false;
     } else {
-      // Only a FAILED post re-arms the buttons — a success keeps the round
+      // Only a FAILED post re-arms the chips — a success keeps the round
       // answered forever (the label is already in the corpus).
       inFlightRef.current = false;
       setFailed(true);
@@ -386,39 +388,20 @@ function GameView({ arcId, session }: { arcId: string; session: GameSession }) {
         durationMs={round.durationMs}
       />
 
-      {/* The binary dilemma — swipe-left / swipe-right as two big buttons:
-          neutral grey LEFT, Confident green RIGHT. After the answer the
-          picked side tints by the outcome (never red — N5: an incorrect call
-          is the user's own solid moment, not a failure). */}
-      <div className="grid shrink-0 grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => void answer(false)}
+      {/* THE shared instrument (founder 2026-08-10: "the confident voice
+          label should has the same UI as the coach based labelling and the
+          voice game labelling" — and the missing third answer). The h2
+          above is the question, so the component's own line is hidden; the
+          outcome shows in the reveal below (N5 holds — never red, and an
+          Ambiguous answer gets a reveal with no win/lose head at all). */}
+      <div className="shrink-0 self-center">
+        <ConfidenceLabelChips
+          question={null}
+          value={pick ?? null}
           disabled={submitting !== null || !!verdict}
-          className={`rounded-2xl px-4 py-4 text-[14px] font-semibold ring-1 transition-all disabled:cursor-not-allowed ${
-            verdict && pick === false
-              ? verdict.correct
-                ? "bg-success text-white ring-success"
-                : "bg-amber-500/15 text-amber-700 ring-amber-500/40 dark:text-amber-300"
-              : "bg-card text-foreground ring-border hover:ring-foreground/40"
-          } ${verdict && pick !== false ? "opacity-50" : ""}`}
-        >
-          {submitting === false ? "Checking..." : "Not this one"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void answer(true)}
-          disabled={submitting !== null || !!verdict}
-          className={`rounded-2xl px-4 py-4 text-[14px] font-semibold ring-1 transition-all disabled:cursor-not-allowed ${
-            verdict && pick === true
-              ? verdict.correct
-                ? "bg-success text-white ring-success"
-                : "bg-amber-500/15 text-amber-700 ring-amber-500/40 dark:text-amber-300"
-              : "bg-success/10 text-success ring-success/40 hover:ring-success"
-          } ${verdict && pick !== true ? "opacity-50" : ""}`}
-        >
-          {submitting === true ? "Checking..." : "Confident"}
-        </button>
+          saving={submitting !== null}
+          onPick={(v) => void answer(v)}
+        />
       </div>
 
       {failed ? (
@@ -483,12 +466,20 @@ function RevealBlock({ verdict }: { verdict: GameVerdict }) {
 
   return (
     <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 scrollbar-none">
-      {/* Qualitative only (N2) — a word and the why, never a tally. */}
+      {/* Qualitative only (N2) — a word and the why, never a tally. An
+          Ambiguous answer has NO verdict (correct === null): the reveal
+          carries the read alone, with no win/lose head — there is nothing
+          to be right or wrong about on an abstained guess. */}
       <p className="text-[14px] leading-relaxed text-foreground">
-        <span className="font-semibold">
-          {verdict.correct ? "Correct" : "Not quite"}
-        </span>
-        {verdict.correct ? " 🥳" : ""} {tinted(head)}
+        {verdict.correct !== null ? (
+          <>
+            <span className="font-semibold">
+              {verdict.correct ? "Correct" : "Not quite"}
+            </span>
+            {verdict.correct ? " 🥳" : ""}{" "}
+          </>
+        ) : null}
+        {tinted(head)}
       </p>
       {rest.map((p, i) => (
         <p key={i} className="text-[14px] leading-relaxed text-foreground">

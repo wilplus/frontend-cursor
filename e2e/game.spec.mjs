@@ -3,12 +3,13 @@
 /*                                                                            */
 /*    GAME_URL=http://localhost:<port>/dev/game node e2e/game.spec.mjs         */
 /*                                                                            */
-/*  What only an engine can prove: the binary dilemma renders neutral-LEFT /   */
-/*  Confident-RIGHT with the big playback hero centered, no transcript on      */
-/*  game rounds (ear-first), the explanation lands BELOW inside the same       */
-/*  screen with no page scroll, one POST per decision (N3), the toggle keeps   */
-/*  game state, and Best voices shows ONE comment (coach overrides system)     */
-/*  plus the video when attached.                                              */
+/*  What only an engine can prove: the answer row is the SHARED ternary        */
+/*  instrument (Yes / No / Ambiguous — founder 2026-08-10, one label UI on     */
+/*  every lane) under the big playback hero, no transcript on game rounds      */
+/*  (ear-first), the explanation lands BELOW inside the same screen with no    */
+/*  page scroll, one POST per decision (N3), the toggle keeps game state,      */
+/*  and Best voices shows ONE comment (coach overrides system) plus the        */
+/*  video when attached.                                                       */
 /* -------------------------------------------------------------------------- */
 
 import { launchChromium } from "./_launch.mjs";
@@ -55,29 +56,22 @@ check(
   "no transcript on game rounds — the guess is by ear",
   !(await page.locator("body").innerText()).includes("tripled revenue")
 );
-const geometry = await page.evaluate(() => {
-  const not = [...document.querySelectorAll("button")].find((b) =>
-    b.textContent?.includes("Not this one")
-  );
-  const conf = [...document.querySelectorAll("button")].find(
-    (b) => b.textContent === "Confident"
-  );
-  if (!not || !conf) return null;
-  return {
-    leftIsNeutral: not.getBoundingClientRect().x < conf.getBoundingClientRect().x,
-    confGreen: conf.className.includes("success"),
-  };
-});
+// 2026-08-10 — the unified ternary instrument (founder: "the confident
+// voice label should has the same UI as the coach based labelling and the
+// voice game labelling", + the missing idk). The two big outcome-tinting
+// buttons are gone; the game renders the SAME three chips every label lane
+// renders, and the outcome shows only in the reveal (N5 holds there).
 check(
-  "neutral grey LEFT, green Confident RIGHT",
-  geometry?.leftIsNeutral === true && geometry?.confGreen === true,
-  JSON.stringify(geometry)
+  "the answer row is the shared instrument — Yes / No / Ambiguous, one of each",
+  (await page.locator("button", { hasText: /^Yes$/ }).count()) === 1 &&
+    (await page.locator("button", { hasText: /^No$/ }).count()) === 1 &&
+    (await page.locator("button", { hasText: /^Ambiguous$/ }).count()) === 1
 );
 check("no page scroll on the question screen", await noPageScroll(page));
 
 /* --------------------- N3: one POST per decision -------------------------- */
 const confBtn = await page
-  .locator("button", { hasText: /^Confident$/ })
+  .locator("button", { hasText: /^Yes$/ })
   .elementHandle();
 await page.evaluate((el) => {
   el.click();
@@ -91,20 +85,22 @@ check(
     .length === 1
 );
 check(
-  "the POST body is canonical with a strict boolean",
+  "the POST body is canonical — the ternary answer on the wire",
   JSON.stringify(p[0]?.body) ===
-    JSON.stringify({ round_id: "snip-key", answer: true }),
+    JSON.stringify({ round_id: "snip-key", answer: "yes" }),
   JSON.stringify(p[0]?.body)
 );
 
-/* ------------------ reveal below, same screen, button tint ----------------- */
+/* ------------- reveal below, same screen; the pick stays visible ----------- */
 check(
-  "the picked Confident button tints success on a correct call",
+  "the picked chip reads as pressed, and the row is locked after the verdict",
   await page.evaluate(() => {
-    const b = [...document.querySelectorAll("button")].find(
-      (x) => x.textContent === "Confident"
+    const yes = [...document.querySelectorAll("button")].find(
+      (x) => x.textContent?.trim() === "Yes"
     );
-    return b?.className.includes("bg-success ") ?? false;
+    return (
+      yes?.getAttribute("aria-pressed") === "true" && yes?.disabled === true
+    );
   })
 );
 const head = await page.evaluate(() => {
@@ -142,7 +138,7 @@ check("the reveal fits the same screen — no page scroll", await noPageScroll(p
 /* ---------------------------- round 2: decoy ------------------------------- */
 await page.locator("button", { hasText: "Next" }).click();
 await page.waitForTimeout(300);
-await page.locator("button", { hasText: /^Confident$/ }).click();
+await page.locator("button", { hasText: /^Yes$/ }).click();
 await page.waitForTimeout(400);
 p = await posts(page);
 check(
@@ -150,12 +146,12 @@ check(
   p.filter((x) => x.url.includes("/answers")).length === 2
 );
 check(
-  "a wrong call tints amber, never red",
+  "a wrong call renders nothing red anywhere (N5 — the reveal carries it)",
   await page.evaluate(() => {
-    const b = [...document.querySelectorAll("button")].find(
-      (x) => x.textContent === "Confident"
-    );
-    return (b?.className.includes("amber") && !b?.className.includes("red")) ?? false;
+    const cls = [...document.querySelectorAll("button")]
+      .map((b) => b.className)
+      .join(" ");
+    return !cls.includes("red");
   })
 );
 const wrongHead = await page.evaluate(() => {

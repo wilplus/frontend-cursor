@@ -40,11 +40,15 @@ import {
 } from "@/services/api/coachReviewState";
 import { publishArc } from "@/services/api/arcBatch";
 import {
-  buildLabelBody,
   fetchConfidenceQueue,
-  saveConfidenceLabel,
   type QueuePiece,
 } from "@/services/api/trainingCorpus";
+import {
+  buildRatingBody,
+  saveStateRating,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachStarVerdictOverlay — FEEDBACKS REVIEW: the coach's one scrollable     */
@@ -108,6 +112,7 @@ function blockerReason(b: PublishBlocker): string {
 export default function CoachStarVerdictOverlay({
   arcId,
   sessionIds,
+  onOpenTakeReview,
   onClose,
 }: {
   arcId: string;
@@ -116,6 +121,13 @@ export default function CoachStarVerdictOverlay({
    *  "confident voice feedbacks should always be at the top of the list").
    *  Absent → no CV rows, the panel renders exactly as before. */
   sessionIds?: string[];
+  /** Final migration (founder 2026-08-10): the per-take review rows deep-link
+   *  into the take's review from HERE — the one entry. A PROP, deliberately:
+   *  the walker is the blind-labeling flow, and this panel must import
+   *  nothing from that lane (N1); the Lounge — the one hub allowed to know
+   *  both flows — wires the callback. Absent → the rows render without a
+   *  tap. */
+  onOpenTakeReview?: (sessionId: string) => void;
   onClose: () => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
@@ -193,16 +205,23 @@ export default function CoachStarVerdictOverlay({
     };
   }, [sessionsKey]);
 
-  const labelVoice = (row: QueuePiece, confident: boolean) => {
+  // TERNARY (founder 2026-08-10: same instrument as the coach snippet card
+  // and the game — yes / no / Ambiguous + the unrateable abstention). Saves
+  // through the same ternary write the snippet card uses.
+  const labelVoice = (
+    row: QueuePiece,
+    value: TernaryValue | null,
+    unrateable = false
+  ) => {
     if (cvSaving !== null) return;
-    const body = buildLabelBody(confident);
+    const body = buildRatingBody(value, unrateable);
     if (!body) return;
     setCvSaving(row.snippetId);
     setCvErrors((e) => {
       const { [row.snippetId]: _gone, ...rest } = e;
       return rest;
     });
-    void saveConfidenceLabel(row.snippetId, body).then((r) => {
+    void saveStateRating(row.snippetId, body).then((r) => {
       setCvSaving(null);
       if (!r.ok) {
         setCvErrors((e) => ({
@@ -215,7 +234,17 @@ export default function CoachStarVerdictOverlay({
       setCvRows((rows) =>
         rows.map((x) =>
           x.snippetId === row.snippetId
-            ? { ...x, label: { confident, intensity: null, note: null } }
+            ? {
+                ...x,
+                label: {
+                  value: unrateable ? null : value,
+                  unrateable,
+                  confident:
+                    value === "yes" ? true : value === "no" ? false : null,
+                  intensity: null,
+                  note: null,
+                },
+              }
             : x
         )
       );
@@ -418,29 +447,22 @@ export default function CoachStarVerdictOverlay({
                     {row.transcript}
                   </p>
                 </div>
-                <p className="text-[13px] font-medium text-foreground">
-                  Was this voice confident?
-                </p>
-                <div className="flex gap-2">
-                  <CoachChip
-                    active={row.label?.confident === true}
-                    disabled={cvSaving === row.snippetId}
-                    onClick={() => labelVoice(row, true)}
-                  >
-                    Yes
-                  </CoachChip>
-                  <CoachChip
-                    active={row.label?.confident === false}
-                    disabled={cvSaving === row.snippetId}
-                    onClick={() => labelVoice(row, false)}
-                  >
-                    No
-                  </CoachChip>
-                  {cvSaving === row.snippetId ? <VoiceMark size={20} /> : null}
-                </div>
-                {cvErrors[row.snippetId] ? (
-                  <CoachErrorLine>{cvErrors[row.snippetId]}</CoachErrorLine>
-                ) : null}
+                {/* THE shared instrument (founder 2026-08-10): the same
+                    component the snippet card and the game render — three
+                    answers + the abstention, no per-surface drift. The
+                    question keeps this row's shipped copy. */}
+                <ConfidenceLabelChips
+                  question="Was this voice confident?"
+                  value={row.label?.value ?? null}
+                  unrateable={row.label?.unrateable === true}
+                  disabled={cvSaving === row.snippetId}
+                  saving={cvSaving === row.snippetId}
+                  error={cvErrors[row.snippetId] ?? null}
+                  onPick={(v) => labelVoice(row, v)}
+                  onToggleUnrateable={() =>
+                    labelVoice(row, null, !(row.label?.unrateable === true))
+                  }
+                />
               </CoachCard>
             ))}
           </div>
@@ -754,6 +776,59 @@ export default function CoachStarVerdictOverlay({
             })}
           </ul>
         )}
+        {reviewState && reviewState.takes.length > 0 ? (
+          // The per-take review rows (final migration): each take's saved
+          // state, tappable into its review while unsaved work remains. The
+          // vocabulary is the wrap-up's shipped chip language.
+          <div className="flex flex-col gap-2">
+            <span className="text-[13px] font-medium text-foreground">
+              Takes
+            </span>
+            {reviewState.takes.map((t) => {
+              const label =
+                t.reviewState === "delivered"
+                  ? "Delivered"
+                  : t.reviewState === "reviewed"
+                    ? "Reviewed"
+                    : "To review";
+              const tone =
+                t.reviewState === "delivered"
+                  ? "bg-success/10 text-success"
+                  : t.reviewState === "reviewed"
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-primary/10 text-primary";
+              const row = (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
+                    {t.takeIndex !== null ? `Take ${t.takeIndex}` : "Take"}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}
+                  >
+                    {label}
+                  </span>
+                </>
+              );
+              return onOpenTakeReview && t.reviewState !== "delivered" ? (
+                <button
+                  key={t.sessionId}
+                  type="button"
+                  onClick={() => onOpenTakeReview(t.sessionId)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
+                >
+                  {row}
+                </button>
+              ) : (
+                <div
+                  key={t.sessionId}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+                >
+                  {row}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
         {reviewState ? (
           reviewState.published ? (
             <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">

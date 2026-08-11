@@ -27,6 +27,12 @@ import {
   type QueuePiece,
   type TrainingImport,
 } from "@/services/api/trainingCorpus";
+import {
+  buildRatingBody,
+  saveStateRating,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
+import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 
 /* -------------------------------------------------------------------------- */
 /*  /coach/corpus — the training corpus workbench (2026-07-28)                 */
@@ -885,7 +891,7 @@ function LabelScreen({
     "loading"
   );
   const [at, setAt] = useState(0);
-  const [pending, setPending] = useState<boolean | null>(null);
+  const [pending, setPending] = useState<TernaryValue | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   // The snippetId currently being written to the BE, or null. Only one save
@@ -929,27 +935,43 @@ function LabelScreen({
 
   // The answer the screen is currently showing for this piece: what the coach
   // just picked, else their saved call. Never a default (N3).
-  const answered = pending ?? piece?.label?.confident ?? null;
+  const answered = pending ?? piece?.label?.value ?? null;
+  const abstained = pending === null && piece?.label?.unrateable === true;
 
   async function save(
-    confident: boolean,
+    value: TernaryValue | null,
     intensity?: number,
     /** Whether to move on. Defaults to "yes, if this was a grade" — a grade
      *  finishes a piece. A note saved on blur must NOT advance, or the coach
      *  would be thrown to the next piece by clicking away from a text box. */
-    opts?: { advance?: boolean }
+    opts?: { advance?: boolean; unrateable?: boolean }
   ) {
     if (!piece || inFlightRef.current) return;
     const snippetId = piece.snippetId;
     const trimmed = note.trim();
-    const body = buildLabelBody(confident, intensity, trimmed);
-    // Unconstructable = no real boolean; the UI cannot reach here without one,
-    // so this is a guard, not a flow (N3).
-    if (!body) return;
+    const unrateable = opts?.unrateable === true;
+    // TWO WRITE SHAPES, one judgment each (founder 2026-08-10, the unified
+    // ternary instrument). A graded yes/no rides the LEGACY body — the one
+    // contract that carries answer + intensity as a single judgment, which
+    // is exactly the condition the BE stores intensity under. Everything
+    // else (a bare answer, Ambiguous, the abstention) is the ternary body.
+    const legacyGraded =
+      intensity !== undefined && (value === "yes" || value === "no");
+    const legacyBody = legacyGraded
+      ? buildLabelBody(value === "yes", intensity, trimmed)
+      : null;
+    const ternaryBody = legacyGraded
+      ? null
+      : buildRatingBody(value, unrateable, undefined, trimmed);
+    // Unconstructable = no real answer; the UI cannot reach here without
+    // one, so this is a guard, not a flow (N3).
+    if (!legacyBody && !ternaryBody) return;
     inFlightRef.current = true;
     setSavingId(snippetId); // "pending" — its dot pulses until this resolves.
     setError(null);
-    const res = await saveConfidenceLabel(snippetId, body);
+    const res = legacyBody
+      ? await saveConfidenceLabel(snippetId, legacyBody)
+      : await saveStateRating(snippetId, ternaryBody!);
     inFlightRef.current = false;
     setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
     if (!res.ok) {
@@ -958,7 +980,9 @@ function LabelScreen({
       return;
     }
     const saved = {
-      confident,
+      value: unrateable ? null : value,
+      unrateable,
+      confident: value === "yes" ? true : value === "no" ? false : null,
       intensity: intensity ?? null,
       note: trimmed || null,
     };
@@ -979,10 +1003,13 @@ function LabelScreen({
         (p, i) => i > at && p.label === null && p.snippetId !== piece.snippetId
       );
       setAt(next >= 0 ? next : Math.min(at + 1, pieces.length - 1));
+    } else if (!unrateable) {
+      // An answer saves on its own — intensity is optional, so the coach can
+      // stop here — and the 1–5 row opens for an optional grade (yes/no only:
+      // "how strongly" has no meaning over Ambiguous).
+      setPending(value);
     } else {
-      // Yes/No is saved on its own — intensity is optional, so the coach can
-      // stop here — and the 1–5 row opens for an optional grade.
-      setPending(confident);
+      setPending(null);
     }
   }
 
@@ -1106,37 +1133,26 @@ function LabelScreen({
               </p>
             </div>
 
-            <p className="text-[13px] font-medium text-foreground">
-              Was this voice confident?
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                aria-pressed={answered === true}
-                disabled={savingId === piece.snippetId}
-                onClick={() => void save(true)}
-                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors disabled:opacity-60 ${
-                  answered === true
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:border-primary/50"
-                }`}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                aria-pressed={answered === false}
-                disabled={savingId === piece.snippetId}
-                onClick={() => void save(false)}
-                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors disabled:opacity-60 ${
-                  answered === false
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:border-primary/50"
-                }`}
-              >
-                No
-              </button>
-            </div>
+            {/* THE shared instrument (founder 2026-08-10): the same
+                component the snippet card, the Feedbacks review and the
+                game render — three answers + the abstention. */}
+            <ConfidenceLabelChips
+              question="Was this voice confident?"
+              value={abstained ? null : answered}
+              unrateable={abstained}
+              disabled={savingId === piece.snippetId}
+              // The NAV BAR owns the pending state on this screen ("Saving…"
+              // + the amber dot) — a second Saving… inside the chips would
+              // say it twice, and the e2e pins exactly one.
+              saving={false}
+              onPick={(v) => void save(v)}
+              onToggleUnrateable={() =>
+                void save(null, undefined, {
+                  unrateable: !abstained,
+                  advance: false,
+                })
+              }
+            />
 
             {/* The 1–5 row exists ONLY once an answer is picked: it grades an
                 answer, and offering it first would invite a grade with no
@@ -1146,7 +1162,9 @@ function LabelScreen({
                 something different under Yes than under No). No small grey
                 caption text any more: the word is the SAME colour as the
                 number beside it, not a muted aside. */}
-            {answered !== null ? (
+            {answered === "yes" || answered === "no" ? (
+              // Yes/No only: "how strongly" has no meaning over Ambiguous,
+              // and none at all over an abstention.
               <div className="flex flex-col gap-1.5">
                 <p className="text-[12px] text-muted-foreground">
                   How strongly? Optional.
@@ -1156,7 +1174,7 @@ function LabelScreen({
                     { length: INTENSITY_MAX - INTENSITY_MIN + 1 },
                     (_, i) => INTENSITY_MIN + i
                   ).map((n) => {
-                    const caption = intensityCaption(n, answered);
+                    const caption = intensityCaption(n, answered === "yes");
                     return (
                       <button
                         key={n}
@@ -1190,7 +1208,7 @@ function LabelScreen({
                 that explains an outlier label months later — "hard to call",
                 "background noise" — so it saves on its own, without needing a
                 grade the coach may not want to give. */}
-            {answered !== null ? (
+            {answered !== null || abstained ? (
               <label className="flex flex-col gap-1">
                 <span className="text-[12px] text-muted-foreground">
                   Anything worth remembering? Optional.
@@ -1205,6 +1223,7 @@ function LabelScreen({
                     if (t !== (piece.label?.note ?? "")) {
                       void save(answered, piece.label?.intensity ?? undefined, {
                         advance: false,
+                        unrateable: abstained,
                       });
                     }
                   }}

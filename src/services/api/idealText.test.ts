@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  inferHistoricalStars,
   mapIdealText,
   mapInstantIdealText,
   mapKeyPoints,
@@ -304,39 +303,30 @@ describe("mapIdealText", () => {
     expect(v?.keyMoments[2].suggestion).toMatchObject({ quote: null });
   });
 
-  it("inferHistoricalStars: grey star for un-applied suggestions, never for applied/starred/plain (FE-3b)", () => {
+  it("the FE never mints a star the BE omitted (sole-gatekeeper rip, 2026-08-10)", () => {
+    // inferHistoricalStars is DELETED: it inferred suggestion stars on
+    // historical payloads, which made the FE itself an ungated intervention
+    // source. A payload without a star renders without a star — only the
+    // coach's verified star survives as an explicit field.
     const ideal = mapIdealText({
       text: "alpha beta gamma delta",
       key_moments: [
-        // Historical snapshot shape: suggestion WITHOUT a star field.
         {
           anchor: "alpha",
           snippet_id: "h1",
           take_session_id: "t1",
           suggestion: { kind: "replace", replacement: "x", why: "w" },
         },
-        // Applied → the BE folded it; must stay star-less.
-        {
-          anchor: "beta",
-          snippet_id: "h2",
-          take_session_id: "t1",
-          applied: true,
-          suggestion: { kind: "replace", replacement: "y", why: "w" },
-        },
-        // Already starred (live shape) → untouched.
         {
           anchor: "gamma",
           snippet_id: "h3",
           take_session_id: "t1",
           star: "verified",
         },
-        // Plain, no suggestion → untouched.
         { anchor: "delta", snippet_id: "h4", take_session_id: "t1" },
       ],
     });
-    const out = inferHistoricalStars(ideal!);
-    expect(out.keyMoments.map((m) => m.star)).toEqual([
-      "suggestion",
+    expect(ideal!.keyMoments.map((m) => m.star)).toEqual([
       null,
       "verified",
       null,

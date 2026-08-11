@@ -916,22 +916,11 @@ export function mapInstantIdealText(
   return { kind: "instant", ideal };
 }
 
-/** FE-3b — a historical snapshot's key_moments carry `suggestion` but NO
- *  `star` field (the snapshot predates star states), so the mapper leaves
- *  them plain and the step's reasoning would be invisible. Infer the grey
- *  star for any moment with a usable, un-applied suggestion. HISTORICAL
- *  PAYLOADS ONLY — on the live lane a missing star is the BE deliberately
- *  dropping a consumed suggestion's star, which must stay dropped. Pure. */
-export function inferHistoricalStars(ideal: IdealText): IdealText {
-  return {
-    ...ideal,
-    keyMoments: ideal.keyMoments.map((m) =>
-      m.star == null && m.suggestion && m.applied !== true
-        ? { ...m, star: "suggestion" as const }
-        : m
-    ),
-  };
-}
+/* inferHistoricalStars is DELETED (founder 2026-08-10: the manager engine
+ * is the sole gatekeeper — "no other exist"). It minted suggestion stars
+ * the BE deliberately omitted, which made the FE itself an ungated
+ * intervention source; the historical payload no longer carries
+ * suggestions at all. */
 
 /** Student fetch — the ideal text is free to read (SD + instant lanes); pending
  *  until the coach approves the perfected version. `version` (FE-3b) requests an
@@ -975,7 +964,7 @@ export async function fetchIdealText(
     if (!ideal) return { kind: "pending" };
     return {
       kind: "historical",
-      ideal: inferHistoricalStars(ideal),
+      ideal,
       version: num(body.version),
       currentVersion: num(body.current_version),
       createdAt:
@@ -1036,9 +1025,10 @@ export async function fetchIdealText(
           ? body.latest_take_session_id
           : null,
       pieces: mapIdealPieces(body.pieces),
-      // BE tracked_changes serves the lane as `changes`; keep `suggestions`
-      // as a tolerated alias so a later rename can't silently blank the lane.
-      suggestions: mapDocumentSuggestions(body.changes ?? body.suggestions),
+      // `changes` ONLY — the gated lane's own key. The old `suggestions`
+      // alias was a live bypass socket: any payload carrying that key
+      // rendered ungated (founder 2026-08-10, sole-gatekeeper rip).
+      suggestions: mapDocumentSuggestions(body.changes),
       // `is_saved` is the BE's field; `saved` tolerated as an alias so a
       // rename cannot silently strand the whole save lane.
       saved:

@@ -14,7 +14,6 @@ import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
-import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
 import {
   batchTake,
   coerceTargetSeconds,
@@ -241,10 +240,11 @@ export default function LabOverlay({
   // Upload → Readout (seam ③).
   const [readout, setReadout] = useState<ReadoutPayload | null>(null);
   const [labSessionId, setLabSessionId] = useState<string | null>(null);
-  // Bug 4 — the Say It Stronger cards generate a few seconds after the readout
-  // loads; poll until they land (no-ops once every snippet has resolved, or
-  // outside the readout state since labSessionId/readout are both null then).
-  useSayItStrongerPolling(labSessionId, signedIn, readout, setReadout);
+  // The Say It Stronger poll is RETIRED (founder 2026-08-10: the manager
+  // engine is the sole gatekeeper). The BE nulls the cards on user
+  // readouts now, so the poll would chase a field that never fills — the
+  // wording lane still PRODUCES for the coach surface and proposes into
+  // the gated changes lane.
   // The take number for THIS recording, captured at upload time — before the
   // success handler bumps arcTakeIndex to the next take (avoids an off-by-one
   // on the "Your Recording" card).

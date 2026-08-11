@@ -19,9 +19,9 @@ import {
 } from "@/services/api/stateRatings";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
 import CoachVideoRecorder from "./CoachVideoRecorder";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import {
   CoachCard,
-  CoachChip,
   CoachErrorLine,
   CoachEyebrow,
   CoachMetaPill,
@@ -69,16 +69,9 @@ import {
 /*  That construct is retired and must not surface anywhere in the FE.         */
 /* -------------------------------------------------------------------------- */
 
-/* The fixed answer space. "Ambiguous" is the third CHIP because it is a
- * judgment about the MOMENT (it reads as middling) — the same class the
- * backend calls `neutral`. "Unrateable" is a judgment about the RATER and
- * therefore sits below, apart, as a secondary control: different quantity,
- * different shape. */
-const RATINGS: { value: TernaryValue; label: string }[] = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-  { value: "neutral", label: "Ambiguous" },
-];
+/* The fixed answer space now lives in ConfidenceLabelChips (the shared
+ * instrument, extracted from this card 2026-08-10) — see RATING_OPTIONS
+ * there for the Ambiguous-vs-unrateable rationale. */
 
 export default function CoachSnippetReviewCard({
   sessionId,
@@ -325,45 +318,21 @@ export default function CoachSnippetReviewCard({
         {/* The blind rating (private — training lane only, NEVER user-visible
             per AC-9). The QUESTION is on screen because the answer space is
             fixed and state-generic: without it, "Yes" is unanchored. */}
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            {CONFIDENCE_QUESTION}
+        {/* THE shared instrument (founder 2026-08-10) — this card was the
+            donor; it now renders the same component every other lane does,
+            so the surfaces cannot drift. */}
+        <ConfidenceLabelChips
+          question={CONFIDENCE_QUESTION}
+          eyebrow={
             <CoachEyebrow className="ml-2">Private · training</CoachEyebrow>
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {RATINGS.map((r) => (
-              <CoachChip
-                key={r.value}
-                active={rating === r.value && !unrateable}
-                onClick={() => pickRating(r.value)}
-              >
-                {r.label}
-              </CoachChip>
-            ))}
-          </div>
-
-          {/* SECONDARY, and below the answers on purpose. This is not a fourth
-              answer — it is an abstention, a statement about the rater rather
-              than the moment. Giving it the same weight as the chips is what
-              books bad audio as a real middling rating. */}
-          <button
-            type="button"
-            onClick={toggleUnrateable}
-            aria-pressed={unrateable}
-            className={`mt-3 text-[12px] underline underline-offset-2 transition-colors ${
-              unrateable
-                ? "text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {unrateable ? "Marked unrateable" : "Can't rate this — audio unclear"}
-          </button>
-
-          {ratingSaving ? (
-            <p className="mt-1 text-[12px] text-muted-foreground">Saving…</p>
-          ) : null}
-          {ratingError ? <CoachErrorLine>{ratingError}</CoachErrorLine> : null}
-        </div>
+          }
+          value={rating}
+          unrateable={unrateable}
+          saving={ratingSaving}
+          error={ratingError}
+          onPick={pickRating}
+          onToggleUnrateable={toggleUnrateable}
+        />
 
         {/* Moment video — appears once the coach has made a DEFINITE call
             (yes or no), so they can attach a short clip about the moment

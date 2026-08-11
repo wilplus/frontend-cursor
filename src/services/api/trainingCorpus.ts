@@ -660,10 +660,17 @@ export async function fetchTrainingImports(
 
 /* ------------------------------ the queue --------------------------------- */
 
-/** The coach's own prior call on a piece. */
+/** The coach's own prior call on a piece — TERNARY since 2026-08-10 (the
+ *  shipped instrument: yes / no / neutral, unrateable separate). */
 export interface ConfidenceLabel {
-  confident: boolean;
-  /** 1–5, or null when the coach answered yes/no without grading it. */
+  /** The answer — null only when the rater abstained (unrateable). */
+  value: "yes" | "no" | "neutral" | null;
+  /** The rater couldn't judge (bad audio) — an abstention, not an answer. */
+  unrateable: boolean;
+  /** Legacy binary mirror (yes→true, no→false, neutral/abstained→null) —
+   *  kept for older readers while they migrate to `value`. */
+  confident: boolean | null;
+  /** 1–5, or null when the coach answered without grading it. */
   intensity: number | null;
   /** The coach's own aside — "hard to call", "background noise". Kept so a
    *  saved note re-renders when the coach steps back to a piece, rather than
@@ -704,12 +711,25 @@ function pickIntensity(v: unknown): number | null {
 function pickLabel(raw: unknown): ConfidenceLabel | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  // Only a real boolean counts as a prior call — anything else means this
-  // piece is still unlabelled, which is the safe reading (it gets asked again
-  // rather than showing a label the coach never gave).
-  if (typeof r.confident !== "boolean") return null;
+  // TERNARY FIRST (2026-08-10). A stored neutral row carries confident=NULL
+  // by design (the honest record — coercing it to false would fabricate a
+  // negative), and the old boolean-only read here rendered exactly those
+  // rows as UNLABELLED: the panel re-asked a question the coach had already
+  // answered. Legacy boolean rows still resolve through `confident`.
+  const value =
+    r.value === "yes" || r.value === "no" || r.value === "neutral"
+      ? r.value
+      : typeof r.confident === "boolean"
+        ? r.confident
+          ? ("yes" as const)
+          : ("no" as const)
+        : null;
+  const unrateable = r.unrateable === true;
+  if (value === null && !unrateable) return null;
   return {
-    confident: r.confident,
+    value,
+    unrateable,
+    confident: value === "yes" ? true : value === "no" ? false : null,
     intensity: pickIntensity(r.intensity),
     note: strOrNull(r.note),
   };
