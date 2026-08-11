@@ -38,7 +38,6 @@ const P3 = "And that is when the whole plan finally came together.";
 const TEXT_BEFORE = [P0, P1, P2, P3].join("\n\n");
 // After the accept, the proposal's words are the document's words.
 const P1_AFTER = P1.replace("believed the numbers", "trusted the figures");
-const TEXT_AFTER = [P0, P1_AFTER, P2, P3].join("\n\n");
 
 /** The harness's one bit of server state: has the pending change been
  *  decided, and which way. Drives the refetched payload exactly the way the
@@ -53,9 +52,17 @@ const noParts =
   new URLSearchParams(window.location.search).get("noparts") === "1";
 
 function payload() {
-  const text = decided === "approved" ? TEXT_AFTER : TEXT_BEFORE;
   const p1 = decided === "approved" ? P1_AFTER : P1;
-  const paras = [P0, p1, P2, P3];
+  // An applied emphasis is FOLDED INTO THE TEXT server-side, as marker
+  // syntax (services/ideal_text_block.py wraps the phrase in **…**). The
+  // harness folds it the same way, because the folded document is the one
+  // that caught a real bug: the chunk editor used to print those asterisks
+  // at the reader.
+  const p2 = styleApplied
+    ? P2.replace("changed everything", "**changed everything**")
+    : P2;
+  const paras = [P0, p1, p2, P3];
+  const text = paras.join("\n\n");
   const quote = "believed the numbers";
   const changes: Record<string, unknown>[] = [];
   if (decided !== "approved") {
@@ -121,7 +128,16 @@ function payload() {
       {
         id: "snip-coach",
         snippet_id: "snip-coach",
-        anchor: P2,
+        // The anchor indexes the SERVED text, so it tracks the fold — that
+        // is the contract the FE join reads (document.indexOf(anchor)).
+        //
+        // ⚠️ The live BE does NOT hold this today: relocate_pieces
+        // (services/transcript_document.py:188) re-anchors a piece by an
+        // EXACT find of its pre-bake words and DROPS the ones it cannot
+        // find — so baking a change into a piece loses that piece, its
+        // slide index, and its coach moment. Reported separately; the
+        // harness models the contract, not the defect.
+        anchor: p2,
         take_session_id: "sess-1",
         has_explanation: true,
       },
