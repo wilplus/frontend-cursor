@@ -765,6 +765,15 @@ export type IdealTextResult =
        *  best-presentation ref, and a deckless arc renders exactly today's
        *  view. */
       presentationRef: string | null;
+      /** SLIDE TITLES by slide index (founder 2026-08-11: "yeah put only the
+       *  title") — what the AUDIENCE saw, the one piece of deck context the
+       *  reader is allowed. Titles only: the slide BODY is what the speaker
+       *  was meant to say, and printing it beside what they did say turns
+       *  their own speech into a diff against a script. Safe-ahead: null when
+       *  the BE sends no key, [] on a deckless arc, and an empty string at an
+       *  index is an untitled slide — the deck renders no title line rather
+       *  than inventing one. */
+      slideTitles: string[] | null;
       /** PARTS (SPEC-parts-locking-and-layers §3.1, Step 0) — the document's
        *  stored identity: an ordered list whose ids survive reorder and
        *  reword, so PR 3 has something a lock can hang on.
@@ -1094,6 +1103,9 @@ export async function fetchIdealText(
         body.presentation_ref.length > 0
           ? body.presentation_ref
           : null,
+      slideTitles: Array.isArray(body.slide_titles)
+        ? body.slide_titles.map((s) => (typeof s === "string" ? s : ""))
+        : null,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

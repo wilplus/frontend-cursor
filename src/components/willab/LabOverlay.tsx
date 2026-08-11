@@ -31,7 +31,7 @@ import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import { VoiceMark } from "./LoadingState";
-import { pickWaitingTip } from "./waitingTips";
+import ProcessingWait from "./ProcessingWait";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
@@ -1368,15 +1368,6 @@ export function RecordingPhase({
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
 
-/** C11 — rotate the analyzing line so the wait feels alive (swaps every 3s). */
-const PROCESSING_LINES = [
-  "Transcribing your voice…",
-  "Finding your strongest moments…",
-  "Lining up your slides…",
-  "Measuring your delivery…",
-  "Almost there…",
-];
-
 function Processing({
   error,
   paywall,
@@ -1402,20 +1393,9 @@ function Processing({
   onReRecord?: () => void;
   onClose: () => void;
 }) {
-  const [lineIdx, setLineIdx] = useState(0);
-  // One tip for the whole wait, drawn after mount so the server and client
-  // never disagree about which one came up.
-  const [tip, setTip] = useState<string | null>(null);
-  useEffect(() => setTip(pickWaitingTip()), []);
-  useEffect(() => {
-    if (error) return;
-    const id = setInterval(
-      () => setLineIdx((i) => (i + 1) % PROCESSING_LINES.length),
-      3000
-    );
-    return () => clearInterval(id);
-  }, [error]);
-
+  // The rotating line and the tip moved into ProcessingWait, which the
+  // readout's document phase renders too — one waiting screen, one place it
+  // is defined (founder 2026-08-11).
   if (!error && slow) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -1503,20 +1483,11 @@ function Processing({
       </div>
     );
   }
+  // THE ONE WAITING SCREEN — shared with the readout's document phase, so
+  // the wait never changes its subject halfway through (founder 2026-08-11).
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
-      <VoiceMark size={88} />
-      <p className="flex min-h-[1.5rem] items-center text-[15px] text-foreground">
-        {PROCESSING_LINES[lineIdx]}
-      </p>
-      {/* ONE tip for this wait, drawn once. The status line above already says
-          what is happening; this slot is worth more as something to read than
-          as a duration guess we cannot keep. */}
-      {tip ? (
-        <p className="max-w-[34ch] text-[13px] leading-relaxed text-muted-foreground">
-          {tip}
-        </p>
-      ) : null}
+    <div className="flex flex-1 flex-col items-center justify-center text-center">
+      <ProcessingWait />
     </div>
   );
 }

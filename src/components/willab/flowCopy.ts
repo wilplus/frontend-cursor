@@ -58,11 +58,15 @@ export const FLOW_COPY = {
    *  pressure on the tenth scroll-back. */
   versionReady: "Your ideal text is ready.",
 
-  /** SPEC-lockin-loop §1, FOUNDER COPY VERBATIM (2026-08-10): "Users must be
-   *  locked out of the old text with a 'Working on your text' screen until
-   *  the new text is ready." The blocking screen's line — signed off by
-   *  being quoted; this exact string, nothing longer. */
-  workingOnText: "Working on your text",
+  /* `workingOnText` lived here — "Working on your text", the blocking
+   * screen's own line (SPEC-lockin-loop §1, founder 2026-08-10). DELETED
+   * 2026-08-11 by the founder: "unify the loading state but use the more
+   * elaborate one and delete the working on your text fully". The BLOCK is
+   * unchanged — the old text stays inaccessible while the document
+   * assembles — but both phases of the wait now render ProcessingWait, so
+   * the wait stops changing its subject halfway through and stops reading
+   * as the machine starting over. Removed rather than left unused: a second
+   * waiting line that still exists is one that comes back. */
 
   /** S6 · the invitation back. An invitation, never an instruction. The next
    *  take exists because it improves the text, not because the app asked. */
