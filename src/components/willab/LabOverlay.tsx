@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Square } from "lucide-react";
@@ -48,6 +48,7 @@ import {
   transitionProcessingTakeToDocument,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
+import { deckForRecording, GOLDEN_THREAD } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 
@@ -132,6 +133,21 @@ export default function LabOverlay({
   const [currentSlide, setCurrentSlide] = useState(0);
   const slideAdvancesRef = useRef<{ index: number; tMs: number }[]>([]);
   const recordStartRef = useRef(0);
+  // THE DECK THIS TAKE IS RECORDED AGAINST (founder 2026-08-11): the
+  // speaker's own if they uploaded one, otherwise the default three-part
+  // deck. Derived rather than written into `context`, so the stored setup
+  // keeps saying truthfully that this speaker uploaded nothing — the
+  // default is what they PRESENTED, not what they own.
+  const recordingDeck = useMemo(
+    () => deckForRecording(context?.slides),
+    [context?.slides]
+  );
+  // A mutable copy in the shared slide type: the module is pure and returns
+  // readonly, while the recorder and the upload both take PresentationSlide[].
+  const recordingSlides = useMemo<PresentationSlide[]>(
+    () => recordingDeck.slides.map((s) => ({ title: s.title, body: s.body })),
+    [recordingDeck]
+  );
   const { append: appendToThread, reload: reloadThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
   // Timeline order (founder 2026-07-20): each bubble holds its publish moment.
@@ -372,6 +388,11 @@ export default function LabOverlay({
               // cached deck is the ONLY source of audience for that prefill.
               audience: context.audience || null,
               presentationRef: context.presentationRef,
+              // The speaker's OWN slides, deliberately — never the default
+              // deck they just presented. This cache seeds the next session's
+              // setup, and remembering a default as theirs would tell the
+              // next take they had uploaded a presentation when they had not
+              // (and would skip the step where they can attach a real one).
               slides: context.slides,
               targetLengthSeconds: context.target_length_seconds,
             }
@@ -385,8 +406,16 @@ export default function LabOverlay({
         audience: context.audience || undefined,
         targetLengthSeconds: context.target_length_seconds,
         domainVocabulary: context.domain_vocabulary,
-        slides: context.slides,
-        presentationRef: context.presentationRef,
+        // THE DECK AS PRESENTED (founder 2026-08-11). A deckless take used
+        // to ship no slides at all, so its words had no buckets and nothing
+        // could be ranked against "the same slide" in a later take. It now
+        // ships the default deck the speaker just clicked through, which is
+        // what makes 1:1 word→slide segmentation defined for every take.
+        slides: recordingSlides,
+        // The default deck has no PDF behind it — never claim one.
+        presentationRef: recordingDeck.isDefault
+          ? null
+          : context.presentationRef,
         strategicContext: context.strategicContext,
         slideAdvances: slideAdvancesRef.current,
         // F1 — the gap between the two clocks the app runs on. Tap times are
@@ -693,7 +722,9 @@ export default function LabOverlay({
   // T8 — advance the deck during recording, logging the tap timeline. Any change
   // (forward or back) is a real "what's on screen now" event with its timestamp.
   function advanceSlide(dir: 1 | -1) {
-    const total = context?.slides.length ?? 0;
+    // The deck ON SCREEN, which for a speaker who uploaded nothing is the
+    // default one — their taps are real slide events either way.
+    const total = recordingDeck.slides.length;
     if (total === 0) return;
     setCurrentSlide((c) => {
       const next = Math.min(Math.max(c + dir, 0), total - 1);
@@ -875,8 +906,11 @@ export default function LabOverlay({
               slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
               void mic.start();
             }}
-            slides={context?.slides ?? []}
-            presentationRef={context?.presentationRef ?? null}
+            slides={recordingSlides}
+            presentationRef={
+              recordingDeck.isDefault ? null : context?.presentationRef ?? null
+            }
+            goldenThread={recordingDeck.isDefault ? GOLDEN_THREAD : null}
             currentSlide={currentSlide}
             onAdvance={advanceSlide}
             arcTake={null}
@@ -1065,6 +1099,7 @@ function RecordingPhase({
   onRecordAgain,
   slides,
   presentationRef,
+  goldenThread,
   currentSlide,
   onAdvance,
   arcTake,
@@ -1085,6 +1120,10 @@ function RecordingPhase({
   onRecordAgain: () => void;
   slides: PresentationSlide[];
   presentationRef: string | null;
+  /** The founder's deck-level line, shown only while the DEFAULT deck is what
+   *  the speaker is presenting (their own deck speaks for itself). null on
+   *  every other take. */
+  goldenThread: string | null;
   currentSlide: number;
   onAdvance: (dir: 1 | -1) => void;
   /** Current take number when in an explore arc; null for standalone. */
@@ -1196,15 +1235,24 @@ function RecordingPhase({
       }`}
     >
       {/* T9 — the deck during recording: the user taps to advance while they
-          speak (manual). Only shown when a deck was attached. */}
+          speak (manual). ALWAYS shown now (founder 2026-08-11) — a speaker
+          who uploaded nothing presents the default three-part deck, so every
+          take produces real slide buckets. */}
       {hasDeck ? (
-        <SlideStage
-          slides={slides}
-          presentationRef={presentationRef}
-          current={currentSlide}
-          onNext={() => onAdvance(1)}
-          onPrev={() => onAdvance(-1)}
-        />
+        <>
+          <SlideStage
+            slides={slides}
+            presentationRef={presentationRef}
+            current={currentSlide}
+            onNext={() => onAdvance(1)}
+            onPrev={() => onAdvance(-1)}
+          />
+          {goldenThread ? (
+            <p className="max-w-md text-[12px] leading-snug text-muted-foreground">
+              {goldenThread}
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       <div className="flex items-center gap-3">
