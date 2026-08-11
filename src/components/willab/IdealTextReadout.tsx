@@ -802,7 +802,11 @@ export default function IdealTextReadout({
         // the local edit is DIRTY the served suggestion spans no longer
         // anchor this text, so none are painted until the save round-trips
         // (the same never-mispaint rule the old layer followed).
-        <div className="flex h-[70vh] min-h-[24rem] flex-col overflow-hidden rounded-2xl border border-border">
+        // NO FRAME, NO CAP (founder 2026-08-11): the stroke and the 70vh
+        // ceiling boxed the one thing on the page worth reading. The deck
+        // owns its own snap-scrolling, so it takes the height it is given
+        // and the text gets the room.
+        <div className="flex min-h-[38rem] flex-1 flex-col overflow-hidden">
           <TranscriptReviewDeck
             chrome="stage"
             document={text}

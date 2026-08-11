@@ -114,16 +114,20 @@ export default function DeckChunkModal({
   const kicker =
     face === "review" && suggestion
       ? `${displayKind(suggestion)}${iterTail}`
-      : chunk.status === "locked"
+      : // THE PAGE merged "accepted" into "locked" — one final state, one
+        // icon (founder 2026-08-11). In HERE the difference is still real,
+        // because this is where the lock action lives, so the modal reads
+        // the part's own server-owned flag rather than the page's status.
+        chunk.part.locked
         ? `Locked in${iterTail}`
-        : chunk.status === "accepted"
+        : chunk.status === "locked"
           ? "Accepted · not locked in yet"
           : "No feedback pending";
   const chunkHistory = historyForChunk(history, chunk.part.text);
   const title =
     face === "review"
       ? "Suggested change"
-      : chunk.status === "locked"
+      : chunk.part.locked
         ? "Locked chunk"
         : "Edit this chunk";
 

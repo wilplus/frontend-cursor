@@ -15,17 +15,20 @@ import { partsForDocument, type Part } from "./documentParts";
 /*  compliant path is to physically split long paragraphs through the          */
 /*  arranger (one splitter, one identity), not to fork the join contract.      */
 /*                                                                            */
-/*  STATUS is derived, never stored (Lovable §2):                              */
-/*    locked   — the part's server-owned lock. Wins over everything: locked    */
-/*               text is never re-underlined, even when a Confident-Voice      */
-/*               "better version pending" rides it (that surfaces only in     */
-/*               the modal).                                                   */
-/*    waiting  — at least one UNDECIDED suggestion overlaps the chunk. The     */
-/*               ONLY state that underlines (the founder's rule: underline is  */
-/*               reserved for feedback-waiting, nothing else may use it).      */
-/*    accepted — a decided-approved suggestion overlaps and the chunk is not   */
-/*               locked in yet: the amber wash, no underline.                  */
-/*    clean    — nothing pending, nothing accepted-unlocked.                   */
+/*  THREE STATUSES, derived, never stored (founder 2026-08-11 — the four-      */
+/*  state model collapsed: "accepted" and "locked" are one final state, and    */
+/*  NOTHING paints the text any more. No underline, no wash. The state lives   */
+/*  only in the chunk's icon and the words stay clean, which is the whole      */
+/*  point of a page you are supposed to be able to read):                      */
+/*    locked   — server-locked, OR an approved suggestion rides it. The final  */
+/*               state either way: the student has decided.                    */
+/*    waiting  — at least one UNDECIDED suggestion overlaps the chunk.         */
+/*    clean    — nothing pending, nothing decided.                             */
+/*                                                                            */
+/*  Precedence is unchanged where it was load-bearing: the server lock wins    */
+/*  over everything, and a pending suggestion still beats an approved one on   */
+/*  the same chunk — there is feedback outstanding, and merging the two final  */
+/*  states must not swallow that.                                              */
 /*                                                                            */
 /*  R4 alignment: a suggestion with status null is UNDECIDED — absence of a    */
 /*  decision is pending, exactly the ground-truth rule the BE's decisions      */
@@ -34,7 +37,7 @@ import { partsForDocument, type Part } from "./documentParts";
 /*  Pure — no React, no fetch.                                                 */
 /* -------------------------------------------------------------------------- */
 
-export type ChunkStatus = "clean" | "waiting" | "accepted" | "locked";
+export type ChunkStatus = "clean" | "waiting" | "locked";
 
 /** The slice of a DocumentSuggestion this model needs — structural, so the
  *  real mapper type satisfies it and tests stay dependency-free. Spans index
@@ -114,7 +117,7 @@ export function buildDeckChunks(
       : pendingIds.length > 0
         ? "waiting"
         : approvedIds.length > 0
-          ? "accepted"
+          ? "locked"
           : "clean";
     chunks.push({
       part: parts[i],
