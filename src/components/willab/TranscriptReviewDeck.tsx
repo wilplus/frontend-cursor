@@ -216,7 +216,12 @@ export default function TranscriptReviewDeck({
           {groups.map((g, gi) => (
             <section
               key={g.slideIndex ?? `untitled-${gi}`}
-              className="flex h-full snap-start snap-always flex-col justify-center gap-4 border-b border-dashed border-border px-6 py-8 sm:px-10"
+              // NO RULE BETWEEN SLIDES (founder 2026-08-11: "the screen has
+              // a stroke around the text, please delete that all"). One
+              // slide fills the viewport and the snap carries you to the
+              // next; a dashed line under each one drew a box around the
+              // words for a boundary the scroll already makes.
+              className="flex h-full snap-start snap-always flex-col justify-center gap-4 px-6 py-8 sm:px-10"
             >
               <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                 {kickerFor(g.slideIndex, gi)}
