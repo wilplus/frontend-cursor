@@ -53,7 +53,7 @@ export default function RecordingHarness() {
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
       <header className="flex h-12 shrink-0 items-center justify-between px-4">
         <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Practice run
+          Recording
         </span>
         <OverlayCloseButton onClick={() => {}} />
       </header>

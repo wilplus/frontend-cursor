@@ -122,7 +122,13 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
     expect(PHASE).toMatch(/presentationRef=\{presentationRef\}/);
   });
 
-  it("the screen names itself, and only this screen does", () => {
-    expect(LAB).toMatch(/state === "lab_recording" \? "Practice run" : ""/);
+  it("the screen names itself RECORDING, and only this screen does", () => {
+    // Founder 2026-08-11: "Let's drop 'Practice run' … to match our
+    // philosophy that every take matters." The word is the philosophy, so
+    // it is pinned, not left to whoever next tidies a header.
+    expect(LAB).toMatch(/state === "lab_recording" \? "Recording" : ""/);
+    // What RENDERS, not the vocabulary: the comment beside that line records
+    // which word was retired and why, and that record is worth keeping.
+    expect(LAB).not.toMatch(/\?\s*"Practice run"/);
   });
 });
