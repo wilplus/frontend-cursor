@@ -726,6 +726,13 @@ export default function IdealTextReadout({
   // is on the text, not on leaving. When the settle probe clears the marker
   // the host flips `analysisPending`, the SD effect refetches, and the FRESH
   // document renders through the normal path below.
+  //
+  // AND RECORDING IS LEAVING (founder 2026-08-11: "I can not just jump for
+  // the next take I need to wait, this is not how it should be — I should be
+  // able to just jump there right away"). The wait exists so nobody reads a
+  // stale document; the next take does not read the document at all, so the
+  // block had no business covering the one button that starts one. It was
+  // covered only because this is an early return over the whole screen.
   if (analysisPending) {
     return (
       <div className="flex flex-1 flex-col">
@@ -734,7 +741,7 @@ export default function IdealTextReadout({
             <OverlayCloseButton onClick={onClose} />
           </div>
         ) : null}
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-24">
           <Loader2
             className="h-6 w-6 animate-spin text-muted-foreground"
             aria-hidden
@@ -742,6 +749,18 @@ export default function IdealTextReadout({
           <p className="text-[15px] leading-relaxed text-muted-foreground">
             {FLOW_COPY.workingOnText}
           </p>
+          {onReRead ? (
+            <button
+              type="button"
+              onClick={onReRead}
+              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              {/* The SAME words IdealTextActions uses — one affordance, one
+                  label, whichever screen you meet it on. */}
+              <Mic className="h-4 w-4" aria-hidden />
+              Record the next take
+            </button>
+          ) : null}
         </div>
       </div>
     );
