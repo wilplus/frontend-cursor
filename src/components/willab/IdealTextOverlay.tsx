@@ -12,7 +12,6 @@ import {
   PencilLine,
   Play,
   Sparkles,
-  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -34,7 +33,6 @@ import {
 import {
   type Addition,
   fetchIdealText,
-  isUnappliedPolish,
   saveIdealNotes,
   saveIdealUserEdit,
   segmentIdealText,
@@ -55,7 +53,6 @@ import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
-  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   fetchIdealTextRevisions,
   restoreIdealTextRevision,
@@ -69,7 +66,8 @@ import {
   RevisionTimelineSheet,
   TimelineEntryButton,
 } from "./BlockVariantPicker";
-import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
+import { PieceSwapSheet } from "./PieceBadges";
+import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
@@ -82,6 +80,7 @@ import {
   partsForDocument,
   partsToText,
   reconcileParts,
+  updatePart,
   type Part,
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
@@ -517,6 +516,30 @@ export default function IdealTextOverlay({
     [arcId, ideal?.text, refreshVariants]
   );
 
+  // THE DECK's lock (slice 1a): commit the modal's draft when it changed —
+  // the save lane's auto-lock ("typed = committed") locks the touched part in
+  // the same PUT — else the plain part-lock with seeding. One identity, both
+  // paths; the deck cannot fork the contract.
+  const deckLockPart = useCallback(
+    async (
+      part: Part,
+      newText: string
+    ): Promise<"ok" | "blocked" | "failed"> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      partsRef.current = parts;
+      const at = parts.findIndex((p) => p.id === part.id);
+      if (at < 0) return "failed";
+      const trimmed = newText.trim();
+      if (trimmed && trimmed !== parts[at].text.trim()) {
+        const next = updatePart(parts, at, trimmed);
+        const ok = await saveDocument(partsToText(next), next);
+        return ok ? "ok" : "failed";
+      }
+      return lockParagraph(at, parts[at].text);
+    },
+    [displayText, saveDocument, lockParagraph]
+  );
+
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3: mix & match).
    *  Non-destructive always (the displaced text heals back into the pool),
    *  silent by design (no bubble — the student did it themselves, in place):
@@ -559,10 +582,6 @@ export default function IdealTextOverlay({
   );
 
 
-  // T1 · 1.2 — the star fence: while the document is the student's own edit
-  // the BE serves no decoration, and re-anchoring stars into edited words
-  // client-side would attach a coach's read to a sentence they never saw.
-  const edited = sd?.userEdited === true;
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
 
@@ -641,28 +660,8 @@ export default function IdealTextOverlay({
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
 
-  // FE-2 — polish stars on this text, and the ones still awaiting a decision.
-  const allPolish = useMemo(
-    () => (ideal?.keyMoments ?? []).filter(isUnappliedPolish),
-    [ideal]
-  );
-  const pendingPolish = useMemo(
-    () => allPolish.filter((m) => !stars.isApplied(m)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allPolish, stars.appliedLocal]
-  );
-
-  // Legacy (non-SD) lane keeps the "Go to this moment?" confirm bubble; a
-  // legacy moment with no snippet link stays inert (it has nowhere to
-  // deep-link — R-sd4). Under SD every tap goes to the shared sheet.
-  async function openMoment(m: IdealKeyMomentLink) {
-    if (!sd) {
-      if (!m.snippetId) return;
-      setMomentAsk(m);
-      return;
-    }
-    await stars.openMoment(m);
-  }
+  // Founder 2026-08-11 — the polish-star bulk lane and the per-star taps
+  // retired with the stars; proposals decide one at a time in the deck.
 
   function copyText() {
     void navigator.clipboard?.writeText(stripRichMarkers(displayText)).then(() => {
@@ -757,6 +756,48 @@ export default function IdealTextOverlay({
         </div>
       </div>
 
+      {status === "ready" && sd && ideal && !editing && !chunkEditing ? (
+        // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
+        // star/tracked/badged paragraph stack: chunk states + one lock per
+        // chunk, REVIEW/EDITOR modals on the existing decide/lock lanes.
+        // A user-edited document rides the same deck (its parts and locks
+        // are real; there are simply no suggestions left to wait on).
+        <div className="flex min-h-0 flex-1 flex-col">
+          {tooLong ? (
+            <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
+              {IDEAL_EDIT_COPY.tooLong}
+            </p>
+          ) : saveFailed ? (
+            <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
+              Couldn&apos;t save your edit just now. It stays here; change
+              something and it retries.
+            </p>
+          ) : null}
+          <TranscriptReviewDeck
+            chrome="stage"
+            document={displayText}
+            parts={sd.parts}
+            suggestions={sd.suggestions ?? []}
+            pieceSlideIndexes={
+              sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
+            }
+            onAccept={(s) => decideTracked(s, "accept")}
+            onKeepMine={(s) => decideTracked(s, "keep")}
+            onLockPart={deckLockPart}
+          />
+          {/* MATERIAL RECOVERY — below the deck, same reasoning as before:
+              nothing in the text to anchor to. */}
+          {sd.additions.length > 0 ? (
+            <div className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3">
+              <AdditionsPanel
+                additions={sd.additions}
+                onDecide={decideAddition}
+                textSizeClass="text-[16px]"
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : (
       <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
           {status === "loading" ? (
@@ -829,29 +870,9 @@ export default function IdealTextOverlay({
             <div className="flex flex-col gap-4">
               {/* The verification badge moved into the header (above) — a row
                   of its own was a band of vertical space for one word. */}
-              {/* FE-2 — one tap applies every smoother-version suggestion.
-                  Polish only; acoustic and structural stars stay per-star.
-                  Hidden while arranging and on an edited document: no stars
-                  are drawn there, so approving would look like a dead tap. */}
-              {chunkEditing || edited ? null : sd && stars.bulkApplied ? (
-                <button
-                  type="button"
-                  onClick={() => stars.revertAllPolish(allPolish)}
-                  className="self-start text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                >
-                  Undo all
-                </button>
-              ) : sd && pendingPolish.length >= 2 ? (
-                <button
-                  type="button"
-                  onClick={() => stars.approveAllPolish(pendingPolish)}
-                  className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  Approve all
-                </button>
-              ) : null}
-              {/* Founder 2026-07-29 — the Full text / Key words toggle is
-                  retired: the notebook always shows the full text. */}
+              {/* Founder 2026-08-11 — the star lane's Approve-all is retired
+                  with the stars: every proposal now decides one at a time
+                  through the deck's REVIEW modal. */}
 
               {tooLong ? (
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
@@ -876,73 +897,20 @@ export default function IdealTextOverlay({
                   }
                   textSizeClass="text-[18px]"
                 />
-              ) : edited ? (
-                // T1 · 1.2 — the student's own document: their words and their
-                // markers, NO stars and NO version pills. Both are anchored to
-                // machine text this document no longer is. They return when the
-                // next take supersedes the edit.
+              ) : (
+                // Legacy (non-SD) payload — a plain, star-free read. The SD
+                // lane renders the deck above; this fading lane keeps its
+                // words and markers, nothing else (founder 2026-08-11: no
+                // stars anywhere).
                 <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
                   <RichText text={displayText} />
                 </p>
-              ) : (
-                <PieceBadgeText
-                  text={displayText}
-                  ideal={ideal}
-                  // DISCERNMENT — SD only; a legacy payload has pieces null and
-                  // renders exactly today's view.
-                  // MASTER DOCUMENT — a saved version shows the clean script.
-                  // Founder 2026-08-10 — the slide→chunk view must survive
-                  // a saved document. Pieces stay (they carry slide_index);
-                  // only the take PILLS retire on save.
-                  pieces={sd?.pieces ?? null}
-                  showPills={sd?.saved !== true}
-                  // LIVING TRANSCRIPT — tracked changes own the words when the
-                  // BE serves them; the version pills compose on top.
-                  suggestions={sd?.suggestions ?? null}
-                  onDecideTracked={decideTracked}
-                  // SPEC-lockin-loop §2 — Accept arms, "Lock it" locks. The
-                  // chip state lives in PieceBadgeText; this is persistence.
-                  onLockParagraph={lockParagraph}
-                  onMomentTap={(m) => void openMoment(m)}
-                  foldFor={stars.foldFor}
-                  // FE-2 — the star treatment only under SD (a legacy "ready"
-                  // payload keeps its classic underline links).
-                  sdStars={sd !== null}
-                  onOpenSwap={setSwapOpen}
-                  // BLOCK_VARIANTS — the per-block picker entry (chips zip
-                  // to paragraphs; feature off → null → nothing new).
-                  // Cross-checked against the SERVED pieces via the
-                  // BE-confirmed block_key == piece_key join — sd.pieces,
-                  // not the display pieces, which a save blanks.
-                  variantBlocks={
-                    sd
-                      ? alignVariantBlocksWithPieces(variantBlocks, sd.pieces)
-                      : null
-                  }
-                  onOpenPicker={setPickerBlock}
-                  // SLIDES — each paragraph reads under the slide it was
-                  // delivered on (deckless arcs pass null: today's view).
-                  deck={deckRef ? { presentationRef: deckRef } : null}
-                />
               )}
-
-              {/* MATERIAL RECOVERY — words the speaker SAID on a slide their
-                  script has no block for. Below the document, not inside it:
-                  there is nothing in the text to anchor to, which is exactly
-                  why forcing it into the tracked-change shape made it reach
-                  nobody. Hidden while the chunk editor is open — that mode
-                  is about the words already in the script. */}
-              {sd && !chunkEditing && sd.additions.length > 0 ? (
-                <AdditionsPanel
-                  additions={sd.additions}
-                  onDecide={decideAddition}
-                  textSizeClass="text-[18px]"
-                />
-              ) : null}
             </div>
           ) : null}
         </div>
       </div>
+      )}
 
       {/* "Go to this moment?" — the small confirm bubble for a tapped moment. */}
       {momentAsk ? (
