@@ -203,6 +203,48 @@ check(
 await page.locator('[role="dialog"] button[aria-label="Close"]').click();
 await page.waitForTimeout(200);
 
+/* ------- slice 4: the coach's own feedback, on the LOCKED chunk ------------ */
+await page.evaluate(() => {
+  const para = [...document.querySelectorAll("section p")].find((p) =>
+    p.textContent?.includes("So we moved the launch")
+  );
+  para?.querySelector('button[data-status="locked"]')?.click();
+});
+await page.waitForSelector("text=Locked chunk");
+check(
+  "a locked chunk still shows that the coach left something on these words (the founder's rule)",
+  (await page.locator("text=From your coach").count()) === 1 &&
+    (await page.locator("button", { hasText: "See what your coach said here" }).count()) === 1
+);
+check(
+  "…and nothing was fetched to say so — the metered feedback read has NOT fired",
+  (await calls(page)).filter((c) => c.url.includes("/feedback")).length === 0
+);
+await page.locator("button", { hasText: "See what your coach said here" }).click();
+await page.waitForTimeout(500);
+check(
+  "the tap loads the coach's note and video — one metered read, on a deliberate act",
+  (await calls(page)).filter((c) => c.url.includes("/feedback")).length === 1 &&
+    (await page.locator("text=This is the turn — say it slower.").count()) === 1 &&
+    (await page.evaluate(() => {
+      const v = document.querySelector('[role="dialog"] video');
+      return v?.getAttribute("src") === "https://signed.example/coach.webm";
+    }))
+);
+await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+await page.waitForTimeout(200);
+check(
+  "a chunk the coach said nothing about shows no coach card",
+  await (async () => {
+    await mark("clean").click();
+    await page.waitForSelector("text=No feedback pending");
+    const none = (await page.locator("text=From your coach").count()) === 0;
+    await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+    await page.waitForTimeout(150);
+    return none;
+  })()
+);
+
 /* ---------- slice 2: proposal history on the chunk's own words ------------- */
 await mark("clean").click();
 await page.waitForSelector("text=No feedback pending");

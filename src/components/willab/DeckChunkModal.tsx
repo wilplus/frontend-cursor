@@ -5,6 +5,7 @@ import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { whyLine } from "@/lib/willab/trackedChangeWhy";
 import { historyForChunk, type DeckChunk } from "@/lib/willab/deckChunks";
+import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -64,6 +65,13 @@ interface DeckChunkModalProps {
   /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals; the modal
    *  lists the ones whose words belong to this chunk. */
   history?: readonly DecisionHistoryEntry[] | null;
+  /** THE COACH'S OWN FEEDBACK (slice 4) — the snippet the coach left a note
+   *  or a video on for THIS chunk's words, or null. Shown on both faces,
+   *  locked chunks included (founder: "even on a locked screen you can
+   *  still see that feedback"). */
+  coachSnippetId?: string | null;
+  /** The arc the coach's message is fetched from, on demand. */
+  arcId?: string | null;
 }
 
 export default function DeckChunkModal({
@@ -76,6 +84,8 @@ export default function DeckChunkModal({
   styleSuggestion = null,
   onApplyStyle,
   history = null,
+  coachSnippetId = null,
+  arcId = null,
 }: DeckChunkModalProps) {
   // Accept morphs the face; everything else derives from the chunk.
   const [face, setFace] = useState<"review" | "editor">(
@@ -217,6 +227,9 @@ export default function DeckChunkModal({
                   {rationale}
                 </p>
               ) : null}
+              {coachSnippetId ? (
+                <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
+              ) : null}
             </>
           ) : (
             <>
@@ -232,6 +245,13 @@ export default function DeckChunkModal({
                   className="w-full resize-y rounded-2xl border border-pending/40 bg-pending/[0.06] px-4 py-3 text-[15px] leading-relaxed text-foreground outline-none focus:border-pending"
                 />
               </label>
+
+              {/* THE COACH (slice 4) — on the locked face too: a locked
+                  chunk has no proposal left, and the coach's message is
+                  still about these words. */}
+              {coachSnippetId ? (
+                <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
+              ) : null}
 
               {/* THE STYLE LANE (slice 2): the post-lock emphasis proposal,
                   surfaced ONLY here — the page never re-marks locked text.

@@ -171,6 +171,48 @@ export function styleFor<
   return null;
 }
 
+/* ---------------------- slice 4: the coach's own feedback ------------------ */
+
+/** The slice of a key moment this join needs — the coach left something on
+ *  these words, and `anchor` is where they are. */
+export interface CoachMomentLite {
+  snippetId: string;
+  /** The literal text fragment in the SERVED document (the BE guarantees it
+   *  was the moment marker's inner text before the markers were stripped). */
+  anchor: string;
+  /** The BE's free existence flag: surfaced, with a note and/or a video. */
+  hasExplanation?: boolean;
+}
+
+/** The coach moment that belongs to this chunk, or null.
+ *
+ *  Joined by the ANCHOR's position in the served document — the same
+ *  offsets-into-the-same-string rule the suggestion spans use, so no
+ *  re-anchoring and no second notion of "where". An anchor that is not in
+ *  the document (its paragraph was locked and retyped, a take recomposed
+ *  the words) simply matches nothing and the chunk shows no coach card:
+ *  the deck's standing rule is drop, never guess.
+ *
+ *  Only moments the BE says actually carry something are considered — a
+ *  moment with no note and no video is an anchor, not feedback. */
+export function coachMomentForChunk<T extends CoachMomentLite>(
+  moments: readonly T[] | null | undefined,
+  document: string,
+  chunk: DeckChunk
+): T | null {
+  for (const m of moments ?? []) {
+    if (m.hasExplanation !== true) continue;
+    const anchor = (m.anchor || "").trim();
+    if (!anchor) continue;
+    const at = document.indexOf(anchor);
+    if (at < 0) continue;
+    if (overlaps({ start: at, end: at + anchor.length }, chunk.start, chunk.end)) {
+      return m;
+    }
+  }
+  return null;
+}
+
 /** One slide section of the deck: a kicker index + its chunks, in order. */
 export interface DeckSlideGroup {
   /** 0-based slide the words were delivered on, or null when the document
