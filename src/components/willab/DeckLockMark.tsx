@@ -32,7 +32,7 @@ const ARIA: Record<ChunkStatus, string> = {
 
 const PILL: Record<ChunkStatus, string> = {
   clean: "bg-foreground/[0.04] text-foreground/[0.28]",
-  waiting: "bg-pending/[0.22] text-foreground/80 animate-lock-breathe",
+  waiting: "bg-pending/[0.22] text-foreground/80 motion-safe:animate-lock-breathe",
   accepted: "bg-foreground/10 text-foreground/80",
   locked: "bg-foreground text-background",
 };
