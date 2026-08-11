@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
 import {
-  buildLabelBody,
   exceedsProxyLimit,
   IMPORT_LANGUAGES,
   languageLabel,
@@ -48,7 +47,7 @@ describe("mapQueuePiece — drop-not-repair", () => {
     expect(mapQueuePiece(piece({ transcript: "" }))).toBeNull();
   });
 
-  it("keeps this coach's prior call, intensity included", () => {
+  it("keeps this coach's prior call, HISTORICAL intensity included — the 1–5 row is cut (2026-08-11) but rows graded before the cut must read back faithfully", () => {
     const m = mapQueuePiece(
       piece({ label: { confident: true, intensity: 4, note: "hard to call" } })
     );
@@ -151,43 +150,10 @@ describe("mapConfidenceQueue", () => {
   });
 });
 
-describe("buildLabelBody (N3 lives here)", () => {
-  it("yes/no alone is a complete label — intensity is optional", () => {
-    expect(buildLabelBody(true)).toEqual({ confident: true });
-    expect(buildLabelBody(false)).toEqual({ confident: false });
-  });
-
-  it("REFUSES to build a body without a real boolean — an intensity-only save would fabricate a call the coach never made", () => {
-    expect(buildLabelBody(undefined, 4)).toBeNull();
-    expect(buildLabelBody(null, 4)).toBeNull();
-    // The BE 400s on a string "true"; coercing it here would turn a bug into
-    // fabricated training data, so it is refused rather than repaired.
-    expect(buildLabelBody("true", 4)).toBeNull();
-    expect(buildLabelBody(1)).toBeNull();
-  });
-
-  it("carries a 1–5 grade", () => {
-    expect(buildLabelBody(true, 4)).toEqual({ confident: true, intensity: 4 });
-  });
-
-  it("drops an out-of-range grade but keeps the answer — the coach's yes/no still stands", () => {
-    expect(buildLabelBody(true, 9)).toEqual({ confident: true });
-    expect(buildLabelBody(true, 0)).toEqual({ confident: true });
-    expect(buildLabelBody(true, 3.5)).toEqual({ confident: true });
-  });
-
-  it("trims the note and omits it when empty", () => {
-    expect(buildLabelBody(true, 2, "  archive clip  ")).toEqual({
-      confident: true,
-      intensity: 2,
-      note: "archive clip",
-    });
-    expect(buildLabelBody(true, 2, "   ")).toEqual({
-      confident: true,
-      intensity: 2,
-    });
-  });
-});
+// The label-body constructor tests moved with the constructor: N3 now lives
+// in stateRatings.ts (buildRatingBody) and is pinned in stateRatings.test.ts.
+// The binary + 1–5 builder that was tested here was cut with the intensity
+// row (founder 2026-08-11).
 
 describe("importIdempotencyKey", () => {
   const file = { name: "board-pitch.mp3", size: 51_200_000, lastModified: 1_753_600_000_000 };

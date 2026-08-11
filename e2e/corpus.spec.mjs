@@ -385,9 +385,9 @@ check(
     (await page.locator('button[aria-label="Play snippet"]').count()) === 1
 );
 
-/* --------------------- N3: no intensity without an answer ------------------ */
+/* ----------- N3: no default answer — and the 1–5 grade row is GONE --------- */
 check(
-  "the 1–5 row does NOT exist before an answer is picked",
+  "the retired 1–5 grade row does not exist — cut 2026-08-11 (founder: pure ternary for the MVP)",
   (await page.locator("text=How strongly?").count()) === 0 &&
     (await page.locator("button", { hasText: /^3$/ }).count()) === 0
 );
@@ -425,52 +425,30 @@ check(
   })
 );
 await yesClick;
-// The harness delays the PUT 300ms; the state these next checks read
-// (`answered`, the 1–5 row) only updates once that resolves.
+// The harness delays the PUT 300ms; the state these next checks read only
+// updates once that resolves.
 await page.waitForTimeout(350);
 let put = await labels(page);
 check(
-  // 2026-08-10, the unified ternary instrument: a bare answer rides the
-  // ternary body (the same wire every label lane speaks now); the legacy
-  // {confident} shape survives ONLY for the graded one-judgment re-send
-  // below. The point of this check is unchanged — an answer alone is a
-  // complete label, and no intensity rides along uninvited (N3).
-  "Yes alone is a complete label — the ternary answer, no intensity",
+  // 2026-08-10, the unified ternary instrument; 2026-08-11, the intensity
+  // cut. One write shape is left in the product: the ternary body. An
+  // answer alone is the complete label, and nothing rides along
+  // uninvited (N3).
+  "Yes alone is THE complete label — the ternary body, nothing else on the wire",
   put.length === 1 &&
     JSON.stringify(put[0].body) ===
       JSON.stringify({ state_id: "confidence", value: "yes" }),
   JSON.stringify(put[0]?.body)
 );
-check("the 1–5 row appears only now", (await page.locator("text=How strongly?").count()) === 1);
 check(
-  "only the two ENDPOINTS carry a word — 2, 3 and 4 stay bare numbers, per the founder's table",
-  (await page.locator('button[aria-label="2"]').count()) === 1 &&
-    (await page.locator('button[aria-label="3"]').count()) === 1 &&
-    (await page.locator('button[aria-label="4"]').count()) === 1
-);
-check(
-  "under a YES answer, the endpoints read 'Barely confident' / 'Extremely confident' — the founder's own words",
-  (await page.locator('button[aria-label="1 — Barely confident"]').count()) === 1 &&
-    (await page.locator('button[aria-label="5 — Extremely confident"]').count()) === 1 &&
-    (await page.locator("text=Barely confident").count()) === 1 &&
-    (await page.locator("text=Extremely confident").count()) === 1
-);
-
-await page.locator('button[aria-label="4"]').click();
-await page.waitForTimeout(400);
-put = await labels(page);
-check(
-  "the grade re-sends the answer WITH the intensity — never intensity alone (N3)",
-  put.length === 2 &&
-    JSON.stringify(put[1].body) ===
-      JSON.stringify({ confident: true, intensity: 4 }),
-  JSON.stringify(put[1]?.body)
-);
-check(
-  "grading auto-advances past the already-labelled piece to the next unlabelled one",
+  "the answer is the whole act now — it auto-advances past the already-labelled piece to the next unlabelled one (there is no grade step to wait for)",
   (await page.locator("text=I think maybe we could possibly").count()) === 1
 );
 check("progress moved to 2 / 3", (await page.locator("text=2 / 3 labelled").count()) === 1);
+check(
+  "no grade row appeared after answering either — the cut is total, not gated differently",
+  (await page.locator("text=How strongly?").count()) === 0
+);
 
 /* ------------- a saved call shows as current state, still re-callable ------- */
 await page.locator("button", { hasText: "Back" }).click();
@@ -480,9 +458,17 @@ check(
   (await page.locator("text=so we moved the launch").count()) === 1
 );
 check(
-  "its saved call renders as the active answer and grade, not a locked one",
-  (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1 &&
-    (await page.locator('button[aria-pressed="true"][aria-label="5 — Extremely confident"]').count()) === 1
+  "its saved call renders as the active answer, not a locked one",
+  (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1
+);
+check(
+  "a piece that still CARRIES a historical 1–5 grade renders no grade UI — the number stays in the database, read-only, never back on screen",
+  // The harness serves this piece with intensity: 5; under the old UI that
+  // rendered a pressed "5 — Extremely confident". Now nothing may.
+  (await page.locator("text=How strongly?").count()) === 0 &&
+    !/Barely confident|Extremely confident|Slightly unconfident|Extremely unconfident/.test(
+      await body()
+    )
 );
 
 /* ---------------- the bubbles: every piece, reachable ---------------- */
@@ -490,9 +476,9 @@ check(
   "the bubbles show EVERY piece, in payload order, numbered from 1 (N2 — sorting them would undo the server-side band shuffle)",
   await page.evaluate(() => {
     const bubbles = [...document.querySelectorAll('button[aria-label^="Piece "]')];
-    // Dots, NOT numbers: the 1-5 grade row is on the same screen, and two
-    // rows of digits meaning different things is a real confusion (it also
-    // made the grade-button selectors ambiguous, which is how it was caught).
+    // Dots, NOT numbers — chosen when the 1–5 grade row still shared this
+    // screen and two digit rows confused; the grade is cut now, but a digit
+    // on a dot would still invite reading position as meaning (N2).
     return (
       bubbles.length === 3 &&
       bubbles.every((b) => b.textContent?.trim() === "") &&
@@ -556,7 +542,7 @@ check(
     (await page.locator("text=3 / 3 labelled").count()) === 0
 );
 
-/* -------- the OTHER branch: "No" gets its OWN words, not Yes mirrored -------- */
+/* ----------- the OTHER branch: "No" is the same one-tap act ---------------- */
 // The harness's mock queue is stateless per fetch — reopening any import
 // hands back the SAME starting data, so this is a fresh, unlabelled piece-c
 // again, not the one just laboured over above.
@@ -566,16 +552,18 @@ await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector("text=Was this voice confident?");
 await page.locator("button", { hasText: /^No$/ }).click();
 await page.waitForTimeout(400);
+put = await labels(page);
 check(
-  "under a NO answer the endpoints read DIFFERENT words than under Yes — 'Slightly unconfident' / 'Extremely unconfident', the founder's own asymmetric wording, not a mirror",
-  (await page.locator('button[aria-label="1 — Slightly unconfident"]').count()) === 1 &&
-    (await page.locator('button[aria-label="5 — Extremely unconfident"]').count()) === 1 &&
-    (await page.locator("text=Slightly unconfident").count()) === 1 &&
-    (await page.locator("text=Extremely unconfident").count()) === 1 &&
-    // Never "Barely unconfident" — that word only ever appears on the Yes
-    // branch's low end ("Barely confident"); the No branch's low end is a
-    // different word entirely, not a search-and-replaced mirror of it.
-    (await page.locator("text=Barely unconfident").count()) === 0
+  "No rides the same ternary body and is complete on its own — no grade step follows it",
+  put.length === 3 &&
+    JSON.stringify(put[2].body) ===
+      JSON.stringify({ state_id: "confidence", value: "no" }),
+  JSON.stringify(put[2]?.body)
+);
+check(
+  "…and no grade row under No either — the retired endpoint captions ('Slightly unconfident' and the rest) are gone with it",
+  (await page.locator("text=How strongly?").count()) === 0 &&
+    !/Slightly unconfident|Extremely unconfident/.test(await body())
 );
 
 await browser.close();
