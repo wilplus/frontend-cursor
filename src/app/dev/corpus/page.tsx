@@ -7,9 +7,10 @@ import CorpusPageClient from "@/app/coach/corpus/page.client";
 /*                                                                            */
 /*  The real screen needs a coach JWT and a live BE. What needs an engine is   */
 /*  the labelling contract: that no machine read reaches the screen (N1), that */
-/*  the queue is rendered in payload order (N2), that the 1–5 row does not     */
-/*  exist until an answer is picked and never sends an intensity-only body     */
-/*  (N3), and that the import fires SEQUENTIALLY with per-file failures.       */
+/*  the queue is rendered in payload order (N2), that a body without a real    */
+/*  answer is never sent and the RETIRED 1–5 grade never renders — not even    */
+/*  on a row that still carries a historical one — (N3, cut 2026-08-11), and   */
+/*  that the import fires SEQUENTIALLY with per-file failures.                 */
 /*                                                                            */
 /*  Stubs the three endpoints at the fetch boundary and records every write on */
 /*  window.__corpusCalls. Forces the coach profile so the N4 gate opens.       */
