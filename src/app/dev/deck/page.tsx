@@ -1,0 +1,177 @@
+"use client";
+
+import IdealTextOverlay from "@/components/willab/IdealTextOverlay";
+
+/* -------------------------------------------------------------------------- */
+/*  A harness for the transcript review deck, driven in a REAL browser through */
+/*  the REAL host (IdealTextOverlay) — the wiring is the thing under test:     */
+/*  chunk states derive from served parts + changes, the REVIEW modal's        */
+/*  decisions land on the suggestion-feedback POST, and the lock lands on the  */
+/*  parts lock PUT (or the user-edit PUT when the draft changed).              */
+/*                                                                            */
+/*  Serves FOUR chunk states at once: clean (p0), waiting (p1, a pending      */
+/*  polish replace), locked (p2, stored part lock), accepted (p3, an approved  */
+/*  bold). Every write is recorded on window.__deckCalls.                      */
+/*                                                                            */
+/*  DEV ONLY. Production renders nothing and patches nothing.                  */
+/* -------------------------------------------------------------------------- */
+
+declare global {
+  interface Window {
+    __deckCalls?: { url: string; method: string; body: unknown; t: number }[];
+  }
+}
+
+const P0 = "We started this in a garage with nothing but a borrowed mic.";
+const P1 = "Nobody believed the numbers we were seeing back then.";
+const P2 = "So we moved the launch and it changed everything for us.";
+const P3 = "And that is when the whole plan finally came together.";
+
+const TEXT_BEFORE = [P0, P1, P2, P3].join("\n\n");
+// After the accept, the proposal's words are the document's words.
+const P1_AFTER = P1.replace("believed the numbers", "trusted the figures");
+const TEXT_AFTER = [P0, P1_AFTER, P2, P3].join("\n\n");
+
+/** The harness's one bit of server state: has the pending change been
+ *  decided, and which way. Drives the refetched payload exactly the way the
+ *  BE's reassembly + decisions ledger would. */
+let decided: "pending" | "approved" | "dismissed" = "pending";
+let locked1 = false; // p1's part lock, settable via the lock PUT
+
+function payload() {
+  const text = decided === "approved" ? TEXT_AFTER : TEXT_BEFORE;
+  const p1 = decided === "approved" ? P1_AFTER : P1;
+  const paras = [P0, p1, P2, P3];
+  const quote = "believed the numbers";
+  const changes: Record<string, unknown>[] = [];
+  if (decided !== "approved") {
+    changes.push({
+      id: "chg-replace-1",
+      snippet_id: "snip-1",
+      take_session_id: "sess-1",
+      kind: "replace",
+      source: "polish",
+      span: { start: text.indexOf(quote), end: text.indexOf(quote) + quote.length },
+      quote,
+      why_key: "clarity",
+      proposed_text: "trusted the figures",
+      status: decided === "dismissed" ? "dismissed" : "pending",
+      visual: "underline",
+    });
+  }
+  const bq = "finally came together";
+  changes.push({
+    // An already-approved accent: paints p3 accepted (wash, no underline).
+    id: "chg-bold-1",
+    snippet_id: "snip-2",
+    take_session_id: "sess-1",
+    kind: "bold",
+    source: "polish",
+    span: { start: text.indexOf(bq), end: text.indexOf(bq) + bq.length },
+    quote: bq,
+    why_key: "emphasis",
+    status: "approved",
+    visual: "bold",
+  });
+  return {
+    arc_id: "arc-deck",
+    status: "verified",
+    version: 3,
+    title: "Garage pitch",
+    updated_at: "2026-08-11T10:00:00Z",
+    latest_take_session_id: "sess-1",
+    take_count: 2,
+    can_record_take: true,
+    text,
+    moments_unlocked: false,
+    explanations_available: false,
+    key_moments: [],
+    user_edited: false,
+    is_saved: false,
+    parts: paras.map((t, i) => ({
+      id: `part-${i}`,
+      ord: i,
+      text: t,
+      locked: i === 2 || (i === 1 && locked1),
+    })),
+    pieces: paras.map((t, i) => ({
+      piece_key: i,
+      text: t,
+      slide_index: i < 2 ? 0 : 1,
+      take_index: 1,
+      snippet_id: `snip-p${i}`,
+      take_session_id: "sess-1",
+      status: "settled",
+      challenger: null,
+    })),
+    additions: [],
+    changes,
+  };
+}
+
+if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+  if (!window.__deckCalls) {
+    window.__deckCalls = [];
+    const real = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      const method = (init?.method ?? "GET").toUpperCase();
+      const json = (body: unknown, status = 200) =>
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        });
+
+      if (url.includes("/ideal-text") && method === "GET") {
+        return json(payload());
+      }
+      if (url.includes("/suggestion-feedback") && method === "POST") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          action?: string;
+        };
+        window.__deckCalls!.push({ url, method, body, t: performance.now() });
+        decided = body.action === "applied" ? "approved" : "dismissed";
+        return json({ saved: true });
+      }
+      if (/\/parts\/[^/]+\/lock/.test(url) && method === "PUT") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        window.__deckCalls!.push({ url, method, body, t: performance.now() });
+        if (url.includes("part-1")) locked1 = true;
+        return json({ locked: true, part_id: "stub" });
+      }
+      if (url.includes("/user-edit") && method === "PUT") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        window.__deckCalls!.push({ url, method, body, t: performance.now() });
+        return json({ ok: true, version: 4 });
+      }
+      if (url.startsWith("/api/")) {
+        // Variants, revisions, deck ref, moments — all OFF in this harness.
+        return json({}, 404);
+      }
+      return real(input, init);
+    };
+  }
+}
+
+export default function DeckHarness() {
+  if (process.env.NODE_ENV === "production") return null;
+  return (
+    <IdealTextOverlay
+      arcId="arc-deck"
+      onClose={() => {
+        // The harness has nowhere to go back to.
+      }}
+    />
+  );
+}
