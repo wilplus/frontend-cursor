@@ -137,6 +137,13 @@ export interface CoachReviewSession {
   /** The session's served deck PDF, for rendering each snippet's slide page.
    *  null when no deck was attached. */
   presentationRef: string | null;
+  /** THE DECK ITSELF (founder 2026-08-11) — every slide, in order. The BE has
+   *  always sent it; the mapper dropped it because nothing needed it. The
+   *  slide-correction control does: a coach saying "it was slide 3" has to be
+   *  able to name slide 3, INCLUDING a slide nobody spoke a word on — which
+   *  is exactly the slide a forgotten advance strands, and the one a picker
+   *  built from the snippets present could never offer. */
+  slides: ReadoutSlide[];
   snippets: CoachReviewSnippet[];
   /** Pre-recording feelings (BE #108) — newest-first from feelings[]. Coach-only. */
   feelings: SessionFeeling[];
@@ -296,6 +303,21 @@ export function mapCoachReviewSession(
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
         : null,
+    slides: Array.isArray(r.slides)
+      ? r.slides
+          .map((raw, i) => {
+            if (!raw || typeof raw !== "object") return null;
+            const sl = raw as Record<string, unknown>;
+            return {
+              // The deck's own order IS the index; a payload without one
+              // falls back to position rather than dropping the slide.
+              index: typeof sl.index === "number" ? sl.index : i,
+              title: typeof sl.title === "string" ? sl.title : "",
+              body: typeof sl.body === "string" ? sl.body : "",
+            };
+          })
+          .filter((sl): sl is ReadoutSlide => sl !== null)
+      : [],
     // FP-5 — re-reads (BE-2) are appended by the BE AFTER the spoken take and
     // must stay in that append order: they're revealed by "Next" at the tail of
     // the parent take's flow, never sorted back among the spoken snippets they
