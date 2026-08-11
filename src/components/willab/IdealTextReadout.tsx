@@ -843,6 +843,12 @@ export default function IdealTextReadout({
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
+              snippetId: m.snippetId,
+              anchor: m.anchor,
+              hasExplanation: m.hasExplanation === true,
+            }))}
+            arcId={arcId}
             styleChanges={dirty ? [] : sd.styleChanges}
             decisionHistory={sd.decisionHistory}
             onApplyStyle={applyStyle}

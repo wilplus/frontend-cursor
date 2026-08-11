@@ -10,8 +10,10 @@ import DeckLockMark from "@/components/willab/DeckLockMark";
 import { RichText } from "@/components/willab/RichText";
 import {
   buildDeckChunks,
+  coachMomentForChunk,
   groupChunksBySlide,
   styleFor,
+  type CoachMomentLite,
   type DeckChunk,
 } from "@/lib/willab/deckChunks";
 import type { Part } from "@/lib/willab/documentParts";
@@ -63,6 +65,8 @@ export default function TranscriptReviewDeck({
   styleChanges = null,
   onApplyStyle,
   decisionHistory = null,
+  coachMoments = null,
+  arcId = null,
 }: {
   title?: string;
   /** Optional right-of-title chip (e.g. "Verified"). Qualitative only. */
@@ -90,6 +94,11 @@ export default function TranscriptReviewDeck({
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
   /** PROPOSAL HISTORY (slice 2) — decided proposals, texts included. */
   decisionHistory?: readonly DecisionHistoryEntry[] | null;
+  /** THE COACH (slice 4) — the arc's key moments, joined to a chunk by their
+   *  anchor so the modal can offer the coach's own note/video on those
+   *  words. The message itself loads on demand (that read is metered). */
+  coachMoments?: readonly CoachMomentLite[] | null;
+  arcId?: string | null;
 }) {
   const chunks = useMemo(
     () => buildDeckChunks(doc, parts, suggestions),
@@ -284,6 +293,10 @@ export default function TranscriptReviewDeck({
           styleSuggestion={styleFor(styleChanges, openChunk)}
           onApplyStyle={onApplyStyle}
           history={decisionHistory}
+          coachSnippetId={
+            coachMomentForChunk(coachMoments, doc, openChunk)?.snippetId ?? null
+          }
+          arcId={arcId}
         />
       ) : null}
     </div>
