@@ -45,26 +45,35 @@ await page.emulateMedia({ reducedMotion: "reduce" });
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector("text=Garage pitch");
 
-/* ------------------------- the four states, painted ------------------------ */
+/* ---------------- the THREE states, and a page that is not painted --------- */
+// Founder 2026-08-11: "accepted" and "locked" merged into one final state, and
+// NOTHING marks the text any more. The fixture still serves an approved
+// suggestion on one chunk and a server lock on another — both must land on the
+// SAME state, which is why the locked count is 2.
 const mark = (status) => page.locator(`button[data-status="${status}"]`);
 check(
-  "every chunk wears exactly one lock mark — clean, waiting, accepted and locked all present",
+  "three states on the page — accepted and locked are one",
   (await mark("clean").count()) === 1 &&
     (await mark("waiting").count()) === 1 &&
-    (await mark("accepted").count()) === 1 &&
-    (await mark("locked").count()) === 1
+    (await mark("locked").count()) === 2 &&
+    (await mark("accepted").count()) === 0
 );
 check(
-  "underline belongs EXCLUSIVELY to the waiting chunk (the founder's one-signal rule)",
+  "NOTHING paints the chunk text — no underline, no wash, in any state",
   await page.evaluate(() => {
-    const spans = [...document.querySelectorAll("section span")];
-    const underlined = spans.filter((s) =>
-      s.className.includes?.("decoration-pending")
-    );
-    return (
-      underlined.length === 1 &&
-      underlined[0].textContent?.includes("believed the numbers")
-    );
+    // The whole rendered stage, not a sampled span: the rule is that no
+    // element under it carries either treatment.
+    const painted = [...document.querySelectorAll("section *")].filter((el) => {
+      const c = el.className;
+      return (
+        typeof c === "string" &&
+        (c.includes("decoration-pending") ||
+          c.includes("bg-pending/[0.08]") ||
+          c.includes("bg-pending/[0.14]") ||
+          c.includes("underline"))
+      );
+    });
+    return painted.length === 0;
   })
 );
 check(
@@ -100,10 +109,21 @@ check(
   })
 );
 check(
-  "two slide sections from the pieces zip, with kickers, dots and the work-count footer",
+  "two slide sections from the pieces zip, with kickers and dots",
   (await page.locator("text=Slide 1").count()) >= 1 &&
-    (await page.locator('button[aria-label^="Go to Slide"]').count()) === 2 &&
-    (await page.locator("text=1 to review").count()) === 1
+    (await page.locator('button[aria-label^="Go to Slide"]').count()) === 2
+);
+check(
+  "NO FOOTER — no review count, no slide position, no word count",
+  await page.evaluate(() => {
+    const t = document.body.innerText;
+    return (
+      !/\bto review\b/.test(t) &&
+      !/Nothing waiting/.test(t) &&
+      !/\b\d+\s+words\b/.test(t) &&
+      !/Slide \d+ of \d+/.test(t)
+    );
+  })
 );
 
 /* ---------------- REVIEW: the waiting chunk's lock opens it ---------------- */
@@ -163,8 +183,8 @@ check(
 );
 await page.waitForTimeout(400);
 check(
-  "the chunk now wears the closed lock — two locked marks on the page",
-  (await mark("locked").count()) === 2
+  "the chunk now wears the closed lock — three locked marks on the page",
+  (await mark("locked").count()) === 3
 );
 
 /* -------- slice 2: the style lane on a LOCKED chunk, modal-only ------------ */
@@ -243,7 +263,11 @@ check(
   })
 );
 check(
-  "the editor carries no formatting toolbar — underline stays reserved for the waiting signal",
+  // The rationale used to be "underline is reserved for the waiting signal".
+  // The underline is retired entirely now, and the rule outlives it: the
+  // chunk editor is for the WORDS, and a formatting bar in it is a second
+  // way to mark text on a surface that deliberately has none.
+  "the editor carries no formatting toolbar",
   (await page.locator('[role="dialog"] button[aria-label="Underline"]').count()) === 0 &&
     (await page.locator('[role="dialog"] button[aria-label="Bold"]').count()) === 0
 );
@@ -346,9 +370,15 @@ await fresh.emulateMedia({ reducedMotion: "reduce" });
 await fresh.goto(`${BASE}?noparts=1`, { waitUntil: "networkidle" });
 await fresh.waitForSelector("text=Garage pitch");
 check(
-  "with no stored parts nothing is locked — the chunks are the deck's own derivation",
-  (await fresh.locator('button[data-status="locked"]').count()) === 0 &&
-    (await fresh.locator('button[data-status="clean"]').count()) === 2
+  "with no stored parts NO SERVER LOCK survives — the chunks are the deck's own derivation",
+  // p2 carried the only stored part lock and loses it with the parts list.
+  // The single remaining closed lock is p3's, which reaches that state
+  // through an APPROVED SUGGESTION rather than through a part — the two
+  // sources merged into one icon (founder 2026-08-11) but only one of them
+  // lives in the parts payload, and that is what this harness removes.
+  (await fresh.locator('button[data-status="locked"]').count()) === 1 &&
+    (await fresh.locator('button[data-status="clean"]').count()) === 2 &&
+    (await fresh.locator('button[data-status="waiting"]').count()) === 1
 );
 await fresh.locator('button[data-status="clean"]').first().click();
 await fresh.waitForSelector("text=No feedback pending");

@@ -9,16 +9,20 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
 /*  after the chunk text. It is the state machine's entry point: the HOST      */
 /*  routes the click (waiting → REVIEW modal, everything else → EDITOR).       */
 /*                                                                            */
-/*  Visual language, by status — and nothing else may signal these states:     */
+/*  THREE STATES (founder 2026-08-11) — and since the text itself is no        */
+/*  longer painted in any of them, this mark is the ONLY thing that carries    */
+/*  a chunk's state:                                                           */
 /*    clean    — open lock, faint pill. Quiet: nothing to do here.             */
 /*    waiting  — open lock on the pending-amber pill, BREATHING. The only      */
 /*               animated state, because it is the only one asking for the     */
 /*               student's attention.                                          */
-/*    accepted — open lock, ink pill, still. Decided but not committed.        */
-/*    locked   — closed lock, ink fill, white glyph, success tick badge.       */
+/*    locked   — closed lock, ink fill, white glyph, success tick badge. The   */
+/*               final state, reached by accepting the feedback or by locking  */
+/*               in by hand; the old separate "accepted" step was a window     */
+/*               between those two that the student never needed to see.       */
 /*                                                                            */
 /*  AC-9: the mark encodes only what the STUDENT has done (nothing waiting /   */
-/*  waiting / accepted / locked) — never a band, a score, or a machine read.   */
+/*  waiting / locked) — never a band, a score, or a machine read.              */
 /* -------------------------------------------------------------------------- */
 
 /** Aria copy per state — the founder's own kicker vocabulary (Lovable §3),
@@ -26,14 +30,12 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
 const ARIA: Record<ChunkStatus, string> = {
   clean: "No feedback pending — edit this chunk",
   waiting: "Feedback waiting — review the suggested change",
-  accepted: "Accepted, not locked in yet — edit or lock in",
   locked: "Locked in — open the locked chunk",
 };
 
 const PILL: Record<ChunkStatus, string> = {
   clean: "bg-foreground/[0.04] text-foreground/[0.28]",
   waiting: "bg-pending/[0.22] text-foreground/80 motion-safe:animate-lock-breathe",
-  accepted: "bg-foreground/10 text-foreground/80",
   locked: "bg-foreground text-background",
 };
 
