@@ -767,7 +767,10 @@ export default function IdealTextReadout({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    // `min-h-0` so the deck below can shrink into the space the header and
+    // the actions leave — without it a flex child refuses to go under its
+    // content height and the screen grows a second scroll.
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
           like one: the project's name with its verification state beside it,
           the actions and the way out on the same row. It used to spend this
@@ -825,7 +828,10 @@ export default function IdealTextReadout({
         // ceiling boxed the one thing on the page worth reading. The deck
         // owns its own snap-scrolling, so it takes the height it is given
         // and the text gets the room.
-        <div className="flex min-h-[38rem] flex-1 flex-col overflow-hidden">
+        // `min-h-0`, not a floor: the deck takes the height that is LEFT.
+        // A minimum here is what pushed the page past the viewport and gave
+        // the screen a second scroll (founder 2026-08-11).
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TranscriptReviewDeck
             chrome="stage"
             document={text}

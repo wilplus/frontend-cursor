@@ -833,8 +833,18 @@ export default function LabOverlay({
         </header>
       )}
 
+      {/* ONE SCROLLER, NEVER TWO (founder 2026-08-11: "this whole screen is
+          movable and should not be… I can scroll on the slides and on the
+          page, it is one"). The readout's deck is itself a snap-scroller, so
+          on that screen this band must NOT scroll — otherwise the slide moves
+          under your thumb and the whole card moves behind it, and neither
+          gesture is the one you meant. `min-h-0` is what lets the deck shrink
+          to the space left instead of forcing the page taller than the phone.
+          Every other state still scrolls: they are ordinary content. */}
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6 ${SCREEN_BOTTOM_GAP} ${
+          state === "readout" ? "min-h-0 overflow-hidden" : "overflow-y-auto"
+        }`}
       >
         {state === "lab_feelings" && (
           <FeelingsCheckIn onReady={startAfterCheckIn} />

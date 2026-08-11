@@ -75,6 +75,24 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/aria-current/);
   });
 
+  it("the readout screen has exactly ONE scroller — the deck", () => {
+    // Founder 2026-08-11: "this whole screen is movable and should not be…
+    // I can scroll on the slides and on the page, it is one". Two nested
+    // scrollers means the slide moves under your thumb and the card moves
+    // behind it, and neither gesture is the one you meant. The host band
+    // stops scrolling on this state; the deck's snap-scroll is the movement.
+    const LAB = code("src/components/willab/LabOverlay.tsx");
+    expect(LAB).toMatch(
+      /state === "readout" \? "min-h-0 overflow-hidden" : "overflow-y-auto"/
+    );
+    // A MINIMUM height on the deck is what forced the page past the phone.
+    // It takes the height that is left, so every link in the chain must be
+    // allowed to shrink.
+    expect(READOUT).not.toMatch(/min-h-\[\d+rem\][^"]*flex-1 flex-col overflow-hidden/);
+    expect(READOUT).toMatch(/flex min-h-0 flex-1 flex-col overflow-hidden/);
+    expect(READOUT).toMatch(/flex min-h-0 flex-1 flex-col gap-4/);
+  });
+
   it("the deck mount has no frame and no height cap", () => {
     const mount = READOUT.slice(
       READOUT.indexOf("<TranscriptReviewDeck") - 400,
