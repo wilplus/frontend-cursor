@@ -294,6 +294,27 @@ export default function LabOverlay({
   } | null>(null);
   const durationRef = useRef(0);
   const uploadStartedRef = useRef(false);
+  // ONE UPLOAD KEY PER RECORDING (founder 2026-08-12, the double take). The
+  // key was minted inside the API helper, per CALL — so the two lanes in one
+  // call shared it, but a RETRY built a fresh form, drew a fresh uuid, and
+  // the backend's collapse guard could never match. One recording landed as
+  // takes N and N+1 with identical audio, which is why the version badge
+  // jumped by two and the pipeline ran twice.
+  //
+  // Keyed on the BLOB IDENTITY, which is exactly the unit that must share a
+  // key: a retry re-runs this effect with the same Blob, and a new recording
+  // is a new Blob and must not collapse onto the old take.
+  const uploadKeyRef = useRef<{ blob: Blob; key: string } | null>(null);
+  const uploadKeyFor = (b: Blob): string | undefined => {
+    if (uploadKeyRef.current?.blob !== b) {
+      try {
+        uploadKeyRef.current = { blob: b, key: crypto.randomUUID() };
+      } catch {
+        return undefined;   // ancient WebView — the helper falls back
+      }
+    }
+    return uploadKeyRef.current?.key;
+  };
   // Guards for the deckless file-upload path. uploadSeqRef is bumped on every
   // upload pick AND on mic start, so a slow duration read (up to 4s) that
   // resolves after the user changed their mind (tapped record, or picked a
@@ -401,6 +422,7 @@ export default function LabOverlay({
       };
       const result = await submitLabRecording({
         audioBlob: blob,
+        uploadIdempotencyKey: uploadKeyFor(blob),
         durationSec: durationRef.current,
         topic: context.topic,
         audience: context.audience || undefined,
