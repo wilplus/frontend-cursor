@@ -294,6 +294,8 @@ export default function LabOverlay({
   } | null>(null);
   const durationRef = useRef(0);
   const uploadStartedRef = useRef(false);
+  // The blob the stop→processing branch has already acted on. See that effect.
+  const consumedBlobRef = useRef<Blob | null>(null);
   // ONE UPLOAD KEY PER RECORDING (founder 2026-08-12, the double take). The
   // key was minted inside the API helper, per CALL — so the two lanes in one
   // call shared it, but a RETRY built a fresh form, drew a fresh uuid, and
@@ -347,7 +349,22 @@ export default function LabOverlay({
     }
     // BE-2/R6-FE5 — no minimum-time gate: every stop submits. The BE analyzes
     // whatever arrived (its min-content 422 is retired server-side too).
-    if (s.status === "stopped" && state === "lab_recording") {
+    //
+    // ONCE PER BLOB (founder 2026-08-12, "after clicking the record button it
+    // yet again opens up the waiting screen instead of bringing me to the
+    // recording page"). `mic.state` stays {status:"stopped", audioBlob:<that
+    // take>} for the whole readout — nothing on the stop → processing →
+    // readout path resets it — so ANY later entry into lab_recording was
+    // bounced straight back out by this branch, on the PREVIOUS take's blob,
+    // before getUserMedia had even resolved. The caller now cancels the mic
+    // first (see onReRead), and this guard makes the hazard unreachable for
+    // every future entry rather than for the two we happen to know about.
+    if (
+      s.status === "stopped" &&
+      state === "lab_recording" &&
+      s.audioBlob !== consumedBlobRef.current
+    ) {
+      consumedBlobRef.current = s.audioBlob;
       durationRef.current = s.durationSec;
       setBlob(s.audioBlob);
       goTo("lab_processing");
@@ -794,6 +811,10 @@ export default function LabOverlay({
     uploadSeqRef.current += 1; // drop any stale upload-duration read
     primingRef.current = null;
     startPendingRef.current = true;
+    // Same stale-"stopped" reset every entry into lab_recording now does — a
+    // check-in that follows a take in the same overlay session would otherwise
+    // be bounced into the waiting screen on the previous take's blob.
+    cancelMic();
     goTo("lab_recording");
     void mic.start();
   }
@@ -922,6 +943,15 @@ export default function LabOverlay({
               uploadSeqRef.current += 1; // drop any stale upload-duration read
               primingRef.current = null;
               startPendingRef.current = true;
+              // RESET THE MIC FIRST. It is still "stopped" from the previous
+              // take, and the stop→processing branch above fires on the first
+              // render inside lab_recording — putting the waiting screen in
+              // front of the microphone and then cancelling the mic we just
+              // started. cancel() puts it back to "idle", which is the state
+              // RecordingPhase's "Getting your mic ready…" covers while
+              // getUserMedia resolves. The 422-rejected path already did this;
+              // this entry and onReRecord did not.
+              cancelMic();
               goTo("lab_recording");
               void mic.start();
             }}
@@ -1005,6 +1035,8 @@ export default function LabOverlay({
               setBlob(null);
               primingRef.current = null;
               startPendingRef.current = true;
+              // Same stale-"stopped" hazard as onReRead — reset before entering.
+              cancelMic();
               goTo("lab_recording");
               void mic.start();
             }}
@@ -1069,6 +1101,16 @@ export default function LabOverlay({
               setPollSlow(false);
               primingRef.current = null;
               startPendingRef.current = true;
+              // THE BUTTON THE FOUNDER PRESSED (2026-08-12): "after clicking
+              // the record button - it yet again opens up the waiting screen
+              // instead of just bringing me to the recording page". The mic
+              // has been parked on {status:"stopped", audioBlob:<last take>}
+              // since that take ended, so entering lab_recording let the
+              // stop→processing branch fire on the PREVIOUS blob and bounce
+              // straight back out. Reset to idle first — RecordingPhase's
+              // "Getting your mic ready…" covers idle while getUserMedia
+              // resolves, which is the screen he was asking for.
+              cancelMic();
               goTo("lab_recording");
               void mic.start();
             }}

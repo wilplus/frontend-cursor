@@ -85,13 +85,42 @@ describe("buildDeckChunks — status derivation", () => {
     expect(chunks[0].approvedIds).toEqual([]);
   });
 
-  it("locked wins over everything — locked text is never re-underlined, even with a pending rider", () => {
-    // The Confident-Voice "better version pending" rides a LOCKED part; it
-    // surfaces in the modal, never as an underline on the page.
+  it("A LOCKED CHUNK RE-OPENS when something new lands on it (founder 2026-08-11)", () => {
+    // "Once locked in but smth new appears there keep iterating and showing
+    // the suggestions."
+    //
+    // The lock used to win here unconditionally, and that single line was the
+    // whole of "the feedback engine pipe is dead while it is locked in": the
+    // backend served the new take's proposals, `pendingIds` was computed, and
+    // nothing the student could see ever read it. The text is deliberately
+    // never painted, the mark keys on `status`, and the modal opens its
+    // REVIEW face only for waiting — so a proposal on a locked chunk was
+    // announced nowhere and openable never.
     const chunks = buildDeckChunks(DOC, parts([1]), [sug("s1", 25, 40)]);
-    expect(chunks[1].status).toBe("locked");
-    // The pending id is still carried — the modal needs it.
+    expect(chunks[1].status).toBe("waiting");
     expect(chunks[1].pendingIds).toEqual(["s1"]);
+    // The lock itself is untouched — it is the SERVER's flag and the student
+    // re-applies it after deciding. Only the surfaced state moved.
+    expect(chunks[1].part.locked).toBe(true);
+  });
+
+  it("a locked chunk with NOTHING new stays locked", () => {
+    // The other half of the ruling: "keep it there; hide the buttons but show
+    // the text". A re-open must need a real proposal, or every locked chunk
+    // would sit in the amber breathing state forever.
+    const chunks = buildDeckChunks(DOC, parts([1]), []);
+    expect(chunks[1].status).toBe("locked");
+    expect(chunks[1].pendingIds).toEqual([]);
+  });
+
+  it("an APPROVED rider on a locked chunk does not re-open it", () => {
+    // Approved is decided. Only UNDECIDED work re-opens the cycle, otherwise
+    // accepting a change would immediately re-offer the chunk it settled.
+    const chunks = buildDeckChunks(DOC, parts([1]), [
+      sug("s1", 25, 40, "approved"),
+    ]);
+    expect(chunks[1].status).toBe("locked");
+    expect(chunks[1].approvedIds).toEqual(["s1"]);
   });
 
   it("a suggestion spanning two paragraphs marks both waiting", () => {

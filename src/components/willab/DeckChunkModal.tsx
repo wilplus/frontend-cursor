@@ -89,8 +89,13 @@ export default function DeckChunkModal({
   arcId = null,
 }: DeckChunkModalProps) {
   // Accept morphs the face; everything else derives from the chunk.
+  // KEYED ON THE WORK, NOT THE STATE. `chunk.status` folds "approved, not
+  // locked" into "locked", so reading it here meant a chunk with a real
+  // pending proposal could still open the editor. The proposal itself is the
+  // only thing that decides whether there is a review to run — and on a
+  // re-opened locked chunk (R1 gen-4) that is exactly the case that matters.
   const [face, setFace] = useState<"review" | "editor">(
-    chunk.status === "waiting" && suggestion ? "review" : "editor"
+    chunk.pendingIds.length > 0 && suggestion ? "review" : "editor",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,11 +181,31 @@ export default function DeckChunkModal({
     setError(
       outcome === "blocked"
         ? "Decide every suggestion on this chunk first."
-        : "Couldn't lock this in. Try again."
+        : "Couldn't lock this in. Try again.",
     );
   }
 
   const rationale = suggestion ? whyLine(suggestion) : null;
+
+  // A LOCKED CHUNK WITH NOTHING TO DECIDE SHOWS NO DECISION BUTTONS.
+  //
+  // Founder 2026-08-12: "if smth is locked in, then why there is a big button
+  // to lock it in? and the discard button? and if I click discard nothing
+  // happens" — the other half of the locked-iteration ruling ("keep it there;
+  // hide the buttons but show the text"). Both buttons were no-ops here:
+  // "Lock in" re-locks words that are already locked, and "Discard" is
+  // `onClose`, which on an untouched chunk discards nothing — exactly the
+  // "nothing happens" he saw.
+  //
+  // The row comes BACK the instant the words differ from the served text,
+  // because a locked chunk stays editable by design and an edit the student
+  // cannot lock in is an edit they cannot save. Compared against the text
+  // rather than the dirty ref on purpose: typing a change and typing it back
+  // leaves nothing to save either, and a ref would not re-render anyway.
+  //
+  // Not gated on `chunk.status`: a re-opened locked chunk (pending work beats
+  // the lock) is already on the REVIEW face, which owns its own buttons.
+  const settled = chunk.part.locked === true && draft === chunk.part.text;
 
   return (
     <div
@@ -328,7 +353,10 @@ export default function DeckChunkModal({
                         </p>
                         {h.why ? (
                           <p className="text-[12px] leading-snug text-muted-foreground">
-                            {whyLine({ id: h.changeKey ?? String(i), why: h.why })}
+                            {whyLine({
+                              id: h.changeKey ?? String(i),
+                              why: h.why,
+                            })}
                           </p>
                         ) : null}
                         {h.proposedText ? (
@@ -356,59 +384,65 @@ export default function DeckChunkModal({
           ) : null}
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-          {face === "review" && suggestion ? (
-            <>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void accept()}
-                className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Check className="h-4 w-4" aria-hidden />
-                )}
-                Accept
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void keepMine()}
-                className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                <X className="h-4 w-4" aria-hidden />
-                Keep mine
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={busy || draft.trim().length === 0}
-                onClick={() => void lockIn()}
-                className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Lock className="h-4 w-4" aria-hidden />
-                )}
-                Lock in
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onClose}
-                className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                <Undo2 className="h-4 w-4" aria-hidden />
-                Discard
-              </button>
-            </>
-          )}
-        </div>
+        {face !== "review" && settled ? (
+          // Nothing to decide — the header's close button and the backdrop
+          // are the way out, and the words stay right there to be read.
+          <div className="shrink-0 pb-5" />
+        ) : (
+          <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
+            {face === "review" && suggestion ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void accept()}
+                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Check className="h-4 w-4" aria-hidden />
+                  )}
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void keepMine()}
+                  className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                  Keep mine
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={busy || draft.trim().length === 0}
+                  onClick={() => void lockIn()}
+                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Lock className="h-4 w-4" aria-hidden />
+                  )}
+                  Lock in
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onClose}
+                  className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <Undo2 className="h-4 w-4" aria-hidden />
+                  Discard
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

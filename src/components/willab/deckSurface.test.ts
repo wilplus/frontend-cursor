@@ -52,10 +52,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
       /export type ChunkStatus =\s*"clean" \| "waiting" \| "locked";/
     );
     expect(CHUNKS).not.toMatch(/"accepted"/);
-    // Precedence that had to survive the merge: a server lock still wins,
-    // and outstanding feedback still beats an already-decided suggestion.
-    expect(CHUNKS).toMatch(/locked\s*\?\s*"locked"/);
-    expect(CHUNKS).toMatch(/pendingIds\.length > 0\s*\?\s*"waiting"/);
+    // PRECEDENCE (founder 2026-08-11, the locked-iteration ruling): undecided
+    // feedback is tested FIRST and beats everything, including a server lock —
+    // "once locked in but smth new appears there keep iterating and showing the
+    // suggestions". The lock winning outright is the exact line that made "the
+    // feedback engine pipe dead while it is locked in", so the order of these
+    // two branches is the fence, not an implementation detail.
+    expect(CHUNKS).toMatch(
+      /pendingIds\.length > 0\s*\?\s*"waiting"\s*:\s*locked \|\| approvedIds\.length > 0\s*\?\s*"locked"/
+    );
+    // …and the two final states stay merged behind that: a lock and an approved
+    // rider both land on "locked".
+    expect(CHUNKS).toMatch(/:\s*"clean";/);
   });
 
   it("the mark carries all three states and no fourth", () => {
@@ -91,6 +99,33 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(READOUT).not.toMatch(/min-h-\[\d+rem\][^"]*flex-1 flex-col overflow-hidden/);
     expect(READOUT).toMatch(/flex min-h-0 flex-1 flex-col overflow-hidden/);
     expect(READOUT).toMatch(/flex min-h-0 flex-1 flex-col gap-4/);
+  });
+
+  it("the modal opens on the WORK, not on the folded page state", () => {
+    // `chunk.status` folds "approved, not locked" into "locked", so reading
+    // it here sent a chunk with a live proposal to the editor. On a re-opened
+    // locked chunk that is the whole feature: the page announces waiting and
+    // the modal shows an edit box with no suggestion in it.
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    expect(MODAL).toMatch(
+      /useState<"review" \| "editor">\(\s*chunk\.pendingIds\.length > 0 && suggestion \? "review" : "editor"/
+    );
+  });
+
+  it("a locked chunk with nothing typed shows NO decision buttons", () => {
+    // Founder 2026-08-12: "if smth is locked in, then why there is a big
+    // button to lock it in? and the discard button? and if I click discard
+    // nothing happens". Both were no-ops — "Lock in" re-locks what is locked,
+    // "Discard" is onClose and discards nothing.
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    expect(MODAL).toMatch(
+      /const settled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
+    );
+    expect(MODAL).toMatch(/face !== "review" && settled \?/);
+    // Compared against the SERVED TEXT, never the dirty ref: an edit must
+    // bring the row back or the student cannot save it, and typing a change
+    // back to identical leaves nothing to save either.
+    expect(MODAL).not.toMatch(/settled = [^;]*dirtyRef/);
   });
 
   it("the deck mount has no frame and no height cap", () => {

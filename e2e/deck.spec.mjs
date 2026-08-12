@@ -271,17 +271,35 @@ check(
   (await page.locator('[role="dialog"] button[aria-label="Underline"]').count()) === 0 &&
     (await page.locator('[role="dialog"] button[aria-label="Bold"]').count()) === 0
 );
-// BYTE-EXACTNESS, end to end (L1: their take, verbatim). Committing a chunk
-// nobody typed in must serialize back to the SAME marker text — if the editor
-// re-spelled the fold, the host would see changed words and fire a user-edit
-// PUT, silently rewriting a document the student only looked at.
-await page.locator("button", { hasText: /^Lock in$/ }).click();
-await page.waitForTimeout(600);
+// A LOCKED CHUNK HAS NOTHING LEFT TO DECIDE (founder 2026-08-12: "if smth is
+// locked in, then why there is a big button to lock it in? and the discard
+// button? and if I click discard nothing happens"). Both were no-ops: "Lock
+// in" re-locked what was locked, "Discard" was the close handler.
+//
+// This is ALSO the byte-exactness check (L1: their take, verbatim), and a
+// sharper one than pressing the button was. The row hides precisely while the
+// editor's serialization still equals the served text — so if MarkedEditor
+// re-spelled the fold, `draft` would differ, "Lock in" would come back on
+// screen, and this check would fail before any write could happen.
 check(
-  "opening a folded chunk and locking it writes NOTHING — the marker text round-trips",
+  "a locked chunk offers NO Lock in / Discard — and the marker text round-trips",
+  (await page.locator('[role="dialog"] button', { hasText: /^Lock in$/ }).count()) === 0 &&
+    (await page.locator('[role="dialog"] button', { hasText: /^Discard$/ }).count()) === 0
+);
+check(
+  "…and opening a folded chunk wrote NOTHING to the document",
   (await calls(page)).filter((c) => c.url.includes("/user-edit")).length === 0
 );
+// The row must come BACK the moment the words differ, or an edit on a locked
+// chunk would be unsaveable — the text stays editable there by design.
+await typeAtEnd(page, " Truly.");
 await page.waitForTimeout(200);
+check(
+  "…but typing into it brings the decision row straight back",
+  (await page.locator('[role="dialog"] button', { hasText: /^Lock in$/ }).count()) === 1
+);
+await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+await page.waitForTimeout(400);
 
 /* ------- slice 4: the coach's own feedback, on the LOCKED chunk ------------ */
 await page.evaluate(() => {
