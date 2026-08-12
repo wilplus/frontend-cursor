@@ -65,6 +65,19 @@ export interface LabUploadInput {
   /** #191 — "spoken" (the take itself) vs "read" (a re-read of a piece's
    *  corrected text). Default/omitted = spoken (the BE's default). */
   recordingKind?: "spoken" | "read";
+  /** THE RETRY COLLAPSE's key — ONE PER RECORDING, minted by the caller when
+   *  the audio is captured and reused for every attempt at sending it.
+   *
+   *  It used to be minted here, per CALL, which is not an idempotency key at
+   *  all: the two lanes inside one call shared it (they share this form), but
+   *  a caller-level retry built a fresh form, drew a fresh uuid, and the
+   *  backend's collapse guard could never match. One recording then landed as
+   *  takes N and N+1 with identical audio — which is the double take, and the
+   *  reason the version badge jumps by two.
+   *
+   *  Absent → a fresh uuid, i.e. exactly the old behaviour, so a caller that
+   *  has not been taught to hold a key still uploads. */
+  uploadIdempotencyKey?: string;
   /** #191 — for a read, the spoken session this re-read belongs to. The BE links
    *  it to that take and it does NOT count as a new take. */
   pairedSessionId?: string;
@@ -227,7 +240,13 @@ export async function submitLabRecording(
   // Deliberately NOT guest_session_id: the spent-session guard rejects id
   // reuse by design, for a different bug.
   try {
-    form.append("upload_idempotency_key", crypto.randomUUID());
+    // The CALLER's key when it has one — the same recording keeps the same
+    // key across every attempt, which is the only thing that makes the
+    // backend's collapse guard reachable from a retry.
+    form.append(
+      "upload_idempotency_key",
+      input.uploadIdempotencyKey || crypto.randomUUID()
+    );
   } catch {
     // No crypto.randomUUID (ancient WebView) → no key → today's behavior.
   }
