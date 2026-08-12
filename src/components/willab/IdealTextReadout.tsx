@@ -730,12 +730,23 @@ export default function IdealTextReadout({
   // the host flips `analysisPending`, the SD effect refetches, and the FRESH
   // document renders through the normal path below.
   //
-  // AND RECORDING IS LEAVING (founder 2026-08-11: "I can not just jump for
-  // the next take I need to wait, this is not how it should be — I should be
-  // able to just jump there right away"). The wait exists so nobody reads a
-  // stale document; the next take does not read the document at all, so the
-  // block had no business covering the one button that starts one. It was
-  // covered only because this is an early return over the whole screen.
+  // NOTHING ELSE ON THE WAITING SCREEN (founder 2026-08-12: "that surface is
+  // not necessary; it is the old button surfacing — please clear it so that
+  // there is only one waiting screen without anything like that").
+  //
+  // A "Record the next take" button used to sit under the wait. It was added
+  // on 2026-08-11 to answer "I can not just jump for the next take" — but the
+  // real cause of that complaint was the stale-mic bug (the mic parked on
+  // {status:"stopped"}, so entering lab_recording bounced straight back into
+  // the waiting screen on the previous take's blob). That is fixed at the
+  // source now, in LabOverlay: every entry cancels the mic first and the
+  // stop→processing branch claims each blob once. With the door working, a
+  // second door beside it is just the old surface showing through.
+  //
+  // The block itself stays: while the document assembles the old text is
+  // INACCESSIBLE — no reading it, no copying it, no editing it, "no
+  // browse-with-banner" (SPEC-lockin-loop §1). Only the way out remains,
+  // because the block is on the text, not on leaving.
   if (analysisPending) {
     return (
       <div className="flex flex-1 flex-col">
@@ -745,23 +756,12 @@ export default function IdealTextReadout({
           </div>
         ) : null}
         <div className="flex flex-1 flex-col items-center justify-center gap-6 py-16">
-          {/* THE SAME waiting screen the pipeline phase shows. It was its own
-              "Working on your text" line, and that copy is deleted rather
-              than kept as a variant — the wait is one wait, and a second
-              waiting screen that still exists is one that comes back. */}
+          {/* THE SAME waiting screen the pipeline phase shows, and the ONLY
+              thing on it. It was once its own "Working on your text" line,
+              and that copy is deleted rather than kept as a variant — the
+              wait is one wait, and a second waiting screen that still exists
+              is one that comes back. */}
           <ProcessingWait markSize={72} />
-          {onReRead ? (
-            <button
-              type="button"
-              onClick={onReRead}
-              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-full border border-border px-6 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
-            >
-              {/* The SAME words IdealTextActions uses — one affordance, one
-                  label, whichever screen you meet it on. */}
-              <Mic className="h-4 w-4" aria-hidden />
-              Record the next take
-            </button>
-          ) : null}
         </div>
       </div>
     );
