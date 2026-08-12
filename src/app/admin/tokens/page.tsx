@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import AdminGate from "@/components/admin/AdminGate";
 
 /* -------------------------------------------------------------------------- */
 /*  /admin/tokens — top up one account, for an operator. Founder 2026-08-12.   */
@@ -50,6 +51,18 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 }
 
 export default function AdminTokensPage() {
+  // THE PAGE IS PUBLICLY ROUTABLE; the panel is not. AdminGate renders
+  // nothing until the backend confirms the caller, so an unauthorised
+  // visitor never sees the form — see the component for why that is about
+  // exposure rather than authorization.
+  return (
+    <AdminGate>
+      <TokenTopUpPanel />
+    </AdminGate>
+  );
+}
+
+function TokenTopUpPanel() {
   const [email, setEmail] = useState("");
   const [tokens, setTokens] = useState<string>("1000000");
   const [account, setAccount] = useState<Account | null>(null);
