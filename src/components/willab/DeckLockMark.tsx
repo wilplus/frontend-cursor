@@ -33,6 +33,9 @@ const ARIA: Record<ChunkStatus, string> = {
   locked: "Locked in — open the locked chunk",
 };
 
+/** The coach card's own label, reused so the mark introduces NO new copy. */
+const COACH_LABEL = "Coach note:";
+
 const PILL: Record<ChunkStatus, string> = {
   clean: "bg-foreground/[0.04] text-foreground/[0.28]",
   waiting: "bg-pending/[0.22] text-foreground/80 motion-safe:animate-lock-breathe",
@@ -43,17 +46,26 @@ export default function DeckLockMark({
   status,
   onClick,
   disabled = false,
+  hasCoach = false,
 }: {
   status: ChunkStatus;
   onClick: () => void;
   disabled?: boolean;
+  /** The coach left a note and/or a video on THESE words. An existence flag
+   *  the payload already carries for free (`has_explanation`) — never a
+   *  count, a band or a read on the speaker (AC-9). */
+  hasCoach?: boolean;
 }) {
   const Icon = status === "locked" ? Lock : LockOpen;
   return (
     <button
       type="button"
-      aria-label={ARIA[status]}
+      // Existing signed-off copy only: the state line plus the coach card's
+      // own label (founder 2026-08-11, "Change the copy to simply say:
+      // 'Coach note:'"). No new user-facing string is invented here.
+      aria-label={hasCoach ? `${ARIA[status]} — ${COACH_LABEL}` : ARIA[status]}
       data-status={status}
+      data-coach={hasCoach ? "true" : undefined}
       onClick={onClick}
       disabled={disabled}
       className={`relative ml-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full align-[0.05em] transition-transform hover:scale-[1.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50 ${PILL[status]}`}
@@ -71,6 +83,28 @@ export default function DeckLockMark({
         >
           <Check className="h-2 w-2" strokeWidth={3.5} />
         </span>
+      ) : null}
+      {/* THE COACH'S MESSAGE IS ON THESE WORDS (founder 2026-08-11: "if there
+          was a video feedack even on a locked screen you can still see that
+          feedback").
+          It was already reachable — every mark opens the modal and the coach
+          card lives on both faces — but only by opening chunks one at a time
+          to find out which one had it. On a LOCKED chunk that is the whole
+          problem: the lock is the final state, so nothing else would ever
+          make the student open it again, and the coach's message sat behind a
+          door with no handle.
+          A DOT, not a video glyph: the flag behind it (`has_explanation`) is
+          "a note and/or a video", and a film icon over a text-only note would
+          promise something that is not there.
+          AC-9 clean — it says SOMETHING IS HERE, never how much or how good.
+          Top-right so it never collides with the locked tick below it, and
+          ringed in the page background so it reads on both the ink-filled
+          locked pill and the faint clean one. */}
+      {hasCoach ? (
+        <span
+          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-pending ring-2 ring-background"
+          aria-hidden
+        />
       ) : null}
     </button>
   );
