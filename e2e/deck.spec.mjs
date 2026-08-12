@@ -301,6 +301,48 @@ check(
 await page.locator('[role="dialog"] button[aria-label="Close"]').click();
 await page.waitForTimeout(400);
 
+/* --------- the modal's two detents: swipe to full (founder 2026-08-11) ----- */
+// "Make the modal a bit taller and expandable on swipe to the top."
+await mark("clean").click();
+await page.waitForSelector("text=No feedback pending");
+const sheet = page.locator('[role="dialog"] > div');
+const grabber = page.locator('[role="dialog"] button[aria-expanded]');
+check(
+  "the modal opens at the DEFAULT detent, with a grabber that says so",
+  (await grabber.count()) === 1 &&
+    (await grabber.getAttribute("aria-expanded")) === "false"
+);
+const collapsedH = (await sheet.boundingBox())?.height ?? 0;
+await grabber.click();
+await page.waitForTimeout(450);   // the max-height transition
+const expandedH = (await sheet.boundingBox())?.height ?? 0;
+check(
+  "…and expanding really makes it taller in the page, not only in a class",
+  expandedH > collapsedH,
+  `${Math.round(collapsedH)} → ${Math.round(expandedH)}`
+);
+check(
+  "the grabber is a real button — the taller detent is not touch-only",
+  (await grabber.getAttribute("aria-expanded")) === "true"
+);
+// It must never grow past the viewport: the decision buttons live at the
+// bottom of this sheet, and a sheet taller than the window puts them off
+// screen — the exact failure `dvh` was chosen to avoid.
+const vh = await page.evaluate(() => window.innerHeight);
+check(
+  "…and never taller than the viewport, so the buttons stay reachable",
+  expandedH <= vh + 1,
+  `${Math.round(expandedH)} ≤ ${vh}`
+);
+await grabber.click();
+await page.waitForTimeout(450);
+check(
+  "collapsing returns it to the default detent",
+  Math.abs(((await sheet.boundingBox())?.height ?? 0) - collapsedH) < 2
+);
+await page.locator('[role="dialog"] button[aria-label="Close"]').click();
+await page.waitForTimeout(200);
+
 /* ------- slice 4: the coach's own feedback, on the LOCKED chunk ------------ */
 await page.evaluate(() => {
   const para = [...document.querySelectorAll("section p")].find((p) =>
@@ -312,6 +354,15 @@ await page.waitForSelector("text=Locked chunk");
 check(
   "a locked chunk still shows that the coach left something on these words (the founder's rule)",
   (await page.locator("text=Coach note:").count()) === 1
+);
+// …and it is VISIBLE FROM THE LOCK, without opening chunks to go looking.
+// The lock is the final state, so nothing else would make the student open
+// this chunk again — before the dot, the coach's message sat behind a door
+// with no handle. Exactly one chunk carries it: the mark must not become a
+// decoration every paragraph wears.
+check(
+  "the lock itself SAYS the coach left something — on that chunk and no other",
+  (await page.locator('button[data-status][data-coach="true"]').count()) === 1
 );
 check(
   "…and nothing was fetched to say so — the metered feedback read has NOT fired",
