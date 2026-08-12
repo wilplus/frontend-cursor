@@ -112,13 +112,21 @@ export function buildDeckChunks(
       else if (s.status !== "dismissed") pendingIds.push(s.id);
     }
     const locked = parts[i].locked === true;
-    const status: ChunkStatus = locked
-      ? "locked"
-      : pendingIds.length > 0
-        ? "waiting"
-        : approvedIds.length > 0
-          ? "locked"
-          : "clean";
+    // PENDING WORK BEATS THE LOCK (founder 2026-08-11: "once locked in but
+    // smth new appears there keep iterating and showing the suggestions").
+    //
+    // The lock used to win unconditionally, and that one line was the whole
+    // of "the feedback engine pipe is dead while it is locked in". The
+    // backend served the new take's proposals; `pendingIds` was computed
+    // here and then used for nothing the student could see — the text is
+    // deliberately never painted, DeckLockMark keys on `status`, and the
+    // modal opens its REVIEW face only for "waiting". So every proposal on
+    // a locked chunk was announced nowhere and openable never.
+    const status: ChunkStatus = pendingIds.length > 0
+      ? "waiting"
+      : locked || approvedIds.length > 0
+        ? "locked"
+        : "clean";
     chunks.push({
       part: parts[i],
       paragraphIndex: i,
