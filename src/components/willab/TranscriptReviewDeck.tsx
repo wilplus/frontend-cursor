@@ -251,6 +251,14 @@ export default function TranscriptReviewDeck({
                       hasCoach={
                         coachMomentForChunk(coachMoments, doc, c) !== null
                       }
+                      // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
+                      // shape as the coach dot, and for the same reason: the
+                      // proposal lives only inside the modal, so without a
+                      // mark on the page the only way to find it is to open
+                      // every locked chunk in turn. `styleFor` is the pure
+                      // overlap the modal already runs on the open chunk —
+                      // run per chunk here, it costs one span comparison.
+                      hasStyle={styleFor(styleChanges, c) !== null}
                     />
                   </p>
                 ))}
