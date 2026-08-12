@@ -241,6 +241,16 @@ export default function TranscriptReviewDeck({
                     <DeckLockMark
                       status={c.status}
                       onClick={() => setOpenPartId(c.part.id)}
+                      // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
+                      // 2026-08-11). The same join the modal already runs,
+                      // now run per chunk so the page can say WHICH chunk
+                      // carries it. Free: `coachMomentForChunk` is a pure
+                      // anchor lookup over the served document, and the
+                      // metered feedback read still fires only on the tap
+                      // inside the modal.
+                      hasCoach={
+                        coachMomentForChunk(coachMoments, doc, c) !== null
+                      }
                     />
                   </p>
                 ))}

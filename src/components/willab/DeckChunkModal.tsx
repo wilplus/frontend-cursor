@@ -207,6 +207,40 @@ export default function DeckChunkModal({
   // the lock) is already on the REVIEW face, which owns its own buttons.
   const settled = chunk.part.locked === true && draft === chunk.part.text;
 
+  // SWIPE TO FULL (founder 2026-08-11: "Make the modal a bit taller and
+  // expandable on swipe to the top").
+  //
+  // Two detents, not a free-dragging sheet. A continuously draggable height
+  // has to own momentum, rubber-banding and a release-velocity rule, and all
+  // three fight the scroller directly beneath it — this modal's whole job is
+  // to hold a paragraph you scroll through. Two detents need one threshold
+  // and cannot desync from the content.
+  //
+  // Swipe DOWN collapses; it never closes. Dismissing a review by the same
+  // gesture that resizes it would throw away an undecided suggestion on a
+  // slip of the thumb, and the close button and the backdrop are both already
+  // there for a deliberate exit.
+  const [expanded, setExpanded] = useState(false);
+  const grabRef = useRef<number | null>(null);
+
+  function onGrabStart(e: React.TouchEvent) {
+    grabRef.current = e.touches[0]?.clientY ?? null;
+  }
+
+  function onGrabMove(e: React.TouchEvent) {
+    const from = grabRef.current;
+    const y = e.touches[0]?.clientY;
+    if (from == null || y == null) return;
+    const dy = from - y;
+    // ~a third of a thumb travel. Below this the gesture is a tap wobble, and
+    // resizing under a stationary thumb reads as the sheet twitching.
+    if (Math.abs(dy) < 28) return;
+    setExpanded(dy > 0);
+    // Consume the gesture, so one long swipe cannot toggle repeatedly on the
+    // way up.
+    grabRef.current = null;
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
@@ -216,10 +250,55 @@ export default function DeckChunkModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[86vh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:rounded-3xl"
+        // TWO DETENTS (founder 2026-08-11: "Make the modal a bit taller and
+        // expandable on swipe to the top"), and they are deliberately not the
+        // same KIND of constraint:
+        //
+        //   default  — `max-h`, a CEILING. The content decides the height, so
+        //              a two-line chunk is not stretched into a sheet of
+        //              empty space it never asked for.
+        //   expanded — `h`, an actual HEIGHT. This one only happens because
+        //              the student swiped up or pressed the grabber, and
+        //              honouring that with a ceiling they may never reach
+        //              makes the gesture a no-op on exactly the short chunks
+        //              where the room was free. (The e2e caught this: with a
+        //              short chunk both detents measured 390px on a 900px
+        //              viewport — the class changed and the sheet did not.)
+        //
+        // `dvh` rather than `vh` — on a phone `100vh` is the browser's
+        // idealised viewport, which sits behind the URL bar, so a `vh`-sized
+        // sheet puts its own footer under the chrome. That is the one thing
+        // full-height must not do: the decision buttons live down there.
+        className={`flex w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl transition-all duration-300 ease-out sm:rounded-3xl ${
+          expanded
+            ? "h-[97dvh] max-h-[97dvh] sm:h-[94vh] sm:max-h-[94vh]"
+            : "max-h-[92dvh] sm:max-h-[86vh]"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
+        {/* THE GRABBER. A real button, not a decorative bar: the founder
+            asked for swipe, and swipe alone would leave the second detent
+            unreachable by keyboard, by switch control, and on a desktop
+            trackpad — so the drag and the tap/Enter do the same thing. It
+            carries the touch handlers because the header below it holds the
+            close button, and a drag that starts on that button should close,
+            not resize. */}
+        <button
+          type="button"
+          aria-label={expanded ? "Collapse" : "Expand"}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+          onTouchStart={onGrabStart}
+          onTouchMove={onGrabMove}
+          className="flex shrink-0 touch-none items-center justify-center pb-1 pt-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+        >
+          <span
+            className="h-1 w-9 rounded-full bg-foreground/20"
+            aria-hidden
+          />
+        </button>
+
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-2">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               {kicker}

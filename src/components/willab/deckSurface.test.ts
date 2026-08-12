@@ -128,6 +128,79 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/settled = [^;]*dirtyRef/);
   });
 
+  it("the modal has TWO detents and swipe reaches the taller one", () => {
+    // Founder 2026-08-11: "Make the modal a bit taller and expandable on
+    // swipe to the top."
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    // The two detents are different KINDS of constraint, and that is the
+    // point rather than an inconsistency:
+    //   default  — a CEILING, so a two-line chunk is not stretched into a
+    //              sheet of empty space it never asked for;
+    //   expanded — an actual HEIGHT, because it only happens when the student
+    //              asked for it, and a ceiling they may never reach makes the
+    //              gesture a no-op on exactly the short chunks where the room
+    //              was free. The e2e caught that: both detents measured 390px
+    //              on a 900px viewport, the class changed and the sheet did
+    //              not.
+    expect(MODAL).toMatch(/expanded\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/);
+    expect(MODAL).toMatch(/:\s*"max-h-\[92dvh\]/);
+    // dvh, not vh: on a phone 100vh sits behind the URL bar, which would put
+    // the decision buttons under the browser chrome.
+    expect(MODAL).toMatch(/dvh\]/);
+    expect(MODAL).toMatch(/onTouchStart=\{onGrabStart\}/);
+    expect(MODAL).toMatch(/onTouchMove=\{onGrabMove\}/);
+  });
+
+  it("the grabber is a real button, so the second detent is not touch-only", () => {
+    // Swipe alone leaves the taller state unreachable by keyboard, by switch
+    // control, and on a desktop trackpad.
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    expect(MODAL).toMatch(/aria-expanded=\{expanded\}/);
+    expect(MODAL).toMatch(/onClick=\{\(\) => setExpanded\(\(v\) => !v\)\}/);
+  });
+
+  it("swiping the modal DOWN collapses it — it never closes it", () => {
+    // Dismissing a review with the same gesture that resizes it would throw
+    // away an undecided suggestion on a slip of the thumb. The close button
+    // and the backdrop are both already there for a deliberate exit.
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    const grab = MODAL.slice(
+      MODAL.indexOf("function onGrabMove"),
+      MODAL.indexOf("return (")
+    );
+    expect(grab).toMatch(/setExpanded\(dy > 0\)/);
+    expect(grab).not.toMatch(/onClose/);
+  });
+
+  it("the lock shows that the coach left something on these words", () => {
+    // Founder 2026-08-11: "if there was a video feedack even on a locked
+    // screen you can still see that feedback". It was already REACHABLE —
+    // every mark opens the modal, the coach card lives on both faces — but
+    // only by opening chunks one at a time to find out which had it. On a
+    // LOCKED chunk that is the whole problem: the lock is the final state, so
+    // nothing else would make the student open it again.
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).toMatch(
+      /hasCoach=\{\s*coachMomentForChunk\(coachMoments, doc, c\) !== null\s*\}/
+    );
+    expect(MARK).toMatch(/hasCoach/);
+    // AC-9: an existence flag, never a count or a band.
+    expect(MARK).not.toMatch(/coachCount|momentCount|\bscore\b/);
+    // No new user-facing copy — the mark reuses the coach card's own
+    // signed-off label (LIVE LOOP).
+    expect(MARK).toMatch(/const COACH_LABEL = "Coach note:";/);
+  });
+
+  it("the metered feedback read still fires only on the tap, not on the page", () => {
+    // The dot comes from `has_explanation`, a FREE flag already on the
+    // ideal-text payload. Deriving it by fetching would bill the insights
+    // price for every chunk on screen.
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).not.toMatch(/fetchArcFeedback/);
+    const COACH = code("src/components/willab/DeckCoachFeedback.tsx");
+    expect(COACH).toMatch(/onClick=\{\(\) => void open\(\)\}/);
+  });
+
   it("the deck mount has no frame and no height cap", () => {
     const mount = READOUT.slice(
       READOUT.indexOf("<TranscriptReviewDeck") - 400,
