@@ -114,17 +114,22 @@ question is how the speaker-sex card's four states nearly drifted apart.
 <ReflectionGamePrompt ... />    // existing
 ```
 
-Ordering rationale: being unable to continue outranks an optional profile question. Stacking
-two cards is possible (a user who is both never-asked-sex and out of tokens) and is accepted
-as rare and non-blocking — they are in-thread and scroll. Flagged as open question §11.3.
+Ordering rationale: being unable to continue outranks an optional profile question.
+
+**Stacking is allowed and needs no logic** (founder, §11.3). If a user somehow qualifies for
+two cards they render as two separate bubbles, in the order above. Do NOT add suppression,
+priority or a "one card at a time" rule: the speaker-sex ask fires early in a user's life and
+this one only once tokens are exhausted, so the overlap is rare enough not to engineer for.
+Each card keeps its own independent gate and neither knows the other exists.
 
 ---
 
-## 5. Copy — ALL PLACEHOLDER, ALL AWAITING SIGN-OFF
+## 5. Copy — FOUNDER-SIGNED-OFF 2026-08-13
 
-New keys in `src/components/tokens/copy.ts`, under the existing banner
-(`copy.ts:1-24`) which already holds the two rules these must obey: *a wallet, not a progress
+Eight new keys in `src/components/tokens/copy.ts`, under the existing banner
+(`copy.ts:1-24`) which already holds the two rules these obey: *a wallet, not a progress
 bar*, and *never explain a price with quality*. House style: no em-dashes.
+**Changing any string below needs a new sign-off.**
 
 ```ts
 topUpTitle:      "You're out of tokens.",
@@ -133,10 +138,13 @@ topUpNoDate:     "Pick a plan and keep going now.",
 topUpChip:       (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
 topUpChipPrice:  (usd: number) => `$${usd}/mo`,
 topUpSaving:     (pct: number) => `Save ${pct}%`,
-topUpBusy:       "Opening Stripe…",
 topUpDismiss:    "Not now",
 topUpFailed:     "Couldn't start checkout. Try again.",
 ```
+
+**Reuse, do not re-add:** the busy label is the existing
+`TOKENS_COPY.walletChoosePlanBusy` ("Opening Stripe…", `copy.ts:108`). A ninth string
+saying the same thing is how two surfaces drift into two wordings.
 
 Note `topUpRenews` keeps the **wait route** alongside the buy route, for the reason
 `RecordPriceNote.tsx:25-27` already gives: with a monthly reset, waiting is a legitimate
@@ -177,6 +185,9 @@ Against today's served list this yields **Starter — · Pro 17% · Max 33%**, w
 straight out of the founder-approved 1× / 6× / 30× token ratios. Nothing is asserted about
 other users: there is deliberately **no "most popular" badge**, for the reason
 `TokenPlanCards.tsx:24-28` already gives.
+
+Wording is `"Save 17%"`, signed off (§11.2). The entry tier shows no label at all rather than
+`"Save 0%"` — `savingVsEntryTier` returns `null` and the element is omitted.
 
 ---
 
@@ -252,20 +263,28 @@ rule. Recommend the middle chip carries it, which is emphasis by design rather t
 
 ---
 
-## 11. Open questions for the founder
+## 11. Founder decisions, 2026-08-13
 
-1. **Copy sign-off** on all nine strings in §5 (LIVE LOOP — small is not exempt, R13).
-2. **The saving label wording.** `"Save 17%"` is the shortest true statement. Alternatives:
-   `"17% cheaper per token"` (more precise, more words) or omit it on the entry tier only.
-3. **Stacking.** If a user qualifies for both the top-up card and the speaker-sex ask, show
-   both, or suppress the lower-priority one? Spec currently shows both.
-4. **Paid-tier users who run dry.** Today: no card at all (§2.3). Confirm that is right until
-   the portal lands, rather than a "you're out until 30 Aug" line with no action.
-5. **Free-tier arithmetic.** Worth knowing while pricing is in view: free is 12,000/month, but
-   `coach_feedback` charges 35,000 at publish (`token_prices.py:117`, `publish.py:364`). A free
-   user's first coach-published feedback floors them to zero. Soft-charged so nothing breaks,
-   but it means the designed free cliff now arrives roughly 3× harder than
-   `PRICING-TOKENS-PLAN.md` §3 models. Repricing decision, not an FE one.
+All five resolved. Recorded here so a builder does not re-open them.
+
+1. **Copy — SIGNED OFF** as the eight literals in §5, plus reuse of `walletChoosePlanBusy`.
+   Any change to a string needs a new sign-off.
+2. **Saving label — `"Save 17%"`.** The short form, not `"17% cheaper per token"`.
+3. **Stacking — show both, as separate bubbles.** No suppression logic, no priority ordering
+   between the in-thread cards. The founder's reasoning: the speaker-sex ask fires early in a
+   user's life and the top-up card fires only once tokens are exhausted, so the overlap is
+   rare enough not to engineer around. Each card keeps its own independent gate.
+4. **Paid-tier users who run dry — no card, for now.** Confirmed. Sending an existing
+   subscriber to Checkout creates a SECOND subscription and double-charges them, so there is
+   genuinely nothing safe to offer until the billing portal is wired. Accepted as a known
+   revenue hole: a paying user who exhausts their plan mid-period sees only the existing
+   renewal line. **Wiring `POST /v2/tokens/portal` + `plan.managed` is the immediate
+   follow-up ticket** (§10.1), and it is what closes this.
+5. **Free-tier arithmetic — noted, handled elsewhere.** Free is 12,000/month while
+   `coach_feedback` charges 35,000 at publish (`token_prices.py:117`, `publish.py:364`), so a
+   free user's first coach-published feedback floors them to zero. Soft-charged, nothing
+   breaks. Being retuned in a separate pass; **no FE change here, and this card must not
+   hardcode any assumption about the free grant.**
 
 ---
 
