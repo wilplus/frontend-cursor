@@ -177,3 +177,43 @@ describe("MASTER DOCUMENT — the save state as the BE actually serves it", () =
     expect(parse({ saved_version: 3 })).toBeNull();
   });
 });
+
+describe("the acoustic swap lane (founder 2026-08-13)", () => {
+  // The only lane that can reach a LOCKED paragraph: the ranker excludes
+  // locked parts from selection, so a later take that finally lands those
+  // words has nowhere to go without this.
+  const swapRow = {
+    id: "c1",
+    snippet_id: "s1",
+    take_session_id: "t1",
+    kind: "replace",
+    source: "acoustic_swap",
+    quote: "Second part words here.",
+    proposed_text: "Second part words, better said.",
+    span: { start: 24, end: 47 },
+    status: "pending",
+  };
+
+  it("survives source validation instead of being nulled to unknown", () => {
+    const c = mapDocumentSuggestions([swapRow] as never)?.[0];
+    expect(c).toBeDefined();
+    expect(c!.source).toBe("acoustic_swap");
+  });
+
+  it("carries the proposed text a replace needs to render", () => {
+    const c = mapDocumentSuggestions([swapRow] as never)?.[0];
+    expect(c).toBeDefined();
+    expect(c!.kind).toBe("replace");
+    expect(c!.proposedText).toBe("Second part words, better said.");
+  });
+
+  it("keeps the snippet + session ids the decision POST requires", () => {
+    // It routes through suggestion-feedback like the other snippet-keyed
+    // lanes (not the block/prior-take endpoints), and that POST refuses
+    // without both ids — a swap missing one would be undecidable on screen.
+    const c = mapDocumentSuggestions([swapRow] as never)?.[0];
+    expect(c).toBeDefined();
+    expect(c!.snippetId).toBe("s1");
+    expect(c!.takeSessionId).toBe("t1");
+  });
+});
