@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Privacy Policy v1.1 (effective [DATE]). Body content is the operator's
- * commissioned draft. The wrapper, typography and back-link match the Terms
- * page and are stable.
+ * Privacy Policy v1.1 (effective 13 August 2026). Body content is the
+ * operator's commissioned draft. The wrapper, typography and back-link match
+ * the Terms page and are stable.
  *
  * v1.1 aligns this Policy with Terms of Service v1.1. New sections: §5 (model
  * improvement — the correction), §6 (what we infer from your voice — the target
@@ -20,56 +20,61 @@ export const metadata: Metadata = {
  * cross-reference to the rights section now points at §11.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⛔ BLOCKERS — this version MUST NOT be published until each is resolved.
+ * FOUNDER RULINGS — 2026-08-13, on the pre-publication audit.
  *
- *  - §5 "you can opt out in your account settings". NO SUCH CONTROL EXISTS.
- *    The consent flags on user_settings are mic / share / email / terms only
- *    (backend: add_consent_preferences_to_user_settings.sql). If model
- *    improvement runs on legitimate interests, the Art. 21 objection route in
- *    §11 must actually work. Ship the control, or amend both documents.
- *  - §6 "opt-in and off by default". UNVERIFIED — confirm the real default
- *    before publishing. Terms §7 makes the same claim; they must not diverge.
- *  - §7 sharing "opt-in, per recording, and revocable". NOT IMPLEMENTED AS
- *    DESCRIBED. `share_consent` is one account-level flag meaning "share
- *    snippets with the coach" — not per-recording, and not scoped to other
- *    users hearing you.
- *  - §10 retention. The v1.0 promise that audio is "automatically deleted no
- *    later than 30 days" IS NOT ENFORCED — no retention or purge job exists
- *    (the Railway crons are annotation-export, dev-bugs, drift, life-reminders,
- *    migrate, web, worker). This revision therefore states retention CRITERIA
- *    rather than a period we do not keep, which Art. 13(2)(a) permits. A
- *    defined maximum still needs to be set AND enforced — that was the founder
- *    intent in v1.0 and it should not be quietly dropped.
- *  - §11 portability / Terms §10 export. NO USER-FACING EXPORT ROUTE EXISTS.
- *    The backend's export routes are internal (annotation export, dev-tasks)
- *    or belong to the Life panel. Art. 20 requests currently have to be served
- *    by hand; say so, or build the path.
- *  - Account deletion: NO ACCOUNT-DELETION ROUTE was found. Per-take and
- *    per-session deletes exist; whole-account erasure does not. Art. 17 is
- *    promised in §11 — confirm how it is actually served.
+ *  1. Effective date is 13 August 2026, matching the Terms.
+ *  2. The model-improvement opt-out is NOT claimed in this version. The
+ *     control does not exist (the consent flags on user_settings are
+ *     mic / share / email / terms only — backend:
+ *     add_consent_preferences_to_user_settings.sql), so §5 no longer offers
+ *     one. The Art. 21 RIGHT TO OBJECT stays in §5 and §11: it is statutory,
+ *     it does not depend on a toggle, and it is served at the contact address.
+ *     Restore the settings opt-out in the next revision, once it ships.
+ *  3. §8's coach opt-out is real — `share_consent` is live via
+ *     /v2/user/consent — but it is not in "account settings"; there is no
+ *     such surface. The clause says you can withdraw consent, not where.
  *
- * PRE-LAUNCH CHECKLIST (carried forward from v1.0, renumbered):
+ * ⚠️ STILL CLAIMED BUT NOT YET BUILT — tracked in the backend's
+ * docs/BACKLOG.md (Epic L — legal commitments). Published knowingly on the
+ * founder's ruling; each needs either the build or a copy amendment:
+ *
+ *  - §7 sharing "opt-in, per recording, and revocable". `share_consent` is
+ *    one account-level flag scoped to the coach — not per-recording, and not
+ *    scoped to other users hearing you.
+ *  - §11 portability / Terms §10 export. No user-facing export route exists;
+ *    the backend's exports are internal (annotation export, dev-tasks) or
+ *    belong to the Life panel. Art. 20 requests are served by hand until it
+ *    ships — which is lawful, but slow, and the one-month clock still runs.
+ *  - Art. 17 erasure: no account-deletion route was found. Per-take and
+ *    per-session deletes exist; whole-account erasure is manual.
+ *  - §6 "opt-in and off by default" holds only because recording is gated on
+ *    mic_consent, which defaults to NULL (never asked). If inference is ever
+ *    decoupled from the mic gate, this sentence stops being true.
+ *  - §10 retention. v1.0 promised audio was "automatically deleted no later
+ *    than 30 days"; NO retention or purge job exists (the Railway crons are
+ *    annotation-export, dev-bugs, drift, life-reminders, migrate, web,
+ *    worker). This revision states retention CRITERIA instead, which
+ *    Art. 13(2)(a) permits — but the founder intent in v1.0 was a hard
+ *    maximum, and it should not be quietly dropped. Set it, then enforce it.
+ *
+ * OPEN CHECKLIST (carried forward from v1.0, renumbered):
  *  - Confirm the operator's exact legal name / diacritics for the controller
  *    block.
  *  - Article 9 (voice as special-category data): confirm characterisation with
  *    admitted Polish counsel before go-live. §6 now discloses inference of
  *    delivery characteristics, which is the fact the assessment turns on.
- *  - §5: the training use is now stated affirmatively, per Terms v1.1 §4. The
- *    lawful basis for it is the open question — Terms §4 makes it OPT-OUT
- *    (reads as Art. 6(1)(f)) while Terms §7 makes inference OPT-IN (reads as
- *    Art. 6(1)(a)). This Policy states one basis per purpose; counsel must
- *    confirm the split is defensible.
+ *  - §5: the training use is now stated affirmatively, per Terms v1.1 §4.
+ *    The lawful basis is the open question — model improvement sits on
+ *    Art. 6(1)(f) here (hence the Art. 21 objection right), while inference
+ *    sits on Art. 6(1)(a). Counsel must confirm the split is defensible.
  *  - §9 sub-processors: Sentry, Resend and Cloudflare R2 are ADDED in this
  *    revision on code evidence. Confirm a DPA and transfer safeguard is
- *    actually in place for each before publishing. Confirm the hosting
- *    provider for this frontend app — no evidence either way was found in the
- *    repo, and it is not currently listed.
+ *    actually in place for each. Confirm the hosting provider for this
+ *    frontend app — no evidence either way was found in the repo, and it is
+ *    not currently listed.
  *  - Contact: switched to contact@willpowerlab.com to match Terms v1.1.
- *    This is the address a data subject and the supervisory authority will
- *    use — confirm it is monitored before go-live.
- *  - Effective date: resolve [DATE] here and in the header, and match the
- *    Terms v1.1 date. The two documents cross-reference each other and should
- *    ship as a pair.
+ *    Confirm the mailbox is monitored — a data subject and the supervisory
+ *    authority will both use it, and Art. 12(3) runs a one-month clock.
  *  - Update the controller details once the activity is registered
  *    (JDG / sp. z o.o.).
  *
@@ -95,7 +100,8 @@ export default function PrivacyPage() {
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
           <p className="text-xs text-muted-foreground">
-            Effective date: [DATE]. Version 1.1. Last updated: [DATE].
+            Effective date: 13 August 2026. Version 1.1. Last updated: 13
+            August 2026.
           </p>
         </header>
 
@@ -347,10 +353,12 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="text-muted-foreground">
-            If you do not want your content used for model improvement, you can
-            opt out in your account settings, and you may object to this
-            processing at any time (see §11). Opting out does not affect your
-            ability to use the Service.
+            <strong>
+              You may object to this processing at any time (Art. 21).
+            </strong>{" "}
+            Write to us at the address in §15 and we will stop using your
+            content to improve our models. Objecting does not affect your
+            ability to use the Service. See §11 for this and your other rights.
           </p>
         </section>
 
@@ -446,8 +454,9 @@ export default function PrivacyPage() {
           <p className="text-muted-foreground">
             Coaches are bound by confidentiality obligations, and where a coach
             is not the operator they act under a written data-processing
-            agreement. If you would prefer that no human reviews your content,
-            you can opt out; feedback quality may be lower as a result.
+            agreement. Human review happens only with your consent, and you can
+            withdraw that consent at any time (see §11); feedback quality may be
+            lower as a result.
           </p>
         </section>
 
