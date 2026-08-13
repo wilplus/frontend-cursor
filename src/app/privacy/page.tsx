@@ -67,11 +67,12 @@ export const metadata: Metadata = {
  *    The lawful basis is the open question — model improvement sits on
  *    Art. 6(1)(f) here (hence the Art. 21 objection right), while inference
  *    sits on Art. 6(1)(a). Counsel must confirm the split is defensible.
- *  - §9 sub-processors: Sentry, Resend and Cloudflare R2 are ADDED in this
- *    revision on code evidence. Confirm a DPA and transfer safeguard is
- *    actually in place for each. Confirm the hosting provider for this
- *    frontend app — no evidence either way was found in the repo, and it is
- *    not currently listed.
+ *  - §9 sub-processors: Sentry, Resend, Cloudflare R2 and Vercel are ADDED in
+ *    this revision. The first three on code evidence; Vercel on deployment
+ *    evidence (it runs the checks on this repo's PRs — nothing in the tree
+ *    names it, which is exactly why the repo alone is not a sufficient source
+ *    for this table). Confirm a DPA and transfer safeguard for each, and
+ *    audit for any other provider that is configured outside the code.
  *  - Contact: switched to contact@willpowerlab.com to match Terms v1.1.
  *    Confirm the mailbox is monitored — a data subject and the supervisory
  *    authority will both use it, and Art. 12(3) runs a one-month clock.
@@ -504,6 +505,15 @@ export default function PrivacyPage() {
                   <td className="py-2">
                     DPA in place; SCCs where data is processed outside the EEA
                   </td>
+                </tr>
+                <tr className="border-b border-border/50 align-top">
+                  <td className="py-2 pr-4">
+                    <strong>Vercel</strong>
+                  </td>
+                  <td className="py-2 pr-4">
+                    Web application hosting and delivery
+                  </td>
+                  <td className="py-2">DPA and SCCs</td>
                 </tr>
                 <tr className="border-b border-border/50 align-top">
                   <td className="py-2 pr-4">
