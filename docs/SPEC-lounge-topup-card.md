@@ -1,0 +1,312 @@
+# SPEC — the in-thread top-up card (Lounge)
+
+**Status:** DRAFT, not built. **Copy: every string below is placeholder awaiting founder sign-off.**
+**Date:** 2026-08-13 · **Repo:** frontend-cursor · **Depends on:** nothing new server-side.
+
+One line: when a user is out of tokens, the Lounge shows an in-thread card with the three
+paid plans as tappable chips, each labelled with what it saves, and one tap goes straight
+to Stripe.
+
+---
+
+## FILTER
+
+```
+VERDICT:  JUSTIFIED-SCAFFOLDING
+CATEGORY: SCAFFOLDING
+WHY:      Billing surface. It does not touch per-slide transcription or best-per-slide
+          ranking, so it is not F1-CORE or F1-SURFACE. It passes as scaffolding only
+          because it is the named unblocker of a live defect: today the ONLY out-of-tokens
+          surface in the app is a non-clickable sentence (RecordPriceNote.tsx:59-63), and
+          the strings written for the blocked case (copy.ts:163-171) are referenced zero
+          times. A user who runs dry has no route to pay from where they are.
+FENCES:   clear, but three of them are load-bearing here and constrain the design:
+          LIVE LOOP  -> in-thread only, NEVER an overlay, never blocks input (§4)
+          AC-9       -> price arithmetic only, never performance framing (§6)
+          LIVE LOOP  -> every string in §5 needs founder sign-off before merge
+LOCKS:    clear (L1/L2/L3 untouched)
+REDIRECT: If this is competing for time against open F1 work, it loses. The F1-advancing
+          alternatives, in order: (1) word->slide bucketing at the two-clocks boundary,
+          (2) transcription fidelity on hard/accented audio, (3) the blended best-slide
+          ranking, (4) manual coach load in the F2 shadow loop.
+```
+
+One-line PR stamp:
+`FILTER: JUSTIFIED-SCAFFOLDING — cat {SCAFFOLDING} — fences {clear; copy needs sign-off} — locks {clear} — redirect: two-clocks bucketing`
+
+---
+
+## 1. Why in-thread and not a modal
+
+This is not a style preference, it is the fence. `SpeakerSexPrompt.tsx:23-27` and
+`speakerSexAskGate.ts:16-22` both record the ruling: the Lounge already layers CoachReview /
+Insights / BestPresentation / ideal-text, and **a card that can appear over a running
+record→transcribe→coach loop is what the LIVE LOOP fence forbids.**
+
+So the top-up card follows the two existing in-thread precedents exactly —
+`LoungeSpeakerSexPrompt` (Lounge.tsx:825) and `ReflectionGamePrompt` — and renders as an
+ordinary item inside the thread's scroll container. It scrolls with the conversation, it
+cannot cover anything, it steals no focus, and it gates no surface.
+
+`TokenWalletPanel.tsx:16-19` already made the same call for the wallet ("A PANEL, not an
+overlay"). This spec does not reverse that. `/dashboard/pricing` stays exactly as it is.
+
+---
+
+## 2. Trigger
+
+The card mounts when **all** of the following hold. Any one false → render nothing.
+
+| # | Condition | Source |
+|---|---|---|
+| 1 | Token pricing is live | `useTokenWallet().enabled === true` (`useTokenWallet.ts:70`) |
+| 2 | The user is actually out | `RecordingBandState.kind === "exhausted"` (`tokens.ts:238`, i.e. `can_record:false`) |
+| 3 | There is something to sell them | `currentTier === "free" \|\| currentTier === null` |
+| 4 | The BE published paid tiers | `prices.tiers` contains at least one of starter/pro/max |
+| 5 | The Lab does not own the screen | `canMountTopUpCard(state, threadLoading)` — §3 |
+| 6 | Not snoozed for this period | §7 |
+
+**Condition 2 reuses the signal that already exists.** `exhausted` is the state
+`RecordPriceNote` already consumes; this spec adds no new endpoint, no new BE work, and no
+second definition of "out of tokens".
+
+**Condition 3 matters.** `TokenPlanCards.tsx:61,107` only offers checkout to free-tier users,
+because a second Checkout Session for an existing subscriber creates a **second
+subscription** rather than a plan change. A paid user who is out of tokens gets no card —
+switching plans needs the billing portal, which is a separate gap (§10).
+
+**Everything fails closed.** A failed prices read means no card, not a broken card.
+
+---
+
+## 3. The mount gate
+
+New file `src/components/willab/topUpCardGate.ts`, a **plain `.ts`** — mirroring
+`speakerSexAskGate.ts:5-11`, because vitest here runs with no JSX transform, so a rule kept
+inside a `.tsx` cannot be tested at all.
+
+```ts
+export function canMountTopUpCard(state: WillabState, threadLoading: boolean): boolean
+```
+
+Identical exclusions to `canMountSpeakerSexAsk`:
+
+- `threadLoading` → false (no card above a skeleton)
+- `state === "lab_project_pick"` → false (setup, precedes the Lab)
+- `isLabOverlay(state)` → false — covers `lab_feelings`, `lab_session_context`,
+  `lab_prerecord`, `lab_recording`, `lab_processing`, `readout`, `sendgate_*`
+
+This gate answers **"may we mount at all"** and nothing else. Whether *this user* should be
+asked (§2 conditions 1-4, 6) lives in the component, in one place. Two owners for that
+question is how the speaker-sex card's four states nearly drifted apart.
+
+---
+
+## 4. Mount point
+
+`Lounge.tsx`, as a sibling of the existing in-thread cards, placed **before**
+`LoungeSpeakerSexPrompt` (currently line 825):
+
+```
+{threadItems.map(...)}          // the conversation
+<LoungeTopUpCard ... />         // NEW — highest priority: it is blocking value
+<LoungeSpeakerSexPrompt ... />  // existing
+<ReflectionGamePrompt ... />    // existing
+```
+
+Ordering rationale: being unable to continue outranks an optional profile question. Stacking
+two cards is possible (a user who is both never-asked-sex and out of tokens) and is accepted
+as rare and non-blocking — they are in-thread and scroll. Flagged as open question §11.3.
+
+---
+
+## 5. Copy — ALL PLACEHOLDER, ALL AWAITING SIGN-OFF
+
+New keys in `src/components/tokens/copy.ts`, under the existing banner
+(`copy.ts:1-24`) which already holds the two rules these must obey: *a wallet, not a progress
+bar*, and *never explain a price with quality*. House style: no em-dashes.
+
+```ts
+topUpTitle:      "You're out of tokens.",
+topUpRenews:     (on: string) => `They renew ${on}. Or pick a plan and keep going now.`,
+topUpNoDate:     "Pick a plan and keep going now.",
+topUpChip:       (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
+topUpChipPrice:  (usd: number) => `$${usd}/mo`,
+topUpSaving:     (pct: number) => `Save ${pct}%`,
+topUpBusy:       "Opening Stripe…",
+topUpDismiss:    "Not now",
+topUpFailed:     "Couldn't start checkout. Try again.",
+```
+
+Note `topUpRenews` keeps the **wait route** alongside the buy route, for the reason
+`RecordPriceNote.tsx:25-27` already gives: with a monthly reset, waiting is a legitimate
+choice and hiding it to push an upgrade is a dark pattern.
+
+---
+
+## 6. The savings label, and why it is not an AC-9 breach
+
+The founder's ask: *"next to it how much you save if you choose this plan"*.
+
+**It is compliant, and the existing code says why.** `copy.ts:11-21` states the real test:
+*"The moment a number says how WELL someone is doing rather than what they BOUGHT, it is a
+performance score and it breaks AC-9."* A per-token discount says what they bought. The
+product already surfaces balances, prices and dollar amounts on this same surface.
+
+**It must be computed, never written down.** `tokens.ts:24-28` — *"NEVER HARDCODE A PRICE…
+a literal anywhere in the FE silently pins a number the founder needs to move without a
+deploy."* A hardcoded "Save 33%" is exactly that failure with an extra step.
+
+New pure module `src/components/tokens/planValue.ts`:
+
+```ts
+/** Percent cheaper per token than the cheapest PAID tier the BE published.
+ *  null for the entry tier itself and for any missing/zero input. */
+export function savingVsEntryTier(
+  tiers: Record<string, TokenTier>,
+  name: string
+): number | null
+```
+
+Rule: `perThousand = usdPerMonth / (tokensPerMonth / 1000)`; saving =
+`round((1 - perThousand / entryPerThousand) * 100)`; return `null` when the result is `<= 0`,
+when either tier is missing, or when any input is zero — a label we cannot stand behind is
+worse than none, the same rule `ArcActionPrice` already follows.
+
+Against today's served list this yields **Starter — · Pro 17% · Max 33%**, which falls
+straight out of the founder-approved 1× / 6× / 30× token ratios. Nothing is asserted about
+other users: there is deliberately **no "most popular" badge**, for the reason
+`TokenPlanCards.tsx:24-28` already gives.
+
+---
+
+## 7. Snooze
+
+Dismissal is local-only, exactly like `SNOOZE_KEY` in `SpeakerSexPrompt.tsx:52`:
+
+```ts
+const SNOOZE_KEY = "willab.topUp.snoozedPeriod";   // stores period_ends_at
+```
+
+**Keyed to the billing period, not a boolean.** Being out of tokens recurs monthly, so a
+permanent flag would silence the card forever after one dismissal. Storing `period_ends_at`
+means the card returns once a new period has rolled and the user has run dry again. A
+`localStorage` throw (private mode) falls through to showing the card — being asked again is
+a smaller cost than never being offered at all.
+
+---
+
+## 8. Interaction
+
+One tap. `chip → startPlanCheckout(tier) → window.location.assign(url)` — the existing path
+in `subscribe.ts:52-73` and `TokenPlanCards.tsx:63-78`, unchanged. The FE holds no Stripe
+secret and no price map; the BE's `POST /v2/tokens/checkout` creates the session.
+
+- Tap → that chip shows `topUpBusy`, all chips disable, no navigation away from the Lounge
+  until Stripe's URL is returned.
+- `reason: "unavailable"` (Stripe or the price map unconfigured) → hide the chips and render
+  nothing further. A server that cannot sell should stop offering.
+- `reason: "error"` → `topUpFailed` inline, chips stay live, retry is one tap.
+- Return from Stripe lands on `/dashboard/pricing?plan=success` (`subscribe.ts:26-32`), which
+  already renders the "being applied" line. **Unchanged by this spec.**
+
+Click count, out of tokens → payment page: **1**, from 3-plus-a-guess today.
+
+---
+
+## 9. Visual
+
+Card shell: reuse `SpeakerSexPrompt.tsx:102-108` verbatim —
+`rounded-xl border border-border bg-muted/30 p-4` — so it reads as the same kind of object as
+the other in-thread cards, and no new design decision is made.
+
+Chip row: the `SpeakerSexQuestion.tsx:71-101` pattern, which is the one the founder named
+("like with sex to choose"): `flex flex-col gap-2 sm:flex-row`, each option
+`rounded-lg border px-3 py-2 text-sm`, selected/hover as written there. Three chips, ladder
+order starter → pro → max, filtered to tiers the BE actually published.
+
+Inside a chip: tier name and token count on the first line, `$X/mo` and the `Save n%` label
+on the second, the saving in `text-muted-foreground`. **Palette:** monochrome, orange as
+accent only, and at most one orange element — `TokenPlanCards.tsx:30-35` is the standing
+rule. Recommend the middle chip carries it, which is emphasis by design rather than a claim.
+
+`"Not now"` as a ghost button, right-aligned, per `SpeakerSexPrompt.tsx:118-129`.
+
+---
+
+## 10. Out of scope, deliberately
+
+1. **Changing or cancelling a plan.** Needs Stripe's billing portal. The BE built
+   `POST /v2/tokens/portal` (`token_routes.py:186`) and `plan.managed`
+   (`token_routes.py:24-28`); the FE consumes neither — `mapTokenBalance` (`tokens.ts:71-95`)
+   does not read `plan`, and there is no `/api/v2/tokens/portal` BFF route. Separate ticket.
+2. **The `/dashboard/pricing` blank/plans-less failure.** `TokenWalletScreen.tsx:44` returns
+   `null` while probing and renders a plans-less wallet forever if the probe fails. Separate
+   ticket. This card is unaffected: it fails closed.
+3. **Gating anything on balance.** Recording stays enabled at zero balance, always.
+   `charge()` is soft and floors at zero (`token_account.py:502-509`); the record path never
+   returns 402. Nothing in this card disables a control.
+4. **The dead paywall.** `LabOverlay.tsx:1489-1504` ("Unlock the full audit") fires on a 402
+   the BE no longer sends. Delete it separately; this spec does not touch it.
+5. **`RecordPriceNote` stays as is.** The card is an addition, not a replacement.
+
+---
+
+## 11. Open questions for the founder
+
+1. **Copy sign-off** on all nine strings in §5 (LIVE LOOP — small is not exempt, R13).
+2. **The saving label wording.** `"Save 17%"` is the shortest true statement. Alternatives:
+   `"17% cheaper per token"` (more precise, more words) or omit it on the entry tier only.
+3. **Stacking.** If a user qualifies for both the top-up card and the speaker-sex ask, show
+   both, or suppress the lower-priority one? Spec currently shows both.
+4. **Paid-tier users who run dry.** Today: no card at all (§2.3). Confirm that is right until
+   the portal lands, rather than a "you're out until 30 Aug" line with no action.
+5. **Free-tier arithmetic.** Worth knowing while pricing is in view: free is 12,000/month, but
+   `coach_feedback` charges 35,000 at publish (`token_prices.py:117`, `publish.py:364`). A free
+   user's first coach-published feedback floors them to zero. Soft-charged so nothing breaks,
+   but it means the designed free cliff now arrives roughly 3× harder than
+   `PRICING-TOKENS-PLAN.md` §3 models. Repricing decision, not an FE one.
+
+---
+
+## 12. Files
+
+**New**
+```
+src/components/willab/LoungeTopUpCard.tsx     mount rule + card (thin, per LoungeSpeakerSexPrompt)
+src/components/willab/topUpCardGate.ts        canMountTopUpCard — pure, testable
+src/components/willab/topUpCardGate.test.ts   mirrors speakerSexAskGate.test.ts
+src/components/tokens/TokenPlanChips.tsx      the chip row + checkout call
+src/components/tokens/planValue.ts            savingVsEntryTier — pure
+src/components/tokens/planValue.test.ts       incl. missing / zero / negative inputs
+```
+
+**Modified**
+```
+src/components/willab/Lounge.tsx              one mount, before LoungeSpeakerSexPrompt (~825)
+src/components/tokens/copy.ts                 nine placeholder strings (§5)
+```
+
+**Not modified:** `TokenPlanCards.tsx`, `TokenWalletPanel.tsx`, `TokenWalletScreen.tsx`,
+`RecordPriceNote.tsx`, `subscribe.ts`, `tokens.ts`, every BFF route, and the entire backend.
+
+---
+
+## 13. Tests
+
+Repo convention is pure-predicate and source-grep tests, not component tests — there is no
+JSX transform in this vitest config (`speakerSexAskGate.ts:5-11`).
+
+1. `topUpCardGate.test.ts` — false for every `isLabOverlay` state, false for
+   `lab_project_pick`, false while `threadLoading`, true for `lounge_idle` /
+   `lounge_general` / `insights_ready`.
+2. `planValue.test.ts` — 17% / 33% against the served list; `null` for the entry tier, a
+   missing tier, `tokensPerMonth: 0`, `usdPerMonth: 0`, and any negative result.
+3. **Fence test** (grep the sources, in the shape of `corpusFence.test.ts:101-103`):
+   - no dollar amount, token count or percent literal in `TokenPlanChips.tsx` or
+     `LoungeTopUpCard.tsx` — every number comes from the served tier list;
+   - neither new component imports an overlay/portal/dialog primitive;
+   - both mount points in `Lounge.tsx` sit inside the thread's scroll container, not in the
+     overlay stack.
+4. `copy.test.ts` — extend the existing house-style assertions to the nine new strings
+   (no em-dashes, no performance framing).
