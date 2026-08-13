@@ -17,7 +17,7 @@ so most FE work classifies as **F1-SURFACE** (hardening an existing load-bearing
 read/assembly surface) or **SCAFFOLDING** (Lounge, chat, onboarding, audits, PWA,
 cosmetics). True **F1-CORE** lives in the backend (transcription, segmentation,
 ranking); FE rarely touches it. The FE's main exposure is the **FENCES** — it is the
-layer that could actually surface a score, leak the charisma construct as a number,
+layer that could actually surface a score, leak the confidence construct as a number,
 show a coach's blind guess as a badge, or ship user-facing copy without sign-off. So
 the STEP 2 fence check (AC-9 / CONSTRUCT / BLIND COACH / LIVE LOOP) is where FE
 decisions most often must stop. When a FE change can't name the in-flight F1/F2 task
@@ -36,16 +36,18 @@ it serves, it's SCAFFOLDING — PARK or DEFER it, don't dress it as critical pat
 **F1 — THE MVP, THE CRITICAL PATH (fully deterministic/code).** voice → PERFECT transcript, segmented EXACTLY 1:1 per slide (every word bucketed to the slide on screen when it was spoken) → across takes, RANK + SELECT the best version of each slide → assembled into the user's best speech. Automatic; an optional learning layer may improve it but **never gates it**.
 - **Two load-bearing pieces:** **(a)** perfect per-slide transcription, **(b)** best-text-per-slide ranking. **Everything else is scaffolding.**
 
-**F2 — the overlay, SECOND priority.** identify the voice moments where stress → charisma (internally threat → challenge = "breakthrough"). Starts MANUAL (human coach labels), shadow-learns, gets less manual over time = the COACH-CLONE. F1 and F2 are **intertwined by design** — the charisma signal feeds the F1 ranking blend.
+**F2 — the overlay, SECOND priority.** identify the voice moments where the speaker sounds ASSURED — the `confidence` construct (`conf-q-v1`, SPEC §17): *how assured the speaker sounds in their DELIVERY of a moment; a property of the voice, not of the content*. Rated blind on the ternary instrument, aggregated across raters, and a moment enters the album at multi-rater QUORUM (§9.1). Starts MANUAL (human raters), shadow-learns, gets less manual over time = the COACH-CLONE. F1 and F2 are **intertwined by design** — the confidence signal feeds the F1 ranking blend.
+
+> **⚠️ 2026-08-13 — the charisma construct is RETIRED (founder re-lock).** F2 read "stress → charisma (internally threat → challenge = breakthrough)" until this date. That construct had no written operational definition, so nothing could say what a rater was being asked — the exact defect SPEC §1.4 exists to prevent — and §17 names charisma explicitly as something `confidence` must NOT be folded together with. It was not just wording: it was ROUTING LIVE FEEDBACK (`_W_D`/`_W_B` inside `power_score`, and the replace/emphasize/no-star decision in the star lane), so retiring it was a code change, not a docs change. The coach's challenge/threat rows in `training_labels` are a CORPUS, not a construct claim, and are versioned rather than rewritten (SPEC §3.2).
 
 **LOCKED CHOICES** (contradicting one = REJECT unless the founder re-locks the north star in the same breath):
 - **L1** — "best version of a slide" = **SELECT the best ACTUAL take, VERBATIM + a LIGHT AI continuity polish.** Chosen, NOT AI-authored/rewritten/generated.
-- **L2** — **Ranking is BLENDED:** delivery/acoustic quality PLUS the charisma (challenge/threat) signal lifting rank (existing `power_score`). Not delivery-only; not charisma-only.
-- **L3** — **The clone learns the WHOLE coach review** (breakthroughs + strong / to-work-on notes + the full Insights layer), not just breakthrough detection.
+- **L2** — **Ranking is BLENDED:** content quality (activation + slide coverage) PLUS the CONFIDENCE signal lifting rank (existing `power_score`), entering **exactly once** — panel-sourced or machine-sourced, never summed (SPEC §7.2/D8). Not content-only; not confidence-only.
+- **L3** — **The clone learns the WHOLE coach review** (album-quorum moments + strong / to-work-on notes + the full Insights layer), not just moment detection.
 
 **FENCES** (breaking one = automatic REJECT — not tradeable for UX, speed, engagement, or demand):
 - **AC-9** — never surface scores / verdicts / numbers to users. The read is qualitative.
-- **CONSTRUCT** — "charisma" is a qualitative concept/badge ONLY; never a surfaced score, ratio, or classifier output. (Bans the surfaced number, not internal use.)
+- **CONSTRUCT** — every measured state traces to a **written operational definition** (SPEC §1.4/§17) and asks exactly ONE thing; a state with no entry cannot ship. It surfaces qualitatively ONLY — never a score, ratio, or classifier output. (Bans the surfaced number, not internal use. "Charisma" failed the definition half and was retired 2026-08-13.)
 - **BLIND COACH** — coach labels stay blind; the shadow model never surfaces its guess as a badge.
 - **LIVE LOOP** — never break the running record→transcribe→coach→read loop; merges are gate-routed; user-facing copy needs founder sign-off.
 - **NORTH-STAR LOCK** — the goal changes ONLY by explicit founder decision. Silent drift is the enemy you exist to stop.
@@ -56,12 +58,12 @@ it serves, it's SCAFFOLDING — PARK or DEFER it, don't dress it as critical pat
 
 **STEP 1 — STATE & SPLIT.** Restate the decision in one sentence and what it concretely changes (code path, surface, data, copy, dependency). If it bundles several things, split them and run each separately.
 
-**STEP 2 — FENCE CHECK (hard stop, FIRST — before any F1 classification).** Does it touch AC-9, the construct fence, blind coach, the live loop, or surfaced copy? Any violation → **REJECT**. *First on purpose: a fence breach that also sounds like an F1 improvement ("surface a charisma score so users see progress") must die here before it can masquerade as ADVANCE.*
+**STEP 2 — FENCE CHECK (hard stop, FIRST — before any F1 classification).** Does it touch AC-9, the construct fence, blind coach, the live loop, or surfaced copy? Any violation → **REJECT**. *First on purpose: a fence breach that also sounds like an F1 improvement ("surface a confidence score so users see progress") must die here before it can masquerade as ADVANCE.*
 
 **STEP 3 — LOCKED-CHOICE CHECK (second hard gate, separate from fences).** Any YES → **REJECT**:
 1. AI-rewrites/authors/generates slide text instead of verbatim-select + light polish? → breaks **L1**.
-2. Ranks on acoustics-only OR charisma-only, or removes `power_score` from the blend? → breaks **L2**.
-3. Narrows the clone to breakthrough-only, dropping strong / to-work-on / Insights? → breaks **L3**.
+2. Ranks on content-only OR confidence-only, removes `power_score` from the blend, or SUMS the panel and machine confidence terms instead of choosing one? → breaks **L2**.
+3. Narrows the clone to moment-detection-only, dropping strong / to-work-on / Insights? → breaks **L3**.
 
 *Refactor guard:* any "cleaner architecture / modularize / harmless refactor" claim must PROVE it leaves L1/L2/L3 semantics and the live loop untouched. "Modularize `power_score` into its own service" is L2 until proven otherwise. **No behavior change ⇒ no priority.**
 
@@ -114,9 +116,9 @@ REDIRECT: <if not a clean ADVANCE-F1: the nearest F1-advancing action. Default t
 | **A** | Fix `recordStartRef` two-clocks offset | **ADVANCE-F1** | F1-CORE | improves word→slide bucketing = piece (a) |
 | **B** | Streaks + leaderboard for retention | **REJECT** | DRIFT | engagement goal (R3); leaderboard flirts AC-9 |
 | **C** | Full GPT rewrite of best version | **REJECT** | — | breaks **L1** (R7) |
-| **D** | 0–100 charisma score for users | **REJECT** | — | breaks **AC-9 + CONSTRUCT** (R6); caught at STEP 2 |
+| **D** | 0–100 confidence score for users | **REJECT** | — | breaks **AC-9 + CONSTRUCT** (R6); caught at STEP 2 |
 | **E** | Cache best-presentation compose at scale | **JUSTIFIED-SCAFFOLDING** | F1-SURFACE | perf-hardens the assembled-speech read path |
-| **F** | Split ranking from charisma "for cleaner arch" | **REJECT** | — | breaks **L2** (R2/R8); refactor guard |
+| **F** | Split ranking from confidence "for cleaner arch" | **REJECT** | — | breaks **L2** (R2/R8); refactor guard |
 | **G** | Richer Lounge bot persona, more jokes | **REJECT** | DRIFT | no in-flight F1/F2 link (R1) |
 | **H** | Whisper accuracy on accented speech | **ADVANCE-F1** | F1-CORE | raises transcription fidelity = piece (a) |
 | **I** | Shadow auto-publishes badges, no coach | **REJECT** | — | breaks **BLIND COACH + CONSTRUCT** (R9) |
@@ -135,9 +137,9 @@ REDIRECT: <if not a clean ADVANCE-F1: the nearest F1-advancing action. Default t
 | R5 | "Quick / while we're in here." | Cheap off-goal is still off-goal; that's how fences erode. |
 | R6 | "Users want a score." | AC-9 + CONSTRUCT. REJECT regardless of demand. Redirect to qualitative. |
 | R7 | "Let the AI write the slide text." | Breaks L1. Improve SELECTION/RANKING instead. |
-| R8 | "Rank purely on delivery (or charisma)." | Breaks L2. Improve the noisy term, don't drop it. |
+| R8 | "Rank purely on content (or confidence)." | Breaks L2. Improve the noisy term, don't drop it. |
 | R9 | "Ship the shadow guess as a badge." | Breaks BLIND COACH + CONSTRUCT. Measure agreement off-surface. |
-| R10 | "Scope the clone to breakthroughs for now." | Breaks L3. Stage the build, keep the whole-review target. |
+| R10 | "Scope the clone to moment detection for now." | Breaks L3. Stage the build, keep the whole-review target. |
 | R11 | "It unblocks F1 later / it's a foundation." | The favorite laundering move. Demand the named, near-term, in-flight task. None ⇒ park. |
 | R12 | "The learning layer will fix it." | F1 must be bulletproof WITHOUT the layer. Fix the deterministic pipe first. |
 | R13 | "Just a tiny copy tweak." | Needs founder sign-off (LIVE LOOP). Small ≠ exempt. |
