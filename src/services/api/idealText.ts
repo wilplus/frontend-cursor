@@ -211,6 +211,13 @@ export interface DocumentSuggestion {
      *  the persistent master text. Approve-gated like every other change:
      *  the master never changes without a tap. */
     | "new_take"
+    /** THE ACOUSTIC SWAP (founder 2026-08-13) — this take delivered a LOCKED
+     *  paragraph better than the version standing in the document. The only
+     *  lane that reaches a locked part at all: the ranker excludes locked
+     *  parts from selection, so without this a better delivery of words the
+     *  student already settled has nowhere to go. Labelled "Delivery" —
+     *  the offer is about how it SOUNDED, not about the words. */
+    | "acoustic_swap"
     | null;
   /** Server-remembered decision. Anything already decided is not re-offered
    *  (dismissed suggestions must never come back — FE-5). */
@@ -307,7 +314,8 @@ export function mapDocumentSuggestions(
       rawSource === "profanity" ||
       rawSource === "delivery" ||
       rawSource === "structural" ||
-      rawSource === "new_take"
+      rawSource === "new_take" ||
+      rawSource === "acoustic_swap"
         ? rawSource
         : null;
     const blockKey =

@@ -94,6 +94,20 @@ import ConfidenceLabelChips from "./ConfidenceLabelChips";
 /*  screen is coach-facing (LIVE LOOP: flagged for founder sign-off).          */
 /* -------------------------------------------------------------------------- */
 
+/** The Confident Voice star family, in EITHER trigger vocabulary.
+ *
+ *  The 2026-08-13 re-point retired the charisma construct and renamed the
+ *  persisted trigger `charisma` → `confident`. Rows written before that date
+ *  keep the word they were written with — detector definitions are versioned,
+ *  never backfilled — so a reader that knew only the new string would quietly
+ *  demote every historical star. Mirrors `CONFIDENT_VOICE_TRIGGERS` in the
+ *  backend's services/intervention_candidates.py. */
+const CONFIDENT_VOICE_TRIGGERS = ["confident", "charisma"];
+
+function isConfidentVoice(star: { trigger?: string | null }): boolean {
+  return CONFIDENT_VOICE_TRIGGERS.includes(star.trigger ?? "");
+}
+
 /** Map a publish blocker to the disabled-PUBLISH reason. DUPLICATED from the
  *  review walker on purpose: importing it would put a blind-labeler file on
  *  this panel's import graph (N1), and three strings are cheaper than a
@@ -510,12 +524,19 @@ export default function CoachStarVerdictOverlay({
           <ul className="flex flex-col gap-3">
             {/* Founder 2026-08-10: confident-voice feedbacks first. Stable
                 within each half, so the server's unjudged-first order still
-                holds on both sides of the split. */}
+                holds on both sides of the split.
+
+                TWO TRIGGER STRINGS, ONE FAMILY. The 2026-08-13 re-point
+                renamed the persisted trigger 'charisma' → 'confident' when
+                the construct was retired; rows written before it keep the old
+                word, because detector definitions are versioned rather than
+                rewritten. Matching only the new one would have sorted every
+                historical star to the bottom — silently, since a sort that
+                loses a row still renders. Mirrors the backend's
+                CONFIDENT_VOICE_TRIGGERS. */}
             {[...stars]
               .sort(
-                (a, b) =>
-                  Number(b.trigger === "charisma") -
-                  Number(a.trigger === "charisma")
+                (a, b) => Number(isConfidentVoice(b)) - Number(isConfidentVoice(a))
               )
               .map((s) => {
               const key = starRowKey(s);
