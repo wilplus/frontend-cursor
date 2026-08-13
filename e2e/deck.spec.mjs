@@ -77,13 +77,37 @@ check(
   })
 );
 check(
-  "the waiting lock breathes; no other mark animates",
+  "a mark breathes ONLY when something is waiting on the student — the open " +
+    "chunk, or a locked one with a style proposal inside",
   await page.evaluate(() => {
     const marks = [...document.querySelectorAll("button[data-status]")];
     const breathing = marks.filter((m) =>
       m.className.includes("animate-lock-breathe")
     );
-    return breathing.length === 1 && breathing[0].dataset.status === "waiting";
+    // WHY THIS WAS REWRITTEN (2026-08-13). It used to assert
+    // `breathing.length === 1 && …status === "waiting"` — "no OTHER mark
+    // animates" — and #283 then gave the LOCKED pill the same amber pulse
+    // when a style proposal sits behind the lock (the door-with-no-handle
+    // fix: a locked chunk had no way to say something was waiting inside).
+    // Two marks breathe by design now, so the old count failed on every run
+    // from that merge onward. The e2e tier is `continue-on-error`, so it
+    // failed UNDER A GREEN RUN CONCLUSION and nobody saw it.
+    //
+    // So the assertion is stated as the RULE the pulse actually encodes —
+    // "something here wants you" — rather than as a headcount, which is
+    // what made it brittle to a second legitimate breather.
+    const isWaitingChunk = (m) => m.dataset.status === "waiting";
+    const isLockedWithStyle = (m) =>
+      m.dataset.status === "locked" && m.className.includes("ring-pending");
+    return (
+      breathing.length > 0 &&
+      breathing.every((m) => isWaitingChunk(m) || isLockedWithStyle(m)) &&
+      breathing.some(isWaitingChunk) &&
+      // …and a settled chunk stays still. This half is the one the original
+      // was protecting, and it is kept exactly.
+      marks.some((m) => m.dataset.status === "clean") &&
+      !breathing.some((m) => m.dataset.status === "clean")
+    );
   })
 );
 check(
