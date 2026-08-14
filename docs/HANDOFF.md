@@ -70,8 +70,12 @@ squash commit: `npm run lint`, `npx tsc --noEmit`, `npm test`,
   in `backend-cursor/docs/SPEC-parts-locking-and-layers.md`; FE build not
   yet ordered (locked chunks drop interruption priority; Corrections >
   Swap > Style precedence).
-- **e2e `continue-on-error` flip** — planned once the deck e2e shows a
-  quiet green track record.
+
+*(Formerly parked here and shipped 2026-08-14: the e2e
+`continue-on-error` flip — the e2e tier is BLOCKING by founder decision,
+enforced at the configuration level without waiting for the Actions
+minutes outage to clear. Expect red X's on every PR until minutes reset;
+they are runner-allocation failures, not spec failures.)*
 
 Everything else that looks unfinished is listed (with owners and
 preconditions) in the backend HANDOFF's "Parked work" section.
