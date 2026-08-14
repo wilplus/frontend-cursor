@@ -261,11 +261,11 @@ Pure-predicate and source-grep only; there is no JSX transform in this vitest co
    - cancelled (`managed: false`, `manage_available: true`) → **both** `canBuy` and
      `canManage` true;
    - `cancel_at_period_end: false` → `endsOn === null` even when `current_period_end` is set.
-2. **`src/services/api/tokens.test.ts`** — **this file does not exist yet, create it.**
-   `mapTokenBalance` with `plan` absent → `null`; with a partial/malformed `plan` → `null` or
-   safe defaults, never a throw; with the full object → every field mapped. `mapTokenBalance`
-   is already a pure exported mapper, so it needs no fixtures beyond plain objects. Name it
-   to match the neighbours (`idealText.test.ts`, `arcGame.test.ts`).
+2. **`src/services/api/tokens.test.ts`** — **this file already exists** and already has a
+   `describe("mapTokenBalance")` block (from line 55). **Extend that block, do not create a
+   new file and do not rewrite the existing cases.** Add: `plan` absent → `null`; a
+   partial/malformed `plan` → `null` or safe defaults, never a throw; the full object → every
+   field mapped. Match the style of the cases already there.
 3. **Fence test**, mirroring the BE's own (`test_stripe_not_our_product.py:401-410`): grep
    `tokens.ts` and assert it contains no `portal` URL read — the balance carries a boolean, the
    URL is minted on the click.
