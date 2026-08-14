@@ -48,6 +48,7 @@ import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
+import LoungeTopUpCard from "./LoungeTopUpCard";
 import ReflectionGamePrompt from "./ReflectionGamePrompt";
 import CoachReflectionQueue from "./CoachReflectionQueue";
 import {
@@ -822,6 +823,14 @@ export default function Lounge({
             signup field at all), so this is the only mount that reaches them.
             In-thread means it scrolls with the conversation and cannot cover a
             running take; the wrapper holds the stay-out-of-the-Lab rule. */}
+        {/* Out of tokens — the paid plans as tappable chips, one tap to
+            Stripe. FIRST of the in-thread cards on purpose: being unable to
+            continue outranks an optional profile question. Stacking is
+            allowed and needs no logic (founder ruling) — if someone qualifies
+            for two cards they render as two bubbles, each with its own gate,
+            neither knowing the other exists. */}
+        <LoungeTopUpCard state={state} threadLoading={thread.loading} />
+
         <LoungeSpeakerSexPrompt state={state} threadLoading={thread.loading} />
 
         {/* F2 §1 — the Reflection Game card: the machine's clipped moment as a
