@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchTokenBalance,
-  fetchTokenPrices,
+  fetchTokenPricesRead,
   nextBalance,
+  resetTokenPricesCache,
   type TokenBalance,
   type TokenPrices,
 } from "@/services/api/tokens";
@@ -31,9 +32,24 @@ import { WILLAB_TOKENS_SPENT_EVENT } from "@/lib/willabWindowEvents";
 /*  Guests probe nothing: signed out, there is no wallet and no request.       */
 /* -------------------------------------------------------------------------- */
 
+/** The probe, with the three outcomes kept apart.
+ *
+ *  `enabled` below collapses "probing" and "failed" into the same falsy-ish
+ *  value, which is exactly how a failed read used to render as a silent,
+ *  plans-less page. Surfaces that can show a retry read THIS; surfaces that
+ *  only need "is there a wallet at all" can keep reading `enabled`. */
+export type TokenPricesState = "probing" | "off" | "failed" | "ready";
+
 export interface TokenWallet {
-  /** null while probing; false → render NO wallet UI at all, not a zeroed one. */
+  /** null while probing; false → render NO wallet UI at all, not a zeroed one.
+   *  A FAILED read is also false here, so anything that needs to tell the two
+   *  apart must read `pricesState`. */
   enabled: boolean | null;
+  pricesState: TokenPricesState;
+  /** User-initiated only. Clears the memoised read first — without that, a
+   *  retry re-serves the same cached failure. No auto-polling: a wallet that
+   *  retries by itself hammers a struggling backend. */
+  retryPrices: () => void;
   balance: TokenBalance;
   prices: TokenPrices | null;
 }
@@ -44,30 +60,39 @@ const POLL_MS = 60_000;
 
 export function useTokenWallet(active: boolean): TokenWallet {
   const [prices, setPrices] = useState<TokenPrices | null>(null);
-  const [probed, setProbed] = useState(false);
+  const [pricesState, setPricesState] = useState<TokenPricesState>("probing");
+  // Bumped by retryPrices to re-run the probe effect.
+  const [attempt, setAttempt] = useState(0);
   const [balance, setBalance] = useState<TokenBalance>({ kind: "unknown" });
 
   /* Prices: once per page (memoised in the service), and the enabled-probe. */
   useEffect(() => {
     if (!active) {
-      setProbed(true);
+      // Signed out is "off", not a failure: no wallet, nothing to retry.
+      setPricesState("off");
       setPrices(null);
       return;
     }
     let cancelled = false;
-    void fetchTokenPrices().then((p) => {
+    setPricesState("probing");
+    void fetchTokenPricesRead().then((r) => {
       if (cancelled) return;
-      setPrices(p);
-      setProbed(true);
+      setPrices(r.kind === "ready" ? r.prices : null);
+      setPricesState(r.kind);
     });
     return () => {
       cancelled = true;
     };
-  }, [active]);
+  }, [active, attempt]);
+
+  const retryPrices = useCallback(() => {
+    resetTokenPricesCache();
+    setAttempt((n) => n + 1);
+  }, []);
 
   /* Balance: only once prices confirmed the wallet exists, so a flag-off user
    * never makes this request at all. */
-  const enabled = probed ? prices !== null : null;
+  const enabled = pricesState === "probing" ? null : pricesState === "ready";
 
   useEffect(() => {
     if (enabled !== true) return;
@@ -103,5 +128,5 @@ export function useTokenWallet(active: boolean): TokenWallet {
     };
   }, [enabled]);
 
-  return { enabled, balance, prices };
+  return { enabled, pricesState, retryPrices, balance, prices };
 }
