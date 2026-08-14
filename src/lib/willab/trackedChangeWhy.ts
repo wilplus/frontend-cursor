@@ -47,6 +47,12 @@ export const CLARITY_WHY = [
   "This gives your message a cleaner finish.",
 ] as const;
 
+/** `confident_voice` — the ONE founder-signed body of the Confident Voice
+ *  card (§17 acoustic-confidence-v1, 2026-08-14). Purely positive, fixed —
+ *  no variants: praise that rewords itself reads as the system hedging. */
+export const CONFIDENT_VOICE_WHY =
+  "You sounded incredibly confident and natural here.";
+
 /** `emphasis` — the change STYLES WORDS ALREADY THERE. */
 export const EMPHASIS_WHY = [
   "This helps your main point stand out.",
@@ -90,6 +96,9 @@ export function whyLine(
   }
   if (why === "emphasis") {
     return EMPHASIS_WHY[variantIndex(change.id, EMPHASIS_WHY.length)];
+  }
+  if (why === "confident_voice") {
+    return CONFIDENT_VOICE_WHY;
   }
   return WHY_COPY[why] ?? null;
 }

@@ -30,3 +30,17 @@ describe("displayKind", () => {
     expect(displayKind({ ...base })).toBe("Clarity");
   });
 });
+
+describe("Confident Voice (§17 acoustic-confidence-v1)", () => {
+  it("titles by source, before kind — the card is kind='bold'", () => {
+    expect(
+      displayKind({ source: "confident_voice", kind: "bold" } as never)
+    ).toBe("Confident Voice");
+  });
+
+  it("an ordinary bold stays Style", () => {
+    expect(displayKind({ source: "wording", kind: "bold" } as never)).toBe(
+      "Style"
+    );
+  });
+});
