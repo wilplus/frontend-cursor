@@ -379,3 +379,76 @@ export async function fetchArcBreakthroughs(
         : null,
   };
 }
+
+/* ── THE VOICE ALBUM (founder 2026-08-14 — BE PR #431) ──────────────────────
+ * Moments where the acoustic read, the user, and the coach all agreed —
+ * a mirror of current alignment. Data only and AC-9-clean by contract:
+ * verbatim words, per-span playback, position. No confidence, no tags,
+ * no scores ride this wire, and none may be added here. */
+
+export interface VoiceAlbumEntry {
+  snippetId: string;
+  takeSessionId: string | null;
+  takeIndex: number | null;
+  slideIndex: number | null;
+  enteredAt: string | null;
+  /** The moment's VERBATIM words — never a paraphrase. */
+  text: string;
+  audioUrl: string | null;
+  startOffsetMs: number | null;
+  durationMs: number | null;
+}
+
+export async function fetchVoiceAlbum(
+  arcId: string
+): Promise<VoiceAlbumEntry[] | null> {
+  const headers = await authHeaders();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/voice-album`,
+      {
+        method: "GET",
+        headers,
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      }
+    );
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!res.ok) return null;
+  const body: unknown = await res.json().catch(() => null);
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as Record<string, unknown>).entries;
+  if (!Array.isArray(raw)) return null;
+  const out: VoiceAlbumEntry[] = [];
+  for (const e of raw) {
+    if (!e || typeof e !== "object") continue;
+    const r = e as Record<string, unknown>;
+    const snippetId = typeof r.snippet_id === "string" ? r.snippet_id : null;
+    if (!snippetId) continue;
+    out.push({
+      snippetId,
+      takeSessionId:
+        typeof r.take_session_id === "string" ? r.take_session_id : null,
+      takeIndex: typeof r.take_index === "number" ? r.take_index : null,
+      slideIndex:
+        typeof r.slide_index === "number" && !Number.isNaN(r.slide_index)
+          ? r.slide_index
+          : null,
+      enteredAt: typeof r.entered_at === "string" ? r.entered_at : null,
+      text: typeof r.text === "string" ? r.text : "",
+      audioUrl: typeof r.audio_url === "string" ? r.audio_url : null,
+      startOffsetMs:
+        typeof r.start_offset_ms === "number" ? r.start_offset_ms : null,
+      durationMs: typeof r.duration_ms === "number" ? r.duration_ms : null,
+    });
+  }
+  return out;
+}

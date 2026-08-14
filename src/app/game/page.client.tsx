@@ -19,8 +19,8 @@ import { type TernaryValue } from "@/services/api/stateRatings";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import {
-  fetchArcBreakthroughs,
-  type ArcBreakthrough,
+  fetchVoiceAlbum,
+  type VoiceAlbumEntry,
 } from "@/services/api/bestPresentation";
 import {
   fetchArcGame,
@@ -596,7 +596,12 @@ function EndScreen({
 /* ── BEST VOICES — same design, no dilemma: the explanation is already there ── */
 
 function BestVoices({ arcId }: { arcId: string | null }) {
-  const [items, setItems] = useState<ArcBreakthrough[] | null>(null);
+  // THE VOICE ALBUM (founder 2026-08-14): this tab reads the three-way
+  // album — moments where the acoustic read, the student, and the coach
+  // all agreed (BE #431, a mirror of current alignment) — instead of the
+  // coach-only breakthrough list it grew up on. Same design: hero, one
+  // text block, neutral steppers, dots as position.
+  const [items, setItems] = useState<VoiceAlbumEntry[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">(
     "loading"
   );
@@ -608,9 +613,8 @@ function BestVoices({ arcId }: { arcId: string | null }) {
       return;
     }
     let active = true;
-    void fetchArcBreakthroughs(arcId).then((r) => {
+    void fetchVoiceAlbum(arcId).then((list) => {
       if (!active) return;
-      const list = r?.breakthroughs ?? null;
       setItems(list);
       setStatus(list === null ? "error" : list.length === 0 ? "empty" : "ready");
     });
@@ -627,11 +631,19 @@ function BestVoices({ arcId }: { arcId: string | null }) {
     );
   }
   if (status === "empty" || !items || items.length === 0) {
+    // Founder-signed empty state (2026-08-14).
     return (
       <Centered>
-        <p className="max-w-sm text-center text-[15px] text-muted-foreground">
-          Your coach hasn&apos;t marked key moments here yet.
-        </p>
+        <div className="max-w-sm text-center">
+          <p className="text-[15px] font-semibold text-foreground">
+            Your Voice Album is empty.
+          </p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+            When you lock a &lsquo;Confident Voice&rsquo; moment and your
+            coach publishes the deck, your standout deliveries will be
+            saved here.
+          </p>
+        </div>
       </Centered>
     );
   }
@@ -647,8 +659,8 @@ function BestVoices({ arcId }: { arcId: string | null }) {
 
   const idx = Math.min(i, items.length - 1);
   const item = items[idx];
-  // ONE comment (founder): the coach's note overrides the system's.
-  const comment = item.note ?? item.systemComment;
+  // The album shows the moment's own VERBATIM words under the sound.
+  const comment = item.text;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -661,12 +673,14 @@ function BestVoices({ arcId }: { arcId: string | null }) {
         <ProgressDots total={items.length} index={idx} />
       </div>
 
-      <PlaybackHero
-        key={item.id}
-        src={item.audioRef}
-        startOffsetMs={item.startOffsetMs}
-        durationMs={item.durationMs}
-      />
+      {item.audioUrl ? (
+        <PlaybackHero
+          key={item.snippetId}
+          src={item.audioUrl}
+          startOffsetMs={item.startOffsetMs ?? 0}
+          durationMs={item.durationMs ?? 0}
+        />
+      ) : null}
 
       {/* The explanation is already there — the same block as the game's. */}
       <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 scrollbar-none">
@@ -674,15 +688,6 @@ function BestVoices({ arcId }: { arcId: string | null }) {
           <p className="text-[14px] leading-relaxed text-foreground">
             {comment}
           </p>
-        ) : null}
-        {item.videoRef ? (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video
-            src={item.videoRef}
-            controls
-            playsInline
-            className="mt-1 max-h-[24vh] w-full shrink-0 rounded-2xl bg-black"
-          />
         ) : null}
       </div>
 
