@@ -17,6 +17,7 @@ import {
   type DeckChunk,
 } from "@/lib/willab/deckChunks";
 import {
+  buildScreens,
   canBubble,
   chunkCounts,
   clampPosition,
@@ -24,6 +25,7 @@ import {
   scrollEdge,
   stepPosition,
   type DeckPosition,
+  type DeckScreenModel,
 } from "@/lib/willab/deckScroll";
 import type { Part } from "@/lib/willab/documentParts";
 import type {
@@ -115,14 +117,47 @@ export default function TranscriptReviewDeck({
   coachMoments?: readonly CoachMomentLite[] | null;
   arcId?: string | null;
 }) {
-  const chunks = useMemo(
-    () => buildDeckChunks(doc, parts, suggestions),
-    [doc, parts, suggestions]
-  );
+  /* §11.7.1 — INSTANT LOCK FEEDBACK (founder 2026-08-14). The modal
+   * already closes on a successful lock; what lagged was the PAGE — the
+   * lock icon waited for the host's refetch. A confirmed lock is marked
+   * optimistically by part id and cleared the moment fresh parts arrive
+   * (the server's truth always takes over). Only a "clean" chunk is
+   * promoted — pending work still beats the lock (2026-08-11 rule). */
+  const [optimisticLocked, setOptimisticLocked] = useState<
+    ReadonlySet<string>
+  >(new Set());
+  useEffect(() => {
+    setOptimisticLocked(new Set());
+  }, [parts]);
+
+  const chunks = useMemo(() => {
+    const built = buildDeckChunks(doc, parts, suggestions);
+    if (optimisticLocked.size === 0) return built;
+    return built.map((c) =>
+      c.status === "clean" && optimisticLocked.has(c.part.id)
+        ? { ...c, status: "locked" as const }
+        : c
+    );
+  }, [doc, parts, suggestions, optimisticLocked]);
   const groups = useMemo(
     () => groupChunksBySlide(chunks, pieceSlideIndexes),
     [chunks, pieceSlideIndexes]
   );
+  /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
+   * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
+   * next screen. The nested scroll steps between screens; the rail shows
+   * slide → screen → chunk. */
+  const screens = useMemo(() => buildScreens(groups), [groups]);
+  const railSlides = useMemo(() => {
+    const out: { slideIndex: number | null; first: number; count: number }[] =
+      [];
+    screens.forEach((s, i) => {
+      const last = out[out.length - 1];
+      if (last && last.slideIndex === s.slideIndex) last.count += 1;
+      else out.push({ slideIndex: s.slideIndex, first: i, count: 1 });
+    });
+    return out;
+  }, [screens]);
 
   // The open modal is addressed by PART ID, not by object: an accept
   // reassembles the document underneath the modal, and re-deriving the chunk
@@ -164,7 +199,7 @@ export default function TranscriptReviewDeck({
   const [atChunk, setAtChunk] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const counts = useMemo(() => chunkCounts(groups), [groups]);
+  const counts = useMemo(() => chunkCounts(screens), [screens]);
 
   const setPosition = useCallback((next: DeckPosition) => {
     posRef.current = next;
@@ -385,9 +420,9 @@ export default function TranscriptReviewDeck({
           // track only moves via goTo/dots/keys.
           className="h-full overflow-hidden"
         >
-          {groups.map((g, gi) => (
+          {screens.map((g, gi) => (
             <section
-              key={g.slideIndex ?? `untitled-${gi}`}
+              key={`${g.slideIndex ?? "untitled"}-${g.screenOfSlide}`}
               // NO RULE BETWEEN SLIDES (founder 2026-08-11: "the screen has
               // a stroke around the text, please delete that all"). One
               // slide fills the viewport; a dashed line under each one drew
@@ -399,7 +434,7 @@ export default function TranscriptReviewDeck({
                 <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   {kickerFor(g.slideIndex, gi)}
                 </p>
-                {titleFor(g.slideIndex) ? (
+                {g.screenOfSlide === 0 && titleFor(g.slideIndex) ? (
                   <h2 className="mt-2 font-heading text-[clamp(1.5rem,4vw,2.1rem)] leading-tight tracking-[-0.035em] text-foreground">
                     {titleFor(g.slideIndex)}
                   </h2>
@@ -473,46 +508,75 @@ export default function TranscriptReviewDeck({
             one tick per chunk of that slide, the current chunk stretched.
             POSITION ONLY — "slide 3, second of four chunks" is
             navigation; the rail must never grade (AC-9). */}
-        {groups.length > 1 || (counts[0] ?? 0) > 1 ? (
-          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2">
-            {groups.map((g, i) =>
-              i === atSlide && g.chunks.length > 1 ? (
+        {screens.length > 1 || (counts[0] ?? 0) > 1 ? (
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2.5">
+            {railSlides.map((rs, ord) => {
+              const slideScreens = screens.slice(rs.first, rs.first + rs.count);
+              const marks = slideScreens.map((scr, k) => {
+                const si = rs.first + k;
+                const label =
+                  scr.screensInSlide > 1
+                    ? `Go to ${kickerFor(rs.slideIndex, ord)}, screen ${
+                        scr.screenOfSlide + 1
+                      } of ${scr.screensInSlide}`
+                    : `Go to ${kickerFor(rs.slideIndex, ord)}`;
+                return si === atSlide && scr.chunks.length > 1 ? (
+                  <div
+                    key={`scr-${si}`}
+                    className="flex flex-col items-center gap-1.5 rounded-full bg-muted px-[3px] py-1.5"
+                  >
+                    {scr.chunks.map((c, ci) => (
+                      <button
+                        key={c.part.id}
+                        type="button"
+                        aria-label={`Go to chunk ${ci + 1} of ${
+                          scr.chunks.length
+                        } on ${kickerFor(rs.slideIndex, ord)}`}
+                        aria-current={atChunk === ci ? "true" : undefined}
+                        onClick={() => goTo({ slide: si, chunk: ci })}
+                        className={`rounded-full transition-all ${
+                          atChunk === ci
+                            ? "h-[0.85rem] w-1.5 bg-foreground"
+                            : "h-1.5 w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    key={`scr-${si}`}
+                    type="button"
+                    aria-label={label}
+                    aria-current={atSlide === si ? "true" : undefined}
+                    onClick={() => goTo({ slide: si, chunk: 0 })}
+                    className={`rounded-full transition-all ${
+                      atSlide === si
+                        ? "h-[1.1rem] w-2 bg-foreground"
+                        : "h-2 w-2 bg-muted-foreground/40 hover:bg-muted-foreground"
+                    }`}
+                  />
+                );
+              });
+              // §11.7.3: a multi-screen slide's marks share one pill — the
+              // continuation is VISIBLE on the rail (macro: the pill is the
+              // slide; its marks are the screens; ticks inside the active
+              // mark are the chunks). Position only, never a grade (AC-9).
+              return rs.count > 1 ? (
                 <div
-                  key={g.slideIndex ?? `dot-${i}`}
-                  className="flex flex-col items-center gap-1.5 rounded-full bg-muted px-[3px] py-1.5"
+                  key={rs.slideIndex ?? `rail-${ord}`}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/60 px-[3px] py-1.5"
                 >
-                  {g.chunks.map((c, ci) => (
-                    <button
-                      key={c.part.id}
-                      type="button"
-                      aria-label={`Go to chunk ${ci + 1} of ${
-                        g.chunks.length
-                      } on ${kickerFor(g.slideIndex, i)}`}
-                      aria-current={atChunk === ci ? "true" : undefined}
-                      onClick={() => goTo({ slide: i, chunk: ci })}
-                      className={`rounded-full transition-all ${
-                        atChunk === ci
-                          ? "h-[0.85rem] w-1.5 bg-foreground"
-                          : "h-1.5 w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
-                      }`}
-                    />
-                  ))}
+                  {marks}
                 </div>
               ) : (
-                <button
-                  key={g.slideIndex ?? `dot-${i}`}
-                  type="button"
-                  aria-label={`Go to ${kickerFor(g.slideIndex, i)}`}
-                  aria-current={atSlide === i ? "true" : undefined}
-                  onClick={() => goTo({ slide: i, chunk: 0 })}
-                  className={`rounded-full transition-all ${
-                    atSlide === i
-                      ? "h-[1.1rem] w-2 bg-foreground"
-                      : "h-2 w-2 bg-muted-foreground/40 hover:bg-muted-foreground"
-                  }`}
-                />
-              )
-            )}
+                <div
+                  key={rs.slideIndex ?? `rail-${ord}`}
+                  className="flex flex-col items-center"
+                >
+                  {marks}
+                </div>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -529,9 +593,17 @@ export default function TranscriptReviewDeck({
           suggestion={openSuggestion}
           onAccept={onAccept}
           onKeepMine={onKeepMine}
-          onLockIn={(text: string): Promise<LockOutcome> =>
-            onLockPart(openChunk, text)
-          }
+          onLockIn={async (text: string): Promise<LockOutcome> => {
+            const outcome = await onLockPart(openChunk, text);
+            if (outcome === "ok") {
+              // §11.7.1: the page shows the lock the instant the server
+              // confirms it — the modal closes itself on "ok".
+              setOptimisticLocked((prev) =>
+                new Set(prev).add(openChunk.part.id)
+              );
+            }
+            return outcome;
+          }}
           onClose={() => setOpenPartId(null)}
           styleSuggestion={styleFor(styleChanges, openChunk)}
           onApplyStyle={onApplyStyle}

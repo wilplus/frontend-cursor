@@ -79,7 +79,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).not.toMatch(/words/);
     expect(DECK).not.toMatch(/Slide \$\{atSlide/);
     // The dots rail is the surviving "where am I" — it must NOT go with it.
-    expect(DECK).toMatch(/groups\.length > 1/);
+    expect(DECK).toMatch(/screens\.length > 1/);
     expect(DECK).toMatch(/aria-current/);
   });
 
