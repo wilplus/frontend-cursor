@@ -1,27 +1,24 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, Upload, X } from "lucide-react";
+import { Upload } from "lucide-react";
 import { extractPresentation } from "@/services/api/presentationExtract";
 import {
   ACCEPTED_DECK_ACCEPT,
-  SLIDE_CAPS,
-  emptySlide,
   type PresentationSlide,
 } from "./presentation";
 
 /* -------------------------------------------------------------------------- */
-/*  PresentationInput — capture the deck in the recording setup (T4)            */
+/*  PresentationInput — capture the deck in the recording setup (T4).          */
 /*                                                                            */
-/*  Rendered inside the setup page's "Your slides" Field (the label lives in    */
-/*  the Field). Upload a PDF (the BE parses → fills the blocks + attaches the    */
-/*  served PDF via presentationRef) OR type the slides by hand (opens with 5     */
-/*  blocks). Optional; a failed upload degrades to manual entry. Controlled —    */
-/*  the parent owns slides + ref.                                               */
+/*  A PURELY BINARY SCREEN (founder 2026-08-14): the upload space and          */
+/*  nothing else. The per-slide editors — title inputs, body textareas,        */
+/*  add/remove slide — are DELETED, not hidden: the deck's text comes from     */
+/*  the uploaded PDF (the BE parses it), and hand-typed slide text was a       */
+/*  second author of deck truth beside the parser. Proceed/Skip live in the    */
+/*  parent wizard's footer; this component is the dropzone, the attached       */
+/*  state, and the errors. Controlled — the parent owns slides + ref.          */
 /* -------------------------------------------------------------------------- */
-
-const CARD_INPUT_CLS =
-  "w-full rounded-lg border border-border bg-background px-3.5 text-[14px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
 
 export default function PresentationInput({
   slides,
@@ -38,31 +35,9 @@ export default function PresentationInput({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
 
-  function updateSlide(i: number, patch: Partial<PresentationSlide>) {
-    onChange(
-      slides.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
-      presentationRef
-    );
-  }
-  function removeSlide(i: number) {
-    onChange(
-      slides.filter((_, idx) => idx !== i),
-      presentationRef
-    );
-  }
-  function addSlide() {
-    if (slides.length >= SLIDE_CAPS.maxSlides) return;
-    onChange([...slides, emptySlide()], presentationRef);
-  }
-  function clearDeck() {
-    setWarnings([]);
-    onChange(slides, null); // keep the (now editable) text; drop the PDF link
-  }
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file
+  async function takeFile(file: File | undefined | null) {
     if (!file) return;
     setUploadState("uploading");
     setErrorMsg(null);
@@ -79,46 +54,69 @@ export default function PresentationInput({
     }
   }
 
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    void takeFile(file);
+  }
+
+  function clearDeck() {
+    setWarnings([]);
+    onChange([], null);
+  }
+
   return (
     <div>
-      <p className="-mt-1 mb-4 text-[13px] leading-relaxed text-muted-foreground">
-        Adding slides will make a truly incredibly valuable experience! Promise.
-      </p>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPTED_DECK_ACCEPT}
-          onChange={handleFile}
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploadState === "uploading"}
-          className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-[14px] transition hover:bg-muted active:scale-[0.98] disabled:opacity-50"
-        >
-          <Upload className="h-3.5 w-3.5" />
+      <input
+        ref={fileRef}
+        type="file"
+        accept={ACCEPTED_DECK_ACCEPT}
+        onChange={handleFile}
+        className="hidden"
+      />
+      {/* THE DROPZONE — the whole upload space is the target. */}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploadState === "uploading"}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void takeFile(e.dataTransfer.files?.[0]);
+        }}
+        className={`flex min-h-[9.5rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-6 text-center transition disabled:opacity-60 ${
+          dragOver
+            ? "border-foreground/60 bg-muted"
+            : "border-border hover:bg-muted"
+        }`}
+      >
+        <Upload className="h-5 w-5 text-muted-foreground" aria-hidden />
+        <span className="text-[14px] text-foreground">
           {uploadState === "uploading"
             ? "Reading your deck…"
             : presentationRef
               ? "Replace deck"
               : "Upload your deck (PDF)"}
-        </button>
-        {presentationRef ? (
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-            Deck attached
-            <button
-              type="button"
-              onClick={clearDeck}
-              className="underline-offset-2 hover:text-foreground hover:underline"
-            >
-              remove
-            </button>
-          </span>
-        ) : null}
-      </div>
+        </span>
+      </button>
+
+      {presentationRef ? (
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[13px] text-muted-foreground">
+          Deck attached
+          <button
+            type="button"
+            onClick={clearDeck}
+            className="underline-offset-2 hover:text-foreground hover:underline"
+          >
+            remove
+          </button>
+        </p>
+      ) : null}
       {errorMsg ? (
         <p className="mt-2 text-[12px] text-destructive">{errorMsg}</p>
       ) : null}
@@ -129,55 +127,6 @@ export default function PresentationInput({
           ))}
         </ul>
       ) : null}
-
-      <div className="mt-4 space-y-3">
-        {slides.map((s, i) => (
-          <div
-            key={i}
-            className="space-y-2.5 rounded-xl border border-border p-3.5"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-medium text-foreground/70">
-                Slide {i + 1}
-              </span>
-              {slides.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => removeSlide(i)}
-                  aria-label={`Remove slide ${i + 1}`}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
-            </div>
-            <input
-              value={s.title}
-              onChange={(e) => updateSlide(i, { title: e.target.value })}
-              maxLength={SLIDE_CAPS.maxTitle}
-              placeholder="Slide title"
-              className={`h-11 ${CARD_INPUT_CLS}`}
-            />
-            <textarea
-              value={s.body}
-              onChange={(e) => updateSlide(i, { body: e.target.value })}
-              maxLength={SLIDE_CAPS.maxBody}
-              placeholder="Bullet points, one per line"
-              rows={3}
-              className={`resize-none py-2.5 ${CARD_INPUT_CLS}`}
-            />
-          </div>
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={addSlide}
-        disabled={slides.length >= SLIDE_CAPS.maxSlides}
-        className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-[13px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-      >
-        <Plus className="h-3.5 w-3.5" /> Add slide
-      </button>
     </div>
   );
 }

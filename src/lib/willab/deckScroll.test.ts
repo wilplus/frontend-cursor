@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildScreens,
   canBubble,
   chunkCounts,
   clampPosition,
@@ -160,5 +161,33 @@ describe("chunkCounts", () => {
     expect(
       chunkCounts([{ chunks: [1, 2] }, { chunks: [] }, { chunks: [3] }])
     ).toEqual([2, 1, 1]);
+  });
+});
+
+describe("buildScreens — the §11.7.2 screen grain", () => {
+  it("packs at most 3 chunks per screen, continuing the slide", () => {
+    const screens = buildScreens([
+      { slideIndex: 0, chunks: ["a", "b", "c", "d", "e"] },
+      { slideIndex: 1, chunks: ["f"] },
+    ]);
+    expect(
+      screens.map((s) => [s.slideIndex, s.screenOfSlide, s.screensInSlide])
+    ).toEqual([
+      [0, 0, 2],
+      [0, 1, 2],
+      [1, 0, 1],
+    ]);
+    expect(screens[0].chunks).toEqual(["a", "b", "c"]);
+    expect(screens[1].chunks).toEqual(["d", "e"]);
+  });
+
+  it("a short slide stays one screen", () => {
+    const screens = buildScreens([{ slideIndex: 2, chunks: ["a", "b"] }]);
+    expect(screens).toHaveLength(1);
+    expect(screens[0].screensInSlide).toBe(1);
+  });
+
+  it("an empty group still yields a navigable screen", () => {
+    expect(buildScreens([{ slideIndex: null, chunks: [] }])).toHaveLength(1);
   });
 });
