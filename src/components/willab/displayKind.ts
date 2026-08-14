@@ -15,6 +15,9 @@ export function displayKind(s: DocumentSuggestion): string {
   // words. Checked before `kind`, since a swap is kind === "replace" like an
   // ordinary correction.
   if (s.source === "acoustic_swap") return "Delivery";
+  // BEFORE kind too — the Confident Voice card is kind='bold' on the wire
+  // (§17 acoustic-confidence-v1, founder 2026-08-14).
+  if (s.source === "confident_voice") return "Confident Voice";
   if (s.kind === "bold") return "Style";
   if (s.kind === "advice") return "Flow";
   const crossTake =
