@@ -50,6 +50,50 @@ export interface CoachReviewAllowance {
   remaining: number;
 }
 
+/** The subscription behind the balance (BE `plan_state`).
+ *
+ *  `managed` and `manageAvailable` are DIFFERENT questions and conflating them
+ *  is the trap this type exists to make impossible:
+ *
+ *    managed         — is there a LIVE subscription right now? Decides buy vs
+ *                      manage. `past_due` counts as managed on purpose: the
+ *                      card failed, the subscription exists, and offering an
+ *                      upgrade there would sell a SECOND subscription to solve
+ *                      a billing problem.
+ *    manageAvailable — does a Stripe CUSTOMER exist? Decides whether the portal
+ *                      button renders at all. The customer outlives the
+ *                      subscription, so someone who cancelled months ago is
+ *                      still true and can still reach their invoices.
+ *
+ *  Null (absent or malformed) must degrade to today's behaviour, never crash a
+ *  wallet: an older backend has no `plan` on this payload. */
+export interface TokenPlan {
+  tier: string | null;
+  managed: boolean;
+  status: string | null;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
+  manageAvailable: boolean;
+}
+
+function mapTokenPlan(raw: unknown): TokenPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  // Both booleans must be present and real. A half-parsed plan is worse than
+  // no plan: it would decide buy-vs-manage off a default nobody chose.
+  if (typeof p.managed !== "boolean" || typeof p.manage_available !== "boolean") {
+    return null;
+  }
+  return {
+    tier: str(p.tier),
+    managed: p.managed,
+    status: str(p.status),
+    cancelAtPeriodEnd: p.cancel_at_period_end === true,
+    currentPeriodEnd: str(p.current_period_end),
+    manageAvailable: p.manage_available,
+  };
+}
+
 export type TokenBalance =
   /** Pricing is off. Render no wallet UI at all — not a zeroed one. */
   | { kind: "off" }
@@ -66,6 +110,9 @@ export type TokenBalance =
       periodEndsAt: string | null;
       /** A SEPARATE counter from tokens, and never convertible to them. */
       coachReviews: CoachReviewAllowance | null;
+      /** The subscription, when the BE published one. Null on an older backend
+       *  or an unmigrated DB — callers fall back to today's behaviour. */
+      plan: TokenPlan | null;
     };
 
 export function mapTokenBalance(raw: unknown): TokenBalance {
@@ -91,6 +138,7 @@ export function mapTokenBalance(raw: unknown): TokenBalance {
       used !== null && allowed !== null
         ? { used, allowed, remaining: remaining ?? Math.max(0, allowed - used) }
         : null,
+    plan: mapTokenPlan(raw.plan),
   };
 }
 
@@ -198,16 +246,73 @@ export function bandFor(prices: TokenPrices | null, seconds: number | null): Tok
   );
 }
 
-/** Cached for the page's lifetime: prices do not move mid-session and several
- *  surfaces read them. `price_version` is what catches a genuinely stale list. */
-let pricesCache: Promise<TokenPrices | null> | null = null;
+/** The prices probe, with FAILURE SEPARATED FROM OFF.
+ *
+ *  Both used to collapse to `null`, and that one missing distinction is what
+ *  made "/dashboard/pricing didn't open" indistinguishable from "pricing is
+ *  switched off" and from "the network blipped" — the page rendered a
+ *  plans-less wallet either way, with no error and no retry.
+ *
+ *    "off"    — the BE answered {"enabled": false}. Deliberate: render NO
+ *               wallet UI at all. Not an error, nothing to retry.
+ *    "failed" — we could not get an answer (HTTP error, network, bad JSON).
+ *               The user gets a retry, because trying again may well work.
+ *    "ready"  — the published list. */
+export type TokenPricesRead =
+  | { kind: "ready"; prices: TokenPrices }
+  | { kind: "off" }
+  | { kind: "failed" };
 
-export function fetchTokenPrices(): Promise<TokenPrices | null> {
-  pricesCache ??= getJson("/api/v2/tokens/prices", mapTokenPrices, null);
+/** Cached for the page's lifetime: prices do not move mid-session and several
+ *  surfaces read them. `price_version` is what catches a genuinely stale list.
+ *
+ *  A FAILED read is cached too, which is why `resetTokenPricesCache` is part
+ *  of the retry path rather than a test-only hook: without clearing it, one
+ *  flaky moment pinned a plans-less wallet until a hard reload, since
+ *  client-side navigation never re-runs this. */
+let pricesCache: Promise<TokenPricesRead> | null = null;
+
+async function readTokenPrices(): Promise<TokenPricesRead> {
+  const token = await getAuthToken();
+  // Signed out is not a failure and not a flag state: there is no wallet to
+  // show and nothing to retry. Guests probe nothing.
+  if (!token) return { kind: "off" };
+  let res: Response;
+  try {
+    res = await fetch("/api/v2/tokens/prices", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (!res.ok) return { kind: "failed" };
+  let raw: unknown;
+  try {
+    raw = await res.json();
+  } catch {
+    return { kind: "failed" };
+  }
+  // The flag-off body arrives as a 200 on purpose (see the BFF note in
+  // proxy.ts), so "off" is read off the BODY, never off a status.
+  if (!isEnabled(raw)) return { kind: "off" };
+  const prices = mapTokenPrices(raw);
+  // Enabled but unparseable is a broken payload, not a switched-off feature.
+  return prices ? { kind: "ready", prices } : { kind: "failed" };
+}
+
+export function fetchTokenPricesRead(): Promise<TokenPricesRead> {
+  pricesCache ??= readTokenPrices();
   return pricesCache;
 }
 
-/** Tests only — drop the memoised read. */
+/** Back-compat shape for callers that only need the list or nothing. */
+export async function fetchTokenPrices(): Promise<TokenPrices | null> {
+  const r = await fetchTokenPricesRead();
+  return r.kind === "ready" ? r.prices : null;
+}
+
+/** Drop the memoised read. Used by the wallet's retry and by tests. */
 export function resetTokenPricesCache(): void {
   pricesCache = null;
 }

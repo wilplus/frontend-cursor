@@ -270,9 +270,6 @@ export default function LabOverlay({
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  // True when the upload failure was a 402 — Processing then shows a neutral
-  // paywall panel (unlock link, no retry) instead of the destructive error.
-  const [uploadPaywall, setUploadPaywall] = useState(false);
   // §A2 — PROCESSING_TIMEOUT with no session_id to poll: the take is stored
   // and still processing server-side. Neutral panel, NO retry/re-record — a
   // retry would upload the same take twice.
@@ -517,7 +514,6 @@ export default function LabOverlay({
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
-        setUploadPaywall(false);
         setUploadStillProcessing(false);
         onRecordingProgress?.(result.recordingProgress);
         // SPEC-lockin-loop §1 (handoff §6.4 S4: "201 writes no marker"). A
@@ -554,7 +550,6 @@ export default function LabOverlay({
         appendRecordingSummary(result.sessionId);
         setLabSessionId(result.sessionId);
         setUploadError(null);
-        setUploadPaywall(false);
         setUploadStillProcessing(false);
         writeProcessingTake({
           sessionId: result.sessionId,
@@ -575,7 +570,6 @@ export default function LabOverlay({
         goTo("lab_recording");
       } else {
         setUploadError(result.message);
-        setUploadPaywall(result.status === 402);
         // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
         // failure — the calm panel replaces the destructive retry one.
         setUploadStillProcessing(result.code === "PROCESSING_TIMEOUT");
@@ -1011,13 +1005,11 @@ export default function LabOverlay({
         {state === "lab_processing" && (
           <Processing
             error={uploadError}
-            paywall={uploadPaywall}
             stillProcessing={uploadStillProcessing}
             slow={pollSlow}
             onRetry={() => {
               setUploadError(null);
-              setUploadPaywall(false);
-              setUploadStillProcessing(false);
+                    setUploadStillProcessing(false);
               setPollSlow(false);
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
@@ -1434,7 +1426,6 @@ export function RecordingPhase({
 
 function Processing({
   error,
-  paywall,
   stillProcessing = false,
   slow = false,
   onRetry,
@@ -1442,9 +1433,6 @@ function Processing({
   onClose,
 }: {
   error: string | null;
-  /** True when the failure was a 402 — a paywall is never an error: neutral
-   *  styling, no retry (it would just 402 again), a route to the unlock. */
-  paywall: boolean;
   /** §A2 — PROCESSING_TIMEOUT with nothing to poll: the take is stored and
    *  still processing server-side. Neutral styling, NO retry and NO re-record
    *  offer — either would duplicate a take that is not lost. */
@@ -1486,24 +1474,6 @@ function Processing({
     );
   }
 
-  if (error && paywall) {
-    // FE-5 — pricing/paywall overlay: exit is the header X + the back gesture
-    // only (consistent with every other overlay). The stray in-body "Back to
-    // Lounge" button was removed; "Unlock the full audit" is the sole action.
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-          {error}
-        </p>
-        <Link
-          href="/dashboard/pricing"
-          className="flex items-center rounded-full bg-primary px-6 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Unlock the full audit
-        </Link>
-      </div>
-    );
-  }
   if (error && stillProcessing) {
     // The message is the §A2 envelope's own copy ("…still processing, check
     // back shortly"). The take keeps processing server-side and lands in the

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import TokenWalletPanel from "@/components/tokens/TokenWalletPanel";
 import { TOKENS_COPY } from "@/components/tokens/copy";
+import { Button } from "@/components/ui/button";
+import LoadingState from "@/components/willab/LoadingState";
 import { useTokenWallet } from "@/hooks/useTokenWallet";
 
 /* -------------------------------------------------------------------------- */
@@ -34,14 +36,20 @@ export default function TokenWalletScreen() {
 
   /** Back from Stripe. Read off `window` rather than useSearchParams so this
    *  needs no Suspense boundary for one query param. */
-  const [planReturn, setPlanReturn] = useState<"success" | "cancelled" | null>(null);
+  const [planReturn, setPlanReturn] = useState<"success" | "cancelled" | "managed" | null>(
+    null
+  );
   useEffect(() => {
     if (typeof window === "undefined") return;
     const v = new URLSearchParams(window.location.search).get("plan");
-    if (v === "success" || v === "cancelled") setPlanReturn(v);
+    if (v === "success" || v === "cancelled" || v === "managed") setPlanReturn(v);
   }, []);
 
-  if (wallet.enabled === null) return null;
+  // OFF is the one state that still renders nothing at all, deliberately.
+  // Probing and failed used to render nothing too, which is the whole defect:
+  // "the pricing page doesn't open" was a blank area with no way to tell a
+  // slow read from a dead one.
+  if (wallet.pricesState === "off") return null;
 
   return (
     <div className="w-full max-w-2xl">
@@ -61,13 +69,35 @@ export default function TokenWalletScreen() {
         <p className="mb-5 rounded-xl border border-border px-4 py-3 text-[13px] text-muted-foreground">
           {planReturn === "success"
             ? TOKENS_COPY.walletPlanSuccess
-            : TOKENS_COPY.walletPlanCancelled}
+            : planReturn === "managed"
+              ? TOKENS_COPY.walletPlanManaged
+              : TOKENS_COPY.walletPlanCancelled}
         </p>
       ) : null}
-      {/* enabled === false should not happen now that pricing is the only
-          model, but if the BE ever reports it off the panel degrades to its
-          own unavailable states rather than inventing numbers. */}
-      <TokenWalletPanel wallet={wallet} />
+
+      {wallet.pricesState === "probing" ? (
+        <div className="py-10">
+          <LoadingState />
+        </div>
+      ) : wallet.pricesState === "failed" ? (
+        /* A read that failed says so and offers ONE user-initiated retry. The
+           retry clears the memoised read first (useTokenWallet.retryPrices);
+           without that, every retry re-serves the same cached failure and the
+           only real fix is a hard reload. */
+        <div className="space-y-3 rounded-xl border border-border px-4 py-5">
+          <p className="text-sm text-muted-foreground">{TOKENS_COPY.walletLoadFailed}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={wallet.retryPrices}
+          >
+            {TOKENS_COPY.walletRetry}
+          </Button>
+        </div>
+      ) : (
+        <TokenWalletPanel wallet={wallet} />
+      )}
     </div>
   );
 }

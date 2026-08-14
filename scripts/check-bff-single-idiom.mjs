@@ -33,7 +33,6 @@ const BASELINE = new Set([
   "src/app/api/public/unsubscribe/route.ts",
   "src/app/api/results/state/route.ts",
   "src/app/api/user/sessions/current/route.ts",
-  "src/app/api/v2/admin/learning/proxy.ts",
   "src/app/api/v2/arc/[arcId]/game/answers/route.ts",
   "src/app/api/v2/arc/[arcId]/game/route.ts",
   "src/app/api/v2/arc/[arcId]/game/save/route.ts",
