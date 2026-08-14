@@ -44,7 +44,9 @@ import {
 /*  No transcript on game rounds — the guess is by EAR (the screenshots drop   */
 /*  it deliberately).                                                          */
 /*                                                                            */
-/*  The small toggle: GAME (default) / BEST VOICES. Best voices is the same    */
+/*  The small toggle: GAME (default) / VOICE ALBUM (founder 2026-08-14:      */
+/*  the best-voices tab IS the Voice Album — renamed; the data source        */
+/*  upgrades to the three-way album endpoint next). Same design minus the    */
 /*  design minus the dilemma: quote card, the same playback hero, ONE comment  */
 /*  below (the coach's note OVERRIDES the system's — never both) plus the      */
 /*  coach's video when attached, and neutral black Back / Next.                */
@@ -110,7 +112,7 @@ export default function GamePageClient({
           value={tab}
           options={[
             { value: "game", label: "Game" },
-            { value: "voice", label: "Best voices" },
+            { value: "voice", label: "Voice album" },
           ]}
           onChange={setTab}
         />
