@@ -61,7 +61,7 @@ REDIRECT: n/a
 | 1 | Pricing is live | `useTokenWallet().enabled === true` (`useTokenWallet.ts:70`) |
 | 2 | User is actually out | `RecordingBandState.kind === "exhausted"` (`tokens.ts:238`, i.e. `can_record:false`) |
 | 3 | Something to sell them | `currentTier === "free" \|\| currentTier === null` |
-| 4 | BE published paid tiers | `prices.tiers` has ≥1 of starter/pro/max |
+| 4 | BE published paid tiers | `prices.tiers` has ≥1 tier with `usdPerMonth > 0` |
 | 5 | Lab does not own screen | `canMountTopUpCard(state, threadLoading)` |
 | 6 | Not snoozed this period | see §SNOOZE |
 
@@ -85,14 +85,12 @@ src/components/willab/topUpCardGate.ts        canMountTopUpCard — pure predica
 src/components/willab/topUpCardGate.test.ts
 src/components/willab/LoungeTopUpCard.tsx     the card (thin, per LoungeSpeakerSexPrompt)
 src/components/tokens/TokenPlanChips.tsx      chip row + checkout call
-src/components/tokens/planValue.ts            savingVsEntryTier — pure
-src/components/tokens/planValue.test.ts
 ```
 
 **Modified — these two files only**
 ```
 src/components/willab/Lounge.tsx              ONE mount line, before LoungeSpeakerSexPrompt (~825)
-src/components/tokens/copy.ts                 the eight strings in §COPY
+src/components/tokens/copy.ts                 the seven strings in §COPY
 ```
 
 **Do NOT modify:** `TokenPlanCards.tsx`, `TokenWalletPanel.tsx`, `TokenWalletScreen.tsx`,
@@ -123,29 +121,14 @@ question is how the speaker-sex card's four states nearly drifted apart.
 
 ---
 
-## THE SAVINGS MATH
+## NO SAVINGS LABEL — DROPPED BY FOUNDER RULING (2026-08-13, pricing v3)
 
-`src/components/tokens/planValue.ts`, pure, no JSX:
-
-```ts
-/** Percent cheaper per token than the cheapest PAID tier the BE published.
- *  null for the entry tier itself and for any missing/zero/negative result. */
-export function savingVsEntryTier(
-  tiers: Record<string, TokenTier>,
-  name: string
-): number | null
-```
-
-- `perThousand = usdPerMonth / (tokensPerMonth / 1000)`
-- `saving = Math.round((1 - perThousand / entryPerThousand) * 100)`
-- Return `null` if either tier is missing, if any input is `0`, or if `saving <= 0`.
-  A label we cannot stand behind is worse than none — the rule `ArcActionPrice` already
-  follows.
-- The "entry tier" is the cheapest tier present in `tiers` with `usdPerMonth > 0`. Derive it;
-  do not assume it is `starter`.
-
-Against today's served list this yields Starter → `null`, Pro → `17`, Max → `33`.
-**Assert those in the test but derive them in the code.**
+An earlier version of this prompt specced a computed "Save n%" label and a `planValue.ts`
+module. **Both are dead.** Pricing v3 repriced the ladder on coach reviews, not tokens, so the
+per-token savings math renders nothing or lies. Do not build `planValue.ts`, do not render any
+percentage, and do not invent a different savings framing (per-review included) — that needs a
+new founder decision, not an implementation choice. Chips show: tier name, token count, price.
+Nothing else.
 
 ---
 
@@ -159,7 +142,6 @@ topUpRenews:     (on: string) => `They renew ${on}. Or pick a plan and keep goin
 topUpNoDate:     "Pick a plan and keep going now.",
 topUpChip:       (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
 topUpChipPrice:  (usd: number) => `$${usd}/mo`,
-topUpSaving:     (pct: number) => `Save ${pct}%`,
 topUpDismiss:    "Not now",
 topUpFailed:     "Couldn't start checkout. Try again.",
 ```
@@ -222,10 +204,11 @@ Reuse, so that no new design decision is made:
 - **Chip row:** the `SpeakerSexQuestion.tsx:71-101` pattern — `flex flex-col gap-2 sm:flex-row`,
   each chip `rounded-lg border px-3 py-2 text-sm`, same hover/selected treatment. These are
   buttons, not radios: one tap acts, there is no selected state to hold.
-- **Chip contents:** line 1 `topUpChip(tier, tokens)`, line 2 `topUpChipPrice(usd)` with
-  `topUpSaving(pct)` alongside it in `text-muted-foreground`. Omit the saving element entirely
-  when `savingVsEntryTier` returns `null`.
-- **Order:** starter → pro → max, filtered to tiers the BE actually published.
+- **Chip contents:** line 1 `topUpChip(tier, tokens)`, line 2 `topUpChipPrice(usd)`. Nothing
+  else — no savings element (see the ruling section above).
+- **Order:** one chip per paid tier the BE actually published (`usdPerMonth > 0`), sorted by
+  `usdPerMonth` ascending. **Never a hardcoded key list** — pricing v3 renames the tier keys,
+  and a named ladder is exactly the day-one break ticket T5 exists to kill.
 - **Palette:** monochrome, with **at most ONE orange element** — the standing rule in
   `TokenPlanCards.tsx:30-35`. Put it on the middle chip. Orange comes from `--primary`, never
   a literal.
@@ -246,14 +229,13 @@ JSX transform in this vitest config.
 1. `topUpCardGate.test.ts` — mirror `speakerSexAskGate.test.ts`. False for every
    `isLabOverlay` state, false for `lab_project_pick`, false while `threadLoading`; true for
    `lounge_idle`, `lounge_general`, `insights_ready`.
-2. `planValue.test.ts` — 17 / 33 / `null` against the real served list; `null` for a missing
-   tier, `tokensPerMonth: 0`, `usdPerMonth: 0`, and any negative result. Include a case where
-   the entry tier is NOT starter, to prove it is derived.
-3. **Fence test** (grep the source files, in the shape of `corpusFence.test.ts:101-103`):
-   - no `$`, token-count or `%` numeric literal in `TokenPlanChips.tsx` / `LoungeTopUpCard.tsx`;
+2. **Fence test** (grep the source files, in the shape of `corpusFence.test.ts:101-103`):
+   - no `$`, token-count, `%` **or tier-key** literal
+     (`starter|pro|max|practice|coached|intensive`) in `TokenPlanChips.tsx` /
+     `LoungeTopUpCard.tsx` — every number and key comes from the served list;
    - neither imports a dialog/modal/portal/overlay primitive;
    - the new mount in `Lounge.tsx` sits inside the thread's scroll container.
-4. Extend `copy.test.ts`'s house-style assertions to the eight new strings (no em-dashes, no
+3. Extend `copy.test.ts`'s house-style assertions to the seven new strings (no em-dashes, no
    performance framing).
 
 Run `npm test` and `npx tsc --noEmit`. Both must pass before you commit.
@@ -262,9 +244,10 @@ Run `npm test` and `npx tsc --noEmit`. Both must pass before you commit.
 
 ## DEFINITION OF DONE
 
-- [ ] Six new files, two modified. Nothing else touched.
+- [ ] Four new files, two modified. Nothing else touched.
 - [ ] `npm test` green, `npx tsc --noEmit` clean.
-- [ ] No number literal in the new components; every figure traced to the served tier list.
+- [ ] No number or tier-key literal in the new components; everything traced to the served
+      tier list.
 - [ ] Copy byte-identical to §COPY.
 - [ ] No overlay, no portal, no disabled control anywhere in the diff.
 - [ ] Commit on `claude/pricing-modal-token-tab-br4mp8` with the FILTER stamp in the message.

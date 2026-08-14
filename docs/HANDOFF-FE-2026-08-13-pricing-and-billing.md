@@ -5,8 +5,8 @@
 
 This is a complete, self-contained handoff. Every claim in it was verified by reading source
 in both `frontend-cursor` and `backend-cursor`; every file:line is real at the time of writing.
-Four tickets, in dependency order. **You can execute them one at a time — each is independent
-unless the "Depends on" line says otherwise.**
+Five FE tickets plus a binding pricing-v3 addendum for the BE build agent (PART 6). **Execute
+tickets one at a time — each is independent unless the "Depends on" line says otherwise.**
 
 Read `CLAUDE.md` before touching anything. It contains the WILLAB DECISION FILTER, which you
 must run and emit for each ticket. Verdicts are pre-settled below — **restate them, do not
@@ -100,16 +100,39 @@ Single source of truth: `backend-cursor/services/token_prices.py`,
 `PRICE_VERSION = "2026-08-01-v2"` (`:31`). Served by `GET /v2/tokens/prices`. **Nothing below is
 hardcoded in the frontend and nothing you write may hardcode it either.**
 
-## Plans (`token_prices.py:46-51`)
+## Plans — v3 (founder-ruled 2026-08-13; see PART 6 for the full addendum)
 
-| Tier | $/mo | Tokens/mo | Coach reviews | $ per 1k | Saving vs Starter |
-|---|---|---|---|---|---|
-| free | 0 | 12,000 | 0 | — | — |
-| starter | 5 | 50,000 | 1 | $0.100 | — |
-| pro | 25 | 300,000 | 6 | $0.083 | **17%** |
-| max | 100 | 1,500,000 | 30 | $0.067 | **33%** |
+**Pricing v3 replaces the sold ladder.** Grants scale on tokens; **price scales on coach
+reviews**. The tiers SOLD after v3 lands:
 
-The saving column is arithmetic, **not** in the code or any UI today. T2 adds it, computed.
+| key | display | $/mo | Tokens/mo | Coach reviews |
+|---|---|---|---|---|
+| free | Free | 0 | 12,000 | 0 |
+| practice | Practice | 12 | 150,000 | 0 |
+| coached | Coached | 39 | 150,000 | 3 |
+| intensive | Intensive | 89 | 400,000 | 8 |
+
+Plus one à-la-carte SKU, **not** a tier: an extra coach review, $15, +1 to the period's
+allowance. (Its FE wiring is blocked on a BE contract — PART 6 §C.)
+
+**Legacy tiers are TRUE-GRANDFATHERED, never aliased** (founder ruling 2026-08-13). Existing
+`starter` / `pro` / `max` subscribers keep exactly their current entitlements at their current
+prices — including legacy max at **30** reviews:
+
+| legacy key | $/mo | Tokens/mo | Coach reviews | Status |
+|---|---|---|---|---|
+| starter | 5 | 50,000 | 1 | grandfathered, no longer sold |
+| pro | 25 | 300,000 | 6 | grandfathered, no longer sold |
+| max | 100 | 1,500,000 | 30 | grandfathered, no longer sold |
+
+**What this means FE-side:** `prices.tiers` is the *sales sheet* (free + the three sold
+tiers); `balance.tier` may name a legacy key that appears in no card. `isCurrent` matching
+nothing is then correct — a grandfathered subscriber is `plan.managed: true` and gets the
+manage path (T3), never a buy button.
+
+**The old table above is what the code serves TODAY** (starter/pro/max,
+`token_prices.py:46-51`). Until the BE v3 PR lands, the served list is the old one — which is
+exactly why nothing may be hardcoded (T5).
 
 ## Action prices (`token_prices.py:80-118`)
 
@@ -129,9 +152,10 @@ nothing rolls over. `insights` / `game` / `moment_explanation` / `coach_review` 
 
 ## Two facts worth knowing, neither of which you should act on
 
-- **Max ships 30 coach reviews, not the 10 in the docs.** The code is right: it is a deliberate
-  founder reversal on 2026-08-01, pinned by `test_token_pricing.py:322-330`. Two docs and one
-  comment above the table still say 10. Do not "fix" the code to match the docs.
+- **The max = 30-vs-10 discrepancy is RESOLVED** (founder ruling 2026-08-13, closing v3
+  handoff §7): the code's 30 is correct and legacy max **keeps 30 under grandfathering**. The
+  `PRICING-TOKENS-PLAN.md` §3 "10" is stale and gets fixed in the BE v3 PR. The new
+  `intensive` tier is 8. Do not "fix" the code to match the old doc.
 - **The free tier's arithmetic is under review.** Free grants 12,000/month while
   `coach_feedback` charges 35,000 at publish (`token_prices.py:117`,
   `routes/v2/publish.py:364`), so a free user's first coach-published feedback floors them to
@@ -243,7 +267,11 @@ LOCKS:    clear
 ```
 
 When a user is out of tokens, the Lounge shows a card **inside the conversation** offering the
-published paid plans as tappable chips, each labelled with what it saves. One tap → Stripe.
+published paid plans as tappable chips. One tap → Stripe.
+
+**The savings label is DROPPED** (founder ruling 2026-08-13). Under pricing v3 the value
+metric pivots from tokens to coach reviews, so per-token savings math is muddy — coached and
+intensive cost *more* per token than practice. No savings element, no `planValue.ts`.
 
 ### The five non-negotiables
 
@@ -263,7 +291,7 @@ published paid plans as tappable chips, each labelled with what it saves. One ta
 | 1 | Pricing live | `useTokenWallet().enabled === true` |
 | 2 | Actually out | `RecordingBandState.kind === "exhausted"` (`tokens.ts:238`) |
 | 3 | Something to sell | `currentTier === "free" \|\| currentTier === null` |
-| 4 | Paid tiers published | `prices.tiers` has ≥1 of starter/pro/max |
+| 4 | Paid tiers published | `prices.tiers` has ≥1 tier with `usdPerMonth > 0` |
 | 5 | Lab doesn't own screen | `canMountTopUpCard(state, threadLoading)` |
 | 6 | Not snoozed this period | see Snooze |
 
@@ -283,21 +311,7 @@ export function canMountTopUpCard(state: WillabState, threadLoading: boolean): b
 False when `threadLoading`, when `state === "lab_project_pick"`, or when `isLabOverlay(state)`.
 It answers *"may we mount at all"* and nothing else; conditions 1-4 and 6 live in the component.
 
-### The savings math
-
-`src/components/tokens/planValue.ts`, pure:
-
-```ts
-export function savingVsEntryTier(tiers: Record<string, TokenTier>, name: string): number | null
-```
-
-`perThousand = usdPerMonth / (tokensPerMonth / 1000)`;
-`saving = Math.round((1 - perThousand / entryPerThousand) * 100)`.
-Return `null` if either tier is missing, any input is `0`, or `saving <= 0`. The entry tier is
-the cheapest tier present with `usdPerMonth > 0` — **derive it, do not assume `starter`**.
-Today: starter → `null`, pro → `17`, max → `33`. Assert those; derive them.
-
-### Copy — signed off, verbatim
+### Copy — signed off, verbatim (savings string removed per the v3 ruling)
 
 ```ts
 topUpTitle:      "You're out of tokens.",
@@ -305,7 +319,6 @@ topUpRenews:     (on: string) => `They renew ${on}. Or pick a plan and keep goin
 topUpNoDate:     "Pick a plan and keep going now.",
 topUpChip:       (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
 topUpChipPrice:  (usd: number) => `$${usd}/mo`,
-topUpSaving:     (pct: number) => `Save ${pct}%`,
 topUpDismiss:    "Not now",
 topUpFailed:     "Couldn't start checkout. Try again.",
 ```
@@ -326,19 +339,19 @@ waiting is legitimate and hiding it is a dark pattern (`RecordPriceNote.tsx:25-2
   Initialise "snoozed" to `true` so it cannot flash before storage is read
   (`SpeakerSexPrompt.tsx:66`).
 - Card shell verbatim from `SpeakerSexPrompt.tsx:102-108`; chip row from
-  `SpeakerSexQuestion.tsx:71-101` (buttons, not radios — one tap acts). Order starter → pro →
-  max. Monochrome with **at most one orange element** (`TokenPlanCards.tsx:30-35`) on the middle
-  chip, from `--primary`, never a literal. "Not now" as a ghost button
-  (`SpeakerSexPrompt.tsx:118-129`).
+  `SpeakerSexQuestion.tsx:71-101` (buttons, not radios — one tap acts). **Order: paid tiers
+  sorted by `usdPerMonth` ascending — never a hardcoded key list** (same rule as T5). Monochrome
+  with **at most one orange element** (`TokenPlanCards.tsx:30-35`) on the middle chip, from
+  `--primary`, never a literal. "Not now" as a ghost button (`SpeakerSexPrompt.tsx:118-129`).
 - **Stacking is allowed and needs no logic** (founder decision). If a user qualifies for both
   this and the speaker-sex ask, both render as separate bubbles. Do **not** add suppression or
   priority — the sex ask fires early in a user's life, this only once tokens run out.
 
 ### Files
 
-New: `topUpCardGate.ts` + test, `LoungeTopUpCard.tsx`, `TokenPlanChips.tsx`, `planValue.ts` +
-test. Modified: `Lounge.tsx` (**one mount line**, before `LoungeSpeakerSexPrompt` ~825),
-`copy.ts` (eight strings).
+New: `topUpCardGate.ts` + test, `LoungeTopUpCard.tsx`, `TokenPlanChips.tsx`.
+Modified: `Lounge.tsx` (**one mount line**, before `LoungeSpeakerSexPrompt` ~825),
+`copy.ts` (seven strings).
 Do **not** modify `TokenPlanCards.tsx`, `TokenWalletPanel.tsx`, `RecordPriceNote.tsx`,
 `subscribe.ts`, `tokens.ts`, any BFF route, or the backend.
 
@@ -483,6 +496,60 @@ broken frontend code. Confirm the migration ran before debugging the FE.
 
 ---
 
+## T5 — v3 tier readiness: kill the hardcoded ladder
+
+**⚠️ HARD DEADLINE: must be merged and deployed WITH OR BEFORE the BE v3 tier rename.**
+Old FE + new BE = the pricing page renders **zero plan cards**, silently. This is the only
+ticket here with an external gate; the BE rollout order (PART 6) mandates it.
+
+```
+VERDICT:  JUSTIFIED-SCAFFOLDING (founder-directed, 2026-08-13)
+CATEGORY: SCAFFOLDING
+WHY:      TokenPlanCards hardcodes the tier keys the BE is about to rename. The named
+          unblocker of the BE v3 pricing PR.
+FENCES:   clear. No new copy — raw served keys render (founder-approved A.2).
+LOCKS:    clear
+```
+
+### The defect
+
+`TokenPlanCards.tsx:42`:
+
+```ts
+const LADDER: readonly string[] = ["starter", "pro", "max"];
+```
+
+`cards = LADDER.filter((name) => tiers[name] !== undefined)` (`:81`) → with v3's
+`practice`/`coached`/`intensive` served, matches nothing → `return null` (`:82`).
+
+### Build
+
+1. Delete `LADDER`. Derive the card list: every tier in the served `prices.tiers` with
+   `usdPerMonth > 0`, **sorted by `usdPerMonth` ascending**. Free is already handled
+   separately (`planFreeLine`) and must stay a line, not a card.
+2. Keep the middle-card emphasis rule exactly as is (`emphasised = i === 1 && cards.length
+   === 3`, `:98`) — with three sold tiers it lands on the middle one by construction.
+3. Tier names keep rendering as the raw served key (`:123`, uppercase styling) and in
+   `planCardCta(name)` — founder-approved; no new strings.
+4. `src/services/api/tokens.test.ts` — add fixtures using the v3 keys alongside the existing
+   `starter` fixtures (the mappers are key-agnostic; prove it).
+5. Verify — expect **no code change**: `prices/route.ts` and `checkout/route.ts` are verbatim
+   relays and validate no tier keys FE-side; `subscribe.ts` takes `tier: string`. Note the
+   verification in the PR body.
+6. **Fence test:** extend the source-grep suite — no tier-key string literal
+   (`starter|pro|max|practice|coached|intensive`) in `TokenPlanCards.tsx` (or
+   `TokenPlanChips.tsx` once T2 lands). The next repricing must be a zero-FE-change event.
+
+### DO NOT
+
+- Hardcode the new keys anywhere. That recreates this ticket with different names.
+- Add display-name mapping or new copy — raw keys for now, sign-off later.
+- Touch the legacy keys: a grandfathered `pro` user's `currentTier` matching no card is
+  **correct** (they get the manage path via T3, or the `walletManageUnavailable` line before
+  T3 lands).
+
+---
+
 ## T4 — delete the unreachable upload paywall
 
 **Small. Do it last.** Depends on nothing.
@@ -529,10 +596,11 @@ raise it with the founder.**
 
 ## Suggested order
 
-**T1 → T3 → T2 → T4.** T1 first because it may be the original bug and both other tickets make
-that page matter more. T3 before T2 because T3 is what eventually relaxes T2's "paid users get
-no card" rule — though **T2 must still ship with that rule**; relaxing it is a separate,
-founder-approved change.
+**T5 → T1 → T3 → T2 → T4.** T5 first because it is the only ticket with an external deadline —
+it hard-gates the BE v3 merge (PART 6 rollout). T1 next because it may be the original bug and
+every other ticket makes that page matter more. T3 before T2 because T3 is what eventually
+relaxes T2's "paid users get no card" rule — though **T2 must still ship with that rule**;
+relaxing it is a separate, founder-approved change.
 
 They are independent, so a different order is fine. Just do not bundle them.
 
@@ -548,18 +616,125 @@ They are independent, so a different order is fine. Just do not bundle them.
 5. **`src/services/api/tokens.test.ts` exists.** Extend it; do not create it.
 6. **The record path never 402s, but other endpoints do.** (T4.) Do not delete 402 handling
    globally.
-7. **Max really does grant 30 coach reviews.** The docs saying 10 are stale. Do not "fix" it.
+7. **Legacy max really does grant 30 coach reviews, and keeps them.** Resolved by the v3
+   grandfathering ruling; the docs saying 10 are stale and die in the BE v3 PR. Do not "fix"
+   the code.
 8. **`/dashboard/pricing` is a page, not a modal**, deliberately. Do not convert it to an
    overlay, and do not add an overlay anywhere near the Lounge — LIVE LOOP.
 9. **Copy is founder-owned.** Every string in this document is signed off as written. Inventing
    or "improving" one is a fence breach, however small (R13).
+10. **Legacy tiers are grandfathered, never aliased.** No code anywhere — BE or FE — may map
+    `starter`→`coached`, `pro`→`coached`, or `max`→`intensive`. An alias silently rewrites a
+    paying user's entitlements (pro would lose half its tokens and reviews at the same price).
+11. **`prices.tiers` is the sales sheet, not the tier universe.** `balance.tier` may name a
+    legacy key that appears in no card. `isCurrent` matching nothing is correct, not a bug.
+12. **No tier-key string literal in any component.** The keys are about to change once and may
+    change again. Derive card order from `usdPerMonth`, never from a list of names (T5).
 
 ## Definition of done, all tickets
 
 - [ ] `npm test` green · `npx tsc --noEmit` clean · `npm run check:bff` passing
-- [ ] No price, token count or percentage literal in any new component
+- [ ] No price, token count, percentage **or tier-key** literal in any new component
 - [ ] Copy byte-identical to this document
 - [ ] No overlay, no portal, no disabled control introduced anywhere
 - [ ] A free user's experience unchanged unless the ticket explicitly changes it
 - [ ] An older/misconfigured backend degrades to today's behaviour, never a crash
 - [ ] Committed on `claude/pricing-modal-token-tab-br4mp8` with the FILTER stamp
+
+---
+
+# PART 6 — PRICING v3 ADDENDUM (rulings that BIND the BE build agent too)
+
+The BE handoff "pricing v3" (tier ladder repriced on coach reviews) was reviewed against both
+codebases on 2026-08-13 and the founder ruled on every finding the same day. **This part
+supersedes §1.1, §7 and §8 of that BE handoff.** Its §1 table (the new tiers), §2-§5
+(files, migration, extra-review counter, phase-1 overlay) and §6 (fences) stand as written,
+subject to the corrections below. A BE agent executing v3 works from that handoff **plus this
+part**; where they disagree, this part wins.
+
+## 6.1 TRUE GRANDFATHERING — aliases are FORBIDDEN (supersedes v3 §1.1)
+
+The v3 handoff proposed `normalize_tier()` aliases (`starter`→`coached`, `pro`→`coached`,
+`max`→`intensive`) and called it grandfathering. **It is not — it silently rewrites paying
+users' entitlements** (pro: 300k→150k tokens and 6→3 reviews at the same $25; max: −73% on
+both while paying $100 for an $89 tier). Founder ruling: **we have real users; no rug-pulls.**
+
+The binding rules:
+
+1. `TIERS` keeps `starter` / `pro` / `max` as **full entries with their exact current
+   numbers** — starter {50,000 / 1 / $5}, pro {300,000 / 6 / $25}, max {1,500,000 / **30** /
+   $100} — marked no-longer-sold. The three v3 tiers are added beside them.
+2. `normalize_tier()` maps every legacy key **to itself**. No alias, ever. Nothing anywhere
+   maps an old key to a new one.
+3. **Old Stripe Price IDs STAY in `STRIPE_PRICE_TIER_JSON`, mapped to their old keys.**
+   Dropping them would make existing subscribers' renewal webhooks resolve to nothing and
+   grant nothing. The new JSON is the old map **plus** the three new recurring Price IDs.
+4. `POST /v2/tokens/checkout` **sells the new keys only** — a legacy key in the request is
+   rejected (`INVALID_TIER`), because nothing may create a *new* subscription on a retired
+   tier. Existing legacy subscriptions renew, upgrade and cancel through the webhook + portal
+   exactly as today.
+5. `public_price_list()` — the FE's sales sheet — serves **free + the three sold tiers only**.
+   Legacy tiers do not appear in `prices.tiers` (they are not for sale), while
+   `/v2/tokens/balance` continues to report a legacy subscriber's real tier key. This split is
+   load-bearing for the FE (T5, trap 11): cards render from the sales sheet; the balance may
+   name a key with no card.
+6. The DB CHECK constraint widens to old ∪ new, exactly as the v3 migration already writes it.
+   No live row is rewritten; none should be.
+
+## 6.2 v3 §7 is RESOLVED
+
+Legacy max keeps **30** coach reviews — the code was authoritative, the
+`PRICING-TOKENS-PLAN.md` §3 "10" is stale and must be corrected in the same BE PR so the two
+stop diverging. The new `intensive` tier is 8. No founder question remains open here.
+
+## 6.3 THE MISSING CONTRACT — the $15 extra-review SKU (BE must answer before FE wires it)
+
+v3 §4 defines the counter (`coach_reviews_purchased`, composed into `allowed` alongside tier
+and overlay) but **never defines the endpoint the FE calls to sell it.** The BE must publish a
+strict contract in its PR. Proposed shape, to accept or amend — not to leave implicit:
+
+```jsonc
+// POST /v2/tokens/checkout-extra-review        (authed)
+// body: { "success_url"?: string, "cancel_url"?: string }
+200 { "checkout_url": "...", "checkout_session_id": "..." }
+503 { "code": "DISABLED" }        // no Stripe key
+500 { "code": "MISCONFIGURED" }   // no one-off Price configured
+```
+
+Requirements regardless of final shape: a **one-off** Stripe Price (mode=payment, not
+recurring, and NOT in `STRIPE_PRICE_TIER_JSON` — a review is not a tier); fulfilment by
+webhook incrementing `coach_reviews_purchased` with the same CAS pattern as
+`token_account.py:781`; idempotent on redelivery; and the v3 §4 open question (does a
+purchased review expire at the period roll?) answered in the same PR — recommendation stands:
+yes, reset in `set_tier` beside the existing resets, never in the webhook.
+
+**FE consequence:** the extra-review purchase surface (wallet coach-reviews section + an offer
+on the `coachReviewsExhausted` line) is a **follow-up FE ticket blocked on this contract**. It
+is deliberately not part of T1–T5. Its copy will need sign-off.
+
+## 6.4 THE SAVINGS LABEL IS DEAD (founder ruling)
+
+v3 prices scale on coach reviews, not tokens — per-token, coached ($0.26/1k) and intensive
+($0.22/1k) cost *more* than practice ($0.08/1k), so the planned "Save 17% / 33%" labels would
+render nothing or lies. Ruling: **drop the label entirely.** T2 above is already updated: no
+savings element, no `planValue.ts`, seven copy strings not eight. Do not resurrect it in any
+form (per-review framing included) without a new founder decision.
+
+## 6.5 ROLLOUT ORDER (amends v3 §8)
+
+1. **FE T5 (dynamic ladder) merges and deploys FIRST — hard gate.** Old FE + new BE = a
+   pricing page with zero plan cards.
+2. Create the four new Stripe Prices (3 recurring + 1 one-off) and set the **merged**
+   `STRIPE_PRICE_TIER_JSON` (old IDs kept + new IDs added) on **every** Railway service —
+   web, worker, cron — *before* the BE PR merges. CONFIG-FIRST rule; verify from each
+   service's **boot log**, not the Railway UI.
+3. Merge BE v3 + migration in one PR (remember: `MIGRATE_ON_BOOT=1` — merging the migration
+   IS running it in prod).
+4. FE tier-picker copy (display names etc.) lands whenever signed off — raw keys render fine
+   until then.
+5. Phase-1 overlay stays `PHASE1_OVERLAY_ENABLED=0` until the founder starts the campaign.
+
+One footnote for the overlay: it changes the *allowance*, not the advertised sheet, so during
+a free-review campaign `planFreeLine` ("…no coach reviews") will understate what free users
+actually get. Accepted — a bonus above the advertised plan — but the founder may want a copy
+tweak when the campaign starts; that is a sign-off question for then, not now.
