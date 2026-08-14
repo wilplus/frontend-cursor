@@ -217,3 +217,14 @@ describe("the acoustic swap lane (founder 2026-08-13)", () => {
     expect(c!.takeSessionId).toBe("t1");
   });
 });
+
+describe("the wording source and the Delivery label (audit findings)", () => {
+  it("accepts source='wording' instead of coercing it to null", () => {
+    const c = mapDocumentSuggestions([
+      { ...{ id: "w1", snippet_id: "s1", take_session_id: "t1",
+        kind: "replace", source: "wording", quote: "q",
+        proposed_text: "p", span: { start: 0, end: 1 }, status: "pending" } },
+    ] as never)?.[0];
+    expect(c?.source).toBe("wording");
+  });
+});

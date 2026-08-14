@@ -30,18 +30,11 @@ import type {
 /*  modal never renders BE free text (LIVE LOOP).                              */
 /* -------------------------------------------------------------------------- */
 
-/** Display kind over the served fields — the founder's ruling: display words
- *  only, no second taxonomy. Derived, never stored. */
-export function displayKind(s: DocumentSuggestion): string {
-  if (s.kind === "bold") return "Style";
-  if (s.kind === "advice") return "Flow";
-  const crossTake =
-    s.why === "energy" ||
-    s.why === "steadiness" ||
-    s.why === "coverage" ||
-    s.why === "overall";
-  return crossTake ? "Flow" : "Clarity";
-}
+// displayKind lives in its own pure .ts module so the founder's display
+// taxonomy is unit-testable (vitest cannot transform .tsx imports here);
+// re-exported so existing importers keep their path.
+import { displayKind } from "./displayKind";
+export { displayKind };
 
 export type LockOutcome = "ok" | "blocked" | "failed";
 
