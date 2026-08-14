@@ -124,6 +124,24 @@ export const TOKENS_COPY = {
    *  checkout return: a cancellation or switch lands by webhook. */
   walletPlanManaged: "Any changes are being applied.",
 
+  /* --------------------- the in-thread top-up card ----------------------- */
+
+  /** Founder-signed 2026-08-13. Shown INSIDE the Lounge thread when someone
+   *  has run dry — the only surface in the app that turns "out of tokens"
+   *  into a route to pay. Before it, the single mention of running out was a
+   *  non-clickable sentence under the record button.
+   *
+   *  `topUpRenews` keeps the WAIT route beside the buy route deliberately:
+   *  with a monthly reset, waiting is a legitimate choice, and hiding it to
+   *  push an upgrade is a dark pattern. */
+  topUpTitle: "You're out of tokens.",
+  topUpRenews: (on: string) => `They renew ${on}. Or pick a plan and keep going now.`,
+  topUpNoDate: "Pick a plan and keep going now.",
+  topUpChip: (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
+  topUpChipPrice: (usd: number) => `$${usd}/mo`,
+  topUpDismiss: "Not now",
+  topUpFailed: "Couldn't start checkout. Try again.",
+
   /* ------------------------ wallet read failures ------------------------- */
 
   /** The plans read did not come back. DISTINCT from pricing being switched
