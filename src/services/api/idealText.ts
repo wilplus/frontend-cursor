@@ -207,6 +207,10 @@ export interface DocumentSuggestion {
     | "profanity"
     | "delivery"
     | "structural"
+    /** Say-it-stronger replaces and emphasize bolds. The audit found this
+     *  MISSING from both the union and the validator — it coerced to null
+     *  and survived only because the default branch happened to be right. */
+    | "wording"
     /** MASTER DOCUMENT (founder 2026-07-22) — a NEW take beat this block of
      *  the persistent master text. Approve-gated like every other change:
      *  the master never changes without a tap. */
@@ -310,6 +314,7 @@ export function mapDocumentSuggestions(
     const rawSource = r.source;
     const source =
       rawSource === "polish" ||
+      rawSource === "wording" ||
       rawSource === "prior_take" ||
       rawSource === "profanity" ||
       rawSource === "delivery" ||
