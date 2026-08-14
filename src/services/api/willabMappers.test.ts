@@ -360,7 +360,8 @@ describe("mapCoachReviewState (FE-2)", () => {
         takes_done: 3,
       },
       can_publish: false,
-      blockers: ["IDEAL_TEXT_NOT_APPROVED"],
+      blockers: [],
+      advisories: ["IDEAL_TEXT_NOT_APPROVED"],
       pending_session_ids: [],
     });
     expect(s).toEqual({
@@ -385,7 +386,8 @@ describe("mapCoachReviewState (FE-2)", () => {
         takesDone: 3,
       },
       canPublish: false,
-      blockers: ["IDEAL_TEXT_NOT_APPROVED"],
+      blockers: [],
+      advisories: ["IDEAL_TEXT_NOT_APPROVED"],
       pendingSessionIds: [],
     });
   });
@@ -394,7 +396,8 @@ describe("mapCoachReviewState (FE-2)", () => {
     const s = mapCoachReviewState({
       arc_id: "arc2",
       takes: [{ take_index: 2 }, { session_id: "s2" }], // first has no session_id
-      blockers: ["TAKES_NOT_SAVED", "bogus"],
+      blockers: ["NO_TAKES", "bogus"],
+      advisories: ["TAKES_NOT_SAVED", "nonsense"],
     });
     expect(s?.published).toBe(false);
     expect(s?.takes).toEqual([
@@ -403,7 +406,9 @@ describe("mapCoachReviewState (FE-2)", () => {
     expect(s?.ideal.assemblyState).toBeNull();
     expect(s?.ideal.approved).toBe(false);
     expect(s?.canPublish).toBe(false);
-    expect(s?.blockers).toEqual(["TAKES_NOT_SAVED"]);
+    expect(s?.blockers).toEqual(["NO_TAKES"]);
+    // Advisories parse on their own allowlist and drop junk the same way.
+    expect(s?.advisories).toEqual(["TAKES_NOT_SAVED"]);
   });
 
   it("returns null on a non-object", () => {
