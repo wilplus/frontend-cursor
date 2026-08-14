@@ -70,7 +70,52 @@ describe("mapTokenBalance", () => {
       periodStart: "2026-07-28T09:00:00+00:00",
       periodEndsAt: "2026-08-28T09:00:00+00:00",
       coachReviews: { used: 0, allowed: 1, remaining: 1 },
+      plan: null,
     });
+  });
+
+  it("carries the subscription when the BE publishes one", () => {
+    const b = mapTokenBalance({
+      enabled: true,
+      available: true,
+      balance: 100,
+      tier: "coached",
+      plan: {
+        tier: "coached",
+        managed: true,
+        status: "active",
+        cancel_at_period_end: false,
+        current_period_end: "2026-09-13T00:00:00Z",
+        manage_available: true,
+      },
+    });
+    expect(b).toMatchObject({
+      plan: {
+        tier: "coached",
+        managed: true,
+        status: "active",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: "2026-09-13T00:00:00Z",
+        manageAvailable: true,
+      },
+    });
+  });
+
+  it("drops a half-parsed plan rather than defaulting its booleans", () => {
+    // A missing `managed` must not become false: that would offer checkout to
+    // a live subscriber and charge them a second time.
+    const b = mapTokenBalance({
+      enabled: true,
+      available: true,
+      balance: 100,
+      plan: { tier: "coached", status: "active" },
+    });
+    expect(b).toMatchObject({ plan: null });
+  });
+
+  it("an older backend with no plan reads as null, not a crash", () => {
+    const b = mapTokenBalance({ enabled: true, available: true, balance: 100 });
+    expect(b).toMatchObject({ kind: "ready", plan: null });
   });
 
   it("reads available:false as UNKNOWN, never as zero", () => {
@@ -102,6 +147,48 @@ describe("mapTokenBalance", () => {
       coach_reviews: { used: 4, allowed: 6 },
     });
     expect(b).toMatchObject({ coachReviews: { used: 4, allowed: 6, remaining: 2 } });
+  });
+});
+
+describe("mapTokenPrices — the mappers are TIER-KEY AGNOSTIC", () => {
+  it("maps whatever tier keys the BE serves, old names or new", () => {
+    // The sold ladder gets renamed and repriced. Nothing in the FE may know
+    // the keys: a rename must be a config change, never a code change.
+    const p = mapTokenPrices({
+      enabled: true,
+      price_version: "v-next",
+      actions: {},
+      bands: [],
+      tiers: {
+        free: { tokens_per_month: 12000, coach_reviews_per_month: 0, usd_per_month: 0 },
+        practice: {
+          tokens_per_month: 150000,
+          coach_reviews_per_month: 0,
+          usd_per_month: 12,
+        },
+        coached: {
+          tokens_per_month: 150000,
+          coach_reviews_per_month: 3,
+          usd_per_month: 39,
+        },
+        intensive: {
+          tokens_per_month: 400000,
+          coach_reviews_per_month: 8,
+          usd_per_month: 89,
+        },
+      },
+    })!;
+    expect(Object.keys(p.tiers).sort()).toEqual([
+      "coached",
+      "free",
+      "intensive",
+      "practice",
+    ]);
+    expect(p.tiers.intensive).toEqual({
+      tokensPerMonth: 400000,
+      coachReviewsPerMonth: 8,
+      usdPerMonth: 89,
+    });
   });
 });
 
@@ -270,6 +357,7 @@ describe("nextBalance", () => {
     periodStart: null,
     periodEndsAt: null,
     coachReviews: null,
+    plan: null,
   };
 
   it("holds the last known balance through an unreadable refresh", () => {

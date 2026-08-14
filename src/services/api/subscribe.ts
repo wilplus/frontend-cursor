@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { TOKENS_COPY } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  subscribe — start a monthly plan on Stripe                                 */
@@ -36,6 +37,11 @@ export type StartCheckoutResult =
    *  unconfigured. Distinct from a transient failure, because retrying will
    *  not help and the wallet should say so plainly. */
   | { ok: false; reason: "unavailable"; message: string }
+  /** 409 ALREADY_ON_TIER — nothing went wrong, nothing to do. */
+  | { ok: false; reason: "already"; message: string }
+  /** 409 MANAGE_EXISTING — a DIFFERENT live subscription. Must route to the
+   *  portal: pushing through checkout leaves them paying for two plans. */
+  | { ok: false; reason: "manage"; message: string }
   | { ok: false; reason: "error"; message: string };
 
 export async function startPlanCheckout(tier: string): Promise<StartCheckoutResult> {
@@ -73,9 +79,74 @@ export async function startPlanCheckout(tier: string): Promise<StartCheckoutResu
     };
   }
 
+  // The two 409s the BE distinguishes and this client used to flatten into
+  // "Couldn't start checkout. Try again." — which was wrong twice over: the
+  // first is not a failure, and the second must not be retried at all.
+  if (body?.code === "ALREADY_ON_TIER") {
+    return { ok: false, reason: "already", message: TOKENS_COPY.planAlreadyOnTier };
+  }
+  if (body?.code === "MANAGE_EXISTING") {
+    return { ok: false, reason: "manage", message: TOKENS_COPY.planManageExisting };
+  }
+
   return {
     ok: false,
     reason: "error",
     message: body?.error?.trim() || "Couldn't start checkout. Try again.",
   };
+}
+
+/* ------------------------------ billing portal ---------------------------- */
+
+export type StartPortalResult =
+  | { ok: true; url: string }
+  /** 404 NO_SUBSCRIPTION. NOT an error to show: there is simply nothing to
+   *  manage, so the caller renders nothing at all. */
+  | { ok: false; reason: "none" }
+  | { ok: false; reason: "unavailable"; message: string }
+  | { ok: false; reason: "error"; message: string };
+
+/** Open Stripe's billing portal: switch, cancel, fix a declined card, invoices.
+ *
+ *  MINTED ON THE CLICK, NEVER ON RENDER. Portal sessions expire, and putting a
+ *  Stripe call inside the balance read would make a Stripe outage look like a
+ *  missing balance. The backend pins the same rule with a test that greps its
+ *  own source. Never cache or prefetch this URL.
+ *
+ *  `return_url` is always sent: the BE's default is {FRONTEND_URL}/account and
+ *  this app has no /account route. */
+export async function startBillingPortal(): Promise<StartPortalResult> {
+  const token = await getAuthToken();
+  if (!token) {
+    return { ok: false, reason: "error", message: "Sign in to manage your plan." };
+  }
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  let res: Response;
+  try {
+    res = await fetch("/api/v2/tokens/portal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ return_url: `${origin}/dashboard/pricing?plan=managed` }),
+    });
+  } catch {
+    return { ok: false, reason: "error", message: TOKENS_COPY.planManageFailed };
+  }
+
+  const body = (await res.json().catch(() => null)) as
+    | { portal_url?: string; code?: string; error?: string }
+    | null;
+
+  if (res.ok && body?.portal_url) return { ok: true, url: body.portal_url };
+  if (body?.code === "NO_SUBSCRIPTION") return { ok: false, reason: "none" };
+  if (body?.code === "DISABLED") {
+    return {
+      ok: false,
+      reason: "unavailable",
+      message: "Plans aren't available right now.",
+    };
+  }
+  return { ok: false, reason: "error", message: TOKENS_COPY.planManageFailed };
 }
