@@ -8,10 +8,10 @@ name: tests
 #
 #   e2e  — the five self-contained real-browser specs against `next dev`
 #          (see e2e/README.md; record-flow needs a live backend and is not
-#          run here). NON-BLOCKING (continue-on-error) for an observation
-#          period — real-browser timing can flake in CI, and a gate that
-#          cries wolf gets ignored. Flip it blocking once it has a quiet
-#          track record.
+#          run here). BLOCKING (founder decision 2026-08-14: the policy is
+#          enforced at the configuration level immediately, without waiting
+#          for the Actions minutes outage to clear — the observation-period
+#          continue-on-error is retired).
 #
 #   csp  — one real-browser spec against a PRODUCTION build, asserting the
 #          Content-Security-Policy blocks nothing the app actually loads.
@@ -63,7 +63,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
