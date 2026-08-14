@@ -146,7 +146,7 @@ export type SwapWhy = "energy" | "steadiness" | "coverage" | "overall";
  *  The BE sends a KEY and the FE holds the copy, so no model-authored prose
  *  can reach the screen: an unrecognised value renders NO line rather than
  *  itself. */
-export type ChangeWhy = SwapWhy | "clarity" | "emphasis";
+export type ChangeWhy = SwapWhy | "clarity" | "emphasis" | "confident_voice";
 
 export const CHANGE_WHY_KEYS: readonly ChangeWhy[] = [
   "energy",
@@ -154,6 +154,7 @@ export const CHANGE_WHY_KEYS: readonly ChangeWhy[] = [
   "coverage",
   "overall",
   "clarity",
+  "confident_voice",
   "emphasis",
 ];
 
@@ -222,6 +223,11 @@ export interface DocumentSuggestion {
      *  student already settled has nowhere to go. Labelled "Delivery" —
      *  the offer is about how it SOUNDED, not about the words. */
     | "acoustic_swap"
+    /** THE CONFIDENT VOICE CARD (§17 acoustic-confidence-v1, founder
+     *  2026-08-14) — purely positive: this chunk's DELIVERY crossed the
+     *  machine's high-confidence threshold. Standard modal mechanics; the
+     *  founder-signed body renders by key. Titled "Confident Voice". */
+    | "confident_voice"
     | null;
   /** Server-remembered decision. Anything already decided is not re-offered
    *  (dismissed suggestions must never come back — FE-5). */
@@ -320,7 +326,8 @@ export function mapDocumentSuggestions(
       rawSource === "delivery" ||
       rawSource === "structural" ||
       rawSource === "new_take" ||
-      rawSource === "acoustic_swap"
+      rawSource === "acoustic_swap" ||
+      rawSource === "confident_voice"
         ? rawSource
         : null;
     const blockKey =
