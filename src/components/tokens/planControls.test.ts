@@ -55,7 +55,7 @@ describe("planControlsFor — the matrix", () => {
   it("past_due is MANAGED: fix the card, never sell a second plan", () => {
     // The card failed and the subscription still exists. Offering an upgrade
     // here sells a second subscription to solve a billing problem.
-    const c = planControlsFor(plan({ managed: true, status: "past_due" }), "coached");
+    const c = planControlsFor(plan({ managed: true, status: "past_due" }), "coaching");
     expect(c.canBuy).toBe(false);
     expect(c.canManage).toBe(true);
   });

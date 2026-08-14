@@ -79,9 +79,9 @@ describe("mapTokenBalance", () => {
       enabled: true,
       available: true,
       balance: 100,
-      tier: "coached",
+      tier: "coaching",
       plan: {
-        tier: "coached",
+        tier: "coaching",
         managed: true,
         status: "active",
         cancel_at_period_end: false,
@@ -91,7 +91,7 @@ describe("mapTokenBalance", () => {
     });
     expect(b).toMatchObject({
       plan: {
-        tier: "coached",
+        tier: "coaching",
         managed: true,
         status: "active",
         cancelAtPeriodEnd: false,
@@ -108,7 +108,7 @@ describe("mapTokenBalance", () => {
       enabled: true,
       available: true,
       balance: 100,
-      plan: { tier: "coached", status: "active" },
+      plan: { tier: "coaching", status: "active" },
     });
     expect(b).toMatchObject({ plan: null });
   });
@@ -166,7 +166,7 @@ describe("mapTokenPrices — the mappers are TIER-KEY AGNOSTIC", () => {
           coach_reviews_per_month: 0,
           usd_per_month: 12,
         },
-        coached: {
+        coaching: {
           tokens_per_month: 150000,
           coach_reviews_per_month: 3,
           usd_per_month: 39,
@@ -179,7 +179,7 @@ describe("mapTokenPrices — the mappers are TIER-KEY AGNOSTIC", () => {
       },
     })!;
     expect(Object.keys(p.tiers).sort()).toEqual([
-      "coached",
+      "coaching",
       "free",
       "intensive",
       "practice",

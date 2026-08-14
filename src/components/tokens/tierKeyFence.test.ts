@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 const GUARDED = ["TokenPlanCards.tsx", "TokenPlanChips.tsx"];
 
 /** Every tier key that has ever been sold, plus the ones about to be. */
-const TIER_KEYS = /\b(starter|pro|max|practice|coached|intensive)\b/;
+const TIER_KEYS = /\b(starter|pro|max|practice|coaching|intensive)\b/;
 
 function readIfPresent(file: string): string | null {
   try {
