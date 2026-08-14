@@ -112,3 +112,51 @@ export function chunkCounts(
 ): number[] {
   return groups.map((g) => Math.max(1, g.chunks.length));
 }
+
+/* ── §11.7.2/§11.7.3 — THE SCREEN GRAIN (founder, 2026-08-14) ────────────────
+ * A SCREEN is the slide's display unit: at most ~3 chunks (~9 lines at the
+ * §11.1 ~4-line chunk grain) visible at once. A slide with more chunks
+ * CONTINUES on further screens — same slide, next screen — and the rail
+ * makes the continuation visible. The hierarchy is slide → screen → chunk;
+ * the nested-scroll rule above is unchanged, it just steps between SCREENS
+ * (each screen keeps its own inner chunk scroller). */
+
+/** How many chunks one screen holds (~3 × ~4 lines ≈ the founder's ~9). */
+export const SCREEN_MAX_CHUNKS = 3;
+
+export interface DeckScreenModel<T> {
+  /** The slide this screen belongs to (macro). */
+  slideIndex: number | null;
+  /** 0-based position of this screen WITHIN its slide (continuation). */
+  screenOfSlide: number;
+  /** How many screens the slide spans — 1 = no continuation. */
+  screensInSlide: number;
+  chunks: T[];
+}
+
+/** Split slide groups into screens of at most `maxPerScreen` chunks, in
+ *  order. Pure; a group with no chunks still yields one (empty) screen so
+ *  every slide remains navigable. */
+export function buildScreens<T>(
+  groups: readonly { slideIndex: number | null; chunks: readonly T[] }[],
+  maxPerScreen: number = SCREEN_MAX_CHUNKS
+): DeckScreenModel<T>[] {
+  const per = Math.max(1, maxPerScreen);
+  const out: DeckScreenModel<T>[] = [];
+  for (const g of groups) {
+    const packs: T[][] = [];
+    for (let i = 0; i < g.chunks.length; i += per) {
+      packs.push(g.chunks.slice(i, i + per));
+    }
+    if (packs.length === 0) packs.push([]);
+    packs.forEach((chunks, i) => {
+      out.push({
+        slideIndex: g.slideIndex,
+        screenOfSlide: i,
+        screensInSlide: packs.length,
+        chunks,
+      });
+    });
+  }
+  return out;
+}
