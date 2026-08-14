@@ -126,7 +126,7 @@ Each card keeps its own independent gate and neither knows the other exists.
 
 ## 5. Copy — FOUNDER-SIGNED-OFF 2026-08-13
 
-Eight new keys in `src/components/tokens/copy.ts`, under the existing banner
+Seven new keys in `src/components/tokens/copy.ts`, under the existing banner
 (`copy.ts:1-24`) which already holds the two rules these obey: *a wallet, not a progress
 bar*, and *never explain a price with quality*. House style: no em-dashes.
 **Changing any string below needs a new sign-off.**
@@ -137,10 +137,11 @@ topUpRenews:     (on: string) => `They renew ${on}. Or pick a plan and keep goin
 topUpNoDate:     "Pick a plan and keep going now.",
 topUpChip:       (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
 topUpChipPrice:  (usd: number) => `$${usd}/mo`,
-topUpSaving:     (pct: number) => `Save ${pct}%`,
 topUpDismiss:    "Not now",
 topUpFailed:     "Couldn't start checkout. Try again.",
 ```
+
+(`topUpSaving` was in the signed-off set; it is REMOVED with the savings label — §6.)
 
 **Reuse, do not re-add:** the busy label is the existing
 `TOKENS_COPY.walletChoosePlanBusy` ("Opening Stripe…", `copy.ts:108`). A ninth string
@@ -152,42 +153,18 @@ choice and hiding it to push an upgrade is a dark pattern.
 
 ---
 
-## 6. The savings label, and why it is not an AC-9 breach
+## 6. The savings label — DROPPED (founder ruling 2026-08-13, pricing v3)
 
-The founder's ask: *"next to it how much you save if you choose this plan"*.
+This section originally specced a computed per-token savings label ("Save 17%"). **Pricing v3
+killed it**: the sold ladder repriced on coach reviews, so per-token, the mid and top tiers
+cost *more* than the entry tier and the math renders nothing or lies. Founder ruling: drop the
+label entirely for v3 — no savings element, no `planValue.ts`, no percentage anywhere on the
+card. Do not resurrect it in any form (per-review framing included) without a new founder
+decision.
 
-**It is compliant, and the existing code says why.** `copy.ts:11-21` states the real test:
-*"The moment a number says how WELL someone is doing rather than what they BOUGHT, it is a
-performance score and it breaks AC-9."* A per-token discount says what they bought. The
-product already surfaces balances, prices and dollar amounts on this same surface.
-
-**It must be computed, never written down.** `tokens.ts:24-28` — *"NEVER HARDCODE A PRICE…
-a literal anywhere in the FE silently pins a number the founder needs to move without a
-deploy."* A hardcoded "Save 33%" is exactly that failure with an extra step.
-
-New pure module `src/components/tokens/planValue.ts`:
-
-```ts
-/** Percent cheaper per token than the cheapest PAID tier the BE published.
- *  null for the entry tier itself and for any missing/zero input. */
-export function savingVsEntryTier(
-  tiers: Record<string, TokenTier>,
-  name: string
-): number | null
-```
-
-Rule: `perThousand = usdPerMonth / (tokensPerMonth / 1000)`; saving =
-`round((1 - perThousand / entryPerThousand) * 100)`; return `null` when the result is `<= 0`,
-when either tier is missing, or when any input is zero — a label we cannot stand behind is
-worse than none, the same rule `ArcActionPrice` already follows.
-
-Against today's served list this yields **Starter — · Pro 17% · Max 33%**, which falls
-straight out of the founder-approved 1× / 6× / 30× token ratios. Nothing is asserted about
-other users: there is deliberately **no "most popular" badge**, for the reason
-`TokenPlanCards.tsx:24-28` already gives.
-
-Wording is `"Save 17%"`, signed off (§11.2). The entry tier shows no label at all rather than
-`"Save 0%"` — `savingVsEntryTier` returns `null` and the element is omitted.
+What survives of this section: **no "most popular" badge** (a claim about other users with no
+data behind it, `TokenPlanCards.tsx:24-28`), and the general rule that any number on the card
+comes from the served list, never a literal.
 
 ---
 
@@ -233,11 +210,12 @@ the other in-thread cards, and no new design decision is made.
 
 Chip row: the `SpeakerSexQuestion.tsx:71-101` pattern, which is the one the founder named
 ("like with sex to choose"): `flex flex-col gap-2 sm:flex-row`, each option
-`rounded-lg border px-3 py-2 text-sm`, selected/hover as written there. Three chips, ladder
-order starter → pro → max, filtered to tiers the BE actually published.
+`rounded-lg border px-3 py-2 text-sm`, selected/hover as written there. One chip per paid
+tier the BE actually published, **ordered by `usdPerMonth` ascending — never a hardcoded key
+list** (pricing v3 renames the keys; a named ladder is the day-one break T5 exists to kill).
 
-Inside a chip: tier name and token count on the first line, `$X/mo` and the `Save n%` label
-on the second, the saving in `text-muted-foreground`. **Palette:** monochrome, orange as
+Inside a chip: tier name and token count on the first line (`topUpChip`), the price on the
+second (`topUpChipPrice`). No savings element (§6). **Palette:** monochrome, orange as
 accent only, and at most one orange element — `TokenPlanCards.tsx:30-35` is the standing
 rule. Recommend the middle chip carries it, which is emphasis by design rather than a claim.
 
@@ -267,9 +245,10 @@ rule. Recommend the middle chip carries it, which is emphasis by design rather t
 
 All five resolved. Recorded here so a builder does not re-open them.
 
-1. **Copy — SIGNED OFF** as the eight literals in §5, plus reuse of `walletChoosePlanBusy`.
-   Any change to a string needs a new sign-off.
-2. **Saving label — `"Save 17%"`.** The short form, not `"17% cheaper per token"`.
+1. **Copy — SIGNED OFF** as the literals in §5 (now seven, after the savings removal), plus
+   reuse of `walletChoosePlanBusy`. Any change to a string needs a new sign-off.
+2. **Saving label — SUPERSEDED.** Originally ruled `"Save 17%"`; the pricing-v3 ruling
+   (2026-08-13, later the same day) **drops the label entirely** — see §6. The v3 ruling wins.
 3. **Stacking — show both, as separate bubbles.** No suppression logic, no priority ordering
    between the in-thread cards. The founder's reasoning: the speaker-sex ask fires early in a
    user's life and the top-up card fires only once tokens are exhausted, so the overlap is
@@ -296,14 +275,12 @@ src/components/willab/LoungeTopUpCard.tsx     mount rule + card (thin, per Loung
 src/components/willab/topUpCardGate.ts        canMountTopUpCard — pure, testable
 src/components/willab/topUpCardGate.test.ts   mirrors speakerSexAskGate.test.ts
 src/components/tokens/TokenPlanChips.tsx      the chip row + checkout call
-src/components/tokens/planValue.ts            savingVsEntryTier — pure
-src/components/tokens/planValue.test.ts       incl. missing / zero / negative inputs
 ```
 
 **Modified**
 ```
 src/components/willab/Lounge.tsx              one mount, before LoungeSpeakerSexPrompt (~825)
-src/components/tokens/copy.ts                 nine placeholder strings (§5)
+src/components/tokens/copy.ts                 seven signed-off strings (§5)
 ```
 
 **Not modified:** `TokenPlanCards.tsx`, `TokenWalletPanel.tsx`, `TokenWalletScreen.tsx`,
@@ -319,13 +296,11 @@ JSX transform in this vitest config (`speakerSexAskGate.ts:5-11`).
 1. `topUpCardGate.test.ts` — false for every `isLabOverlay` state, false for
    `lab_project_pick`, false while `threadLoading`, true for `lounge_idle` /
    `lounge_general` / `insights_ready`.
-2. `planValue.test.ts` — 17% / 33% against the served list; `null` for the entry tier, a
-   missing tier, `tokensPerMonth: 0`, `usdPerMonth: 0`, and any negative result.
-3. **Fence test** (grep the sources, in the shape of `corpusFence.test.ts:101-103`):
-   - no dollar amount, token count or percent literal in `TokenPlanChips.tsx` or
-     `LoungeTopUpCard.tsx` — every number comes from the served tier list;
+2. **Fence test** (grep the sources, in the shape of `corpusFence.test.ts:101-103`):
+   - no dollar amount, token count, percent **or tier-key** literal in `TokenPlanChips.tsx` or
+     `LoungeTopUpCard.tsx` — every number and key comes from the served tier list;
    - neither new component imports an overlay/portal/dialog primitive;
    - both mount points in `Lounge.tsx` sit inside the thread's scroll container, not in the
      overlay stack.
-4. `copy.test.ts` — extend the existing house-style assertions to the nine new strings
+3. `copy.test.ts` — extend the existing house-style assertions to the seven new strings
    (no em-dashes, no performance framing).

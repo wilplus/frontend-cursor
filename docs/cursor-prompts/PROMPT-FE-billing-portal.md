@@ -15,6 +15,14 @@ start checkout. Try again."
 
 Wire it. **Frontend only — the backend needs no changes whatsoever.**
 
+**Pricing v3 note (2026-08-13):** the tier keys are being renamed
+(practice/coached/intensive) with the old keys true-grandfathered — see
+`docs/HANDOFF-FE-2026-08-13-pricing-and-billing.md` PART 6. Nothing in this ticket may
+hardcode a tier key; the `plan` fields and the decision matrix below are key-agnostic already,
+and a grandfathered subscriber resolving to `managed: true` → manage-only is exactly the
+correct behaviour. The one key literal permitted is the `"free"` fallback in
+`planControlsFor`, which mirrors the existing `TokenPlanCards.tsx:61` heuristic.
+
 Read `CLAUDE.md` first and emit the WILLAB DECISION FILTER block. The verdict is settled:
 
 ```
