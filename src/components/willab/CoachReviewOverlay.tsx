@@ -30,13 +30,13 @@ import {
   writeCoachReviewDraft,
 } from "@/lib/willab/coachReviewDraft";
 
-/** Map a publish blocker to the disabled-PUBLISH reason (FE-2). */
+/** Map a publish blocker to the disabled-PUBLISH reason (FE-2).
+ *
+ *  Only ONE thing blocks now (founder 2026-08-14). Unsaved takes and an
+ *  unverified ideal text became advisories: the all-or-nothing gate meant a
+ *  partial review delivered exactly as much as no review at all. */
 function blockerReason(b: PublishBlocker): string {
   switch (b) {
-    case "TAKES_NOT_SAVED":
-      return "Save each recording's feedback first";
-    case "IDEAL_TEXT_NOT_APPROVED":
-      return "Verify the ideal text first";
     case "NO_TAKES":
       return "No recordings to publish yet";
   }

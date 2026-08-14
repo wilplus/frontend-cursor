@@ -22,11 +22,21 @@ export interface ReviewStateTake {
   hasReread: boolean;
 }
 
-/** Why publish is blocked — mirrors publish-analysis's own preconditions. */
-export type PublishBlocker =
+/** Why publish is blocked. Only ONE thing blocks now (founder 2026-08-14:
+ *  "post it when I want, even with a single feedback") — there is nothing
+ *  recorded to publish. */
+export type PublishBlocker = "NO_TAKES";
+
+/** What a publish right now would LEAVE OUT. Advisory only: these never
+ *  disable the button.
+ *
+ *  They used to be blockers, and that made coach work all-or-nothing —
+ *  review 17 of 18 moments, save one take of two, skip the verify, and the
+ *  student saw exactly as much as if the panel had never been opened. */
+export type PublishAdvisory =
   | "TAKES_NOT_SAVED"
   | "IDEAL_TEXT_NOT_APPROVED"
-  | "NO_TAKES";
+  | "NO_FEEDBACK";
 
 export interface CoachReviewState {
   arcId: string;
@@ -43,9 +53,11 @@ export interface CoachReviewState {
     source: "machine" | "coach" | null;
     takesDone: number | null;
   };
-  /** True only when EVERY publish precondition is met (blockers is empty). */
+  /** True unless something genuinely blocks (blockers is empty). */
   canPublish: boolean;
   blockers: PublishBlocker[];
+  /** Shown beside the button, never disabling it. */
+  advisories: PublishAdvisory[];
   /** Sessions still awaiting a saved review — the deep-link targets for the
    *  TAKES_NOT_SAVED blocker copy. */
   pendingSessionIds: string[];
@@ -60,9 +72,13 @@ function pickReviewState(v: unknown): ReviewTakeState | null {
 }
 
 function pickBlocker(v: unknown): PublishBlocker | null {
+  return v === "NO_TAKES" ? v : null;
+}
+
+function pickAdvisory(v: unknown): PublishAdvisory | null {
   return v === "TAKES_NOT_SAVED" ||
     v === "IDEAL_TEXT_NOT_APPROVED" ||
-    v === "NO_TAKES"
+    v === "NO_FEEDBACK"
     ? v
     : null;
 }
@@ -116,6 +132,11 @@ export function mapCoachReviewState(raw: unknown): CoachReviewState | null {
     canPublish: r.can_publish === true,
     blockers: Array.isArray(r.blockers)
       ? r.blockers.map(pickBlocker).filter((b): b is PublishBlocker => b !== null)
+      : [],
+    advisories: Array.isArray(r.advisories)
+      ? r.advisories
+          .map(pickAdvisory)
+          .filter((a): a is PublishAdvisory => a !== null)
       : [],
     pendingSessionIds: Array.isArray(r.pending_session_ids)
       ? r.pending_session_ids.filter(

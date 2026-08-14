@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Sparkles, Video } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -36,8 +36,14 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import {
   fetchCoachReviewState,
   type CoachReviewState,
+  type PublishAdvisory,
   type PublishBlocker,
 } from "@/services/api/coachReviewState";
+import { countAwaitingReview, orderTakesForReview } from "./takeReviewOrder";
+import {
+  AUTOSAVE_DEBOUNCE_MS,
+  shouldAutosaveDraft,
+} from "@/lib/willab/autosaveDrafts";
 import { publishArc } from "@/services/api/arcBatch";
 import {
   fetchConfidenceQueue,
@@ -110,16 +116,27 @@ function isConfidentVoice(star: { trigger?: string | null }): boolean {
 
 /** Map a publish blocker to the disabled-PUBLISH reason. DUPLICATED from the
  *  review walker on purpose: importing it would put a blind-labeler file on
- *  this panel's import graph (N1), and three strings are cheaper than a
+ *  this panel's import graph (N1), and a couple of strings are cheaper than a
  *  breached fence. Keep the wording identical to the walker's. */
 function blockerReason(b: PublishBlocker): string {
   switch (b) {
-    case "TAKES_NOT_SAVED":
-      return "Save each recording's feedback first";
-    case "IDEAL_TEXT_NOT_APPROVED":
-      return "Verify the ideal text first";
     case "NO_TAKES":
       return "No recordings to publish yet";
+  }
+}
+
+/** What a publish RIGHT NOW would leave out. Never disables anything
+ *  (founder 2026-08-14: "post it when I want, even with a single feedback") —
+ *  it says what will be skipped so the choice is informed rather than
+ *  blocked. Skipped takes stay visibly "to review". */
+function advisoryNote(a: PublishAdvisory): string {
+  switch (a) {
+    case "TAKES_NOT_SAVED":
+      return "Takes you haven't reviewed will stay unreviewed";
+    case "IDEAL_TEXT_NOT_APPROVED":
+      return "The ideal text isn't verified yet";
+    case "NO_FEEDBACK":
+      return "Add a note to at least one moment to publish";
   }
 }
 
@@ -306,6 +323,67 @@ export default function CoachStarVerdictOverlay({
   // confusions / false-negative bookkeeping is never rendered at all).
   const reviewed = stars?.filter((s) => s.verdict !== null).length ?? 0;
 
+  /* ── AUTOSAVE (founder 2026-08-14) ────────────────────────────────────
+   *  Typed drafts persist on their own: debounced while typing, flushed
+   *  immediately on blur. The manual "Save note" / "Save wording" buttons
+   *  stay — they are now a confirmation, not the only way the text survives.
+   *
+   *  The note rides the VERDICT body, so autosave can only fire once a
+   *  verdict exists; until then the panel's "Saved with your verdict" line
+   *  is the honest state. `save` already de-dupes concurrent writes per key
+   *  via inFlightRef, so a blur landing on top of a pending debounce cannot
+   *  double-post. */
+  const autosaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {}
+  );
+
+  const flushDraft = useCallback(
+    (star: ArcStar) => {
+      const key = starRowKey(star);
+      const t = autosaveTimers.current[key];
+      if (t) {
+        clearTimeout(t);
+        delete autosaveTimers.current[key];
+      }
+      if (!star.verdict) return;
+      const dirty =
+        shouldAutosaveDraft(noteDrafts[key], star.note, true) ||
+        shouldAutosaveDraft(whyDrafts[key], effectiveWhy(star), true) ||
+        shouldAutosaveDraft(
+          replDrafts[key],
+          effectiveReplacement(star),
+          true
+        );
+      if (!dirty) return;
+      void save(star, star.verdict as StarVerdict,
+                star.correctedDevice ?? undefined);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [noteDrafts, whyDrafts, replDrafts]
+  );
+
+  /** Debounced sibling of flushDraft — called on every keystroke. */
+  const queueAutosave = useCallback(
+    (star: ArcStar) => {
+      const key = starRowKey(star);
+      const existing = autosaveTimers.current[key];
+      if (existing) clearTimeout(existing);
+      autosaveTimers.current[key] = setTimeout(() => {
+        delete autosaveTimers.current[key];
+        flushDraft(star);
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [flushDraft]
+  );
+
+  // Nothing typed may be lost to an unmount mid-debounce.
+  useEffect(() => {
+    const timers = autosaveTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
+
   async function save(
     star: ArcStar,
     verdict: StarVerdict,
@@ -437,7 +515,15 @@ export default function CoachStarVerdictOverlay({
         </span>
       </div>
 
-      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+      {/* THE SCROLLER IS FULL WIDTH ON PURPOSE (founder 2026-08-14):
+          "when I scroll outside the surface of the tables I want it to
+          scroll too". The overflow used to live on the max-w-2xl column,
+          so a wheel event in the margin either side of it landed on a
+          fixed parent with nothing to scroll and did nothing. The scroll
+          area now spans the viewport; the CONTENT stays centred and
+          narrow inside it. */}
+      <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
         {cvRows.length > 0 ? (
           // CONFIDENT-VOICE FEEDBACKS — always at the top of the list
           // (founder 2026-08-10). Blind rows: play, read, answer. The copy
@@ -681,9 +767,11 @@ export default function CoachStarVerdictOverlay({
                       <textarea
                         aria-label="What this star says"
                         value={whyDrafts[key] ?? effectiveWhy(s) ?? ""}
-                        onChange={(e) =>
-                          setWhyDrafts((d) => ({ ...d, [key]: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          setWhyDrafts((d) => ({ ...d, [key]: e.target.value }));
+                          queueAutosave(s);
+                        }}
+                        onBlur={() => flushDraft(s)}
                         rows={2}
                         placeholder="The reason, in your words"
                         className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
@@ -696,9 +784,11 @@ export default function CoachStarVerdictOverlay({
                         value={
                           replDrafts[key] ?? effectiveReplacement(s) ?? ""
                         }
-                        onChange={(e) =>
-                          setReplDrafts((d) => ({ ...d, [key]: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          setReplDrafts((d) => ({ ...d, [key]: e.target.value }));
+                          queueAutosave(s);
+                        }}
+                        onBlur={() => flushDraft(s)}
                         rows={2}
                         placeholder="The suggested wording"
                         className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
@@ -740,12 +830,14 @@ export default function CoachStarVerdictOverlay({
                   <div className="flex flex-col gap-1.5">
                     <textarea
                       value={noteDrafts[key] ?? s.note ?? ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setNoteDrafts((d) => ({
                           ...d,
                           [key]: e.target.value,
-                        }))
-                      }
+                        }));
+                        queueAutosave(s);
+                      }}
+                      onBlur={() => flushDraft(s)}
                       rows={2}
                       maxLength={NOTE_MAX_CHARS}
                       placeholder="Why — in your words"
@@ -807,7 +899,7 @@ export default function CoachStarVerdictOverlay({
             <span className="text-[13px] font-medium text-foreground">
               Takes
             </span>
-            {reviewState.takes.map((t) => {
+            {orderTakesForReview(reviewState.takes).map((t) => {
               const label =
                 t.reviewState === "delivered"
                   ? "Delivered"
@@ -877,6 +969,12 @@ export default function CoachStarVerdictOverlay({
                 <p className="text-center text-[12px] text-muted-foreground">
                   {reviewState.blockers.map(blockerReason).join(" · ")}
                 </p>
+              ) : reviewState.advisories.length > 0 ? (
+                /* Advisory, not a gate: says what a publish now would leave
+                   out. The button above stays enabled. */
+                <p className="text-center text-[12px] text-muted-foreground">
+                  {reviewState.advisories.map(advisoryNote).join(" · ")}
+                </p>
               ) : null}
               {publishError ? (
                 <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
@@ -886,6 +984,7 @@ export default function CoachStarVerdictOverlay({
             </div>
           )
         ) : null}
+        </div>
       </div>
     </div>
   );
