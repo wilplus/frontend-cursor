@@ -133,9 +133,13 @@ check(
   })
 );
 check(
-  "two slide sections from the pieces zip, with kickers and dots",
+  "two slide sections from the pieces zip; the rail is TWO-GRAIN (§11.4): the active slide expands into its chunk ticks, the other stays a dot",
   (await page.locator("text=Slide 1").count()) >= 1 &&
-    (await page.locator('button[aria-label^="Go to Slide"]').count()) === 2
+    // Slide 1 is active and holds 2 chunks → 2 micro ticks; slide 2 stays
+    // a macro dot. Position language only — the rail navigates, never
+    // grades (AC-9).
+    (await page.locator('button[aria-label^="Go to chunk"]').count()) === 2 &&
+    (await page.locator('button[aria-label^="Go to Slide"]').count()) === 1
 );
 check(
   "NO FOOTER — no review count, no slide position, no word count",

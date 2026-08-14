@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
@@ -16,6 +16,15 @@ import {
   type CoachMomentLite,
   type DeckChunk,
 } from "@/lib/willab/deckChunks";
+import {
+  canBubble,
+  chunkCounts,
+  clampPosition,
+  nearestChunkIndex,
+  scrollEdge,
+  stepPosition,
+  type DeckPosition,
+} from "@/lib/willab/deckScroll";
 import type { Part } from "@/lib/willab/documentParts";
 import type {
   DecisionHistoryEntry,
@@ -127,9 +136,168 @@ export default function TranscriptReviewDeck({
       ? (suggestions.find((s) => s.id === openChunk.pendingIds[0]) ?? null)
       : null;
 
+  /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
+   *
+   * The chunk is the step, the slide is the section. Each slide keeps its
+   * own INNER chunk scroller (overscroll-contained, so reaching the last
+   * chunk never auto-chains mid-gesture); the OUTER slide track is
+   * programmatic-only (overflow-hidden — native scroll on it would bypass
+   * the gate through the kicker area). A gesture bubbles up to a slide
+   * change ONLY when the inner scroller already stands at the edge the
+   * gesture pushes against — `canBubble` — and each bubble needs a FRESH
+   * gesture (the armed/re-arm latch below), so trackpad momentum cannot
+   * fly through a slide the reader never saw. Backwards entry lands on
+   * the previous slide's LAST chunk, exactly where the reader left it.
+   *
+   * Within a slide, chunk scrolling stays NATIVE — chunks are ~4 lines
+   * each and several fit a viewport, so a hard stop per chunk would fight
+   * reading. The §11.3 contract is the boundary gate, and that is stepped.
+   */
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const innerRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const posRef = useRef<DeckPosition>({ slide: 0, chunk: 0 });
+  const armedRef = useRef(true);
+  const lastWheelAtRef = useRef(0);
+  const touchRef = useRef<{ y: number; consumed: boolean } | null>(null);
   const [atSlide, setAtSlide] = useState(0);
+  const [atChunk, setAtChunk] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  const counts = useMemo(() => chunkCounts(groups), [groups]);
+
+  const setPosition = useCallback((next: DeckPosition) => {
+    posRef.current = next;
+    setAtSlide(next.slide);
+    setAtChunk(next.chunk);
+  }, []);
+
+  const chunkOffsetsOf = (inner: HTMLElement): number[] =>
+    Array.from(inner.querySelectorAll<HTMLElement>("[data-chunk]")).map(
+      (el) => el.offsetTop
+    );
+
+  const goTo = useCallback(
+    (raw: DeckPosition) => {
+      const next = clampPosition(counts, raw);
+      const outer = scrollerRef.current;
+      if (outer) {
+        outer.scrollTo({
+          top: next.slide * outer.clientHeight,
+          behavior: "smooth",
+        });
+      }
+      const inner = innerRefs.current[next.slide];
+      if (inner) {
+        const offsets = chunkOffsetsOf(inner);
+        inner.scrollTo({
+          top: offsets[next.chunk] ?? 0,
+          behavior: "smooth",
+        });
+      }
+      setPosition(next);
+    },
+    [counts, setPosition]
+  );
+
+  // The bubble gate, shared by wheel and touch: may this gesture advance
+  // the SLIDE, and if so, from which chunk does the step depart? (From the
+  // final chunk going forward, the first going back — so `stepPosition`
+  // bubbles rather than stepping within the slide.)
+  const tryBubble = useCallback(
+    (dir: 1 | -1): boolean => {
+      const { slide } = posRef.current;
+      const inner = innerRefs.current[slide];
+      const edge = inner ? scrollEdge(inner) : "both";
+      if (!canBubble(edge, dir)) return false;
+      const from: DeckPosition = {
+        slide,
+        chunk: dir === 1 ? (counts[slide] ?? 1) - 1 : 0,
+      };
+      const next = stepPosition(counts, from, dir);
+      if (next.slide === slide) return true; // the deck's end absorbs it
+      goTo(next);
+      return true;
+    },
+    [counts, goTo]
+  );
+
+  // Wheel: native inside the inner scroller until its edge; at the edge
+  // the event is ours (preventDefault needs a non-passive listener, which
+  // React's synthetic onWheel does not guarantee — hence the effect).
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (e: WheelEvent) => {
+      const dy = e.deltaY;
+      if (Math.abs(dy) < 4) return;
+      const now = performance.now();
+      if (now - lastWheelAtRef.current > 160) armedRef.current = true;
+      lastWheelAtRef.current = now;
+      const dir: 1 | -1 = dy > 0 ? 1 : -1;
+      const { slide } = posRef.current;
+      const inner = innerRefs.current[slide];
+      const edge = inner ? scrollEdge(inner) : "both";
+      if (!canBubble(edge, dir)) return; // chunks first — stay native
+      e.preventDefault();
+      if (!armedRef.current) return; // momentum tail, not a fresh gesture
+      armedRef.current = false;
+      tryBubble(dir);
+    };
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, [tryBubble]);
+
+  // Touch: one slide step per gesture, only past a deliberate pull at the
+  // edge. Native chunk scrolling is untouched (no preventDefault — the
+  // inner scroller's overscroll containment already stops the chain).
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onStart = (e: TouchEvent) => {
+      touchRef.current = { y: e.touches[0]?.clientY ?? 0, consumed: false };
+    };
+    const onMove = (e: TouchEvent) => {
+      const t = touchRef.current;
+      if (!t || t.consumed) return;
+      const dy = t.y - (e.touches[0]?.clientY ?? t.y);
+      if (Math.abs(dy) < 48) return;
+      const dir: 1 | -1 = dy > 0 ? 1 : -1;
+      const { slide } = posRef.current;
+      const inner = innerRefs.current[slide];
+      const edge = inner ? scrollEdge(inner) : "both";
+      if (!canBubble(edge, dir)) return;
+      t.consumed = true;
+      tryBubble(dir);
+    };
+    const onEnd = () => {
+      touchRef.current = null;
+    };
+    stage.addEventListener("touchstart", onStart, { passive: true });
+    stage.addEventListener("touchmove", onMove, { passive: true });
+    stage.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      stage.removeEventListener("touchstart", onStart);
+      stage.removeEventListener("touchmove", onMove);
+      stage.removeEventListener("touchend", onEnd);
+    };
+  }, [tryBubble]);
+
+  // A reassembly can change the deck's shape under the reader; a resize
+  // changes the slide geometry. Re-clamp and re-seat the outer track.
+  useEffect(() => {
+    const seat = () => {
+      const clamped = clampPosition(counts, posRef.current);
+      posRef.current = clamped;
+      setAtSlide(clamped.slide);
+      setAtChunk(clamped.chunk);
+      const outer = scrollerRef.current;
+      if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
+    };
+    seat();
+    window.addEventListener("resize", seat);
+    return () => window.removeEventListener("resize", seat);
+  }, [counts]);
 
 
   const kickerFor = (slideIndex: number | null, ord: number): string =>
@@ -193,100 +361,158 @@ export default function TranscriptReviewDeck({
       </div>
       ) : null}
 
-      {/* Stage — one slide per viewport, snap-scrolled, dots pinned right. */}
-      <div className="relative min-h-0 flex-1">
+      {/* Stage — one slide per viewport; chunks scroll INSIDE the slide
+          first, the slide advances only from its final chunk (§11.3). The
+          stage is keyboard-navigable: arrows/PageUp/PageDown step one
+          CHUNK, bubbling across slides by the same rule as the gestures. */}
+      <div
+        ref={stageRef}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const fwd =
+            e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
+          const back = e.key === "ArrowUp" || e.key === "PageUp";
+          if (!fwd && !back) return;
+          e.preventDefault();
+          goTo(stepPosition(counts, posRef.current, fwd ? 1 : -1));
+        }}
+        className="relative min-h-0 flex-1 outline-none"
+      >
         <div
           ref={scrollerRef}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            if (el.clientHeight > 0) {
-              setAtSlide(
-                Math.max(
-                  0,
-                  Math.min(
-                    groups.length - 1,
-                    Math.round(el.scrollTop / el.clientHeight)
-                  )
-                )
-              );
-            }
-          }}
-          className="scrollbar-none h-full snap-y snap-mandatory overflow-y-auto scroll-smooth"
+          // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
+          // would bypass the chunk gate through the kicker area, so the
+          // track only moves via goTo/dots/keys.
+          className="h-full overflow-hidden"
         >
           {groups.map((g, gi) => (
             <section
               key={g.slideIndex ?? `untitled-${gi}`}
               // NO RULE BETWEEN SLIDES (founder 2026-08-11: "the screen has
               // a stroke around the text, please delete that all"). One
-              // slide fills the viewport and the snap carries you to the
-              // next; a dashed line under each one drew a box around the
-              // words for a boundary the scroll already makes.
-              className="flex h-full snap-start snap-always flex-col justify-center gap-4 px-6 py-8 sm:px-10"
+              // slide fills the viewport; a dashed line under each one drew
+              // a box around the words for a boundary the scroll already
+              // makes.
+              className="flex h-full flex-col gap-4 px-6 py-8 sm:px-10"
             >
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                {kickerFor(g.slideIndex, gi)}
-              </p>
-              {titleFor(g.slideIndex) ? (
-                <h2 className="font-heading text-[clamp(1.5rem,4vw,2.1rem)] leading-tight tracking-[-0.035em] text-foreground">
-                  {titleFor(g.slideIndex)}
-                </h2>
-              ) : null}
-              <div className="flex flex-col gap-4">
-                {g.chunks.map((c) => (
-                  <p
-                    key={c.part.id}
-                    className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
-                  >
-                    <RichText text={c.part.text} />
-                    <DeckLockMark
-                      status={c.status}
-                      onClick={() => setOpenPartId(c.part.id)}
-                      // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
-                      // 2026-08-11). The same join the modal already runs,
-                      // now run per chunk so the page can say WHICH chunk
-                      // carries it. Free: `coachMomentForChunk` is a pure
-                      // anchor lookup over the served document, and the
-                      // metered feedback read still fires only on the tap
-                      // inside the modal.
-                      hasCoach={
-                        coachMomentForChunk(coachMoments, doc, c) !== null
-                      }
-                      // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
-                      // shape as the coach dot, and for the same reason: the
-                      // proposal lives only inside the modal, so without a
-                      // mark on the page the only way to find it is to open
-                      // every locked chunk in turn. `styleFor` is the pure
-                      // overlap the modal already runs on the open chunk —
-                      // run per chunk here, it costs one span comparison.
-                      hasStyle={styleFor(styleChanges, c) !== null}
-                    />
-                  </p>
-                ))}
+              <div className="shrink-0">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  {kickerFor(g.slideIndex, gi)}
+                </p>
+                {titleFor(g.slideIndex) ? (
+                  <h2 className="mt-2 font-heading text-[clamp(1.5rem,4vw,2.1rem)] leading-tight tracking-[-0.035em] text-foreground">
+                    {titleFor(g.slideIndex)}
+                  </h2>
+                ) : null}
+              </div>
+              {/* The INNER chunk scroller: overscroll-contained so the
+                  last chunk never chains into a slide flip mid-gesture —
+                  the bubble is a deliberate step, taken above. `my-auto`
+                  centres a short slide exactly as the old layout did and
+                  collapses to 0 the moment the chunks overflow (the old
+                  justify-center CLIPPED overflowing text — screenshot #1's
+                  second defect). */}
+              <div
+                ref={(el) => {
+                  innerRefs.current[gi] = el;
+                }}
+                onScroll={(e) => {
+                  if (gi !== posRef.current.slide) return;
+                  const el = e.currentTarget;
+                  const chunk = nearestChunkIndex(
+                    chunkOffsetsOf(el),
+                    el.scrollTop
+                  );
+                  if (chunk !== posRef.current.chunk) {
+                    posRef.current = { slide: gi, chunk };
+                    setAtChunk(chunk);
+                  }
+                }}
+                className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+              >
+                <div className="my-auto flex min-h-full flex-col justify-center gap-4">
+                  {g.chunks.map((c) => (
+                    <p
+                      key={c.part.id}
+                      data-chunk
+                      className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
+                    >
+                      <RichText text={c.part.text} />
+                      <DeckLockMark
+                        status={c.status}
+                        onClick={() => setOpenPartId(c.part.id)}
+                        // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
+                        // 2026-08-11). The same join the modal already runs,
+                        // now run per chunk so the page can say WHICH chunk
+                        // carries it. Free: `coachMomentForChunk` is a pure
+                        // anchor lookup over the served document, and the
+                        // metered feedback read still fires only on the tap
+                        // inside the modal.
+                        hasCoach={
+                          coachMomentForChunk(coachMoments, doc, c) !== null
+                        }
+                        // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
+                        // shape as the coach dot, and for the same reason: the
+                        // proposal lives only inside the modal, so without a
+                        // mark on the page the only way to find it is to open
+                        // every locked chunk in turn. `styleFor` is the pure
+                        // overlap the modal already runs on the open chunk —
+                        // run per chunk here, it costs one span comparison.
+                        hasStyle={styleFor(styleChanges, c) !== null}
+                      />
+                    </p>
+                  ))}
+                </div>
               </div>
             </section>
           ))}
         </div>
 
-        {/* Dots rail — one per slide, active dot stretched. */}
-        {groups.length > 1 ? (
+        {/* THE TWO-GRAIN RAIL (§11.4). Macro: one mark per slide, the
+            active slide's mark expanded. Micro: inside the active mark,
+            one tick per chunk of that slide, the current chunk stretched.
+            POSITION ONLY — "slide 3, second of four chunks" is
+            navigation; the rail must never grade (AC-9). */}
+        {groups.length > 1 || (counts[0] ?? 0) > 1 ? (
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2">
-            {groups.map((g, i) => (
-              <button
-                key={g.slideIndex ?? `dot-${i}`}
-                type="button"
-                aria-label={`Go to ${kickerFor(g.slideIndex, i)}`}
-                aria-current={atSlide === i ? "true" : undefined}
-                onClick={() => {
-                  const el = scrollerRef.current;
-                  if (el) el.scrollTo({ top: i * el.clientHeight });
-                }}
-                className={`rounded-full transition-all ${
-                  atSlide === i
-                    ? "h-[1.1rem] w-2 bg-foreground"
-                    : "h-2 w-2 bg-muted-foreground/40 hover:bg-muted-foreground"
-                }`}
-              />
-            ))}
+            {groups.map((g, i) =>
+              i === atSlide && g.chunks.length > 1 ? (
+                <div
+                  key={g.slideIndex ?? `dot-${i}`}
+                  className="flex flex-col items-center gap-1.5 rounded-full bg-muted px-[3px] py-1.5"
+                >
+                  {g.chunks.map((c, ci) => (
+                    <button
+                      key={c.part.id}
+                      type="button"
+                      aria-label={`Go to chunk ${ci + 1} of ${
+                        g.chunks.length
+                      } on ${kickerFor(g.slideIndex, i)}`}
+                      aria-current={atChunk === ci ? "true" : undefined}
+                      onClick={() => goTo({ slide: i, chunk: ci })}
+                      className={`rounded-full transition-all ${
+                        atChunk === ci
+                          ? "h-[0.85rem] w-1.5 bg-foreground"
+                          : "h-1.5 w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
+                      }`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <button
+                  key={g.slideIndex ?? `dot-${i}`}
+                  type="button"
+                  aria-label={`Go to ${kickerFor(g.slideIndex, i)}`}
+                  aria-current={atSlide === i ? "true" : undefined}
+                  onClick={() => goTo({ slide: i, chunk: 0 })}
+                  className={`rounded-full transition-all ${
+                    atSlide === i
+                      ? "h-[1.1rem] w-2 bg-foreground"
+                      : "h-2 w-2 bg-muted-foreground/40 hover:bg-muted-foreground"
+                  }`}
+                />
+              )
+            )}
           </div>
         ) : null}
       </div>
