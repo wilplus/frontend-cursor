@@ -5,6 +5,10 @@ import { Check, Crown, FileText, Mic, ShieldAlert, Sparkles } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
 import { fetchIdealText } from "@/services/api/idealText";
+import {
+  cachedIdealTitle,
+  rememberIdealTitle,
+} from "@/lib/willab/idealTitleCache";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { bestPresentationView, insightView, readoutView } from "./loungeReports";
 import ArcActionPrice from "@/components/tokens/ArcActionPrice";
@@ -540,10 +544,27 @@ function LiveStatusIdealTextCard({
   onOpen: (() => void) | null;
 }) {
   const [live, setLive] = useState<LiveIdealDoc | null>(null);
+  /* THE NAME IS KNOWN BEFORE THE FETCH (founder 2026-08-15: "first they
+   * display the placeholder and only later load the database's name — can you
+   * make it just a solid bubble").
+   *
+   * The document GET is the only source of the project's name (the BE stamps
+   * none on the bubble row), so every card rendered "Your ideal text" and
+   * swapped a moment later. On a thread with a version history that is a
+   * column of placeholders all flipping at once, on every app open.
+   *
+   * Seeded from the cache with a LAZY initializer, so it is read once at mount
+   * rather than on every render, and the very first paint already carries the
+   * real name. The fetch still runs and still wins — this removes the wrong
+   * words, not the revalidation. */
+  const [cachedTitle] = useState<string | null>(() => cachedIdealTitle(arcId));
   useEffect(() => {
     if (!arcId) return;
     let active = true;
     void fetchLiveIdealDoc(arcId).then((d) => {
+      // Remembered even if this card unmounted mid-flight: the answer is about
+      // the ARC, and the next bubble to mount should not have to ask again.
+      rememberIdealTitle(arcId, d?.title);
       if (active) setLive(d);
     });
     return () => {
@@ -559,7 +580,10 @@ function LiveStatusIdealTextCard({
       live.version === version);
   return (
     <IdealRecordingCard
-      title={live?.title?.trim() || "Your ideal text"}
+      /* Live → remembered → the generic. The generic is the honest answer
+       * ONLY for an arc nobody has ever opened; everywhere else it was just
+       * the wrong words shown first. */
+      title={live?.title?.trim() || cachedTitle || "Your ideal text"}
       meta={date}
       badge={version !== null ? `${version}.0` : null}
       verified={verified}
