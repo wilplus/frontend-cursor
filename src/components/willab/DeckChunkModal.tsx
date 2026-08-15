@@ -112,13 +112,20 @@ export default function DeckChunkModal({
   const kicker =
     face === "review" && suggestion
       ? `${displayKind(suggestion)}${iterTail}`
-      : // THE PAGE merged "accepted" into "locked" — one final state, one
-        // icon (founder 2026-08-11). In HERE the difference is still real,
-        // because this is where the lock action lives, so the modal reads
-        // the part's own server-owned flag rather than the page's status.
+      : // THE PAGE no longer distinguishes accepted from clean — since
+        // 2026-08-15 only a server lock turns the mark green, because the
+        // merged state flashed green on its way to grey on every accept. In
+        // HERE the difference is still real and still worth saying, because
+        // this is where the lock action lives.
+        //
+        // KEYED ON THE APPROVED RIDER, not on `chunk.status`. The status can
+        // no longer say "accepted" — that is the whole point of the change —
+        // so reading it here would have silently retired this kicker and left
+        // an accepted chunk claiming "No feedback pending". Same lesson as
+        // the face selector above: read the work, not the page's summary of it.
         chunk.part.locked
         ? `Locked in${iterTail}`
-        : chunk.status === "locked"
+        : chunk.approvedIds.length > 0
           ? "Accepted · not locked in yet"
           : "No feedback pending";
   const chunkHistory = historyForChunk(history, chunk.part.text);
