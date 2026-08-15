@@ -87,6 +87,25 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/aria-current/);
   });
 
+  it("the rail is PAGES PER SLIDE — two grains, never three", () => {
+    // Founder 2026-08-15: "just the pages per slide … one level of hierarchy
+    // can be removed, this deepest one."
+    //
+    // The pill is the SLIDE and each mark inside it is one SCREEN of that
+    // slide, so a slide running onto a second screen shows two marks. The
+    // active screen used to expand into a capsule of one tick per CHUNK,
+    // which made the rail read at three grains at once and restated what the
+    // page already showed — the paragraphs are visible on the very screen
+    // those ticks described.
+    expect(DECK).not.toMatch(/Go to chunk \$\{/);
+    expect(DECK).not.toMatch(/scr\.chunks\.map/);
+    // And the state that existed only to redraw them is gone with them: chunk
+    // position lives in `posRef`, which the scroll gate already reads, so
+    // scrolling a screen no longer re-renders the deck per paragraph crossed.
+    expect(DECK).not.toMatch(/setAtChunk/);
+    expect(DECK).toMatch(/posRef\.current = \{ slide: gi, chunk \}/);
+  });
+
   it("the readout screen has exactly ONE scroller — the deck", () => {
     // Founder 2026-08-11: "this whole screen is movable and should not be…
     // I can scroll on the slides and on the page, it is one". Two nested
