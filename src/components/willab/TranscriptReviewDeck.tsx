@@ -146,7 +146,7 @@ export default function TranscriptReviewDeck({
   /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
    * next screen. The nested scroll steps between screens; the rail shows
-   * slide → screen → chunk. */
+   * slide → screen (the chunk grain was cut 2026-08-15 — see the rail). */
   const screens = useMemo(() => buildScreens(groups), [groups]);
   const railSlides = useMemo(() => {
     const out: { slideIndex: number | null; first: number; count: number }[] =
@@ -196,7 +196,11 @@ export default function TranscriptReviewDeck({
   const lastWheelAtRef = useRef(0);
   const touchRef = useRef<{ y: number; consumed: boolean } | null>(null);
   const [atSlide, setAtSlide] = useState(0);
-  const [atChunk, setAtChunk] = useState(0);
+  // NO `atChunk` STATE (2026-08-15). It existed only to re-render the rail's
+  // per-chunk ticks, which are gone. The live position stays in `posRef` —
+  // the scroll gate, the boundary bubble and the backwards-entry landing all
+  // read it there and always did. Keeping a write-only useState would be a
+  // re-render on every chunk scrolled, for nothing on screen.
   const [copied, setCopied] = useState(false);
 
   const counts = useMemo(() => chunkCounts(screens), [screens]);
@@ -204,7 +208,6 @@ export default function TranscriptReviewDeck({
   const setPosition = useCallback((next: DeckPosition) => {
     posRef.current = next;
     setAtSlide(next.slide);
-    setAtChunk(next.chunk);
   }, []);
 
   const chunkOffsetsOf = (inner: HTMLElement): number[] =>
@@ -325,7 +328,6 @@ export default function TranscriptReviewDeck({
       const clamped = clampPosition(counts, posRef.current);
       posRef.current = clamped;
       setAtSlide(clamped.slide);
-      setAtChunk(clamped.chunk);
       const outer = scrollerRef.current;
       if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
     };
@@ -459,8 +461,14 @@ export default function TranscriptReviewDeck({
                     el.scrollTop
                   );
                   if (chunk !== posRef.current.chunk) {
+                    // REF ONLY — no setState (2026-08-15). This tracking is
+                    // load-bearing: the boundary gate and the backwards-entry
+                    // landing both read `posRef.current.chunk`. What it no
+                    // longer needs to do is RE-RENDER, because the rail
+                    // stopped drawing a tick per chunk. Scrolling a screen
+                    // used to re-render the whole deck on every paragraph
+                    // crossed, to move a dot the reader was not looking at.
                     posRef.current = { slide: gi, chunk };
-                    setAtChunk(chunk);
                   }
                 }}
                 className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
@@ -503,11 +511,15 @@ export default function TranscriptReviewDeck({
           ))}
         </div>
 
-        {/* THE TWO-GRAIN RAIL (§11.4). Macro: one mark per slide, the
-            active slide's mark expanded. Micro: inside the active mark,
-            one tick per chunk of that slide, the current chunk stretched.
-            POSITION ONLY — "slide 3, second of four chunks" is
-            navigation; the rail must never grade (AC-9). */}
+        {/* THE RAIL — TWO GRAINS, PAGES PER SLIDE (§11.4, re-cut
+            2026-08-15). The pill is the SLIDE; each mark inside it is one
+            SCREEN of that slide, the current one stretched. A slide that
+            runs onto a second screen therefore shows two marks — which is
+            the whole read: where am I, and how much of this slide is left.
+            The former third grain (a tick per chunk inside the active
+            screen) is gone; see the mark below for why.
+            POSITION ONLY — "slide 3, second of two screens" is navigation;
+            the rail must never grade (AC-9). */}
         {screens.length > 1 || (counts[0] ?? 0) > 1 ? (
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2.5">
             {railSlides.map((rs, ord) => {
@@ -520,29 +532,25 @@ export default function TranscriptReviewDeck({
                         scr.screenOfSlide + 1
                       } of ${scr.screensInSlide}`
                     : `Go to ${kickerFor(rs.slideIndex, ord)}`;
-                return si === atSlide && scr.chunks.length > 1 ? (
-                  <div
-                    key={`scr-${si}`}
-                    className="flex flex-col items-center gap-1.5 rounded-full bg-muted px-[3px] py-1.5"
-                  >
-                    {scr.chunks.map((c, ci) => (
-                      <button
-                        key={c.part.id}
-                        type="button"
-                        aria-label={`Go to chunk ${ci + 1} of ${
-                          scr.chunks.length
-                        } on ${kickerFor(rs.slideIndex, ord)}`}
-                        aria-current={atChunk === ci ? "true" : undefined}
-                        onClick={() => goTo({ slide: si, chunk: ci })}
-                        className={`rounded-full transition-all ${
-                          atChunk === ci
-                            ? "h-[0.85rem] w-1.5 bg-foreground"
-                            : "h-1.5 w-1.5 bg-muted-foreground/40 hover:bg-muted-foreground"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                ) : (
+                // ONE MARK PER SCREEN — no chunk ticks (founder 2026-08-15:
+                // "just the pages per slide … one level of hierarchy can be
+                // removed, this deepest one").
+                //
+                // The active screen used to expand into a capsule holding one
+                // tick per chunk, which made the rail read at three grains at
+                // once: pill = slide, mark = screen, tick = chunk. Two of
+                // those answer "where am I"; the third answered "which
+                // paragraph is under my thumb", which the reader can already
+                // see — the paragraphs are RIGHT THERE on the screen it was
+                // describing. It cost the rail its glanceability to restate
+                // what the page already showed.
+                //
+                // Nothing is lost from navigation: chunk scrolling inside a
+                // screen is native and continuous (§11.3), so there was never
+                // a step for those ticks to be the control for. The live
+                // chunk position stays in `posRef`, where the scroll gate and
+                // the backwards-entry landing already read it.
+                return (
                   <button
                     key={`scr-${si}`}
                     type="button"
@@ -558,9 +566,9 @@ export default function TranscriptReviewDeck({
                 );
               });
               // §11.7.3: a multi-screen slide's marks share one pill — the
-              // continuation is VISIBLE on the rail (macro: the pill is the
-              // slide; its marks are the screens; ticks inside the active
-              // mark are the chunks). Position only, never a grade (AC-9).
+              // continuation is VISIBLE on the rail. The pill is the SLIDE,
+              // its marks are that slide's SCREENS, and that is now the whole
+              // rail. Position only, never a grade (AC-9).
               return rs.count > 1 ? (
                 <div
                   key={rs.slideIndex ?? `rail-${ord}`}
