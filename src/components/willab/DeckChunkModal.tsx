@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
-import { whyLine } from "@/lib/willab/trackedChangeWhy";
+import MediaPlayer from "@/components/results/MediaPlayer";
+import {
+  PRAISE_CUE_LEAD,
+  PRAISE_LEAD,
+  praiseLines,
+  whyLine,
+} from "@/lib/willab/trackedChangeWhy";
 import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
 import { type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
@@ -254,6 +260,25 @@ export default function DeckChunkModal({
 
   const rationale = suggestion ? whyLine(suggestion) : null;
 
+  /* THE PRAISE LANE (founder 2026-08-15): "if the delivery was impeccable,
+   * just give them the feedback in the praise lane and in the justification
+   * of the positive feedback give them the playback of that phrase
+   * emphasising that it was said really well and explain using the vocal and
+   * verbal cues."
+   *
+   * It is the one suggestion with NOTHING TO DECIDE — no words change, no
+   * alternative is offered — so it does not render the what-you-said /
+   * suggested pair (there is no "suggested"), and it does not offer Accept /
+   * Keep mine, which would ask the student to choose between a compliment and
+   * their own writing. One "Got it" settles it through the same lane, so a
+   * praise note is not re-offered every time the chunk opens.
+   *
+   * The recording is the whole reason this reads as evidence rather than
+   * flattery: the claim is about how it SOUNDED, and it is the only claim
+   * this product makes that the student cannot check by reading. */
+  const isPraise = suggestion?.device === "impeccable";
+  const praiseCues = isPraise ? praiseLines(suggestion?.cueKeys ?? []) : [];
+
   // ONE BUTTON, AND THE LOCK DECIDES WHICH (founder 2026-08-15: "it should be
   // either lock or discard — lock on the unlocked, discard on the locked").
   //
@@ -398,17 +423,52 @@ export default function DeckChunkModal({
                   {suggestion.quote || chunk.part.text}
                 </p>
               </div>
-              <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Suggested
-                </p>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.kind === "bold"
-                    ? suggestion.quote || chunk.part.text
-                    : (suggestion.proposedText ?? "")}
-                </p>
-              </div>
-              {rationale ? (
+              {isPraise ? null : (
+                <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Suggested
+                  </p>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
+                    {suggestion.kind === "bold"
+                      ? suggestion.quote || chunk.part.text
+                      : (suggestion.proposedText ?? "")}
+                  </p>
+                </div>
+              )}
+              {isPraise ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
+                  <p className="text-[15px] font-medium leading-relaxed text-foreground">
+                    {PRAISE_LEAD}
+                  </p>
+                  {suggestion.snippetAudioRef ? (
+                    // HEAR IT. The claim is about how it SOUNDED — the one
+                    // claim this product makes that reading cannot check.
+                    <MediaPlayer
+                      src={suggestion.snippetAudioRef}
+                      startOffsetMs={suggestion.startOffsetMs ?? 0}
+                      durationMs={suggestion.durationMs ?? 0}
+                    />
+                  ) : null}
+                  {praiseCues.length > 0 ? (
+                    <>
+                      <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                        {PRAISE_CUE_LEAD}
+                      </p>
+                      <ul className="flex flex-col gap-1.5">
+                        {praiseCues.map((line) => (
+                          <li
+                            key={line}
+                            className="text-[14px] leading-snug text-foreground"
+                          >
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+              {rationale && !isPraise ? (
                 <p className="px-1 text-[13px] leading-snug text-muted-foreground">
                   {rationale}
                 </p>
@@ -548,7 +608,25 @@ export default function DeckChunkModal({
           <div className="shrink-0 pb-5" />
         ) : (
           <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-            {face === "review" && suggestion ? (
+            {face === "review" && suggestion && isPraise ? (
+              // NOTHING TO DECIDE. "Accept / Keep mine" under a compliment
+              // asks the student to choose between it and their own writing,
+              // which is not a choice anybody has. One button, and it settles
+              // the note through the same lane so it is not re-offered.
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void accept()}
+                className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Check className="h-4 w-4" aria-hidden />
+                )}
+                Got it
+              </button>
+            ) : face === "review" && suggestion ? (
               <>
                 <button
                   type="button"

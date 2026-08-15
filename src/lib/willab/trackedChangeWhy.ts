@@ -62,6 +62,71 @@ export const EMPHASIS_WHY = [
   "This makes your core message stronger.",
 ] as const;
 
+/* -------------------------------------------------------------------------- */
+/*  THE PRAISE LANE (founder 2026-08-15)                                       */
+/*                                                                            */
+/*  "if the delivery was impeccable, just give them the feedback in the praise */
+/*  lane and in the justification of the positive feedback give them the       */
+/*  playback of that phrase emphasising that it was said really well and       */
+/*  explain using the vocal and verbal cues."                                  */
+/*                                                                            */
+/*  So the praise has three parts and the middle one is the point: a LEAD that */
+/*  says it landed, the CUES that say why we think so, and the recording so    */
+/*  they can hear it. Praise without its evidence is flattery, and flattery    */
+/*  from a coaching product is worse than silence — it teaches the student to  */
+/*  discount every later compliment.                                           */
+/*                                                                            */
+/*  EVERY SENTENCE IS RELATIVE TO THEM. The cues are z-scored against the      */
+/*  speaker's OWN baseline upstream, so "more than you usually do" is the      */
+/*  literal truth of the measurement and "more than other people" would be a   */
+/*  claim we never made. No number, no comparison to anyone else (AC-9).       */
+/*                                                                            */
+/*  Copy is the founder's to adjust — written to his brief, not signed off     */
+/*  word by word.                                                             */
+/* -------------------------------------------------------------------------- */
+
+/** `impeccable` — the one line that says the delivery landed. Fixed, no
+ *  variants: praise that rewords itself reads as the system hedging, the same
+ *  reason the Confident Voice body has exactly one form. */
+export const PRAISE_LEAD = "You said this one really well.";
+
+/** The line under the lead, before the cues. */
+export const PRAISE_CUE_LEAD = "Here is what your voice did:";
+
+/** ONE SENTENCE PER CUE KEY — the BE's closed delivery-cues vocabulary.
+ *
+ *  A key with no entry renders NOTHING, exactly like an unknown `why`: an
+ *  unexplained compliment is the failure mode this whole block exists to
+ *  avoid, and inventing a sentence for a cue we do not have copy for is how
+ *  it would happen. */
+export const PRAISE_CUE_COPY: Record<string, string> = {
+  wide_range: "Your pitch moved — you let it rise and fall instead of holding it flat.",
+  even_pitch: "Your pitch stayed steady, with none of the wobble that creeps in when you are unsure.",
+  full_volume: "You let the volume move, so the words had shape rather than one level.",
+  no_hesitation: "You went straight through it — fewer and shorter pauses than you usually take.",
+  settled_pitch: "Your voice sat lower than it usually does, which is what settled sounds like.",
+  kept_moving: "You kept the pace up instead of slowing down the way people do when they hedge.",
+  landed_ending: "You brought the ending down and landed it, rather than letting it drift up.",
+  opened_strong: "You led with the energy and eased off after, instead of building up to it.",
+};
+
+/** The praise lines for one change: the lead, then a sentence per cue we have
+ *  copy for. Never a lead alone with an empty explanation — that is the
+ *  unevidenced compliment — so a change whose cues are all unknown returns
+ *  just the lead and the caller renders the recording beside it. Pure. */
+export function praiseLines(cueKeys: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const key of cueKeys) {
+    const line = PRAISE_CUE_COPY[key];
+    if (line && !seen.has(key)) {
+      seen.add(key);
+      out.push(line);
+    }
+  }
+  return out;
+}
+
 /** A stable index from a change's id.
  *
  *  DETERMINISTIC ON PURPOSE. The variants exist so three changes on one
