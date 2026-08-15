@@ -69,6 +69,7 @@ export default function TranscriptReviewDeck({
   onAccept,
   onKeepMine,
   onLockPart,
+  onUnlockPart = null,
   onClose,
   styleChanges = null,
   onApplyStyle,
@@ -104,6 +105,10 @@ export default function TranscriptReviewDeck({
    *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
    *  the lock endpoint verifies anyway. */
   onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
+  /** UNDO a lock (founder 2026-08-15). "Discard" on a locked chunk is the
+   *  inverse of "Lock in", not a close — see DeckChunkModal. Optional so a
+   *  host without the capability shows no button rather than a dead one. */
+  onUnlockPart?: ((chunk: DeckChunk) => Promise<LockOutcome>) | null;
   onClose?: () => void;
   /** THE STYLE LANE (slice 2) — post-lock bold proposals, outside the ≤3.
    *  Modal-only; the page never re-marks locked text. */
@@ -126,19 +131,40 @@ export default function TranscriptReviewDeck({
   const [optimisticLocked, setOptimisticLocked] = useState<
     ReadonlySet<string>
   >(new Set());
+  /* The same instant feedback for the INVERSE (2026-08-15). Without it a
+   * confirmed unlock leaves the mark green until the host refetches, which is
+   * the same lag §11.7.1 was written to remove — just in the other
+   * direction. Cleared on fresh parts; the server's truth always takes over. */
+  const [optimisticUnlocked, setOptimisticUnlocked] = useState<
+    ReadonlySet<string>
+  >(new Set());
   useEffect(() => {
     setOptimisticLocked(new Set());
+    setOptimisticUnlocked(new Set());
   }, [parts]);
 
   const chunks = useMemo(() => {
     const built = buildDeckChunks(doc, parts, suggestions);
-    if (optimisticLocked.size === 0) return built;
-    return built.map((c) =>
-      c.status === "clean" && optimisticLocked.has(c.part.id)
-        ? { ...c, status: "locked" as const }
-        : c
-    );
-  }, [doc, parts, suggestions, optimisticLocked]);
+    if (optimisticLocked.size === 0 && optimisticUnlocked.size === 0) {
+      return built;
+    }
+    return built.map((c) => {
+      if (c.status === "clean" && optimisticLocked.has(c.part.id)) {
+        return { ...c, status: "locked" as const };
+      }
+      // An unlock never overrides PENDING work — the 2026-08-11 rule that a
+      // pending proposal beats the lock cuts both ways, and a chunk with
+      // feedback outstanding must keep saying so.
+      if (c.status === "locked" && optimisticUnlocked.has(c.part.id)) {
+        return {
+          ...c,
+          status: "clean" as const,
+          part: { ...c.part, locked: false },
+        };
+      }
+      return c;
+    });
+  }, [doc, parts, suggestions, optimisticLocked, optimisticUnlocked]);
   const groups = useMemo(
     () => groupChunksBySlide(chunks, pieceSlideIndexes),
     [chunks, pieceSlideIndexes]
@@ -321,8 +347,23 @@ export default function TranscriptReviewDeck({
     };
   }, [tryBubble]);
 
-  // A reassembly can change the deck's shape under the reader; a resize
+  // A reassembly can change the deck's shape under the reader; a rotation
   // changes the slide geometry. Re-clamp and re-seat the outer track.
+  //
+  // ⚠️ WIDTH-GATED (founder 2026-08-15: "the screen zooms weirdly, the
+  // structure doesn't hold"). This re-seated on EVERY window resize, and on
+  // iOS the software keyboard IS a resize: opening the chunk editor shrinks
+  // the viewport, `seat()` runs, and the track is scrolled to
+  // `slide * clientHeight` measured against the SHRUNKEN height — so the deck
+  // lands mid-slide. Closing the modal fires it again at yet another height.
+  // The structure was not failing to hold; it was being re-seated twice
+  // against two wrong measurements.
+  //
+  // A keyboard changes the height only. A rotation changes the width. So the
+  // width is what re-seating keys on, and a height-only resize is ignored —
+  // the track's own layout absorbs it, which is what it did before the
+  // keyboard ever appeared.
+  const seatWidthRef = useRef(-1);
   useEffect(() => {
     const seat = () => {
       const clamped = clampPosition(counts, posRef.current);
@@ -331,9 +372,15 @@ export default function TranscriptReviewDeck({
       const outer = scrollerRef.current;
       if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
     };
+    seatWidthRef.current = window.innerWidth;
     seat();
-    window.addEventListener("resize", seat);
-    return () => window.removeEventListener("resize", seat);
+    const onResize = () => {
+      if (window.innerWidth === seatWidthRef.current) return;  // keyboard
+      seatWidthRef.current = window.innerWidth;
+      seat();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [counts]);
 
 
@@ -612,6 +659,29 @@ export default function TranscriptReviewDeck({
             }
             return outcome;
           }}
+          onUnlockPart={
+            onUnlockPart
+              ? async (): Promise<LockOutcome> => {
+                  const outcome = await onUnlockPart(openChunk);
+                  if (outcome === "ok") {
+                    // Mirror of the lock's optimism: the mark greys the
+                    // instant the server confirms, instead of waiting on the
+                    // host's refetch. Clearing the id is enough — the base
+                    // status is derived from the served part, which the
+                    // refetch will report unlocked anyway.
+                    setOptimisticLocked((prev) => {
+                      const next = new Set(prev);
+                      next.delete(openChunk.part.id);
+                      return next;
+                    });
+                    setOptimisticUnlocked((prev) =>
+                      new Set(prev).add(openChunk.part.id)
+                    );
+                  }
+                  return outcome;
+                }
+              : null
+          }
           onClose={() => setOpenPartId(null)}
           styleSuggestion={styleFor(styleChanges, openChunk)}
           onApplyStyle={onApplyStyle}
