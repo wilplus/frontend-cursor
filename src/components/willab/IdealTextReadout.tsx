@@ -693,6 +693,47 @@ export default function IdealTextReadout({
   // the edit rides the one save lane (auto-lock "typed = committed" marks
   // the touched part locked in the same PUT) and the flush confirms it —
   // else the plain part-lock with seeding.
+
+  /* UNDO A LOCK (founder 2026-08-15) — "Discard" on a locked chunk.
+   *
+   * The exact inverse of `lockParagraph`, and deliberately a mirror of it
+   * rather than a new path: same identity resolution (position + words via
+   * `lockTargetAt`, never the part id — see the note there), same stale
+   * handling, same refetch. Only the boolean flips.
+   *
+   * `seedParts` is NOT sent. Seeding exists so a first lock can adopt a
+   * client-minted identity on a document the server has no parts for; a
+   * chunk that is already locked is proof the server has that identity
+   * stored, so there is nothing to seed and nothing to adopt.
+   *
+   * Refetches for the same reason the lock does, in reverse: an unlocked
+   * paragraph becomes eligible for offers again, and the layer filter has to
+   * be told. */
+  const unlockParagraph = useCallback(
+    async (chunk: DeckChunk): Promise<"ok" | "blocked" | "failed"> => {
+      const aid = arcIdRef.current;
+      if (!aid) return "failed";
+      const parts = reconcileParts(textRef.current, partsRef.current ?? []);
+      partsRef.current = parts;
+      const target = lockTargetAt(parts, chunk.paragraphIndex, chunk.part.text);
+      if (!target) return "failed";
+      if (!target.locked) return "ok"; // already open — nothing to write
+      const r = await setPartLock(aid, target.id, false, textRef.current);
+      if (r.kind === "stale") {
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error" || r.kind === "undecided") return "failed";
+      partsRef.current = (partsRef.current ?? []).map((pt) =>
+        pt.id === target.id ? { ...pt, locked: false } : pt
+      );
+      setSdNonce((n) => n + 1);
+      return "ok";
+    },
+    []
+  );
+
   const deckLockPart = useCallback(
     async (
       chunk: DeckChunk,
@@ -845,6 +886,7 @@ export default function IdealTextReadout({
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            onUnlockPart={unlockParagraph}
             coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,

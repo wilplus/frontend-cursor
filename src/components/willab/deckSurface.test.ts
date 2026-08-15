@@ -135,20 +135,30 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     );
   });
 
-  it("a locked chunk with nothing typed shows NO decision buttons", () => {
-    // Founder 2026-08-12: "if smth is locked in, then why there is a big
-    // button to lock it in? and the discard button? and if I click discard
-    // nothing happens". Both were no-ops — "Lock in" re-locks what is locked,
-    // "Discard" is onClose and discards nothing.
+  it("ONE button, and the lock decides which (founder 2026-08-15)", () => {
+    // The 08-12 complaint was "if smth is locked in, why is there a big button
+    // to lock it in? and the discard button? and if I click discard nothing
+    // happens" — both were no-ops, and Discard was `onClose` wearing another
+    // word. That fix hid BOTH on a settled locked chunk. The 08-15 ruling goes
+    // to the root: the pair was never two choices. Now it is a toggle of what
+    // the icon shows —
+    //   unlocked           → Lock in
+    //   locked + untouched → Discard, which UNLOCKS (the inverse, not a close)
+    //   locked + edited    → Lock in, so the edit can still be saved
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
     expect(MODAL).toMatch(
-      /const settled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
+      /const lockedAndSettled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
     );
-    expect(MODAL).toMatch(/face !== "review" && settled \?/);
+    expect(MODAL).toMatch(/const showUnlock = lockedAndSettled && !!onUnlockPart;/);
+    // Discard must NEVER be wired to onClose again — that is the no-op.
+    expect(MODAL).not.toMatch(/onClick=\{onClose\}[\s\S]{0,200}Discard/);
+    expect(MODAL).toMatch(/onClick=\{\(\) => void unlock\(\)\}/);
+    // A host with no unlock capability shows no button rather than a dead one.
+    expect(MODAL).toMatch(/lockedAndSettled && !onUnlockPart/);
     // Compared against the SERVED TEXT, never the dirty ref: an edit must
-    // bring the row back or the student cannot save it, and typing a change
+    // bring "Lock in" back or the student cannot save it, and typing a change
     // back to identical leaves nothing to save either.
-    expect(MODAL).not.toMatch(/settled = [^;]*dirtyRef/);
+    expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
   it("the modal has TWO detents and swipe reaches the taller one", () => {

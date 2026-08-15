@@ -391,6 +391,39 @@ export default function IdealTextOverlay({
     [arcId, displayText]
   );
 
+  /* UNDO A LOCK (founder 2026-08-15) — "Discard" on a locked chunk.
+   *
+   * The exact inverse of `lockParagraph` above, and deliberately a mirror of
+   * it rather than a new path: same identity resolution (position + words via
+   * `lockTargetAt`, never the part id), same stale handling, same refetch.
+   * Only the boolean flips.
+   *
+   * `seedParts` is NOT sent. Seeding exists so a FIRST lock can adopt a
+   * client-minted identity on a document the server has no parts for; a chunk
+   * that is already locked proves the server holds that identity, so there is
+   * nothing to seed. */
+  const unlockParagraph = useCallback(
+    async (chunk: DeckChunk): Promise<"ok" | "blocked" | "failed"> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      partsRef.current = parts;
+      const target = lockTargetAt(parts, chunk.paragraphIndex, chunk.part.text);
+      if (!target) return "failed";
+      if (!target.locked) return "ok"; // already open — nothing to write
+      const r = await setPartLock(arcId, target.id, false, displayText);
+      if (r.kind === "stale") {
+        setRefetchNonce((n) => n + 1);
+        return "failed";
+      }
+      if (r.kind === "error" || r.kind === "undecided") return "failed";
+      partsRef.current = (partsRef.current ?? []).map((p) =>
+        p.id === target.id ? { ...p, locked: false } : p
+      );
+      setRefetchNonce((n) => n + 1);
+      return "ok";
+    },
+    [arcId, displayText]
+  );
+
   // MATERIAL RECOVERY — accept promotes the candidate block into the master;
   // "Not now" drops the offer, and the same words may be offered again if said
   // in a later take. Routes through the block-decide endpoint already in use.
@@ -759,6 +792,7 @@ export default function IdealTextOverlay({
             onAccept={(s) => decideTracked(s, "accept")}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            onUnlockPart={unlockParagraph}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,
