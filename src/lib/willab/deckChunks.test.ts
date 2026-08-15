@@ -58,16 +58,30 @@ describe("buildDeckChunks — status derivation", () => {
     expect(chunks[0].status).toBe("waiting");
   });
 
-  it("an approved suggestion reaches the SAME final state as a lock (founder 2026-08-11)", () => {
-    // The four-state model collapsed to three: "accepted" and "locked" are
-    // one state on the page. The distinction still EXISTS — the modal reads
-    // `part.locked` to decide whether to offer the lock — so the approved id
-    // has to survive the merge, which is what the second assertion holds.
+  it("ACCEPTED IS NOT LOCKED — an approved rider leaves the chunk clean (founder 2026-08-15)", () => {
+    // This asserted the opposite until 2026-08-15, when the 2026-08-11 merge
+    // of the two final states was overturned on the evidence of what it
+    // actually did: accepting flips the suggestion to "approved" for the few
+    // milliseconds before the server bakes the change and drops it, so the
+    // mark turned GREEN and then settled GREY. The student was shown the
+    // final state on the way to the in-between one.
+    //
+    // Green now means locked in and nothing else. The approved id still
+    // survives on the chunk — the modal's "Accepted · not locked in yet"
+    // kicker reads it — which is what the last assertion holds.
     const chunks = buildDeckChunks(DOC, parts(), [sug("s1", 0, 10, "approved")]);
-    expect(chunks[0].status).toBe("locked");
+    expect(chunks[0].status).toBe("clean");
     expect(chunks[0].part.locked).not.toBe(true);
     expect(chunks[0].approvedIds).toEqual(["s1"]);
     expect(chunks[0].pendingIds).toEqual([]);
+  });
+
+  it("a SERVER LOCK is the only thing that reaches locked", () => {
+    // The other half of the same ruling: what the student locked in stays
+    // green permanently ("that is great" — founder).
+    const locked = parts().map((p) => ({ ...p, locked: true }));
+    const chunks = buildDeckChunks(DOC, locked, []);
+    expect(chunks[0].status).toBe("locked");
   });
 
   it("waiting beats accepted when both ride one chunk — outstanding feedback is the louder fact", () => {

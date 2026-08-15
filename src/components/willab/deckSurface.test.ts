@@ -59,10 +59,14 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // feedback engine pipe dead while it is locked in", so the order of these
     // two branches is the fence, not an implementation detail.
     expect(CHUNKS).toMatch(
-      /pendingIds\.length > 0\s*\?\s*"waiting"\s*:\s*locked \|\| approvedIds\.length > 0\s*\?\s*"locked"/
+      /pendingIds\.length > 0\s*\?\s*"waiting"\s*:\s*locked\s*\?\s*"locked"/
     );
-    // …and the two final states stay merged behind that: a lock and an approved
-    // rider both land on "locked".
+    // …and ONLY a server lock reaches "locked" (founder 2026-08-15). The
+    // `|| approvedIds.length > 0` rider that used to sit here merged
+    // "accepted" into "locked", which made the mark flash green on its way to
+    // grey on every accept — the final state shown on the way to the
+    // in-between one. Green means locked in, and nothing else may claim it.
+    expect(CHUNKS).not.toMatch(/locked \|\| approvedIds/);
     expect(CHUNKS).toMatch(/:\s*"clean";/);
   });
 
