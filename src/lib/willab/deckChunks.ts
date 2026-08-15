@@ -15,15 +15,24 @@ import { partsForDocument, type Part } from "./documentParts";
 /*  compliant path is to physically split long paragraphs through the          */
 /*  arranger (one splitter, one identity), not to fork the join contract.      */
 /*                                                                            */
-/*  THREE STATUSES, derived, never stored (founder 2026-08-11 — the four-      */
-/*  state model collapsed: "accepted" and "locked" are one final state, and    */
-/*  NOTHING paints the text any more. No underline, no wash. The state lives   */
-/*  only in the chunk's icon and the words stay clean, which is the whole      */
-/*  point of a page you are supposed to be able to read):                      */
-/*    locked   — server-locked, OR an approved suggestion rides it. The final  */
-/*               state either way: the student has decided.                    */
+/*  THREE STATUSES, derived, never stored (founder 2026-08-11 — NOTHING       */
+/*  paints the text any more. No underline, no wash. The state lives only in   */
+/*  the chunk's icon and the words stay clean, which is the whole point of a   */
+/*  page you are supposed to be able to read):                                 */
+/*    locked   — SERVER-LOCKED. The student locked these words in.             */
 /*    waiting  — at least one UNDECIDED suggestion overlaps the chunk.         */
-/*    clean    — nothing pending, nothing decided.                             */
+/*    clean    — nothing pending, and not locked in.                           */
+/*                                                                            */
+/*  ⚠️ 2026-08-15 — "ACCEPTED" IS NOT "LOCKED". Until today `locked` also      */
+/*  covered "an approved suggestion rides it", per the 2026-08-11 merge of     */
+/*  the two final states. By this week that merge had one observable effect    */
+/*  left and it was a defect: on accept the suggestion flips to approved for   */
+/*  the few milliseconds before the server bakes the change and drops it, so   */
+/*  the mark flashed GREEN and then settled GREY. The student was shown the    */
+/*  final state on the way to the in-between one. Green now means locked in,   */
+/*  full stop, and accepting lands on `clean` — which is what is true.         */
+/*  The accepted-not-locked fact still exists; it is read off `approvedIds`    */
+/*  by the modal, where it informs instead of misleading.                      */
 /*                                                                            */
 /*  Precedence is unchanged where it was load-bearing: the server lock wins    */
 /*  over everything, and a pending suggestion still beats an approved one on   */
@@ -122,9 +131,26 @@ export function buildDeckChunks(
     // deliberately never painted, DeckLockMark keys on `status`, and the
     // modal opens its REVIEW face only for "waiting". So every proposal on
     // a locked chunk was announced nowhere and openable never.
+    // ⚠️ ACCEPTED IS NOT LOCKED (founder 2026-08-15). This read
+    // `locked || approvedIds.length > 0`, merging the two final states per the
+    // 2026-08-11 ruling. That merge had exactly one observable effect left,
+    // and it was a defect: accepting a change flipped the suggestion to
+    // "approved", the mark turned GREEN for the few milliseconds before the
+    // server baked the change and dropped the suggestion, and then it settled
+    // to grey. The student saw the final state flash by on the way to the
+    // in-between one — "it remains green in between, it is confusing".
+    //
+    // Green is now what it says: LOCKED IN, and only the server's own flag
+    // says that. Accepting lands on "clean", which is the truth — nothing is
+    // pending on these words and the student has not locked them yet.
+    //
+    // The distinction the merge existed to express is not lost, it moved to
+    // where it belongs: DeckChunkModal reads `approvedIds` (still computed
+    // below) for its "Accepted · not locked in yet" kicker. Inside the modal
+    // that fact is useful; on the page it was a colour that lied.
     const status: ChunkStatus = pendingIds.length > 0
       ? "waiting"
-      : locked || approvedIds.length > 0
+      : locked
         ? "locked"
         : "clean";
     chunks.push({
