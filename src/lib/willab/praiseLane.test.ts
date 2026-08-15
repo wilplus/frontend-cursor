@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import {
+  AGREE_QUESTION,
+  AGREE_THANKS,
   PRAISE_CUE_COPY,
   PRAISE_CUE_LEAD,
   PRAISE_LEAD,
   praiseLines,
 } from "./trackedChangeWhy";
+import { CONFIDENCE_QUESTION } from "@/services/api/stateRatings";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PRAISE LANE (founder 2026-08-15)                                       */
@@ -118,20 +121,85 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
   it("plays the recording of the moment", () => {
     // The claim is about how it SOUNDED — the one claim this product makes
     // that a student cannot check by reading.
-    expect(MODAL).toMatch(/isPraise[\s\S]{0,900}MediaPlayer/);
+    expect(MODAL).toMatch(/isPraise \|\| isConfidentVoice[\s\S]{0,900}MediaPlayer/);
   });
 
   it("offers ONE button, not Accept / Keep mine", () => {
     // "Keep mine" under a compliment asks the student to choose between it
     // and their own writing, which is not a choice anybody has.
-    expect(MODAL).toMatch(/isPraise \?[\s\S]{0,700}Got it/);
+    expect(MODAL).toMatch(/isPraise \|\| isConfidentVoice\)? \?[\s\S]{0,700}Got it/);
   });
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
-    expect(MODAL).toMatch(/\{isPraise \? null : \(/);
+    expect(MODAL).toMatch(/\{isPraise \|\| isConfidentVoice \? null : \(/);
   });
 
   it("does not stack the generic reason line on top of the praise", () => {
-    expect(MODAL).toMatch(/rationale && !isPraise/);
+    expect(MODAL).toMatch(/rationale && !isPraise && !isConfidentVoice/);
+  });
+});
+
+describe("the Confident Voice card asks, and asks honestly", () => {
+  it("goes FULL SCREEN, without a gesture", () => {
+    // It carries a player, an explanation and a question now. A question
+    // arriving half below the fold gets answered by whoever scrolls, which is
+    // a sampling bias in the corpus rather than a layout nit.
+    expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
+  });
+
+  it("renders the ternary instrument, the same one every lane uses", () => {
+    // Founder 2026-08-10: "the confident voice label should has the same UI
+    // as the coach based labelling and the voice game labelling."
+    expect(MODAL).toMatch(/ConfidenceLabelChips/);
+    expect(MODAL).toMatch(/onToggleUnrateable/);
+  });
+
+  it("asks LAST — after the read, the recording and the reasons", () => {
+    const player = MODAL.indexOf("MediaPlayer");
+    const chips = MODAL.indexOf("<ConfidenceLabelChips");
+    expect(player).toBeGreaterThan(-1);
+    expect(chips).toBeGreaterThan(player);
+  });
+
+  it("writes through the ANCHORED endpoint, never the blind one", () => {
+    // saveOwnerConfidenceLabel collects a rating with no machine read on
+    // screen; this card has already shown one. The backend stamps
+    // saw_model_output off the ROUTE, so sending this through the blind call
+    // would put a false blindness claim in a corpus that cannot be
+    // un-poisoned afterwards (I1).
+    expect(MODAL).toMatch(/saveConfidenceAgreement/);
+    expect(MODAL).not.toMatch(/saveOwnerConfidenceLabel/);
+  });
+
+  it("cannot construct an answer nobody gave", () => {
+    // buildRatingBody returns null for an inexpressible pair, and the send
+    // stops there rather than posting something the BE would have to reject.
+    expect(MODAL).toMatch(/buildRatingBody/);
+    expect(MODAL).toMatch(/if \(!body\) return;/);
+  });
+
+  it("rolls the chip back when the write fails", () => {
+    // A lit chip over a row the server never took is the same lie the style
+    // apply refuses to tell.
+    expect(MODAL).toMatch(/setAgreeValue\(null\);[\s\S]{0,120}setAgreeError/);
+  });
+});
+
+describe("the agree copy says what it means", () => {
+  it("asks about THEIR experience, not the blind rater's question", () => {
+    // CONFIDENCE_QUESTION is asked of somebody told nothing. This is asked of
+    // the speaker about a read they were just shown, and the wording has to
+    // say so or the answer is uninterpretable.
+    expect(AGREE_QUESTION).not.toBe(CONFIDENCE_QUESTION);
+    expect(AGREE_QUESTION).toMatch(/you/i);
+  });
+
+  it("promises nothing about what the answer does", () => {
+    // It is not a vote — it routes. Copy that implied otherwise would be a
+    // promise this surface cannot keep.
+    for (const line of [AGREE_QUESTION, AGREE_THANKS]) {
+      expect(line).not.toMatch(/\d/);
+      expect(line).not.toMatch(/vote|count|score|rating/i);
+    }
   });
 });

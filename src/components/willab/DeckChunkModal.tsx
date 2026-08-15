@@ -5,7 +5,16 @@ import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import {
+  buildRatingBody,
+  saveConfidenceAgreement,
+  type TernaryValue,
+} from "@/services/api/stateRatings";
+import {
+  AGREE_QUESTION,
+  AGREE_THANKS,
+  CONFIDENT_VOICE_WHY,
   PRAISE_CUE_LEAD,
   PRAISE_LEAD,
   praiseLines,
@@ -279,6 +288,62 @@ export default function DeckChunkModal({
   const isPraise = suggestion?.device === "impeccable";
   const praiseCues = isPraise ? praiseLines(suggestion?.cueKeys ?? []) : [];
 
+  /* THE CONFIDENT VOICE CARD (founder 2026-08-15): "when it comes to
+   * confident voice do the same but also display the voice game panel and ask
+   * them do they agree? … also make the modal in the case of confident voice
+   * a full screen modal."
+   *
+   * Same three parts as praise — it lands, hear it, here is why — and then the
+   * instrument, because this card is the one place the product states a read
+   * of the speaker's own voice back to them. Asking whether they agree costs
+   * one tap in the place they already are, which is the fastest and most
+   * natural rating this system can collect.
+   *
+   * WHAT THE ANSWER IS. A self-report on their own clip, given AFTER being
+   * shown the machine's read — anchored twice over — so it is excluded from
+   * quorum by rules that already exist and it writes through its OWN endpoint,
+   * which is what lets the backend stamp `saw_model_output: true` honestly.
+   * The blind instrument (saveOwnerConfidenceLabel) is a different call on a
+   * different surface and the two must never be collapsed.
+   *
+   * FULL SCREEN because it now carries a player, an explanation and a
+   * question: the two-detent sheet was sized for a paragraph and a pair of
+   * buttons, and a question that arrives half below the fold gets answered by
+   * whoever scrolls, which is a sampling bias in the corpus rather than a
+   * layout problem. */
+  const isConfidentVoice = suggestion?.source === "confident_voice";
+  const [agreeValue, setAgreeValue] = useState<TernaryValue | null>(null);
+  const [agreeUnrateable, setAgreeUnrateable] = useState(false);
+  const [agreeSaving, setAgreeSaving] = useState(false);
+  const [agreeError, setAgreeError] = useState<string | null>(null);
+  const [agreeSaved, setAgreeSaved] = useState(false);
+
+  async function sendAgreement(
+    value: TernaryValue | null,
+    unrateable: boolean
+  ) {
+    const snippetId = suggestion?.snippetId;
+    if (!snippetId || agreeSaving) return;
+    const body = buildRatingBody(value, unrateable);
+    // null means the pair could not express a real answer — a body that would
+    // fabricate a label nobody gave must be impossible to send, not merely
+    // rejected later.
+    if (!body) return;
+    setAgreeSaving(true);
+    setAgreeError(null);
+    const r = await saveConfidenceAgreement(snippetId, body);
+    setAgreeSaving(false);
+    if (r.ok) {
+      setAgreeSaved(true);
+      return;
+    }
+    // Roll the chip back rather than leaving it lit over a row the server
+    // never took — the same rule the style apply follows.
+    setAgreeValue(null);
+    setAgreeUnrateable(false);
+    setAgreeError(r.error ?? "Couldn't save that. Try again.");
+  }
+
   // ONE BUTTON, AND THE LOCK DECIDES WHICH (founder 2026-08-15: "it should be
   // either lock or discard — lock on the unlocked, discard on the locked").
   //
@@ -372,7 +437,7 @@ export default function DeckChunkModal({
         // sheet puts its own footer under the chrome. That is the one thing
         // full-height must not do: the decision buttons live down there.
         className={`flex w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl transition-all duration-300 ease-out sm:rounded-3xl ${
-          expanded
+          expanded || isConfidentVoice
             ? "h-[97dvh] max-h-[97dvh] sm:h-[94vh] sm:max-h-[94vh]"
             : "max-h-[92dvh] sm:max-h-[86vh]"
         }`}
@@ -423,7 +488,7 @@ export default function DeckChunkModal({
                   {suggestion.quote || chunk.part.text}
                 </p>
               </div>
-              {isPraise ? null : (
+              {isPraise || isConfidentVoice ? null : (
                 <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Suggested
@@ -435,10 +500,10 @@ export default function DeckChunkModal({
                   </p>
                 </div>
               )}
-              {isPraise ? (
+              {isPraise || isConfidentVoice ? (
                 <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
                   <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                    {PRAISE_LEAD}
+                    {isConfidentVoice ? CONFIDENT_VOICE_WHY : PRAISE_LEAD}
                   </p>
                   {suggestion.snippetAudioRef ? (
                     // HEAR IT. The claim is about how it SOUNDED — the one
@@ -466,9 +531,41 @@ export default function DeckChunkModal({
                       </ul>
                     </>
                   ) : null}
+                  {isConfidentVoice && suggestion.snippetId ? (
+                    // THE INSTRUMENT, and it comes LAST on purpose: the read,
+                    // then the recording, then the reasons, and only then the
+                    // question. Asking first would be asking about a claim
+                    // they have not heard yet.
+                    <div className="mt-1 border-t border-border pt-3">
+                      {agreeSaved ? (
+                        <p className="text-[13px] text-muted-foreground">
+                          {AGREE_THANKS}
+                        </p>
+                      ) : (
+                        <ConfidenceLabelChips
+                          question={AGREE_QUESTION}
+                          value={agreeValue}
+                          unrateable={agreeUnrateable}
+                          saving={agreeSaving}
+                          disabled={agreeSaving}
+                          error={agreeError}
+                          onPick={(v) => {
+                            setAgreeValue(v);
+                            setAgreeUnrateable(false);
+                            void sendAgreement(v, false);
+                          }}
+                          onToggleUnrateable={() => {
+                            setAgreeValue(null);
+                            setAgreeUnrateable(true);
+                            void sendAgreement(null, true);
+                          }}
+                        />
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
-              {rationale && !isPraise ? (
+              {rationale && !isPraise && !isConfidentVoice ? (
                 <p className="px-1 text-[13px] leading-snug text-muted-foreground">
                   {rationale}
                 </p>
@@ -608,7 +705,7 @@ export default function DeckChunkModal({
           <div className="shrink-0 pb-5" />
         ) : (
           <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-            {face === "review" && suggestion && isPraise ? (
+            {face === "review" && suggestion && (isPraise || isConfidentVoice) ? (
               // NOTHING TO DECIDE. "Accept / Keep mine" under a compliment
               // asks the student to choose between it and their own writing,
               // which is not a choice anybody has. One button, and it settles
