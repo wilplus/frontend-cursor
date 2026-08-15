@@ -5,7 +5,8 @@ import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { whyLine } from "@/lib/willab/trackedChangeWhy";
-import { historyForChunk, type DeckChunk } from "@/lib/willab/deckChunks";
+import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
+import { type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import type {
   DecisionHistoryEntry,
@@ -134,7 +135,6 @@ export default function DeckChunkModal({
         : chunk.approvedIds.length > 0
           ? "Accepted · not locked in yet"
           : "No feedback pending";
-  const chunkHistory = historyForChunk(history, chunk.part.text);
   const title =
     face === "review"
       ? "Suggested change"
@@ -189,6 +189,54 @@ export default function DeckChunkModal({
         ? "Decide every suggestion on this chunk first."
         : "Couldn't lock this in. Try again.",
     );
+  }
+
+  /* APPLY THE EMPHASIS ON THE SPOT (founder 2026-08-15: "when I clicked to
+   * apply styling it didn't apply … it did apply but after I have closed the
+   * modal. I want it to happen right the moment you click, and that you can
+   * revert it if you want").
+   *
+   * The button awaited the server and changed NOTHING locally, so the words in
+   * front of the student stayed plain until the host refetched and the modal
+   * re-rendered from the new served text — which, if they closed it first,
+   * looked like the click had done nothing and the state had "reactivated"
+   * later. The write was fine. The feedback was missing.
+   *
+   * So the draft gains the emphasis markers immediately, and the server call
+   * rides behind it. On failure the draft goes back to exactly what it was —
+   * a local edit is trivially reversible, which is why doing it first is safe
+   * here in a way an irreversible action would not be. */
+  const [styleUndo, setStyleUndo] = useState<string | null>(null);
+
+  async function applyStyle() {
+    if (!styleSuggestion || !onApplyStyle || busy) return;
+    const before = draft;
+    const next = emphasizeQuote(draft, styleSuggestion.quote);
+    if (next !== draft) {
+      dirtyRef.current = true;
+      setDraft(next);            // ← the point: visible on this frame
+      setStyleUndo(before);
+    }
+    setBusy(true);
+    setError(null);
+    const ok = await onApplyStyle(styleSuggestion);
+    setBusy(false);
+    if (!ok) {
+      // Put the words back rather than leaving an emphasis the server does
+      // not have — the screen must not claim a change that did not land.
+      if (next !== draft) {
+        setDraft(before);
+        setStyleUndo(null);
+      }
+      setError("Couldn't apply that. Try again.");
+    }
+  }
+
+  function undoStyle() {
+    if (styleUndo === null) return;
+    dirtyRef.current = true;
+    setDraft(styleUndo);
+    setStyleUndo(null);
   }
 
   async function unlock() {
@@ -429,69 +477,62 @@ export default function DeckChunkModal({
                       {whyLine(styleSuggestion)}
                     </p>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (busy) return;
-                      setBusy(true);
-                      setError(null);
-                      const ok = await onApplyStyle(styleSuggestion);
-                      setBusy(false);
-                      if (!ok) {
-                        setError("Couldn't apply that. Try again.");
-                      }
-                    }}
-                    className="self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Apply emphasis
-                  </button>
+                  {styleUndo === null ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void applyStyle()}
+                      className="self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      Apply emphasis
+                    </button>
+                  ) : (
+                    /* Revertible, as asked. Offered only while the pre-apply
+                       words are still held — after a lock-in or a reopen there
+                       is nothing local to go back to, and a button that
+                       pretended otherwise would be the "nothing happens" bug
+                       in a new coat. */
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={undoStyle}
+                      className="inline-flex items-center gap-1.5 self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    >
+                      <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                      Undo emphasis
+                    </button>
+                  )}
                 </div>
               ) : null}
 
-              {/* PROPOSAL HISTORY (slice 2): what was suggested for these
-                  words in earlier rounds — decided, kept readable. "Use this
-                  wording" loads it into the draft; committing it is a fresh
-                  lock-in, decided step by step like everything else. */}
-              {chunkHistory.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Proposals from earlier iterations · {chunkHistory.length}
-                  </p>
-                  <div className="flex max-h-60 flex-col gap-2 overflow-y-auto">
-                    {chunkHistory.map((h, i) => (
-                      <div
-                        key={`${h.changeKey ?? i}`}
-                        className="flex flex-col gap-1 rounded-xl border border-border bg-card p-3"
-                      >
-                        <p className="text-[13px] leading-relaxed text-foreground">
-                          {h.proposedText ?? h.quote}
-                        </p>
-                        {h.why ? (
-                          <p className="text-[12px] leading-snug text-muted-foreground">
-                            {whyLine({
-                              id: h.changeKey ?? String(i),
-                              why: h.why,
-                            })}
-                          </p>
-                        ) : null}
-                        {h.proposedText ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              dirtyRef.current = true;
-                              setDraft(h.proposedText ?? "");
-                            }}
-                            className="self-start text-[12px] font-medium text-foreground underline underline-offset-2 hover:text-muted-foreground"
-                          >
-                            Use this wording
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              {/* NO PROPOSALS FROM EARLIER ITERATIONS (founder 2026-08-15:
+                  "I am not sure that showing the suggestions from the past
+                  iterations is a good idea … so in the modal itself there
+                  should be no proposal from earlier iteration at all —
+                  effectively delete that").
+
+                  It listed every decided proposal whose words matched this
+                  chunk, with a "Use this wording" link that loaded it into the
+                  draft. Two things were wrong with it in practice. The entries
+                  were routinely IDENTICAL to the text already on screen (a
+                  proposal the student accepted IS the current wording), so the
+                  section repeated the chunk back at them under a heading that
+                  promised alternatives. And the link only rendered when the
+                  row carried `proposedText`, so a history of quote-only rows
+                  showed text that could not be clicked at all — the founder
+                  hit exactly that.
+
+                  The deeper reason it is gone rather than fixed: a settled
+                  chunk is settled. Re-offering an old wording inside the SAME
+                  iteration invites re-litigating a decision the student
+                  already made, which is the opposite of what locking in is
+                  for. A better wording arriving from a LATER take is a
+                  different thing and belongs on the page as a fresh proposal,
+                  not in a history drawer.
+
+                  `history` / `decisionHistory` stay on the props and keep
+                  flowing from the host — the data is not the problem and a
+                  future surface may want it. Nothing renders it here. */}
             </>
           )}
 
