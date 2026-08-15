@@ -209,7 +209,7 @@ export default function CoachReviewOverlay({
         surfaced: cs.surfaced,
       });
       if (cs.surfaced && cs.note.trim()) {
-        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? "strong" });
+        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? null });
       }
     }
 
