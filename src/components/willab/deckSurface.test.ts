@@ -175,7 +175,16 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     //              was free. The e2e caught that: both detents measured 390px
     //              on a 900px viewport, the class changed and the sheet did
     //              not.
-    expect(MODAL).toMatch(/expanded\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/);
+    //
+    // Since 2026-08-15 the Confident Voice card takes the taller detent on
+    // open, without a gesture: it carries a player, an explanation and a
+    // question, and a question arriving half below the fold gets answered
+    // by whoever scrolls — a sampling bias in the corpus, not a layout
+    // nit. The two detents are unchanged; one more thing reaches the tall
+    // one.
+    expect(MODAL).toMatch(
+      /expanded \|\| isConfidentVoice\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/
+    );
     expect(MODAL).toMatch(/:\s*"max-h-\[92dvh\]/);
     // dvh, not vh: on a phone 100vh sits behind the URL bar, which would put
     // the decision buttons under the browser chrome.
