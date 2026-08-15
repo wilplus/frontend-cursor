@@ -19,6 +19,12 @@ export function displayKind(s: DocumentSuggestion): string {
   // (§17 acoustic-confidence-v1, founder 2026-08-14).
   if (s.source === "confident_voice") return "Confident Voice";
   if (s.kind === "bold") return "Style";
+  // THE PRAISE LANE (founder 2026-08-15). Before the generic advice label:
+  // every other `advice` device is a note to work on and "Flow" reads as one,
+  // so praise wearing that title would land as a criticism the student then
+  // has to read past. It is the same reason Confident Voice has its own title
+  // rather than sitting under "Style".
+  if (s.device === "impeccable") return "Well said";
   if (s.kind === "advice") return "Flow";
   const crossTake =
     s.why === "energy" ||

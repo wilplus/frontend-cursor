@@ -26,6 +26,10 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
   visual: null,
   pendingBetterVersion: false,
   pendingCopy: null,
+  cueKeys: [],
+  snippetAudioRef: null,
+  startOffsetMs: null,
+  durationMs: null,
 });
 
 const TEXT = "I think we can do this today.";
