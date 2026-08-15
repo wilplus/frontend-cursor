@@ -15,11 +15,13 @@ export default function ChatPageClient({
   reviewSessionId,
   insightSessionId,
   bestPresentationArcId,
+  idealTextArcId,
 }: {
   sessionId: string | null;
   reviewSessionId: string | null;
   insightSessionId: string | null;
   bestPresentationArcId: string | null;
+  idealTextArcId: string | null;
 }) {
   return (
     <WillabSurface
@@ -27,6 +29,7 @@ export default function ChatPageClient({
       reviewSessionId={reviewSessionId}
       insightSessionId={insightSessionId}
       bestPresentationArcId={bestPresentationArcId}
+      idealTextArcId={idealTextArcId}
     />
   );
 }
