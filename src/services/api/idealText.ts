@@ -66,7 +66,16 @@ export type MomentSuggestion =
        *  the SAME star → sheet → DeliveryStarCard path as the other four; the
        *  difference is upstream only. */
       kind: "delivery";
-      device: "emphasis" | "pace_fast" | "pace_slow" | "pause" | "congruence";
+      device:
+        | "emphasis"
+        | "pace_fast"
+        | "pace_slow"
+        | "pause"
+        | "congruence"
+        /** THE PRAISE MEMBER (founder 2026-08-15). Every other device
+         *  names something to work on; this one says the delivery was
+         *  impeccable, and it carries the cues that earned it. */
+        | "impeccable";
     };
 
 export interface IdealKeyMomentLink {
@@ -195,9 +204,27 @@ export interface DocumentSuggestion {
     | "pace_slow"
     | "pause"
     | "congruence"
+    /** THE PRAISE LANE (founder 2026-08-15) — "if the delivery was
+     *  impeccable, just give them the feedback in the praise lane". The
+     *  only device that is not a note to work on, so it is the only one
+     *  that renders `cueKeys` and a player. */
+    | "impeccable"
     | "contrast"
     | "list_of_three"
     | null;
+  /** WHAT THE VOICE DID, as keys from the BE's closed delivery-cues
+   *  vocabulary (founder 2026-08-15: "explain using the vocal and verbal
+   *  cues"). The FE holds a sentence per key — a key with no copy renders
+   *  NOTHING, same rule as `why`. Empty/absent → no explanation, and the
+   *  praise still stands on its own line. */
+  cueKeys: string[];
+  /** HEAR IT — the student's own recording of this moment, free (the BE
+   *  sources it from the free playback map, never the paid moments read).
+   *  Parent+offset: the ref is usually the WHOLE take, so the player clamps
+   *  to [start, start + duration]. null → no player, praise unchanged. */
+  snippetAudioRef: string | null;
+  startOffsetMs: number | null;
+  durationMs: number | null;
   /** Template key for the reason line, or null → no reason line (never
    *  invent one). See ChangeWhy: the swap sheet's four comparison keys plus
    *  the two non-comparison ones. */
@@ -302,6 +329,7 @@ export function mapDocumentSuggestions(
       dev === "pace_slow" ||
       dev === "pause" ||
       dev === "congruence" ||
+      dev === "impeccable" ||
       dev === "contrast" ||
       dev === "list_of_three"
         ? dev
@@ -393,6 +421,27 @@ export function mapDocumentSuggestions(
       pendingCopy:
         typeof r.pending_copy === "string" && r.pending_copy
           ? r.pending_copy
+          : null,
+      // Cues are validated for SHAPE only: the closed vocabulary lives in
+      // the copy map, and a key with no sentence renders nothing there. Two
+      // gates for one rule would be one gate too many to keep in step.
+      cueKeys: Array.isArray(r.cue_keys)
+        ? (r.cue_keys as unknown[]).filter(
+            (c): c is string => typeof c === "string" && c.length > 0
+          )
+        : [],
+      snippetAudioRef:
+        typeof r.snippet_audio_ref === "string" && r.snippet_audio_ref
+          ? r.snippet_audio_ref
+          : null,
+      startOffsetMs:
+        typeof r.start_offset_ms === "number" &&
+        Number.isFinite(r.start_offset_ms)
+          ? r.start_offset_ms
+          : null,
+      durationMs:
+        typeof r.duration_ms === "number" && Number.isFinite(r.duration_ms)
+          ? r.duration_ms
           : null,
     });
   }
