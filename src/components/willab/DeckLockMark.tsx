@@ -17,9 +17,13 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
 /*               animated state, because it is the only one asking for the     */
 /*               student's attention.                                          */
 /*    locked   — closed lock, ink fill, white glyph, success tick badge. The   */
-/*               final state, reached by accepting the feedback or by locking  */
-/*               in by hand; the old separate "accepted" step was a window     */
-/*               between those two that the student never needed to see.       */
+/*               final state, and since 2026-08-15 it means ONE thing: the     */
+/*               student locked these words in. It used to be reached by       */
+/*               ACCEPTING too, which made the tick flash green for a few      */
+/*               milliseconds on every accept before settling back to grey —   */
+/*               the final state shown on the way to the in-between one. An    */
+/*               accepted-not-locked chunk now reads `clean` here and says so  */
+/*               in words inside the modal, where there is room to explain.    */
 /*                                                                            */
 /*  THE LOCKED PILL CAN BREATHE (founder 2026-08-12, `hasStyle`). The style    */
 /*  lane came back the same day — a locked chunk may now carry a bold/colour   */
