@@ -50,6 +50,11 @@ interface DeckChunkModalProps {
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   /** Commit the draft (when changed) and lock the part. */
   onLockIn: (text: string) => Promise<LockOutcome>;
+  /** UNDO the lock (founder 2026-08-15) — the inverse of onLockIn, and the
+   *  only thing "Discard" means on a locked chunk. Optional: a host that
+   *  cannot unlock simply shows no button there, which is the pre-08-15
+   *  behaviour rather than a Discard that does nothing. */
+  onUnlockPart?: (() => Promise<LockOutcome>) | null;
   onClose: () => void;
   /** THE STYLE LANE (slice 2) — a pending post-lock bold for this chunk,
    *  surfaced ONLY here. Null = none. */
@@ -74,6 +79,7 @@ export default function DeckChunkModal({
   onAccept,
   onKeepMine,
   onLockIn,
+  onUnlockPart = null,
   onClose,
   styleSuggestion = null,
   onApplyStyle,
@@ -185,27 +191,50 @@ export default function DeckChunkModal({
     );
   }
 
+  async function unlock() {
+    if (busy || !onUnlockPart) return;
+    setBusy(true);
+    setError(null);
+    const outcome = await onUnlockPart();
+    setBusy(false);
+    if (outcome === "ok") {
+      onClose();
+      return;
+    }
+    setError("Couldn't unlock this. Try again.");
+  }
+
   const rationale = suggestion ? whyLine(suggestion) : null;
 
-  // A LOCKED CHUNK WITH NOTHING TO DECIDE SHOWS NO DECISION BUTTONS.
+  // ONE BUTTON, AND THE LOCK DECIDES WHICH (founder 2026-08-15: "it should be
+  // either lock or discard — lock on the unlocked, discard on the locked").
   //
-  // Founder 2026-08-12: "if smth is locked in, then why there is a big button
-  // to lock it in? and the discard button? and if I click discard nothing
-  // happens" — the other half of the locked-iteration ruling ("keep it there;
-  // hide the buttons but show the text"). Both buttons were no-ops here:
-  // "Lock in" re-locks words that are already locked, and "Discard" is
-  // `onClose`, which on an untouched chunk discards nothing — exactly the
-  // "nothing happens" he saw.
+  // Discard used to sit beside Lock in on EVERY editor face, wired to
+  // `onClose`. On an untouched chunk that discards nothing — it is a second
+  // close button wearing the word "Discard", which is why it read as a no-op
+  // (founder 2026-08-12: "if I click discard nothing happens"). The 08-12 fix
+  // hid BOTH buttons on a settled locked chunk; the real problem was that the
+  // pair was never two choices in the first place.
   //
-  // The row comes BACK the instant the words differ from the served text,
-  // because a locked chunk stays editable by design and an edit the student
-  // cannot lock in is an edit they cannot save. Compared against the text
-  // rather than the dirty ref on purpose: typing a change and typing it back
-  // leaves nothing to save either, and a ref would not re-render anyway.
+  // So the row is now a TOGGLE of the thing the icon shows:
+  //   unlocked            → Lock in
+  //   locked + untouched  → Discard, which UNLOCKS (the inverse, not a close)
+  //   locked + edited     → Lock in, so the edit can be saved
+  //
+  // The last line is load-bearing: a locked chunk stays editable by design,
+  // and an edit the student cannot lock in is an edit they cannot save. It is
+  // compared against the served text rather than the dirty ref on purpose —
+  // typing a change and typing it back leaves nothing to save either, and a
+  // ref would not re-render anyway.
+  //
+  // Discarding an EDIT needs no button: closing the modal already drops it,
+  // on a locked and an unlocked chunk alike.
   //
   // Not gated on `chunk.status`: a re-opened locked chunk (pending work beats
   // the lock) is already on the REVIEW face, which owns its own buttons.
-  const settled = chunk.part.locked === true && draft === chunk.part.text;
+  const lockedAndSettled =
+    chunk.part.locked === true && draft === chunk.part.text;
+  const showUnlock = lockedAndSettled && !!onUnlockPart;
 
   // SWIPE TO FULL (founder 2026-08-11: "Make the modal a bit taller and
   // expandable on swipe to the top").
@@ -361,7 +390,15 @@ export default function DeckChunkModal({
                   setDraft(next);
                 }}
                 toolbar={false}
-                textSizeClass="text-[15px] leading-relaxed"
+                /* 16px IS A FUNCTIONAL FLOOR ON iOS, NOT A TYPE CHOICE
+                 * (2026-08-15). This was 15px, and mobile Safari force-zooms
+                 * the viewport whenever a focusable editable is under 16px —
+                 * so tapping into the chunk to edit it zoomed the whole page,
+                 * and the deck behind the modal came back at the wrong scale.
+                 * MarkedEditor's own default (17px) was already clear of it;
+                 * only this override dipped below. Do not take it back under
+                 * 16px without also solving the zoom. */
+                textSizeClass="text-[16px] leading-relaxed"
                 frameClass="border border-pending/40 bg-pending/[0.06] focus:border-pending"
               />
 
@@ -463,9 +500,10 @@ export default function DeckChunkModal({
           ) : null}
         </div>
 
-        {face !== "review" && settled ? (
-          // Nothing to decide — the header's close button and the backdrop
-          // are the way out, and the words stay right there to be read.
+        {face !== "review" && lockedAndSettled && !onUnlockPart ? (
+          // A host that cannot unlock (no callback wired) keeps the 08-12
+          // behaviour: a settled locked chunk shows no buttons rather than a
+          // Discard that would do nothing — the exact no-op this replaced.
           <div className="shrink-0 pb-5" />
         ) : (
           <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
@@ -494,31 +532,36 @@ export default function DeckChunkModal({
                   Keep mine
                 </button>
               </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={busy || draft.trim().length === 0}
-                  onClick={() => void lockIn()}
-                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Lock className="h-4 w-4" aria-hidden />
-                  )}
-                  Lock in
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onClose}
-                  className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
+            ) : showUnlock ? (
+              // LOCKED AND UNTOUCHED → the only move is to undo the lock.
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void unlock()}
+                className="col-span-2 flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
                   <Undo2 className="h-4 w-4" aria-hidden />
-                  Discard
-                </button>
-              </>
+                )}
+                Discard
+              </button>
+            ) : (
+              // EVERYTHING ELSE → the only move is to lock it in.
+              <button
+                type="button"
+                disabled={busy || draft.trim().length === 0}
+                onClick={() => void lockIn()}
+                className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Lock className="h-4 w-4" aria-hidden />
+                )}
+                Lock in
+              </button>
             )}
           </div>
         )}
