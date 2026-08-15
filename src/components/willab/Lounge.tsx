@@ -118,6 +118,7 @@ export default function Lounge({
   goTo,
   initialReviewSessionId = null,
   initialBestPresentationArcId = null,
+  initialIdealTextArcId = null,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -133,6 +134,9 @@ export default function Lounge({
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
    *  for that arc once on mount. */
   initialBestPresentationArcId?: string | null;
+  /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
+   *  that arc once on mount — the coach-feedback email's CTA. */
+  initialIdealTextArcId?: string | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -354,6 +358,21 @@ export default function Lounge({
     bestPresLinkOpenedRef.current = true;
     setBestPresentationArcId(initialBestPresentationArcId);
   }, [initialBestPresentationArcId]);
+
+  // THE COACH-FEEDBACK EMAIL LANDS ON THE TEXT ITSELF (founder 2026-08-15:
+  // "does the link from the email lead to this particular ideal text that
+  // holds these reviews? if not make it a deep link").
+  //
+  // It did not — the CTA opened bare /chat, so the one email that is entirely
+  // about ONE talk handed the student a thread to search. Same fire-once shape
+  // as the best-presentation link above: closing the notebook must not reopen
+  // it, or the student cannot get back to the chat the link landed them in.
+  const idealLinkOpenedRef = useRef(false);
+  useEffect(() => {
+    if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
+    idealLinkOpenedRef.current = true;
+    setIdealTextArcId(initialIdealTextArcId);
+  }, [initialIdealTextArcId]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
