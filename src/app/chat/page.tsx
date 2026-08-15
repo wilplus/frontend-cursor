@@ -40,6 +40,11 @@ export default function ChatPage({
   // BestPresentationOverlay for that arc on mount (the "best presentation ready"
   // card / email CTA).
   const bestPresentationArcId = firstQueryValue(searchParams.arc);
+  // The coach-feedback email CTA: `?idealArc=<arc_id>` opens THAT arc's ideal
+  // text on mount (founder 2026-08-15). The email whose whole subject is "your
+  // coach reviewed this talk" used to land on bare /chat and leave the student
+  // hunting the right bubble. Distinct from `?arc=` (best presentation).
+  const idealTextArcId = firstQueryValue(searchParams.idealArc);
 
   return (
     <Suspense fallback={<LoadingState fullscreen />}>
@@ -48,6 +53,7 @@ export default function ChatPage({
         reviewSessionId={reviewSessionId}
         insightSessionId={insightSessionId}
         bestPresentationArcId={bestPresentationArcId}
+        idealTextArcId={idealTextArcId}
       />
     </Suspense>
   );
