@@ -205,6 +205,16 @@ export default function ReportCard({
     return (
       <LiveStatusIdealTextCard
         arcId={arcId}
+        /* THE ROW CARRIES ITS OWN NAME (backend-cursor, 2026-08-15). The BE
+         * now stamps the project's topic when it writes the bubble, so a
+         * brand-new card is correct on its FIRST paint with no request at
+         * all. Absent on every row written before that change — those fall
+         * through to the remembered title, then the generic. */
+        stampedTitle={
+          typeof message.metadata?.topic === "string"
+            ? message.metadata.topic
+            : null
+        }
         version={version}
         frozenVerified={verified}
         // The DATE, not message.body. The BE's sentence used to sit here;
@@ -527,12 +537,16 @@ function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
 
 function LiveStatusIdealTextCard({
   arcId,
+  stampedTitle,
   version,
   frozenVerified,
   date,
   onOpen,
 }: {
   arcId: string | null;
+  /** The project name the BE stamped on this row at write time. Null on rows
+   *  written before 2026-08-15 — the cache and then the generic cover those. */
+  stampedTitle: string | null;
   /** The bubble's OWN version — fixed forever, never the live document's.
    *  Since founder 2026-08-05 the version IS the take: take 1 → 1.0, take
    *  2 → 2.0, each with its own verification. */
@@ -558,6 +572,12 @@ function LiveStatusIdealTextCard({
    * real name. The fetch still runs and still wins — this removes the wrong
    * words, not the revalidation. */
   const [cachedTitle] = useState<string | null>(() => cachedIdealTitle(arcId));
+  /* A stamped title is worth remembering too: it warms the cache for the
+   * OLDER bubbles of the same arc sitting above it in the thread, which have
+   * no stamp of their own and would otherwise each wait on the fetch. */
+  useEffect(() => {
+    if (arcId && stampedTitle?.trim()) rememberIdealTitle(arcId, stampedTitle);
+  }, [arcId, stampedTitle]);
   useEffect(() => {
     if (!arcId) return;
     let active = true;
@@ -580,10 +600,16 @@ function LiveStatusIdealTextCard({
       live.version === version);
   return (
     <IdealRecordingCard
-      /* Live → remembered → the generic. The generic is the honest answer
-       * ONLY for an arc nobody has ever opened; everywhere else it was just
-       * the wrong words shown first. */
-      title={live?.title?.trim() || cachedTitle || "Your ideal text"}
+      /* Live → stamped-on-the-row → remembered → the generic. The generic is
+       * the honest answer ONLY for an arc nobody has ever opened and whose
+       * bubble predates the stamp; everywhere else it was just the wrong
+       * words shown first. */
+      title={
+        live?.title?.trim() ||
+        stampedTitle?.trim() ||
+        cachedTitle ||
+        "Your ideal text"
+      }
       meta={date}
       badge={version !== null ? `${version}.0` : null}
       verified={verified}
