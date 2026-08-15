@@ -39,29 +39,27 @@ import { TOKENS_COPY } from "@/components/tokens/copy";
 export const MENU_ITEM_CLASS =
   "block w-full px-4 py-3.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
 
-/* THE ONE-LINE "WHAT IS THIS" UNDER A ROW (founder 2026-08-15: "add demo text
- * on the principles and game tabs").
+/* THE "demo" CHIP (founder 2026-08-15).
  *
- * Only on the two rows whose LABEL does not say what they are. "Lab" and
- * "Training corpus" describe themselves; "Voice-game" and "Principles" are
- * product names, and a product name in a menu is a door with no sign — the
- * same problem the coach's message had behind the locked chunk.
+ * The first attempt put a one-line description under these two rows and the
+ * founder cut it: "remove that cluttered little text next to the title, add
+ * the small 'demo'". He was right — three lines of prose under two of seven
+ * rows turned a list you SCAN into a page you READ, and it buried the labels
+ * it was supposed to serve.
  *
- * Deliberately NOT applied to every row: a sub-line under all of them makes
- * the menu a page to read instead of a list to scan, and the two that need it
- * stop standing out. */
-/** Sub-lines for SERVER-SENT rows, keyed by the entry's own `key`. A lookup
- *  rather than a branch in the loop, because the menu list is the server's and
- *  a row that stops being sent should take its description with it. Anything
- *  not listed renders exactly as before — a bare label. */
-const LIFE_MENU_DESC: Record<string, string> = {
-  principles:
-    "The lines you keep coming back to — yours, kept in one place and " +
-    "replayed when they fit what you are working on.",
-};
+ * What the rows needed was one word of STATUS, not an explanation.
+ * "Voice-game" and "Principles" are real but unfinished, and a student should
+ * know that before they tap, not after they arrive. Set beside the label and
+ * sized well under it — a footnote on the row, never a second title. */
+const MENU_DEMO_CHIP_CLASS =
+  "ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 " +
+  "align-middle text-[10px] font-medium uppercase tracking-wide " +
+  "text-muted-foreground";
 
-const MENU_ITEM_DESC_CLASS =
-  "mt-0.5 block text-[12px] font-normal leading-snug text-muted-foreground";
+/** SERVER-SENT rows carrying the chip, keyed by the entry's own `key`. A
+ *  lookup rather than a branch in the loop, because the menu list is the
+ *  server's: a row that stops being sent takes its chip with it. */
+const LIFE_MENU_DEMO = new Set(["principles"]);
 
 const MENU_ID = "app-header-menu";
 
@@ -223,10 +221,7 @@ export default function AppMenu({
                   anyone who has already played the arc they land on. The price
                   lives on the game screen, where the arc is known. */}
               Voice-game
-              <span className={MENU_ITEM_DESC_CLASS}>
-                Hear a moment, call whether the voice sounds sure of itself.
-                Your ear is the instrument.
-              </span>
+              <span className={MENU_DEMO_CHIP_CLASS}>demo</span>
             </Link>
           ) : null}
 
@@ -266,10 +261,8 @@ export default function AppMenu({
                     onClick={() => setOpen(false)}
                   >
                     {entry.label}
-                    {LIFE_MENU_DESC[entry.key] ? (
-                      <span className={MENU_ITEM_DESC_CLASS}>
-                        {LIFE_MENU_DESC[entry.key]}
-                      </span>
+                    {LIFE_MENU_DEMO.has(entry.key) ? (
+                      <span className={MENU_DEMO_CHIP_CLASS}>demo</span>
                     ) : null}
                   </Link>
                 )
