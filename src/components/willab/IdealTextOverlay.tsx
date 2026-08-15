@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Lock, Play, Sparkles } from "lucide-react";
+import { Check, Copy, Lock, Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
@@ -714,23 +714,14 @@ export default function IdealTextOverlay({
             ideal-text screens cannot head themselves differently again. */}
         <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
         <div className="flex items-center gap-2.5">
-          {/* PRESENT — the PowerPoint move: a play glyph that throws the
-              document fullscreen to deliver it. First in the row because it
-              is the one control you reach for while standing up. Needs text
-              on screen. */}
-          {(status === "ready" || status === "instant") &&
-          displayText.trim() ? (
-            <button
-              type="button"
-              onClick={() => setPresenting(true)}
-              aria-label="Present mode"
-              title="Present mode"
-              className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Play className="h-4 w-4" aria-hidden />
-              <span className="text-[13px] font-medium">Present</span>
-            </button>
-          ) : null}
+          {/* PRESENT IS NOT IN THIS NAV (founder 2026-08-15: "hide the
+              present button from the nav of the ideal text").
+              The play glyph threw the document fullscreen to deliver it. This
+              screen is where you REVIEW and lock the text in, and a delivery
+              control sat in the row beside the ones that change it.
+              HIDDEN, NOT DELETED: PresentMode and its `presenting` state stay
+              wired below, so a surface that should offer delivering the text
+              can open it without rebuilding anything. */}
           {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
               timeline has rows: an empty list is a real state (pre-migration
               arc) and hides it entirely (§4.3). */}
