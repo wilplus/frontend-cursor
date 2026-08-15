@@ -645,6 +645,37 @@ export default function IdealTextReadout({
       markDirty(true);
       setSaveState("idle");
       setText(next);
+      // THE LOCK-AFTER-EDIT BUG (founder 2026-08-15: "when I have edited the
+      // text after the styling and I am trying to lock it in, it doesnt lock
+      // in").
+      //
+      // `textRef` was written in exactly ONE place — the render body — so it
+      // did not exist yet as far as this call's own caller was concerned.
+      // `deckLockPart` calls applyEdit and then flushEdits on the very next
+      // line, and every save site reads textRef, so the whole lane ran on the
+      // PRE-EDIT document:
+      //
+      //   • flushEdits's fast path compares savedTextRef to textRef. On a
+      //     freshly served document those two are the SAME string (the adopt
+      //     sets them together), so the guard read "already saved", returned
+      //     true without sending anything, and deckLockPart reported "ok";
+      //   • deckLockPart then cleared the dirty flag — which is the only
+      //     thing keeping the 800ms debounce alive — and refetched, so the
+      //     server's text came back over the student's words;
+      //   • and the auto-lock that was supposed to ride that same PUT
+      //     ("typed = committed") never happened, because the PUT never
+      //     happened. The chunk came back unlocked, wearing its old words.
+      //
+      // Styling made it visible rather than causing it: applyStyle nulls
+      // savedTextRef and refetches, so a lock landing before that refetch took
+      // the other branch — enqueueSave ran and PUT the stale pre-edit
+      // document, reporting success over words the student never wrote.
+      //
+      // So the ref moves WITH the state, on the same line as its peer below.
+      // partsRef was always updated synchronously here; textRef being the odd
+      // one out is the entire defect. The render-body assignment stays as the
+      // backstop and simply re-asserts the same string.
+      textRef.current = next;
       // The arranger already carried ids through the operation — adopt them
       // so the save lane does not have to re-derive identity from position,
       // which is the one thing a reorder makes impossible.
