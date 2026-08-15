@@ -117,6 +117,56 @@ export async function saveOwnerConfidenceLabel(
   return { ok: false, error: typeof err === "string" && err ? err : null };
 }
 
+/** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
+ *
+ *  Same instrument, same question, same answer space — and ONE thing
+ *  different, which is why it is a different endpoint rather than a flag on
+ *  the one above: `saveOwnerConfidenceLabel` collects a BLIND rating (it asks
+ *  before any machine read is shown), and this collects an ANCHORED one, on a
+ *  card that has already told the speaker what the machine thinks.
+ *
+ *  The BE stamps `saw_model_output: true` off the ROUTE, never off the body —
+ *  a client that could describe its own screen could describe it wrongly, and
+ *  an anchored label is indistinguishable from a blind one once stored. So
+ *  the two writes must never be collapsed into one call with a parameter: the
+ *  path is what carries the fact.
+ *
+ *  The row is a self-report twice over (own clip, machine read seen) and is
+ *  excluded from quorum on both counts. It is calibration and ROUTING signal:
+ *  a disagreement marks this clip as the most informative unrated thing in the
+ *  corpus and sends it to real raters sooner. */
+export async function saveConfidenceAgreement(
+  snippetId: string,
+  body: StateRatingBody
+): Promise<SaveRatingResult> {
+  const token = await getAuthToken();
+  if (!token) return { ok: false, error: null };
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/confidence-agree`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        cache: "no-store",
+      }
+    );
+  } catch {
+    return { ok: false, error: null };
+  }
+  if (res.ok) return { ok: true };
+  const data = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  const err = data?.error;
+  return { ok: false, error: typeof err === "string" && err ? err : null };
+}
+
 /** Persist one rating. Re-rating REPLACES this rater's row (the corpus wants
  *  their current view); other raters' rows are untouched, so multi-rater
  *  agreement stays possible.
