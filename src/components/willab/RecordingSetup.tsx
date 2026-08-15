@@ -15,6 +15,12 @@ import {
   type PresentationSlide,
 } from "./presentation";
 import { fetchRecordingConfig } from "@/services/api/recordingConfig";
+import { fetchTrainings } from "@/services/api/trainings";
+import {
+  findProjectNameConflict,
+  suggestFreeProjectName,
+  type NamedProject,
+} from "@/lib/willab/projectNames";
 import RecordPriceNote from "@/components/tokens/RecordPriceNote";
 
 /* -------------------------------------------------------------------------- */
@@ -172,11 +178,58 @@ export default function RecordingSetup({
 
 
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
-  const topicReady = topic.trim().length > 0;
+
+  /* ── ONE NAME, ONE PROJECT (founder 2026-08-15) ─────────────────────────
+   *
+   * Only when starting a NEW project (`contextArcId === null`). Continuing a
+   * known arc reuses its title by definition, and running this check there
+   * would flag every re-take as a duplicate of itself.
+   *
+   * The name is the IDENTITY, not a label: since the arc-identity fix a
+   * deckless take with no uploaded PDF is matched to its project by the
+   * normalized topic. Two projects sharing a name are one project wearing two,
+   * which is exactly the confusion the founder hit when "Book" landed inside
+   * "Testtttt" and the two could no longer be told apart.
+   *
+   * FAILS OPEN. If the list can't load we let the name through rather than
+   * blocking a recording on a read we could not make — a false "that name is
+   * taken" stops someone from working, and the server's behaviour for a real
+   * duplicate is to file it into the existing project, which is coherent and
+   * recoverable. Never break the live loop over a hint. */
+  const isNewProject = contextArcId === null;
+  const [mine, setMine] = useState<NamedProject[] | null>(null);
+  useEffect(() => {
+    if (!isNewProject) return;
+    let alive = true;
+    fetchTrainings()
+      .then((arcs) => {
+        // null = the endpoint is unavailable (it 404s on older backends and
+        // the tab falls back to the legacy view). Same fail-open answer as a
+        // rejected fetch: no list, no clash, never a false block.
+        if (alive) {
+          setMine((arcs ?? []).map((a) => ({ arcId: a.arcId, topic: a.topic })));
+        }
+      })
+      .catch(() => {
+        if (alive) setMine([]);   // fail open — see above
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isNewProject]);
+
+  const nameClash = isNewProject ? findProjectNameConflict(topic, mine) : null;
+  const freeName = nameClash ? suggestFreeProjectName(topic, mine) : "";
+  const topicReady = topic.trim().length > 0 && !nameClash;
 
   function submit() {
     const t = topic.trim();
-    if (!t) {
+    if (!t || nameClash) {
+      // `nameClash` is re-checked HERE and not only on the topic step: the
+      // project list loads asynchronously, so a fast typist can be two steps
+      // past the name by the time we learn it is taken. Bouncing back to the
+      // step that owns the problem beats submitting a take into a project the
+      // user did not choose.
       setStep(steps.indexOf("topic"));
       return;
     }
@@ -272,7 +325,41 @@ export default function RecordingSetup({
               placeholder="e.g. my Q3 results pitch"
               className={SETUP_INPUT_CLS}
               autoFocus
+              aria-invalid={!!nameClash}
+              aria-describedby={nameClash ? "topic-name-taken" : undefined}
             />
+            {nameClash && (
+              /* Stated as a fact about what they already have, not as a
+               * rejection — they are one tap from the thing they may have
+               * meant. Copy is deliberately plain and is the founder's to
+               * adjust (LIVE LOOP). */
+              <p
+                id="topic-name-taken"
+                role="status"
+                className="mt-2 text-sm text-muted-foreground"
+              >
+                You already have a project called{" "}
+                <span className="font-medium text-foreground">
+                  {nameClash.topic}
+                </span>
+                . Go back and pick it to add another take, or
+                {freeName ? (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() => setTopic(freeName)}
+                      className="font-medium text-foreground underline underline-offset-2"
+                    >
+                      call this one “{freeName}”
+                    </button>
+                    .
+                  </>
+                ) : (
+                  " give this one a different name."
+                )}
+              </p>
+            )}
           </div>
         )}
 
