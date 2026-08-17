@@ -179,7 +179,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // Since 2026-08-15 the Confident Voice card takes the taller detent on
     // open, without a gesture: it carries a player, an explanation and a
     // question, and a question arriving half below the fold gets answered
-    // by whoever scrolls — a sampling bias in the corpus, not a layout
+    // by whoever scrolls — a bias in which moments reach the album, not a layout
     // nit. The two detents are unchanged; one more thing reaches the tall
     // one.
     expect(MODAL).toMatch(

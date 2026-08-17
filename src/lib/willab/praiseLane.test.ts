@@ -143,7 +143,7 @@ describe("the Confident Voice card asks, and asks honestly", () => {
   it("goes FULL SCREEN, without a gesture", () => {
     // It carries a player, an explanation and a question now. A question
     // arriving half below the fold gets answered by whoever scrolls, which is
-    // a sampling bias in the corpus rather than a layout nit.
+    // a bias in which moments reach the album rather than a layout nit.
     expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
   });
 

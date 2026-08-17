@@ -12,6 +12,7 @@ import {
   type DocumentProbe,
 } from "@/lib/willab/documentSettle";
 import { fetchIdealText } from "@/services/api/idealText";
+import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
 /*  useDocumentSettle — the ONE pending authority for the blocking screen       */
@@ -56,6 +57,7 @@ export function useDocumentSettle({
   /** The in-flight take's index, for the chip. */
   takeIndex: number | null;
 } {
+  const userId = useUserId();
   const [marker, setMarker] = useState<ProcessingTake | null>(null);
   const firstProbeRef = useRef<DocumentProbe | null>(null);
   const probedSessionRef = useRef<string | null>(null);
@@ -83,9 +85,9 @@ export function useDocumentSettle({
       return;
     }
     const read = () => {
-      const m = readProcessingTake();
+      const m = readProcessingTake(userId);
       if (m && Date.now() - m.startedAt > MARKER_STALE_MS) {
-        clearProcessingTake(m.sessionId);
+        clearProcessingTake(userId, m.sessionId);
         setMarker(null);
         return;
       }
@@ -98,15 +100,15 @@ export function useDocumentSettle({
     read();
     const id = setInterval(read, MARKER_POLL_MS);
     return () => clearInterval(id);
-  }, [enabled]);
+  }, [enabled, userId]);
 
   const settle = useCallback((sessionId: string) => {
-    clearProcessingTake(sessionId);
+    clearProcessingTake(userId, sessionId);
     setMarker(null);
     firstProbeRef.current = null;
     probedSessionRef.current = null;
     onSettledRef.current?.();
-  }, []);
+  }, [userId]);
 
   // The analysis-phase baseline read: ONE fetch per session, while the take
   // is still transcribing — before assembly can have moved the version.

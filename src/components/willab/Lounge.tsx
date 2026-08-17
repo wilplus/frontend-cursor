@@ -21,6 +21,7 @@ import {
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
+import { useUserId } from "./useUserId";
 import {
   readProcessingTake,
   clearProcessingTake,
@@ -141,6 +142,7 @@ export default function Lounge({
   recordingProgress?: RecordingProgress | null;
 }) {
   const router = useRouter();
+  const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
   const [draftText, setDraftText] = useState("");
@@ -458,7 +460,7 @@ export default function Lounge({
       setResumeWatch(null);
       return;
     }
-    const marker = readProcessingTake();
+    const marker = readProcessingTake(userId);
     if (!marker) {
       // W6 (founder 2026-08-10) — a FAILED note survives idle state changes.
       // It used to be wiped here by the first state flip after the 10s timer
@@ -472,7 +474,7 @@ export default function Lounge({
     // A marker older than 30 min is stale (the accepted redeploy-mid-job gap
     // leaves `processing` forever) — clear quietly instead of an eternal chip.
     if (Date.now() - marker.startedAt > 30 * 60_000) {
-      clearProcessingTake(marker.sessionId);
+      clearProcessingTake(userId, marker.sessionId);
       setResumeWatch(null);
       return;
     }
@@ -489,18 +491,18 @@ export default function Lounge({
       takeIndex: marker.takeIndex,
       startedAt: marker.startedAt,
     });
-  }, [state]);
+  }, [state, userId]);
   // The stale cutoff applies while watching too — a long-lived tab must not
   // keep an orphaned "analyzing" chip alive forever.
   useEffect(() => {
     if (!resumeWatch) return;
     const id = setTimeout(() => {
-      clearProcessingTake(resumeWatch.sessionId);
+      clearProcessingTake(userId, resumeWatch.sessionId);
       setProcessingResume(null);
       setResumeWatch(null);
     }, Math.max(0, resumeWatch.startedAt + 30 * 60_000 - Date.now()));
     return () => clearTimeout(id);
-  }, [resumeWatch]);
+  }, [resumeWatch, userId]);
   useLabReadoutLive(
     resumeWatch?.sessionId ?? null,
     (r) => {
@@ -510,7 +512,7 @@ export default function Lounge({
         r.readout.instantChunks.length > 0 ||
         r.readout.fullTranscriptChunks.length > 0;
       if (r.state === "failed") {
-        clearProcessingTake(resumeWatch.sessionId);
+        clearProcessingTake(userId, resumeWatch.sessionId);
         setProcessingResume({
           takeIndex: resumeWatch.takeIndex,
           status: "failed",
@@ -537,7 +539,7 @@ export default function Lounge({
         // marker on evidence, and reload() moved there with it (the
         // ideal-text bubble also lands at pipeline end, not here). The
         // "analyzing" chip deliberately stays up through this phase.
-        transitionProcessingTakeToDocument(resumeWatch.sessionId);
+        transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
         setResumeWatch(null);
       }
     },

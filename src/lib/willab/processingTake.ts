@@ -26,6 +26,10 @@
 
 const KEY = "willab_processing_take";
 
+function scopedKey(userId: string | null): string {
+  return `${KEY}:${userId ?? "guest"}`;
+}
+
 export type ProcessingPhase = "analysis" | "document";
 
 export interface ProcessingTake {
@@ -43,9 +47,11 @@ export interface ProcessingTake {
   phaseStartedAt: number;
 }
 
-export function readProcessingTake(): ProcessingTake | null {
+export function readProcessingTake(
+  userId: string | null
+): ProcessingTake | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(scopedKey(userId));
     if (!raw) return null;
     const v = JSON.parse(raw) as Record<string, unknown>;
     if (typeof v.sessionId !== "string" || v.sessionId.length === 0) return null;
@@ -66,12 +72,13 @@ export function readProcessingTake(): ProcessingTake | null {
 }
 
 export function writeProcessingTake(
+  userId: string | null,
   t: Omit<ProcessingTake, "phase" | "phaseStartedAt"> &
     Partial<Pick<ProcessingTake, "phase" | "phaseStartedAt">>
 ): void {
   try {
     localStorage.setItem(
-      KEY,
+      scopedKey(userId),
       JSON.stringify({
         ...t,
         phase: t.phase ?? "analysis",
@@ -86,12 +93,15 @@ export function writeProcessingTake(
 /** The readout went terminal but the document is still assembling: move THIS
  *  session's marker into the "document" phase instead of clearing it. A
  *  different session's marker is left alone (same scoping rule as clear). */
-export function transitionProcessingTakeToDocument(sessionId: string): void {
+export function transitionProcessingTakeToDocument(
+  userId: string | null,
+  sessionId: string
+): void {
   try {
-    const cur = readProcessingTake();
+    const cur = readProcessingTake(userId);
     if (!cur || cur.sessionId !== sessionId) return;
     if (cur.phase === "document") return;
-    writeProcessingTake({
+    writeProcessingTake(userId, {
       ...cur,
       phase: "document",
       phaseStartedAt: Date.now(),
@@ -99,13 +109,16 @@ export function transitionProcessingTakeToDocument(sessionId: string): void {
   } catch {}
 }
 
-export function clearProcessingTake(sessionId?: string): void {
+export function clearProcessingTake(
+  userId: string | null,
+  sessionId?: string
+): void {
   try {
     // Scoped clear: don't wipe a NEWER take's marker when an old poll lands.
     if (sessionId) {
-      const cur = readProcessingTake();
+      const cur = readProcessingTake(userId);
       if (cur && cur.sessionId !== sessionId) return;
     }
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(scopedKey(userId));
   } catch {}
 }

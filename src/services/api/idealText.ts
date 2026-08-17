@@ -255,7 +255,12 @@ export interface DocumentSuggestion {
      *  machine's high-confidence threshold. Standard modal mechanics; the
      *  founder-signed body renders by key. Titled "Confident Voice". */
     | "confident_voice"
+    /** A later coach correction/retraction of machine text the user already
+     *  accepted. It is a fresh proposal; it never mutates accepted words. */
+    | "coach_revision"
     | null;
+  /** Coach-authored explanation for a superseding proposal only. */
+  coachNote?: string | null;
   /** Server-remembered decision. Anything already decided is not re-offered
    *  (dismissed suggestions must never come back — FE-5). */
   status: "pending" | "approved" | "dismissed" | null;
@@ -355,7 +360,8 @@ export function mapDocumentSuggestions(
       rawSource === "structural" ||
       rawSource === "new_take" ||
       rawSource === "acoustic_swap" ||
-      rawSource === "confident_voice"
+      rawSource === "confident_voice" ||
+      rawSource === "coach_revision"
         ? rawSource
         : null;
     const blockKey =
@@ -399,6 +405,11 @@ export function mapDocumentSuggestions(
         ? (whyRaw as ChangeWhy)
         : null,
       source,
+      coachNote:
+        source === "coach_revision" && typeof r.coach_note === "string" &&
+        r.coach_note.trim()
+          ? r.coach_note.trim()
+          : null,
       status:
         status === "pending" || status === "approved" || status === "dismissed"
           ? status

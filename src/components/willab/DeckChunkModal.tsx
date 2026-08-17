@@ -43,7 +43,8 @@ import type {
 /*  the part-lock PUT stay exactly where they already live and the deck        */
 /*  cannot fork the contract. Copy is the founder's spec vocabulary            */
 /*  verbatim; the rationale line is the signed-off whyLine() copy — the        */
-/*  modal never renders BE free text (LIVE LOOP).                              */
+/*  modal never renders model free text (LIVE LOOP). A coach_revision may     */
+/*  render its explicitly coach-authored note.                                 */
 /* -------------------------------------------------------------------------- */
 
 // displayKind lives in its own pure .ts module so the founder's display
@@ -267,7 +268,11 @@ export default function DeckChunkModal({
     setError("Couldn't unlock this. Try again.");
   }
 
-  const rationale = suggestion ? whyLine(suggestion) : null;
+  const rationale = suggestion
+    ? suggestion.source === "coach_revision"
+      ? suggestion.coachNote ?? null
+      : whyLine(suggestion)
+    : null;
 
   /* THE PRAISE LANE (founder 2026-08-15): "if the delivery was impeccable,
    * just give them the feedback in the praise lane and in the justification
@@ -299,18 +304,16 @@ export default function DeckChunkModal({
    * one tap in the place they already are, which is the fastest and most
    * natural rating this system can collect.
    *
-   * WHAT THE ANSWER IS. A self-report on their own clip, given AFTER being
-   * shown the machine's read — anchored twice over — so it is excluded from
-   * quorum by rules that already exist and it writes through its OWN endpoint,
-   * which is what lets the backend stamp `saw_model_output: true` honestly.
-   * The blind instrument (saveOwnerConfidenceLabel) is a different call on a
-   * different surface and the two must never be collapsed.
+   * WHAT THE ANSWER IS. Routing to the Voice Album, and only routing. The
+   * answer is anchored because the machine's read is already visible, so the
+   * backend stores it in a dedicated table that no training, calibration,
+   * quorum, evaluation, SFT or DPO reader consumes.
    *
    * FULL SCREEN because it now carries a player, an explanation and a
    * question: the two-detent sheet was sized for a paragraph and a pair of
    * buttons, and a question that arrives half below the fold gets answered by
-   * whoever scrolls, which is a sampling bias in the corpus rather than a
-   * layout problem. */
+   * whoever scrolls, which biases which moments reach the album rather than
+   * merely creating a layout problem. */
   const isConfidentVoice = suggestion?.source === "confident_voice";
   const [agreeValue, setAgreeValue] = useState<TernaryValue | null>(null);
   const [agreeUnrateable, setAgreeUnrateable] = useState(false);

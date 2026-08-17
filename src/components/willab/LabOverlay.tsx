@@ -23,6 +23,7 @@ import {
 import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
+import { useUserId } from "./useUserId";
 import { readoutSummaryDraft } from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
 import { setPendingSend, setReviewPending } from "./sendStatus";
@@ -124,6 +125,7 @@ export default function LabOverlay({
   const mic = useDualCaptureMic({ transcript: false });
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
+  const userId = useUserId();
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -524,7 +526,7 @@ export default function LabOverlay({
         // PRIOR take's document as current. No session id → nothing to
         // scope a clear to, so no marker (the pre-marker behavior).
         if (result.sessionId && (result.arcId ?? arcId)) {
-          writeProcessingTake({
+          writeProcessingTake(userId, {
             sessionId: result.sessionId,
             arcId: result.arcId ?? arcId,
             takeIndex:
@@ -551,7 +553,7 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
-        writeProcessingTake({
+        writeProcessingTake(userId, {
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
           takeIndex:
@@ -578,7 +580,7 @@ export default function LabOverlay({
     return () => {
       active = false;
     };
-  }, [state, blob, context, goTo, cancelMic, retryNonce]);
+  }, [state, blob, context, goTo, cancelMic, retryNonce, userId]);
 
   // Async analysis (delivery layer): push-first via the readout SSE bridge —
   // one streaming connection instead of a 2s fetch loop — with the original
@@ -604,7 +606,7 @@ export default function LabOverlay({
       // Discard the stashed arc bookkeeping — a failed take must not
       // advance the arc, so the retry reuses the original take_index.
       pendingCarryRef.current = null;
-      clearProcessingTake(liveSessionId);
+      clearProcessingTake(userId, liveSessionId);
       setPollSessionId(null);
       setPollSlow(false);
       setUploadError(
@@ -634,7 +636,7 @@ export default function LabOverlay({
       // NOT the text being ready — the arc's document reassembles at
       // pipeline end. Transition the marker to its document phase instead
       // of clearing it; the settle probe clears it on evidence.
-      transitionProcessingTakeToDocument(liveSessionId);
+      transitionProcessingTakeToDocument(userId, liveSessionId);
       setPollSessionId(null);
       setPollSlow(false);
       setReadout(r.readout);

@@ -125,16 +125,10 @@ export async function saveOwnerConfidenceLabel(
  *  before any machine read is shown), and this collects an ANCHORED one, on a
  *  card that has already told the speaker what the machine thinks.
  *
- *  The BE stamps `saw_model_output: true` off the ROUTE, never off the body —
- *  a client that could describe its own screen could describe it wrongly, and
- *  an anchored label is indistinguishable from a blind one once stored. So
- *  the two writes must never be collapsed into one call with a parameter: the
- *  path is what carries the fact.
- *
- *  The row is a self-report twice over (own clip, machine read seen) and is
- *  excluded from quorum on both counts. It is calibration and ROUTING signal:
- *  a disagreement marks this clip as the most informative unrated thing in the
- *  corpus and sends it to real raters sooner. */
+ *  The endpoint is separate because the path carries one narrow purpose: this
+ *  answer routes the displayed moment into (or out of) the Voice Album. The
+ *  backend stores it in a dedicated routing table. It is never a training,
+ *  calibration, quorum, evaluation, SFT or DPO signal. */
 export async function saveConfidenceAgreement(
   snippetId: string,
   body: StateRatingBody
