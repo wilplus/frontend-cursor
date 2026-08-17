@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { fetchBestPresentation } from "@/services/api/bestPresentation";
+import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
 /*  useArcDeckRef — the arc's deck PDF url for the ideal-text reading view     */
@@ -25,15 +26,16 @@ export function useArcDeckRef(
    *  resolved, so a payload that does carry the ref skips the extra fetch. */
   settled: boolean
 ): string | null {
+  const userId = useUserId();
   const [fetched, setFetched] = useState<string | null>(null);
   const triedRef = useRef<string | null>(null);
   const cached = useMemo(() => {
     if (!arcId) return null;
-    const arc = readExploreArc();
+    const arc = readExploreArc(userId);
     return arc?.arcId === arcId && arc.deck?.presentationRef
       ? arc.deck.presentationRef
       : null;
-  }, [arcId]);
+  }, [arcId, userId]);
 
   const need =
     settled && !!arcId && !payloadRef && !cached && triedRef.current !== arcId;

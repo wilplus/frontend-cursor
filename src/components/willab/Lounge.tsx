@@ -1133,11 +1133,12 @@ export default function Lounge({
           // BE reconciles the real take index on upload) and open the Lab.
           onReadAloud={(version) => {
             const arcId = idealTextArcId;
-            const cached = readExploreArc();
+            const cached = readExploreArc(userId);
             if (cached?.arcId !== arcId) {
               // Seed the next-take index from the SD version hint (≈ takes so
               // far); the BE reconciles the real take_index on upload.
               writeExploreArc(
+                userId,
                 arcId,
                 (version ?? 0) + 1,
                 undefined,
@@ -1163,11 +1164,12 @@ export default function Lounge({
             // own (latest take's) id, else derive from the thread. A deckless
             // seed (trainings mode carries no slide bodies) must not WIPE a
             // deck already cached for this same arc — keep it.
-            const cached = readExploreArc();
+            const cached = readExploreArc(userId);
             const deck =
               arc.deck ??
               (cached?.arcId === arc.arcId ? cached.deck : undefined);
             writeExploreArc(
+              userId,
               arc.arcId,
               arc.nextTakeIndex,
               deck,
@@ -1256,12 +1258,13 @@ export default function Lounge({
             // when localStorage holds a different / no arc.
             if (
               bestPresentationArcId &&
-              readExploreArc()?.arcId !== bestPresentationArcId
+              readExploreArc(userId)?.arcId !== bestPresentationArcId
             ) {
               // FE-1 — carry the arc's session id so the Lab can restore its
               // deck from the server (this seed omits the deck; localStorage was
               // lost or holds a different arc).
               writeExploreArc(
+                userId,
                 bestPresentationArcId,
                 takesDone + 1,
                 undefined,
