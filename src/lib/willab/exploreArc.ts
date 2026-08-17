@@ -4,15 +4,23 @@
  * goes back to the Lounge between takes, reads the cadence bubble, then opens
  * the Lab again for the next take).
  *
- * Continue-one-arc (2026-06-20): one ever-growing arc per deck. The BE is the
- * authority on grouping (by deck-hash) and on take_index; this localStorage
- * entry is just a within-sitting / cross-overlay convenience that carries the
- * arc_id (and now the deck, so a "record another take" can pre-fill the Lab).
+ * Project identity is explicit: a new project gets a fresh arc UUID and only
+ * "record another take" carries one forward. The BE is authoritative on that
+ * identity and on take_index; this localStorage entry is only a within-sitting
+ * / cross-overlay convenience (and carries the deck for setup pre-fill).
  * The "3 takes" is only the unlock threshold — the arc keeps growing, so we no
  * longer clear it at a take cap.
  */
 
-const KEY = "willab_explore_arc";
+const LEGACY_KEY = "willab_explore_arc";
+const KEY_PREFIX = "willab_explore_arc:v2";
+
+/** Project carry-over is browser convenience, but it still contains identity.
+ * Scope it to the authenticated account (or this browser's guest lane) so an
+ * account switch can never seed another person's project into a recording. */
+export function exploreArcStorageKey(ownerId: string | null): string {
+  return `${KEY_PREFIX}:${ownerId ?? "guest"}`;
+}
 
 /** The deck an arc belongs to — carried so a next/another take can pre-fill the
  *  Lab (topic + slides + the already-served PDF + the set length) without
@@ -67,9 +75,9 @@ function pickDeck(raw: unknown): ExploreArcDeck | undefined {
   };
 }
 
-export function readExploreArc(): ExploreArc | null {
+export function readExploreArc(ownerId: string | null): ExploreArc | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(exploreArcStorageKey(ownerId));
     if (!raw) return null;
     const v = JSON.parse(raw) as Record<string, unknown>;
     if (typeof v.arcId !== "string" || typeof v.nextTakeIndex !== "number")
@@ -86,6 +94,7 @@ export function readExploreArc(): ExploreArc | null {
 }
 
 export function writeExploreArc(
+  ownerId: string | null,
   arcId: string,
   nextTakeIndex: number,
   deck?: ExploreArcDeck,
@@ -93,16 +102,20 @@ export function writeExploreArc(
 ): void {
   try {
     localStorage.setItem(
-      KEY,
+      exploreArcStorageKey(ownerId),
       JSON.stringify({ arcId, nextTakeIndex, deck, sessionId })
     );
+    // Never preserve the old cross-account slot once this build has written a
+    // properly scoped value. Existing database projects are unaffected.
+    localStorage.removeItem(LEGACY_KEY);
   } catch {
     // storage quota — not fatal; the arc just won't carry to the next session
   }
 }
 
-export function clearExploreArc(): void {
+export function clearExploreArc(ownerId: string | null): void {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(exploreArcStorageKey(ownerId));
+    localStorage.removeItem(LEGACY_KEY);
   } catch {}
 }

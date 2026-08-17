@@ -5,7 +5,11 @@ vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: () => Promise.resolve(null),
 }));
 
-import { submitLabRecording } from "./labRecording";
+import {
+  guardRecordingInput,
+  projectIdentityError,
+  submitLabRecording,
+} from "./labRecording";
 
 /* -------------------------------------------------------------------------- */
 /*  Locks the §S deck contract on the recording upload: when a deck is         */
@@ -28,6 +32,7 @@ beforeEach(() => {
       json: () =>
         Promise.resolve({
           session_id: "sess_1",
+          arc_id: "arc_default",
           state: "readout_ready",
           readout: { snippets: [] },
         }),
@@ -117,6 +122,97 @@ describe("submitLabRecording — F2 §2 the named state rides both emotion lanes
 
     expect(form.get("feeling")).toBeNull();
     expect(form.get("named_emotion")).toBeNull();
+  });
+});
+
+describe("submitLabRecording — explicit project identity", () => {
+  it("sends new intent without any carried project id", async () => {
+    const res = await submitLabRecording({
+      ...baseInput(),
+      exploreSession: true,
+      projectIntent: "new",
+      slides: [{ title: "shared default", body: "same content" }],
+      presentationRef: null,
+    });
+    expect(res.kind).toBe("ok");
+    const form = captured as FormData;
+    expect(form.get("project_intent")).toBe("new");
+    expect(form.get("arc_id")).toBeNull();
+    expect(form.get("continue_arc_id")).toBeNull();
+  });
+
+  it("sends continue intent only with one matching selected project", async () => {
+    const res = await submitLabRecording({
+      ...baseInput(),
+      projectIntent: "continue",
+      arcId: "arc_default",
+      continueArcId: "arc_default",
+      takeIndex: 7,
+    });
+    expect(res.kind).toBe("ok");
+    const form = captured as FormData;
+    expect(form.get("project_intent")).toBe("continue");
+    expect(form.get("arc_id")).toBe("arc_default");
+    expect(form.get("continue_arc_id")).toBe("arc_default");
+    expect(form.get("take_index")).toBeNull();
+  });
+
+  it("fails locally when new carries an old id", async () => {
+    const guarded = guardRecordingInput({
+      ...baseInput(),
+      projectIntent: "new",
+      arcId: "old-arc",
+    });
+    expect(guarded.ok).toBe(false);
+
+    const res = await submitLabRecording({
+      ...baseInput(),
+      projectIntent: "new",
+      arcId: "old-arc",
+    });
+    expect(res.kind).toBe("rejected");
+    expect(captured).toBeNull();
+  });
+
+  it("fails locally when continue has no selected id or conflicting ids", () => {
+    expect(
+      guardRecordingInput({ ...baseInput(), projectIntent: "continue" }).ok
+    ).toBe(false);
+    expect(
+      guardRecordingInput({
+        ...baseInput(),
+        projectIntent: "continue",
+        arcId: "arc-a",
+        continueArcId: "arc-b",
+      }).ok
+    ).toBe(false);
+  });
+
+  it("rejects a successful response that echoes the wrong project", async () => {
+    stubResponse(201, {
+      session_id: "sess_wrong",
+      arc_id: "arc-other",
+      state: "readout_ready",
+      readout: { snippets: [] },
+    });
+    const res = await submitLabRecording({
+      ...baseInput(),
+      projectIntent: "continue",
+      arcId: "arc-selected",
+      continueArcId: "arc-selected",
+    });
+    expect(res.kind).toBe("error");
+    if (res.kind !== "error") throw new Error("unreachable");
+    expect(res.code).toBe("PROJECT_IDENTITY_MISMATCH");
+  });
+
+  it("requires the backend to return the fresh id for a new project", () => {
+    expect(projectIdentityError({ projectIntent: "new" }, null)).toContain(
+      "did not return"
+    );
+    expect(
+      projectIdentityError({ projectIntent: "new" }, "fresh-project-id")
+    ).toBeNull();
   });
 });
 

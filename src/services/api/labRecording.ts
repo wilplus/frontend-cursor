@@ -43,6 +43,10 @@ export interface LabUploadInput {
    *  (no arc_id yet); subsequent takes carry the returned arc_id + incremented
    *  take_index. undefined = standalone recording, arc_id null on response. */
   exploreSession?: boolean;
+  /** Explicit project identity boundary. `new` always mints a fresh project;
+   *  `continue` may only use the user-selected continueArcId. Omitted only by
+   *  legacy/standalone callers. Decks, topics, and hashes never decide this. */
+  projectIntent?: "new" | "continue";
   arcId?: string;
   takeIndex?: number;
   /** Context-aware setup (founder 2026-07-22) — the project this take
@@ -124,6 +128,26 @@ export type LabUploadResult =
 export function guardRecordingInput(
   input: LabUploadInput
 ): { ok: true; input: LabUploadInput } | { ok: false; message: string } {
+  if (input.projectIntent === "new" && (input.arcId || input.continueArcId)) {
+    return {
+      ok: false,
+      message: "Something went wrong on our end.",
+    };
+  }
+  if (input.projectIntent === "continue") {
+    if (!input.continueArcId) {
+      return {
+        ok: false,
+        message: "Something went wrong on our end.",
+      };
+    }
+    if (input.arcId && input.arcId !== input.continueArcId) {
+      return {
+        ok: false,
+        message: "Something went wrong on our end.",
+      };
+    }
+  }
   if (input.recordingKind === "read") {
     if (!input.pairedSessionId) {
       return {
@@ -145,6 +169,24 @@ export function guardRecordingInput(
     ...spoken
   } = input;
   return { ok: true, input: spoken };
+}
+
+/** Successful uploads must echo the identity the request established. This is
+ *  the FE's last fail-closed check: a malformed or stale server response may
+ *  never silently move the UI onto another project's ideal text. */
+export function projectIdentityError(
+  input: Pick<LabUploadInput, "projectIntent" | "continueArcId">,
+  returnedArcId: string | null
+): string | null {
+  if (!input.projectIntent) return null;
+  if (!returnedArcId) return "The lab did not return a project id.";
+  if (
+    input.projectIntent === "continue" &&
+    returnedArcId !== input.continueArcId
+  ) {
+    return "The lab returned a different project than the one selected.";
+  }
+  return null;
 }
 
 export async function submitLabRecording(
@@ -201,6 +243,7 @@ export async function submitLabRecording(
   }
   // Explore-session arc fields — omit entirely for standalone recordings.
   if (input.exploreSession) form.append("explore_session", "true");
+  if (input.projectIntent) form.append("project_intent", input.projectIntent);
   if (input.arcId) form.append("arc_id", input.arcId);
   if (input.continueArcId) {
     form.append("continue_arc_id", input.continueArcId);
@@ -300,6 +343,16 @@ export async function submitLabRecording(
    *  small + copyable so support can diagnose the generic copy. */
   const withRef = (message: string) =>
     bodyRef ? `${message} (Reference: ${bodyRef})` : message;
+  const returnedArcId = typeof body?.arc_id === "string" ? body.arc_id : null;
+  const identityFailure = (): LabUploadResult | null => {
+    if (!projectIdentityError(input, returnedArcId)) return null;
+    return {
+      kind: "error",
+      status: 502,
+      code: "PROJECT_IDENTITY_MISMATCH",
+      message: "Something went wrong on our end.",
+    };
+  };
 
   if (res.status === 422) {
     return {
@@ -342,6 +395,8 @@ export async function submitLabRecording(
   // that is still processing.
   if (res.status === 504 || bodyCode === "PROCESSING_TIMEOUT") {
     if (typeof body?.session_id === "string" && body.session_id.length > 0) {
+      const identityError = identityFailure();
+      if (identityError) return identityError;
       return {
         kind: "processing",
         sessionId: body.session_id,
@@ -381,6 +436,9 @@ export async function submitLabRecording(
   if (!body) {
     return { kind: "error", status: res.status, message: "Empty response from the lab." };
   }
+
+  const identityError = identityFailure();
+  if (identityError) return identityError;
 
   // THE RETRY COLLAPSE echo (BE 2026-08-10): our other lane's POST already
   // landed this take — the BE matched the idempotency key and returned the

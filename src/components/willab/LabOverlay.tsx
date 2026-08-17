@@ -41,6 +41,7 @@ import SlideStage from "./SlideStage";
 import {
   readExploreArc,
   writeExploreArc,
+  type ExploreArc,
   type ExploreArcDeck,
 } from "@/lib/willab/exploreArc";
 import {
@@ -186,21 +187,27 @@ export default function LabOverlay({
     null
   );
 
-  // Explore-arc state (Prompt B §F2). Read from localStorage on mount so the
-  // arc_id carries across LabOverlay sessions (Lounge → Lab → Lounge → Lab…).
-  // initArc is stable for the overlay's lifetime; state mirrors it for renders.
-  const initArc = useRef(readExploreArc()).current;
-  const [arcId, setArcId] = useState<string | null>(initArc?.arcId ?? null);
-  const [arcTakeIndex, setArcTakeIndex] = useState<number>(
-    initArc?.nextTakeIndex ?? 1
-  );
-  const [exploreEnabled, setExploreEnabled] = useState<boolean>(!!initArc);
+  // Explore-arc state (Prompt B §F2). The cache is ACCOUNT-SCOPED, so wait for
+  // auth resolution before hydrating it; reading an unscoped slot during that
+  // brief null state is how another account's project used to seed a take.
+  const [initArc, setInitArc] = useState<ExploreArc | null>(null);
+  const [arcId, setArcId] = useState<string | null>(null);
+  const [arcTakeIndex, setArcTakeIndex] = useState<number>(1);
+  const [exploreEnabled, setExploreEnabled] = useState<boolean>(false);
   // FE-1 — the deck to pre-fill the setup form with. Starts from localStorage
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
-  const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(
-    initArc?.deck ?? null
-  );
+  const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(null);
+
+  useEffect(() => {
+    if (signedIn === null || (signedIn && !userId)) return;
+    const cached = readExploreArc(userId);
+    setInitArc(cached);
+    setArcId(cached?.arcId ?? null);
+    setArcTakeIndex(cached?.nextTakeIndex ?? 1);
+    setExploreEnabled(!!cached);
+    setPreloadDeck(cached?.deck ?? null);
+  }, [signedIn, userId]);
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
   // project inherits its full setup from the ARC, not a specific session —
@@ -473,6 +480,14 @@ export default function LabOverlay({
         ),
         // Explore-arc fields — omitted for standalone recordings.
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
+        // Identity is USER INTENT, never inferred from topic/default slides/
+        // uploaded-deck hashes. A clean arc state means "new"; only a seeded
+        // project selected by the user means "continue".
+        projectIntent: exploreEnabled
+          ? arcId
+            ? "continue"
+            : "new"
+          : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
         // Context-aware setup — the project this take continues. This is the
@@ -504,6 +519,7 @@ export default function LabOverlay({
         const carried = carryArc(result.arcId, result.takeIndex);
         if (carried) {
           writeExploreArc(
+            userId,
             carried.returnedArcId,
             carried.nextIdx,
             carried.deck,
@@ -623,6 +639,7 @@ export default function LabOverlay({
       const carried = pendingCarryRef.current;
       if (carried && carried.sessionId === liveSessionId) {
         writeExploreArc(
+          userId,
           carried.returnedArcId,
           carried.nextIdx,
           carried.deck,
@@ -1527,4 +1544,3 @@ function Processing({
     </div>
   );
 }
-

@@ -17,6 +17,8 @@ import { VoiceMark } from "@/components/willab/LoadingState";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import { type TernaryValue } from "@/services/api/stateRatings";
 import { readExploreArc } from "@/lib/willab/exploreArc";
+import { useSignedIn } from "@/components/willab/useSignedIn";
+import { useUserId } from "@/components/willab/useUserId";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import {
   fetchVoiceAlbum,
@@ -66,15 +68,20 @@ export default function GamePageClient({
   initialSnippetId: string | null;
 }) {
   const router = useRouter();
+  const signedIn = useSignedIn();
+  const userId = useUserId();
   // The training to play: the deep-linked arc, else the active explore arc.
-  const [arcId] = useState<string | null>(
-    () => initialArcId ?? readExploreArc()?.arcId ?? null
-  );
+  const [arcId, setArcId] = useState<string | null>(initialArcId);
   const [tab, setTab] = useState<"game" | "voice">("game");
   const [status, setStatus] = useState<
     "loading" | "ready" | "no_arc" | "not_labeled" | "error"
   >("loading");
   const [session, setSession] = useState<GameSession | null>(null);
+
+  useEffect(() => {
+    if (initialArcId || signedIn === null || (signedIn && !userId)) return;
+    setArcId(readExploreArc(userId)?.arcId ?? null);
+  }, [initialArcId, signedIn, userId]);
 
   useEffect(() => {
     if (!arcId) {

@@ -141,7 +141,7 @@ export default function WillabSurface({
       {flow.state === "lab_project_pick" && (
         <ProjectPicker
           onNewTopic={() => {
-            clearExploreArc();
+            clearExploreArc(userId);
             // Founder 2026-07-27 — a new topic goes STRAIGHT to the setup
             // form. The feelings check-in stays on every continuation.
             flow.startNewTopicSetup();
@@ -155,7 +155,7 @@ export default function WillabSurface({
             // Seeding rules are unchanged. Already on this project
             // (mid-sitting): the cached entry owns the real take index AND the
             // deck, so never overwrite it with a thinner seed.
-            const cached = readExploreArc();
+            const cached = readExploreArc(userId);
             if (cached?.arcId !== arc.arcId) {
               // The LATEST take is what the setup restore reads: LabOverlay
               // re-fetches that session and adopts its full setup (audience,
@@ -166,6 +166,7 @@ export default function WillabSurface({
                 (a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0)
               ).pop();
               writeExploreArc(
+                userId,
                 arc.arcId,
                 // Prefer the real last index; takeCount is the fallback.
                 (latest?.takeIndex ?? arc.takeCount ?? 0) + 1,

@@ -11,6 +11,7 @@ import {
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
 import { useUserProfile } from "./useUserProfile";
+import { useUserId } from "./useUserId";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { useBackDismiss } from "./useBackDismiss";
 import CoachIdealTextPanel from "./CoachIdealTextPanel";
@@ -50,6 +51,7 @@ export default function BestPresentationOverlay({
   const [refetchNonce, setRefetchNonce] = useState(0);
   // Delivery layer — the coach flow lives in CoachIdealTextPanel now.
   const { isCoach } = useUserProfile();
+  const userId = useUserId();
 
   // R7 — the shared stack-aware back-dismiss (an inline popstate listener would
   // bypass the overlay stack and cascade-close everything underneath).
@@ -222,7 +224,7 @@ export default function BestPresentationOverlay({
                   // arc; otherwise (a different arc, or evicted) pass 0 so the
                   // host doesn't seed a take number from an unrelated arc. The
                   // BE reconciles the real take_index on the POST regardless.
-                  const cached = readExploreArc();
+                  const cached = readExploreArc(userId);
                   const takesDone =
                     cached?.arcId === arcId
                       ? Math.max(0, cached.nextTakeIndex - 1)
