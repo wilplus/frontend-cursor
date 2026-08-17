@@ -61,6 +61,9 @@ export interface SuggestionFeedbackInput {
   /** THE STYLE LANE (slice 2) — marks a post-lock bold decision, which the
    *  BE records with lane:style so it never spends a ≤3 budget slot. */
   styleLane?: boolean;
+  /** A coach supersession is stored as a new ledger decision against the
+   *  currently accepted words, never as a mutation of the old decision. */
+  source?: "coach_revision";
 }
 
 export async function sendSuggestionFeedback(
@@ -84,6 +87,7 @@ export async function sendSuggestionFeedback(
   if (input.proposedText) payload.proposed_text = input.proposedText;
   if (input.whyKey) payload.why_key = input.whyKey;
   if (input.styleLane) payload.style_lane = true;
+  if (input.source) payload.source = input.source;
 
   let res: Response;
   try {

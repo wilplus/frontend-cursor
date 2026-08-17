@@ -228,3 +228,34 @@ describe("the wording source and the Delivery label (audit findings)", () => {
     expect(c?.source).toBe("wording");
   });
 });
+
+
+describe("coach supersession proposals", () => {
+  it("maps a coach revision as a fresh actionable replacement", () => {
+    const c = mapDocumentSuggestions([{
+      id: "coach-revision:s1",
+      snippet_id: "s1",
+      take_session_id: "t1",
+      kind: "replace",
+      source: "coach_revision",
+      quote: "Machine accepted words",
+      proposed_text: "Coach final words",
+      coach_note: "This keeps the reasoning aligned with your point.",
+      span: { start: 0, end: 22 },
+    }] as never)?.[0];
+    expect(c).toMatchObject({
+      source: "coach_revision",
+      quote: "Machine accepted words",
+      proposedText: "Coach final words",
+      coachNote: "This keeps the reasoning aligned with your point.",
+    });
+  });
+
+  it("does not expose coach_note on a machine suggestion", () => {
+    const c = mapDocumentSuggestions([{
+      ...replace,
+      coach_note: "must not leak through the wrong source",
+    }] as never)?.[0];
+    expect(c?.coachNote).toBeNull();
+  });
+});

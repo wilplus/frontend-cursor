@@ -514,6 +514,7 @@ export default function IdealTextReadout({
           quote: s.quote,
           proposedText: s.proposedText,
           whyKey: s.why,
+          source: s.source === "coach_revision" ? "coach_revision" : undefined,
         });
         outcome = r.saved ? "ok" : "error";
       }
