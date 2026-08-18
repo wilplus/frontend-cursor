@@ -877,13 +877,13 @@ export default function IdealTextReadout({
             <OverlayCloseButton onClick={onClose} />
           </div>
         ) : null}
-        <div className="flex flex-1 flex-col items-center justify-center gap-6 py-16">
+        <div className="flex flex-1 flex-col items-center justify-start gap-6 pt-1 sm:pt-3">
           {/* THE SAME waiting screen the pipeline phase shows, and the ONLY
               thing on it. It was once its own "Working on your text" line,
               and that copy is deleted rather than kept as a variant — the
               wait is one wait, and a second waiting screen that still exists
               is one that comes back. */}
-          <ProcessingWait markSize={72} />
+          <ProcessingWait markSize={36} />
         </div>
       </div>
     );

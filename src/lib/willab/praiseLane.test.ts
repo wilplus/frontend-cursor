@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   AGREE_QUESTION,
   AGREE_THANKS,
+  CONFIDENT_VOICE_NO,
+  CONFIDENT_VOICE_WHY,
   PRAISE_CUE_COPY,
   PRAISE_CUE_LEAD,
   PRAISE_LEAD,
@@ -159,6 +161,19 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     expect(player).toBeGreaterThan(-1);
     expect(question).toBeGreaterThan(player);
     expect(explanation).toBeGreaterThan(question);
+  });
+
+  it("acknowledges No without contradicting the speaker", () => {
+    expect(MODAL).toMatch(/agreeValue === "no"/);
+    expect(MODAL).toContain("CONFIDENT_VOICE_NO");
+    expect(CONFIDENT_VOICE_NO).toBe("Thanks for letting us know.");
+    expect(CONFIDENT_VOICE_NO).not.toMatch(/confident|learn|voice/i);
+  });
+
+  it("keeps a possible confidence read neutral", () => {
+    expect(CONFIDENT_VOICE_WHY).not.toMatch(
+      /incredibly|impeccable|amazing|definitely/i
+    );
   });
 
   it("writes through the ANCHORED endpoint, never the blind one", () => {

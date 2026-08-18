@@ -12,6 +12,7 @@ import {
 } from "@/services/api/stateRatings";
 import {
   AGREE_THANKS,
+  CONFIDENT_VOICE_NO,
   CONFIDENT_VOICE_WHY,
   PRAISE_CUE_LEAD,
   PRAISE_LEAD,
@@ -649,6 +650,10 @@ export default function DeckChunkModal({
                         <p className="text-[12px] text-destructive">{agreeError}</p>
                       ) : null}
                     </div>
+                  ) : agreeValue === "no" ? (
+                    <p className="text-[15px] font-medium leading-relaxed text-foreground">
+                      {CONFIDENT_VOICE_NO}
+                    </p>
                   ) : (
                     <>
                       <p className="text-[15px] font-medium leading-relaxed text-foreground">

@@ -901,8 +901,8 @@ export default function IdealTextOverlay({
               // through. When the settle probe clears the marker,
               // `analysisPending` flips and the fetch effect pulls the fresh
               // document into this same view.
-              <div className="flex flex-1 flex-col items-center justify-center py-24">
-                <ProcessingWait markSize={72} />
+              <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
+                <ProcessingWait markSize={36} />
               </div>
             ) : (
               <LoadingState />

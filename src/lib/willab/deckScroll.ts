@@ -90,6 +90,18 @@ export function canBubble(
   return dir === 1 ? edge === "bottom" : edge === "top";
 }
 
+/** Where a desktop wheel gesture belongs. Native wheel delivery only scrolls
+ * the inner text when the pointer happens to be directly over it. The rest of
+ * the Ideal Text surface must proxy the same gesture into that scroller until
+ * it reaches an edge; only then may the deck advance to another screen. */
+export function wheelDestination(
+  targetInsideActiveScroller: boolean,
+  canAdvanceScreen: boolean
+): "native-inner" | "proxy-inner" | "advance-screen" {
+  if (canAdvanceScreen) return "advance-screen";
+  return targetInsideActiveScroller ? "native-inner" : "proxy-inner";
+}
+
 /** The chunk the reader is on: the last chunk whose top the scroller has
  *  reached (with the same sub-pixel tolerance). Offsets are the chunks'
  *  offsetTop values inside the inner scroller, ascending. */

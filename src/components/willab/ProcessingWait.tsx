@@ -51,7 +51,7 @@ function stageIndex(stage?: string): number {
 }
 
 export default function ProcessingWait({
-  markSize = 88,
+  markSize = 44,
   progress = null,
 }: {
   /** The pipeline phase gives it the full stage; the document phase shares a
@@ -70,15 +70,15 @@ export default function ProcessingWait({
   const waitingTips = availableWaitingTips(WAITING_TIPS);
 
   return (
-    <div className="flex w-full max-w-xl flex-col items-center gap-5 text-center">
+    <div className="flex w-full max-w-sm flex-col items-center gap-3 text-center">
       <VoiceMark size={markSize} />
-      <div className="w-full px-4">
-        <div className="mb-2 flex items-center justify-between gap-4 text-left text-[14px] text-foreground">
+      <div className="w-full px-3">
+        <div className="mb-1.5 flex items-center justify-between gap-4 text-left text-[12px] text-foreground">
           <span>{PROCESSING_STAGES[current]}</span>
           <span className="tabular-nums text-muted-foreground">{percent}%</span>
         </div>
         <div
-          className="h-1.5 overflow-hidden rounded-full bg-muted"
+          className="h-1 overflow-hidden rounded-full bg-muted"
           role="progressbar"
           aria-label={PROCESSING_STAGES[current]}
           aria-valuemin={0}
@@ -100,14 +100,14 @@ export default function ProcessingWait({
             event.currentTarget.scrollTop
           )
         }
-        className="scrollbar-none max-h-[34vh] w-full overflow-y-auto overscroll-contain px-4 text-left"
+        className="scrollbar-none h-[42vh] min-h-48 max-h-80 w-full snap-y snap-mandatory scroll-smooth overflow-y-auto overscroll-contain px-3"
         aria-label="Presentation advice"
       >
-        <div className="flex flex-col gap-4 pb-4">
+        <div className="h-full">
           {waitingTips.map((tip, index) => (
             <p
               key={index}
-              className="text-[13px] leading-relaxed text-muted-foreground"
+              className="flex min-h-full snap-start snap-always items-center justify-center px-2 text-center text-[14px] leading-relaxed text-muted-foreground"
             >
               {tip}
             </p>
