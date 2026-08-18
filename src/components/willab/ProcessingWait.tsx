@@ -8,6 +8,7 @@ import {
   readAdviceScroll,
   writeAdviceScroll,
 } from "./processingAdviceScroll";
+import { availableWaitingTips } from "./processingWaitingTips";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -66,6 +67,7 @@ export default function ProcessingWait({
   }, []);
   const current = stageIndex(progress?.stage);
   const percent = Math.max(0, Math.min(100, progress?.percent ?? 0));
+  const waitingTips = availableWaitingTips(WAITING_TIPS);
 
   return (
     <div className="flex w-full max-w-xl flex-col items-center gap-5 text-center">
@@ -102,7 +104,7 @@ export default function ProcessingWait({
         aria-label="Presentation advice"
       >
         <div className="flex flex-col gap-4 pb-4">
-          {WAITING_TIPS.map((tip, index) => (
+          {waitingTips.map((tip, index) => (
             <p
               key={index}
               className="text-[13px] leading-relaxed text-muted-foreground"
