@@ -25,15 +25,20 @@ import { useUserId } from "./useUserId";
 import {
   readProcessingTake,
   clearProcessingTake,
+  markProcessingTakeFailed,
   transitionProcessingTakeToDocument,
+  writeProcessingTake,
 } from "@/lib/willab/processingTake";
+import { retryLabProcessing } from "@/services/api/labRecording";
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
-import IdealTextOverlay from "./IdealTextOverlay";
+import IdealTextOverlay, {
+  type IdealTextLaunchMode,
+} from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import BreakthroughsOverlay from "./BreakthroughsOverlay";
@@ -335,6 +340,30 @@ export default function Lounge({
     setLibraryOpen(true);
   }
 
+  function openIdealText(
+    arcId: string,
+    mode: IdealTextLaunchMode = "notebook"
+  ): void {
+    if (state === "insights_ready") {
+      clearInsightsReady();
+      goTo("lounge_idle");
+    }
+    setIdealTextLaunchMode(mode);
+    setIdealTextArcId(arcId);
+  }
+
+  function continueJourneyProject(arcId: string, completedTake: number): void {
+    const cached = readExploreArc(userId);
+    writeExploreArc(
+      userId,
+      arcId,
+      Math.max(1, completedTake + 1),
+      cached?.arcId === arcId ? cached.deck : undefined,
+      latestArcSessionId(arcId)
+    );
+    (onStartInProject ?? onStart)();
+  }
+
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
   // that session once on mount. Coach-gated (isCoach is the render gate; the BE
   // role-gates the endpoint regardless). Fire-once so closing it doesn't
@@ -433,6 +462,8 @@ export default function Lounge({
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
+  const [idealTextLaunchMode, setIdealTextLaunchMode] =
+    useState<IdealTextLaunchMode>("notebook");
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
   // server-side; resume its persisted marker and subscribe until terminal:
@@ -443,9 +474,11 @@ export default function Lounge({
   // moment the user comes back from the Lab). While the Lab is open it owns
   // the live subscription, so this stands down.
   const [processingResume, setProcessingResume] = useState<{
+    sessionId: string;
     takeIndex: number | null;
     status: "analyzing" | "failed";
   } | null>(null);
+  const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [resumeWatch, setResumeWatch] = useState<{
     sessionId: string;
     takeIndex: number | null;
@@ -471,14 +504,20 @@ export default function Lounge({
       setResumeWatch(null);
       return;
     }
-    // A marker older than 30 min is stale (the accepted redeploy-mid-job gap
-    // leaves `processing` forever) — clear quietly instead of an eternal chip.
-    if (Date.now() - marker.startedAt > 30 * 60_000) {
-      clearProcessingTake(userId, marker.sessionId);
+    if (marker.status === "failed") {
+      setProcessingResume({
+        sessionId: marker.sessionId,
+        takeIndex: marker.takeIndex,
+        status: "failed",
+      });
       setResumeWatch(null);
       return;
     }
-    setProcessingResume({ takeIndex: marker.takeIndex, status: "analyzing" });
+    setProcessingResume({
+      sessionId: marker.sessionId,
+      takeIndex: marker.takeIndex,
+      status: "analyzing",
+    });
     if (marker.phase === "document") {
       // SPEC-lockin-loop §1 — the readout is done, the DOCUMENT is still
       // assembling. There is no readout to watch in this phase; the settle
@@ -492,17 +531,6 @@ export default function Lounge({
       startedAt: marker.startedAt,
     });
   }, [state, userId]);
-  // The stale cutoff applies while watching too — a long-lived tab must not
-  // keep an orphaned "analyzing" chip alive forever.
-  useEffect(() => {
-    if (!resumeWatch) return;
-    const id = setTimeout(() => {
-      clearProcessingTake(userId, resumeWatch.sessionId);
-      setProcessingResume(null);
-      setResumeWatch(null);
-    }, Math.max(0, resumeWatch.startedAt + 30 * 60_000 - Date.now()));
-    return () => clearTimeout(id);
-  }, [resumeWatch, userId]);
   useLabReadoutLive(
     resumeWatch?.sessionId ?? null,
     (r) => {
@@ -512,8 +540,9 @@ export default function Lounge({
         r.readout.instantChunks.length > 0 ||
         r.readout.fullTranscriptChunks.length > 0;
       if (r.state === "failed") {
-        clearProcessingTake(userId, resumeWatch.sessionId);
+        markProcessingTakeFailed(userId, resumeWatch.sessionId);
         setProcessingResume({
+          sessionId: resumeWatch.sessionId,
           takeIndex: resumeWatch.takeIndex,
           status: "failed",
         });
@@ -532,6 +561,17 @@ export default function Lounge({
         r.state === "readout_ready" ||
         (r.state !== "processing" && hasContent)
       ) {
+        const marker = readProcessingTake(userId);
+        if (marker?.sessionId === resumeWatch.sessionId && marker.arcId) {
+          const cached = readExploreArc(userId);
+          writeExploreArc(
+            userId,
+            marker.arcId,
+            (marker.takeIndex ?? 0) + 1,
+            cached?.arcId === marker.arcId ? cached.deck : undefined,
+            marker.sessionId
+          );
+        }
         // SPEC-lockin-loop §1 (handoff §6.4 S3) — the readout going terminal
         // is NOT the text being ready: the arc's document reassembles at
         // pipeline end. Hand the marker to the document phase instead of
@@ -565,6 +605,35 @@ export default function Lounge({
   // a take is being worked.
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
+
+  /** Re-open the durable backend job against the original stored audio. */
+  const retryPreservedProcessing = async () => {
+    if (retryingProcessing) return;
+    const marker = readProcessingTake(userId);
+    if (!marker || marker.status !== "failed") return;
+    setRetryingProcessing(true);
+    const restarted = await retryLabProcessing(marker.sessionId);
+    setRetryingProcessing(false);
+    if (!restarted) return;
+    const now = Date.now();
+    writeProcessingTake(userId, {
+      ...marker,
+      status: "processing",
+      phase: "analysis",
+      startedAt: now,
+      phaseStartedAt: now,
+    });
+    setProcessingResume({
+      sessionId: marker.sessionId,
+      takeIndex: marker.takeIndex,
+      status: "analyzing",
+    });
+    setResumeWatch({
+      sessionId: marker.sessionId,
+      takeIndex: marker.takeIndex,
+      startedAt: now,
+    });
+  };
 
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
@@ -799,27 +868,8 @@ export default function Lounge({
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
-                onOpenIdealText={(arcId) => {
-            // THE LIFECYCLE LOCK, second generation. The cycle is strictly
-            //   record -> analysing -> ideal text -> record -> analysing -> ...
-            // The first generation HELD this tap during analysis (a silent
-            // `return`), which enforced the order but routed nowhere: the tap
-            // did nothing, and the only way to learn why was the chip. Now the
-            // tap OPENS the deliverable into its existing loading state and the
-            // overlay resolves itself to the fresh document the moment the
-            // analysis lands (`analysisPending` below flips false -> refetch).
-            // The wrong order is still impossible — stale text never renders —
-            // but the user is routed THROUGH the wait instead of bounced off
-            // it. No new copy: the overlay's loading state already exists.
-            // FE-5 — opening the deliverable is the "seen" signal now that the
-            // legacy insight walker is gone; without this the status machine
-            // would stick in insights_ready forever.
-            if (state === "insights_ready") {
-              clearInsightsReady();
-              goTo("lounge_idle");
-            }
-            setIdealTextArcId(arcId);
-          }}
+                onOpenIdealText={openIdealText}
+                onContinueProject={continueJourneyProject}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -923,6 +973,17 @@ export default function Lounge({
             ? FLOW_COPY.failedNext
             : FLOW_COPY.analysingNext}
         </p>
+      ) : null}
+      {processingResume?.status === "failed" ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={retryingProcessing}
+          onClick={() => void retryPreservedProcessing()}
+          className="mb-2 h-10 w-full rounded-full"
+        >
+          {retryingProcessing ? "Restarting…" : "Try processing again"}
+        </Button>
       ) : null}
 
       {/* The record-button slot. While an offer is "armed" (freshly triggered,
@@ -1119,6 +1180,7 @@ export default function Lounge({
       {idealTextArcId && (
         <IdealTextOverlay
           arcId={idealTextArcId}
+          initialMode={idealTextLaunchMode}
           // W4/W5 — while a take is in flight (EITHER phase: analysing, or
           // the document still assembling) the overlay shows its blocking
           // state instead of last take's words; when this flips false (the
@@ -1127,6 +1189,7 @@ export default function Lounge({
           analysisPending={takeInFlight}
           onClose={() => {
             setIdealTextArcId(null);
+            setIdealTextLaunchMode("notebook");
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -1426,6 +1489,7 @@ function Bubble({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  onContinueProject,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -1442,7 +1506,9 @@ function Bubble({
   /** Delivery layer — the grey feedback bubbles open their take's page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — every ideal-text bubble opens the live notebook. */
-  onOpenIdealText?: (arcId: string) => void;
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  /** Begin an additional take on the exact project named by the journey. */
+  onContinueProject?: (arcId: string, completedTake: number) => void;
   onChip?: () => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1492,6 +1558,58 @@ function Bubble({
     );
   }
   if (message.role === "bot") {
+    const voiceAlbumReady = message.metadata?.voice_album_ready === true;
+    const confidenceCorrection =
+      message.metadata?.confidence_material_correction === true &&
+      typeof message.metadata?.arc_id === "string" &&
+      typeof message.metadata?.take_session_id === "string"
+        ? {
+            arcId: message.metadata.arc_id,
+            takeSessionId: message.metadata.take_session_id,
+            takeIndex: null,
+          }
+        : null;
+    const journey =
+      message.kind === "cadence" && message.metadata?.journey === true;
+    const journeyActions =
+      journey && Array.isArray(message.metadata?.actions)
+        ? message.metadata.actions.filter(
+            (value): value is string => typeof value === "string"
+          )
+        : [];
+    const journeyArc =
+      journey && typeof message.metadata?.arc_id === "string"
+        ? message.metadata.arc_id
+        : null;
+    const journeyTake =
+      journey && typeof message.metadata?.take_index === "number"
+        ? message.metadata.take_index
+        : null;
+    const journeyLabel: Record<string, string> = {
+      prepare_take_2: "Prepare Take 2",
+      prepare_take_3: "Prepare Take 3",
+      presentation_mode: "Use Presentation Mode",
+      export: "Export",
+      keep_practising: "Keep practising",
+    };
+    const runJourneyAction = (action: string) => {
+      if (
+        action === "keep_practising" &&
+        journeyArc &&
+        journeyTake !== null
+      ) {
+        onContinueProject?.(journeyArc, journeyTake);
+        return;
+      }
+      if (!journeyArc) return;
+      if (action === "presentation_mode") {
+        onOpenIdealText?.(journeyArc, "presentation");
+      } else if (action === "export") {
+        onOpenIdealText?.(journeyArc, "export");
+      } else {
+        onOpenIdealText?.(journeyArc, "notebook");
+      }
+    };
     // B-1 — read the persisted action from metadata; render below the bubbles.
     const action =
       onChip && message.metadata
@@ -1504,6 +1622,51 @@ function Bubble({
           chunks={splitBotMessage(message.body)}
           animate={animate}
         />
+        {voiceAlbumReady ? (
+          <div className="mr-auto pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-4 text-[13px]"
+              onClick={() =>
+                window.dispatchEvent(
+                  new Event("willab:open-voice-album-menu")
+                )
+              }
+            >
+              Find my Voice Album
+            </Button>
+          </div>
+        ) : null}
+        {confidenceCorrection ? (
+          <div className="mr-auto pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-4 text-[13px]"
+              onClick={() => onOpenFeedback?.(confidenceCorrection)}
+            >
+              Review coach feedback
+            </Button>
+          </div>
+        ) : null}
+        {journeyActions.length > 0 ? (
+          <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
+            {journeyActions.map((action) =>
+              journeyLabel[action] ? (
+                <Button
+                  key={action}
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-full px-4 text-[13px]"
+                  onClick={() => runJourneyAction(action)}
+                >
+                  {journeyLabel[action]}
+                </Button>
+              ) : null
+            )}
+          </div>
+        ) : null}
         {action && (
           <ActionButton action={action} onClick={() => onChip!()} />
         )}

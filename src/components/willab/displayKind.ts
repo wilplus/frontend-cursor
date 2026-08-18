@@ -10,6 +10,12 @@
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 export function displayKind(s: DocumentSuggestion): string {
+  // MVP machine feedback is intentionally framed as a possibility. Candidate
+  // selection lowers the threshold for what is worth inspecting, never the
+  // threshold for declaring the speaker definitively strong or wrong.
+  if (s.feedbackFamily === "confident_voice") return "Possible confident moment";
+  if (s.feedbackFamily === "great_formulation") return "Possible strong formulation";
+  if (s.feedbackFamily === "rewrite_clarity") return "Possible clarity improvement";
   // The acoustic swap (founder label, 2026-08-13): this take DELIVERED a
   // locked paragraph better — the offer is about how it sounded, not the
   // words. Checked before `kind`, since a swap is kind === "replace" like an

@@ -46,6 +46,7 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
+import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -123,6 +124,7 @@ export default function IdealTextReadout({
    *  than duplicating. Absent → no ✕ (a host with its own exit). */
   onClose?: () => void;
 }) {
+  const { reload: reloadLounge } = useLoungeThreadCtx();
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [copied, setCopied] = useState(false);
@@ -170,6 +172,8 @@ export default function IdealTextReadout({
     userEdited: boolean;
     /** The BE's gate on a new official take. null (absent) never gates. */
     canRecordTake: boolean | null;
+    takeCount: number | null;
+    journeyNextStepsSeen: boolean | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -304,6 +308,8 @@ export default function IdealTextReadout({
           additions: r.additions,
           userEdited: r.userEdited,
           canRecordTake: r.canRecordTake,
+          takeCount: r.takeCount,
+          journeyNextStepsSeen: r.journeyNextStepsSeen,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -562,6 +568,29 @@ export default function IdealTextReadout({
     [arcId, markDirty]
   );
 
+  const undoTracked = useCallback(
+    async (s: DocumentSuggestion): Promise<boolean> => {
+      if (s.source === "new_take" || s.source === "prior_take") return false;
+      if (!s.snippetId || !s.takeSessionId) return false;
+      const result = await sendSuggestionFeedback({
+        snippetId: s.snippetId,
+        sessionId: s.takeSessionId,
+        target: s.kind === "bold" ? "document_bold" : "document_replace",
+        action: "reverted",
+        suggestionId: s.id,
+        quote: s.quote,
+        proposedText: s.proposedText,
+        whyKey: s.why,
+        source: s.source === "coach_revision" ? "coach_revision" : undefined,
+      });
+      if (!result.saved) return false;
+      sdGenRef.current++;
+      setSdNonce((n) => n + 1);
+      return true;
+    },
+    []
+  );
+
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
   const deckRef = useArcDeckRef(arcId, sd?.presentationRef ?? null, sdSettled);
 
@@ -796,6 +825,26 @@ export default function IdealTextReadout({
     [applyEdit, flushEdits, lockParagraph, markDirty]
   );
 
+  const deckEditSlide = useCallback(
+    async (edits: Array<{ chunk: DeckChunk; text: string }>): Promise<boolean> => {
+      if (edits.length === 0) return true;
+      let next = reconcileParts(textRef.current, partsRef.current ?? []);
+      for (const { chunk, text } of edits) {
+        const at = chunk.paragraphIndex;
+        if (at < 0 || at >= next.length || !text.trim()) return false;
+        next = updatePart(next, at, text.trim());
+      }
+      applyEdit(partsToText(next), next);
+      const ok = await flushEdits();
+      if (ok) {
+        markDirty(false);
+        setSdNonce((nonce) => nonce + 1);
+      }
+      return ok;
+    },
+    [applyEdit, flushEdits, markDirty]
+  );
+
   // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
   // the old text is INACCESSIBLE: no reading it, no copying it, no editing
   // it — "no browse-with-banner". Only the way out stays, because the block
@@ -915,14 +964,18 @@ export default function IdealTextReadout({
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
             slideTitles={sd.slideTitles ?? undefined}
+            presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
+            onUndoAccept={undoTracked}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            onEditSlide={deckEditSlide}
             onUnlockPart={unlockParagraph}
             coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,
               hasExplanation: m.hasExplanation === true,
+              reviewStatus: m.reviewStatus ?? null,
             }))}
             arcId={arcId}
             styleChanges={dirty ? [] : sd.styleChanges}
@@ -988,6 +1041,8 @@ export default function IdealTextReadout({
         <IdealTextActions
           arcId={arcId}
           canRecordTake={sd.canRecordTake}
+          takeCount={sd.takeCount}
+          journeyNextStepsSeen={sd.journeyNextStepsSeen}
           saved={sd.saved}
           // The freeze waits for the edit lane (R-md1).
           onBeforeSave={flushEdits}
@@ -1000,6 +1055,10 @@ export default function IdealTextReadout({
             setSdNonce((n) => n + 1);
           }}
           onNewTake={onReRead}
+          onSeeNextSteps={() => {
+            void reloadLounge();
+            onClose?.();
+          }}
         />
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.

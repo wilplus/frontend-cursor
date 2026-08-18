@@ -69,15 +69,15 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
   it("§4 — the recording strip is ONE row, and the tower is gone", () => {
     const strip = PHASE.slice(PHASE.indexOf("const strip"), PHASE.indexOf("if (!hasDeck)"));
     expect(strip).toMatch(/flex items-center gap-3 rounded-2xl bg-muted/);
-    // dot → clock → bar → stop, in that order, inside the one row.
-    const order = ["animate-pulse", "tabular-nums", "flex-1 overflow-hidden", "Stop recording"];
+    // dot → clock → bar → finish, in that order, inside the one row.
+    const order = ["animate-pulse", "tabular-nums", "flex-1 overflow-hidden", "Finish take"];
     let at = -1;
     for (const token of order) {
       const next = strip.indexOf(token, at + 1);
       expect(next).toBeGreaterThan(at);
       at = next;
     }
-    expect(strip).toMatch(/h-10 w-10/); // the 40px stop circle
+    expect(strip).toMatch(/h-10 shrink-0/); // the 40px finish control
     expect(PHASE).not.toMatch(/h-20 w-20/); // …not the old 80px one
     expect(PHASE).not.toMatch(/>Recording</); // the word the dot replaced
     expect(PHASE).not.toMatch(/text-\[40px\]/); // the old clock

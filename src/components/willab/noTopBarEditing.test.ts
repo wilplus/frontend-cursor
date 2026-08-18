@@ -78,9 +78,7 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     // No toolbar: its Underline button would let a student underline their
     // own words, and on the deck underline means "feedback is waiting here".
     expect(modal).toMatch(/toolbar=\{false\}/);
-    // And every chunk can open it — the deck draws one mark per chunk,
-    // unconditionally and never disabled (the founder's "you can always click
-    // the lock and see the text of the chunk that you can edit").
+    // Feedback uses the bookmark; slide editing has its own explicit control.
     const deck = readFileSync(
       "src/components/willab/TranscriptReviewDeck.tsx",
       "utf8"
@@ -89,5 +87,6 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     expect(usage).not.toBeNull();
     expect(usage?.[0]).not.toMatch(/disabled/);
     expect(usage?.[0]).toMatch(/onClick=\{\(\) => setOpenPartId/);
+    expect(deck).toContain("Edit this slide");
   });
 });

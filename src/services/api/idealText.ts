@@ -88,6 +88,14 @@ export interface IdealKeyMomentLink {
    *  payloads. */
   momentId?: string | null;
   hasExplanation?: boolean;
+  /** Operational coach-review state for Confident Voice. This is display-only:
+   *  the owner's answer remains routing data and is never promoted to a
+   *  training label. */
+  reviewStatus?:
+    | "pending_coach_review"
+    | "coach_reviewed"
+    | "not_confirmed"
+    | null;
   /** MOMENT_SUGGESTIONS (MOMENT_SUGGESTIONS_ENABLED) — the per-moment star.
    *  "suggestion" = grey (a machine suggestion awaiting Approve); "verified" =
    *  orange (the coach attached a message). null/absent → today's plain moment
@@ -194,6 +202,13 @@ export interface DocumentSuggestion {
   kind: "replace" | "bold" | "advice";
   /** The offered replacement (replace only). */
   proposedText: string | null;
+  /** The manager-approved visible family. These three are intentionally
+   *  distinct from source/model provenance. */
+  feedbackFamily?:
+    | "confident_voice"
+    | "great_formulation"
+    | "rewrite_clarity"
+    | null;
   /** advice only — which coaching observation this is. The FE renders the
    *  SAME founder-approved copy it already uses for delivery/structural
    *  stars (BE-C: "popover copy from device as today"). null → no copy, so
@@ -268,6 +283,14 @@ export interface DocumentSuggestion {
    *  approve report back through the existing per-snippet feedback POST. */
   snippetId: string | null;
   takeSessionId: string | null;
+  evidence?: {
+    projectId: string;
+    takeSessionId: string;
+    slideIndex: number;
+    paragraphIndex: number;
+    start: number;
+    end: number;
+  } | null;
   /** MASTER DOCUMENT — the take the OFFERED wording comes from, so the
    *  comparison can show its badge ("from take 2"). null → no badge. */
   takeIndex: number | null;
@@ -393,6 +416,37 @@ export function mapDocumentSuggestions(
     // prose arriving on either field renders NO line rather than itself.
     const whyRaw = r.why_key ?? r.why;
     const status = r.status;
+    const feedbackFamily =
+      r.feedback_family === "confident_voice" ||
+      r.feedback_family === "great_formulation" ||
+      r.feedback_family === "rewrite_clarity"
+        ? r.feedback_family
+        : null;
+    const evidenceRaw =
+      r.evidence && typeof r.evidence === "object"
+        ? (r.evidence as Record<string, unknown>)
+        : null;
+    const evidenceSpan =
+      evidenceRaw?.span && typeof evidenceRaw.span === "object"
+        ? (evidenceRaw.span as Record<string, unknown>)
+        : null;
+    const evidence =
+      evidenceRaw &&
+      typeof evidenceRaw.project_id === "string" &&
+      typeof evidenceRaw.take_session_id === "string" &&
+      typeof evidenceRaw.slide_index === "number" &&
+      typeof evidenceRaw.paragraph_index === "number" &&
+      typeof evidenceSpan?.start === "number" &&
+      typeof evidenceSpan.end === "number"
+        ? {
+            projectId: evidenceRaw.project_id,
+            takeSessionId: evidenceRaw.take_session_id,
+            slideIndex: evidenceRaw.slide_index,
+            paragraphIndex: evidenceRaw.paragraph_index,
+            start: evidenceSpan.start,
+            end: evidenceSpan.end,
+          }
+        : null;
     out.push({
       id,
       start,
@@ -400,6 +454,7 @@ export function mapDocumentSuggestions(
       quote,
       kind,
       proposedText: proposed,
+      feedbackFamily,
       device,
       why: CHANGE_WHY_KEYS.includes(whyRaw as ChangeWhy)
         ? (whyRaw as ChangeWhy)
@@ -416,6 +471,7 @@ export function mapDocumentSuggestions(
           : null,
       snippetId,
       takeSessionId,
+      evidence,
       takeIndex:
         typeof r.take_index === "number" && Number.isFinite(r.take_index)
           ? r.take_index
@@ -478,6 +534,11 @@ export interface IdealPiece {
   /** The piece's CURRENT text (machine lane). Badges anchor to the top-level
    *  `text`'s paragraphs, never to a reconstruction from these. */
   text: string;
+  /** The one durable rehearsal cue for this paragraph. A flagship root comes
+   *  only from user-accepted orange text; a neutral root is navigation, never
+   *  praise. */
+  rootPhrase?: string;
+  rootType?: "flagship" | "neutral";
   /** 1-based take the shown words come from → the "vN.0" pill. null hides
    *  the pill for this piece (a row predating the index). */
   takeIndex: number | null;
@@ -542,6 +603,8 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
           ? r.slide_index
           : null,
       text,
+      rootPhrase: str(r.root_phrase),
+      rootType: r.root_type === "flagship" ? "flagship" : "neutral",
       takeIndex: take(r.take_index),
       snippetId: str(r.snippet_id),
       takeSessionId: str(r.take_session_id),
@@ -808,6 +871,7 @@ export type IdealTextResult =
        *  version). null until #236 deploys → the badge falls back to
        *  `version`, exactly today's behavior. */
       takeCount: number | null;
+      journeyNextStepsSeen: boolean | null;
       /** The latest SPOKEN take (excludes reads). Still the pairing target
        *  for a delivery-star snippet re-record. */
       latestTakeSessionId: string | null;
@@ -1004,12 +1068,19 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   // unclamped playback rather than a dead player.
   const ms = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+  const reviewStatus =
+    r.confidence_review_status === "pending_coach_review" ||
+    r.confidence_review_status === "coach_reviewed" ||
+    r.confidence_review_status === "not_confirmed"
+      ? r.confidence_review_status
+      : null;
   return {
     anchor,
     snippetId,
     takeSessionId,
     momentId,
     hasExplanation: r.has_explanation === true,
+    ...(reviewStatus ? { reviewStatus } : {}),
     star,
     suggestion,
     applied: r.applied === true,
@@ -1152,6 +1223,10 @@ export async function fetchIdealText(
       takeCount:
         typeof body.take_count === "number" && Number.isFinite(body.take_count)
           ? body.take_count
+          : null,
+      journeyNextStepsSeen:
+        typeof body.journey_next_steps_seen === "boolean"
+          ? body.journey_next_steps_seen
           : null,
       latestTakeSessionId:
         typeof body.latest_take_session_id === "string" &&

@@ -219,6 +219,13 @@ export interface CoachMomentLite {
   anchor: string;
   /** The BE's free existence flag: surfaced, with a note and/or a video. */
   hasExplanation?: boolean;
+  /** Visible async workflow state. Presence makes the moment actionable even
+   *  before a coach-authored explanation exists. */
+  reviewStatus?:
+    | "pending_coach_review"
+    | "coach_reviewed"
+    | "not_confirmed"
+    | null;
 }
 
 /** The coach moment that belongs to this chunk, or null.
@@ -230,15 +237,15 @@ export interface CoachMomentLite {
  *  the words) simply matches nothing and the chunk shows no coach card:
  *  the deck's standing rule is drop, never guess.
  *
- *  Only moments the BE says actually carry something are considered — a
- *  moment with no note and no video is an anchor, not feedback. */
+ *  Only moments that carry a coach explanation or a visible async-review
+ *  state are considered. A bare acoustic anchor is not feedback. */
 export function coachMomentForChunk<T extends CoachMomentLite>(
   moments: readonly T[] | null | undefined,
   document: string,
   chunk: DeckChunk
 ): T | null {
   for (const m of moments ?? []) {
-    if (m.hasExplanation !== true) continue;
+    if (m.hasExplanation !== true && !m.reviewStatus) continue;
     const anchor = (m.anchor || "").trim();
     if (!anchor) continue;
     const at = document.indexOf(anchor);

@@ -690,6 +690,7 @@ export interface QueuePiece {
   startOffsetMs: number;
   durationMs: number;
   label: ConfidenceLabel | null;
+  reReview: boolean;
 }
 
 export interface ConfidenceQueue {
@@ -757,6 +758,7 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
     startOffsetMs: count(r.start_offset_ms),
     durationMs: count(r.duration_ms),
     label: pickLabel(r.label),
+    reReview: r.re_review === true,
   };
 }
 

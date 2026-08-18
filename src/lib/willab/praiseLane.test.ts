@@ -121,13 +121,12 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
   it("plays the recording of the moment", () => {
     // The claim is about how it SOUNDED — the one claim this product makes
     // that a student cannot check by reading.
-    expect(MODAL).toMatch(/isPraise \|\| isConfidentVoice[\s\S]{0,900}MediaPlayer/);
+    expect(MODAL).toMatch(/isConfidentVoice \? \([\s\S]{0,900}MediaPlayer/);
   });
 
-  it("offers ONE button, not Accept / Keep mine", () => {
-    // "Keep mine" under a compliment asks the student to choose between it
-    // and their own writing, which is not a choice anybody has.
-    expect(MODAL).toMatch(/isPraise \|\| isConfidentVoice\)? \?[\s\S]{0,700}Got it/);
+  it("offers the flagship decision explicitly", () => {
+    expect(MODAL).toMatch(/Use as flagship/);
+    expect(MODAL).toMatch(/Not now/);
   });
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
@@ -147,18 +146,19 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
   });
 
-  it("renders the ternary instrument, the same one every lane uses", () => {
-    // Founder 2026-08-10: "the confident voice label should has the same UI
-    // as the coach based labelling and the voice game labelling."
-    expect(MODAL).toMatch(/ConfidenceLabelChips/);
-    expect(MODAL).toMatch(/onToggleUnrateable/);
+  it("renders the locked binary self-report", () => {
+    expect(MODAL).toContain("Does this sound confident to you?");
+    expect(MODAL).toMatch(/\["yes", "no"\]/);
+    expect(MODAL).not.toMatch(/ConfidenceLabelChips/);
   });
 
-  it("asks LAST — after the read, the recording and the reasons", () => {
+  it("asks immediately after playback and reveals reasons afterwards", () => {
     const player = MODAL.indexOf("MediaPlayer");
-    const chips = MODAL.indexOf("<ConfidenceLabelChips");
+    const question = MODAL.indexOf("Does this sound confident to you?");
+    const explanation = MODAL.indexOf("CONFIDENT_VOICE_WHY", question);
     expect(player).toBeGreaterThan(-1);
-    expect(chips).toBeGreaterThan(player);
+    expect(question).toBeGreaterThan(player);
+    expect(explanation).toBeGreaterThan(question);
   });
 
   it("writes through the ANCHORED endpoint, never the blind one", () => {

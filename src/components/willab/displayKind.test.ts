@@ -14,6 +14,17 @@ const base: DocumentSuggestion = {
 } as unknown as DocumentSuggestion;
 
 describe("displayKind", () => {
+  it("uses neutral language for the three machine-feedback families", () => {
+    expect(displayKind({ ...base, feedbackFamily: "confident_voice" })).toBe(
+      "Possible confident moment"
+    );
+    expect(displayKind({ ...base, feedbackFamily: "great_formulation" })).toBe(
+      "Possible strong formulation"
+    );
+    expect(displayKind({ ...base, feedbackFamily: "rewrite_clarity" })).toBe(
+      "Possible clarity improvement"
+    );
+  });
   it("labels the acoustic swap 'Delivery' — the founder's word for it", () => {
     expect(displayKind({ ...base, source: "acoustic_swap" })).toBe("Delivery");
   });

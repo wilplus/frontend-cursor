@@ -8,17 +8,17 @@ import {
  * recording has slide buckets, so word→slide segmentation is always defined.
  * These pin both halves — the words, and the substitution rule. */
 
-describe("DEFAULT_DECK — the founder's mock presentation", () => {
+describe("DEFAULT_DECK — the deckless three-part structure", () => {
   it("is the three-part talk, in order", () => {
     expect(DEFAULT_DECK).toHaveLength(3);
     expect(DEFAULT_DECK.map((s) => s.title)).toEqual([
-      "Intro — the hook + the promise.",
-      "Body — one core message, 3 supporting points.",
-      "Ending — recap + call to action.",
+      "Main premise",
+      "Development",
+      "Conclusion",
     ]);
   });
 
-  it("carries the founder's rules verbatim — this copy is signed off, not paraphrasable", () => {
+  it("retains the approved speaking rules", () => {
     expect(DEFAULT_DECK[0].body).toContain(
       "Rule: say what you're going to say."
     );

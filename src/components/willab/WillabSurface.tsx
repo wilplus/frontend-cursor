@@ -142,8 +142,8 @@ export default function WillabSurface({
         <ProjectPicker
           onNewTopic={() => {
             clearExploreArc(userId);
-            // Founder 2026-07-27 — a new topic goes STRAIGHT to the setup
-            // form. The feelings check-in stays on every continuation.
+            // The existing emotion check happens once, before Take 1. A
+            // continuation reuses the project without asking it again.
             flow.startNewTopicSetup();
           }}
           onContinue={(arc) => {

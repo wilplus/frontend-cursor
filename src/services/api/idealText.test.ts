@@ -161,6 +161,21 @@ describe("mapIdealText", () => {
     });
   });
 
+  it("maps only the closed Confident Voice coach-review states", () => {
+    const v = mapIdealText({
+      text: "steady opening",
+      key_moments: [
+        {
+          anchor: "steady opening",
+          snippet_id: "s-review",
+          take_session_id: "t-review",
+          confidence_review_status: "pending_coach_review",
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]?.reviewStatus).toBe("pending_coach_review");
+  });
+
   it("maps a verified (orange) star with a coach video, applied", () => {
     const v = mapIdealText({
       text: "hello world",

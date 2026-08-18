@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
   type LockOutcome,
 } from "@/components/willab/DeckChunkModal";
 import DeckLockMark from "@/components/willab/DeckLockMark";
+import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
+import { PdfPage } from "@/components/willab/pdfSlides";
+import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   buildDeckChunks,
   coachMomentForChunk,
@@ -66,9 +70,12 @@ export default function TranscriptReviewDeck({
   suggestions,
   pieceSlideIndexes,
   slideTitles,
+  presentationRef = null,
   onAccept,
+  onUndoAccept,
   onKeepMine,
   onLockPart,
+  onEditSlide,
   onUnlockPart = null,
   onClose,
   styleChanges = null,
@@ -92,7 +99,11 @@ export default function TranscriptReviewDeck({
   /** Slide titles by slide index, when the host knows them. Absent → the
    *  kicker says "Slide N" and no title line renders — never a guess. */
   slideTitles?: readonly (string | null)[];
+  /** The actual attached/default PDF. When present, Ideal Text and its
+   *  slide-scoped editor show the real slide rather than a text substitute. */
+  presentationRef?: string | null;
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
+  onUndoAccept?: (s: DocumentSuggestion) => Promise<boolean>;
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   /** Commit `newText` for the chunk (when changed) and lock it.
    *
@@ -105,6 +116,11 @@ export default function TranscriptReviewDeck({
    *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
    *  the lock endpoint verifies anyway. */
   onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
+  /** Save only the current slide's changed paragraphs in one atomic document
+   *  edit; all other slides remain byte-for-byte unchanged. */
+  onEditSlide: (
+    edits: Array<{ chunk: DeckChunk; text: string }>
+  ) => Promise<boolean>;
   /** UNDO a lock (founder 2026-08-15). "Discard" on a locked chunk is the
    *  inverse of "Lock in", not a close — see DeckChunkModal. Optional so a
    *  host without the capability shows no button rather than a dead one. */
@@ -189,6 +205,9 @@ export default function TranscriptReviewDeck({
   // reassembles the document underneath the modal, and re-deriving the chunk
   // on every render is what carries the fresh words in.
   const [openPartId, setOpenPartId] = useState<string | null>(null);
+  const [editingSlideIndex, setEditingSlideIndex] = useState<
+    number | null | undefined
+  >(undefined);
   const openChunk = openPartId
     ? (chunks.find((c) => c.part.id === openPartId) ?? null)
     : null;
@@ -488,6 +507,25 @@ export default function TranscriptReviewDeck({
                     {titleFor(g.slideIndex)}
                   </h2>
                 ) : null}
+                {g.screenOfSlide === 0 &&
+                presentationRef &&
+                g.slideIndex !== null ? (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted">
+                    <PdfPage
+                      url={presentationRef}
+                      pageIndex={g.slideIndex}
+                      onError={() => undefined}
+                      className="w-full"
+                    />
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setEditingSlideIndex(g.slideIndex)}
+                  className="mt-3 text-[13px] font-medium text-primary transition-opacity hover:opacity-70"
+                >
+                  Edit this slide
+                </button>
               </div>
               {/* The INNER chunk scroller: overscroll-contained so the
                   last chunk never chains into a slide flip mid-gesture —
@@ -530,6 +568,9 @@ export default function TranscriptReviewDeck({
                       <RichText text={c.part.text} />
                       <DeckLockMark
                         status={c.status}
+                        flagship={parseRichSpans(c.part.text).some(
+                          (span) => span.highlight && span.text.trim().length > 0
+                        )}
                         onClick={() => setOpenPartId(c.part.id)}
                         // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
                         // 2026-08-11). The same join the modal already runs,
@@ -539,7 +580,12 @@ export default function TranscriptReviewDeck({
                         // metered feedback read still fires only on the tap
                         // inside the modal.
                         hasCoach={
-                          coachMomentForChunk(coachMoments, doc, c) !== null
+                          coachMomentForChunk(coachMoments, doc, c)
+                            ?.hasExplanation === true
+                        }
+                        reviewStatus={
+                          coachMomentForChunk(coachMoments, doc, c)
+                            ?.reviewStatus ?? null
                         }
                         // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
                         // shape as the coach dot, and for the same reason: the
@@ -647,6 +693,7 @@ export default function TranscriptReviewDeck({
           chunk={openChunk}
           suggestion={openSuggestion}
           onAccept={onAccept}
+          onUndoAccept={onUndoAccept}
           onKeepMine={onKeepMine}
           onLockIn={async (text: string): Promise<LockOutcome> => {
             const outcome = await onLockPart(openChunk, text);
@@ -687,11 +734,131 @@ export default function TranscriptReviewDeck({
           onApplyStyle={onApplyStyle}
           history={decisionHistory}
           coachSnippetId={
-            coachMomentForChunk(coachMoments, doc, openChunk)?.snippetId ?? null
+            coachMomentForChunk(coachMoments, doc, openChunk)
+              ?.hasExplanation === true
+              ? coachMomentForChunk(coachMoments, doc, openChunk)?.snippetId ?? null
+              : null
+          }
+          coachReviewStatus={
+            coachMomentForChunk(coachMoments, doc, openChunk)?.reviewStatus ?? null
           }
           arcId={arcId}
         />
       ) : null}
+      {editingSlideIndex !== undefined ? (
+        <SlideEditor
+          key={editingSlideIndex ?? "unlinked"}
+          title={titleFor(editingSlideIndex) || kickerFor(editingSlideIndex, 0)}
+          presentationRef={presentationRef}
+          slideIndex={editingSlideIndex}
+          chunks={
+            groups.find((group) => group.slideIndex === editingSlideIndex)
+              ?.chunks ?? []
+          }
+          onCancel={() => setEditingSlideIndex(undefined)}
+          onSave={async (edits) => {
+            const saved = await onEditSlide(edits);
+            if (saved) setEditingSlideIndex(undefined);
+            return saved;
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SlideEditor({
+  title,
+  presentationRef,
+  slideIndex,
+  chunks,
+  onCancel,
+  onSave,
+}: {
+  title: string;
+  presentationRef: string | null;
+  slideIndex: number | null;
+  chunks: readonly DeckChunk[];
+  onCancel: () => void;
+  onSave: (edits: Array<{ chunk: DeckChunk; text: string }>) => Promise<boolean>;
+}) {
+  const [drafts, setDrafts] = useState(() => chunks.map((chunk) => chunk.part.text));
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit this slide"
+    >
+      <div className="flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:rounded-3xl">
+        <div className="shrink-0 border-b border-border px-5 py-4">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Edit this slide
+          </p>
+          <h2 className="mt-1 text-[17px] font-semibold text-foreground">{title}</h2>
+        </div>
+        <div className="scrollbar-none flex flex-col gap-4 overflow-y-auto px-5 py-4">
+          {presentationRef && slideIndex !== null ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-muted">
+              <PdfPage
+                url={presentationRef}
+                pageIndex={slideIndex}
+                onError={() => undefined}
+                className="w-full"
+              />
+            </div>
+          ) : null}
+          {chunks.map((chunk, index) => (
+            <MarkedEditor
+              key={chunk.part.id}
+              value={drafts[index] ?? ""}
+              onChange={(next) =>
+                setDrafts((current) =>
+                  current.map((value, at) =>
+                    at === index ? next : value
+                  )
+                )
+              }
+              toolbar={false}
+              textSizeClass="text-[16px]"
+              frameClass="min-h-32 border border-border bg-background focus-within:border-primary"
+            />
+          ))}
+          {failed ? (
+            <p className="text-[12px] text-destructive">
+              Couldn&apos;t save this slide. Your edits are still here.
+            </p>
+          ) : null}
+        </div>
+        <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={saving} className="rounded-full">
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || drafts.some((draft) => !draft.trim())}
+            onClick={() => {
+              setSaving(true);
+              setFailed(false);
+              void onSave(
+                chunks.flatMap((chunk, index) =>
+                  drafts[index]?.trim() !== chunk.part.text.trim()
+                    ? [{ chunk, text: drafts[index].trim() }]
+                    : []
+                )
+              ).then((ok) => {
+                setSaving(false);
+                setFailed(!ok);
+              });
+            }}
+            className="rounded-full"
+          >
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

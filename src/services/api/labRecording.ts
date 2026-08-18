@@ -30,6 +30,9 @@ export interface LabUploadInput {
    *  what to nail). Sent as `strategic_context`; background context that sharpens
    *  the coaching. Optional. */
   strategicContext?: string;
+  /** Optional background brief for a newly created project. Verbal feedback
+   *  may use its facts, but it is never copied into the speaker's Ideal Text. */
+  contextDocument?: File;
   /** Tap timeline — which slide was advanced to, at t_ms from record start. */
   slideAdvances?: { index: number; tMs: number }[];
   /** F1 — ms to SUBTRACT from every slideAdvances[].tMs to convert UI time to
@@ -220,6 +223,13 @@ export async function submitLabRecording(
   // the field never arrives as an empty string. FLAT field (BE PR #222 rule).
   if (input.strategicContext && input.strategicContext.trim()) {
     form.append("strategic_context", input.strategicContext.trim());
+  }
+  if (input.contextDocument) {
+    form.append(
+      "context_document",
+      input.contextDocument,
+      input.contextDocument.name
+    );
   }
   if (input.slideAdvances && input.slideAdvances.length > 0) {
     form.append(
@@ -509,6 +519,7 @@ export async function submitLabRecording(
 export interface LabReadoutReread {
   state: string | null;
   readout: ReadoutPayload;
+  processing: { stage: string; percent: number } | null;
   /** FE-1 — top-level `setup` block (BE-1): the take's original intake context,
    *  used to restore setup for the next take (the guest endpoint is what
    *  unblocks a signed-out tester's take 2). null until the BE ships it. */
@@ -530,6 +541,18 @@ export function mapLabReadoutRereadBody(
     state: typeof body.state === "string" ? body.state : null,
     readout: mapReadoutPayload(readoutObj),
     setup: mapReadoutSetup(body.setup),
+    processing:
+      body.processing && typeof body.processing === "object"
+        ? (() => {
+            const raw = body.processing as Record<string, unknown>;
+            if (typeof raw.stage !== "string") return null;
+            const percent =
+              typeof raw.percent === "number" && Number.isFinite(raw.percent)
+                ? Math.max(0, Math.min(100, Math.round(raw.percent)))
+                : 0;
+            return { stage: raw.stage, percent };
+          })()
+        : null,
   };
 }
 
@@ -554,4 +577,24 @@ export async function fetchGuestLabReadout(
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return null;
   return mapLabReadoutRereadBody(body);
+}
+
+/** Restart analysis against the already-uploaded recording. */
+export async function retryLabProcessing(sessionId: string): Promise<boolean> {
+  const token = await getAuthToken();
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(
+      `/api/v2/lab/recordings/${encodeURIComponent(sessionId)}/retry-processing`,
+      {
+        method: "POST",
+        headers,
+        cache: "no-store",
+      }
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
 }

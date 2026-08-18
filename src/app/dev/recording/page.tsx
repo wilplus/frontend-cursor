@@ -71,6 +71,7 @@ export default function RecordingHarness() {
           slides={SLIDES}
           presentationRef={null}
           currentSlide={slide}
+          roots={[]}
           onAdvance={(dir) =>
             setSlide((i) => Math.min(Math.max(i + dir, 0), SLIDES.length - 1))
           }

@@ -5,14 +5,12 @@ import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import {
   buildRatingBody,
   saveConfidenceAgreement,
   type TernaryValue,
 } from "@/services/api/stateRatings";
 import {
-  AGREE_QUESTION,
   AGREE_THANKS,
   CONFIDENT_VOICE_WHY,
   PRAISE_CUE_LEAD,
@@ -21,6 +19,7 @@ import {
   whyLine,
 } from "@/lib/willab/trackedChangeWhy";
 import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
+import { parseRichSpans } from "@/lib/willab/richMarkers";
 import { type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import type {
@@ -63,6 +62,8 @@ interface DeckChunkModalProps {
   /** Decide approve. Resolves true when saved; the host refetches and the
    *  updated chunk text flows back down. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
+  /** Brief, real Undo after an accepted clarity rewrite. */
+  onUndoAccept?: (s: DocumentSuggestion) => Promise<boolean>;
   /** Decide disregard ("Keep mine"). Resolves true when saved. */
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   /** Commit the draft (when changed) and lock the part. */
@@ -86,6 +87,11 @@ interface DeckChunkModalProps {
    *  locked chunks included (founder: "even on a locked screen you can
    *  still see that feedback"). */
   coachSnippetId?: string | null;
+  coachReviewStatus?:
+    | "pending_coach_review"
+    | "coach_reviewed"
+    | "not_confirmed"
+    | null;
   /** The arc the coach's message is fetched from, on demand. */
   arcId?: string | null;
 }
@@ -94,6 +100,7 @@ export default function DeckChunkModal({
   chunk,
   suggestion,
   onAccept,
+  onUndoAccept,
   onKeepMine,
   onLockIn,
   onUnlockPart = null,
@@ -102,6 +109,7 @@ export default function DeckChunkModal({
   onApplyStyle,
   history = null,
   coachSnippetId = null,
+  coachReviewStatus = null,
   arcId = null,
 }: DeckChunkModalProps) {
   // Accept morphs the face; everything else derives from the chunk.
@@ -115,6 +123,10 @@ export default function DeckChunkModal({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedRewrite, setAcceptedRewrite] =
+    useState<DocumentSuggestion | null>(null);
+  const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
+    useState(false);
 
   // The always-editable draft. Re-synced from the served text whenever the
   // part's words change UNDER the modal (an accept reassembles the document)
@@ -160,6 +172,10 @@ export default function DeckChunkModal({
 
   async function accept() {
     if (!suggestion || busy) return;
+    if (rewriteOverlapsFlagship && !rewriteCollisionConfirmed) {
+      setRewriteCollisionConfirmed(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     const ok = await onAccept(suggestion);
@@ -171,7 +187,28 @@ export default function DeckChunkModal({
     // The student is never dropped back to the page mid-decision: the modal
     // re-renders as the editor over the freshly accepted words.
     dirtyRef.current = false;
+    if (
+      suggestion.kind === "replace" &&
+      suggestion.source !== "new_take" &&
+      suggestion.source !== "prior_take"
+    ) {
+      setAcceptedRewrite(suggestion);
+    }
     setFace("editor");
+  }
+
+  async function undoAcceptedRewrite() {
+    if (!acceptedRewrite || !onUndoAccept || busy) return;
+    setBusy(true);
+    setError(null);
+    const ok = await onUndoAccept(acceptedRewrite);
+    setBusy(false);
+    if (!ok) {
+      setError("Couldn't restore your original words. Try again.");
+      return;
+    }
+    setAcceptedRewrite(null);
+    onClose();
   }
 
   async function keepMine() {
@@ -273,6 +310,16 @@ export default function DeckChunkModal({
       ? suggestion.coachNote ?? null
       : whyLine(suggestion)
     : null;
+  const rewriteOverlapsFlagship = Boolean(
+    suggestion?.kind === "replace" &&
+      suggestion.quote?.trim() &&
+      parseRichSpans(chunk.part.text).some((span) => {
+        if (!span.highlight || !span.text.trim()) return false;
+        const accepted = span.text.trim().toLocaleLowerCase();
+        const rewrite = suggestion.quote!.trim().toLocaleLowerCase();
+        return rewrite.includes(accepted) || accepted.includes(rewrite);
+      })
+  );
 
   /* THE PRAISE LANE (founder 2026-08-15): "if the delivery was impeccable,
    * just give them the feedback in the praise lane and in the justification
@@ -290,7 +337,9 @@ export default function DeckChunkModal({
    * The recording is the whole reason this reads as evidence rather than
    * flattery: the claim is about how it SOUNDED, and it is the only claim
    * this product makes that the student cannot check by reading. */
-  const isPraise = suggestion?.device === "impeccable";
+  const isPraise =
+    suggestion?.feedbackFamily === "great_formulation" ||
+    suggestion?.device === "impeccable";
   const praiseCues = isPraise ? praiseLines(suggestion?.cueKeys ?? []) : [];
 
   /* THE CONFIDENT VOICE CARD (founder 2026-08-15): "when it comes to
@@ -314,9 +363,10 @@ export default function DeckChunkModal({
    * buttons, and a question that arrives half below the fold gets answered by
    * whoever scrolls, which biases which moments reach the album rather than
    * merely creating a layout problem. */
-  const isConfidentVoice = suggestion?.source === "confident_voice";
+  const isConfidentVoice =
+    suggestion?.feedbackFamily === "confident_voice" ||
+    suggestion?.source === "confident_voice";
   const [agreeValue, setAgreeValue] = useState<TernaryValue | null>(null);
-  const [agreeUnrateable, setAgreeUnrateable] = useState(false);
   const [agreeSaving, setAgreeSaving] = useState(false);
   const [agreeError, setAgreeError] = useState<string | null>(null);
   const [agreeSaved, setAgreeSaved] = useState(false);
@@ -343,7 +393,6 @@ export default function DeckChunkModal({
     // Roll the chip back rather than leaving it lit over a row the server
     // never took — the same rule the style apply follows.
     setAgreeValue(null);
-    setAgreeUnrateable(false);
     setAgreeError(r.error ?? "Couldn't save that. Try again.");
   }
 
@@ -377,38 +426,87 @@ export default function DeckChunkModal({
     chunk.part.locked === true && draft === chunk.part.text;
   const showUnlock = lockedAndSettled && !!onUnlockPart;
 
-  // SWIPE TO FULL (founder 2026-08-11: "Make the modal a bit taller and
-  // expandable on swipe to the top").
-  //
-  // Two detents, not a free-dragging sheet. A continuously draggable height
-  // has to own momentum, rubber-banding and a release-velocity rule, and all
-  // three fight the scroller directly beneath it — this modal's whole job is
-  // to hold a paragraph you scroll through. Two detents need one threshold
-  // and cannot desync from the content.
-  //
-  // Swipe DOWN collapses; it never closes. Dismissing a review by the same
-  // gesture that resizes it would throw away an undecided suggestion on a
-  // slip of the thumb, and the close button and the backdrop are both already
-  // there for a deliberate exit.
+  // Pointer Events give touch, pen and mouse one gesture contract. The sheet
+  // follows the pointer continuously, then settles to one of two detents.
+  // Starting inside the scroll body or on an interactive control is ignored,
+  // so dragging the sheet cannot steal scrolling, playback, or editing.
   const [expanded, setExpanded] = useState(false);
-  const grabRef = useRef<number | null>(null);
+  const [dragHeight, setDragHeight] = useState<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    startHeight: number;
+    height: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
 
-  function onGrabStart(e: React.TouchEvent) {
-    grabRef.current = e.touches[0]?.clientY ?? null;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function toggleExpanded() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    setExpanded((value) => !value);
   }
 
-  function onGrabMove(e: React.TouchEvent) {
-    const from = grabRef.current;
-    const y = e.touches[0]?.clientY;
-    if (from == null || y == null) return;
-    const dy = from - y;
-    // ~a third of a thumb travel. Below this the gesture is a tap wobble, and
-    // resizing under a stationary thumb reads as the sheet twitching.
-    if (Math.abs(dy) < 28) return;
-    setExpanded(dy > 0);
-    // Consume the gesture, so one long swipe cannot toggle repeatedly on the
-    // way up.
-    grabRef.current = null;
+  function onSheetPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || isConfidentVoice) return;
+    const target = event.target as HTMLElement;
+    const grabSurface = target.closest("[data-sheet-grabber]");
+    if (
+      target.closest("[data-sheet-scroll]") ||
+      (!grabSurface &&
+        target.closest("button, a, input, textarea, select, [contenteditable='true']"))
+    ) {
+      return;
+    }
+    const height = sheetRef.current?.getBoundingClientRect().height;
+    if (!height) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: height,
+      height,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragHeight(height);
+  }
+
+  function onSheetPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const desktop = window.matchMedia("(min-width: 640px)").matches;
+    const minimum = window.innerHeight * (desktop ? 0.62 : 0.58);
+    const maximum = window.innerHeight * (desktop ? 0.94 : 0.97);
+    const next = Math.min(
+      maximum,
+      Math.max(minimum, drag.startHeight + drag.startY - event.clientY)
+    );
+    drag.height = next;
+    drag.moved ||= Math.abs(event.clientY - drag.startY) >= 8;
+    setDragHeight(next);
+  }
+
+  function finishSheetDrag(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const desktop = window.matchMedia("(min-width: 640px)").matches;
+    const minimum = window.innerHeight * (desktop ? 0.62 : 0.58);
+    const maximum = window.innerHeight * (desktop ? 0.94 : 0.97);
+    setExpanded(drag.height >= (minimum + maximum) / 2);
+    suppressClickRef.current = drag.moved;
+    dragRef.current = null;
+    setDragHeight(null);
   }
 
   return (
@@ -418,33 +516,25 @@ export default function DeckChunkModal({
       aria-modal="true"
       aria-label={title}
       onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}
     >
       <div
-        // TWO DETENTS (founder 2026-08-11: "Make the modal a bit taller and
-        // expandable on swipe to the top"), and they are deliberately not the
-        // same KIND of constraint:
-        //
-        //   default  — `max-h`, a CEILING. The content decides the height, so
-        //              a two-line chunk is not stretched into a sheet of
-        //              empty space it never asked for.
-        //   expanded — `h`, an actual HEIGHT. This one only happens because
-        //              the student swiped up or pressed the grabber, and
-        //              honouring that with a ceiling they may never reach
-        //              makes the gesture a no-op on exactly the short chunks
-        //              where the room was free. (The e2e caught this: with a
-        //              short chunk both detents measured 390px on a 900px
-        //              viewport — the class changed and the sheet did not.)
-        //
-        // `dvh` rather than `vh` — on a phone `100vh` is the browser's
-        // idealised viewport, which sits behind the URL bar, so a `vh`-sized
-        // sheet puts its own footer under the chrome. That is the one thing
-        // full-height must not do: the decision buttons live down there.
-        className={`flex w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl transition-all duration-300 ease-out sm:rounded-3xl ${
+        ref={sheetRef}
+        style={dragHeight === null ? undefined : { height: `${dragHeight}px` }}
+        className={`flex w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl ease-out sm:rounded-3xl ${
+          dragHeight === null ? "transition-[height] duration-300" : "cursor-grabbing"
+        } ${
           expanded || isConfidentVoice
             ? "h-[97dvh] max-h-[97dvh] sm:h-[94vh] sm:max-h-[94vh]"
-            : "max-h-[92dvh] sm:max-h-[86vh]"
+            : "h-[68dvh] max-h-[68dvh] sm:h-[72vh] sm:max-h-[72vh]"
         }`}
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={onSheetPointerDown}
+        onPointerMove={onSheetPointerMove}
+        onPointerUp={finishSheetDrag}
+        onPointerCancel={finishSheetDrag}
       >
         {/* THE GRABBER. A real button, not a decorative bar: the founder
             asked for swipe, and swipe alone would leave the second detent
@@ -455,12 +545,11 @@ export default function DeckChunkModal({
             not resize. */}
         <button
           type="button"
+          data-sheet-grabber
           aria-label={expanded ? "Collapse" : "Expand"}
           aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-          onTouchStart={onGrabStart}
-          onTouchMove={onGrabMove}
-          className="flex shrink-0 touch-none items-center justify-center pb-1 pt-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          onClick={toggleExpanded}
+          className="flex shrink-0 cursor-grab touch-none items-center justify-center pb-1 pt-3 active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
         >
           <span
             className="h-1 w-9 rounded-full bg-foreground/20"
@@ -469,32 +558,48 @@ export default function DeckChunkModal({
         </button>
 
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-2">
-          <div className="min-w-0">
+          <button
+            type="button"
+            data-sheet-grabber
+            onClick={toggleExpanded}
+            className="min-w-0 cursor-grab touch-none text-left active:cursor-grabbing"
+          >
             <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               {kicker}
             </p>
             <h2 className="mt-1 text-[17px] font-semibold text-foreground">
               {title}
             </h2>
-          </div>
+          </button>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
 
-        <div className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
+        <div data-sheet-scroll className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
+          {coachReviewStatus ? (
+            <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
+              {coachReviewStatus === "pending_coach_review"
+                ? "Pending coach review"
+                : coachReviewStatus === "coach_reviewed"
+                  ? "Coach reviewed"
+                  : "Not confirmed"}
+            </p>
+          ) : null}
           {face === "review" && suggestion ? (
             <>
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  What you said
-                </p>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.quote || chunk.part.text}
-                </p>
-              </div>
+              {!isConfidentVoice ? (
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    {isPraise ? "Exact formulation" : "What you said"}
+                  </p>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
+                    {suggestion.quote || chunk.part.text}
+                  </p>
+                </div>
+              ) : null}
               {isPraise || isConfidentVoice ? null : (
                 <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Suggested
+                    {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
                   </p>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
                     {suggestion.kind === "bold"
@@ -503,22 +608,54 @@ export default function DeckChunkModal({
                   </p>
                 </div>
               )}
-              {isPraise || isConfidentVoice ? (
+              {isConfidentVoice ? (
                 <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
-                  <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                    {isConfidentVoice ? CONFIDENT_VOICE_WHY : PRAISE_LEAD}
-                  </p>
                   {suggestion.snippetAudioRef ? (
-                    // HEAR IT. The claim is about how it SOUNDED — the one
-                    // claim this product makes that reading cannot check.
                     <MediaPlayer
                       src={suggestion.snippetAudioRef}
                       startOffsetMs={suggestion.startOffsetMs ?? 0}
                       durationMs={suggestion.durationMs ?? 0}
                     />
                   ) : null}
-                  {praiseCues.length > 0 ? (
+                  {!agreeSaved ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        Does this sound confident to you?
+                      </p>
+                      <div className="flex gap-2">
+                        {(["yes", "no"] as const).map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={agreeSaving}
+                            onClick={() => {
+                              setAgreeValue(value);
+                              void sendAgreement(value, false);
+                            }}
+                            className={`rounded-full border px-5 py-2 text-[14px] font-medium transition-colors disabled:opacity-50 ${
+                              agreeValue === value
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background text-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {value === "yes" ? "Yes" : "No"}
+                          </button>
+                        ))}
+                      </div>
+                      {agreeSaving ? (
+                        <p className="text-[12px] text-muted-foreground">Saving…</p>
+                      ) : null}
+                      {agreeError ? (
+                        <p className="text-[12px] text-destructive">{agreeError}</p>
+                      ) : null}
+                    </div>
+                  ) : (
                     <>
+                      <p className="text-[15px] font-medium leading-relaxed text-foreground">
+                        {CONFIDENT_VOICE_WHY}
+                      </p>
+                      {praiseCues.length > 0 ? (
+                        <>
                       <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                         {PRAISE_CUE_LEAD}
                       </p>
@@ -532,39 +669,32 @@ export default function DeckChunkModal({
                           </li>
                         ))}
                       </ul>
+                        </>
+                      ) : null}
+                      <p className="text-[13px] text-muted-foreground">
+                        {AGREE_THANKS}
+                      </p>
                     </>
-                  ) : null}
-                  {isConfidentVoice && suggestion.snippetId ? (
-                    // THE INSTRUMENT, and it comes LAST on purpose: the read,
-                    // then the recording, then the reasons, and only then the
-                    // question. Asking first would be asking about a claim
-                    // they have not heard yet.
-                    <div className="mt-1 border-t border-border pt-3">
-                      {agreeSaved ? (
-                        <p className="text-[13px] text-muted-foreground">
-                          {AGREE_THANKS}
-                        </p>
-                      ) : (
-                        <ConfidenceLabelChips
-                          question={AGREE_QUESTION}
-                          value={agreeValue}
-                          unrateable={agreeUnrateable}
-                          saving={agreeSaving}
-                          disabled={agreeSaving}
-                          error={agreeError}
-                          onPick={(v) => {
-                            setAgreeValue(v);
-                            setAgreeUnrateable(false);
-                            void sendAgreement(v, false);
-                          }}
-                          onToggleUnrateable={() => {
-                            setAgreeValue(null);
-                            setAgreeUnrateable(true);
-                            void sendAgreement(null, true);
-                          }}
-                        />
-                      )}
-                    </div>
+                  )}
+                </div>
+              ) : isPraise ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
+                  <p className="text-[15px] font-medium leading-relaxed text-foreground">
+                    {PRAISE_LEAD}
+                  </p>
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5">
+                    <p className="text-[15px] font-semibold leading-relaxed text-primary">
+                      {suggestion.quote || chunk.part.text}
+                    </p>
+                  </div>
+                  {praiseCues.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {praiseCues.map((line) => (
+                        <li key={line} className="text-[14px] leading-snug text-foreground">
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
                   ) : null}
                 </div>
               ) : null}
@@ -573,12 +703,38 @@ export default function DeckChunkModal({
                   {rationale}
                 </p>
               ) : null}
-              {coachSnippetId ? (
+              {rewriteOverlapsFlagship && rewriteCollisionConfirmed ? (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-primary/35 bg-primary/[0.06] p-4"
+                >
+                  <p className="text-[14px] font-semibold text-foreground">
+                    This rewrite overlaps an anchor you accepted.
+                  </p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                    Applying it removes the outdated orange anchor. The clearer
+                    sentence will use a neutral root phrase until you choose a
+                    new flagship.
+                  </p>
+                </div>
+              ) : null}
+              {coachSnippetId && (!isConfidentVoice || agreeSaved) ? (
                 <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
               ) : null}
             </>
           ) : (
             <>
+              {acceptedRewrite && onUndoAccept ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void undoAcceptedRewrite()}
+                  className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                  Undo rewrite
+                </button>
+              ) : null}
               {/* THE CHUNK'S WORDS — a marker-AWARE field, never a raw one.
                   This was a plain textarea, which printed the document's
                   marker grammar at the reader: apply an emphasis, reopen the
@@ -708,15 +864,17 @@ export default function DeckChunkModal({
           <div className="shrink-0 pb-5" />
         ) : (
           <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-            {face === "review" && suggestion && (isPraise || isConfidentVoice) ? (
-              // NOTHING TO DECIDE. "Accept / Keep mine" under a compliment
-              // asks the student to choose between it and their own writing,
-              // which is not a choice anybody has. One button, and it settles
-              // the note through the same lane so it is not re-offered.
+            {face === "review" && suggestion && isConfidentVoice && !agreeSaved ? (
+              // Step one intentionally has no secondary action: listen, then
+              // answer Yes or No. The explanation appears only afterwards.
+              <div className="col-span-2" />
+            ) : face === "review" && suggestion && isConfidentVoice ? (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void accept()}
+                onClick={() =>
+                  void (agreeValue === "yes" ? accept() : keepMine())
+                }
                 className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
               >
                 {busy ? (
@@ -724,8 +882,32 @@ export default function DeckChunkModal({
                 ) : (
                   <Check className="h-4 w-4" aria-hidden />
                 )}
-                Got it
+                Done
               </button>
+            ) : face === "review" && suggestion && isPraise ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void accept()}
+                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Check className="h-4 w-4" aria-hidden />
+                  )}
+                  Use as flagship
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void keepMine()}
+                  className="flex items-center justify-center rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  Not now
+                </button>
+              </>
             ) : face === "review" && suggestion ? (
               <>
                 <button
@@ -739,7 +921,11 @@ export default function DeckChunkModal({
                   ) : (
                     <Check className="h-4 w-4" aria-hidden />
                   )}
-                  Accept
+                  {suggestion.kind === "replace"
+                    ? rewriteOverlapsFlagship && rewriteCollisionConfirmed
+                      ? "Confirm clearer version"
+                      : "Use clearer version"
+                    : "Accept"}
                 </button>
                 <button
                   type="button"

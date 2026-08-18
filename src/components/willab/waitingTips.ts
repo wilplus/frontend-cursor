@@ -1,9 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*  waitingTips — what to read while the app is working                        */
 /*                                                                            */
-/*  ONE tip per waiting session, not a carousel: a line that swaps under you   */
-/*  while you are reading it is worse than no line at all, and the wait is     */
-/*  usually short enough that a single thought lands better than three.        */
+/*  A stable, scrollable collection: nothing moves while the person is reading */
+/*  and the exact scroll position survives every processing screen.            */
 /*                                                                            */
 /*  Deliberately no "did you know" statistics. Almost every famous public-     */
 /*  speaking number is a misquote (the "93% of communication is nonverbal"     */
@@ -13,20 +12,18 @@
 /* -------------------------------------------------------------------------- */
 
 export const WAITING_TIPS: readonly string[] = [
-  // Environment
-  "A small room with soft furniture beats a big empty one. Curtains, a sofa and a rug soak up the echo that makes a recording sound thin.",
-  "Point your phone away from a bare wall. Sound bounces straight back off it and lands in your mic twice.",
-  // Practising with people
-  "One listener is enough. Almost everything you would fix in front of fifty people shows up in front of one.",
-  "Ask your listener what they remember an hour later, not whether it was good. What survives the hour is what the room actually keeps.",
-  // Posture and breath
-  "Standing changes the sound before it changes the nerves. An open ribcage gives you longer breaths, and longer breaths give you longer sentences.",
-  "If your voice thins out near the end of a line, you ran out of air, not confidence. Take the breath one clause earlier.",
-  "Unlock your knees and let your jaw hang for a second before you start. Both are places tension parks itself without asking.",
-  // Craft
-  "The pause you are afraid of is shorter than it feels. On a recording it is usually about a second.",
-  "Say the claim first, then the evidence. An audience follows a point they already know the shape of.",
-  "Rehearsing the interruption is worth more than rehearsing the talk. The talk rarely goes as planned; the interruption always comes.",
+  "Try naming the feeling as excitement. The physical energy can stay while your interpretation of it becomes more useful.",
+  "Move before you rehearse. A short walk or a few loose shoulder rolls can help interrupt the loop of overthinking.",
+  "Shrink the room into one conversation. Picture one real person who needs the idea, and speak to them.",
+  "Step into the presenter role: your job is to guide the audience through one useful idea, not to perform a perfect version of yourself.",
+  "Notice the internal critic, then give it a smaller job: checking one fact or one transition, not judging the whole performance.",
+  "Choose a ritual that matches what you need. Use movement or music for energy; use slower breathing and quiet for steadiness.",
+  "Lead with the part you genuinely care about. Real enthusiasm gives your voice a reason to move.",
+  "Treat stress as information. Ask what feels underprepared, then rehearse that exact opening, transition, or conclusion.",
+  "Practise somewhere you feel physically at ease. Familiar surroundings can leave more attention for the message.",
+  "Put the audience's value ahead of flawless delivery. A useful idea can land even when a sentence is not perfect.",
+  "Make rehearsal slightly demanding and the real delivery slightly simpler: practise standing, with a timer, then remove the timer pressure when you present.",
+  "A light industry observation can make an opening warmer when it is true, relevant, and natural in your voice.",
 ];
 
 /** One tip at random. Call this ONCE per waiting session (after mount, so the

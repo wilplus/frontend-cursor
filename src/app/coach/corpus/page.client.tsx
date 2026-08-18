@@ -941,6 +941,7 @@ function LabelScreen({
     // Unconstructable = no real answer; the UI cannot reach here without
     // one, so this is a guard, not a flow (N3).
     if (!body) return;
+    if (piece.reReview) body.re_review = true;
     inFlightRef.current = true;
     setSavingId(snippetId); // "pending" — its dot pulses until this resolves.
     setError(null);

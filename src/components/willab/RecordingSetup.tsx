@@ -15,12 +15,6 @@ import {
   type PresentationSlide,
 } from "./presentation";
 import { fetchRecordingConfig } from "@/services/api/recordingConfig";
-import { fetchTrainings } from "@/services/api/trainings";
-import {
-  findProjectNameConflict,
-  suggestFreeProjectName,
-  type NamedProject,
-} from "@/lib/willab/projectNames";
 import RecordPriceNote from "@/components/tokens/RecordPriceNote";
 
 /* -------------------------------------------------------------------------- */
@@ -63,7 +57,14 @@ export const THREE_TAKE_NUDGE =
 const SETUP_INPUT_CLS =
   "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
 
-type StepKey = "topic" | "audience" | "length" | "slides" | "context";
+type StepKey =
+  | "topic"
+  | "audience"
+  | "goal"
+  | "call_to_action"
+  | "length"
+  | "slides"
+  | "context";
 
 export default function RecordingSetup({
   contextArcId,
@@ -87,10 +88,13 @@ export default function RecordingSetup({
 }) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
+  const [presentationGoal, setPresentationGoal] = useState("");
+  const [desiredCallToAction, setDesiredCallToAction] = useState("");
   const [lengthSec, setLengthSec] = useState<number | null>(null);
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
   const [strategicContext, setStrategicContext] = useState("");
+  const [contextDocument, setContextDocument] = useState<File | null>(null);
   const [step, setStep] = useState(0);
   // FE-5 — the threshold, read from the server. Never a literal: the number is
   // served precisely so it can move without a deploy.
@@ -111,8 +115,16 @@ export default function RecordingSetup({
   }, []);
 
   const steps: StepKey[] = hideDeck
-    ? ["topic", "audience", "length", "context"]
-    : ["topic", "audience", "length", "slides", "context"];
+    ? ["topic", "audience", "goal", "call_to_action", "length", "context"]
+    : [
+        "topic",
+        "audience",
+        "goal",
+        "call_to_action",
+        "length",
+        "slides",
+        "context",
+      ];
   const current = steps[step];
   const isLast = step === steps.length - 1;
 
@@ -179,60 +191,29 @@ export default function RecordingSetup({
 
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
 
-  /* ── ONE NAME, ONE PROJECT (founder 2026-08-15) ─────────────────────────
-   *
-   * Only when starting a NEW project (`contextArcId === null`). Continuing a
-   * known arc reuses its title by definition, and running this check there
-   * would flag every re-take as a duplicate of itself.
-   *
-   * The name is the IDENTITY, not a label: since the arc-identity fix a
-   * deckless take with no uploaded PDF is matched to its project by the
-   * normalized topic. Two projects sharing a name are one project wearing two,
-   * which is exactly the confusion the founder hit when "Book" landed inside
-   * "Testtttt" and the two could no longer be told apart.
-   *
-   * FAILS OPEN. If the list can't load we let the name through rather than
-   * blocking a recording on a read we could not make — a false "that name is
-   * taken" stops someone from working, and the server's behaviour for a real
-   * duplicate is to file it into the existing project, which is coherent and
-   * recoverable. Never break the live loop over a hint. */
-  const isNewProject = contextArcId === null;
-  const [mine, setMine] = useState<NamedProject[] | null>(null);
-  useEffect(() => {
-    if (!isNewProject) return;
-    let alive = true;
-    fetchTrainings()
-      .then((arcs) => {
-        // null = the endpoint is unavailable (it 404s on older backends and
-        // the tab falls back to the legacy view). Same fail-open answer as a
-        // rejected fetch: no list, no clash, never a false block.
-        if (alive) {
-          setMine((arcs ?? []).map((a) => ({ arcId: a.arcId, topic: a.topic })));
-        }
-      })
-      .catch(() => {
-        if (alive) setMine([]);   // fail open — see above
-      });
-    return () => {
-      alive = false;
-    };
-  }, [isNewProject]);
-
-  const nameClash = isNewProject ? findProjectNameConflict(topic, mine) : null;
-  const freeName = nameClash ? suggestFreeProjectName(topic, mine) : "";
-  const topicReady = topic.trim().length > 0 && !nameClash;
+  // A project title is display copy, never identity. Same-named projects are
+  // valid; authenticated owner + immutable arc UUID keep their data separate.
+  const topicReady = topic.trim().length > 0;
 
   function submit() {
     const t = topic.trim();
-    if (!t || nameClash) {
-      // `nameClash` is re-checked HERE and not only on the topic step: the
-      // project list loads asynchronously, so a fast typist can be two steps
-      // past the name by the time we learn it is taken. Bouncing back to the
-      // step that owns the problem beats submitting a take into a project the
-      // user did not choose.
+    if (!t) {
       setStep(steps.indexOf("topic"));
       return;
     }
+    const intentContext = [
+      presentationGoal.trim()
+        ? `Presentation goal: ${presentationGoal.trim()}`
+        : null,
+      desiredCallToAction.trim()
+        ? `Desired call to action: ${desiredCallToAction.trim()}`
+        : null,
+      strategicContext.trim()
+        ? `Additional context: ${strategicContext.trim()}`
+        : null,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
     onSubmit(
       {
         topic: t,
@@ -241,7 +222,8 @@ export default function RecordingSetup({
         domain_vocabulary: [],
         slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
         presentationRef,
-        strategicContext: strategicContext.trim() || undefined,
+        strategicContext: intentContext || undefined,
+        contextDocument: contextDocument || undefined,
       },
       true
     );
@@ -265,16 +247,6 @@ export default function RecordingSetup({
       e.preventDefault();
       goNext();
     }
-  }
-
-  // New-project fallback for the brief: no arc to attach to yet, so fold the
-  // chosen file's name into the context note (the real upload lands next take).
-  function appendBrief(filename: string) {
-    setStrategicContext((prev) => {
-      const marker = `[Attached: ${filename}]`;
-      if (prev.includes(marker)) return prev;
-      return prev ? `${prev}\n\n${marker}` : marker;
-    });
   }
 
   const primaryLabel = isLast
@@ -325,41 +297,7 @@ export default function RecordingSetup({
               placeholder="e.g. my Q3 results pitch"
               className={SETUP_INPUT_CLS}
               autoFocus
-              aria-invalid={!!nameClash}
-              aria-describedby={nameClash ? "topic-name-taken" : undefined}
             />
-            {nameClash && (
-              /* Stated as a fact about what they already have, not as a
-               * rejection — they are one tap from the thing they may have
-               * meant. Copy is deliberately plain and is the founder's to
-               * adjust (LIVE LOOP). */
-              <p
-                id="topic-name-taken"
-                role="status"
-                className="mt-2 text-sm text-muted-foreground"
-              >
-                You already have a project called{" "}
-                <span className="font-medium text-foreground">
-                  {nameClash.topic}
-                </span>
-                . Go back and pick it to add another take, or
-                {freeName ? (
-                  <>
-                    {" "}
-                    <button
-                      type="button"
-                      onClick={() => setTopic(freeName)}
-                      className="font-medium text-foreground underline underline-offset-2"
-                    >
-                      call this one “{freeName}”
-                    </button>
-                    .
-                  </>
-                ) : (
-                  " give this one a different name."
-                )}
-              </p>
-            )}
           </div>
         )}
 
@@ -375,6 +313,44 @@ export default function RecordingSetup({
               onChange={(e) => setAudience(e.target.value)}
               onKeyDown={onEnterAdvance}
               placeholder="e.g. the leadership team"
+              className={SETUP_INPUT_CLS}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {current === "goal" && (
+          <div>
+            <StepHead
+              icon={Mic}
+              question="What should this presentation achieve?"
+              helper="Name the change you want in the audience by the end."
+            />
+            <input
+              value={presentationGoal}
+              onChange={(e) => setPresentationGoal(e.target.value)}
+              onKeyDown={onEnterAdvance}
+              placeholder="e.g. win approval for the proposal"
+              maxLength={400}
+              className={SETUP_INPUT_CLS}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {current === "call_to_action" && (
+          <div>
+            <StepHead
+              icon={Mic}
+              question="What should the audience do next?"
+              helper="A clear call to action gives the conclusion a real destination."
+            />
+            <input
+              value={desiredCallToAction}
+              onChange={(e) => setDesiredCallToAction(e.target.value)}
+              onKeyDown={onEnterAdvance}
+              placeholder="e.g. approve the pilot today"
+              maxLength={400}
               className={SETUP_INPUT_CLS}
               autoFocus
             />
@@ -439,18 +415,21 @@ export default function RecordingSetup({
               value={strategicContext}
               onChange={(e) => setStrategicContext(e.target.value)}
               rows={7}
+              maxLength={1000}
               placeholder="e.g. This is my first board meeting and I tend to rush when I'm nervous."
               className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-[15px] leading-relaxed placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition"
             />
             {/* Attach a document for background context. A live project uses the
-                real context-document upload (parsed, never quoted back); a
-                brand-new project has no arc to attach to yet, so we just note the
-                filename in the context text and the real upload lands next take. */}
+                dedicated arc endpoint. For a brand-new project the File rides
+                the first take and is persisted as soon as its new arc exists. */}
             <div className="mt-3">
               {contextArcId ? (
                 <ContextDocumentInput arcId={contextArcId} />
               ) : (
-                <BriefAttach onPick={appendBrief} />
+                <BriefAttach
+                  file={contextDocument}
+                  onPick={setContextDocument}
+                />
               )}
             </div>
           </div>
@@ -562,10 +541,16 @@ function LongTakeCaution({
   );
 }
 
-/** Step-5 brief attach for a brand-new project (no arc yet): folds the chosen
- *  file's name into the context note as a marker. Once the project exists the
- *  real ContextDocumentInput (a parsed, background-only upload) takes over. */
-function BriefAttach({ onPick }: { onPick: (filename: string) => void }) {
+/** Step-5 brief attach for a brand-new project (no arc yet). The File stays in
+ *  this setup only and is sent with Take 1; it is never reduced to a filename
+ *  marker that the feedback engine cannot read. */
+function BriefAttach({
+  file,
+  onPick,
+}: {
+  file: File | null;
+  onPick: (file: File | null) => void;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   return (
     <>
@@ -577,7 +562,7 @@ function BriefAttach({ onPick }: { onPick: (filename: string) => void }) {
         onChange={(e) => {
           const f = e.target.files?.[0];
           e.target.value = ""; // allow re-selecting the same file
-          if (f) onPick(f.name);
+          if (f) onPick(f);
         }}
       />
       <button
@@ -586,8 +571,20 @@ function BriefAttach({ onPick }: { onPick: (filename: string) => void }) {
         className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-[14px] transition hover:bg-muted active:scale-[0.98]"
       >
         <FileText className="h-3.5 w-3.5" aria-hidden />
-        Attach a brief
+        {file ? "Replace brief" : "Attach a brief"}
       </button>
+      {file ? (
+        <div className="mt-2 flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span className="min-w-0 truncate">{file.name}</span>
+          <button
+            type="button"
+            onClick={() => onPick(null)}
+            className="shrink-0 underline underline-offset-2 transition hover:text-foreground"
+          >
+            Remove
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }

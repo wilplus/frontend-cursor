@@ -3,10 +3,10 @@
  *
  * The BE now accepts an upload with 202 and finishes `process_lab_recording`
  * in a background daemon, so the analysis SURVIVES a closed tab / locked
- * phone. This marker is written the moment a 202 lands and cleared when the
- * poll reaches a terminal state — so a user who left mid-analysis sees a calm
- * "still analyzing" indicator on return (the Lounge resumes the poll) instead
- * of a silently swallowed take.
+ * phone. This marker is written the moment a 202 lands. Success advances it
+ * into document assembly; failure preserves it for manual retry against the
+ * same stored audio. A user who leaves mid-analysis therefore returns to the
+ * real job instead of a silently swallowed take.
  *
  * TWO PHASES (SPEC-lockin-loop §1, closing handoff §6.4 S3/S4). The readout
  * going terminal is NOT the text being ready: the arc-level ideal-text
@@ -31,6 +31,7 @@ function scopedKey(userId: string | null): string {
 }
 
 export type ProcessingPhase = "analysis" | "document";
+export type ProcessingStatus = "processing" | "failed";
 
 export interface ProcessingTake {
   sessionId: string;
@@ -41,6 +42,8 @@ export interface ProcessingTake {
   startedAt: number;
   /** Which wait this is. Older markers deserialize as "analysis". */
   phase: ProcessingPhase;
+  /** A failed accepted recording remains addressable for manual retry. */
+  status: ProcessingStatus;
   /** Epoch ms when the CURRENT phase began — the document-settle cap runs
    *  from here, not from the upload (a slow analysis must not eat the
    *  document phase's budget). */
@@ -63,6 +66,7 @@ export function readProcessingTake(
       takeIndex: typeof v.takeIndex === "number" ? v.takeIndex : null,
       startedAt,
       phase: v.phase === "document" ? "document" : "analysis",
+      status: v.status === "failed" ? "failed" : "processing",
       phaseStartedAt:
         typeof v.phaseStartedAt === "number" ? v.phaseStartedAt : startedAt,
     };
@@ -73,8 +77,8 @@ export function readProcessingTake(
 
 export function writeProcessingTake(
   userId: string | null,
-  t: Omit<ProcessingTake, "phase" | "phaseStartedAt"> &
-    Partial<Pick<ProcessingTake, "phase" | "phaseStartedAt">>
+  t: Omit<ProcessingTake, "phase" | "phaseStartedAt" | "status"> &
+    Partial<Pick<ProcessingTake, "phase" | "phaseStartedAt" | "status">>
 ): void {
   try {
     localStorage.setItem(
@@ -82,12 +86,25 @@ export function writeProcessingTake(
       JSON.stringify({
         ...t,
         phase: t.phase ?? "analysis",
+        status: t.status ?? "processing",
         phaseStartedAt: t.phaseStartedAt ?? t.startedAt,
       })
     );
   } catch {
     // storage quota — not fatal; the return-visit indicator just won't show
   }
+}
+
+/** Preserve the accepted recording and mark it as manually retryable. */
+export function markProcessingTakeFailed(
+  userId: string | null,
+  sessionId: string
+): void {
+  try {
+    const cur = readProcessingTake(userId);
+    if (!cur || cur.sessionId !== sessionId) return;
+    writeProcessingTake(userId, { ...cur, status: "failed" });
+  } catch {}
 }
 
 /** The readout went terminal but the document is still assembling: move THIS
