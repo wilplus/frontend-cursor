@@ -3,6 +3,11 @@
 import { useEffect, useRef } from "react";
 import { VoiceMark } from "./LoadingState";
 import { WAITING_TIPS } from "./waitingTips";
+import {
+  availableAdviceStorage,
+  readAdviceScroll,
+  writeAdviceScroll,
+} from "./processingAdviceScroll";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -32,8 +37,6 @@ export const PROCESSING_STAGES = [
   "Preparing your speaking anchors",
 ] as const;
 
-const ADVICE_SCROLL_KEY = "willab:processing-advice-scroll";
-
 function stageIndex(stage?: string): number {
   if (stage === "transcribing" || stage === "analysis") return 1;
   if (stage === "ideal_text" || stage === "post_processing") return 2;
@@ -59,8 +62,7 @@ export default function ProcessingWait({
   useEffect(() => {
     const node = adviceRef.current;
     if (!node) return;
-    const saved = Number(sessionStorage.getItem(ADVICE_SCROLL_KEY) ?? 0);
-    if (Number.isFinite(saved)) node.scrollTop = saved;
+    node.scrollTop = readAdviceScroll(availableAdviceStorage());
   }, []);
   const current = stageIndex(progress?.stage);
   const percent = Math.max(0, Math.min(100, progress?.percent ?? 0));
@@ -91,9 +93,9 @@ export default function ProcessingWait({
       <div
         ref={adviceRef}
         onScroll={(event) =>
-          sessionStorage.setItem(
-            ADVICE_SCROLL_KEY,
-            String(event.currentTarget.scrollTop)
+          writeAdviceScroll(
+            availableAdviceStorage(),
+            event.currentTarget.scrollTop
           )
         }
         className="scrollbar-none max-h-[34vh] w-full overflow-y-auto overscroll-contain px-4 text-left"
