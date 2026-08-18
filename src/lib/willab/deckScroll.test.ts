@@ -11,6 +11,7 @@ import {
   nearestChunkIndex,
   scrollEdge,
   stepPosition,
+  wheelDestination,
 } from "./deckScroll";
 
 const COUNTS = [3, 1, 2]; // slide 0: 3 chunks, slide 1: 1, slide 2: 2
@@ -136,6 +137,21 @@ describe("scrollEdge + canBubble — bubbling needs the edge", () => {
     expect(
       scrollEdge({ scrollTop: 499.4, clientHeight: 400, scrollHeight: 900 })
     ).toBe("bottom");
+  });
+});
+
+describe("wheelDestination — the whole desktop is one scroll surface", () => {
+  it("leaves native scrolling alone over the active paragraph column", () => {
+    expect(wheelDestination(true, false)).toBe("native-inner");
+  });
+
+  it("routes a wheel from desktop whitespace into the paragraph column", () => {
+    expect(wheelDestination(false, false)).toBe("proxy-inner");
+  });
+
+  it("advances only after the active paragraph column reaches its edge", () => {
+    expect(wheelDestination(true, true)).toBe("advance-screen");
+    expect(wheelDestination(false, true)).toBe("advance-screen");
   });
 });
 

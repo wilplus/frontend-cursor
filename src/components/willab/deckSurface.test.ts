@@ -124,6 +124,12 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(READOUT).toMatch(/flex min-h-0 flex-1 flex-col gap-4/);
   });
 
+  it("routes desktop wheel gestures from the whole surface into that scroller", () => {
+    expect(DECK).toMatch(/wheelDestination\(/);
+    expect(DECK).toMatch(/inner\.scrollBy\(\{ top: dy \}\)/);
+    expect(DECK).toMatch(/flex-1 scroll-smooth overflow-y-auto/);
+  });
+
   it("the modal opens on the WORK, not on the folded page state", () => {
     // `chunk.status` folds "approved, not locked" into "locked", so reading
     // it here sent a chunk with a live proposal to the editor. On a re-opened

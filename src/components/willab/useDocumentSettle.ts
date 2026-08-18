@@ -18,13 +18,13 @@ import { useUserId } from "./useUserId";
 /*  useDocumentSettle — the ONE pending authority for the blocking screen       */
 /*  (SPEC-lockin-loop §1).                                                     */
 /*                                                                            */
-/*  Reads the processing-take marker on an interval (2s) rather than on state  */
+/*  Reads the processing-take marker on an interval (500ms) rather than on     */
 /*  flips, which closes §6.4 S5's blindness for its consumers: a marker        */
 /*  written by another tab, or transitioned mid-view, is seen within two       */
-/*  seconds instead of at the next navigation.                                 */
+/*  the next navigation.                                                       */
 /*                                                                            */
 /*  While the marker is in its "document" phase, probes the served ideal text  */
-/*  every 4s and clears the marker on evidence the new text landed (or on the  */
+/*  every second and clears the marker on evidence the new text landed (or on  */
 /*  bounded cap — lib/willab/documentSettle.ts owns the rules). The            */
 /*  "analysis" phase is NOT probed here: the readout watches (LabOverlay live, */
 /*  Lounge resume) own that phase and transition it to "document" at their     */
@@ -35,8 +35,12 @@ import { useUserId } from "./useUserId";
 /*  is session-scoped — the worst case is one redundant GET per surface.       */
 /* -------------------------------------------------------------------------- */
 
-const MARKER_POLL_MS = 2_000;
-const PROBE_MS = 4_000;
+// These loops run only while the visible processing/read surface is enabled.
+// A multi-second UI delay after the backend finished made document assembly
+// look like a second analysis pass, so keep the observer responsive without
+// turning it into an always-on poller.
+const MARKER_POLL_MS = 500;
+const PROBE_MS = 1_000;
 /** A marker older than this is stale regardless of phase (same 30-min rule
  *  the Lounge resume watch applies). */
 const MARKER_STALE_MS = 30 * 60_000;
@@ -78,7 +82,7 @@ export function useDocumentSettle({
   onSettledRef.current = onSettled;
 
   // The marker read loop. Also runs immediately on enable, so a surface that
-  // mounts mid-analysis blocks on its first paint rather than 2s later.
+  // mounts mid-analysis blocks on its first paint rather than one poll later.
   useEffect(() => {
     if (!enabled) {
       setMarker(null);

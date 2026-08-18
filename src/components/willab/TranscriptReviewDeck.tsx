@@ -28,6 +28,7 @@ import {
   nearestChunkIndex,
   scrollEdge,
   stepPosition,
+  wheelDestination,
   type DeckPosition,
   type DeckScreenModel,
 } from "@/lib/willab/deckScroll";
@@ -321,8 +322,20 @@ export default function TranscriptReviewDeck({
       const { slide } = posRef.current;
       const inner = innerRefs.current[slide];
       const edge = inner ? scrollEdge(inner) : "both";
-      if (!canBubble(edge, dir)) return; // chunks first — stay native
+      const destination = wheelDestination(
+        inner?.contains(e.target as Node) ?? false,
+        canBubble(edge, dir)
+      );
+      if (destination === "native-inner") return;
       e.preventDefault();
+      if (destination === "proxy-inner" && inner) {
+        // A wheel over the title, slide image or white margin should move the
+        // same text as a wheel directly over the paragraph column. CSS
+        // scroll-smooth owns the motion so mouse wheels and trackpads share
+        // one continuous surface without changing the phone touch contract.
+        inner.scrollBy({ top: dy });
+        return;
+      }
       if (!armedRef.current) return; // momentum tail, not a fresh gesture
       armedRef.current = false;
       tryBubble(dir);
@@ -556,7 +569,7 @@ export default function TranscriptReviewDeck({
                     posRef.current = { slide: gi, chunk };
                   }
                 }}
-                className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+                className="scrollbar-none relative min-h-0 flex-1 scroll-smooth overflow-y-auto overscroll-y-contain"
               >
                 <div className="my-auto flex min-h-full flex-col justify-center gap-4">
                   {g.chunks.map((c) => (

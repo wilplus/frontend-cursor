@@ -47,11 +47,15 @@ export const CLARITY_WHY = [
   "This gives your message a cleaner finish.",
 ] as const;
 
-/** `confident_voice` — the ONE founder-signed body of the Confident Voice
- *  card (§17 acoustic-confidence-v1, 2026-08-14). Purely positive, fixed —
- *  no variants: praise that rewords itself reads as the system hedging. */
+/** `confident_voice` — the fixed, deliberately neutral lead for a possible
+ *  Confident Voice moment. The acoustic detector nominates a candidate; it
+ *  does not justify a superlative before the speaker has agreed. */
 export const CONFIDENT_VOICE_WHY =
-  "You sounded incredibly confident and natural here.";
+  "You heard confidence in this moment.";
+
+/** A No is acknowledged without arguing with the speaker or re-stating the
+ *  machine's positive read. It is routing evidence, not a failed quiz. */
+export const CONFIDENT_VOICE_NO = "Thanks for letting us know.";
 
 /** `emphasis` — the change STYLES WORDS ALREADY THERE. */
 export const EMPHASIS_WHY = [

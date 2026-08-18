@@ -721,7 +721,21 @@ export default function LabOverlay({
   // document (handoff §6.4 S3-in-Lab). The hook probes the served text and
   // clears the marker on evidence; the flip of `pending` re-runs the
   // readout's fetch (its effect depends on it), pulling the fresh document.
-  const documentSettle = useDocumentSettle({ enabled: state === "readout" });
+  const documentSettle = useDocumentSettle({
+    // Start observing during analysis, not after the readout opens. That
+    // captures the pre-assembly document version and lets the first document
+    // probe prove the new Ideal Text landed instead of waiting for the cap.
+    enabled: state === "lab_processing" || state === "readout",
+  });
+
+  // Processing completion is a state transition, not a second decision. The
+  // result opens directly into Ideal Text; its document-settle gate still
+  // prevents stale words from appearing while assembly finishes.
+  useEffect(() => {
+    if (state === "lab_processing" && processingReady && !uploadError) {
+      goTo("readout");
+    }
+  }, [state, processingReady, uploadError, goTo]);
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -1090,7 +1104,6 @@ export default function LabOverlay({
           <Processing
             error={uploadError}
             progress={processingProgress}
-            ready={processingReady}
             stillProcessing={uploadStillProcessing}
             slow={pollSlow}
             onRetry={async () => {
@@ -1141,7 +1154,6 @@ export default function LabOverlay({
               goTo("lab_recording");
               void mic.start();
             }}
-            onViewFeedback={() => goTo("readout")}
             onClose={onClose}
           />
         )}
@@ -1600,17 +1612,14 @@ export function RecordingPhase({
 function Processing({
   error,
   progress,
-  ready = false,
   stillProcessing = false,
   slow = false,
   onRetry,
   onReRecord,
-  onViewFeedback,
   onClose,
 }: {
   error: string | null;
   progress?: { stage: string; percent: number } | null;
-  ready?: boolean;
   /** §A2 — PROCESSING_TIMEOUT with nothing to poll: the take is stored and
    *  still processing server-side. Neutral styling, NO retry and NO re-record
    *  offer — either would duplicate a take that is not lost. */
@@ -1621,7 +1630,6 @@ function Processing({
   onRetry: () => void;
   /** Abandon a slow analysis and record a fresh take (priming → mic). */
   onReRecord?: () => void;
-  onViewFeedback: () => void;
   onClose: () => void;
 }) {
   // The rotating line and the tip moved into ProcessingWait, which the
@@ -1696,25 +1704,10 @@ function Processing({
       </div>
     );
   }
-  if (ready) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
-        <ProcessingWait progress={progress} />
-        <div className="flex flex-col items-center gap-3 px-4">
-          <p className="text-[15px] font-medium text-foreground">
-            Your feedback is ready
-          </p>
-          <Button onClick={onViewFeedback} className="rounded-full px-6">
-            View Ideal Text and feedback
-          </Button>
-        </div>
-      </div>
-    );
-  }
   // THE ONE WAITING SCREEN — shared with the readout's document phase, so
   // the wait never changes its subject halfway through (founder 2026-08-11).
   return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
+    <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
       <ProcessingWait progress={progress} />
     </div>
   );
