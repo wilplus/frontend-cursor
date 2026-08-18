@@ -247,6 +247,7 @@ export default function CoachStarVerdictOverlay({
     if (cvSaving !== null) return;
     const body = buildRatingBody(value, unrateable);
     if (!body) return;
+    if (row.reReview) body.re_review = true;
     setCvSaving(row.snippetId);
     setCvErrors((e) => {
       const { [row.snippetId]: _gone, ...rest } = e;

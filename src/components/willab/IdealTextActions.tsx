@@ -5,6 +5,7 @@ import { Check, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { saveIdealText } from "@/services/api/saveIdealText";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
+import { postJourneyNextSteps } from "@/services/api/journeyNextSteps";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the master document's controls.                        */
@@ -35,6 +36,9 @@ export default function IdealTextActions({
   onBeforeSave,
   onSaved,
   onNewTake,
+  takeCount = null,
+  journeyNextStepsSeen = null,
+  onSeeNextSteps,
 }: {
   arcId: string;
   /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
@@ -55,9 +59,13 @@ export default function IdealTextActions({
   onSaved: () => void;
   /** Route into the regular record flow for the next official take. */
   onNewTake: () => void;
+  takeCount?: number | null;
+  journeyNextStepsSeen?: boolean | null;
+  onSeeNextSteps?: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [openingJourney, setOpeningJourney] = useState(false);
   // Released only when the host's refetch reports `saved` (review R-md3):
   // dropping `saving` on the POST's resolution re-enables the button for the
   // whole refetch round trip, and a second tap re-runs accept-and-freeze.
@@ -95,8 +103,42 @@ export default function IdealTextActions({
     }
   };
 
+  const guidedTake =
+    typeof takeCount === "number" && takeCount >= 1 && takeCount <= 3;
+  const showNextSteps = guidedTake && journeyNextStepsSeen === false;
+  const nextRecordingLabel =
+    takeCount === 1
+      ? "Record Take 2"
+      : takeCount === 2
+        ? "Record Take 3"
+        : typeof takeCount === "number" && takeCount >= 3
+          ? "Record again"
+          : "Record the next take";
+
+  const seeNextSteps = async () => {
+    if (openingJourney) return;
+    setOpeningJourney(true);
+    const ok = await postJourneyNextSteps(arcId);
+    setOpeningJourney(false);
+    if (ok) onSeeNextSteps?.();
+  };
+
   return (
     <div className="mt-1 flex flex-col items-stretch gap-2 border-t border-border pt-4">
+      {showNextSteps ? (
+        <Button
+          type="button"
+          onClick={() => void seeNextSteps()}
+          disabled={openingJourney}
+          className="h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+        >
+          {openingJourney ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+          ) : null}
+          See next steps
+        </Button>
+      ) : null}
+
       {/* 1 — Save. Once saved it states the fact instead of offering again.
           Withheld entirely while the BE does not serve the lane (saved null). */}
       {saved === null ? null : saved ? (
@@ -130,16 +172,18 @@ export default function IdealTextActions({
       {/* 2 — The next official take. Disabled rather than removed when the BE
           closes its gate, so the entry to the record loop never silently
           disappears from this screen. */}
-      <Button
-        type="button"
-        onClick={onNewTake}
-        disabled={canRecordTake === false}
-        variant="outline"
-        className="h-11 w-full rounded-full text-[15px] font-medium"
-      >
-        <Mic className="mr-2 h-4 w-4" aria-hidden />
-        Record the next take
-      </Button>
+      {!showNextSteps ? (
+        <Button
+          type="button"
+          onClick={onNewTake}
+          disabled={canRecordTake === false}
+          variant="outline"
+          className="h-11 w-full rounded-full text-[15px] font-medium"
+        >
+          <Mic className="mr-2 h-4 w-4" aria-hidden />
+          {nextRecordingLabel}
+        </Button>
+      ) : null}
       {canRecordTake === false ? (
         <p className="text-center text-[12px] text-muted-foreground">
           {IDEAL_EDIT_COPY.recordUnavailable}

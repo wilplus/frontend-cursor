@@ -202,6 +202,17 @@ describe("coachMomentForChunk — the coach's feedback finds its words", () => {
     ).toBeNull();
   });
 
+  it("surfaces an asynchronous coach-review state before a note exists", () => {
+    const found = coachMomentForChunk(
+      [moment({ hasExplanation: false, reviewStatus: "pending_coach_review" })],
+      DOC,
+      chunks()[1]
+    );
+    expect((found as { reviewStatus?: string } | null)?.reviewStatus).toBe(
+      "pending_coach_review"
+    );
+  });
+
   it("drops an anchor the document no longer contains — never guessed onto a neighbour", () => {
     // The paragraph was locked and retyped, or a take recomposed the words.
     const stale = moment({ anchor: "Words that are no longer anywhere." });

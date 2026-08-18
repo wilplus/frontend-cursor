@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { VoiceMark } from "./LoadingState";
-import { pickWaitingTip } from "./waitingTips";
+import { WAITING_TIPS } from "./waitingTips";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -24,48 +24,92 @@ import { pickWaitingTip } from "./waitingTips";
 /* -------------------------------------------------------------------------- */
 
 /** C11 — rotate the analyzing line so the wait feels alive (swaps every 3s). */
-export const PROCESSING_LINES = [
-  "Transcribing your voice…",
-  "Finding your strongest moments…",
-  "Lining up your slides…",
-  "Measuring your delivery…",
-  "Almost there…",
-];
+export const PROCESSING_STAGES = [
+  "Processing your recording",
+  "Transcribing your take",
+  "Building your Ideal Text",
+  "Finding feedback moments",
+  "Preparing your speaking anchors",
+] as const;
+
+const ADVICE_SCROLL_KEY = "willab:processing-advice-scroll";
+
+function stageIndex(stage?: string): number {
+  if (stage === "transcribing" || stage === "analysis") return 1;
+  if (stage === "ideal_text" || stage === "post_processing") return 2;
+  if (stage === "feedback_moments") return 3;
+  if (
+    stage === "speaking_anchors" ||
+    stage === "finalizing" ||
+    stage === "completed"
+  ) return 4;
+  return 0;
+}
 
 export default function ProcessingWait({
   markSize = 88,
+  progress = null,
 }: {
   /** The pipeline phase gives it the full stage; the document phase shares a
    *  screen with the way out and the next-take button, so it runs smaller. */
   markSize?: number;
+  progress?: { stage: string; percent: number } | null;
 }) {
-  const [lineIdx, setLineIdx] = useState(0);
-  // One tip for the whole wait, drawn after mount so the server and client
-  // never disagree about which one came up.
-  const [tip, setTip] = useState<string | null>(null);
-  useEffect(() => setTip(pickWaitingTip()), []);
+  const adviceRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const id = setInterval(
-      () => setLineIdx((i) => (i + 1) % PROCESSING_LINES.length),
-      3000
-    );
-    return () => clearInterval(id);
+    const node = adviceRef.current;
+    if (!node) return;
+    const saved = Number(sessionStorage.getItem(ADVICE_SCROLL_KEY) ?? 0);
+    if (Number.isFinite(saved)) node.scrollTop = saved;
   }, []);
+  const current = stageIndex(progress?.stage);
+  const percent = Math.max(0, Math.min(100, progress?.percent ?? 0));
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 text-center">
+    <div className="flex w-full max-w-xl flex-col items-center gap-5 text-center">
       <VoiceMark size={markSize} />
-      <p className="flex min-h-[1.5rem] items-center text-[15px] text-foreground">
-        {PROCESSING_LINES[lineIdx]}
-      </p>
-      {/* ONE tip for this wait, drawn once. The status line above already says
-          what is happening; this slot is worth more as something to read than
-          as a duration guess we cannot keep. */}
-      {tip ? (
-        <p className="max-w-[34ch] text-[13px] leading-relaxed text-muted-foreground">
-          {tip}
-        </p>
-      ) : null}
+      <div className="w-full px-4">
+        <div className="mb-2 flex items-center justify-between gap-4 text-left text-[14px] text-foreground">
+          <span>{PROCESSING_STAGES[current]}</span>
+          <span className="tabular-nums text-muted-foreground">{percent}%</span>
+        </div>
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label={PROCESSING_STAGES[current]}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+        >
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-500"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+
+      <div
+        ref={adviceRef}
+        onScroll={(event) =>
+          sessionStorage.setItem(
+            ADVICE_SCROLL_KEY,
+            String(event.currentTarget.scrollTop)
+          )
+        }
+        className="scrollbar-none max-h-[34vh] w-full overflow-y-auto overscroll-contain px-4 text-left"
+        aria-label="Presentation advice"
+      >
+        <div className="flex flex-col gap-4 pb-4">
+          {WAITING_TIPS.map((tip, index) => (
+            <p
+              key={index}
+              className="text-[13px] leading-relaxed text-muted-foreground"
+            >
+              {tip}
+            </p>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

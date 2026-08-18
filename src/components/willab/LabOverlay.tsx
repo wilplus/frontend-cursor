@@ -7,15 +7,19 @@ import { ChevronLeft, ChevronRight, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
-import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
+import {
+  submitLabRecording,
+  fetchGuestLabReadout,
+  retryLabProcessing,
+} from "@/services/api/labRecording";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
+import { fetchIdealText } from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
-  batchTake,
   coerceTargetSeconds,
   formatRecordingClock,
   measureSlideClockOffset,
@@ -47,6 +51,7 @@ import {
 import {
   writeProcessingTake,
   clearProcessingTake,
+  markProcessingTakeFailed,
   transitionProcessingTakeToDocument,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
@@ -85,6 +90,11 @@ export interface LabSessionContext {
    *  what the speaker wants to nail) sent as `strategic_context` to sharpen the
    *  coaching. Optional; omitted when blank. */
   strategicContext?: string;
+  /** Optional background brief selected while creating a project. It rides
+   *  the first take's multipart request because a new project has no arc id
+   *  for the standalone context-document endpoint yet. The backend extracts
+   *  and stores it on the newly minted arc before analysis starts. */
+  contextDocument?: File;
 }
 
 export default function LabOverlay({
@@ -198,6 +208,9 @@ export default function LabOverlay({
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
   const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(null);
+  const [recordingRoots, setRecordingRoots] = useState<
+    Array<{ slideIndex: number; text: string; type: "flagship" | "neutral" }>
+  >([]);
 
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
@@ -208,6 +221,35 @@ export default function LabOverlay({
     setExploreEnabled(!!cached);
     setPreloadDeck(cached?.deck ?? null);
   }, [signedIn, userId]);
+
+  // Take 1 intentionally has no generated roadmap. Every later take reads the
+  // current per-paragraph roots from this exact project; accepted flagships
+  // remain orange and deterministic fallbacks remain neutral.
+  useEffect(() => {
+    const aid = initArc?.arcId;
+    if (!aid || arcTakeIndex <= 1 || signedIn !== true) {
+      setRecordingRoots([]);
+      return;
+    }
+    let active = true;
+    void fetchIdealText(aid).then((result) => {
+      if (!active || result.kind !== "single") return;
+      setRecordingRoots(
+        (result.pieces ?? []).flatMap((piece) =>
+          typeof piece.slideIndex === "number" && piece.rootPhrase
+            ? [{
+                slideIndex: piece.slideIndex,
+                text: piece.rootPhrase,
+                type: piece.rootType === "flagship" ? "flagship" as const : "neutral" as const,
+              }]
+            : []
+        )
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcTakeIndex, initArc?.arcId, signedIn]);
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
   // project inherits its full setup from the ARC, not a specific session —
@@ -289,6 +331,12 @@ export default function LabOverlay({
   // (the poll keeps going — the cap only swaps the copy + offers re-record).
   const [pollSessionId, setPollSessionId] = useState<string | null>(null);
   const [pollSlow, setPollSlow] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState<{
+    stage: string;
+    percent: number;
+  } | null>(null);
+  const [processingReady, setProcessingReady] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -462,6 +510,7 @@ export default function LabOverlay({
           ? null
           : context.presentationRef,
         strategicContext: context.strategicContext,
+        contextDocument: context.contextDocument,
         slideAdvances: slideAdvancesRef.current,
         // F1 — the gap between the two clocks the app runs on. Tap times are
         // measured from recordStartRef (a UI timestamp), while Whisper's word
@@ -533,6 +582,8 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
+        setProcessingProgress({ stage: "completed", percent: 100 });
+        setProcessingReady(true);
         onRecordingProgress?.(result.recordingProgress);
         // SPEC-lockin-loop §1 (handoff §6.4 S4: "201 writes no marker"). A
         // sync accept means the TRANSCRIPT is done — the arc's document
@@ -552,7 +603,6 @@ export default function LabOverlay({
             phaseStartedAt: Date.now(),
           });
         }
-        goTo("readout");
       } else if (result.kind === "processing") {
         // Async analysis (delivery layer): the BE accepted the upload (202)
         // and finishes the analysis in a background daemon — it now SURVIVES a
@@ -569,6 +619,8 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
+        setProcessingProgress({ stage: "processing_recording", percent: 5 });
+        setProcessingReady(false);
         writeProcessingTake(userId, {
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
@@ -614,19 +666,20 @@ export default function LabOverlay({
   }, [liveSessionId]);
   useLabReadoutLive(liveSessionId, (r) => {
     if (!liveSessionId) return;
+    if (r.processing) setProcessingProgress(r.processing);
     const hasContent =
       r.readout.snippets.length > 0 ||
       r.readout.instantChunks.length > 0 ||
       r.readout.fullTranscriptChunks.length > 0;
     if (r.state === "failed") {
-      // Discard the stashed arc bookkeeping — a failed take must not
-      // advance the arc, so the retry reuses the original take_index.
-      pendingCarryRef.current = null;
-      clearProcessingTake(userId, liveSessionId);
+      // Keep the stashed arc bookkeeping: manual retry re-runs analysis for
+      // this exact accepted session and commits it only after success.
+      markProcessingTakeFailed(userId, liveSessionId);
       setPollSessionId(null);
       setPollSlow(false);
+      setProcessingReady(false);
       setUploadError(
-        "The analysis hit a snag on our side. Your recording is safe. Try again."
+        "We couldn’t finish preparing your feedback"
       );
       return;
     }
@@ -658,7 +711,8 @@ export default function LabOverlay({
       setPollSlow(false);
       setReadout(r.readout);
       setUploadError(null);
-      goTo("readout");
+      setProcessingProgress({ stage: "completed", percent: 100 });
+      setProcessingReady(true);
     }
   });
 
@@ -719,21 +773,9 @@ export default function LabOverlay({
       // reload() wholesale-replaces the list, so running it early would wipe
       // the optimistic bubble (review R-cb2). A parked restore (summary
       // already persisted, ref null) skips straight to the reload.
-      void (summaryAppendRef.current ?? Promise.resolve())
-        .then(() => reloadThread())
-        .then(() => {
-          if (
-            exploreEnabled &&
-            recordedTakeRef.current !== null &&
-            batchTake(recordedTakeRef.current) === 1
-          ) {
-            void appendToThread({
-              role: "bot",
-              kind: "text",
-              body: "When you're ready, record the next take.",
-            });
-          }
-        });
+      void (summaryAppendRef.current ?? Promise.resolve()).then(() =>
+        reloadThread()
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, context, appendToThread, readout, labSessionId, arcId, exploreEnabled]);
@@ -790,21 +832,11 @@ export default function LabOverlay({
     });
   }
 
-  /** Founder 2026-07-30 — after the check-in, a KNOWN project goes straight to
-   *  the mic.
+  /** After the one pre-Take-1 check, collect the new project's setup.
    *
-   *  "Record another take" from an ideal text is a take of a project whose
-   *  setup already exists and has already been restored into `preloadDeck` —
-   *  topic, audience, target length, slides, the served deck PDF. Walking the
-   *  user through five screens to re-confirm what the app just handed itself,
-   *  pre-filled, is five screens of nothing. The check-in stays: it is asked
-   *  fresh per take and it is the thing that takes the edge off the mic.
-   *
-   *  IT FALLS BACK RATHER THAN GUESSING. No restored deck (a brand-new topic,
-   *  a staged file upload that still needs its topic, or the arc-setup fetch
-   *  simply not back yet) → the form, exactly as before. Recording against a
-   *  context we invented would file the take under the wrong project, and a
-   *  take is not a thing you can quietly redo.
+   *  A restored setup remains a safe fallback for an unusual pre-created
+   *  project, but normal continuations no longer enter this state: the emotion
+   *  check is not repeated after Take 1.
    *
    *  ON THE USER GESTURE. getUserMedia wants one, and the check-in advances on
    *  a ~1s timer after the feeling is tapped — inside the browser's transient
@@ -832,11 +864,30 @@ export default function LabOverlay({
     void mic.start();
   }
 
+  /** Later takes skip the emotion check and reuse the project's stored setup.
+   *  This explicit tap is the browser permission gesture; Recording Mode opens
+   *  only after it and begins capture immediately. */
+  function startContinuedTake() {
+    const restored = restoredSetupFor(preloadDeck, false);
+    if (!restored) {
+      goTo("lab_session_context");
+      return;
+    }
+    lastWasUploadRef.current = false;
+    setExploreEnabled(true);
+    setContext(restored);
+    setRejectedMsg(null);
+    uploadSeqRef.current += 1;
+    primingRef.current = null;
+    startPendingRef.current = true;
+    cancelMic();
+    goTo("lab_recording");
+    void mic.start();
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
-      if (!window.confirm("Discard this recording? It hasn't been sent.")) return;
-      mic.cancel();
-      onClose();
+      setDiscardConfirmOpen(true);
       return;
     }
     // Post-recording: closing parks (hold, don't discard) per §4.
@@ -904,6 +955,17 @@ export default function LabOverlay({
       >
         {state === "lab_feelings" && (
           <FeelingsCheckIn onReady={startAfterCheckIn} />
+        )}
+
+        {state === "lab_prerecord" && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+            <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+              Your slides and speaking anchors are ready.
+            </p>
+            <Button onClick={startContinuedTake} className="rounded-full px-7">
+              Start recording
+            </Button>
+          </div>
         )}
 
         {state === "lab_session_context" && (
@@ -998,6 +1060,9 @@ export default function LabOverlay({
               recordingDeck.isDefault ? null : context?.presentationRef ?? null
             }
             currentSlide={currentSlide}
+            roots={recordingRoots.filter(
+              (root) => root.slideIndex === currentSlide
+            )}
             onAdvance={advanceSlide}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
             // (the context is already deckless-standalone, so just re-submit
@@ -1024,12 +1089,35 @@ export default function LabOverlay({
         {state === "lab_processing" && (
           <Processing
             error={uploadError}
+            progress={processingProgress}
+            ready={processingReady}
             stillProcessing={uploadStillProcessing}
             slow={pollSlow}
-            onRetry={() => {
+            onRetry={async () => {
+              if (labSessionId) {
+                const restarted = await retryLabProcessing(labSessionId);
+                if (restarted) {
+                  setUploadError(null);
+                  setUploadStillProcessing(false);
+                  setPollSlow(false);
+                  setProcessingReady(false);
+                  setProcessingProgress({
+                    stage: "processing_recording",
+                    percent: 0,
+                  });
+                  setPollSessionId(labSessionId);
+                  return;
+                }
+                setUploadError(
+                  "We couldn’t restart processing just now. Your recording is still safe."
+                );
+                return;
+              }
               setUploadError(null);
-                    setUploadStillProcessing(false);
+              setUploadStillProcessing(false);
               setPollSlow(false);
+              setProcessingReady(false);
+              setProcessingProgress({ stage: "processing_recording", percent: 5 });
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
             }}
@@ -1042,6 +1130,8 @@ export default function LabOverlay({
               pendingCarryRef.current = null;
               setPollSessionId(null);
               setPollSlow(false);
+              setProcessingReady(false);
+              setProcessingProgress(null);
               uploadStartedRef.current = false;
               setBlob(null);
               primingRef.current = null;
@@ -1051,6 +1141,7 @@ export default function LabOverlay({
               goTo("lab_recording");
               void mic.start();
             }}
+            onViewFeedback={() => goTo("readout")}
             onClose={onClose}
           />
         )}
@@ -1142,6 +1233,44 @@ export default function LabOverlay({
           />
         )}
       </div>
+      {discardConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-take-title"
+        >
+          <div className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl">
+            <h2 id="discard-take-title" className="text-[18px] font-semibold text-foreground">
+              Discard this take?
+            </h2>
+            <p className="mt-2 text-[14px] text-muted-foreground">
+              This recording has not been saved.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDiscardConfirmOpen(false)}
+                className="rounded-full"
+              >
+                Keep recording
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setDiscardConfirmOpen(false);
+                  mic.cancel();
+                  onClose();
+                }}
+                className="rounded-full bg-record text-record-foreground hover:bg-record/90"
+              >
+                Discard take
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1198,6 +1327,7 @@ export function RecordingPhase({
   slides,
   presentationRef,
   currentSlide,
+  roots,
   onAdvance,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
@@ -1217,6 +1347,8 @@ export function RecordingPhase({
   slides: PresentationSlide[];
   presentationRef: string | null;
   currentSlide: number;
+  /** Static roadmap for the current slide; never synchronized to audio. */
+  roots: Array<{ text: string; type: "flagship" | "neutral" }>;
   onAdvance: (dir: 1 | -1) => void;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
@@ -1369,10 +1501,11 @@ export function RecordingPhase({
       <button
         type="button"
         onClick={onStop}
-        aria-label="Stop recording"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-record text-record-foreground transition-transform hover:scale-105"
+        aria-label="Finish take"
+        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-record px-4 text-[13px] font-semibold text-record-foreground transition-transform hover:scale-[1.03]"
       >
         <Square className="h-3.5 w-3.5 fill-current" />
+        Finish take
       </button>
     </div>
   );
@@ -1405,6 +1538,27 @@ export function RecordingPhase({
           current={currentSlide}
           onNext={() => onAdvance(1)}
         />
+        {roots.length > 0 ? (
+          <div
+            className="scrollbar-none mt-4 max-h-[26vh] overflow-y-auto overscroll-contain rounded-2xl bg-muted/60 px-4 py-3"
+            aria-label="Speaking anchors for this slide"
+          >
+            <div className="flex flex-col gap-3">
+              {roots.map((root, index) => (
+                <p
+                  key={`${index}-${root.text}`}
+                  className={
+                    root.type === "flagship"
+                      ? "text-[clamp(1.35rem,5vw,1.8rem)] font-semibold leading-tight text-primary"
+                      : "text-[clamp(1.35rem,5vw,1.8rem)] font-medium leading-tight text-muted-foreground"
+                  }
+                >
+                  {root.text}
+                </p>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex shrink-0 flex-col gap-3 pt-6 pb-[env(safe-area-inset-bottom)]">
@@ -1445,13 +1599,18 @@ export function RecordingPhase({
 
 function Processing({
   error,
+  progress,
+  ready = false,
   stillProcessing = false,
   slow = false,
   onRetry,
   onReRecord,
+  onViewFeedback,
   onClose,
 }: {
   error: string | null;
+  progress?: { stage: string; percent: number } | null;
+  ready?: boolean;
   /** §A2 — PROCESSING_TIMEOUT with nothing to poll: the take is stored and
    *  still processing server-side. Neutral styling, NO retry and NO re-record
    *  offer — either would duplicate a take that is not lost. */
@@ -1462,6 +1621,7 @@ function Processing({
   onRetry: () => void;
   /** Abandon a slow analysis and record a fresh take (priming → mic). */
   onReRecord?: () => void;
+  onViewFeedback: () => void;
   onClose: () => void;
 }) {
   // The rotating line and the tip moved into ProcessingWait, which the
@@ -1518,12 +1678,12 @@ function Processing({
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] text-destructive">{error}</p>
         <p className="max-w-sm text-[12px] text-muted-foreground">
-          Your recording isn&apos;t lost. Try the analysis again, or step back
-          to the Lounge and resume later.
+          Your recording is safe. You can try processing again now, or leave
+          and return later.
         </p>
         <div className="flex gap-2">
           <Button onClick={onRetry} className="rounded-full px-6">
-            Try again
+            Try processing again
           </Button>
           <Button
             onClick={onClose}
@@ -1536,11 +1696,26 @@ function Processing({
       </div>
     );
   }
+  if (ready) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+        <ProcessingWait progress={progress} />
+        <div className="flex flex-col items-center gap-3 px-4">
+          <p className="text-[15px] font-medium text-foreground">
+            Your feedback is ready
+          </p>
+          <Button onClick={onViewFeedback} className="rounded-full px-6">
+            View Ideal Text and feedback
+          </Button>
+        </div>
+      </div>
+    );
+  }
   // THE ONE WAITING SCREEN — shared with the readout's document phase, so
   // the wait never changes its subject halfway through (founder 2026-08-11).
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <ProcessingWait />
+      <ProcessingWait progress={progress} />
     </div>
   );
 }

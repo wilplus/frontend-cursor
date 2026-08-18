@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronLeft,
@@ -68,11 +68,14 @@ export default function GamePageClient({
   initialSnippetId: string | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const signedIn = useSignedIn();
   const userId = useUserId();
   // The training to play: the deep-linked arc, else the active explore arc.
   const [arcId, setArcId] = useState<string | null>(initialArcId);
-  const [tab, setTab] = useState<"game" | "voice">("game");
+  const [tab, setTab] = useState<"game" | "voice">(
+    searchParams.get("tab") === "voice" ? "voice" : "game"
+  );
   const [status, setStatus] = useState<
     "loading" | "ready" | "no_arc" | "not_labeled" | "error"
   >("loading");

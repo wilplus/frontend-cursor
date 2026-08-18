@@ -112,10 +112,10 @@ export interface UseWillabFlowReturn {
   goTo: (s: WillabState) => void;
   acceptConsent: () => void;
   startRecording: () => void;
-  /** Enter the Lab past the project picker, CONTINUING a known project: the
-   *  feelings check-in first, then the setup form. */
+  /** Continue a known project. The one emotion check already happened before
+   *  Take 1, so later takes do not repeat it. */
   startRecordingSetup: () => void;
-  /** Enter the Lab for a BRAND-NEW topic — straight to the setup form. */
+  /** Enter the Lab for a brand-new project through the one pre-Take-1 check. */
   startNewTopicSetup: () => void;
   closeLab: () => void;
 }
@@ -152,21 +152,16 @@ export function useWillabFlow(): UseWillabFlowReturn {
     // title (or starting a new topic) hands off to the feelings check-in.
     setState("lab_project_pick");
   }, []);
-  /** Past the picker, CONTINUING a project: C7 — the feelings check-in opens
-   *  every official recording, not just the first, so the user names how they
-   *  feel fresh each time and it is stamped on that take. */
+  /** Past the picker, a known project resumes its stored setup. */
   const startRecordingSetup = useCallback(() => {
     clearReviewPending();
-    setState("lab_feelings");
+    setState("lab_prerecord");
   }, []);
-  /** A BRAND-NEW topic skips the check-in and lands on the setup form
-   *  (founder 2026-07-27). C7 still holds everywhere it has something to
-   *  stamp: a new topic has no take yet and no project to compare against, so
-   *  asking how this one feels before it exists is a screen between the user
-   *  and the thing they came to do. Continuations keep the check-in. */
+  /** A brand-new project gets the existing emotion check exactly once, before
+   *  Take 1. Subsequent takes use startRecordingSetup above and skip it. */
   const startNewTopicSetup = useCallback(() => {
     clearReviewPending();
-    setState("lab_session_context");
+    setState("lab_feelings");
   }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),
   // a pre-recording close should → "lounge_idle". Shell uses idle for both.

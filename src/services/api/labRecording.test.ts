@@ -107,6 +107,32 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
   });
 });
 
+describe("submitLabRecording — new-project background brief", () => {
+  it("uploads the actual context document with Take 1", async () => {
+    const brief = new File(["Revenue grew 18%."], "board-brief.txt", {
+      type: "text/plain",
+    });
+
+    await submitLabRecording({
+      ...baseInput(),
+      projectIntent: "new",
+      exploreSession: true,
+      contextDocument: brief,
+    });
+
+    const form = captured as FormData;
+    const uploaded = form.get("context_document") as File;
+    expect(uploaded).toBeInstanceOf(File);
+    expect(uploaded.name).toBe("board-brief.txt");
+    expect(await uploaded.text()).toBe("Revenue grew 18%.");
+  });
+
+  it("omits the field when no brief was selected", async () => {
+    await submitLabRecording(baseInput());
+    expect((captured as FormData).get("context_document")).toBeNull();
+  });
+});
+
 describe("submitLabRecording — F2 §2 the named state rides both emotion lanes", () => {
   it("sends feeling AND named_emotion from the one captured value", async () => {
     await submitLabRecording({ ...baseInput(), feeling: "nervous" });

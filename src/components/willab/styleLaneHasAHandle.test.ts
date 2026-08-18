@@ -47,23 +47,19 @@ describe("the locked pill's amber pulse", () => {
     expect(MARK).not.toMatch(/"styled"|'styled'|styleStatus/);
   });
 
-  it("invents no new glyph — the closed lock and the tick both stay", () => {
-    // lucide imports are the glyph inventory; the ruling adds none.
+  it("uses the single approved bookmark glyph", () => {
     const imports = MARK.match(/import \{([^}]*)\} from "lucide-react"/);
-    expect(imports?.[1].trim()).toBe("Check, Lock, LockOpen");
-    // The tick is keyed on the STATUS, so it cannot be switched off by the
-    // modifier — a locked chunk with a style proposal is still decided.
-    expect(MARK).toMatch(/status === "locked" \? \(/);
+    expect(imports?.[1].trim()).toBe("Bookmark");
+    expect(MARK).toMatch(/fill=\{flagship \? "currentColor" : "none"\}/);
   });
 
   it("reuses the waiting state's amber and its breathing", () => {
-    expect(MARK).toMatch(/ring-pending/);
+    expect(MARK).toMatch(/ring-primary/);
     expect(MARK).toMatch(/motion-safe:animate-lock-breathe/);
   });
 
   it("degrades to a plain locked pill under reduced motion", () => {
-    // The ring carries it on its own; EVERY use of the animation is
-    // motion-safe, the waiting state's included.
+    // The ring carries it on its own; every animation is motion-safe.
     const hits = MARK.match(/[\w:-]*animate-lock-breathe/g) ?? [];
     expect(hits.length).toBeGreaterThan(0);
     for (const h of hits) expect(h).toBe("motion-safe:animate-lock-breathe");

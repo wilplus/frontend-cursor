@@ -255,8 +255,8 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
 
   it("the tap no longer dead-ends in a silent return", () => {
     const src = code(LOUNGE);
-    const handler = src.slice(src.indexOf("onOpenIdealText={"));
-    const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
+    const handler = src.slice(src.indexOf("function openIdealText("));
+    const body = handler.slice(0, handler.indexOf("function continueJourneyProject"));
     expect(body).not.toMatch(/processingResume.*return/s);
   });
 
@@ -264,8 +264,8 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     // LIVE LOOP: the overlay's existing loading state carries the wait; no
     // new string may ship from this change.
     const src = code(LOUNGE);
-    const handler = src.slice(src.indexOf("onOpenIdealText={"));
-    const body = handler.slice(0, handler.indexOf("setIdealTextArcId(arcId)"));
+    const handler = src.slice(src.indexOf("function openIdealText("));
+    const body = handler.slice(0, handler.indexOf("function continueJourneyProject"));
     expect(body).not.toMatch(/alert\(|toast|"[A-Z][a-z]+ [a-z]/);
   });
 });

@@ -53,6 +53,9 @@ export interface StateRatingBody {
   value?: TernaryValue;
   unrateable?: boolean;
   note?: string;
+  /** True only when the row came from the server's mandatory second-listen
+   * queue. It is workflow provenance, never a rating value. */
+  re_review?: boolean;
 }
 
 /** Build a rating body, or null when the input cannot express a real answer.

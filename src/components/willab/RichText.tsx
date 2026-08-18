@@ -19,12 +19,10 @@ import { readingBlocks } from "@/lib/willab/readingBlocks";
 
 /** Render marked text as styled spans.
  *
- *  A key moment ([[moment:…]]) is now just ACCENTED TEXT — no icon, no tap,
- *  no underline (founder 2026-08-11: "no stars anywhere ... rip them off";
- *  underline belongs exclusively to a chunk with feedback waiting). The star
- *  treatment this renderer used to carry — the decor lookup, the icon family
- *  and the optimistic approve-fold — went with the star lane it served; the
- *  transcript review deck is where feedback is decided now. */
+ * Feedback annotations and accepted styling are separate layers. A
+ * [[moment:…]] wrapper is neutral evidence metadata; only {{orange:…}} means
+ * the user accepted those words as an anchor. The paragraph's bookmark owns
+ * feedback visibility. */
 export function RichText({
   text,
   srcOffset = 0,
@@ -47,19 +45,12 @@ export function RichText({
     <>
       {segments.map((seg, i) => {
         const cls = [
-          // An APPROVED key phrase reads bold+orange: that is an accent
-          // INSIDE a moment wrapper, which is exactly what the serve-time
-          // fold emits. A standalone accent (the coach's orange toolbar
-          // button) stays colour-only, so approving never restyles text
-          // somebody hand-marked.
-          seg.bold || (seg.highlight && seg.moment) ? "font-semibold" : "",
+          seg.bold ? "font-semibold" : "",
           seg.italic ? "italic" : "",
           seg.underline ? "underline underline-offset-2" : "",
-          // An accent ({{orange:…}}) colours; so does a moment wrapper, which
-          // is now only an accent by another name. NO underline from either —
-          // that signal belongs to a chunk with feedback waiting, and nothing
-          // else in the product may borrow it.
-          seg.highlight || seg.moment ? "text-primary" : "",
+          // Orange means one thing only: an accepted anchor. A neutral moment
+          // is feedback evidence, not automatic praise or styling.
+          seg.highlight ? "text-primary" : "",
         ]
           .filter(Boolean)
           .join(" ");

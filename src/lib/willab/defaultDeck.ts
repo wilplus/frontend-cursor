@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/*  THE DEFAULT DECK (founder 2026-08-11, copy verbatim + signed off in the    */
+/*  THE DEFAULT DECK (three structural slides for a deckless speech)           */
 /*  same message: "this is the mock presentation that should always be there   */
 /*  if someone did not upload their own presentation").                        */
 /*                                                                            */
@@ -17,10 +17,8 @@
 /*  the same shape the uploaded-deck path produces. Nothing downstream needs   */
 /*  to know which kind of deck it was.                                        */
 /*                                                                            */
-/*  COPY IS THE FOUNDER'S, CHARACTER FOR CHARACTER. It is a structure lesson   */
-/*  as much as a scaffold — the classic three-part talk — so a rewrite here is */
-/*  a product change, not a tidy-up (LIVE LOOP: user-facing copy needs founder */
-/*  sign-off).                                                                */
+/*  The headings are the MVP contract: Main premise, Development, Conclusion.  */
+/*  The supporting guidance retains the previously approved three-part talk.  */
 /* -------------------------------------------------------------------------- */
 
 export interface DeckSlide {
@@ -30,26 +28,25 @@ export interface DeckSlide {
   body: string;
 }
 
-/* The rule lands on its OWN line in every slide — the founder's mock shows
- * each body as two bullets, and `bulletLines` splits on newlines. Only the
- * line break is new; not one word of the copy changed. */
+/* The rule lands on its OWN line in every slide; `bulletLines` splits on
+ * newlines. */
 export const DEFAULT_DECK: readonly DeckSlide[] = [
   {
-    title: "Intro — the hook + the promise.",
+    title: "Main premise",
     body:
       "Grab attention (question, surprising fact, story), state why it " +
       "matters to them, and tell them the one thing they'll get.\n" +
       "Rule: say what you're going to say.",
   },
   {
-    title: "Body — one core message, 3 supporting points.",
+    title: "Development",
     body:
       "Make a single argument, back it with ~3 points, each with " +
       "evidence/example.\n" +
       "Rule: say it — tell, show, prove.",
   },
   {
-    title: "Ending — recap + call to action.",
+    title: "Conclusion",
     body:
       "Restate the one takeaway, then tell them exactly what to do/feel/" +
       "remember next.\n" +

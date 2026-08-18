@@ -111,10 +111,21 @@ export default function AppMenu({
   corpusHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
+  const [highlightVoiceAlbum, setHighlightVoiceAlbum] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const openByKeyboardRef = useRef(false);
+
+  useEffect(() => {
+    const openVoiceAlbum = () => {
+      setOpen(true);
+      setHighlightVoiceAlbum(true);
+    };
+    window.addEventListener("willab:open-voice-album-menu", openVoiceAlbum);
+    return () =>
+      window.removeEventListener("willab:open-voice-album-menu", openVoiceAlbum);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -209,9 +220,16 @@ export default function AppMenu({
           {signedIn && gameHref ? (
             <Link
               ref={firstRef()}
-              href={gameHref}
-              className={MENU_ITEM_CLASS}
-              onClick={() => setOpen(false)}
+              href={`${gameHref}?tab=voice`}
+              className={cn(
+                MENU_ITEM_CLASS,
+                highlightVoiceAlbum &&
+                  "bg-primary/10 text-primary ring-2 ring-inset ring-primary"
+              )}
+              onClick={() => {
+                setHighlightVoiceAlbum(false);
+                setOpen(false);
+              }}
             >
               {/* NO PRICE HERE, deliberately. The game is metered, but it is
                   charged ONCE PER ARC (`ref_id` is the arc id) and this row
@@ -220,8 +238,7 @@ export default function AppMenu({
                   no arc to ask about, and a static label would be wrong for
                   anyone who has already played the arc they land on. The price
                   lives on the game screen, where the arc is known. */}
-              Voice-game
-              <span className={MENU_DEMO_CHIP_CLASS}>demo</span>
+              Voice Album
             </Link>
           ) : null}
 

@@ -36,6 +36,7 @@ describe("mapQueuePiece — drop-not-repair", () => {
       startOffsetMs: 12345,
       durationMs: 4200,
       label: null,
+      reReview: false,
     });
   });
 

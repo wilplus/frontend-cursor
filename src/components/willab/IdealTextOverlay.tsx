@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Lock, Sparkles } from "lucide-react";
+import { Check, Copy, Download, Lock, Presentation, Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
@@ -60,6 +60,7 @@ import {
   type Part,
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
+import { useLoungeThreadCtx } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -73,9 +74,12 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 /*  working.                                                                   */
 /* -------------------------------------------------------------------------- */
 
+export type IdealTextLaunchMode = "notebook" | "presentation" | "export";
+
 export default function IdealTextOverlay({
   arcId,
   analysisPending = false,
+  initialMode = "notebook",
   onClose,
   onReadAloud,
 }: {
@@ -87,6 +91,9 @@ export default function IdealTextOverlay({
    *  routing half of the lifecycle lock: the old behaviour was a silent
    *  no-op tap in the Lounge, which enforced the order but led nowhere. */
   analysisPending?: boolean;
+  /** Chat completion actions can open the same document directly in its
+   *  read-only delivery or export surface. */
+  initialMode?: IdealTextLaunchMode;
   onClose: () => void;
   /** The host closes this overlay into the record flow for the NEXT official
    *  take of this presentation. Receives the current version as a take-count
@@ -117,6 +124,7 @@ export default function IdealTextOverlay({
   // version, and whether the moments unlock has run.
   // Confidence-game entry navigates to /game (its own page, over from /chat).
   const router = useRouter();
+  const { reload: reloadLounge } = useLoungeThreadCtx();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
     version: number | null;
@@ -146,6 +154,8 @@ export default function IdealTextOverlay({
     userEdited: boolean;
     /** The BE's gate on a new official take. null (absent) never gates. */
     canRecordTake: boolean | null;
+    takeCount: number | null;
+    journeyNextStepsSeen: boolean | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -200,6 +210,23 @@ export default function IdealTextOverlay({
   // PRESENT MODE (founder 2026-08-05) — the fullscreen, X-only,
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const initialModeAppliedRef = useRef(false);
+  useEffect(() => {
+    initialModeAppliedRef.current = false;
+    setPresenting(false);
+    setExporting(false);
+  }, [arcId, initialMode]);
+  useEffect(() => {
+    if (
+      initialModeAppliedRef.current ||
+      !sd ||
+      (status !== "ready" && status !== "instant")
+    ) return;
+    initialModeAppliedRef.current = true;
+    if (initialMode === "presentation") setPresenting(true);
+    if (initialMode === "export") setExporting(true);
+  }, [initialMode, sd, status]);
   const [tooLong, setTooLong] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   // The version every PUT is stamped with, advanced SYNCHRONOUSLY on each
@@ -289,6 +316,8 @@ export default function IdealTextOverlay({
           additions: r.additions,
           userEdited: r.userEdited,
           canRecordTake: r.canRecordTake,
+          takeCount: r.takeCount,
+          journeyNextStepsSeen: r.journeyNextStepsSeen,
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
@@ -548,6 +577,20 @@ export default function IdealTextOverlay({
     [displayText, saveDocument, lockParagraph]
   );
 
+  const deckEditSlide = useCallback(
+    async (edits: Array<{ chunk: DeckChunk; text: string }>): Promise<boolean> => {
+      if (edits.length === 0) return true;
+      let next = reconcileParts(displayText, partsRef.current ?? []);
+      for (const { chunk, text } of edits) {
+        const at = chunk.paragraphIndex;
+        if (at < 0 || at >= next.length || !text.trim()) return false;
+        next = updatePart(next, at, text.trim());
+      }
+      return saveDocument(partsToText(next), next);
+    },
+    [displayText, saveDocument]
+  );
+
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3: mix & match).
    *  Non-destructive always (the displaced text heals back into the pool),
    *  silent by design (no bubble — the student did it themselves, in place):
@@ -655,6 +698,26 @@ export default function IdealTextOverlay({
     return true;
   };
 
+  const undoTracked = async (s: DocumentSuggestion): Promise<boolean> => {
+    if (s.source === "new_take" || s.source === "prior_take") return false;
+    if (!s.snippetId || !s.takeSessionId) return false;
+    const result = await sendSuggestionFeedback({
+      snippetId: s.snippetId,
+      sessionId: s.takeSessionId,
+      target: s.kind === "bold" ? "document_bold" : "document_replace",
+      action: "reverted",
+      suggestionId: s.id,
+      quote: s.quote,
+      proposedText: s.proposedText,
+      whyKey: s.why,
+      source: s.source === "coach_revision" ? "coach_revision" : undefined,
+    });
+    if (!result.saved) return false;
+    fetchGenRef.current++;
+    setRefetchNonce((n) => n + 1);
+    return true;
+  };
+
   // THE STYLE LANE (slice 2): apply a post-lock emphasis. Outside the ≤3
   // budget — styleLane marks the ledger row lane:style, which the spend
   // counter excludes. The fold bakes server-side; the refetch brings it in.
@@ -714,14 +777,28 @@ export default function IdealTextOverlay({
             ideal-text screens cannot head themselves differently again. */}
         <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
         <div className="flex items-center gap-2.5">
-          {/* PRESENT IS NOT IN THIS NAV (founder 2026-08-15: "hide the
-              present button from the nav of the ideal text").
-              The play glyph threw the document fullscreen to deliver it. This
-              screen is where you REVIEW and lock the text in, and a delivery
-              control sat in the row beside the ones that change it.
-              HIDDEN, NOT DELETED: PresentMode and its `presenting` state stay
-              wired below, so a surface that should offer delivering the text
-              can open it without rebuilding anything. */}
+          {status === "ready" && sd ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setPresenting(true)}
+                aria-label="Use Presentation Mode"
+                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Presentation className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Presentation Mode</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setExporting(true)}
+                aria-label="Export"
+                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            </>
+          ) : null}
           {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
               timeline has rows: an empty list is a real state (pre-migration
               arc) and hides it entirely (§4.3). */}
@@ -780,14 +857,18 @@ export default function IdealTextOverlay({
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
             slideTitles={sd.slideTitles ?? undefined}
+            presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
+            onUndoAccept={undoTracked}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            onEditSlide={deckEditSlide}
             onUnlockPart={unlockParagraph}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,
               hasExplanation: m.hasExplanation === true,
+              reviewStatus: m.reviewStatus ?? null,
             }))}
             arcId={arcId}
             styleChanges={sd.styleChanges}
@@ -910,9 +991,15 @@ export default function IdealTextOverlay({
           <IdealTextActions
             arcId={arcId}
             canRecordTake={sd.canRecordTake}
+            takeCount={sd.takeCount}
+            journeyNextStepsSeen={sd.journeyNextStepsSeen}
             saved={sd.saved}
             onSaved={() => setRefetchNonce((n) => n + 1)}
             onNewTake={() => onReadAloud(sd.version)}
+            onSeeNextSteps={() => {
+              void reloadLounge();
+              onClose();
+            }}
           />
         </div>
       ) : null}
@@ -923,7 +1010,18 @@ export default function IdealTextOverlay({
           text={displayText}
           pieces={sd?.pieces ?? null}
           presentationRef={deckRef}
+          slideTitles={sd?.slideTitles ?? null}
           onClose={() => setPresenting(false)}
+        />
+      ) : null}
+      {exporting ? (
+        <PresentMode
+          text={displayText}
+          pieces={sd?.pieces ?? null}
+          presentationRef={deckRef}
+          slideTitles={sd?.slideTitles ?? null}
+          exportMode
+          onClose={() => setExporting(false)}
         />
       ) : null}
 

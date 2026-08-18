@@ -161,7 +161,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
-  it("the modal has TWO detents and swipe reaches the taller one", () => {
+  it("the modal has two detents and a continuous Pointer Events drag", () => {
     // Founder 2026-08-11: "Make the modal a bit taller and expandable on
     // swipe to the top."
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
@@ -185,12 +185,13 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).toMatch(
       /expanded \|\| isConfidentVoice\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/
     );
-    expect(MODAL).toMatch(/:\s*"max-h-\[92dvh\]/);
+    expect(MODAL).toMatch(/:\s*"h-\[68dvh\] max-h-\[68dvh\]/);
     // dvh, not vh: on a phone 100vh sits behind the URL bar, which would put
     // the decision buttons under the browser chrome.
     expect(MODAL).toMatch(/dvh\]/);
-    expect(MODAL).toMatch(/onTouchStart=\{onGrabStart\}/);
-    expect(MODAL).toMatch(/onTouchMove=\{onGrabMove\}/);
+    expect(MODAL).toMatch(/onPointerDown=\{onSheetPointerDown\}/);
+    expect(MODAL).toMatch(/onPointerMove=\{onSheetPointerMove\}/);
+    expect(MODAL).toMatch(/style=\{dragHeight === null/);
   });
 
   it("the grabber is a real button, so the second detent is not touch-only", () => {
@@ -198,7 +199,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // control, and on a desktop trackpad.
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
     expect(MODAL).toMatch(/aria-expanded=\{expanded\}/);
-    expect(MODAL).toMatch(/onClick=\{\(\) => setExpanded\(\(v\) => !v\)\}/);
+    expect(MODAL).toMatch(/onClick=\{toggleExpanded\}/);
   });
 
   it("swiping the modal DOWN collapses it — it never closes it", () => {
@@ -206,11 +207,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // away an undecided suggestion on a slip of the thumb. The close button
     // and the backdrop are both already there for a deliberate exit.
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
-    const grab = MODAL.slice(
-      MODAL.indexOf("function onGrabMove"),
-      MODAL.indexOf("return (")
-    );
-    expect(grab).toMatch(/setExpanded\(dy > 0\)/);
+    const grabStart = MODAL.indexOf("function finishSheetDrag");
+    const grab = MODAL.slice(grabStart, MODAL.indexOf("\n  return (", grabStart));
+    expect(grab).toMatch(/setExpanded\(drag\.height >=/);
     expect(grab).not.toMatch(/onClose/);
   });
 
@@ -223,8 +222,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // nothing else would make the student open it again.
     const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
     expect(DECK_SRC).toMatch(
-      /hasCoach=\{\s*coachMomentForChunk\(coachMoments, doc, c\) !== null\s*\}/
+      /hasCoach=\{\s*coachMomentForChunk\(coachMoments, doc, c\)\s*\?\.hasExplanation === true\s*\}/
     );
+    expect(DECK_SRC).toMatch(/reviewStatus=\{/);
     expect(MARK).toMatch(/hasCoach/);
     // AC-9: an existence flag, never a count or a band.
     expect(MARK).not.toMatch(/coachCount|momentCount|\bscore\b/);

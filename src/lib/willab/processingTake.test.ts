@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearProcessingTake,
+  markProcessingTakeFailed,
   readProcessingTake,
   transitionProcessingTakeToDocument,
   writeProcessingTake,
@@ -37,6 +38,7 @@ describe("processing take account isolation", () => {
     expect(readProcessingTake("user-a")).toMatchObject({
       ...take,
       phase: "analysis",
+      status: "processing",
       phaseStartedAt: 123,
     });
     expect(readProcessingTake("user-b")).toBeNull();
@@ -68,5 +70,12 @@ describe("processing take account isolation", () => {
     transitionProcessingTakeToDocument("user-a", "session-a");
     expect(readProcessingTake("user-a")?.phase).toBe("document");
     expect(readProcessingTake("user-b")?.phase).toBe("analysis");
+  });
+
+  it("preserves a failed accepted recording for a later retry", () => {
+    writeProcessingTake("user-a", take);
+    markProcessingTakeFailed("user-a", "session-a");
+    expect(readProcessingTake("user-a")?.status).toBe("failed");
+    expect(readProcessingTake("user-a")?.sessionId).toBe("session-a");
   });
 });
