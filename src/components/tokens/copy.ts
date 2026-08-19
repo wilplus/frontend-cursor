@@ -10,10 +10,10 @@
 /*                                                                            */
 /*  1. THIS IS A WALLET, NOT A PROGRESS BAR. No streaks, no "you've earned",   */
 /*     no badge for spending little, no comparison to other users, no          */
-/*     "efficiency", no percentage of the month consumed. The moment a number  */
+/*     "efficiency", no percentage of a package consumed. The moment a number  */
 /*     says how WELL someone is doing rather than what they BOUGHT, it is a    */
-/*     performance score and it breaks AC-9. The monthly reset makes           */
-/*     "you used 80% of your month!" tempting. It is banned.                   */
+/*     performance score and it breaks AC-9. "You used 80% of your package"   */
+/*     is tempting. It is banned.                                              */
 /*                                                                            */
 /*  2. NEVER EXPLAIN A PRICE WITH QUALITY. "This take costs 3,000" is fine.    */
 /*     Anything of the form "cost more because <their delivery>" is forbidden. */
@@ -29,10 +29,8 @@ export function formatTokens(n: number): string {
   return new Intl.NumberFormat("en-GB").format(n);
 }
 
-/** "28 Aug". Used for the renewal date and for ledger rows, so the two can
- *  never render a date two different ways. Returns null for a missing or
- *  unparseable value, and every caller drops the clause rather than printing
- *  "renews Invalid Date". */
+/** "28 Aug". Used for ledger rows and dated plan state. Returns null for a
+ *  missing or unparseable value so no caller prints "Invalid Date". */
 export function formatShortDate(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -49,11 +47,8 @@ export const TOKENS_COPY = {
   menuRowLabel: "Tokens",
   /** Value shown on the right of that row: THE NUMBER ONLY.
    *
-   *  It carried the renewal date until 2026-08-01. The founder removed it, and
-   *  the original reason for having it there is satisfied elsewhere now: the
-   *  wallet this row links to states "Renews 30 Aug" in full, so a user
-   *  watching the number fall still has somewhere that says it comes back. A
-   *  menu row is a glance, not an explanation. */
+   *  It once carried a period date. One-time purchases do not renew, and a
+   *  menu row is a glance rather than a billing explanation. */
   menuRowValue: (balance: string) => balance,
 
   /* ------------------------------ the wallet ----------------------------- */
@@ -61,10 +56,8 @@ export const TOKENS_COPY = {
   /** The wallet page (the old credits/top-up page). */
   walletPageTitle: "Tokens and plans",
   walletPageIntro:
-    "What you have left this month, what things cost, and where it went.",
+    "What you have left, what things cost, and where it went.",
   walletTier: (tier: string) => `${tier} plan`,
-  walletRenews: (on: string) => `Renews ${on}`,
-  walletRenewsUnknown: "Renews monthly",
   walletBalanceUnknown: "Balance unavailable right now.",
   walletPricesTitle: "What things cost",
   /** The one disclosure that keeps this page a single view: prices, coach
@@ -84,7 +77,9 @@ export const TOKENS_COPY = {
    *  claim about other users' behaviour and there is no data behind it. If the
    *  founder wants one, it should be a deliberate choice, not my default. */
   planCardTokens: (tokens: string) => `${tokens} tokens`,
-  planCardPerMonth: "per month",
+  // Legacy payload fields still say `usdPerMonth`; Stripe charges once and
+  // the surface must describe what the customer actually buys.
+  planCardPerMonth: "one-time purchase",
   planCardReviews: (n: number) =>
     n === 0
       ? "No coach reviews"
@@ -96,11 +91,11 @@ export const TOKENS_COPY = {
   planCardCurrent: "Your plan",
   /** The free tier is never a card with a CTA — you do not check out to pay
    *  nothing. It is stated as a line so the ladder still starts somewhere. */
-  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens a month, no coach reviews.`,
-  walletPerMonth: (usd: number) => (usd === 0 ? "Free" : `$${usd} / month`),
-  walletTierTokens: (tokens: string) => `${tokens} tokens a month`,
+  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens included, no coach reviews.`,
+  walletPerMonth: (usd: number) => (usd === 0 ? "Free" : `$${usd} one time`),
+  walletTierTokens: (tokens: string) => `${tokens} tokens`,
   walletTierReviews: (n: number) =>
-    n === 0 ? "No coach reviews" : n === 1 ? "1 coach review a month" : `${n} coach reviews a month`,
+    n === 0 ? "No coach reviews" : n === 1 ? "1 coach review" : `${n} coach reviews`,
   /** Shown against the plan list because there is no subscription checkout in
    *  the product yet. Honest beats a button that goes nowhere. */
   /** The CTA on a plan you can actually buy. */
@@ -131,14 +126,13 @@ export const TOKENS_COPY = {
    *  into a route to pay. Before it, the single mention of running out was a
    *  non-clickable sentence under the record button.
    *
-   *  `topUpRenews` keeps the WAIT route beside the buy route deliberately:
-   *  with a monthly reset, waiting is a legitimate choice, and hiding it to
-   *  push an upgrade is a dark pattern. */
+   *  The legacy `topUpRenews` key remains for caller compatibility, but its
+   *  copy must never promise a reset for a one-time package. */
   topUpTitle: "You're out of tokens.",
-  topUpRenews: (on: string) => `They renew ${on}. Or pick a plan and keep going now.`,
-  topUpNoDate: "Pick a plan and keep going now.",
+  topUpRenews: (_on: string) => "Pick a package and keep going now.",
+  topUpNoDate: "Pick a package and keep going now.",
   topUpChip: (tier: string, tokens: string) => `${tier} · ${tokens} tokens`,
-  topUpChipPrice: (usd: number) => `$${usd}/mo`,
+  topUpChipPrice: (usd: number) => `$${usd}`,
   topUpDismiss: "Not now",
   topUpFailed: "Couldn't start checkout. Try again.",
 
@@ -174,29 +168,23 @@ export const TOKENS_COPY = {
    *  any balance. */
   coachReviewsTitle: "Coach reviews",
   coachReviewsUsed: (used: number, allowed: number) =>
-    // A zero allowance is a property of the PLAN, not a tally. "0 of 0 used
-    // this month" reads as a broken counter, so say what is actually true.
+    // A zero allowance is a property of the PLAN, not a tally. "0 of 0 used"
+    // reads as a broken counter, so say what is actually true.
     allowed === 0
       ? "Not included on your plan"
-      : `${used} of ${allowed} used this month`,
+      : `${used} of ${allowed} used`,
   /** The one place two limits can disagree: plenty of tokens AND no reviews
    *  left. Say why plainly or it reads as a bug. */
-  coachReviewsExhausted: (renewsOn: string | null) =>
-    renewsOn
-      ? `You've used your coach reviews for this month. They renew ${renewsOn}.`
-      : "You've used your coach reviews for this month.",
+  coachReviewsExhausted: (_renewsOn: string | null) =>
+    "You've used all coach reviews included in this purchase.",
 
   /* ------------------------------ recording ------------------------------ */
 
   recordPrice: (price: string, maxMinutes: number) =>
     `${price} tokens for up to ${maxMinutes} min`,
-  /** Out of tokens. Offers BOTH the plan route and the wait route, always:
-   *  with a monthly reset, waiting is a legitimate choice and hiding it is a
-   *  dark pattern. Recording itself stays available. */
-  recordEmpty: (renewsOn: string | null) =>
-    renewsOn
-      ? `You're out of tokens. They renew ${renewsOn}.`
-      : "You're out of tokens.",
+  /** Out of tokens. No reset is promised: recording remains available and the
+   *  purchase route is presented separately. */
+  recordEmpty: (_renewsOn: string | null) => "You're out of tokens.",
 
   /* --------------------------- generic trigger --------------------------- */
 
@@ -207,14 +195,9 @@ export const TOKENS_COPY = {
   /* -------------------------------- unlock ------------------------------- */
 
   unlockPrice: (price: string) => `${price} tokens`,
-  unlockInsufficient: (renewsOn: string | null) =>
-    renewsOn
-      ? `Not enough tokens. Yours renew ${renewsOn}.`
-      : "Not enough tokens.",
-  unlockCoachCap: (renewsOn: string | null) =>
-    renewsOn
-      ? `You've used your coach reviews for this month. They renew ${renewsOn}.`
-      : "You've used your coach reviews for this month.",
+  unlockInsufficient: (_renewsOn: string | null) => "Not enough tokens.",
+  unlockCoachCap: (_renewsOn: string | null) =>
+    "You've used all coach reviews included in this purchase.",
 } as const;
 
 /* ------------------------- action → human label --------------------------- */

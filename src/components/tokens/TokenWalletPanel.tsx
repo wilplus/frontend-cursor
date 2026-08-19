@@ -31,7 +31,7 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     cap, but NO endpoint charges it — today every take auto-sends to the    */
 /*     coach, and putting that existing behaviour behind a paywall is a        */
 /*     product decision awaiting founder sign-off, not an implementation       */
-/*     detail. The allowance is shown because it is real and it resets; a      */
+/*     detail. The allowance is shown because it is part of the package; a      */
 /*     button would 404.                                                       */
 /*                                                                            */
 /*  2. A way to CHANGE or CANCEL an existing plan. Buying a first plan works    */
@@ -39,7 +39,7 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     portal, which the backend has no route for — see                         */
 /*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md.                       */
 /*                                                                            */
-/*  No streaks, no "you've used X% of your month", no comparison, no praise    */
+/*  No streaks, no "you've used X%", no comparison, no praise                  */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */
 /* -------------------------------------------------------------------------- */
 
@@ -74,7 +74,6 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
-  const renewsOn = formatShortDate(ready?.periodEndsAt ?? null);
   const prices = wallet.prices;
 
 
@@ -82,8 +81,8 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
     <div className="w-full">
       <div className="flex flex-col items-center">
         {/* ---------------------------- balance ---------------------------- */}
-        {/* One centred line. The renewal date stays HERE in full, which is what
-            lets the hamburger row be the bare number. */}
+        {/* One centred balance line. Stripe charges these packages once, so a
+            period end from the legacy payload must not read as a renewal. */}
         <section className="text-center">
           {ready ? (
             <>
@@ -91,10 +90,7 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
                 {formatTokens(ready.balance)}
               </div>
               <div className="mt-1 text-[13px] text-muted-foreground">
-                {ready.tier ? `${TOKENS_COPY.walletTier(ready.tier)} · ` : ""}
-                {renewsOn
-                  ? TOKENS_COPY.walletRenews(renewsOn)
-                  : TOKENS_COPY.walletRenewsUnknown}
+                {ready.tier ? TOKENS_COPY.walletTier(ready.tier) : ""}
               </div>
             </>
           ) : (
@@ -155,12 +151,12 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
 
                   GATED ON allowed > 0. On free the allowance IS zero, so a bare
                   `remaining <= 0` told those users they had "used your coach
-                  reviews for this month" directly under "0 of 0 used" — claiming
+                  reviews" directly under "0 of 0 used" — claiming
                   they spent something they never had. Exhausted means they had
                   some and spent them; having none is a property of the plan. */}
               {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
                 <p className="mt-1 text-[13px] text-muted-foreground">
-                  {TOKENS_COPY.coachReviewsExhausted(renewsOn)}
+                  {TOKENS_COPY.coachReviewsExhausted(null)}
                 </p>
               ) : null}
             </section>
