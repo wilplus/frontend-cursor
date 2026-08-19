@@ -127,6 +127,10 @@ export default function WillabSurface({
       <Lounge
         state={flow.state}
         onStart={flow.startRecording}
+        onStartNewProject={() => {
+          clearExploreArc(userId);
+          flow.startNewTopicSetup();
+        }}
         onStartInProject={flow.startRecordingSetup}
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}

@@ -21,7 +21,9 @@ const LAB = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
 describe("the deckless take records against the default deck", () => {
   it("the recorder derives its deck through deckForRecording", () => {
     expect(LAB).toMatch(/import \{[^}]*deckForRecording[^}]*\} from "@\/lib\/willab\/defaultDeck"/);
-    expect(LAB).toMatch(/const recordingDeck = useMemo\(\s*\(\) => deckForRecording\(context\?\.slides\)/);
+    expect(LAB).toMatch(
+      /const recordingDeck = useMemo\(\s*\(\) => deckForRecording\(context\?\.slides, context\?\.presentationRef\)/
+    );
   });
 
   it("the UPLOAD ships the deck as presented, never the uploaded-only list", () => {

@@ -47,7 +47,11 @@ import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
-import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
+import {
+  clearExploreArc,
+  readExploreArc,
+  writeExploreArc,
+} from "@/lib/willab/exploreArc";
 import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
@@ -73,6 +77,7 @@ import {
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
+  coerceSuggestedActions,
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -120,6 +125,7 @@ type ThreadItem =
 export default function Lounge({
   state,
   onStart,
+  onStartNewProject,
   onStartInProject,
   goTo,
   initialReviewSessionId = null,
@@ -129,6 +135,8 @@ export default function Lounge({
 }: {
   state: WillabState;
   onStart: () => void;
+  /** Bypass project selection after the user explicitly chose a fresh project. */
+  onStartNewProject?: () => void;
   /** Scenario B (founder 2026-07-22) — recording from INSIDE a project: the
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
@@ -336,7 +344,37 @@ export default function Lounge({
   // Trainings library like the rest so the chips don't scatter. No record chip:
   // the bot points at the permanent record button in words. (arc_checkout, the
   // $25 pay note, was retired with the paywall — only $5 moments is paid now.)
-  function onChip(): void {
+  function onChip(action: ChipAction): void {
+    const project = readExploreArc(userId);
+    if (
+      action === "create_new_project" ||
+      action === "create_project_from_updated_deck"
+    ) {
+      postAnswerBubble(CHIP_LABEL[action]);
+      clearExploreArc(userId);
+      (onStartNewProject ?? onStart)();
+      return;
+    }
+    if (action === "replace_pdf") {
+      // The backend only offers this before Take 1; repeat the guard locally so
+      // a stale, persisted button cannot reopen deck mutation after a take.
+      if (project && Math.max(0, project.nextTakeIndex - 1) === 0) {
+        postAnswerBubble(CHIP_LABEL[action]);
+        goTo("lab_session_context");
+      }
+      return;
+    }
+    if (action === "edit_current_slide") {
+      if (project?.arcId) {
+        postAnswerBubble(CHIP_LABEL[action]);
+        openIdealText(project.arcId, "notebook");
+      }
+      return;
+    }
+    if (action === "keep_current_project") {
+      postAnswerBubble(CHIP_LABEL[action]);
+      return;
+    }
     setLibraryOpen(true);
   }
 
@@ -777,6 +815,7 @@ export default function Lounge({
 
       setBotThinking(true);
       try {
+        const activeProject = readExploreArc(userId);
         const resp = await postChatQuery({
           question: q,
           history,
@@ -786,10 +825,20 @@ export default function Lounge({
           persist: thread.signedIn,
           clientId: userMsg.client_id,
           clientCreatedAt: userMsg.client_created_at,
+          presentationContext: {
+            has_current_project: activeProject !== null,
+            completed_takes: activeProject
+              ? Math.max(0, activeProject.nextTakeIndex - 1)
+              : 0,
+            has_pdf: Boolean(activeProject?.deck?.presentationRef),
+          },
         });
         // B-1 — the one quick-action the BE suggests for this turn (S1),
         // rendered as an in-bubble chip (trainings / audit).
         const suggested = coerceSuggestedAction(resp.suggested_action);
+        const suggestedActions = coerceSuggestedActions(
+          resp.suggested_actions
+        );
         const answer = (resp.answer ?? "").trim();
         // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
         // We persist the joined body and the thread re-splits on the same
@@ -806,7 +855,12 @@ export default function Lounge({
           // and scroll-back. For signed-in, the BE persists this same row (chip
           // included) — see #2; we show it optimistically without re-persisting
           // to avoid a duplicate. Anonymous → the FE persists it locally.
-          metadata: suggested ? { suggested_action: suggested } : null,
+          metadata:
+            suggestedActions.length > 0
+              ? { suggested_actions: suggestedActions }
+              : suggested
+                ? { suggested_action: suggested }
+                : null,
         };
         if (thread.signedIn) thread.appendLocalOnly(botDraft);
         else await thread.append(botDraft);
@@ -1509,7 +1563,7 @@ function Bubble({
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
   /** Begin an additional take on the exact project named by the journey. */
   onContinueProject?: (arcId: string, completedTake: number) => void;
-  onChip?: () => void;
+  onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
   /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
@@ -1611,10 +1665,16 @@ function Bubble({
       }
     };
     // B-1 — read the persisted action from metadata; render below the bubbles.
-    const action =
-      onChip && message.metadata
-        ? coerceSuggestedAction(message.metadata.suggested_action)
-        : null;
+    const actions = onChip && message.metadata
+      ? (() => {
+          const many = coerceSuggestedActions(
+            message.metadata.suggested_actions
+          );
+          if (many.length > 0) return many;
+          const one = coerceSuggestedAction(message.metadata.suggested_action);
+          return one ? [one] : [];
+        })()
+      : [];
     return (
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
@@ -1667,9 +1727,17 @@ function Bubble({
             )}
           </div>
         ) : null}
-        {action && (
-          <ActionButton action={action} onClick={() => onChip!()} />
-        )}
+        {actions.length > 0 ? (
+          <div className="mr-auto flex max-w-[90%] flex-wrap gap-2 pt-1">
+            {actions.map((action) => (
+              <ActionButton
+                key={action}
+                action={action}
+                onClick={() => onChip!(action)}
+              />
+            ))}
+          </div>
+        ) : null}
         {/* FE-5 — the life card rides in metadata exactly like the B-1 chip
             above, so it survives reload and scroll-back without a second write
             path. A turn that carried none passes undefined and renders null,
