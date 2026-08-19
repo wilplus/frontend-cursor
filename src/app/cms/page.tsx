@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
+import DiagnosticExerciseSection from "./DiagnosticExerciseSection";
 import BodyBlocks from "@/components/journal/BodyBlocks";
 import {
   ArrowDown,
@@ -1289,6 +1290,14 @@ export default function JournalAdminPage() {
                     }
                     focusItemId={focusItemId}
                     onFocusHandled={() => setFocusItemId(null)}
+                  />
+
+                  {/* An ordinary published post never becomes a diagnostic
+                      exercise. This separate save is the explicit admin gate. */}
+                  <DiagnosticExerciseSection
+                    password={password}
+                    postId={editing.id}
+                    postStatus={editingStatus}
                   />
                 </div>
               </>

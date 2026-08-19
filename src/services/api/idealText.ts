@@ -190,6 +190,20 @@ export const CHANGE_WHY_KEYS: readonly ChangeWhy[] = [
  *
  *  `source` names which lane produced it; `prior_take` is the cross-take
  *  discernment suggestion (a previous take's fragment ranked better). */
+export interface ConfidentVoicePracticeOffer {
+  exerciseId: string;
+  version: number;
+  title: string;
+  instruction: string;
+  introduction: string;
+  yesIntroduction: string;
+  noIntroduction: string;
+  explanationVideoRef: string;
+  passage: string;
+  practiceId: string | null;
+  resume: boolean;
+}
+
 export interface DocumentSuggestion {
   id: string;
   /** [start, end) into the served `text`. */
@@ -310,6 +324,9 @@ export interface DocumentSuggestion {
    *  Its decision routes to the block-decide endpoint, NOT suggestion-
    *  feedback. null on non-block changes. */
   blockKey: number | null;
+  /** Optional micro-practice attached by the Feedback Manager to an already
+   * selected Confident Voice item. It is never a fourth feedback item. */
+  practiceExercise?: ConfidentVoicePracticeOffer | null;
 }
 
 /** Map the GET's `changes` block (the BE's field; `suggestions` tolerated as
@@ -447,6 +464,43 @@ export function mapDocumentSuggestions(
             end: evidenceSpan.end,
           }
         : null;
+    const practiceRaw =
+      r.practice_exercise && typeof r.practice_exercise === "object"
+        ? (r.practice_exercise as Record<string, unknown>)
+        : null;
+    const practiceExercise =
+      practiceRaw &&
+      typeof practiceRaw.exercise_id === "string" &&
+      typeof practiceRaw.version === "number" &&
+      typeof practiceRaw.title === "string" &&
+      typeof practiceRaw.instruction === "string" &&
+      typeof practiceRaw.introduction === "string" &&
+      typeof practiceRaw.explanation_video_ref === "string" &&
+      typeof practiceRaw.passage === "string" &&
+      practiceRaw.passage.trim().length > 0
+        ? {
+            exerciseId: practiceRaw.exercise_id,
+            version: practiceRaw.version,
+            title: practiceRaw.title,
+            instruction: practiceRaw.instruction,
+            introduction: practiceRaw.introduction,
+            yesIntroduction:
+              typeof practiceRaw.yes_introduction === "string"
+                ? practiceRaw.yes_introduction
+                : "This already sounds confident. Try this optional refinement to make the words clearer.",
+            noIntroduction:
+              typeof practiceRaw.no_introduction === "string"
+                ? practiceRaw.no_introduction
+                : "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.",
+            explanationVideoRef: practiceRaw.explanation_video_ref,
+            passage: practiceRaw.passage,
+            practiceId:
+              typeof practiceRaw.practice_id === "string"
+                ? practiceRaw.practice_id
+                : null,
+            resume: practiceRaw.resume === true,
+          }
+        : null;
     out.push({
       id,
       start,
@@ -510,6 +564,7 @@ export function mapDocumentSuggestions(
         typeof r.duration_ms === "number" && Number.isFinite(r.duration_ms)
           ? r.duration_ms
           : null,
+      practiceExercise,
     });
   }
   return out;
