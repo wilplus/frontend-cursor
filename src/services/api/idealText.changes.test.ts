@@ -259,3 +259,61 @@ describe("coach supersession proposals", () => {
     expect(c?.coachNote).toBeNull();
   });
 });
+
+describe("Confident Voice micro-practice mapping", () => {
+  it("attaches a complete active exercise to the existing feedback item", () => {
+    const c = mapDocumentSuggestions([{
+      id: "cv-1",
+      snippet_id: "snippet-1",
+      take_session_id: "take-1",
+      kind: "bold",
+      source: "confident_voice",
+      feedback_family: "confident_voice",
+      quote: "Give every word enough space.",
+      span: { start: 0, end: 29 },
+      evidence: {
+        project_id: "project-1",
+        take_session_id: "take-1",
+        slide_index: 1,
+        paragraph_index: 2,
+        span: { start: 0, end: 29 },
+      },
+      practice_exercise: {
+        exercise_id: "hear-every-word-v1",
+        version: 1,
+        title: "Hear every word",
+        instruction: "Read the same text again.",
+        introduction: "You’re close to a confident delivery here.",
+        yes_introduction: "This already sounds confident. Try this optional refinement to make the words clearer.",
+        no_introduction: "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.",
+        explanation_video_ref: "https://cdn.example/coach.mp4",
+        passage: "Give every word enough space.",
+        practice_id: null,
+        resume: false,
+      },
+    }] as never)?.[0];
+    expect(c?.feedbackFamily).toBe("confident_voice");
+    expect(c?.practiceExercise).toMatchObject({
+      exerciseId: "hear-every-word-v1",
+      title: "Hear every word",
+      passage: "Give every word enough space.",
+      resume: false,
+      yesIntroduction: "This already sounds confident. Try this optional refinement to make the words clearer.",
+      noIntroduction: "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.",
+    });
+  });
+
+  it("drops an exercise with no reviewed explanation video", () => {
+    const c = mapDocumentSuggestions([{
+      id: "cv-2", snippet_id: "s", take_session_id: "t",
+      kind: "bold", source: "confident_voice",
+      quote: "same text", span: { start: 0, end: 9 },
+      practice_exercise: {
+        exercise_id: "hear-every-word-v1", version: 1,
+        title: "Hear every word", instruction: "Read again",
+        introduction: "Optional", passage: "same text",
+      },
+    }] as never)?.[0];
+    expect(c?.practiceExercise).toBeNull();
+  });
+});

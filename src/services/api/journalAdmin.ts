@@ -171,6 +171,108 @@ export function adminReorder(password: string, ids: string[]) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Diagnostic exercise mapping                                                */
+/*                                                                            */
+/*  A journal post remains ordinary content until this separate, password-    */
+/*  gated mapping is explicitly saved. The MVP permits only Hear every word.  */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminDiagnosticExercise {
+  exerciseId: string;
+  journalPostId: string | null;
+  title: string;
+  instruction: string;
+  introductionCopy: string;
+  confidentIntroductionCopy: string | null;
+  explanationVideoUrl: string | null;
+  acousticProblemTags: string[];
+  supportedConfidencePatterns: string[];
+  matchingCriteria: Record<string, unknown>;
+  exclusions: Record<string, unknown>;
+  active: boolean;
+  version: number;
+}
+
+function mapDiagnosticExercise(raw: unknown): AdminDiagnosticExercise | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.exercise_id !== "string" ||
+    typeof r.title !== "string" ||
+    typeof r.instruction !== "string" ||
+    typeof r.introduction_copy !== "string"
+  ) return null;
+  return {
+    exerciseId: r.exercise_id,
+    journalPostId: typeof r.journal_post_id === "string" ? r.journal_post_id : null,
+    title: r.title,
+    instruction: r.instruction,
+    introductionCopy: r.introduction_copy,
+    confidentIntroductionCopy: typeof r.confident_introduction_copy === "string"
+      ? r.confident_introduction_copy : null,
+    explanationVideoUrl: typeof r.explanation_video_url === "string"
+      ? r.explanation_video_url : null,
+    acousticProblemTags: Array.isArray(r.acoustic_problem_tags)
+      ? r.acoustic_problem_tags.filter((v): v is string => typeof v === "string") : [],
+    supportedConfidencePatterns: Array.isArray(r.supported_confidence_patterns)
+      ? r.supported_confidence_patterns.filter((v): v is string => typeof v === "string") : [],
+    matchingCriteria: r.matching_criteria && typeof r.matching_criteria === "object"
+      ? r.matching_criteria as Record<string, unknown> : {},
+    exclusions: r.exclusions && typeof r.exclusions === "object"
+      ? r.exclusions as Record<string, unknown> : {},
+    active: r.active === true,
+    version: typeof r.version === "number" ? r.version : 1,
+  };
+}
+
+export function adminListDiagnosticExercises(password: string) {
+  return post("diagnostic-exercises/list", password, {}, (data) => {
+    const d = data && typeof data === "object"
+      ? data as Record<string, unknown> : {};
+    return (Array.isArray(d.exercises) ? d.exercises : [])
+      .map(mapDiagnosticExercise)
+      .filter((item): item is AdminDiagnosticExercise => item !== null);
+  });
+}
+
+export function adminSaveDiagnosticExercise(
+  password: string,
+  exercise: {
+    journalPostId: string;
+    title: string;
+    instruction: string;
+    introductionCopy: string;
+    confidentIntroductionCopy: string;
+    explanationVideoUrl: string;
+    active: boolean;
+  },
+) {
+  return post("diagnostic-exercises/save", password, {
+    exercise_id: "hear-every-word-v1",
+    journal_post_id: exercise.journalPostId,
+    title: exercise.title,
+    instruction: exercise.instruction,
+    introduction_copy: exercise.introductionCopy,
+    confident_introduction_copy: exercise.confidentIntroductionCopy,
+    explanation_video_url: exercise.explanationVideoUrl,
+    acoustic_problem_tags: ["rushing", "word_compression", "ending_compression"],
+    supported_confidence_patterns: [
+      "near_confident", "confident", "low_confidence_rushing_dominant",
+    ],
+    matching_criteria: { requires_multiple_acoustic_signals: true, max_per_take: 1 },
+    exclusions: {
+      exclude_noise: true,
+      exclude_semantic_or_structural_issue: true,
+      exclude_weak_evidence: true,
+    },
+    active: exercise.active,
+    version: 1,
+  }, (data) => mapDiagnosticExercise(
+    (data as Record<string, unknown> | null)?.exercise,
+  ));
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Community Content Studio                                                   */
 /*                                                                            */
 /*  The week's journal post IS format ① Technique; these are the three other   */
