@@ -49,6 +49,13 @@ export interface ChatQueryArgs {
   persist?: boolean;
   clientId?: string | null;
   clientCreatedAt?: string | null;
+  /** Explicit state for deterministic new-deck routing. This is UX context,
+   * never authorization; recording endpoints still enforce project ownership. */
+  presentationContext?: {
+    has_current_project: boolean;
+    completed_takes: number;
+    has_pdf: boolean;
+  };
 }
 
 /**
@@ -76,6 +83,8 @@ export interface ChatQueryResponse {
    * null / absent → no button. Per-turn signal — caller should NOT cache.
    */
   suggested_action?: "trainings" | "record_again" | null;
+  /** Project-boundary replies sometimes require a deliberate pair of choices. */
+  suggested_actions?: string[];
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;
@@ -128,6 +137,12 @@ export async function postChatQuery(
     const form = new FormData();
     form.append("question", args.question);
     if (args.history) form.append("history", JSON.stringify(args.history));
+    if (args.presentationContext) {
+      form.append(
+        "presentation_context",
+        JSON.stringify(args.presentationContext)
+      );
+    }
     if (args.sessionId) form.append("session_id", args.sessionId);
     form.append("audio_file", args.audioBlob, "casual.webm");
     form.append("transcript_source", "web_speech");
@@ -155,6 +170,7 @@ export async function postChatQuery(
         question: args.question,
         history: args.history,
         session_id: args.sessionId,
+        presentation_context: args.presentationContext,
         // #2 — server-owned persistence (signed-in only). The BE dedups the
         // user turn on client_id; absent → BE does not persist this turn.
         persist: args.persist ? true : undefined,

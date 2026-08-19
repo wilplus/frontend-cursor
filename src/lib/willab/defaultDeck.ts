@@ -63,14 +63,27 @@ export const DEFAULT_DECK: readonly DeckSlide[] = [
 /** The deck to record against: the speaker's own if they uploaded one, else
  *  the default.
  *
- *  The test is "did they give us slides", nothing cleverer: an empty list and
- *  a missing list mean the same thing to the pipeline (no buckets), and a
- *  deck with even one slide is theirs and must never be silently replaced or
- *  padded. Pure. */
+ *  A served PDF is authoritative even when text extraction returned blank
+ *  pages. Those pages are still the presentation the speaker sees, and their
+ *  positions still define the word→slide buckets. Without a PDF, blank manual
+ *  rows are not a usable deck and the structural default remains the fallback.
+ *  Pure. */
 export function deckForRecording(
-  slides: readonly DeckSlide[] | null | undefined
+  slides: readonly DeckSlide[] | null | undefined,
+  presentationRef?: string | null
 ): { slides: readonly DeckSlide[]; isDefault: boolean } {
-  const own = (slides ?? []).filter(
+  const supplied = slides ?? [];
+  if (presentationRef) {
+    // The extraction endpoint normally returns one row per PDF page, including
+    // image-only pages. Keep every row and its index. The one-page fallback is
+    // defensive for legacy records that retained the served PDF but lost the
+    // extraction metadata; it is still more truthful than showing a mock deck.
+    return {
+      slides: supplied.length > 0 ? supplied : [{ title: "", body: "" }],
+      isDefault: false,
+    };
+  }
+  const own = supplied.filter(
     (s) => s && (s.title.trim().length > 0 || s.body.trim().length > 0)
   );
   return own.length > 0

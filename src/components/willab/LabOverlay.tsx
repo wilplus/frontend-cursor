@@ -152,8 +152,8 @@ export default function LabOverlay({
   // keeps saying truthfully that this speaker uploaded nothing — the
   // default is what they PRESENTED, not what they own.
   const recordingDeck = useMemo(
-    () => deckForRecording(context?.slides),
-    [context?.slides]
+    () => deckForRecording(context?.slides, context?.presentationRef),
+    [context?.slides, context?.presentationRef]
   );
   // A mutable copy in the shared slide type: the module is pure and returns
   // readonly, while the recorder and the upload both take PresentationSlide[].
@@ -1539,17 +1539,18 @@ export function RecordingPhase({
      and down with the length of a slide's text. */
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      {/* T9 — the deck during recording: the user taps to advance while they
-          speak (manual). ALWAYS shown (founder 2026-08-11) — a speaker who
-          uploaded nothing presents the default three-part deck, so every take
-          produces real slide buckets. */}
+      {/* An uploaded presentation remains visible while the speaker records.
+          Deckless takes keep their three structural slide buckets and manual
+          navigation, but do not paint the generated prompt card or its pager. */}
       <div className="flex flex-1 flex-col">
-        <SlideStage
-          slides={slides}
-          presentationRef={presentationRef}
-          current={currentSlide}
-          onNext={() => onAdvance(1)}
-        />
+        {presentationRef ? (
+          <SlideStage
+            slides={slides}
+            presentationRef={presentationRef}
+            current={currentSlide}
+            onNext={() => onAdvance(1)}
+          />
+        ) : null}
         {roots.length > 0 ? (
           <div
             className="scrollbar-none mt-4 max-h-[26vh] overflow-y-auto overscroll-contain rounded-2xl bg-muted/60 px-4 py-3"

@@ -59,6 +59,22 @@ describe("deckForRecording — the substitution rule", () => {
     expect(r.isDefault).toBe(true);
   });
 
+  it("never replaces an attached PDF just because its pages have no extracted text", () => {
+    const pages = [
+      { title: "", body: "" },
+      { title: "  ", body: "\n" },
+    ];
+    const r = deckForRecording(pages, "https://cdn.example/deck.pdf");
+    expect(r.isDefault).toBe(false);
+    expect(r.slides).toEqual(pages);
+  });
+
+  it("keeps a legacy served PDF visible when its page metadata is missing", () => {
+    const r = deckForRecording([], "https://cdn.example/deck.pdf");
+    expect(r.isDefault).toBe(false);
+    expect(r.slides).toEqual([{ title: "", body: "" }]);
+  });
+
   it("keeps a slide that has only a title, or only a body — half a slide is still the speaker's", () => {
     expect(deckForRecording([{ title: "Just a title", body: "" }]).isDefault).toBe(
       false

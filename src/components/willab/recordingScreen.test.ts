@@ -51,9 +51,9 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
   it("§2 — the column is capped and the dock is pinned above the safe area", () => {
     expect(PHASE).toMatch(/mx-auto flex w-full max-w-md flex-1 flex-col/);
     expect(PHASE).toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/);
-    // The slide takes the space that is going spare — that is what keeps the
-    // dock at the bottom instead of floating under a short slide.
-    expect(PHASE).toMatch(/<div className="flex flex-1 flex-col">\s*<SlideStage/);
+    // The visual area takes the space that is going spare — that is what keeps
+    // the dock at the bottom even when a deckless take paints no slide card.
+    expect(PHASE).toMatch(/<div className="flex flex-1 flex-col">/);
   });
 
   it("§3 — Next is a 56px full-width pill; Back is a 56px circle beside it", () => {
@@ -89,7 +89,7 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
     expect(strip).not.toMatch(/%<|toFixed|Math\.round/);
   });
 
-  it("§5 — progress is DOTS plus a count, not a sentence", () => {
+  it("§5 — uploaded-deck progress is DOTS plus a count, not a sentence", () => {
     expect(STAGE).toMatch(/w-6 bg-primary/); // the active dot widens
     expect(STAGE).toMatch(/\{idx \+ 1\} \/ \{total\}/);
     expect(STAGE).not.toMatch(/Slide \{idx \+ 1\} of \{total\}/);
@@ -101,16 +101,15 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
   });
 
   it("THE WIRING: every slide control still reports to onAdvance", () => {
-    // The tap timeline is the word→slide bucketing input. Three controls —
-    // the slide itself (clicker feel), Back, Next — and all three must land
-    // on the same callback the parent timestamps.
+    // The tap timeline is the word→slide bucketing input. An uploaded slide
+    // remains clickable, while Back and Next remain available for every take.
     expect(STAGE).toMatch(/onClick=\{onNext\}/);
     expect(PHASE).toMatch(/onNext=\{\(\) => onAdvance\(1\)\}/);
     expect(PHASE).toMatch(/onClick=\{\(\) => onAdvance\(-1\)\}/);
     expect(PHASE).toMatch(/onClick=\{\(\) => onAdvance\(1\)\}/);
   });
 
-  it("THE SLIDE IS THE SLIDE: an uploaded deck renders its own page here", () => {
+  it("an uploaded deck renders its own page; deckless mode omits the marked card", () => {
     // The founder's line: "in the place where there is a text should be the
     // slide; when slides are uploaded by the user". SlideRender draws the
     // deck's PDF page whenever presentationRef is set and only falls back to
@@ -120,6 +119,7 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
     expect(STAGE).toMatch(/presentationRef=\{presentationRef\}/);
     expect(STAGE).not.toMatch(/<TextSlide/);
     expect(PHASE).toMatch(/presentationRef=\{presentationRef\}/);
+    expect(PHASE).toMatch(/\{presentationRef \? \(\s*<SlideStage/);
   });
 
   it("the screen names itself RECORDING, and only this screen does", () => {
