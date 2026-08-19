@@ -61,6 +61,7 @@ import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
 import LoungeTopUpCard from "./LoungeTopUpCard";
 import ReflectionGamePrompt from "./ReflectionGamePrompt";
 import CoachReflectionQueue from "./CoachReflectionQueue";
+import ConfidencePracticeOverlay from "./ConfidencePracticeOverlay";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -502,6 +503,8 @@ export default function Lounge({
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
+  const [confidencePracticeId, setConfidencePracticeId] =
+    useState<string | null>(null);
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
   // server-side; resume its persisted marker and subscribe until terminal:
@@ -923,6 +926,7 @@ export default function Lounge({
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
+                onOpenConfidencePractice={setConfidencePracticeId}
                 onContinueProject={continueJourneyProject}
                 onChip={onChip}
                 activeOffer={activeOffer}
@@ -1268,6 +1272,12 @@ export default function Lounge({
           }}
         />
       )}
+      {confidencePracticeId && (
+        <ConfidencePracticeOverlay
+          practiceId={confidencePracticeId}
+          onClose={() => setConfidencePracticeId(null)}
+        />
+      )}
       {libraryOpen && (
         <LibraryOverlay
           onClose={() => setLibraryOpen(false)}
@@ -1543,6 +1553,7 @@ function Bubble({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  onOpenConfidencePractice,
   onContinueProject,
   onChip,
   activeOffer,
@@ -1561,6 +1572,8 @@ function Bubble({
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — every ideal-text bubble opens the live notebook. */
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  /** Coach-shared exercise opens independently of the three-take journey. */
+  onOpenConfidencePractice?: (practiceId: string) => void;
   /** Begin an additional take on the exact project named by the journey. */
   onContinueProject?: (arcId: string, completedTake: number) => void;
   onChip?: (action: ChipAction) => void;
@@ -1622,6 +1635,11 @@ function Bubble({
             takeSessionId: message.metadata.take_session_id,
             takeIndex: null,
           }
+        : null;
+    const sharedPracticeId =
+      message.metadata?.note === "confidence_practice_shared" &&
+      typeof message.metadata?.practice_id === "string"
+        ? message.metadata.practice_id
         : null;
     const journey =
       message.kind === "cadence" && message.metadata?.journey === true;
@@ -1707,6 +1725,18 @@ function Bubble({
               onClick={() => onOpenFeedback?.(confidenceCorrection)}
             >
               Review coach feedback
+            </Button>
+          </div>
+        ) : null}
+        {sharedPracticeId ? (
+          <div className="mr-auto pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-4 text-[13px]"
+              onClick={() => onOpenConfidencePractice?.(sharedPracticeId)}
+            >
+              Open exercise
             </Button>
           </div>
         ) : null}
