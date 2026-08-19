@@ -8,10 +8,11 @@ import {
   canBubble,
   chunkCounts,
   clampPosition,
+  IDLE_WHEEL_GESTURE,
   nearestChunkIndex,
   scrollEdge,
   stepPosition,
-  wheelDestination,
+  wheelGestureStep,
 } from "./deckScroll";
 
 const COUNTS = [3, 1, 2]; // slide 0: 3 chunks, slide 1: 1, slide 2: 2
@@ -140,18 +141,74 @@ describe("scrollEdge + canBubble — bubbling needs the edge", () => {
   });
 });
 
-describe("wheelDestination — the whole desktop is one scroll surface", () => {
-  it("leaves native scrolling alone over the active paragraph column", () => {
-    expect(wheelDestination(true, false)).toBe("native-inner");
+describe("wheelGestureStep — one trackpad gesture, one slide", () => {
+  it("moves the active paragraph immediately while it can scroll", () => {
+    const result = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 24,
+      now: 0,
+      innerCanScroll: true,
+    });
+    expect(result.action).toBe("scroll-inner");
+    expect(result.state.boundaryDelta).toBe(0);
+    expect(result.state.advanced).toBe(false);
   });
 
-  it("routes a wheel from desktop whitespace into the paragraph column", () => {
-    expect(wheelDestination(false, false)).toBe("proxy-inner");
+  it("accumulates small boundary deltas instead of leaking them to the page", () => {
+    const first = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 4,
+      now: 0,
+      innerCanScroll: false,
+    });
+    const second = wheelGestureStep(first.state, {
+      deltaY: 8,
+      now: 16,
+      innerCanScroll: false,
+    });
+    const third = wheelGestureStep(second.state, {
+      deltaY: 7,
+      now: 32,
+      innerCanScroll: false,
+    });
+    expect(first.action).toBe("swallow");
+    expect(second.action).toBe("swallow");
+    expect(third.action).toBe("advance-screen");
   });
 
-  it("advances only after the active paragraph column reaches its edge", () => {
-    expect(wheelDestination(true, true)).toBe("advance-screen");
-    expect(wheelDestination(false, true)).toBe("advance-screen");
+  it("swallows the momentum tail after advancing", () => {
+    const advanced = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 30,
+      now: 0,
+      innerCanScroll: false,
+    });
+    const tail = wheelGestureStep(advanced.state, {
+      deltaY: 80,
+      now: 16,
+      innerCanScroll: true,
+    });
+    expect(advanced.action).toBe("advance-screen");
+    expect(tail.action).toBe("swallow");
+  });
+
+  it("re-arms only after a quiet gap", () => {
+    const advanced = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 30,
+      now: 0,
+      innerCanScroll: false,
+    });
+    expect(
+      wheelGestureStep(advanced.state, {
+        deltaY: 30,
+        now: 121,
+        innerCanScroll: false,
+      }).action
+    ).toBe("advance-screen");
+    expect(
+      wheelGestureStep(advanced.state, {
+        deltaY: -30,
+        now: 16,
+        innerCanScroll: false,
+      }).action
+    ).toBe("swallow");
   });
 });
 

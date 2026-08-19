@@ -31,6 +31,7 @@ const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
 const MARK = code("src/components/willab/DeckLockMark.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
 const READOUT = code("src/components/willab/IdealTextReadout.tsx");
+const OVERLAY = code("src/components/willab/IdealTextOverlay.tsx");
 
 describe("the deck surface the founder specced (2026-08-11)", () => {
   it("nothing paints the chunk text — no underline, no wash, no tint", () => {
@@ -125,9 +126,15 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
   });
 
   it("routes desktop wheel gestures from the whole surface into that scroller", () => {
-    expect(DECK).toMatch(/wheelDestination\(/);
-    expect(DECK).toMatch(/inner\.scrollBy\(\{ top: dy \}\)/);
-    expect(DECK).toMatch(/flex-1 scroll-smooth overflow-y-auto/);
+    expect(OVERLAY).toMatch(/data-ideal-text-wheel-owner/);
+    expect(READOUT).toMatch(/data-ideal-text-wheel-owner/);
+    expect(DECK).toMatch(/owner\.addEventListener\("wheel", onWheel/);
+    expect(DECK).toMatch(/inner\.scrollTop \+= dy/);
+    expect(DECK).not.toMatch(/scroll-smooth overflow-y-auto/);
+    const prevent = DECK.indexOf("e.preventDefault()");
+    const route = DECK.indexOf("wheelGestureStep(", prevent);
+    expect(prevent).toBeGreaterThan(-1);
+    expect(route).toBeGreaterThan(prevent);
   });
 
   it("the modal opens on the WORK, not on the folded page state", () => {

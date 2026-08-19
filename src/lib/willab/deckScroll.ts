@@ -90,16 +90,79 @@ export function canBubble(
   return dir === 1 ? edge === "bottom" : edge === "top";
 }
 
-/** Where a desktop wheel gesture belongs. Native wheel delivery only scrolls
- * the inner text when the pointer happens to be directly over it. The rest of
- * the Ideal Text surface must proxy the same gesture into that scroller until
- * it reaches an edge; only then may the deck advance to another screen. */
-export function wheelDestination(
-  targetInsideActiveScroller: boolean,
-  canAdvanceScreen: boolean
-): "native-inner" | "proxy-inner" | "advance-screen" {
-  if (canAdvanceScreen) return "advance-screen";
-  return targetInsideActiveScroller ? "native-inner" : "proxy-inner";
+export interface WheelGestureState {
+  lastAt: number | null;
+  direction: 1 | -1 | null;
+  boundaryDelta: number;
+  advanced: boolean;
+}
+
+export const IDLE_WHEEL_GESTURE: WheelGestureState = {
+  lastAt: null,
+  direction: null,
+  boundaryDelta: 0,
+  advanced: false,
+};
+
+export type WheelGestureAction =
+  | "scroll-inner"
+  | "advance-screen"
+  | "swallow";
+
+/** Browser wheel events do not expose a physical trackpad gesture. Treat a
+ * quiet gap as a new gesture, accumulate intent at a slide boundary, advance
+ * once, then swallow that gesture's entire momentum tail. */
+export function wheelGestureStep(
+  state: WheelGestureState,
+  input: {
+    deltaY: number;
+    now: number;
+    innerCanScroll: boolean;
+    quietMs?: number;
+    boundaryThreshold?: number;
+  }
+): { state: WheelGestureState; action: WheelGestureAction } {
+  const dir: 1 | -1 = input.deltaY > 0 ? 1 : -1;
+  const quietMs = input.quietMs ?? 120;
+  const threshold = input.boundaryThreshold ?? 18;
+  const fresh =
+    state.lastAt === null ||
+    input.now - state.lastAt > quietMs;
+  const current = fresh ? IDLE_WHEEL_GESTURE : state;
+
+  if (current.advanced) {
+    return {
+      state: { ...current, lastAt: input.now },
+      action: "swallow",
+    };
+  }
+
+  if (input.innerCanScroll) {
+    return {
+      state: {
+        lastAt: input.now,
+        direction: dir,
+        boundaryDelta: 0,
+        advanced: false,
+      },
+      action: "scroll-inner",
+    };
+  }
+
+  const boundaryDelta =
+    current.direction === dir
+      ? current.boundaryDelta + Math.abs(input.deltaY)
+      : Math.abs(input.deltaY);
+  const advanced = boundaryDelta >= threshold;
+  return {
+    state: {
+      lastAt: input.now,
+      direction: dir,
+      boundaryDelta,
+      advanced,
+    },
+    action: advanced ? "advance-screen" : "swallow",
+  };
 }
 
 /** The chunk the reader is on: the last chunk whose top the scroller has

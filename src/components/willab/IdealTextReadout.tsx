@@ -893,7 +893,10 @@ export default function IdealTextReadout({
     // `min-h-0` so the deck below can shrink into the space the header and
     // the actions leave — without it a flex child refuses to go under its
     // content height and the screen grows a second scroll.
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div
+      data-ideal-text-wheel-owner
+      className="flex min-h-0 flex-1 flex-col gap-4 overscroll-none"
+    >
       {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
           like one: the project's name with its verification state beside it,
           the actions and the way out on the same row. It used to spend this
