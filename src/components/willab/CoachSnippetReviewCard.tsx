@@ -22,6 +22,7 @@ import {
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
 import CoachVideoRecorder from "./CoachVideoRecorder";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
+import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
 import {
   CoachCard,
   CoachErrorLine,
@@ -349,6 +350,12 @@ export default function CoachSnippetReviewCard({
           error={ratingError}
           onPick={pickRating}
           onToggleUnrateable={toggleUnrateable}
+        />
+
+        <CoachConfidencePracticeReview
+          sessionId={sessionId}
+          snippetId={snippet.id}
+          enabled={!ratingSaving && !unrateable && (rating === "yes" || rating === "no")}
         />
 
         {/* Moment video — appears once the coach has made a DEFINITE call

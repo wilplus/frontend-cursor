@@ -23,6 +23,7 @@ import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import { type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
+import ConfidentVoicePractice from "@/components/willab/ConfidentVoicePractice";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -651,9 +652,21 @@ export default function DeckChunkModal({
                       ) : null}
                     </div>
                   ) : agreeValue === "no" ? (
-                    <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                      {CONFIDENT_VOICE_NO}
-                    </p>
+                    <>
+                      <p className="text-[15px] font-medium leading-relaxed text-foreground">
+                        {CONFIDENT_VOICE_NO}
+                      </p>
+                      {suggestion.practiceExercise &&
+                      suggestion.snippetId &&
+                      suggestion.evidence ? (
+                        <ConfidentVoicePractice
+                          snippetId={suggestion.snippetId}
+                          offer={suggestion.practiceExercise}
+                          evidence={suggestion.evidence}
+                          originalUserAnswer="no"
+                        />
+                      ) : null}
+                    </>
                   ) : (
                     <>
                       <p className="text-[15px] font-medium leading-relaxed text-foreground">
@@ -679,6 +692,16 @@ export default function DeckChunkModal({
                       <p className="text-[13px] text-muted-foreground">
                         {AGREE_THANKS}
                       </p>
+                      {suggestion.practiceExercise &&
+                      suggestion.snippetId &&
+                      suggestion.evidence ? (
+                        <ConfidentVoicePractice
+                          snippetId={suggestion.snippetId}
+                          offer={suggestion.practiceExercise}
+                          evidence={suggestion.evidence}
+                          originalUserAnswer="yes"
+                        />
+                      ) : null}
                     </>
                   )}
                 </div>
