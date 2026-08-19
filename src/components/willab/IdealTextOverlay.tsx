@@ -770,7 +770,10 @@ export default function IdealTextOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-background">
+    <div
+      data-ideal-text-wheel-owner
+      className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
+    >
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
         {/* The project's name and its verification state, both from the shared
             head — the post-recording readout mounts the SAME one, so the two
@@ -878,7 +881,10 @@ export default function IdealTextOverlay({
           {/* MATERIAL RECOVERY — below the deck, same reasoning as before:
               nothing in the text to anchor to. */}
           {sd.additions.length > 0 ? (
-            <div className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3">
+            <div
+              data-ideal-text-wheel-native
+              className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border px-5 py-3"
+            >
               <AdditionsPanel
                 additions={sd.additions}
                 onDecide={decideAddition}

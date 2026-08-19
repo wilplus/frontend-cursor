@@ -25,12 +25,14 @@ import {
   canBubble,
   chunkCounts,
   clampPosition,
+  IDLE_WHEEL_GESTURE,
   nearestChunkIndex,
   scrollEdge,
   stepPosition,
-  wheelDestination,
+  wheelGestureStep,
   type DeckPosition,
   type DeckScreenModel,
+  type WheelGestureState,
 } from "@/lib/willab/deckScroll";
 import type { Part } from "@/lib/willab/documentParts";
 import type {
@@ -230,16 +232,17 @@ export default function TranscriptReviewDeck({
    * fly through a slide the reader never saw. Backwards entry lands on
    * the previous slide's LAST chunk, exactly where the reader left it.
    *
-   * Within a slide, chunk scrolling stays NATIVE — chunks are ~4 lines
+   * Within a slide, chunk scrolling stays continuous — chunks are ~4 lines
    * each and several fit a viewport, so a hard stop per chunk would fight
-   * reading. The §11.3 contract is the boundary gate, and that is stepped.
+   * reading. Touch stays native; desktop wheel deltas are applied directly
+   * so the complete overlay can behave as one surface. The §11.3 contract is
+   * the boundary gate, and that is stepped.
    */
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const innerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const posRef = useRef<DeckPosition>({ slide: 0, chunk: 0 });
-  const armedRef = useRef(true);
-  const lastWheelAtRef = useRef(0);
+  const wheelGestureRef = useRef<WheelGestureState>(IDLE_WHEEL_GESTURE);
   const touchRef = useRef<{ y: number; consumed: boolean } | null>(null);
   const [atSlide, setAtSlide] = useState(0);
   // NO `atChunk` STATE (2026-08-15). It existed only to re-render the rail's
@@ -306,42 +309,58 @@ export default function TranscriptReviewDeck({
     [counts, goTo]
   );
 
-  // Wheel: native inside the inner scroller until its edge; at the edge
-  // the event is ours (preventDefault needs a non-passive listener, which
-  // React's synthetic onWheel does not guarantee — hence the effect).
+  // Wheel: the complete Ideal Text surface owns one gesture. Trackpad wheel
+  // events are applied immediately to the active paragraph scroller; at its
+  // edge they accumulate into one slide transition, whose momentum tail is
+  // swallowed. This avoids both page leakage and queued smooth animations.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
+    const owner =
+      stage.closest<HTMLElement>("[data-ideal-text-wheel-owner]") ?? stage;
     const onWheel = (e: WheelEvent) => {
-      const dy = e.deltaY;
-      if (Math.abs(dy) < 4) return;
-      const now = performance.now();
-      if (now - lastWheelAtRef.current > 160) armedRef.current = true;
-      lastWheelAtRef.current = now;
+      // Preserve browser pinch-to-zoom and native scrolling inside a modal,
+      // Presentation Mode, export preview or another explicitly native area.
+      if (e.ctrlKey) return;
+      const target = e.target;
+      if (
+        target instanceof Element &&
+        target.closest('[role="dialog"], [data-ideal-text-wheel-native]')
+      ) {
+        return;
+      }
+      const unit =
+        e.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? stage.clientHeight
+            : 1;
+      const dy = e.deltaY * unit;
+      if (dy === 0) return;
+      // Cancel EVERY vertical delta, including the sub-4px momentum tail that
+      // previously escaped into the page at an inner edge.
+      e.preventDefault();
       const dir: 1 | -1 = dy > 0 ? 1 : -1;
       const { slide } = posRef.current;
       const inner = innerRefs.current[slide];
       const edge = inner ? scrollEdge(inner) : "both";
-      const destination = wheelDestination(
-        inner?.contains(e.target as Node) ?? false,
-        canBubble(edge, dir)
-      );
-      if (destination === "native-inner") return;
-      e.preventDefault();
-      if (destination === "proxy-inner" && inner) {
-        // A wheel over the title, slide image or white margin should move the
-        // same text as a wheel directly over the paragraph column. CSS
-        // scroll-smooth owns the motion so mouse wheels and trackpads share
-        // one continuous surface without changing the phone touch contract.
-        inner.scrollBy({ top: dy });
+      const outcome = wheelGestureStep(wheelGestureRef.current, {
+        deltaY: dy,
+        now: performance.now(),
+        innerCanScroll: !canBubble(edge, dir),
+      });
+      wheelGestureRef.current = outcome.state;
+      if (outcome.action === "scroll-inner" && inner) {
+        // Direct assignment follows the trackpad one-for-one. `scroll-smooth`
+        // used to turn every wheel event into a competing animation, so edge
+        // detection lagged behind the user's fingers on long gestures.
+        inner.scrollTop += dy;
         return;
       }
-      if (!armedRef.current) return; // momentum tail, not a fresh gesture
-      armedRef.current = false;
-      tryBubble(dir);
+      if (outcome.action === "advance-screen") tryBubble(dir);
     };
-    stage.addEventListener("wheel", onWheel, { passive: false });
-    return () => stage.removeEventListener("wheel", onWheel);
+    owner.addEventListener("wheel", onWheel, { passive: false });
+    return () => owner.removeEventListener("wheel", onWheel);
   }, [tryBubble]);
 
   // Touch: one slide step per gesture, only past a deliberate pull at the
@@ -569,7 +588,7 @@ export default function TranscriptReviewDeck({
                     posRef.current = { slide: gi, chunk };
                   }
                 }}
-                className="scrollbar-none relative min-h-0 flex-1 scroll-smooth overflow-y-auto overscroll-y-contain"
+                className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
               >
                 <div className="my-auto flex min-h-full flex-col justify-center gap-4">
                   {g.chunks.map((c) => (

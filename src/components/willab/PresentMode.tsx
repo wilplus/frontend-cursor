@@ -154,7 +154,10 @@ export default function PresentMode({
 
   // Fullscreen. Nothing behind it, nothing over it but the X.
   return (
-    <div className="fixed inset-0 z-50 bg-background">
+    <div
+      data-ideal-text-wheel-native
+      className="fixed inset-0 z-50 bg-background"
+    >
       {exportMode ? (
         <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
           <button
