@@ -84,16 +84,6 @@ export interface ReadoutSnippet {
   coach: ReadoutCoach | null;
   /** Phase 2 — the slide delivered during this snippet; null when no deck. */
   slide: ReadoutSlide | null;
-  /** True when this snippet's challenge take followed a threat snippet — the
-   *  moment stress flipped into charisma. Show the breakthrough button. */
-  breakthrough: boolean;
-  /** Short plain-language "why" text; render verbatim. Null until BE sends it. */
-  breakthroughNote: string | null;
-  /** Per-snippet breakthrough video (`breakthrough_video_ref`). A ready-to-use
-   *  public URL the BE attaches to the breakthrough moment; null until shipped
-   *  (BE field pending — see the BE handoff). Distinct from the session-level
-   *  insights_payload.video_ref. */
-  breakthroughVideoRef: string | null;
   /** "Say It Stronger" — an LLM suggestion OVERLAY for this moment (word-level
    *  upgrades + two rewrites + a qualitative why). Generated async, so null on
    *  the immediate post-upload readout and populated on a later re-read. A
@@ -300,16 +290,6 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
     powerScore: num(r.power_score) ?? num(r.overall_score),
     coach: mapCoach(r.coach),
     slide: mapReadoutSlide(r.slide),
-    breakthrough: typeof r.breakthrough === "boolean" ? r.breakthrough : false,
-    breakthroughNote:
-      typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
-        ? r.breakthrough_note
-        : null,
-    breakthroughVideoRef:
-      typeof r.breakthrough_video_ref === "string" &&
-      r.breakthrough_video_ref.length > 0
-        ? r.breakthrough_video_ref
-        : null,
     sayItStronger: mapSayItStronger(r.say_it_stronger),
     userEditedText:
       typeof r.user_edited_text === "string" && r.user_edited_text.length > 0
@@ -693,9 +673,6 @@ export function mockReadout(topic: string): ReadoutPayload {
     powerScore: null,
     coach: null,
     slide: null,
-    breakthrough: false,
-    breakthroughNote: null,
-    breakthroughVideoRef: null,
     sayItStronger: null,
     userEditedText: null,
   });

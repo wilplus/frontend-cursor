@@ -19,8 +19,8 @@ export type SuggestionFeedbackTarget =
   | "comment" // the qualitative comment row (auto_comment / coach note)
   | "comment_video"
   // MOMENT_SUGGESTIONS — a key-moment star's Approve/Revert. `moment_emphasize`
-  // = a charisma phrase made bold+orange; `moment_replace` = a threat/swearing/
-  // low-stickiness span swapped for an audience-fit rephrase.
+  // = an accepted delivery anchor made orange; `moment_replace` = a materially
+  // unclear span swapped for an audience-fit rephrase.
   | "moment_emphasize"
   | "moment_replace"
   // LIVING TRANSCRIPT (BE-C) — a span-anchored tracked change on the document.

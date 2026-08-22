@@ -20,7 +20,7 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 /*  corpus. The needle belongs to the ADJUDICATION lane, whose whole job is    */
 /*  judging the machine's output, on its own screen.                            */
 /*                                                                            */
-/*  The props are GONE rather than merely unused: an optional acousticRead     */
+/*  Machine-derived read props are absent rather than merely unused: an        */
 /*  prop is an open door back in, and the import fence cannot catch a value    */
 /*  that arrives on the labeler's own payload.                                 */
 /* -------------------------------------------------------------------------- */

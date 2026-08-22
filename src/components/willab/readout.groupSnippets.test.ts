@@ -31,9 +31,6 @@ function snip(
     powerScore: null,
     coach: null,
     slide: slideIndex === null ? null : { index: slideIndex, title: "", body: "" },
-    breakthrough: false,
-    breakthroughNote: null,
-    breakthroughVideoRef: null,
     sayItStronger: null,
     userEditedText: null,
   };

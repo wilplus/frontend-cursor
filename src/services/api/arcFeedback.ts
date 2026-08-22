@@ -6,7 +6,7 @@ import { notifyTokensSpent } from "@/lib/willabWindowEvents";
 /*                                                                            */
 /*  GET /v2/explore/arc/<arc_id>/feedback → the user's 3 takes, each with the   */
 /*  coach-verified full text (assembled in piece order, no playback) + the      */
-/*  coach-surfaced key moments (playback + comment text/video), grouped by      */
+/*  coach-surfaced key moments (playback + comment text), grouped by slide      */
 /*  slide FE-side. Take 1 is free; a gated take (2/3, pre-unlock) arrives as    */
 /*  {free:false, locked:true} with NO content — the FE renders the paywall.     */
 /*                                                                            */
@@ -24,9 +24,8 @@ export interface FeedbackKeyMoment {
   audioRef: string | null;
   startOffsetMs: number;
   durationMs: number;
-  /** The coach's comment — text and/or video, whichever they attached. */
+  /** The coach's written comment on this exact moment. */
   commentText: string | null;
-  commentVideoRef: string | null;
 }
 
 export interface FeedbackTake {
@@ -74,7 +73,6 @@ function mapKeyMoment(raw: unknown): FeedbackKeyMoment | null {
     startOffsetMs: int(r.start_offset_ms),
     durationMs: int(r.duration_ms),
     commentText: str(r.comment_text) || null,
-    commentVideoRef: str(r.comment_video_ref) || null,
   };
 }
 

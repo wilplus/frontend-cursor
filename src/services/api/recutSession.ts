@@ -3,9 +3,9 @@
 /*                                                                            */
 /*  POST /api/v2/coach/sessions/<id>/recut → re-runs the segmenter on the       */
 /*  session's STORED audio (no upload) and returns the new snippets. Re-cut      */
-/*  MINTS NEW snippet ids, so it orphans any labels / notes / drafts already on  */
-/*  the session. The BE refuses a labeled, unpublished session with              */
-/*  409 RECUT_WOULD_DISCARD_LABELS { labels, drafts } and only proceeds on        */
+/*  MINTS NEW snippet ids, so it orphans notes / drafts already on the session.   */
+/*  The BE refuses a reviewed, unpublished session with                           */
+/*  409 RECUT_WOULD_DISCARD_COACH_WORK { drafts } and only proceeds on             */
 /*  ?force=true (deleting the orphans). So the FE tries WITHOUT force first; on   */
 /*  the 409 it surfaces the BE's exact counts (drafts included — the FE can't     */
 /*  see those locally) and, once the coach confirms, re-calls with force=true.    */
@@ -16,7 +16,7 @@
 export type RecutResult =
   | { status: "ok"; count: number | null }
   /** 409 — re-cut would discard existing review work; confirm + retry w/ force. */
-  | { status: "needs_confirm"; labels: number; drafts: number }
+  | { status: "needs_confirm"; drafts: number }
   | { status: "error"; message: string };
 
 function num(v: unknown): number {
@@ -46,18 +46,16 @@ export async function recutSession(
     snippets?: unknown[];
     code?: string;
     error?: string;
-    labels?: number;
     drafts?: number;
-    detail?: { labels?: number; drafts?: number };
+    detail?: { drafts?: number };
   };
 
-  // BE-6 — labeled, unpublished session: the re-cut is refused unless
+  // BE-6 — reviewed, unpublished session: the re-cut is refused unless
   // ?force=true. Surface the counts so the coach confirms the discard, then we
   // re-call with force. The recut endpoint's only 409 is this one.
   if (res.status === 409) {
     return {
       status: "needs_confirm",
-      labels: num(data.labels ?? data.detail?.labels),
       drafts: num(data.drafts ?? data.detail?.drafts),
     };
   }

@@ -1,7 +1,4 @@
 import { getAuthToken } from "@/lib/api/auth-client";
-// Capture-metadata shape only. coachVideoMeta is lane-neutral (the recorder
-// hook and both uploaders use it), so this is not a bridge to the label lane.
-import type { CoachVideoMeta } from "./coachVideoMeta";
 
 /* -------------------------------------------------------------------------- */
 /*  starVerdicts — the coach's judgment on machine-fired stars (2026-07-27)    */
@@ -58,7 +55,7 @@ export interface ArcStar {
   /** Delivery stars carry their device; other kinds are usually null.
    *  Echoed VERBATIM on the PUT (null included) — never reconstructed. */
   starDevice: string | null;
-  /** The machine's raw trigger (delivery: the device; replace: e.g. threat /
+  /** The machine's raw trigger (delivery: the device; replace: e.g. clarity /
    *  profanity / stickiness). Used only to filter self-corrections out of the
    *  wrong-kind picker — never rendered as a score or classifier output. */
   trigger: string | null;
@@ -73,14 +70,6 @@ export interface ArcStar {
   correctedDevice: string | null;
   /** The coach's own note, if they left one. */
   note: string | null;
-  /** The coach's video for this star, when one exists (founder 2026-07-30 —
-   *  a note in words OR in voice, same slot). null = no video yet.
-   *
-   *  A video is a RECORDED JUDGMENT, so per the founder it counts as approval:
-   *  saving one also sets `verdict: "keep"` in the same PUT. The coach can
-   *  still re-judge afterwards (N5) — approval-on-record is a default, never a
-   *  lock. */
-  videoRef: string | null;
   /** What "wrong kind" may be corrected TO (N4) — served, never hard-coded.
    *  Empty for single-device kinds. */
   deviceOptions: string[];
@@ -168,10 +157,6 @@ export function mapArcStar(raw: unknown): ArcStar | null {
     verdict: pickVerdict(r.verdict),
     correctedDevice: strOrNull(r.corrected_device),
     note: strOrNull(r.note),
-    // PINNED BE CONTRACT (2026-07-30): `video_ref` on the star row. Absent on a
-    // BE that predates the star-video lane → null → the slot renders as "add
-    // one", which is the correct read of "this star has no video".
-    videoRef: strOrNull(r.video_ref),
     deviceOptions: Array.isArray(r.device_options)
       ? r.device_options.filter(
           (d): d is string => typeof d === "string" && d.length > 0
@@ -384,97 +369,4 @@ export async function saveStarVerdict(
     unknown
   > | null;
   return { ok: false, error: strOrNull(data?.error) };
-}
-
-/* -------------------------------------------------------------------------- */
-/*  STAR VIDEO (founder 2026-07-30) — a coach note in voice instead of words.  */
-/*                                                                            */
-/*  Same slot as the note, one step below it: record in-app or pick a file,    */
-/*  it stays, you can replace or delete it. Nothing else changes.              */
-/*                                                                            */
-/*  WHY IT LIVES HERE and not in coachReview.ts: the star lane may not import  */
-/*  the label lane (N1 / BLIND COACH, starVerdictSeparation.test.ts). The      */
-/*  breakthrough-video uploader over there is the same SHAPE, deliberately not */
-/*  the same FUNCTION — sharing it would be the bridge the fence forbids. The  */
-/*  duplication is the fence's price and is intended.                          */
-/*                                                                            */
-/*  N2 still holds: a star video is coach→machine (and coach's own record).    */
-/*  Nothing here is serialized toward a student.                               */
-/* -------------------------------------------------------------------------- */
-
-/** Subsystem V capture fields, same wire names the breakthrough uploader uses
- *  so the BE can read one multipart parser for both. */
-function appendStarVideoMeta(form: FormData, meta: CoachVideoMeta): void {
-  form.append("upload_idempotency_key", meta.idempotencyKey);
-  if (meta.device) form.append("device", meta.device);
-  if (meta.source) form.append("source", meta.source);
-  if (meta.durationSec != null) form.append("duration", String(meta.durationSec));
-}
-
-/** PINNED BE CONTRACT (2026-07-30):
- *    POST /v2/coach/snippets/<snippetId>/star-video   multipart
- *      video_file, upload_idempotency_key, device?, source?, duration?
- *      → { video_ref } | { star: { video_ref } }
- *  Returns the stored ref, or null on any failure (the caller keeps the
- *  idempotency key so a retry re-sends the same take rather than minting a
- *  phantom one). */
-export async function uploadStarVideo(
-  snippetId: string,
-  file: File,
-  meta: CoachVideoMeta
-): Promise<string | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  const form = new FormData();
-  form.append("video_file", file, file.name || "star-note.webm");
-  appendStarVideoMeta(form, meta);
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/star-video`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  if (!data) return null;
-  const nested =
-    data.star && typeof data.star === "object"
-      ? (data.star as Record<string, unknown>)
-      : null;
-  const ref = nested?.video_ref ?? data.video_ref;
-  return typeof ref === "string" && ref.length > 0 ? ref : null;
-}
-
-/** PINNED BE CONTRACT (2026-07-30):
- *    DELETE /v2/coach/snippets/<snippetId>/star-video → 200
- *  Removing the video does NOT retract the verdict: recording implied approval,
- *  but deleting a video is "I'd rather say it in words", not "I take it back".
- *  The coach retracts by tapping another verdict (N5). */
-export async function deleteStarVideo(snippetId: string): Promise<boolean> {
-  const token = await getAuthToken();
-  if (!token) return false;
-  try {
-    const res = await fetch(
-      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/star-video`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
 }

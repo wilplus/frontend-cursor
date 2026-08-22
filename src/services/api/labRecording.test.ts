@@ -332,6 +332,85 @@ describe("submitLabRecording — §A1 generic error copy + ref", () => {
   });
 });
 
+describe("submitLabRecording — response branch characterization", () => {
+  it("keeps an accepted async upload in the processing state", async () => {
+    stubResponse(202, {
+      session_id: "sess_async",
+      arc_id: "arc_async",
+      take_index: 2,
+      take_count: 2,
+      state: "processing",
+    });
+
+    expect(await submitLabRecording(baseInput())).toEqual({
+      kind: "processing",
+      sessionId: "sess_async",
+      arcId: "arc_async",
+      takeIndex: 2,
+      takeCount: 2,
+    });
+  });
+
+  it("adopts an idempotency duplicate without incrementing take count", async () => {
+    stubResponse(201, {
+      duplicate: true,
+      session_id: "sess_original",
+      arc_id: "arc_original",
+      take_index: 1,
+      take_count: 2,
+    });
+
+    expect(await submitLabRecording(baseInput())).toEqual({
+      kind: "processing",
+      sessionId: "sess_original",
+      arcId: "arc_original",
+      takeIndex: 1,
+      takeCount: null,
+    });
+  });
+
+  it("keeps 402 out of the analysis-failed path", async () => {
+    stubResponse(402, { code: "PAYMENT_REQUIRED" });
+    const result = await submitLabRecording(baseInput());
+
+    expect(result).toMatchObject({
+      kind: "error",
+      status: 402,
+      code: "PAYMENT_REQUIRED",
+    });
+    if (result.kind !== "error") throw new Error("unreachable");
+    expect(result.message).toContain("recording is safe");
+  });
+
+  it("maps an oversized upload to the specific 413 guidance", async () => {
+    stubResponse(413, { code: "FILE_TOO_LARGE" });
+    expect(await submitLabRecording(baseInput())).toEqual({
+      kind: "error",
+      status: 413,
+      code: "FILE_TOO_LARGE",
+      message: "That file is too large to upload. Try a shorter audio file.",
+    });
+  });
+
+  it("reports an empty successful response explicitly", async () => {
+    stubResponse(201, null);
+    expect(await submitLabRecording(baseInput())).toEqual({
+      kind: "error",
+      status: 201,
+      message: "Empty response from the lab.",
+    });
+  });
+
+  it("maps a total network failure to the connection error", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new TypeError("offline")));
+    expect(await submitLabRecording(baseInput())).toEqual({
+      kind: "error",
+      status: 0,
+      message: "Couldn't reach the lab. Check your connection and try again.",
+    });
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /*  Cloudflare upload-proxy lane (founder 2026-08-04: no Vercel Pro, ever).    */
 /*  NEXT_PUBLIC_UPLOAD_PROXY_URL set → the Worker is tried FIRST; any          */

@@ -303,12 +303,12 @@ describe("mapArcCharges / priceForArcAction", () => {
   const PAYLOAD = {
     enabled: true,
     arc_id: "arc_1",
-    charged: { insights: true, game: false, moment_explanation: false },
-    prices: { insights: 1000, game: 1500, moment_explanation: 2500 },
+    charged: { insights: true, moment_explanation: false },
+    prices: { insights: 1000, moment_explanation: 2500 },
   };
 
   it("prices an action this arc has NOT paid for", () => {
-    expect(priceForArcAction(mapArcCharges(PAYLOAD), "game")).toBe(1500);
+    expect(priceForArcAction(mapArcCharges(PAYLOAD), "moment_explanation")).toBe(2500);
   });
 
   it("shows NOTHING for an action already paid for on this arc", () => {
@@ -321,13 +321,13 @@ describe("mapArcCharges / priceForArcAction", () => {
   it("shows nothing when the charge state is unknown, never assuming unpaid", () => {
     // Assuming "not yet charged" is exactly what produces a wrong label.
     expect(priceForArcAction(mapArcCharges(PAYLOAD), "coach_review")).toBeNull();
-    expect(priceForArcAction({ kind: "unknown" }, "game")).toBeNull();
-    expect(priceForArcAction({ kind: "off" }, "game")).toBeNull();
+    expect(priceForArcAction({ kind: "unknown" }, "moment_explanation")).toBeNull();
+    expect(priceForArcAction({ kind: "off" }, "moment_explanation")).toBeNull();
   });
 
   it("shows nothing when charged is false but no price was published", () => {
-    const arc = mapArcCharges({ enabled: true, charged: { game: false }, prices: {} });
-    expect(priceForArcAction(arc, "game")).toBeNull();
+    const arc = mapArcCharges({ enabled: true, charged: { moment_explanation: false }, prices: {} });
+    expect(priceForArcAction(arc, "moment_explanation")).toBeNull();
   });
 
   it("reads flag-off as off, and an empty payload as unknown", () => {
@@ -340,11 +340,11 @@ describe("mapArcCharges / priceForArcAction", () => {
   it("ignores non-boolean charged flags rather than coercing them", () => {
     const arc = mapArcCharges({
       enabled: true,
-      charged: { game: "false", insights: false },
-      prices: { game: 1500, insights: 1000 },
+      charged: { moment_explanation: "false", insights: false },
+      prices: { moment_explanation: 2500, insights: 1000 },
     });
     // "false" is not false. Coercing it would price an action already paid for.
-    expect(priceForArcAction(arc, "game")).toBeNull();
+    expect(priceForArcAction(arc, "moment_explanation")).toBeNull();
     expect(priceForArcAction(arc, "insights")).toBe(1000);
   });
 });

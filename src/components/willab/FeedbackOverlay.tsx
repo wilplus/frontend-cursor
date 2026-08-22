@@ -188,8 +188,8 @@ function TakeFeedback({
   );
 }
 
-/** One key moment: playback of the exact span + the coach's comment (text
- *  and/or video). A "Read" chip marks moments from a re-read recording. */
+/** One key moment: playback of the exact span + the coach's written comment.
+ *  A "Read" chip marks moments from a re-read recording. */
 function KeyMomentBlock({
   moment,
   highlight,
@@ -236,17 +236,6 @@ function KeyMomentBlock({
         </div>
       ) : null}
 
-      {moment.commentVideoRef ? (
-        <div className="overflow-hidden rounded-xl border border-border">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video
-            src={moment.commentVideoRef}
-            controls
-            playsInline
-            className="w-full bg-black"
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

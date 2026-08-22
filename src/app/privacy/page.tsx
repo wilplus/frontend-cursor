@@ -81,10 +81,8 @@ export const metadata: Metadata = {
  *
  * NOTE ON THE CONSTRUCT FENCE. §6 discloses internal measurement, which a
  * privacy policy must do. It deliberately does NOT present any of it as a
- * user-facing score, ratio or verdict — that stays true to AC-9. v1.0's
- * description of a "challenge/threat-detection model" for "breakthrough / key
- * moments" was stale (breakthroughs were removed) and has been replaced with
- * an accurate, qualitative description.
+ * user-facing score, ratio, or verdict. The description is qualitative and
+ * limited to the measurements the current product actually uses.
  */
 export default function PrivacyPage() {
   return (

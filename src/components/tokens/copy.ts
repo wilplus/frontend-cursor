@@ -212,7 +212,6 @@ const ACTION_LABELS: Record<string, string> = {
   reread: "Re-read",
   assembly: "Assembly",
   moment_explanation: "Key moment explanation",
-  game: "Game",
   insights: "Insights",
   chat: "Chat",
   coach_review: "Coach review",

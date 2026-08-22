@@ -365,7 +365,7 @@ export async function fetchRecordingBand(): Promise<RecordingBandState> {
 /* ------------------------------ per-arc state ----------------------------- */
 
 /** Per-arc charge state for the actions charged ONCE PER ARC (`ref_id` is the
- *  arc id): insights, game, moment_explanation, coach_review.
+ *  arc id): insights and moment_explanation.
  *
  *  WHY THIS EXISTS. Those charges are idempotent, so the first use costs and
  *  every repeat is free. A static price on such a trigger is right once and

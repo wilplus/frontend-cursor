@@ -8,14 +8,12 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * `POST /v2/coach/sessions/<sid>/snippets/<sid>` on the BE.
  *
  * Body accepts any subset of:
- *   { note?, tag?, surfaced?, breakthrough_video_ref? }
+ *   { note?, tag?, surfaced? }
  *
  * USER LANE ONLY — note/tag/surfaced → insights_payload (library-bound).
  *
- * `direction_label` was removed from the FE 2026-08-07 with the F2 direction
- * construct. This proxy is verbatim pass-through, so the BE still accepts the
- * key from any other caller; nothing in this app sends it. Blind labeling now
- * writes the state-generic ternary through
+ * Retired private-direction fields are not part of this user-lane contract.
+ * Blind labeling writes the state-generic ternary through
  * PUT /api/v2/coach/snippets/<id>/confidence-label — a SEPARATE route, which
  * is the split-sink wall doing its job rather than two lanes sharing a body.
  *

@@ -259,7 +259,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                   start_offset_ms: 0,
                   duration_ms: 1000,
                   comment_text: "This is the turn — say it slower.",
-                  comment_video_ref: "https://signed.example/coach.webm",
                 },
               ],
             },

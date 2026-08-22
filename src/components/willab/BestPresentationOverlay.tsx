@@ -27,8 +27,7 @@ import { RichText } from "./RichText";
 /*  while presenting; navbar = counter + Export (print → PDF) + Edit + X;       */
 /*  Edit switches the text into a marker editor (bold / italic / underline /    */
 /*  orange highlight — the B6 subset, persisted via the existing pencil-edit    */
-/*  PUT); read-only by default. Bottom of scroll: "One last step" → /game.      */
-/*  (Ticket 1.7's button wins over global decision #2 — flagged.)              */
+/*  PUT); read-only by default.                                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function BestPresentationOverlay({
@@ -124,14 +123,10 @@ export default function BestPresentationOverlay({
               .map(esc)
               .join(" · ")}</p>`
           : "";
-        // SD — the game deep-link is retired; the export marks the moment only.
-        const key = s.breakthrough
-          ? `<p style="margin:6px 0 0;color:#ee7a2b;font-weight:600">Key moment</p>`
-          : "";
         return `<section style="margin:0 0 22px">
           ${s.title ? `<h2 style="font-size:14px;margin:0 0 6px;color:#999;font-weight:600">${esc(s.title)}</h2>` : ""}
           <p style="font-size:16px;line-height:1.6;margin:0">${richMarkersToHtml(s.text)}</p>
-          ${phrases}${key}
+          ${phrases}
         </section>`;
       })
       .join("");
@@ -386,13 +381,6 @@ function IdealTextSection({
               </span>
             ))}
           </div>
-        ) : null}
-
-        {slide.breakthrough ? (
-          <p className="text-[13px] font-medium text-primary">
-            <Sparkles className="mr-1 inline h-3.5 w-3.5" aria-hidden />
-            Key moment{slide.breakthroughNote ? `: ${slide.breakthroughNote}` : ""}
-          </p>
         ) : null}
 
         {slide.text ? (

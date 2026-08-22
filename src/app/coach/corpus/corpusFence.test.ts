@@ -39,7 +39,7 @@ const CORPUS_LINK = /["'`][^"'`\n]*\/coach\/corpus/;
 const MACHINE_READ_LANES = [
   "starVerdicts", // the machine's fired stars + their why
   "readout", // powerScore lives here
-  "coachReview", // AcousticRead — the stress↔charisma needle
+  "coachReview", // coach-review mapper must stay out of blind corpus tools
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

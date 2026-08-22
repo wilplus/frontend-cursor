@@ -7,25 +7,8 @@ import type { CoachTag } from "@/components/willab/readout";
 /*  now Saves each take as a checkpoint (saveCoachFeedback.ts, same payload     */
 /*  shape) and delivery happens once at the arc-level "Save and Publish full    */
 /*  analysis" (arcBatch.publishArc). These types survive as the shared payload  */
-/*  contract: `labels` (retired, always empty) and `insights_payload` (user     */
-/*  notes) stay separate lanes (§2), plus the R4-8 full-snapshot `snippets`.    */
+/*  contract: coach notes and the R4-8 full-snapshot `snippets`.                */
 /* -------------------------------------------------------------------------- */
-
-/** The legacy private-label lane. RETIRED 2026-08-07 with the F2 direction
- *  construct: nothing populates this array any more, and blind labeling moved
- *  to the state-generic ternary (services/api/stateRatings.ts), which has its
- *  own endpoint and its own save timing.
- *
- *  The KEY survives on the wire, always empty, on purpose — the publish
- *  contract is shared with the backend and dropping a field it still reads
- *  would be a second change in a second repo for no gain. `value` is a bare
- *  string because the union it referenced no longer exists. */
-export interface PublishLabel {
-  snippet_id: string;
-  value: string;
-  was_pre_filled?: boolean;
-  was_overridden?: boolean;
-}
 export interface PublishNote {
   snippet_id: string;
   note: string;
@@ -53,7 +36,6 @@ export interface PublishInput {
   sessionId: string;
   overallMessage: string | null;
   notes: PublishNote[];
-  labels: PublishLabel[];
   /** Optional full snapshot; when present the BE persists every entry with the
    *  checkpoint. */
   snippets?: PublishSnippetState[];

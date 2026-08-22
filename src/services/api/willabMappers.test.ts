@@ -516,60 +516,34 @@ describe("mapCoachReviewSession — features (C1 / §B.1)", () => {
   });
 });
 
-describe("mapCoachReviewSession — acoustic_read + auto_comment (#190, coach-only)", () => {
-  it("parses + clamps the potentiometer to -1..1 and reads outside_normal_range", () => {
+describe("mapCoachReviewSession — neutral auto_comment", () => {
+  it("maps a neutral observation without interpreting legacy acoustic reads", () => {
     const s = mapCoachReviewSession({
       session_id: "s",
       snippets: [
         {
           id: "n1",
           acoustic_read: { potentiometer: 1.8, outside_normal_range: true },
-          auto_comment: "Sounded rather confident here.",
-        },
-        {
-          id: "n2",
-          acoustic_read: { potentiometer: -2, outside_normal_range: false },
+          auto_comment: "The pace was steadier than nearby moments.",
         },
       ],
     });
-    expect(s?.snippets[0].acousticRead).toEqual({
-      potentiometer: 1,
-      outsideNormalRange: true,
-      baseline: null,
-    });
-    expect(s?.snippets[0].autoComment).toBe("Sounded rather confident here.");
-    expect(s?.snippets[1].acousticRead).toEqual({
-      potentiometer: -1,
-      outsideNormalRange: false,
-      baseline: null,
-    });
+    expect(s?.snippets[0].autoComment).toBe(
+      "The pace was steadier than nearby moments."
+    );
+    expect(s?.snippets[0]).not.toHaveProperty("acousticRead");
   });
 
-  it("maps acoustic_read.baseline (FE-7): user / take / parent_take, junk → null", () => {
-    const s = mapCoachReviewSession({
-      session_id: "s",
-      snippets: [
-        { id: "n1", acoustic_read: { potentiometer: 0, baseline: "parent_take" } },
-        { id: "n2", acoustic_read: { potentiometer: 0, baseline: "user" } },
-        { id: "n3", acoustic_read: { potentiometer: 0, baseline: "galaxy" } },
-      ],
-    });
-    expect(s?.snippets[0].acousticRead?.baseline).toBe("parent_take");
-    expect(s?.snippets[1].acousticRead?.baseline).toBe("user");
-    expect(s?.snippets[2].acousticRead?.baseline).toBeNull();
-  });
-
-  it("nulls acoustic_read + auto_comment when absent / malformed", () => {
+  it("nulls auto_comment when absent or malformed", () => {
     const s = mapCoachReviewSession({
       session_id: "s",
       snippets: [
         { id: "n1" },
-        { id: "n2", acoustic_read: { potentiometer: "loud" } },
+        { id: "n2", auto_comment: 12 },
       ],
     });
-    expect(s?.snippets[0].acousticRead).toBeNull();
     expect(s?.snippets[0].autoComment).toBeNull();
-    expect(s?.snippets[1].acousticRead).toBeNull();
+    expect(s?.snippets[1].autoComment).toBeNull();
   });
 });
 

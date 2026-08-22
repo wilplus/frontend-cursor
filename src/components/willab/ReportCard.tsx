@@ -23,7 +23,7 @@ import ArcActionPrice from "@/components/tokens/ArcActionPrice";
 /*    insight            → COACH: GREY, 85%-wide. "Feedback on {name}, …".      */
 /*    best_presentation_ready → the HERO: full-width indigo/violet card, gold   │
 /*                         crown, "Ideal Text for {name} is ready!", with both  */
-/*                         CTAs (best presentation / breakthroughs) merged in.  */
+/*                         historical Ideal Text card.                          */
 /* -------------------------------------------------------------------------- */
 
 /** The small date line, from the message's FE-stamped timestamp. null when
@@ -64,7 +64,6 @@ export default function ReportCard({
   message,
   onViewInsights,
   onOpenBestPresentation,
-  onOpenBreakthroughs,
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
@@ -72,7 +71,6 @@ export default function ReportCard({
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
-  onOpenBreakthroughs?: (arcId: string) => void;
   /** transcript_ready — opens the Trainings library (where transcripts live). */
   onOpenTranscripts?: () => void;
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
@@ -252,8 +250,7 @@ export default function ReportCard({
       </div>
     );
   }
-  // C2 — the HERO: "Ideal Text for {name} is ready!" (BE-inserted at the 3rd
-  // take). The single ready card; both CTAs live here.
+  // The historical ready message now opens the canonical Ideal Text artifact.
   if (message.kind === "best_presentation_ready") {
     const v = bestPresentationView(message.metadata);
     return (
@@ -261,7 +258,6 @@ export default function ReportCard({
         name={v.topic}
         arcId={v.arcId}
         onOpenBestPresentation={onOpenBestPresentation}
-        onOpenBreakthroughs={onOpenBreakthroughs}
       />
     );
   }
@@ -362,15 +358,12 @@ export function IdealTextHeroCard({
   name,
   arcId,
   onOpenBestPresentation,
-  onOpenBreakthroughs,
 }: {
   name: string | null;
   arcId: string | null;
   onOpenBestPresentation?: (arcId: string) => void;
-  onOpenBreakthroughs?: (arcId: string) => void;
 }) {
   const canBest = !!(arcId && onOpenBestPresentation);
-  const canBreak = !!(arcId && onOpenBreakthroughs);
   return (
     <div className="my-1 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-4 py-4 text-white shadow-sm">
       <div className="flex items-center gap-2">
@@ -379,27 +372,15 @@ export function IdealTextHeroCard({
           Ideal Text{name ? <span> for {name}</span> : null} is ready!
         </p>
       </div>
-      {canBest || canBreak ? (
+      {canBest ? (
         <div className="mt-3 flex flex-col gap-2">
-          {canBest ? (
-            <button
-              type="button"
-              onClick={() => onOpenBestPresentation!(arcId!)}
-              // P11 — royal purple (founder 2026-07-11).
-              className="w-full rounded-full bg-purple-700 px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-purple-600"
-            >
-              View your best presentation
-            </button>
-          ) : null}
-          {canBreak ? (
-            <button
-              type="button"
-              onClick={() => onOpenBreakthroughs!(arcId!)}
-              className="w-full rounded-full border border-white/40 px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-white/10"
-            >
-              View your breakthrough moments
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => onOpenBestPresentation!(arcId!)}
+            className="w-full rounded-full bg-purple-700 px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-purple-600"
+          >
+            View Ideal Text
+          </button>
         </div>
       ) : null}
     </div>

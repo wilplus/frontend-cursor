@@ -7,7 +7,7 @@ import type { PublishInput } from "./publishWillabSession";
 /*  POST /v2/coach/sessions/<id>/save-feedback — marks this take's coach        */
 /*  drafts as a SAVED checkpoint (coach_feedback_saved_at), NOT delivered.      */
 /*  Carries the exact payload shape of the old per-session publish so the       */
-/*  coach's local edits (notes / labels / surfaced snapshot) persist with the   */
+/*  coach's local edits (notes / surfaced snapshot) persist with the            */
 /*  checkpoint. Delivery only happens at the arc-level "Save and Publish full   */
 /*  analysis" once all 3 takes are saved + the ideal text approved.             */
 /* -------------------------------------------------------------------------- */
@@ -26,7 +26,6 @@ export async function saveCoachFeedback(
       overall_message: input.overallMessage,
       snippet_notes: input.notes,
     },
-    labels: input.labels,
     ...(input.snippets ? { snippets: input.snippets } : {}),
   };
 

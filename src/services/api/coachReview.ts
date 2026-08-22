@@ -2,14 +2,9 @@
 /*  coachReview — per-session review payload + per-snippet save (§B.2 / §B.3)  */
 /*                                                                            */
 /*  The shape the coach overlay reads (S.4 identity-stripped) and the two-     */
-/*  lane write boundary the BE enforces (S.5):                                */
-/*    Private lane → direction_label  (training_labels table)                  */
-/*    User lane    → note / tag / surfaced (insights_payload)                  */
-/*                                                                            */
-/*  No cross-derivation: the FE sends each field independently and the BE      */
-/*  persists them to separate tables (S.1.2 hard guarantee). Even when the     */
-/*  same user gesture sets both, the request body sends them side-by-side and  */
-/*  the BE handler dispatches one path per lane.                               */
+/*  user-lane write boundary the BE enforces: note / tag / surfaced are saved  */
+/*  as coach authoring state. Blind confidence labels use their own endpoint   */
+/*  and provenance and never share this payload.                               */
 /* -------------------------------------------------------------------------- */
 
 import {
@@ -34,12 +29,8 @@ import type { TernaryValue } from "./stateRatings";
 
 export type CoachTag = "strong" | "to_work_on";
 
-/* DirectionLabel ("threat" | "ambiguous" | "challenge") was REMOVED
- * 2026-08-07. The F2 direction construct is retired and must not surface
- * anywhere in the FE. Blind labeling now uses the state-generic ternary
- * instrument (services/api/stateRatings.ts) — yes / no / neutral plus a
- * separate `unrateable`, which is a different lane with its own endpoint and
- * its own save timing. */
+/* Blind labeling uses the state-generic ternary instrument in stateRatings.ts.
+ * It is a different lane with its own endpoint, provenance, and save timing. */
 
 /** Per-snippet coach authoring state — what's persisted, what's read back. */
 export interface CoachSnippetState {
@@ -52,23 +43,6 @@ export interface CoachSnippetState {
   ratingUnrateable: boolean;
   tag: CoachTag | null;
   surfaced: boolean;
-  /** Per-snippet coach video (coach upload). Public URL or null. Authored
-   *  whenever the coach has committed a definite rating on the snippet. */
-  breakthroughVideoRef: string | null;
-}
-
-/** #190 — the coach-only acoustic verdict: a stress↔charisma needle
- *  (`potentiometer` -1..1; -1 = stress, +1 = charisma) plus whether the read
- *  fell outside the normal range (a "worth a listen" nudge). COACH-ONLY — never
- *  rendered on any user surface (it is a verdict, not the reference vector). */
-export interface AcousticRead {
-  /** -1..1, clamped. Left = stress, right = charisma. */
-  potentiometer: number;
-  outsideNormalRange: boolean;
-  /** FE-7 — what the needle was measured against: the speaker's own history
-   *  ("user"), within this take ("take"), or — for a re-read — its parent
-   *  take's distribution ("parent_take"). null on older packets. */
-  baseline: "user" | "take" | "parent_take" | null;
 }
 
 /** Identity-stripped snippet payload (§S.4). NO control/salience score, NO
@@ -97,13 +71,8 @@ export interface CoachReviewSnippet {
    *  frozen — never overwritten by coach edits so the (draft,final) diff
    *  survives for the comment-clone corpus. null = AI didn't produce one. */
   aiDraftNote: string | null;
-  /** #190 — the coach-only stress↔charisma verdict (needle + worth-a-listen).
-   *  null when the packet omits it. NEVER user-facing. */
-  acousticRead: AcousticRead | null;
-  /** #190 — the machine's qualitative comment (acoustic tone only). Coach-only
-   *  reference; the tone wording comes from the BE (never FE-synthesized).
-   *  #191 — now null by default (the coach writes from scratch); kept for
-   *  back-compat / older packets. */
+  /** A neutral, within-take acoustic observation when one was generated.
+   *  It never carries a psychological state or surfaced score. */
   autoComment: string | null;
   /** #191 — whether this snippet is the spoken take ("spoken") or a re-read of a
    *  piece's corrected text ("read"). Labels the coach card. null = unknown
@@ -161,8 +130,6 @@ export interface CoachSnippetSavePatch {
   note?: string;
   tag?: CoachTag | null;
   surfaced?: boolean;
-  /** Set a public URL to attach a breakthrough video; null (or "") to clear. */
-  breakthroughVideoRef?: string | null;
 }
 
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
@@ -184,28 +151,6 @@ function pickCoachState(raw: unknown): CoachSnippetState {
     ratingUnrateable: r.rating_unrateable === true,
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
-    breakthroughVideoRef:
-      typeof r.breakthrough_video_ref === "string" &&
-      r.breakthrough_video_ref.length > 0
-        ? r.breakthrough_video_ref
-        : null,
-  };
-}
-
-/** #190 — the coach-only acoustic verdict. Requires a finite potentiometer;
- *  clamps it to -1..1. null when absent/malformed (older packets). */
-function pickAcousticRead(raw: unknown): AcousticRead | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const p = r.potentiometer;
-  if (typeof p !== "number" || !Number.isFinite(p)) return null;
-  return {
-    potentiometer: Math.max(-1, Math.min(1, p)),
-    outsideNormalRange: r.outside_normal_range === true,
-    baseline:
-      r.baseline === "user" || r.baseline === "take" || r.baseline === "parent_take"
-        ? r.baseline
-        : null,
   };
 }
 
@@ -257,8 +202,6 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       const v = coachStateRaw.ai_draft_coach_note;
       return typeof v === "string" && v.length > 0 ? v : null;
     })(),
-    // #190 — coach-only acoustic verdict + machine tone comment.
-    acousticRead: pickAcousticRead(r.acoustic_read),
     autoComment:
       typeof r.auto_comment === "string" && r.auto_comment.length > 0
         ? r.auto_comment
@@ -399,46 +342,6 @@ export async function uploadCoachVideo(
   return typeof ref === "string" ? ref : null;
 }
 
-/** Upload a per-snippet breakthrough video (coach authoring). Mirrors
- *  uploadCoachVideo: multipart pass-through, returns the persisted public URL
- *  so the caller can save it via saveCoachSnippet({ breakthroughVideoRef }).
- *  The BE upload endpoint is Phase 2; until it ships this soft-fails to null
- *  and the caller surfaces a retry. */
-export async function uploadBreakthroughVideo(
-  sessionId: string,
-  snippetId: string,
-  file: File,
-  meta: CoachVideoMeta
-): Promise<string | null> {
-  const form = new FormData();
-  form.append("video_file", file, file.name || "breakthrough.webm");
-  appendVideoMeta(form, meta);
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(
-        sessionId
-      )}/snippets/${encodeURIComponent(snippetId)}/breakthrough-video`,
-      { method: "POST", body: form, credentials: "include" }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  if (!data || typeof data !== "object") return null;
-  const d = data as Record<string, unknown>;
-  // FE-5 — the BE now echoes the authoritative coach_state alongside; prefer
-  // the ref inside it, then the older top-level shapes.
-  const cs =
-    d.coach_state && typeof d.coach_state === "object"
-      ? (d.coach_state as Record<string, unknown>)
-      : null;
-  const ref =
-    cs?.breakthrough_video_ref ?? d.breakthrough_video_ref ?? d.video_ref ?? d.public_url;
-  return typeof ref === "string" && ref.length > 0 ? ref : null;
-}
-
 /** Save a per-snippet patch. Returns the persisted state on success
  *  (echo from BE) or null on failure. This is the USER-FACING lane only —
  *  `note`/`tag`/`surfaced` to `insights_payload`. The blind rating lane is
@@ -452,8 +355,6 @@ export async function saveCoachSnippet(
   if (patch.note !== undefined) body.note = patch.note;
   if (patch.tag !== undefined) body.tag = patch.tag;
   if (patch.surfaced !== undefined) body.surfaced = patch.surfaced;
-  if (patch.breakthroughVideoRef !== undefined)
-    body.breakthrough_video_ref = patch.breakthroughVideoRef;
 
   let res: Response;
   try {

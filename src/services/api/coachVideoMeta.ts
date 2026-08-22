@@ -1,8 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*  coachVideoMeta — Subsystem V capture contract (FE side)                    */
 /*                                                                            */
-/*  Every coach video upload (take-summary + breakthrough) carries an          */
-/*  idempotency key + best-effort provenance, so the BE can build a training    */
+/*  Every coach video upload carries an idempotency key and best-effort         */
+/*  provenance, so the BE can build a training                                 */
 /*  corpus that tells a retry (dedupe) from a genuine re-record (a new take +   */
 /*  a preference pair). The key semantics are owned by the caller:             */
 /*    - ONE key per record action (a fresh file selection / recording)         */

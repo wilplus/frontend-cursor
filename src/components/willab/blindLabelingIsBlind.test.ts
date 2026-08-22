@@ -19,11 +19,8 @@ import {
 /*  from it carries a false blindness claim, and a corpus cannot be un-poisoned*/
 /*  afterwards: an anchored label is indistinguishable from a blind one.       */
 /*                                                                            */
-/*  The existing starVerdictSeparation test fences the labeler flow from       */
-/*  IMPORTING the star-verdict lane. It could not catch this one, because      */
-/*  `acousticRead` arrived on the labeler's OWN payload through coachReview.ts */
-/*  and walked straight past an import fence. So this file checks the render   */
-/*  surface instead.                                                           */
+/*  This file checks the render surface directly so a machine-derived field    */
+/*  cannot slip into the blind labeler's own payload unnoticed.                */
 /* -------------------------------------------------------------------------- */
 
 const SRC = join(fileURLToPath(new URL("../../", import.meta.url)));
