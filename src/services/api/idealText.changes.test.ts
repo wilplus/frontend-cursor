@@ -92,6 +92,34 @@ describe("mapDocumentSuggestions — hardened BE `changes` shape", () => {
     expect(mapDocumentSuggestions(undefined)).toBeNull();
     expect(mapDocumentSuggestions({})).toBeNull();
   });
+
+  it("drops malformed rows without letting nested payloads crash the read", () => {
+    expect(
+      mapDocumentSuggestions([
+        null,
+        "not-an-object",
+        { span: null, quote: "alpha", kind: "bold" },
+        { span: [], quote: "alpha", kind: "bold" },
+        { span: { start: 0, end: 5 }, quote: null, kind: "bold" },
+      ])
+    ).toEqual([]);
+  });
+
+  it("keeps the legacy top-level start/end alias", () => {
+    const out = mapDocumentSuggestions([
+      {
+        id: 42,
+        snippet_id: "s1",
+        take_session_id: "t1",
+        kind: "bold",
+        source: "wording",
+        start: 0,
+        end: 5,
+        quote: "alpha",
+      },
+    ]);
+    expect(out?.[0]).toMatchObject({ id: "42", start: 0, end: 5 });
+  });
 });
 
 describe("MASTER DOCUMENT — new_take block upgrade offers", () => {
@@ -314,6 +342,22 @@ describe("Confident Voice micro-practice mapping", () => {
         introduction: "Optional", passage: "same text",
       },
     }] as never)?.[0];
+    expect(c?.practiceExercise).toBeNull();
+  });
+
+  it("isolates malformed optional evidence, cues, and practice data", () => {
+    const c = mapDocumentSuggestions([{
+      id: "cv-3", snippet_id: "s", take_session_id: "t",
+      kind: "bold", source: "confident_voice",
+      quote: "same text", span: { start: 0, end: 9 },
+      evidence: { span: null },
+      cue_keys: { map: "not-an-array" },
+      practice_exercise: { passage: { map: "not-a-string" } },
+    }] as never)?.[0];
+
+    expect(c).toBeDefined();
+    expect(c?.evidence).toBeNull();
+    expect(c?.cueKeys).toEqual([]);
     expect(c?.practiceExercise).toBeNull();
   });
 });

@@ -17,7 +17,7 @@ export const maxDuration = 60;
  * 200 → { snippets: [...] } | { count } (BE-defined). The FE refetches the
  * session after a success rather than trusting the returned shape.
  *
- * 409 RECUT_WOULD_DISCARD_LABELS { labels, drafts } (BE-6) — the session has
+ * 409 RECUT_WOULD_DISCARD_COACH_WORK { drafts } (BE-6) — the session has
  * review work and ?force=true was absent. This route forwards the ?force flag
  * and passes the upstream status + body through unchanged, so the FE can read
  * the counts, confirm, and re-call with ?force=true to discard + proceed.

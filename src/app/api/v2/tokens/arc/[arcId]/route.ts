@@ -7,7 +7,7 @@ export const runtime = "nodejs";
  * GET /api/v2/tokens/arc/[arcId]
  *
  * Per-arc charge state + prices for the actions that are charged ONCE PER ARC
- * (`ref_id = arc_id`): insights, game, moment_explanation, coach_review.
+ * (`ref_id = arc_id`): insights and moment_explanation.
  *
  * This is what makes a price on those triggers honest. They are idempotent, so
  * the first use costs and every repeat is free — a static label would be right

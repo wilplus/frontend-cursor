@@ -176,14 +176,10 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     );
   });
 
-  it("writes through the ANCHORED endpoint, never the blind one", () => {
-    // saveOwnerConfidenceLabel collects a rating with no machine read on
-    // screen; this card has already shown one. The backend stamps
-    // saw_model_output off the ROUTE, so sending this through the blind call
-    // would put a false blindness claim in a corpus that cannot be
-    // un-poisoned afterwards (I1).
+  it("writes through the anchored owner-routing endpoint", () => {
+    // This answer is personal Voice Album routing. It is deliberately kept
+    // outside the blind peer-label corpus and can never become a quorum vote.
     expect(MODAL).toMatch(/saveConfidenceAgreement/);
-    expect(MODAL).not.toMatch(/saveOwnerConfidenceLabel/);
   });
 
   it("cannot construct an answer nobody gave", () => {

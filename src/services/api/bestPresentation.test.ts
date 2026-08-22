@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchBestPresentation,
-  fetchArcBreakthroughs,
 } from "./bestPresentation";
 
 vi.mock("@/lib/api/auth-client", () => ({
@@ -76,22 +75,5 @@ describe("fetchBestPresentation — preparing / ready state machine", () => {
     mockFetch(200, { arc_id: "a", ready: true, progress, slides: [] });
     const r = await fetchBestPresentation("a");
     expect(r && "preparing" in r).toBe(false);
-  });
-});
-
-describe("fetchArcBreakthroughs — free deliverable", () => {
-  it("402 → null (payment gate removed)", async () => {
-    mockFetch(402, { code: "PAYMENT_REQUIRED" });
-    expect(await fetchArcBreakthroughs("a")).toBeNull();
-  });
-
-  it("200 → the breakthroughs list", async () => {
-    mockFetch(200, {
-      arc_id: "a",
-      count: 1,
-      breakthroughs: [{ snippet_id: "s1", transcript: "The line.", note: "why" }],
-    });
-    const r = await fetchArcBreakthroughs("a");
-    expect(r && "breakthroughs" in r && r.breakthroughs).toHaveLength(1);
   });
 });

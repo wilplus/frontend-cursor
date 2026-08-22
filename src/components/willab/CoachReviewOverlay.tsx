@@ -13,7 +13,6 @@ import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
 import type { CoachSnippetState, SessionFeeling } from "@/services/api/coachReview";
 import {
-  type PublishLabel,
   type PublishNote,
   type PublishSnippetState,
 } from "@/services/api/publishWillabSession";
@@ -102,7 +101,6 @@ export default function CoachReviewOverlay({
   const [recutting, setRecutting] = useState(false);
   const [recutError, setRecutError] = useState<string | null>(null);
   const [recutConfirm, setRecutConfirm] = useState<{
-    labels: number;
     drafts: number;
   } | null>(null);
 
@@ -116,7 +114,7 @@ export default function CoachReviewOverlay({
       setCursor(0);
       await refresh();
     } else if (result.status === "needs_confirm") {
-      setRecutConfirm({ labels: result.labels, drafts: result.drafts });
+      setRecutConfirm({ drafts: result.drafts });
     } else {
       setRecutError(result.message);
     }
@@ -196,9 +194,8 @@ export default function CoachReviewOverlay({
     setPublishError(null);
 
     const notes: PublishNote[] = [];
-    const labels: PublishLabel[] = [];
     // The full per-snippet state array persists in one shot (R4-8 save-on-
-    // publish became save-on-Save); notes/labels ride along for back-compat.
+    // publish became save-on-Save); notes ride along with the snapshot.
     const snippets: PublishSnippetState[] = [];
     for (const s of session.snippets) {
       const cs = localState[s.id] ?? s.coachState;
@@ -217,7 +214,6 @@ export default function CoachReviewOverlay({
       sessionId: session.sessionId,
       overallMessage: overallMessage.trim() || null,
       notes,
-      labels,
       snippets,
     });
 
@@ -547,9 +543,9 @@ export default function CoachReviewOverlay({
           {recutConfirm ? (
             <p className="mt-2 text-[12px] text-red-600">
               This re-cuts the audio into new snippets and discards{" "}
-              {recutConfirm.labels > 0 || recutConfirm.drafts > 0
-                ? `${recutConfirm.labels} label${recutConfirm.labels === 1 ? "" : "s"} and ${recutConfirm.drafts} draft${recutConfirm.drafts === 1 ? "" : "s"}`
-                : "the notes and labels you've added"}{" "}
+              {recutConfirm.drafts > 0
+                ? `${recutConfirm.drafts} saved review item${recutConfirm.drafts === 1 ? "" : "s"}`
+                : "the coach notes you've added"}{" "}
               on this session.
             </p>
           ) : null}

@@ -4,23 +4,20 @@ import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 
 /* -------------------------------------------------------------------------- */
-/*  idealText — the arc's ONE-BLOCK ideal text (delivery layer)                */
+/*  idealText — the Project's one canonical presentation document              */
 /*                                                                            */
-/*  The paywalled deliverable: auto-assembled after 3 takes, coach-edited as    */
-/*  a single clean block, approved, then sent as the purple bubble. The user    */
-/*  reads it in the notebook overlay (bold openings = key_phrases, underlined   */
-/*  key moments deep-linking back to the feedback page) and may keep a          */
-/*  PERSONAL edited copy (notes) that never touches the coach-approved          */
-/*  canonical (L1).                                                            */
+/*  Take 1 creates it. Later Takes can produce proposals and evidence but never */
+/*  silently rebuild it. User edits and explicitly accepted proposals update   */
+/*  this same document; coach work remains review lineage or a proposal.        */
 /*                                                                            */
 /*  Safe-ahead: every call soft-fails; locked (402) and pending (404 /          */
 /*  unapproved) are first-class states, not errors.                            */
 /* -------------------------------------------------------------------------- */
 
 /** MOMENT_SUGGESTIONS — the machine suggestion behind a grey star. `emphasize`
- *  (Approve → the phrase becomes bold+orange, a charisma key moment) or
- *  `replace` (Approve → swap in an audience-fit rephrase; threat / swearing /
- *  very-low stickiness). `replacement` is null for emphasize.
+ *  (Approve → the phrase becomes an orange speaking anchor) or `replace`
+ *  (Approve → swap in a materially clearer audience-fit rephrase).
+ *  `replacement` is null for emphasize.
  *
  *  STRUCTURAL_STARS — `structure` is the third family: a rhetorical device
  *  detected in the transcript (a contrast or a list of three). It is a
@@ -108,11 +105,10 @@ export interface IdealKeyMomentLink {
   /** Whether the user already approved this suggestion. The BE folds the served
    *  text for an applied one and drops its star; this is informational. */
   applied?: boolean;
-  /** Verified-star flags — what sits behind the moments paywall. The content
-   *  itself (coach note + video) is served only by the paid moments GET. */
+  /** Verified-star flags — what sits behind the moments paywall. The coach
+   *  note itself is served only by the paid moments GET. */
   coach?: {
     hasMessage: boolean;
-    hasVideo: boolean;
     /** A blog post the coach attached to this verified moment. Absent when
      *  there is none, and absent for an unpublished or deleted post, so this
      *  can never render a dead link. NOT paywalled: unlike the coach's note,
@@ -329,243 +325,287 @@ export interface DocumentSuggestion {
   practiceExercise?: ConfidentVoicePracticeOffer | null;
 }
 
+type SuggestionKind = DocumentSuggestion["kind"];
+type SuggestionDevice = Exclude<DocumentSuggestion["device"], null>;
+type SuggestionSource = Exclude<DocumentSuggestion["source"], null>;
+type SuggestionStatus = Exclude<DocumentSuggestion["status"], null>;
+type SuggestionVisual = Exclude<DocumentSuggestion["visual"], null>;
+type FeedbackFamily = Exclude<
+  DocumentSuggestion["feedbackFamily"],
+  null | undefined
+>;
+type SuggestionEvidence = NonNullable<DocumentSuggestion["evidence"]>;
+
+const SUGGESTION_KINDS: readonly SuggestionKind[] = [
+  "replace",
+  "bold",
+  "advice",
+];
+const SUGGESTION_DEVICES: readonly SuggestionDevice[] = [
+  "emphasis",
+  "pace_fast",
+  "pace_slow",
+  "pause",
+  "congruence",
+  "impeccable",
+  "contrast",
+  "list_of_three",
+];
+const SUGGESTION_SOURCES: readonly SuggestionSource[] = [
+  "polish",
+  "prior_take",
+  "profanity",
+  "delivery",
+  "structural",
+  "wording",
+  "new_take",
+  "acoustic_swap",
+  "confident_voice",
+  "coach_revision",
+];
+const SUGGESTION_STATUSES: readonly SuggestionStatus[] = [
+  "pending",
+  "approved",
+  "dismissed",
+];
+const SUGGESTION_VISUALS: readonly SuggestionVisual[] = [
+  "star",
+  "underline",
+  "bold",
+];
+const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
+  "confident_voice",
+  "great_formulation",
+  "rewrite_clarity",
+];
+
+const DEFAULT_PRACTICE_YES_INTRODUCTION =
+  "This already sounds confident. Try this optional refinement to make the words clearer.";
+const DEFAULT_PRACTICE_NO_INTRODUCTION =
+  "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.";
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readEnum<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): T | null {
+  return typeof value === "string" && allowed.includes(value as T)
+    ? (value as T)
+    : null;
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readNonNegativeNumber(value: unknown): number | null {
+  const number = readFiniteNumber(value);
+  return number !== null && number >= 0 ? number : null;
+}
+
+function readSuggestionSpan(
+  record: Record<string, unknown>,
+): { start: number; end: number } | null {
+  // Older responses carried start/end at the top level. Keep that alias while
+  // requiring every value to be a finite, non-negative [start, end) span.
+  const span = asRecord(record.span ?? record);
+  if (!span) return null;
+
+  const start = readNonNegativeNumber(span.start);
+  const end = readNonNegativeNumber(span.end);
+  return start !== null && end !== null && end > start ? { start, end } : null;
+}
+
+function readSuggestionId(
+  value: unknown,
+  start: number,
+  end: number,
+  kind: SuggestionKind,
+): string {
+  const stringId = readNonEmptyString(value);
+  if (stringId) return stringId;
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : `${start}:${end}:${kind}`;
+}
+
+function mapSuggestionEvidence(value: unknown): SuggestionEvidence | null {
+  const evidence = asRecord(value);
+  const span = asRecord(evidence?.span);
+  if (
+    !evidence ||
+    typeof evidence.project_id !== "string" ||
+    typeof evidence.take_session_id !== "string" ||
+    typeof evidence.slide_index !== "number" ||
+    typeof evidence.paragraph_index !== "number" ||
+    typeof span?.start !== "number" ||
+    typeof span.end !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    projectId: evidence.project_id,
+    takeSessionId: evidence.take_session_id,
+    slideIndex: evidence.slide_index,
+    paragraphIndex: evidence.paragraph_index,
+    start: span.start,
+    end: span.end,
+  };
+}
+
+function mapPracticeExercise(
+  value: unknown,
+): ConfidentVoicePracticeOffer | null {
+  const practice = asRecord(value);
+  if (
+    !practice ||
+    typeof practice.exercise_id !== "string" ||
+    typeof practice.version !== "number" ||
+    typeof practice.title !== "string" ||
+    typeof practice.instruction !== "string" ||
+    typeof practice.introduction !== "string" ||
+    typeof practice.explanation_video_ref !== "string" ||
+    typeof practice.passage !== "string" ||
+    practice.passage.trim().length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    exerciseId: practice.exercise_id,
+    version: practice.version,
+    title: practice.title,
+    instruction: practice.instruction,
+    introduction: practice.introduction,
+    yesIntroduction:
+      typeof practice.yes_introduction === "string"
+        ? practice.yes_introduction
+        : DEFAULT_PRACTICE_YES_INTRODUCTION,
+    noIntroduction:
+      typeof practice.no_introduction === "string"
+        ? practice.no_introduction
+        : DEFAULT_PRACTICE_NO_INTRODUCTION,
+    explanationVideoRef: practice.explanation_video_ref,
+    passage: practice.passage,
+    practiceId:
+      typeof practice.practice_id === "string" ? practice.practice_id : null,
+    resume: practice.resume === true,
+  };
+}
+
+function hasActionableIdentity(
+  kind: SuggestionKind,
+  source: DocumentSuggestion["source"],
+  blockKey: number | null,
+  snippetId: string | null,
+  takeSessionId: string | null,
+): boolean {
+  if (kind === "advice") return true;
+  if (source === "new_take") return blockKey !== null && !!takeSessionId;
+  if (source === "prior_take") return !!snippetId;
+  return !!snippetId && !!takeSessionId;
+}
+
+function mapCueKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (cue): cue is string => typeof cue === "string" && cue.length > 0,
+  );
+}
+
+function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
+  const record = asRecord(item);
+  if (!record) return null;
+
+  const span = readSuggestionSpan(record);
+  const quote = readNonEmptyString(record.quote);
+  const kind = readEnum(record.kind, SUGGESTION_KINDS);
+  // A suggestion without a usable span, quote or kind cannot be rendered
+  // safely — drop it rather than anchor it by guesswork.
+  if (!span || !quote || !kind) return null;
+
+  const proposedText = readNonEmptyString(record.proposed_text);
+  const device = readEnum(record.device, SUGGESTION_DEVICES);
+  // Advice with no nameable device has no copy; a replace with no proposal is
+  // not a change. Neither should create an empty or impossible interaction.
+  if (kind === "advice" && !device) return null;
+  if (kind === "replace" && !proposedText) return null;
+
+  const snippetId = readNonEmptyString(record.snippet_id);
+  const takeSessionId = readNonEmptyString(record.take_session_id);
+  const source = readEnum(record.source, SUGGESTION_SOURCES);
+  const blockKey = readFiniteNumber(record.block_key);
+  // Each source reports its decision through a different endpoint. Never draw
+  // an Accept/Keep control when the identifiers needed by that endpoint are
+  // absent.
+  if (
+    !hasActionableIdentity(kind, source, blockKey, snippetId, takeSessionId)
+  ) {
+    return null;
+  }
+
+  const why = readEnum(record.why_key ?? record.why, CHANGE_WHY_KEYS);
+  return {
+    id: readSuggestionId(record.id, span.start, span.end, kind),
+    start: span.start,
+    end: span.end,
+    quote,
+    kind,
+    proposedText,
+    feedbackFamily: readEnum(record.feedback_family, FEEDBACK_FAMILIES),
+    device,
+    why,
+    source,
+    coachNote:
+      source === "coach_revision" &&
+      typeof record.coach_note === "string" &&
+      record.coach_note.trim()
+        ? record.coach_note.trim()
+        : null,
+    status: readEnum(record.status, SUGGESTION_STATUSES),
+    snippetId,
+    takeSessionId,
+    evidence: mapSuggestionEvidence(record.evidence),
+    takeIndex: readFiniteNumber(record.take_index),
+    blockKey,
+    visual: readEnum(record.visual, SUGGESTION_VISUALS),
+    pendingBetterVersion: record.pending_better_version === true,
+    // This is founder-signed copy. No fallback is minted here: a pending flag
+    // without its copy renders nothing rather than new user-facing language.
+    pendingCopy: readNonEmptyString(record.pending_copy),
+    // Shape-check only. The closed vocabulary lives in the copy map, so one
+    // unknown key renders nothing there instead of creating a second gate.
+    cueKeys: mapCueKeys(record.cue_keys),
+    snippetAudioRef: readNonEmptyString(record.snippet_audio_ref),
+    startOffsetMs: readFiniteNumber(record.start_offset_ms),
+    durationMs: readFiniteNumber(record.duration_ms),
+    practiceExercise: mapPracticeExercise(record.practice_exercise),
+  };
+}
+
 /** Map the GET's `changes` block (the BE's field; `suggestions` tolerated as
  *  an alias). ABSENT/unusable → null, and the FE
  *  renders exactly today's view (the tracked-changes lane is safe-ahead of
  *  BE-C). Every entry is validated hard: a bad span or a missing quote would
  *  corrupt the document, so it is dropped, never repaired. Pure. */
 export function mapDocumentSuggestions(
-  raw: unknown
+  raw: unknown,
 ): DocumentSuggestion[] | null {
   if (!Array.isArray(raw)) return null;
   const out: DocumentSuggestion[] = [];
   for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const span = (r.span ?? r) as Record<string, unknown>;
-    const num = (v: unknown): number | null =>
-      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
-    const start = num(span.start);
-    const end = num(span.end);
-    const quote = typeof r.quote === "string" ? r.quote : "";
-    const kind =
-      r.kind === "replace" || r.kind === "bold" || r.kind === "advice"
-        ? r.kind
-        : null;
-    // A suggestion without a usable span, quote or kind cannot be rendered
-    // safely — drop it rather than anchor it by guesswork.
-    if (start === null || end === null || end <= start || !quote || !kind) {
-      continue;
-    }
-    const id =
-      typeof r.id === "string" && r.id
-        ? r.id
-        : typeof r.id === "number" && Number.isFinite(r.id)
-          ? String(r.id)
-          : `${start}:${end}:${kind}`;
-    const proposed =
-      typeof r.proposed_text === "string" && r.proposed_text.length > 0
-        ? r.proposed_text
-        : null;
-    const dev = r.device;
-    const device =
-      dev === "emphasis" ||
-      dev === "pace_fast" ||
-      dev === "pace_slow" ||
-      dev === "pause" ||
-      dev === "congruence" ||
-      dev === "impeccable" ||
-      dev === "contrast" ||
-      dev === "list_of_three"
-        ? dev
-        : null;
-    // An advice entry with no nameable device has no copy to show — drop it
-    // rather than draw a star that opens an empty modal.
-    if (kind === "advice" && !device) continue;
-    // A replace with nothing to propose is not a change — drop it.
-    if (kind === "replace" && !proposed) continue;
-    const snippetId =
-      typeof r.snippet_id === "string" && r.snippet_id ? r.snippet_id : null;
-    const takeSessionId =
-      typeof r.take_session_id === "string" && r.take_session_id
-        ? r.take_session_id
-        : null;
-    const rawSource = r.source;
-    const source =
-      rawSource === "polish" ||
-      rawSource === "wording" ||
-      rawSource === "prior_take" ||
-      rawSource === "profanity" ||
-      rawSource === "delivery" ||
-      rawSource === "structural" ||
-      rawSource === "new_take" ||
-      rawSource === "acoustic_swap" ||
-      rawSource === "confident_voice" ||
-      rawSource === "coach_revision"
-        ? rawSource
-        : null;
-    const blockKey =
-      typeof r.block_key === "number" && Number.isFinite(r.block_key)
-        ? r.block_key
-        : null;
-    // A text change whose decision the FE cannot report would draw an Accept /
-    // Keep that can NEVER succeed — drop it (same "never repair" rule). The
-    // actionable identity is SOURCE-SPECIFIC (each routes to a different
-    // decision endpoint):
-    //   new_take (block upgrade) → blocks/<block_key>/decide: needs block_key
-    //     + take_session_id. Its snippet_id is deliberately null, so the old
-    //     "needs snippet_id" rule was silently dropping EVERY block offer.
-    //   prior_take → prior-take/decide: needs snippet_id + proposed_text
-    //     (proposed already required for a replace above).
-    //   everything else → suggestion-feedback: needs snippet_id + session.
-    //   advice carries no decision → no pair needed.
-    if (kind !== "advice") {
-      if (source === "new_take") {
-        if (blockKey === null || !takeSessionId) continue;
-      } else if (source === "prior_take") {
-        if (!snippetId) continue;
-      } else if (!snippetId || !takeSessionId) {
-        continue;
-      }
-    }
-    // The reason rides `why_key` (BE tracked_changes); `why` is free-text or
-    // null there. Prefer the key, and validate it to the closed set — model
-    // prose arriving on either field renders NO line rather than itself.
-    const whyRaw = r.why_key ?? r.why;
-    const status = r.status;
-    const feedbackFamily =
-      r.feedback_family === "confident_voice" ||
-      r.feedback_family === "great_formulation" ||
-      r.feedback_family === "rewrite_clarity"
-        ? r.feedback_family
-        : null;
-    const evidenceRaw =
-      r.evidence && typeof r.evidence === "object"
-        ? (r.evidence as Record<string, unknown>)
-        : null;
-    const evidenceSpan =
-      evidenceRaw?.span && typeof evidenceRaw.span === "object"
-        ? (evidenceRaw.span as Record<string, unknown>)
-        : null;
-    const evidence =
-      evidenceRaw &&
-      typeof evidenceRaw.project_id === "string" &&
-      typeof evidenceRaw.take_session_id === "string" &&
-      typeof evidenceRaw.slide_index === "number" &&
-      typeof evidenceRaw.paragraph_index === "number" &&
-      typeof evidenceSpan?.start === "number" &&
-      typeof evidenceSpan.end === "number"
-        ? {
-            projectId: evidenceRaw.project_id,
-            takeSessionId: evidenceRaw.take_session_id,
-            slideIndex: evidenceRaw.slide_index,
-            paragraphIndex: evidenceRaw.paragraph_index,
-            start: evidenceSpan.start,
-            end: evidenceSpan.end,
-          }
-        : null;
-    const practiceRaw =
-      r.practice_exercise && typeof r.practice_exercise === "object"
-        ? (r.practice_exercise as Record<string, unknown>)
-        : null;
-    const practiceExercise =
-      practiceRaw &&
-      typeof practiceRaw.exercise_id === "string" &&
-      typeof practiceRaw.version === "number" &&
-      typeof practiceRaw.title === "string" &&
-      typeof practiceRaw.instruction === "string" &&
-      typeof practiceRaw.introduction === "string" &&
-      typeof practiceRaw.explanation_video_ref === "string" &&
-      typeof practiceRaw.passage === "string" &&
-      practiceRaw.passage.trim().length > 0
-        ? {
-            exerciseId: practiceRaw.exercise_id,
-            version: practiceRaw.version,
-            title: practiceRaw.title,
-            instruction: practiceRaw.instruction,
-            introduction: practiceRaw.introduction,
-            yesIntroduction:
-              typeof practiceRaw.yes_introduction === "string"
-                ? practiceRaw.yes_introduction
-                : "This already sounds confident. Try this optional refinement to make the words clearer.",
-            noIntroduction:
-              typeof practiceRaw.no_introduction === "string"
-                ? practiceRaw.no_introduction
-                : "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.",
-            explanationVideoRef: practiceRaw.explanation_video_ref,
-            passage: practiceRaw.passage,
-            practiceId:
-              typeof practiceRaw.practice_id === "string"
-                ? practiceRaw.practice_id
-                : null,
-            resume: practiceRaw.resume === true,
-          }
-        : null;
-    out.push({
-      id,
-      start,
-      end,
-      quote,
-      kind,
-      proposedText: proposed,
-      feedbackFamily,
-      device,
-      why: CHANGE_WHY_KEYS.includes(whyRaw as ChangeWhy)
-        ? (whyRaw as ChangeWhy)
-        : null,
-      source,
-      coachNote:
-        source === "coach_revision" && typeof r.coach_note === "string" &&
-        r.coach_note.trim()
-          ? r.coach_note.trim()
-          : null,
-      status:
-        status === "pending" || status === "approved" || status === "dismissed"
-          ? status
-          : null,
-      snippetId,
-      takeSessionId,
-      evidence,
-      takeIndex:
-        typeof r.take_index === "number" && Number.isFinite(r.take_index)
-          ? r.take_index
-          : null,
-      blockKey,
-      visual:
-        r.visual === "star" || r.visual === "underline" || r.visual === "bold"
-          ? r.visual
-          : null,
-      pendingBetterVersion: r.pending_better_version === true,
-      // The copy is the founder's exact string, passed through verbatim —
-      // no fallback minted here (LIVE LOOP: copy needs sign-off, and a
-      // pending flag without its copy renders nothing rather than our words).
-      pendingCopy:
-        typeof r.pending_copy === "string" && r.pending_copy
-          ? r.pending_copy
-          : null,
-      // Cues are validated for SHAPE only: the closed vocabulary lives in
-      // the copy map, and a key with no sentence renders nothing there. Two
-      // gates for one rule would be one gate too many to keep in step.
-      cueKeys: Array.isArray(r.cue_keys)
-        ? (r.cue_keys as unknown[]).filter(
-            (c): c is string => typeof c === "string" && c.length > 0
-          )
-        : [],
-      snippetAudioRef:
-        typeof r.snippet_audio_ref === "string" && r.snippet_audio_ref
-          ? r.snippet_audio_ref
-          : null,
-      startOffsetMs:
-        typeof r.start_offset_ms === "number" &&
-        Number.isFinite(r.start_offset_ms)
-          ? r.start_offset_ms
-          : null,
-      durationMs:
-        typeof r.duration_ms === "number" && Number.isFinite(r.duration_ms)
-          ? r.duration_ms
-          : null,
-      practiceExercise,
-    });
+    const suggestion = mapDocumentSuggestion(item);
+    if (suggestion) out.push(suggestion);
   }
   return out;
 }
@@ -1112,7 +1152,6 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   const coach = coachRaw
     ? {
         hasMessage: coachRaw.has_message === true,
-        hasVideo: coachRaw.has_video === true,
         reference,
       }
     : null;

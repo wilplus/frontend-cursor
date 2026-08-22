@@ -40,7 +40,7 @@ export default function SiteHeader() {
         onLogout={menu.logout}
         loggingOut={menu.loggingOut}
         labHref="/chat"
-        gameHref="/game"
+        voiceAlbumHref="/voice-album"
         corpusHref={menu.isCoach ? "/coach/corpus" : null}
       />
     </header>

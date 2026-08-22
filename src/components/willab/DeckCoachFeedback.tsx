@@ -5,10 +5,7 @@ import { Loader2 } from "lucide-react";
 import { fetchArcFeedback } from "@/services/api/arcFeedback";
 
 /* -------------------------------------------------------------------------- */
-/*  DeckCoachFeedback — the coach's own message on this chunk's words          */
-/*  (founder 2026-08-11: "ad in one of the modals that there is a video        */
-/*  feedback from the coach" … "if there was a video feedack even on a locked  */
-/*  screen you can still see that feedback").                                  */
+/*  DeckCoachFeedback — the coach's own written note on this chunk's words.    */
 /*                                                                            */
 /*  Rendered on BOTH modal faces, locked chunks included — the founder's       */
 /*  requirement, and the reason it lives here rather than beside a proposal:   */
@@ -19,18 +16,13 @@ import { fetchArcFeedback } from "@/services/api/arcFeedback";
 /*  backend charges the insights price once per arc — so fetching it because   */
 /*  someone opened a chunk to fix a typo would bill them for a thing they did  */
 /*  not ask to see. The card announces itself from a FREE flag the ideal-text  */
-/*  payload already carries (`has_explanation`: the coach surfaced a note      */
-/*  and/or a video), and only the deliberate tap pays, exactly as opening the  */
+/*  payload already carries (`has_explanation`: the coach surfaced a note),    */
+/*  and only the deliberate tap pays, exactly as opening the                    */
 /*  feedback page from the Lounge does today.                                  */
 /* -------------------------------------------------------------------------- */
 
 /** The founder's copy, in full (2026-08-11). */
 const LABEL = "Coach note:";
-
-interface Loaded {
-  note: string | null;
-  videoRef: string | null;
-}
 
 export default function DeckCoachFeedback({
   arcId,
@@ -43,7 +35,7 @@ export default function DeckCoachFeedback({
   const [state, setState] = useState<"idle" | "loading" | "ready" | "empty">(
     "idle"
   );
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [loadedNote, setLoadedNote] = useState<string | null>(null);
 
   async function open() {
     if (!arcId || state === "loading") return;
@@ -54,14 +46,14 @@ export default function DeckCoachFeedback({
     const hit = (feedback?.takes ?? [])
       .flatMap((t) => t.keyMoments)
       .find((m) => m.snippetId === snippetId);
-    if (!hit || (!hit.commentText && !hit.commentVideoRef)) {
+    if (!hit?.commentText) {
       // The flag said there was something and the packet disagrees (a gated
       // take, a coach un-surfacing between the two reads). Say so plainly
       // rather than leaving a spinner or pretending the card was never here.
       setState("empty");
       return;
     }
-    setLoaded({ note: hit.commentText, videoRef: hit.commentVideoRef });
+    setLoadedNote(hit.commentText);
     setState("ready");
   }
 
@@ -97,25 +89,10 @@ export default function DeckCoachFeedback({
         </p>
       ) : null}
 
-      {state === "ready" && loaded ? (
-        <>
-          {loaded.note ? (
-            <p className="text-[14px] leading-relaxed text-foreground">
-              {loaded.note}
-            </p>
-          ) : null}
-          {loaded.videoRef ? (
-            <div className="overflow-hidden rounded-xl border border-border">
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video
-                src={loaded.videoRef}
-                controls
-                playsInline
-                className="w-full bg-black"
-              />
-            </div>
-          ) : null}
-        </>
+      {state === "ready" && loadedNote ? (
+        <p className="text-[14px] leading-relaxed text-foreground">
+          {loadedNote}
+        </p>
       ) : null}
     </div>
   );

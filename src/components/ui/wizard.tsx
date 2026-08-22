@@ -21,13 +21,9 @@ import { cn } from "@/lib/utils";
 /** One question per screen: the question with the flow's mark beside it, an
  *  optional eyebrow above, an optional helper below.
  *
- *  FOUNDER 2026-07-30 — the question now wears the VOICE-GAME head: icon and
- *  words on one line, 17px semibold, the mark in the primary tint
- *  (`/game`'s `<h1>`). It was a 22px heading under an uppercase eyebrow, which
- *  is a fourth heading treatment in a product that already had one for this
- *  job. Matching /game rather than inventing a fifth is the whole point, and
- *  the icon is what makes the line say WHICH flow you are in without spending
- *  a row of chrome on it.
+ *  The question uses the app's focused single-task heading: icon and words on
+ *  one line, 17px semibold, with the mark in the primary tint. The icon says
+ *  which flow the user is in without spending another row of chrome on it.
  *
  *  The eyebrow is optional now. The recording setup drops it (its five labels
  *  restated the question one line above it); the panel's setup keeps it,

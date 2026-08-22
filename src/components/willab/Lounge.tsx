@@ -41,7 +41,6 @@ import IdealTextOverlay, {
 } from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
-import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
@@ -59,8 +58,6 @@ import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
 import LoungeTopUpCard from "./LoungeTopUpCard";
-import ReflectionGamePrompt from "./ReflectionGamePrompt";
-import CoachReflectionQueue from "./CoachReflectionQueue";
 import ConfidencePracticeOverlay from "./ConfidencePracticeOverlay";
 import {
   useInstallOffer,
@@ -198,8 +195,6 @@ export default function Lounge({
     arcId: string;
     sessionIds: string[];
   } | null>(null);
-  // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
-  const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // F2/F7 — the offer (install / legacy joke) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -922,7 +917,6 @@ export default function Lounge({
                 key={item.reactKey}
                 message={item.message}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
-                onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
@@ -961,28 +955,6 @@ export default function Lounge({
         <LoungeTopUpCard state={state} threadLoading={thread.loading} />
 
         <LoungeSpeakerSexPrompt state={state} threadLoading={thread.loading} />
-
-        {/* F2 §1 — the Reflection Game card: the machine's clipped moment as a
-            question, in-thread for the same LIVE-LOOP reason as the ask above.
-            Server-capped at 2/day; renders nothing when there's nothing to
-            ask (or for guests). */}
-        <ReflectionGamePrompt
-          signedIn={thread.signedIn}
-          threadLoading={thread.loading}
-          active={!isLabOverlay(state)}
-        />
-
-        {/* F2 §1d — the coach's BLIND clip verification, the half that closes
-            the loop (no verdict, no Confident Voices entry). Mounted LAST on
-            purpose: text verification outranks clip verification (founder
-            decision), and the review-queue bubbles above are that text work,
-            so a backed-up coach meets them first. Renders nothing for
-            non-coaches or an empty queue. */}
-        <CoachReflectionQueue
-          isCoach={isCoach}
-          threadLoading={thread.loading}
-          active={!isLabOverlay(state)}
-        />
 
         {botThinking && <TypingDots />}
       </div>
@@ -1220,12 +1192,6 @@ export default function Lounge({
         </button>
       </form>
 
-      {breakthroughsArcId && (
-        <BreakthroughsOverlay
-          arcId={breakthroughsArcId}
-          onClose={() => setBreakthroughsArcId(null)}
-        />
-      )}
       {/* Delivery layer — the 4 bubbles' destinations. */}
       {feedbackTarget && (
         <FeedbackOverlay
@@ -1549,7 +1515,6 @@ function Bubble({
   message,
   onViewInsights,
   onOpenBestPresentation,
-  onOpenBreakthroughs,
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
@@ -1564,8 +1529,6 @@ function Bubble({
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
-  /** C2 — open BreakthroughsOverlay from the ideal-text hero card. */
-  onOpenBreakthroughs?: (arcId: string) => void;
   /** transcript_ready card — opens the Trainings library. */
   onOpenTranscripts?: () => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
@@ -1608,7 +1571,6 @@ function Bubble({
         message={message}
         onViewInsights={onViewInsights}
         onOpenBestPresentation={onOpenBestPresentation}
-        onOpenBreakthroughs={onOpenBreakthroughs}
         onOpenTranscripts={onOpenTranscripts}
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}

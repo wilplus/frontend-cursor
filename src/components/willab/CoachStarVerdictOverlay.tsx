@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, Sparkles, Video } from "lucide-react";
+import { BadgeCheck, Sparkles } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -13,13 +13,9 @@ import {
   CoachEyebrow,
   CoachMetaPill,
 } from "./coachChrome";
-import CoachVideoRecorder from "./CoachVideoRecorder";
-import { useCoachVideoCapture } from "./useCoachVideoCapture";
 import {
   buildVerdictBody,
   correctionOptions,
-  deleteStarVideo,
-  uploadStarVideo,
   effectiveReplacement,
   effectiveWhy,
   fetchCoachArcStars,
@@ -449,39 +445,6 @@ export default function CoachStarVerdictOverlay({
     setPickerId((id) => (id === key ? null : id));
   }
 
-  /** A recorded video IS the approval (founder 2026-07-30). Mirror the ref
-   *  locally, then persist `keep` through the normal verdict path so the
-   *  corpus sees an ordinary judgment, not a second kind of write. N5 still
-   *  applies: the coach can tap another verdict afterwards. */
-  async function onVideoSaved(star: ArcStar, ref: string) {
-    setStars(
-      (rows) =>
-        rows?.map((r) =>
-          starRowKey(r) === starRowKey(star) ? { ...r, videoRef: ref } : r
-        ) ?? null
-    );
-    if (star.verdict !== "keep") await save(star, "keep");
-  }
-
-  /** Deleting the video is "I'd rather say it in words", not a retraction —
-   *  the verdict is deliberately left alone. */
-  async function onVideoDeleted(star: ArcStar) {
-    const key = starRowKey(star);
-    const ok = await deleteStarVideo(star.snippetId);
-    if (!ok) {
-      setErrors((e) => ({
-        ...e,
-        [key]: "Couldn't remove the video. Try again.",
-      }));
-      return;
-    }
-    setStars(
-      (rows) =>
-        rows?.map((r) => (starRowKey(r) === key ? { ...r, videoRef: null } : r)) ??
-        null
-    );
-  }
-
   // SPEC §5 — the confident-voices strip: this arc's KEPT stars, i.e. the
   // moments the coach has verified, playable in place. Derived from the same
   // rows the body renders, so the strip and the review can never disagree.
@@ -873,17 +836,6 @@ export default function CoachStarVerdictOverlay({
                   </button>
                 )}
 
-                {/* Say it instead of writing it (founder 2026-07-30). One step
-                    below the note, same slot, same audience. Recording IS the
-                    approval — see StarVideoSlot. */}
-                <StarVideoSlot
-                  snippetId={s.snippetId}
-                  videoRef={s.videoRef}
-                  busy={savingKeys[key] === true}
-                  onSaved={(ref) => void onVideoSaved(s, ref)}
-                  onDeleted={() => void onVideoDeleted(s)}
-                />
-
                 {errors[key] ? (
                   <CoachErrorLine>{errors[key]}</CoachErrorLine>
                 ) : null}
@@ -987,135 +939,6 @@ export default function CoachStarVerdictOverlay({
         ) : null}
         </div>
       </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  StarVideoSlot — the coach's note, said out loud (founder 2026-07-30).       */
-/*                                                                            */
-/*  Deliberately the simplest thing that works: if there is no video you get   */
-/*  one drop-zone and one Record button. If there is one, you get the video,   */
-/*  Replace, and Delete. Nothing else — no trimming, no title, no preview      */
-/*  step. It stays once recorded, and re-recording replaces it.                */
-/*                                                                            */
-/*  RECORDING IS APPROVAL: the parent persists `keep` when a video lands. A    */
-/*  coach who went to the trouble of recording has made their call, so making  */
-/*  them then tap Keep would be asking the same question twice. Reversible     */
-/*  (N5) — tapping another verdict afterwards overrides it.                    */
-/*                                                                            */
-/*  Its own component so the capture hook is per row: rows render in a map,    */
-/*  and hooks cannot live in a loop.                                           */
-/* -------------------------------------------------------------------------- */
-function StarVideoSlot({
-  snippetId,
-  videoRef,
-  busy,
-  onSaved,
-  onDeleted,
-}: {
-  snippetId: string;
-  videoRef: string | null;
-  /** The row's verdict save is in flight — don't stack a second write on it. */
-  busy: boolean;
-  onSaved: (ref: string) => void;
-  onDeleted: () => void;
-}) {
-  const cap = useCoachVideoCapture(
-    (file, meta) => uploadStarVideo(snippetId, file, meta),
-    (ref) => onSaved(ref)
-  );
-  const disabled = busy || cap.uploading;
-
-  if (videoRef) {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="overflow-hidden rounded-xl border border-border">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video src={videoRef} controls playsInline className="w-full bg-black" />
-        </div>
-        <div className="flex items-center gap-3">
-          <label
-            className={`text-[12px] font-medium text-foreground underline ${
-              disabled ? "opacity-50" : "cursor-pointer"
-            }`}
-          >
-            {cap.uploading ? "Replacing…" : "Replace video"}
-            <input
-              type="file"
-              accept="video/*"
-              className="hidden"
-              disabled={disabled}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) cap.submit(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onDeleted}
-            className="text-[12px] text-destructive underline disabled:opacity-50"
-          >
-            Delete video
-          </button>
-        </div>
-        {cap.error ? <CoachErrorLine>{cap.error}</CoachErrorLine> : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label
-        className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-4 text-center ${
-          disabled ? "opacity-50" : "cursor-pointer"
-        }`}
-      >
-        {cap.uploading ? (
-          <VoiceMark size={20} />
-        ) : (
-          <Video className="h-5 w-5 text-primary" aria-hidden />
-        )}
-        <span className="text-[13px] font-medium text-primary">
-          {cap.uploading ? "Uploading…" : "Add a video"}
-        </span>
-        <span className="text-[11px] text-muted-foreground">
-          Say it instead of writing it
-        </span>
-        <input
-          type="file"
-          accept="video/*"
-          className="hidden"
-          disabled={disabled}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) cap.submit(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {/* Outside the <label> so its buttons don't trip the file picker. */}
-      <CoachVideoRecorder
-        onRecorded={(file) => cap.submit(file, { source: "in-app-recording" })}
-        disabled={disabled}
-      />
-      {cap.error ? (
-        <p className="flex items-center gap-2">
-          <CoachErrorLine inline>{cap.error}</CoachErrorLine>
-          {cap.retryable ? (
-            <button
-              type="button"
-              onClick={cap.retry}
-              className="text-[12px] font-medium text-foreground underline underline-offset-2"
-            >
-              Retry
-            </button>
-          ) : null}
-        </p>
-      ) : null}
     </div>
   );
 }

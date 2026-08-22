@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, Copy, Download, Lock, Presentation, Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -122,8 +121,7 @@ export default function IdealTextOverlay({
   const loadedArcRef = useRef<string | null>(null);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the moments unlock has run.
-  // Confidence-game entry navigates to /game (its own page, over from /chat).
-  const router = useRouter();
+  // Voice Album is a separate personal surface, outside project editing.
   const { reload: reloadLounge } = useLoungeThreadCtx();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
@@ -977,22 +975,6 @@ export default function IdealTextOverlay({
           take after take, each an official recording. */}
       {status === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
-          {/* Confidence game (founder 2026-07-28) — the per-arc first-time
-              entry lives HERE, in the same place as the re-read, once the
-              user has collected at least three coach-confirmed confident-
-              voice moments. (The always-offered end-of-arc play/skip comes
-              later, once the game is established.) */}
-          {(ideal?.keyMoments ?? []).filter((m) => m.star === "verified")
-            .length >= 3 ? (
-            <button
-              type="button"
-              onClick={() => router.push(`/game?arc=${encodeURIComponent(arcId)}`)}
-              className="mb-2 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-primary/40 bg-primary/5 text-[14px] font-medium text-foreground transition-colors hover:border-primary/70"
-            >
-              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-              Play the confidence game
-            </button>
-          ) : null}
           {/* MASTER DOCUMENT — Save, then the next official take. */}
           <IdealTextActions
             arcId={arcId}

@@ -13,8 +13,8 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  CoachVideoRecorder — in-app camera+mic record flow (FP-2, FE-6)            */
 /*                                                                            */
-/*  A "Record" affordance that sits ALONGSIDE the file input in CoachVideoSlot */
-/*  and the per-snippet breakthrough block. Flow (FE-6 — no confirm step):    */
+/*  A "Record" affordance that sits alongside the file input in its parent.    */
+/*  Flow (FE-6 — no confirm step):                                              */
 /*    Record → live preview + timer (Stop / Cancel) → stop AUTO-UPLOADS       */
 /*  The assembled File goes straight to onRecorded, through the same          */
 /*  idempotency/retry/provenance seam as a file pick (source:                 */

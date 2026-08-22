@@ -36,7 +36,6 @@ function star(over: Partial<ArcStar> = {}): ArcStar {
     starKind: "delivery",
     starDevice: "pace_fast",
     trigger: "pace_fast",
-    videoRef: null,
     why: null,
     replacementText: null,
     verdict: null,
@@ -68,8 +67,6 @@ describe("mapArcStar — drop-not-repair", () => {
       verdict: null,
       correctedDevice: null,
       note: null,
-      // Absent on a payload that predates the star-video lane → null.
-      videoRef: null,
       deviceOptions: ["emphasis", "pace_fast", "pace_slow", "pause", "congruence"],
       starVersion: null,
       audioRef: null,

@@ -83,52 +83,10 @@ export function buildRatingBody(
 
 export type SaveRatingResult = { ok: true } | { ok: false; error: string | null };
 
-/** The OWNER's write — the ideal-text modal's blind label (founder
- *  2026-08-10: "the modal in the ideal text has an option to label the
- *  voice snippet"). Same body as the coach write; the BE ownership-gates
- *  the snippet and resolves the lane to game_owner. Coach + owner are the
- *  two labels that admit a snippet to the game ("min twice labelled"). */
-export async function saveOwnerConfidenceLabel(
-  snippetId: string,
-  body: StateRatingBody
-): Promise<SaveRatingResult> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, error: null };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/owner-confidence-label`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return { ok: false, error: null };
-  }
-  if (res.ok) return { ok: true };
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  const err = data?.error;
-  return { ok: false, error: typeof err === "string" && err ? err : null };
-}
-
 /** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
  *
- *  Same instrument, same question, same answer space — and ONE thing
- *  different, which is why it is a different endpoint rather than a flag on
- *  the one above: `saveOwnerConfidenceLabel` collects a BLIND rating (it asks
- *  before any machine read is shown), and this collects an ANCHORED one, on a
- *  card that has already told the speaker what the machine thinks.
- *
- *  The endpoint is separate because the path carries one narrow purpose: this
+ *  This is an ANCHORED owner response on a card that has already told the
+ *  speaker what the machine thinks. The endpoint carries one narrow purpose:
  *  answer routes the displayed moment into (or out of) the Voice Album. The
  *  backend stores it in a dedicated routing table. It is never a training,
  *  calibration, quorum, evaluation, SFT or DPO signal. */

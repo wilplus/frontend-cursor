@@ -24,7 +24,6 @@ import {
   formatRecordingClock,
   measureSlideClockOffset,
 } from "./willabHelpers";
-import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
@@ -67,8 +66,8 @@ import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 /*  mic for its lifetime via useDualCaptureMic and releases it on close.       */
 /*                                                                            */
 /*    lab_session_context → §4 step A form (topic required)                    */
-/*    lab_prerecord       → R5 one-layer priming panel (threat/challenge/       */
-/*                          balanced phrase + "I'm ready"); its tap starts mic  */
+/*    lab_prerecord       → one supportive readiness message; its tap starts   */
+/*                          the mic without recording an experiment condition  */
 /*    lab_recording       → live capture, timer (no minimum time — BE-2)        */
 /*    lab_processing      → upload (submitLabRecording, §3.3): Readout on 201,   */
 /*                          async poll on 202, re-record on 422, error+retry     */
@@ -191,12 +190,6 @@ export default function LabOverlay({
   // a live recording), so a BE rejection (422) offers "upload a different file"
   // instead of only "record again" (an upload user may not want to speak now).
   const lastWasUploadRef = useRef(false);
-  // R5 — the framing condition + phrase shown on the pre-take priming panel,
-  // stashed at proceed so the upload can log it (BE correlates framing → read).
-  const primingRef = useRef<{ condition: PrimingCondition; phrase: string } | null>(
-    null
-  );
-
   // Explore-arc state (Prompt B §F2). The cache is ACCOUNT-SCOPED, so wait for
   // auth resolution before hydrating it; reading an unscoped slot during that
   // brief null state is how another account's project used to seed a take.
@@ -552,11 +545,6 @@ export default function LabOverlay({
         // take. Both are FE-side; neither is fixed by a backend deploy.
         continueArcId: arcId ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
-        // R5 — the framing manipulation shown on the priming panel, logged for
-        // the threat/challenge/balanced correlation. undefined for uploads
-        // (they skip the panel).
-        primingCondition: primingRef.current?.condition,
-        primingPhrase: primingRef.current?.phrase,
       });
       if (!active) return;
       if (result.kind === "ok") {
@@ -868,7 +856,6 @@ export default function LabOverlay({
     setContext(restored);
     setRejectedMsg(null);
     uploadSeqRef.current += 1; // drop any stale upload-duration read
-    primingRef.current = null;
     startPendingRef.current = true;
     // Same stale-"stopped" reset every entry into lab_recording now does — a
     // check-in that follows a take in the same overlay session would otherwise
@@ -892,7 +879,6 @@ export default function LabOverlay({
     setContext(restored);
     setRejectedMsg(null);
     uploadSeqRef.current += 1;
-    primingRef.current = null;
     startPendingRef.current = true;
     cancelMic();
     goTo("lab_recording");
@@ -1023,14 +1009,12 @@ export default function LabOverlay({
                 return;
               }
               lastWasUploadRef.current = false;
-              // SD — the priming panel (threat/challenge framing) is deleted:
-              // the submit click IS the user gesture getUserMedia needs, so the
+              // The submit click IS the user gesture getUserMedia needs, so the
               // mic starts right here and recording begins immediately.
               setExploreEnabled(explore);
               setContext(ctx);
               setRejectedMsg(null);
               uploadSeqRef.current += 1; // drop any stale upload-duration read
-              primingRef.current = null;
               startPendingRef.current = true;
               // RESET THE MIC FIRST. It is still "stopped" from the previous
               // take, and the stop→processing branch above fires on the first
@@ -1137,7 +1121,7 @@ export default function LabOverlay({
             onReRecord={() => {
               // Abandon the slow analysis (the daemon still finishes it server-
               // side; the marker + Lounge indicator keep tracking it) and take
-              // the user back through priming → mic for a fresh take. The
+              // the user back to the mic for a fresh take. The
               // stashed arc bookkeeping goes with it — the abandoned take must
               // not advance the arc.
               pendingCarryRef.current = null;
@@ -1147,7 +1131,6 @@ export default function LabOverlay({
               setProcessingProgress(null);
               uploadStartedRef.current = false;
               setBlob(null);
-              primingRef.current = null;
               startPendingRef.current = true;
               // Same stale-"stopped" hazard as onReRead — reset before entering.
               cancelMic();
@@ -1213,7 +1196,6 @@ export default function LabOverlay({
               pendingCarryRef.current = null;
               setPollSessionId(null);
               setPollSlow(false);
-              primingRef.current = null;
               startPendingRef.current = true;
               // THE BUTTON THE FOUNDER PRESSED (2026-08-12): "after clicking
               // the record button - it yet again opens up the waiting screen
@@ -1283,42 +1265,6 @@ export default function LabOverlay({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-/* ---------------- §4 step A.5: pre-take priming panel (R5) ---------------- */
-
-/* One-layer mindset-priming panel between Setup and the mic, shown on every
- * take: one framing phrase (threat / challenge / balanced by batch position,
- * one picked at random) + a proceed button. The proceed click is the user
- * gesture the mic needs, so the parent starts recording from it. The shown
- * condition + phrase is reported back so the upload can log it. (R6-FE6: the
- * parabola/intro explainer screen that preceded this was deleted — the panel
- * is the single pre-take screen again.) */
-function PrimingPanel({
-  batchTake,
-  onProceed,
-}: {
-  /** Position within the 3-take batch (1/2/3) → threat/challenge/balanced. */
-  batchTake: number;
-  onProceed: (condition: PrimingCondition, phrase: string) => void;
-}) {
-  // Pick once per mount (a re-render must not re-roll the phrase).
-  const [picked] = useState(() => pickPrimingPhrase(batchTake));
-
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
-      <p className="max-w-md text-[20px] font-semibold leading-relaxed text-foreground">
-        {picked.phrase}
-      </p>
-      <Button
-        type="button"
-        onClick={() => onProceed(picked.condition, picked.phrase)}
-        className="h-12 rounded-full px-8 text-[15px] font-medium"
-      >
-        I&apos;m ready
-      </Button>
     </div>
   );
 }
@@ -1629,7 +1575,7 @@ function Processing({
    *  "taking longer than usual" copy + offer a re-record. Never an error. */
   slow?: boolean;
   onRetry: () => void;
-  /** Abandon a slow analysis and record a fresh take (priming → mic). */
+  /** Abandon a slow analysis and record a fresh take. */
   onReRecord?: () => void;
   onClose: () => void;
 }) {

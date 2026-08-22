@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, EyeOff, Video } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import SnippetReadoutBlock from "./SnippetReadoutBlock";
-import { VoiceMark } from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
 import SnippetSlideCorrection from "./SnippetSlideCorrection";
 import type { ReadoutSlide } from "./readout";
 import {
   saveCoachSnippet,
-  uploadBreakthroughVideo,
   type CoachReviewSnippet,
   type CoachSnippetState,
 } from "@/services/api/coachReview";
@@ -19,13 +17,10 @@ import {
   CONFIDENCE_QUESTION,
   type TernaryValue,
 } from "@/services/api/stateRatings";
-import { useCoachVideoCapture } from "./useCoachVideoCapture";
-import CoachVideoRecorder from "./CoachVideoRecorder";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
 import {
   CoachCard,
-  CoachErrorLine,
   CoachEyebrow,
   CoachMetaPill,
 } from "./coachChrome";
@@ -36,18 +31,17 @@ import {
 /*  Top half mirrors the user's ReadoutCard anatomy (What + Topic stickiness   */
 /*  — same component primitives, same labels) so the coach reads the snippet   */
 /*  in the same shape the user reads it. Bottom half is the coach control     */
-/*  surface — the §S.4 anatomy's "Why + video" slot is replaced with:          */
-/*    Direction (private, training)                                            */
+/*  surface — the §S.4 explanation slot is replaced with:                     */
+/*    Blind confidence label (separate research provenance)                    */
 /*    Coach note (user-facing)                                                  */
 /*    Tag (user-facing)                                                         */
 /*    Surface toggle (whether the user sees this snippet)                       */
 /*                                                                            */
 /*  SAVE TIMING — batched, NOT per click (R4-8). The §F.4 immediate save this  */
-/*  header used to describe is RETIRED and was left here stale: note /         */
-/*  direction / tag / surfaced live in LOCAL state only, mirror to the overlay */
+/*  header used to describe is RETIRED and was left here stale: note / tag /   */
+/*  surfaced live in LOCAL state only, mirror to the overlay                    */
 /*  through onStateChange (which also feeds a localStorage crash cache), and   */
-/*  persist in ONE shot from the overlay's Save. The breakthrough-video ref is */
-/*  the single exception — a server-side asset, saved live.                    */
+/*  persist in ONE shot from the overlay's Save.                               */
 /*                                                                            */
 /*  The batching is an audience rule, not a preference: note / tag / surfaced  */
 /*  are USER-FACING, so a half-written note must not be able to reach the      */
@@ -60,16 +54,8 @@ import {
 /*  Label hygiene (§S.3): no best/worst pre-fill, no machine guess in the UI.  */
 /*  The coach labels blind, in the chronological order BE returns.            */
 /*                                                                            */
-/*  BLIND FOR REAL, 2026-08-07. This card used to render the acoustic needle   */
-/*  (`acousticRead`) above the label controls. The backend stamps              */
-/*  `saw_model_output: false` on every ternary rating it writes, so collecting */
-/*  a label under a visible machine read would have written that assertion as  */
-/*  a LIE — unrecoverable once in the corpus, and indistinguishable from a     */
-/*  genuinely blind row. The needle moved to the adjudication lane, which is   */
-/*  where judging the machine's output belongs.                                */
-/*                                                                            */
-/*  The F2 direction chips (challenge / ambiguous / threat) are GONE with it.  */
-/*  That construct is retired and must not surface anywhere in the FE.         */
+/*  Blind labels never render a machine read. The backend stamps               */
+/*  `saw_model_output: false`, so exposing one here would corrupt provenance.  */
 /* -------------------------------------------------------------------------- */
 
 /* The fixed answer space now lives in ConfidenceLabelChips (the shared
@@ -105,8 +91,7 @@ export default function CoachSnippetReviewCard({
   // R4-8 — save-on-publish: note/direction/tag/surfaced edits live in LOCAL
   // state only (mirrored to the overlay via onStateChange, which also feeds a
   // localStorage crash cache). Nothing hits the server per keystroke; the
-  // overlay's Publish persists everything in one shot. The breakthrough-video
-  // ref is the one exception (a server-side asset), saved live as before.
+  // overlay's Publish persists everything in one shot.
   const [coachState, setCoachState] = useState<CoachSnippetState>(
     initialState ?? snippet.coachState
   );
@@ -116,8 +101,6 @@ export default function CoachSnippetReviewCard({
   // un-marks after upload" bug).
   const coachStateRef = useRef(coachState);
   coachStateRef.current = coachState;
-  const [savingField, setSavingField] = useState<"breakthrough" | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   // The BLIND RATING lane. Deliberately NOT part of CoachSnippetState:
   //   * it persists to its own endpoint (the state-generic ternary), and
@@ -169,36 +152,6 @@ export default function CoachSnippetReviewCard({
     [snippet.id, onStateChange]
   );
 
-  // Post-upload save of the breakthrough ref. Returns a boolean so the capture
-  // hook keeps the idempotency key if THIS save fails (retry re-runs under the
-  // same key → deduped re-upload, no phantom take). Surfaces its own error via
-  // the hook (videoCap.error + Retry), so it doesn't set the shared saveError.
-  //
-  // FE-5 — adopt ONLY the just-persisted video ref from the echo (same policy
-  // as removeVideo). note/direction/tag/surfaced live LOCALLY until the
-  // take-level Save, so local is always at least as fresh as the echo for
-  // those fields — writing any of them back would either revert a mid-upload
-  // edit (the "direction chip un-marks" bug) or resurrect a deliberately
-  // cleared value from the last save.
-  const saveBreakthroughRef = useCallback(
-    async (url: string): Promise<boolean> => {
-      const echo = await saveCoachSnippet(sessionId, snippet.id, {
-        breakthroughVideoRef: url,
-      });
-      if (!echo) return false;
-      applyLocal({ breakthroughVideoRef: echo.breakthroughVideoRef });
-      return true;
-    },
-    [sessionId, snippet.id, applyLocal]
-  );
-
-  // Subsystem V: the breakthrough video upload owns its idempotency key +
-  // provenance via the shared hook (retry dedupes, re-record is a new take).
-  const videoCap = useCoachVideoCapture(
-    (file, meta) => uploadBreakthroughVideo(sessionId, snippet.id, file, meta),
-    saveBreakthroughRef
-  );
-
   // One writer for both controls so the XOR can never be violated from the UI:
   // picking a value clears `unrateable`, and abstaining clears the value. The
   // backend rejects a body carrying both; constructing one here would be a bug
@@ -236,22 +189,6 @@ export default function CoachSnippetReviewCard({
 
   function toggleSurfaced() {
     applyLocal({ surfaced: !coachState.surfaced });
-  }
-
-  // The video REF is a server-side asset pointer, so clearing it stays a live
-  // server write (mirrors the upload path), then syncs the local state.
-  async function removeVideo() {
-    setSavingField("breakthrough");
-    setSaveError(null);
-    const next = await saveCoachSnippet(sessionId, snippet.id, {
-      breakthroughVideoRef: null,
-    });
-    setSavingField(null);
-    if (!next) {
-      setSaveError("Couldn't remove the video. Try again.");
-      return;
-    }
-    applyLocal({ breakthroughVideoRef: next.breakthroughVideoRef });
   }
 
   function onNoteChange(value: string) {
@@ -319,8 +256,8 @@ export default function CoachSnippetReviewCard({
         mappedIndex={snippet.slide ? snippet.slide.index : null}
       />
 
-      {/* Audio + transcript ONLY. acousticRead / features are the machine's
-          read and are deliberately NOT passed: the backend stamps
+      {/* Audio + transcript ONLY. Machine-derived features are deliberately
+          NOT passed: the backend stamps
           saw_model_output=false on every rating written below, so showing
           them here would make that stamp a lie. Judging the machine's output
           is the adjudication lane's job, on its own screen. */}
@@ -357,90 +294,6 @@ export default function CoachSnippetReviewCard({
           snippetId={snippet.id}
           enabled={!ratingSaving && !unrateable && (rating === "yes" || rating === "no")}
         />
-
-        {/* Moment video — appears once the coach has made a DEFINITE call
-            (yes or no), so they can attach a short clip about the moment
-            either way. Deliberately not on "Ambiguous" or an abstention:
-            there is no moment to talk about yet. */}
-        {!unrateable && (rating === "yes" || rating === "no") ? (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-foreground">
-              Video
-              <CoachEyebrow className="ml-2">Shown to user</CoachEyebrow>
-            </p>
-            {coachState.breakthroughVideoRef ? (
-              <div className="mt-2 flex flex-col gap-2">
-                <div className="overflow-hidden rounded-xl border border-border">
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                  <video
-                    src={coachState.breakthroughVideoRef}
-                    controls
-                    playsInline
-                    className="w-full bg-black"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void removeVideo()}
-                  disabled={savingField === "breakthrough"}
-                  className="self-start text-[13px] text-destructive hover:underline disabled:opacity-50"
-                >
-                  Remove video
-                </button>
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
-                  {videoCap.uploading ? (
-                    <VoiceMark size={20} />
-                  ) : (
-                    <Video className="h-5 w-5 text-primary" aria-hidden />
-                  )}
-                  <span className="text-[13px] font-medium text-primary">
-                    {videoCap.uploading ? "Uploading…" : "Add a video"}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    A short video about this moment
-                  </span>
-                  <input
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    disabled={videoCap.uploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      // New selection → new record action / key.
-                      if (f) videoCap.submit(f);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                {/* In-app camera capture (FP-2), beside the file drop-zone.
-                    Outside the <label> so its buttons don't trip the picker. */}
-                <CoachVideoRecorder
-                  onRecorded={(file) =>
-                    videoCap.submit(file, { source: "in-app-recording" })
-                  }
-                  disabled={videoCap.uploading}
-                />
-              </div>
-            )}
-            {videoCap.error ? (
-              <p className="mt-1 flex items-center gap-2 text-[12px] text-destructive">
-                <span>{videoCap.error}</span>
-                {videoCap.retryable ? (
-                  <button
-                    type="button"
-                    onClick={videoCap.retry}
-                    className="font-medium text-foreground underline underline-offset-2"
-                  >
-                    Retry
-                  </button>
-                ) : null}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
 
         {/* Coach note — user-facing prose */}
         <div className="mt-4">
@@ -502,11 +355,6 @@ export default function CoachSnippetReviewCard({
             />
           )}
           <span className={`text-[12px] ${statusTone}`}>{statusLabel}</span>
-          {saveError ? (
-            <CoachErrorLine inline className="ml-2">
-              · {saveError}
-            </CoachErrorLine>
-          ) : null}
         </div>
       </div>
     </CoachCard>

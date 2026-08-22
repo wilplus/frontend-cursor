@@ -16,7 +16,6 @@ import {
   type StrengthsView,
 } from "@/services/api/strengths";
 import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
-import ConfidentVoicesShelf from "./ConfidentVoicesShelf";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -429,10 +428,6 @@ export default function LibraryOverlay({
           />
         ) : isEmpty ? (
           <>
-            {/* F2 §1e — the album can hold verified moments even before any
-                training rows exist (a coach-verified game clip needs no read),
-                so the shelf mounts on the empty state too. */}
-            <ConfidentVoicesShelf />
             <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
               Nothing here yet. Your strongest moments collect here as your
               coach sends reads.
@@ -440,11 +435,6 @@ export default function LibraryOverlay({
           </>
         ) : trainings !== null ? (
           <>
-            {/* F2 §1e — the Confident Voices album, above the trainings at the
-                hub's top level only. Renders nothing while the library is
-                empty, so today's hub is untouched until the first
-                coach-verified moment. */}
-            <ConfidentVoicesShelf />
             <TrainingsList
               trainings={trainings}
               onOpen={(arc) => setNav({ level: "T2", arc })}

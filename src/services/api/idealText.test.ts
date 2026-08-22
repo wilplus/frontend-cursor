@@ -176,7 +176,7 @@ describe("mapIdealText", () => {
     expect(v?.keyMoments[0]?.reviewStatus).toBe("pending_coach_review");
   });
 
-  it("maps a verified (orange) star with a coach video, applied", () => {
+  it("maps a verified (orange) star with a coach message, applied", () => {
     const v = mapIdealText({
       text: "hello world",
       key_moments: [
@@ -186,7 +186,7 @@ describe("mapIdealText", () => {
           take_session_id: "t1",
           star: "verified",
           applied: true,
-          coach: { has_message: true, has_video: true },
+          coach: { has_message: true },
         },
       ],
     });
@@ -194,7 +194,7 @@ describe("mapIdealText", () => {
       star: "verified",
       applied: true,
       suggestion: null,
-      coach: { hasMessage: true, hasVideo: true },
+      coach: { hasMessage: true },
     });
   });
 
@@ -517,7 +517,6 @@ describe("coach reference (FE-5)", () => {
     const r = mapIdealText(
       withCoach({
         has_message: true,
-        has_video: false,
         reference: {
           slug: "why-your-voice-shakes",
           title: "Why your voice shakes",
@@ -531,9 +530,7 @@ describe("coach reference (FE-5)", () => {
   });
 
   it("is null when the key is absent, so nothing renders", () => {
-    const r = mapIdealText(
-      withCoach({ has_message: true, has_video: false })
-    );
+    const r = mapIdealText(withCoach({ has_message: true }));
     const coach = r?.keyMoments?.[0]?.coach;
     expect(coach?.reference ?? null).toBeNull();
   });
@@ -542,7 +539,6 @@ describe("coach reference (FE-5)", () => {
     const r = mapIdealText(
       withCoach({
         has_message: true,
-        has_video: false,
         reference: { slug: "a-post", title: "A post" },
       })
     );
@@ -554,7 +550,6 @@ describe("coach reference (FE-5)", () => {
     const r = mapIdealText(
       withCoach({
         has_message: true,
-        has_video: false,
         reference: { slug: "a-post", title: "" },
       })
     );

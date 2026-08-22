@@ -21,8 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /*  file-size guard for VBR spikes, and auto-stop at MAX_DURATION_SEC.           */
 /* -------------------------------------------------------------------------- */
 
-/** Hard stop so a forgotten recording can't blow past the upload budget. A
- *  short coach clip ("why this was the breakthrough") fits comfortably. */
+/** Hard stop so a forgotten recording cannot blow past the upload budget. */
 export const MAX_DURATION_SEC = 60;
 /** ~400 kbps video + ~64 kbps audio is ~3.5 MB over the 60 s cap — safely under
  *  the ~4.5 MB Vercel body limit the BFF buffers against. */
