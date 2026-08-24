@@ -236,7 +236,15 @@ export default function CoachReviewOverlay({
     if (!arcId || publishing) return;
     setPublishing(true);
     setPublishError(null);
-    const r = await publishArc(arcId);
+    const publishPayloads = (reviewState?.takes ?? [])
+      .map((take) => take.publishPayload)
+      .filter((payload): payload is NonNullable<typeof payload> => payload !== null);
+    if (publishPayloads.length === 0) {
+      setPublishing(false);
+      setPublishError("Save at least one reviewed take before publishing.");
+      return;
+    }
+    const r = await publishArc(arcId, publishPayloads);
     setPublishing(false);
     if (r.kind === "ok") {
       clearCoachReviewDraft(sessionId);

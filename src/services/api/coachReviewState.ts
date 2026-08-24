@@ -20,6 +20,14 @@ export interface ReviewStateTake {
   reviewState: ReviewTakeState | null;
   /** The take carries a re-read (a corrected re-recording) alongside the spoken. */
   hasReread: boolean;
+  publishPayload: CoachPublishPayload | null;
+}
+
+export interface CoachPublishPayload {
+  sessionId: string;
+  overallMessage: string | null;
+  feedbackItems: Record<string, unknown>[];
+  shareVideo: boolean;
 }
 
 /** Why publish is blocked. Only ONE thing blocks now (founder 2026-08-14:
@@ -88,11 +96,29 @@ function pickTake(raw: unknown): ReviewStateTake | null {
   const r = raw as Record<string, unknown>;
   const sessionId = typeof r.session_id === "string" ? r.session_id : "";
   if (!sessionId) return null;
+  const payload = r.publish_payload;
+  const p = payload && typeof payload === "object"
+    ? (payload as Record<string, unknown>)
+    : null;
+  const payloadSessionId = typeof p?.session_id === "string" ? p.session_id : "";
   return {
     sessionId,
     takeIndex: num(r.take_index),
     reviewState: pickReviewState(r.review_state),
     hasReread: r.has_reread === true,
+    publishPayload:
+      p && payloadSessionId === sessionId && Array.isArray(p.feedback_items)
+        ? {
+            sessionId,
+            overallMessage:
+              typeof p.overall_message === "string" ? p.overall_message : null,
+            feedbackItems: p.feedback_items.filter(
+              (item): item is Record<string, unknown> =>
+                !!item && typeof item === "object" && !Array.isArray(item)
+            ),
+            shareVideo: p.share_video === true,
+          }
+        : null,
   };
 }
 

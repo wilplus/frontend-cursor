@@ -372,6 +372,7 @@ describe("mapCoachReviewState (FE-2)", () => {
           takeIndex: 1,
           reviewState: "reviewed",
           hasReread: true,
+          publishPayload: null,
         },
       ],
       takesSaved: 3,
@@ -400,7 +401,13 @@ describe("mapCoachReviewState (FE-2)", () => {
     });
     expect(s?.published).toBe(false);
     expect(s?.takes).toEqual([
-      { sessionId: "s2", takeIndex: null, reviewState: null, hasReread: false },
+      {
+        sessionId: "s2",
+        takeIndex: null,
+        reviewState: null,
+        hasReread: false,
+        publishPayload: null,
+      },
     ]);
     expect(s?.ideal.assemblyState).toBeNull();
     expect(s?.ideal.approved).toBe(false);

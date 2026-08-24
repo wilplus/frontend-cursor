@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import type { CoachPublishPayload } from "@/services/api/coachReviewState";
 
 /* -------------------------------------------------------------------------- */
 /*  arcBatch — the arc-level "Save and Publish full analysis" action.          */
@@ -18,7 +19,10 @@ export type PublishArcResult =
  *  bubbles). The live 409s are TAKES_NOT_SAVED / IDEAL_TEXT_NOT_APPROVED;
  *  they surface via the BE's own message (the wrap-up's review-state read
  *  should have prevented them). */
-export async function publishArc(arcId: string): Promise<PublishArcResult> {
+export async function publishArc(
+  arcId: string,
+  reviews: CoachPublishPayload[]
+): Promise<PublishArcResult> {
   const token = await getAuthToken();
   if (!token) {
     return { kind: "error", status: 401, message: "Sign in as a coach to publish." };
@@ -28,7 +32,22 @@ export async function publishArc(arcId: string): Promise<PublishArcResult> {
   try {
     res = await fetch(`/api/v2/coach/arc/${encodeURIComponent(arcId)}/publish`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reviews: reviews.map((review) => ({
+          session_id: review.sessionId,
+          idempotency_key:
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `${review.sessionId}:${Date.now()}`,
+          overall_message: review.overallMessage,
+          feedback_items: review.feedbackItems,
+          share_video: review.shareVideo,
+        })),
+      }),
     });
   } catch {
     return { kind: "error", status: 0, message: "Couldn't reach the server. Try again." };
