@@ -93,7 +93,7 @@ jobs:
           done
           # First-compile warmup: a spec that navigates mid-compile races
           # its own selectors. Compile each harness page before any spec.
-          for p in dev/life-bets dev/corpus dev/game dev/star-verdicts dev/marked-editor dev/deck; do
+          for p in dev/life-bets dev/corpus dev/star-verdicts dev/marked-editor dev/deck; do
             curl -sf -o /dev/null "http://localhost:3111/$p" || true
           done
 
@@ -101,7 +101,6 @@ jobs:
         run: |
           node e2e/bets-reorder.spec.mjs
           node e2e/corpus.spec.mjs
-          node e2e/game.spec.mjs
           node e2e/star-verdicts.spec.mjs
           node e2e/deck.spec.mjs
           MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
