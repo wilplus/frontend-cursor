@@ -18,14 +18,12 @@ export async function saveCoachFeedback(
   const token = await getAuthToken();
   if (!token) return { ok: false, message: "Not signed in." };
 
-  // Mirrors publishWillabSession's body 1:1 (minus notify_client — a save is
-  // never delivered, so there is nothing to notify about).
+  // Paragraph feedback is persisted through snippets[] as canonical draft
+  // items. The take-level summary is a separate scalar, never a second
+  // feedback payload.
   const body = {
     session_id: input.sessionId,
-    insights_payload: {
-      overall_message: input.overallMessage,
-      snippet_notes: input.notes,
-    },
+    overall_message: input.overallMessage,
     ...(input.snippets ? { snippets: input.snippets } : {}),
   };
 

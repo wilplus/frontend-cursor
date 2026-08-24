@@ -62,8 +62,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The Python backend's auth endpoints live under /v2/auth/* (matches the
-  // sibling /v2/auth/merge-session BFF). Earlier this route incorrectly
+  // The Python backend's auth endpoints live under /v2/auth/*. Earlier this route incorrectly
   // posted to `/signup` at the root, which 404'd / threw and surfaced as
   // a generic "Registration service unavailable" 502 to the user.
   const upstreamUrl = `${backendUrl}/v2/auth/signup`;

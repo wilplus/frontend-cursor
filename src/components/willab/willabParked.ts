@@ -11,6 +11,7 @@ import type { ReadoutPayload } from "./readout";
 /* -------------------------------------------------------------------------- */
 
 export interface ParkedReadout {
+  projectId: string;
   sessionId: string | null; // the Lab upload's session_id (for send/re-read)
   topic: string;
   readout: ReadoutPayload;
@@ -33,9 +34,16 @@ export function readParked(): ParkedReadout | null {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<ParkedReadout> | null;
-    if (!p || !p.readout || !Array.isArray(p.readout.snippets)) return null;
+    if (
+      !p ||
+      typeof p.projectId !== "string" ||
+      !p.projectId ||
+      !p.readout ||
+      !Array.isArray(p.readout.snippets)
+    ) return null;
     const r = p.readout as ReadoutPayload;
     return {
+      projectId: p.projectId,
       sessionId: typeof p.sessionId === "string" ? p.sessionId : null,
       topic: typeof p.topic === "string" ? p.topic : "",
       // Default the per-deck-slide fields so a readout parked by an older app
@@ -45,6 +53,7 @@ export function readParked(): ParkedReadout | null {
       // before that field existed doesn't show a spurious "unavailable" notice.
       readout: {
         ...r,
+        feedbackItems: Array.isArray(r.feedbackItems) ? r.feedbackItems : [],
         slides: Array.isArray(r.slides) ? r.slides : [],
         slideTranscripts: Array.isArray(r.slideTranscripts)
           ? r.slideTranscripts

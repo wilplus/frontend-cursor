@@ -41,7 +41,10 @@ describe("the deckless take records against the default deck", () => {
     // The opposite rule to the upload, and both must hold: this cache seeds
     // the next session's setup, so recording a default deck into it would
     // tell the next take the speaker had uploaded a presentation.
-    const carry = LAB.slice(LAB.indexOf("const carryArc ="), LAB.indexOf("const result = await submitLabRecording"));
+    const carry = LAB.slice(
+      LAB.indexOf("const carryArc ="),
+      LAB.indexOf("let projectId = arcId;")
+    );
     expect(carry).toMatch(/slides: context\.slides,/);
     expect(carry).not.toMatch(/recordingSlides/);
   });

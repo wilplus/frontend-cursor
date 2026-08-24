@@ -342,10 +342,8 @@ export async function uploadCoachVideo(
   return typeof ref === "string" ? ref : null;
 }
 
-/** Save a per-snippet patch. Returns the persisted state on success
- *  (echo from BE) or null on failure. This is the USER-FACING lane only —
- *  `note`/`tag`/`surfaced` to `insights_payload`. The blind rating lane is
- *  services/api/stateRatings.ts and never rides on this patch. */
+/** Save a per-snippet canonical feedback draft. The blind rating lane is
+ * services/api/stateRatings.ts and never rides on this patch. */
 export async function saveCoachSnippet(
   sessionId: string,
   snippetId: string,

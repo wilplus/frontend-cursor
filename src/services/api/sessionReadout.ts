@@ -4,12 +4,11 @@ import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
 import { type LabSessionContext } from "@/components/willab/LabOverlay";
 
 /* -------------------------------------------------------------------------- */
-/*  sessionReadout — re-read a session's Readout (§3.0 park / §6 insights)     */
+/*  sessionReadout — re-read a session's durable coaching result               */
 /*                                                                            */
 /*  GET /api/v2/user/sessions/<id>/readout. Same envelope as the upload 201    */
-/*  (A2) — { state, readout:{ snippets } } — plus, post-publish, each snippet's │
-/*  coach{note,tag} + insights_payload.overall_message (mapped by              */
-/*  mapReadoutPayload). Reading it also triggers the BE library ingest (§3.11).*/
+/*  (A2) — { state, readout:{ snippets } } — plus, post-publish, canonical     */
+/*  feedback_items and the separate coach_review summary/video layer.          */
 /* -------------------------------------------------------------------------- */
 
 export interface SessionReadout {
@@ -17,7 +16,7 @@ export interface SessionReadout {
   readout: ReadoutPayload;
   /** FE-1 — top-level `setup` block (BE-1): the take's original intake context,
    *  used to restore setup for the next take when localStorage lost it. null
-   *  until the BE ships it (safe-ahead). */
+ *  until the BE ships it (safe-ahead). */
   setup: LabSessionContext | null;
 }
 

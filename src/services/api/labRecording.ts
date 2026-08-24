@@ -6,6 +6,7 @@ import { type PresentationSlide } from "@/components/willab/presentation";
 import { type Feeling } from "@/components/willab/willabFeelings";
 import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
 import { type LabSessionContext } from "@/components/willab/LabOverlay";
+import { guestOwnerHeaders } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  labRecording — the Lab upload client (seam ③, §3.3)                        */
@@ -17,6 +18,10 @@ import { type LabSessionContext } from "@/components/willab/LabOverlay";
 
 export interface LabUploadInput {
   audioBlob: Blob;
+  /** Immutable canonical project selected or created before this upload. */
+  projectId: string;
+  /** One key per captured take, reused unchanged for every network retry. */
+  uploadIdempotencyKey: string;
   durationSec: number;
   topic: string;
   audience?: string;
@@ -42,50 +47,14 @@ export interface LabUploadInput {
    *  per take, normally small and positive. Omitted when unmeasurable, which
    *  leaves the BE on exactly its previous behaviour. */
   slideClockOffsetMs?: number;
-  /** Explore-session arc (Prompt B §F2). Set explore_session=true on take 1
-   *  (no arc_id yet); subsequent takes carry the returned arc_id + incremented
-   *  take_index. undefined = standalone recording, arc_id null on response. */
-  exploreSession?: boolean;
-  /** Explicit project identity boundary. `new` always mints a fresh project;
-   *  `continue` may only use the user-selected continueArcId. Omitted only by
-   *  legacy/standalone callers. Decks, topics, and hashes never decide this. */
-  projectIntent?: "new" | "continue";
-  arcId?: string;
-  takeIndex?: number;
-  /** Context-aware setup (founder 2026-07-22) — the project this take
-   *  continues.
-   *
-   *  FE-4 (2026-07-27) — this is now the FLAT, authoritative field and the BE
-   *  numbers the takes, so a continuation no longer sends `take_index`. It
-   *  used to ride alongside the legacy arc_id/take_index pair because the
-   *  deployed BE resolved the arc from those; sending a take_index the server
-   *  also computes is how a take lands under the wrong number, and a wrong
-   *  number splits the arc that the ideal text is ranked across. */
-  continueArcId?: string;
   /** Pre-recording feeling — private correlation input (AC-9, never shown back). */
   feeling?: Feeling;
   /** #191 — "spoken" (the take itself) vs "read" (a re-read of a piece's
    *  corrected text). Default/omitted = spoken (the BE's default). */
   recordingKind?: "spoken" | "read";
-  /** THE RETRY COLLAPSE's key — ONE PER RECORDING, minted by the caller when
-   *  the audio is captured and reused for every attempt at sending it.
-   *
-   *  It used to be minted here, per CALL, which is not an idempotency key at
-   *  all: the two lanes inside one call shared it (they share this form), but
-   *  a caller-level retry built a fresh form, drew a fresh uuid, and the
-   *  backend's collapse guard could never match. One recording then landed as
-   *  takes N and N+1 with identical audio — which is the double take, and the
-   *  reason the version badge jumps by two.
-   *
-   *  Absent → a fresh uuid, i.e. exactly the old behaviour, so a caller that
-   *  has not been taught to hold a key still uploads. */
-  uploadIdempotencyKey?: string;
   /** #191 — for a read, the spoken session this re-read belongs to. The BE links
    *  it to that take and it does NOT count as a new take. */
   pairedSessionId?: string;
-  /** #191 — a fresh id so a read is its own session (the read never overwrites
-   *  the spoken take). Sent for reads; omit for the spoken take. */
-  guestSessionId?: string;
   /** DELIVERY_STARS (BE PR #222) — a snippet re-record's target snippet. The
    *  re-record IS a read on this endpoint: recording_kind "read" +
    *  paired_session_id (the take) + this. Flat field, same rule as above. */
@@ -126,25 +95,16 @@ export type LabUploadResult =
 export function guardRecordingInput(
   input: LabUploadInput
 ): { ok: true; input: LabUploadInput } | { ok: false; message: string } {
-  if (input.projectIntent === "new" && (input.arcId || input.continueArcId)) {
+  if (
+    typeof input.projectId !== "string" ||
+    !input.projectId.trim() ||
+    typeof input.uploadIdempotencyKey !== "string" ||
+    !input.uploadIdempotencyKey.trim()
+  ) {
     return {
       ok: false,
       message: "Something went wrong on our end.",
     };
-  }
-  if (input.projectIntent === "continue") {
-    if (!input.continueArcId) {
-      return {
-        ok: false,
-        message: "Something went wrong on our end.",
-      };
-    }
-    if (input.arcId && input.arcId !== input.continueArcId) {
-      return {
-        ok: false,
-        message: "Something went wrong on our end.",
-      };
-    }
   }
   if (input.recordingKind === "read") {
     if (!input.pairedSessionId) {
@@ -160,10 +120,6 @@ export function guardRecordingInput(
     recordingKind: _kind,
     pairedSessionId: _paired,
     pairedSnippetId: _snippet,
-    // A spoken take never reuses a session id — the BE mints one and the FE
-    // adopts the returned `session_id` (a reused id is what made a new take
-    // inherit the read's state).
-    guestSessionId: _guest,
     ...spoken
   } = input;
   return { ok: true, input: spoken };
@@ -173,15 +129,11 @@ export function guardRecordingInput(
  *  the FE's last fail-closed check: a malformed or stale server response may
  *  never silently move the UI onto another project's ideal text. */
 export function projectIdentityError(
-  input: Pick<LabUploadInput, "projectIntent" | "continueArcId">,
-  returnedArcId: string | null
+  input: Pick<LabUploadInput, "projectId">,
+  returnedProjectId: string | null
 ): string | null {
-  if (!input.projectIntent) return null;
-  if (!returnedArcId) return "The lab did not return a project id.";
-  if (
-    input.projectIntent === "continue" &&
-    returnedArcId !== input.continueArcId
-  ) {
+  if (!returnedProjectId) return "The lab did not return a project id.";
+  if (returnedProjectId !== input.projectId) {
     return "The lab returned a different project than the one selected.";
   }
   return null;
@@ -255,17 +207,7 @@ function appendDeckContext(form: FormData, input: LabUploadInput): void {
 }
 
 function appendProjectContext(form: FormData, input: LabUploadInput): void {
-  if (input.exploreSession) form.append("explore_session", "true");
-  appendPresentFields(form, [
-    ["project_intent", input.projectIntent],
-    ["arc_id", input.arcId],
-    ["continue_arc_id", input.continueArcId],
-  ]);
-  // The server numbers continuation takes. A client take index is valid only
-  // when there is no authoritative continuation id.
-  if (input.takeIndex != null && !input.continueArcId) {
-    form.append("take_index", String(input.takeIndex));
-  }
+  form.append("project_id", input.projectId);
 
   if (input.feeling) {
     form.append("feeling", input.feeling);
@@ -274,20 +216,12 @@ function appendProjectContext(form: FormData, input: LabUploadInput): void {
   appendPresentFields(form, [
     ["recording_kind", input.recordingKind],
     ["paired_session_id", input.pairedSessionId],
-    ["guest_session_id", input.guestSessionId],
     ["paired_snippet_id", input.pairedSnippetId],
   ]);
 }
 
 function appendIdempotencyKey(form: FormData, input: LabUploadInput): void {
-  try {
-    form.append(
-      "upload_idempotency_key",
-      input.uploadIdempotencyKey || crypto.randomUUID()
-    );
-  } catch {
-    // Ancient WebViews without crypto.randomUUID keep the legacy behavior.
-  }
+  form.append("upload_idempotency_key", input.uploadIdempotencyKey);
 }
 
 function buildLabUploadForm(input: LabUploadInput): FormData {
@@ -373,8 +307,8 @@ function projectIdentityFailure(
   input: LabUploadInput,
   body: LabResponseBody
 ): LabUploadResult | null {
-  const returnedArcId = stringOrNull(body?.arc_id);
-  if (!projectIdentityError(input, returnedArcId)) return null;
+  const returnedProjectId = stringOrNull(body?.project_id);
+  if (!projectIdentityError(input, returnedProjectId)) return null;
   return {
     kind: "error",
     status: 502,
@@ -555,10 +489,14 @@ export async function submitLabRecording(
   const input = guard.input;
   const form = buildLabUploadForm(input);
   const token = await getAuthToken();
+  const headers = {
+    ...authHeaders(token),
+    ...(token ? {} : guestOwnerHeaders()),
+  };
 
   let response: Response;
   try {
-    response = await postLabUpload(form, authHeaders(token));
+    response = await postLabUpload(form, headers);
   } catch {
     return {
       kind: "error",
@@ -572,10 +510,9 @@ export async function submitLabRecording(
 }
 
 /* -------------------------------------------------------------------------- */
-/*  guest readout re-read (bugs 4 & 6, BE-1) — GET /v2/lab/recordings/<id>/     */
-/*  readout via the optional-auth BFF. Unlike the authed sessionReadout.ts      */
-/*  service, this needs no token: an unclaimed session's own unguessable UUID   */
-/*  is the capability. Used for (a) polling a fresh guest recording until its   */
+/*  guest readout re-read — GET /v2/lab/recordings/<id>/readout via the        */
+/*  optional-auth BFF. A guest proves canonical ownership with its signed       */
+/*  Guest ID; a UUID by itself is never access. Used for (a) polling until its  */
 /*  async Say It Stronger cards land, and (b) re-opening a guest's "Your        */
 /*  Recording" bubble, which the authed re-read 401s on.                        */
 /* -------------------------------------------------------------------------- */
@@ -624,7 +561,7 @@ export async function fetchGuestLabReadout(
   sessionId: string
 ): Promise<LabReadoutReread | null> {
   const token = await getAuthToken(); // forwarded when present; never required
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = token ? {} : guestOwnerHeaders();
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let res: Response;
@@ -647,7 +584,7 @@ export async function fetchGuestLabReadout(
 export async function retryLabProcessing(sessionId: string): Promise<boolean> {
   const token = await getAuthToken();
   try {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = token ? {} : guestOwnerHeaders();
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(
       `/api/v2/lab/recordings/${encodeURIComponent(sessionId)}/retry-processing`,

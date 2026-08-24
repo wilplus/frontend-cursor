@@ -3,7 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
-import WillabPendingSend from "@/components/willab/WillabPendingSend";
+import PendingCoachSend from "@/components/willab/PendingCoachSend";
+import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
@@ -93,11 +94,11 @@ export default function RootLayout({
         <Footer />
         <Toaster position="top-center" />
         <ServiceWorkerRegistrar />
-        {/* Side-effect-only: post-OAuth merge-then-send for the unsigned
-            send gate (§13). Bridges the OAuth round-trip; renders nothing. */}
-        <WillabPendingSend />
+        {/* Side-effect-only: claim the guest graph, then send the exact parked
+            Project Take after OAuth. Renders nothing. */}
+        <PendingCoachSend />
+        <GuestProjectClaim />
       </body>
     </html>
   );
 }
-

@@ -8,6 +8,7 @@ import {
   type LabReadoutReread,
 } from "@/services/api/labRecording";
 import { createSseFrameParser } from "@/lib/sse";
+import { guestOwnerHeaders } from "@/services/api/projects";
 
 /* -------------------------------------------------------------------------- */
 /*  useLabReadoutLive — push-first transport for the async-analysis readout.   */
@@ -79,6 +80,7 @@ export function useLabReadoutLive(
           const token = await getAuthToken();
           const headers: Record<string, string> = {
             Accept: "text/event-stream",
+            ...(token ? {} : guestOwnerHeaders()),
           };
           if (token) headers.Authorization = `Bearer ${token}`;
           const res = await fetch(

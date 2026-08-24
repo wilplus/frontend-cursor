@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  transcriptEdits — the user's own edit of a readout transcript             */
@@ -24,6 +25,7 @@ export async function saveTranscriptEdit(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? {} : guestOwnerHeaders()),
   };
   const payload =
     "snippetId" in target

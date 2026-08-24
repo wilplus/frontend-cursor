@@ -38,12 +38,14 @@ const BFF_ABORT_MS = 280_000;
  * Verbatim status + JSON pass-through so the FE client owns the envelope shape.
  */
 const UPSTREAM = "/v2/lab/recordings";
+const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 
 export async function POST(req: NextRequest) {
   // Optional auth — the Lab upload is public/guest; forward the token if signed.
   const token = await getAccessToken();
   const contentType =
     req.headers.get("content-type") ?? "application/octet-stream";
+  const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BFF_ABORT_MS);
@@ -55,7 +57,10 @@ export async function POST(req: NextRequest) {
   try {
     upstream = await backendFetch(UPSTREAM, {
       method: "POST",
-      headers: { "Content-Type": contentType },
+      headers: {
+        "Content-Type": contentType,
+        ...(guestOwner ? { [GUEST_OWNER_HEADER]: guestOwner } : {}),
+      },
       body: req.body,
       duplex: "half", // required when streaming a request body
       signal: controller.signal,

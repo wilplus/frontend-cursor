@@ -30,6 +30,38 @@ export interface ReadoutStickiness {
 
 export type CoachTag = "strong" | "to_work_on";
 
+export type FeedbackFamily =
+  | "confident_voice"
+  | "great_formulation"
+  | "rewrite_for_clarity";
+
+export interface FeedbackEvidence {
+  projectId: string;
+  takeId: string;
+  slideIndex: number;
+  paragraphIndex: number;
+  pieceId: string | null;
+  evidenceSpan: { start: number; end: number; text: string };
+  audioInterval: { startMs: number; endMs: number } | null;
+}
+
+export interface ReadoutFeedbackItem {
+  id: string;
+  family: FeedbackFamily;
+  message: string;
+  reviewState:
+    | "reviewed"
+    | "refined"
+    | "material_correction"
+    | "not_confirmed"
+    | null;
+  replacementText: string | null;
+  applicationGuidance: string | null;
+  examples: string[];
+  userDecision: "pending" | "accepted" | "rejected";
+  evidence: FeedbackEvidence;
+}
+
 /** Coach's user-facing note on a snippet — POST-PUBLISH ONLY (§14 user lane;
  *  the private direction label never crosses into this). */
 export interface ReadoutCoach {
@@ -183,14 +215,11 @@ export interface InstantChunk {
 
 export interface ReadoutPayload {
   snippets: ReadoutSnippet[];
-  /** insights_payload.overall_message — post-publish only; null on the raw Readout. */
+  /** Canonical exact-evidence feedback. Empty after publish means no changes needed. */
+  feedbackItems: ReadoutFeedbackItem[];
+  /** Optional take-level coach summary, separate from paragraph feedback. */
   overallMessage: string | null;
-  /** insights_payload.video_ref — the OVERALL coach video (§F.6), a sibling of
-   *  overall_message, NOT per-snippet. A ready-to-use public URL
-   *  (`coach_media_public_url`) the BE folds into insights_payload at publish
-   *  time. Present only on sessions published after a coach video upload;
-   *  null otherwise → hide-when-empty, same as overallMessage. A session
-   *  published before the coach added a video won't carry one until re-publish. */
+  /** Optional take-level coach video, separate from paragraph feedback. */
   videoRef: string | null;
   /** Phase 2 — the session's served deck PDF (presentation_ref), used to render
    *  the per-snippet slide page. null when no deck was attached. */
@@ -457,10 +486,99 @@ function mapCoach(raw: unknown): ReadoutCoach | null {
   return { note, tag, when, examples, transcriptCorrected };
 }
 
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : null;
+}
+
+function mapFeedbackItem(raw: unknown): ReadoutFeedbackItem | null {
+  const item = obj(raw);
+  const evidence = obj(item.evidence);
+  const span = obj(evidence.evidence_span);
+  const slideIndex = nonNegativeInteger(evidence.slide_index);
+  const paragraphIndex = nonNegativeInteger(evidence.paragraph_index);
+  const start = nonNegativeInteger(span.start);
+  const end = nonNegativeInteger(span.end);
+  const family = item.family;
+  if (
+    typeof item.id !== "string" ||
+    typeof item.message !== "string" ||
+    (family !== "confident_voice" &&
+      family !== "great_formulation" &&
+      family !== "rewrite_for_clarity") ||
+    typeof evidence.project_id !== "string" ||
+    typeof evidence.take_id !== "string" ||
+    slideIndex === null ||
+    paragraphIndex === null ||
+    start === null ||
+    end === null ||
+    end <= start
+  ) {
+    return null;
+  }
+  const rawAudio = obj(evidence.audio_interval);
+  const audioStart = nonNegativeInteger(rawAudio.start_ms);
+  const audioEnd = nonNegativeInteger(rawAudio.end_ms);
+  const reviewState = item.review_state;
+  const userDecision = item.user_decision;
+  return {
+    id: item.id,
+    family,
+    message: item.message,
+    reviewState:
+      reviewState === "reviewed" ||
+      reviewState === "refined" ||
+      reviewState === "material_correction" ||
+      reviewState === "not_confirmed"
+        ? reviewState
+        : null,
+    replacementText:
+      typeof item.replacement_text === "string" && item.replacement_text.length > 0
+        ? item.replacement_text
+        : null,
+    applicationGuidance:
+      typeof item.application_guidance === "string" &&
+      item.application_guidance.length > 0
+        ? item.application_guidance
+        : null,
+    examples: Array.isArray(item.examples)
+      ? item.examples.filter(
+          (example): example is string =>
+            typeof example === "string" && example.length > 0
+        )
+      : [],
+    userDecision:
+      userDecision === "accepted" || userDecision === "rejected"
+        ? userDecision
+        : "pending",
+    evidence: {
+      projectId: evidence.project_id,
+      takeId: evidence.take_id,
+      slideIndex,
+      paragraphIndex,
+      pieceId:
+        typeof evidence.piece_id === "string" && evidence.piece_id.length > 0
+          ? evidence.piece_id
+          : null,
+      evidenceSpan: { start, end, text: str(span.text) },
+      audioInterval:
+        audioStart !== null && audioEnd !== null && audioEnd > audioStart
+          ? { startMs: audioStart, endMs: audioEnd }
+          : null,
+    },
+  };
+}
+
 export function mapReadoutPayload(raw: unknown): ReadoutPayload {
   const r = obj(raw);
   const snippets = Array.isArray(r.snippets) ? r.snippets : [];
-  const insights = obj(r.insights_payload);
+  const coachReview = obj(r.coach_review);
+  const feedbackItems = Array.isArray(r.feedback_items)
+    ? r.feedback_items
+        .map(mapFeedbackItem)
+        .filter((item): item is ReadoutFeedbackItem => item !== null)
+    : [];
   const slides = Array.isArray(r.slides)
     ? r.slides
         .map(mapReadoutSlide)
@@ -486,17 +604,18 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     : [];
   return {
     snippets: snippets.map(mapReadoutSnippet),
+    feedbackItems,
     fullTranscriptChunks,
     instantChunks,
     overallMessage:
-      typeof insights.overall_message === "string"
-        ? insights.overall_message
+      typeof coachReview.overall_message === "string"
+        ? coachReview.overall_message
         : null,
     videoRef:
-      typeof insights.video_ref === "string" && insights.video_ref.length > 0
-        ? insights.video_ref
+      typeof coachReview.video_ref === "string" && coachReview.video_ref.length > 0
+        ? coachReview.video_ref
         : null,
-    presentationRef: pickPresentationRef(r, insights),
+    presentationRef: pickPresentationRef(r),
     slides,
     slideTranscripts,
     // Only false when the BE explicitly says so; absent / anything else → true
@@ -520,15 +639,10 @@ function pickAudience(r: Record<string, unknown>): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
 }
 
-/** Phase 2 — the session deck PDF. The BE may surface it top-level, under
- *  insights_payload, or under session_context; read all three defensively. */
-function pickPresentationRef(
-  r: Record<string, unknown>,
-  insights: Record<string, unknown>
-): string | null {
+/** Phase 2 — the session deck PDF, top-level or under session_context. */
+function pickPresentationRef(r: Record<string, unknown>): string | null {
   const candidates = [
     r.presentation_ref,
-    insights.presentation_ref,
     obj(r.session_context).presentation_ref,
   ];
   for (const c of candidates) {
@@ -677,6 +791,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     userEditedText: null,
   });
   return {
+    feedbackItems: [],
     overallMessage: null,
     videoRef: null,
     presentationRef: null,

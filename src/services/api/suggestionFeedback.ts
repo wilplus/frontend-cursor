@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  suggestionFeedback — record a user's Apply / ✓-preferred / Apply-all tap    */
@@ -6,7 +7,7 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /*                                                                            */
 /*  POST /api/v2/user/snippets/<snippet_id>/suggestion-feedback                 */
 /*    { session_id, target, action, upgrade_index?, suggestion_version } →       */
-/*    { saved: bool }. Guest-allowed (unclaimed sessions). Fire-and-forget:      */
+/*    { saved: bool }. Guest-allowed with a signed Guest ID. Fire-and-forget:   */
 /*  the tap's visual effect already happened locally, so `saved:false` (or any   */
 /*  failure) is NOT an error — it just means the like/apply wasn't persisted.    */
 /* -------------------------------------------------------------------------- */
@@ -70,7 +71,10 @@ export async function sendSuggestionFeedback(
   input: SuggestionFeedbackInput
 ): Promise<{ saved: boolean }> {
   const token = await getAuthToken(); // optional — guest-allowed
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? {} : guestOwnerHeaders()),
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const payload: Record<string, unknown> = {

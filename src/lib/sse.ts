@@ -2,8 +2,8 @@
 /*  sse — minimal incremental parser for a text/event-stream body.             */
 /*                                                                            */
 /*  Why not EventSource: it cannot send an Authorization header, and the       */
-/*  readout BFF forwards the caller's token when present (a CLAIMED session    */
-/*  404s without it). A fetch()-driven reader keeps exact auth parity with     */
+/*  readout BFF forwards authenticated or signed Guest ID ownership. A         */
+/*  fetch()-driven reader keeps exact ownership parity with                    */
 /*  fetchGuestLabReadout, at the cost of hand-parsing frames — which is this   */
 /*  file, kept dependency-free and unit-tested.                                */
 /* -------------------------------------------------------------------------- */

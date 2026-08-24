@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  bestPresentation — explore-arc best-presentation service (F1 / F2 / F3)   */
@@ -136,6 +137,7 @@ export async function fetchBestPresentationProgress(
   arcId: string
 ): Promise<BestPresentationProgress | null> {
   const headers = await authHeaders();
+  if (!headers.Authorization) Object.assign(headers, guestOwnerHeaders());
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
   let res: Response;

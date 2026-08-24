@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
-import { mergeSession } from "@/services/api/mergeSession";
+import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 
 /* -------------------------------------------------------------------------- */
 /*  SendGate — Readout footer → coach handoff (§13)                            */
@@ -12,7 +12,7 @@ import { mergeSession } from "@/services/api/mergeSession";
 /*  The only sign-up gate in the flow. Confirmation ONLY on send success       */
 /*  (§3.6/§13's trap) — never on auth alone. On failure the recording stays     */
 /*  held (parked), never shows "sent".                                        */
-/*    signed-in → mergeSession(session_id) → instant claim+send → confirmation │
+/*    signed-in → send exact owned Project Take → confirmation                │
 /*    unsigned  → honest interim; the OAuth round-trip (park → sign in →        */
 /*               auto-send → review_pending) is the next slice (mirrors         */
 /*               PendingSessionClaim).                                         */
@@ -26,12 +26,14 @@ type SendState =
 
 export default function SendGate({
   sessionId,
+  projectId,
   signedIn,
   onSent,
   onPark,
   onSignIn,
 }: {
   sessionId: string | null;
+  projectId: string | null;
   signedIn: boolean | null;
   onSent: () => void; // → review_pending (Lounge)
   onPark: () => void; // → parked (held, resumable)
@@ -41,7 +43,7 @@ export default function SendGate({
   const firedRef = useRef(false);
 
   const runSend = useCallback(async () => {
-    if (!sessionId) {
+    if (!sessionId || !projectId) {
       setSend({
         kind: "error",
         message: "We lost the recording reference — head back and try again.",
@@ -49,11 +51,11 @@ export default function SendGate({
       return;
     }
     setSend({ kind: "sending" });
-    const r = await mergeSession(sessionId);
+    const r = await sendTakeToCoach(projectId, sessionId);
     if (r.kind === "sent") setSend({ kind: "sent" });
     else if (r.kind === "unauthenticated") setSend({ kind: "need_signin" });
     else setSend({ kind: "error", message: r.message });
-  }, [sessionId]);
+  }, [projectId, sessionId]);
 
   useEffect(() => {
     if (signedIn === null) return; // auth still resolving — stay on "sending"

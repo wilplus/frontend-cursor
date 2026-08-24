@@ -1159,10 +1159,9 @@ export default function Lounge({
 
             It ALWAYS opens the project choice: never a last-used default,
             never an auto-continue, even when a cached arc exists. Founder
-            2026-07-27 — that disconnection is deliberate. A take submitted
-            with the wrong continue_arc_id lands in the wrong project, splits
-            the arc, and corrupts the cross-take comparison the ideal text is
-            ranked across. */}
+            2026-07-27 — that disconnection is deliberate. Every take carries
+            the immutable Project ID chosen here; the app never guesses from
+            its title, topic, or deck. */}
         {/* WITHHELD WHILE A TAKE IS STILL LANDING (founder 2026-08-05: "there
             is no new button to record unless the text is displayed and
             waiting is finished").
