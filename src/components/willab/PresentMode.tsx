@@ -5,12 +5,11 @@ import { PdfPage, TextSlide, useDeckPageCount } from "./pdfSlides";
 import { RichText } from "./RichText";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
-import {
-  slidePagesForParagraphs,
-  splitBadgeParagraphSpans,
-} from "@/lib/willab/pieceBadges";
 import type { IdealPiece } from "@/services/api/idealText";
-import { stripRichMarkers } from "@/lib/willab/richMarkers";
+import {
+  buildPresentationDocument,
+  type PresentationExportFormat,
+} from "@/lib/willab/presentationDocument";
 
 /* -------------------------------------------------------------------------- */
 /*  PresentMode — the ideal text, fullscreen, for actually presenting it.      */
@@ -33,9 +32,9 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 /*  and would make a far worse clock, so the two surfaces stay separate: this  */
 /*  one is for delivering, the Lab is for capturing.                          */
 /*                                                                            */
-/*  The text is the floor. A deck that fails to load leaves the words on       */
-/*  screen and drops the images, never a broken-image placeholder — a person   */
-/*  mid-presentation must never be handed an error card.                      */
+/*  The visual source is authoritative: uploaded projects show PDF pages and   */
+/*  never substitute extracted text in the slide slot; deckless projects show  */
+/*  the canonical three-slide mock.                                            */
 /* -------------------------------------------------------------------------- */
 
 export default function PresentMode({
@@ -44,97 +43,66 @@ export default function PresentMode({
   presentationRef,
   slideTitles = null,
   onClose,
-  exportMode = false,
+  exportFormat = null,
 }: {
   /** The served ideal text, marker syntax and all. */
   text: string;
   /** Per-paragraph provenance; carries slideIndex when the BE serves it. */
   pieces: IdealPiece[] | null;
-  /** The arc's deck PDF. null → text-only present mode, which is still a
-   *  perfectly good teleprompter. */
+  /** The arc's deck PDF. null → the canonical three-slide mock deck. */
   presentationRef: string | null;
   slideTitles?: string[] | null;
   onClose: () => void;
-  /** Export preview has only X + Download; presentation mode has only X. */
-  exportMode?: boolean;
+  /** Export preview has only X + one format-specific Download action. */
+  exportFormat?: PresentationExportFormat | null;
 }) {
   // The device Back gesture exits present mode rather than the whole app —
   // same LIFO contract every willab overlay follows.
   useBackDismiss(onClose);
 
-  // One failure hides EVERY slide (see the floor note above); a new deck
-  // source earns a fresh attempt.
-  const [deckFailed, setDeckFailed] = useState(false);
-  useEffect(() => setDeckFailed(false), [presentationRef]);
-  const deckUrl = presentationRef && !deckFailed ? presentationRef : null;
-  const pageCount = useDeckPageCount(deckUrl);
-
-  const paragraphs = splitBadgeParagraphSpans(text);
-  // Only a PROVABLE paragraph↔slide mapping renders slides: the pieces' own
-  // slideIndex, else an exact-count zip. A guessed pairing would put the
-  // wrong slide over the wrong words, which is worse than no slides at all.
-  const pages = deckUrl
-    ? slidePagesForParagraphs(paragraphs.length, pieces, pageCount)
-    : null;
-
-  const groups = useMemo(() => {
-    const fallbackRoot = (value: string) =>
-      stripRichMarkers(value).trim().split(/\s+/).filter(Boolean).slice(0, 5).join(" ");
-    const rows = paragraphs.map((paragraph, index) => {
-      const piece = pieces?.find((candidate) => candidate.pieceKey === index) ?? null;
-      return {
-        paragraph,
-        page: pages?.[index] ?? piece?.slideIndex ?? null,
-        rootPhrase: piece?.rootPhrase || fallbackRoot(paragraph.text),
-        rootType: piece?.rootType === "flagship" ? "flagship" as const : "neutral" as const,
-      };
-    });
-    const result: Array<{ page: number | null; rows: typeof rows }> = [];
-    for (const row of rows) {
-      const previous = result[result.length - 1];
-      // A real page groups all of that slide's paragraphs beneath one image.
-      // Unknown linkage stays separate so we never join unrelated text.
-      if (previous && row.page !== null && previous.page === row.page) {
-        previous.rows.push(row);
-      } else {
-        result.push({ page: row.page, rows: [row] });
-      }
-    }
-    return result;
-  }, [paragraphs, pages, pieces]);
+  const pageCount = useDeckPageCount(presentationRef);
+  const slides = useMemo(
+    () =>
+      buildPresentationDocument({
+        text,
+        pieces,
+        presentationRef,
+        pageCount,
+        slideTitles,
+      }),
+    [pageCount, pieces, presentationRef, slideTitles, text]
+  );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  const downloadPdf = async () => {
-    if (downloading) return;
+  const [downloadFailed, setDownloadFailed] = useState(false);
+  const deckStillLoading = Boolean(presentationRef && pageCount === null);
+  const download = async () => {
+    if (downloading || deckStillLoading || !exportFormat) return;
     setDownloading(true);
+    setDownloadFailed(false);
     try {
-      const { downloadPresentationPdf } = await import(
-        "@/lib/willab/presentationPdf"
-      );
-      await downloadPresentationPdf({
-        presentationRef: deckUrl,
-        slides: groups.map((group, index) => ({
-          page: group.page,
-          title:
-            group.page !== null
-              ? slideTitles?.[group.page] || `Slide ${group.page + 1}`
-              : `Slide ${index + 1}`,
-          rows: group.rows.map((row) => ({
-            rootPhrase: row.rootPhrase,
-            rootType: row.rootType,
-            idealText: row.paragraph.text,
-          })),
-        })),
-      });
+      if (exportFormat === "pdf") {
+        const { downloadPresentationPdf } = await import(
+          "@/lib/willab/presentationPdf"
+        );
+        await downloadPresentationPdf({ presentationRef, slides });
+      } else {
+        const { downloadPresentationDocx } = await import(
+          "@/lib/willab/presentationDocx"
+        );
+        await downloadPresentationDocx({ presentationRef, slides });
+      }
+    } catch {
+      setDownloadFailed(true);
     } finally {
       setDownloading(false);
     }
   };
   useEffect(() => {
     const root = scrollRef.current;
-    if (!root || groups.length < 2) return;
+    if (!root || slides.length < 2) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -150,7 +118,7 @@ export default function PresentMode({
       observer.observe(node)
     );
     return () => observer.disconnect();
-  }, [groups.length]);
+  }, [slides.length]);
 
   // Fullscreen. Nothing behind it, nothing over it but the X.
   return (
@@ -158,15 +126,21 @@ export default function PresentMode({
       data-ideal-text-wheel-native
       className="fixed inset-0 z-50 bg-background"
     >
-      {exportMode ? (
+      {exportFormat ? (
         <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
           <button
             type="button"
-            onClick={() => void downloadPdf()}
-            disabled={downloading}
+            onClick={() => void download()}
+            disabled={downloading || deckStillLoading}
             className="h-9 rounded-full bg-foreground px-4 text-[13px] font-medium text-background"
           >
-            {downloading ? "Preparing…" : "Download"}
+            {deckStillLoading
+              ? "Loading slides…"
+              : downloading
+              ? "Preparing…"
+              : downloadFailed
+              ? "Couldn’t export — try again"
+              : `Download ${exportFormat.toUpperCase()}`}
           </button>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close export preview" />
         </div>
@@ -184,27 +158,24 @@ export default function PresentMode({
         className="scrollbar-none h-full overflow-y-auto overscroll-contain"
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-5 pb-24 pt-16 print:max-w-none print:px-0 print:pt-0">
-          {groups.map((group, groupIndex) => (
+          {slides.map((slide, slideIndex) => (
             <section
-              key={`${group.page ?? "unknown"}-${group.rows[0]?.paragraph.start ?? groupIndex}`}
-              data-slide-index={groupIndex}
+              key={slide.key}
+              data-slide-index={slideIndex}
               className="flex min-h-[70vh] flex-col gap-5"
             >
-              {deckUrl && group.page !== null ? (
-                <div className="overflow-hidden rounded-xl border border-border bg-muted">
+              {presentationRef && slide.hasVisual && slide.page !== null ? (
+                <div className="aspect-video overflow-hidden rounded-xl border border-border bg-muted">
                   <PdfPage
-                    url={deckUrl!}
-                    pageIndex={group.page}
-                    onError={() => setDeckFailed(true)}
-                    className="w-full"
+                    url={presentationRef}
+                    pageIndex={slide.page}
+                    className="h-full w-full"
+                    fit
                   />
                 </div>
-              ) : group.page !== null ? (
-                <div className="min-h-48 overflow-hidden rounded-xl">
-                  <TextSlide
-                    title={slideTitles?.[group.page] || `Slide ${group.page + 1}`}
-                    body=""
-                  />
+              ) : !presentationRef && slide.hasVisual ? (
+                <div className="aspect-video overflow-hidden rounded-xl">
+                  <TextSlide title={slide.title} body={slide.body} />
                 </div>
               ) : null}
 
@@ -212,9 +183,9 @@ export default function PresentMode({
                   reserved for an accepted flagship; fallback roots stay
                   neutral even when no orange anchors exist. */}
               <div className="flex flex-col gap-3 py-1">
-                {group.rows.map((row) => (
+                {slide.rows.map((row) => (
                   <p
-                    key={`root-${row.paragraph.start}`}
+                    key={`root-${row.key}`}
                     className={
                       row.rootType === "flagship"
                         ? "text-[clamp(1.55rem,4vw,2.25rem)] font-semibold leading-tight text-primary"
@@ -230,31 +201,25 @@ export default function PresentMode({
                   accepted span remains orange in place; there is no separate
                   duplicated flagship sentence. */}
               <div className="flex flex-col gap-5 text-[17px] leading-[1.7] text-foreground">
-                {group.rows.map((row) => (
-                  <p key={`text-${row.paragraph.start}`}>
-                    <RichText text={row.paragraph.text} />
+                {slide.rows.map((row) => (
+                  <p key={`text-${row.key}`}>
+                    <RichText text={row.idealText} />
                   </p>
                 ))}
               </div>
             </section>
           ))}
-          {/* A deckless arc still presents — the words alone. Nothing is said
-              about the missing deck: mid-presentation is the worst possible
-              moment to explain a data gap. */}
-          {paragraphs.length === 0 ? (
-            <TextSlide title="" body="" />
-          ) : null}
         </div>
       </div>
 
-      {!exportMode && groups.length > 1 ? (
+      {!exportFormat && slides.length > 1 ? (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-2 rounded-full bg-background/75 px-2 py-3 backdrop-blur"
         >
-          {groups.map((_, index) => (
+          {slides.map((slide, index) => (
             <span
-              key={index}
+              key={slide.key}
               className={
                 index === activeSlide
                   ? "h-5 w-1.5 rounded-full bg-primary"

@@ -1,17 +1,15 @@
 import { parseRichSpans } from "@/lib/willab/richMarkers";
+import type { PresentationDocumentSlide } from "@/lib/willab/presentationDocument";
+import {
+  createPresentationCanvas,
+  loadPresentationPdf,
+  presentationCanvasJpegBytes,
+  renderMockPresentationSlide,
+  renderPresentationPage,
+} from "@/lib/willab/presentationVisuals";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
-export interface PresentationPdfRow {
-  rootPhrase: string;
-  rootType: "flagship" | "neutral";
-  idealText: string;
-}
-
-export interface PresentationPdfSlide {
-  page: number | null;
-  title: string;
-  rows: PresentationPdfRow[];
-}
+export type PresentationPdfSlide = PresentationDocumentSlide;
 
 const PAGE_WIDTH = 1240;
 const WORK_HEIGHT = 12000;
@@ -19,13 +17,6 @@ const MARGIN = 84;
 const ORANGE = "#e56f2d";
 const INK = "#191919";
 const MUTED = "#666666";
-
-function canvas(width: number, height: number): HTMLCanvasElement {
-  const node = document.createElement("canvas");
-  node.width = width;
-  node.height = height;
-  return node;
-}
 
 function font(size: number, weight = 400): string {
   return `${weight} ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
@@ -99,31 +90,11 @@ function drawIdealText(
   return atY + lineHeight;
 }
 
-async function renderDeckPage(
-  pdf: PDFDocumentProxy | null,
-  pageIndex: number,
-  targetWidth: number
-): Promise<HTMLCanvasElement | null> {
-  if (!pdf) return null;
-  try {
-    const page = await pdf.getPage(Math.min(Math.max(pageIndex + 1, 1), pdf.numPages));
-    const base = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: targetWidth / base.width });
-    const out = canvas(Math.round(viewport.width), Math.round(viewport.height));
-    const context = out.getContext("2d");
-    if (!context) return null;
-    await page.render({ canvasContext: context, viewport }).promise;
-    return out;
-  } catch {
-    return null;
-  }
-}
-
 async function slideCanvas(
   slide: PresentationPdfSlide,
   pdf: PDFDocumentProxy | null
 ): Promise<HTMLCanvasElement> {
-  const work = canvas(PAGE_WIDTH, WORK_HEIGHT);
+  const work = createPresentationCanvas(PAGE_WIDTH, WORK_HEIGHT);
   const ctx = work.getContext("2d");
   if (!ctx) throw new Error("Canvas is unavailable");
   ctx.fillStyle = "#ffffff";
@@ -132,18 +103,26 @@ async function slideCanvas(
   const contentWidth = PAGE_WIDTH - MARGIN * 2;
   let y = MARGIN;
   const rendered =
-    slide.page === null ? null : await renderDeckPage(pdf, slide.page, contentWidth);
+    slide.page === null
+      ? null
+      : await renderPresentationPage({
+          pdf,
+          pageIndex: slide.page,
+          targetWidth: contentWidth,
+        });
   if (rendered) {
     ctx.drawImage(rendered, MARGIN, y);
     y += rendered.height + 62;
-  } else {
-    const cardHeight = 390;
-    ctx.fillStyle = "#f3f3f3";
-    ctx.fillRect(MARGIN, y, contentWidth, cardHeight);
-    ctx.fillStyle = INK;
-    ctx.font = font(44, 650);
-    ctx.fillText(slide.title || "Presentation slide", MARGIN + 48, y + 92);
-    y += cardHeight + 62;
+  } else if (slide.page !== null) {
+    throw new Error("The presentation slide could not be rendered for PDF export.");
+  } else if (slide.hasVisual) {
+    const mock = renderMockPresentationSlide({
+      title: slide.title,
+      body: slide.body,
+      targetWidth: contentWidth,
+    });
+    ctx.drawImage(mock, MARGIN, y);
+    y += mock.height + 62;
   }
 
   for (const row of slide.rows) {
@@ -168,20 +147,10 @@ async function slideCanvas(
   }
 
   const finalHeight = Math.max(900, Math.min(WORK_HEIGHT, Math.ceil(y + MARGIN)));
-  const out = canvas(PAGE_WIDTH, finalHeight);
+  const out = createPresentationCanvas(PAGE_WIDTH, finalHeight);
   const outCtx = out.getContext("2d");
   if (!outCtx) throw new Error("Canvas is unavailable");
   outCtx.drawImage(work, 0, 0, PAGE_WIDTH, finalHeight, 0, 0, PAGE_WIDTH, finalHeight);
-  return out;
-}
-
-function jpegBytes(node: HTMLCanvasElement): Uint8Array {
-  const encoded = node.toDataURL("image/jpeg", 0.94).split(",")[1] ?? "";
-  const binary = atob(encoded);
-  const out = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    out[index] = binary.charCodeAt(index);
-  }
   return out;
 }
 
@@ -211,7 +180,7 @@ function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
     const contentId = pageId + 2;
     const mediaWidth = 595;
     const mediaHeight = Math.round(mediaWidth * (page.height / page.width));
-    const jpg = jpegBytes(page);
+    const jpg = presentationCanvasJpegBytes(page);
     objects[pageId] = bytes(
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${mediaWidth} ${mediaHeight}] /Resources << /XObject << /Im0 ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>`
     );
@@ -260,16 +229,7 @@ export async function downloadPresentationPdf({
   presentationRef: string | null;
   filename?: string;
 }): Promise<void> {
-  let pdf: PDFDocumentProxy | null = null;
-  if (presentationRef) {
-    try {
-      const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs?v=${pdfjs.version}`;
-      pdf = await pdfjs.getDocument({ url: presentationRef }).promise;
-    } catch {
-      pdf = null;
-    }
-  }
+  const pdf = await loadPresentationPdf(presentationRef);
   const rendered: HTMLCanvasElement[] = [];
   for (const slide of slides) rendered.push(await slideCanvas(slide, pdf));
   const url = URL.createObjectURL(pdfFromCanvases(rendered));

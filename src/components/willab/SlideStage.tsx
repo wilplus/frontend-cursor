@@ -52,14 +52,16 @@ export default function SlideStage({
           }
         }}
         aria-label="Next slide"
-        className="w-full cursor-pointer overflow-hidden rounded-2xl border border-border bg-card"
+        className="aspect-video w-full cursor-pointer overflow-hidden rounded-2xl border border-border bg-card"
       >
         <SlideRender
           presentationRef={presentationRef}
           pageIndex={idx}
           title={slide.title}
           body={slide.body}
-          className="w-full"
+          className="h-full w-full"
+          fit
+          showRetry={false}
         />
       </div>
 
