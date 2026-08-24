@@ -1,6 +1,7 @@
 "use client";
 
 import IdealTextOverlay from "@/components/willab/IdealTextOverlay";
+import { LoungeThreadProvider } from "@/components/willab/LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  A harness for the transcript review deck, driven in a REAL browser through */
@@ -277,11 +278,13 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
 export default function DeckHarness() {
   if (process.env.NODE_ENV === "production") return null;
   return (
-    <IdealTextOverlay
-      arcId="arc-deck"
-      onClose={() => {
-        // The harness has nowhere to go back to.
-      }}
-    />
+    <LoungeThreadProvider>
+      <IdealTextOverlay
+        arcId="arc-deck"
+        onClose={() => {
+          // The harness has nowhere to go back to.
+        }}
+      />
+    </LoungeThreadProvider>
   );
 }
