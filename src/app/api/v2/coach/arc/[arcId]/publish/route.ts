@@ -28,11 +28,17 @@ export async function POST(
   }
 
   const id = encodeURIComponent(params.arcId);
+  const body = await req.text();
   let upstream: Response;
   try {
     upstream = await fetch(`${backend}/v2/coach/arc/${id}/publish-analysis`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body,
       cache: "no-store",
     });
   } catch (err) {

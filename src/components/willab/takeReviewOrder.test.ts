@@ -7,7 +7,13 @@ function take(
   takeIndex: number | null,
   reviewState: ReviewStateTake["reviewState"]
 ): ReviewStateTake {
-  return { sessionId, takeIndex, reviewState, hasReread: false };
+  return {
+    sessionId,
+    takeIndex,
+    reviewState,
+    hasReread: false,
+    publishPayload: null,
+  };
 }
 
 describe("orderTakesForReview", () => {

@@ -300,9 +300,16 @@ export default function CoachStarVerdictOverlay({
   }, [arcId]);
   const handlePublish = () => {
     if (publishing || reviewState?.published) return;
+    const publishPayloads = (reviewState?.takes ?? [])
+      .map((take) => take.publishPayload)
+      .filter((payload) => payload !== null);
+    if (publishPayloads.length === 0) {
+      setPublishError("Save at least one reviewed take before publishing.");
+      return;
+    }
     setPublishing(true);
     setPublishError(null);
-    void publishArc(arcId).then((r) => {
+    void publishArc(arcId, publishPayloads).then((r) => {
       setPublishing(false);
       if (r.kind === "ok") {
         setReviewState((prev) =>
