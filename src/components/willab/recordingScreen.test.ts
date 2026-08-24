@@ -117,6 +117,8 @@ describe("the recording screen (founder respec 2026-08-11)", () => {
     // a hardcoded text card.
     expect(STAGE).toMatch(/<SlideRender/);
     expect(STAGE).toMatch(/presentationRef=\{presentationRef\}/);
+    expect(STAGE).toMatch(/showRetry=\{false\}/);
+    expect(STAGE).toMatch(/fit/);
     expect(STAGE).not.toMatch(/<TextSlide/);
     expect(PHASE).toMatch(/presentationRef=\{presentationRef\}/);
     expect(PHASE).toMatch(/\{presentationRef \? \(\s*<SlideStage/);

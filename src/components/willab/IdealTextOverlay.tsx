@@ -48,6 +48,8 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import PresentMode from "./PresentMode";
+import ExportFormatDialog from "./ExportFormatDialog";
+import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
 import AdditionsPanel from "./AdditionsPanel";
 import { setPartLock } from "@/services/api/partLock";
 import {
@@ -209,11 +211,16 @@ export default function IdealTextOverlay({
   // scroll-through-the-deck read. Read-only; recording stays in the Lab.
   const [presenting, setPresenting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportChooserOpen, setExportChooserOpen] = useState(false);
+  const [exportFormat, setExportFormat] =
+    useState<PresentationExportFormat | null>(null);
   const initialModeAppliedRef = useRef(false);
   useEffect(() => {
     initialModeAppliedRef.current = false;
     setPresenting(false);
     setExporting(false);
+    setExportChooserOpen(false);
+    setExportFormat(null);
   }, [arcId, initialMode]);
   useEffect(() => {
     if (
@@ -223,7 +230,7 @@ export default function IdealTextOverlay({
     ) return;
     initialModeAppliedRef.current = true;
     if (initialMode === "presentation") setPresenting(true);
-    if (initialMode === "export") setExporting(true);
+    if (initialMode === "export") setExportChooserOpen(true);
   }, [initialMode, sd, status]);
   const [tooLong, setTooLong] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -791,7 +798,7 @@ export default function IdealTextOverlay({
               </button>
               <button
                 type="button"
-                onClick={() => setExporting(true)}
+                onClick={() => setExportChooserOpen(true)}
                 aria-label="Export"
                 className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
@@ -1002,14 +1009,27 @@ export default function IdealTextOverlay({
           onClose={() => setPresenting(false)}
         />
       ) : null}
-      {exporting ? (
+      {exportChooserOpen ? (
+        <ExportFormatDialog
+          onClose={() => setExportChooserOpen(false)}
+          onSelect={(format) => {
+            setExportFormat(format);
+            setExportChooserOpen(false);
+            setExporting(true);
+          }}
+        />
+      ) : null}
+      {exporting && exportFormat ? (
         <PresentMode
           text={displayText}
           pieces={sd?.pieces ?? null}
           presentationRef={deckRef}
           slideTitles={sd?.slideTitles ?? null}
-          exportMode
-          onClose={() => setExporting(false)}
+          exportFormat={exportFormat}
+          onClose={() => {
+            setExporting(false);
+            setExportFormat(null);
+          }}
         />
       ) : null}
 

@@ -84,11 +84,14 @@ export function PdfPage({
   pageIndex,
   onError,
   className,
+  fit = false,
 }: {
   url: string;
   pageIndex: number;
-  onError: () => void;
+  onError?: () => void;
   className?: string;
+  /** Fit the complete page inside a fixed visual slot without cropping. */
+  fit?: boolean;
 }) {
   const { doc, status } = usePdfDocument(url);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -96,7 +99,7 @@ export function PdfPage({
   const [rendered, setRendered] = useState(false);
 
   useEffect(() => {
-    if (status === "error") onError();
+    if (status === "error") onError?.();
   }, [status, onError]);
 
   useEffect(() => {
@@ -120,7 +123,7 @@ export function PdfPage({
         await page.render({ canvasContext: ctx, viewport }).promise;
         if (!cancelled) setRendered(true);
       } catch {
-        if (!cancelled) onError();
+        if (!cancelled) onError?.();
       }
     })();
     return () => {
@@ -129,15 +132,22 @@ export function PdfPage({
   }, [status, doc, pageIndex, onError]);
 
   return (
-    <div ref={wrapRef} className={className}>
-      {!rendered ? (
+    <div ref={wrapRef} className={`${fit ? "h-full" : ""} ${className ?? ""}`}>
+      {!rendered && status !== "error" ? (
         <div className="flex h-full w-full items-center justify-center text-[12px] text-muted-foreground">
           Loading slide…
         </div>
       ) : null}
+      {status === "error" ? (
+        <div className="flex h-full w-full items-center justify-center text-[12px] text-muted-foreground">
+          Slide preview unavailable
+        </div>
+      ) : null}
       <canvas
         ref={canvasRef}
-        className={`mx-auto h-auto max-w-full rounded-lg ${rendered ? "" : "hidden"}`}
+        className={`mx-auto rounded-lg ${
+          fit ? "h-full w-full object-contain" : "h-auto max-w-full"
+        } ${rendered ? "" : "hidden"}`}
       />
     </div>
   );
@@ -177,12 +187,16 @@ export function SlideRender({
   title,
   body,
   className,
+  showRetry = true,
+  fit = false,
 }: {
   presentationRef: string | null;
   pageIndex: number;
   title: string;
   body: string;
   className?: string;
+  showRetry?: boolean;
+  fit?: boolean;
 }) {
   const [pdfFailed, setPdfFailed] = useState(false);
   const handleError = useCallback(() => setPdfFailed(true), []);
@@ -196,6 +210,7 @@ export function SlideRender({
         pageIndex={pageIndex}
         onError={handleError}
         className={className}
+        fit={fit}
       />
     );
   }
@@ -206,7 +221,7 @@ export function SlideRender({
           never blocked; when a served PDF failed to load (404 / CORS / network)
           offer a retry. Clearing pdfFailed remounts PdfPage, and loadPdf evicts
           the failed promise on error, so this actually re-fetches. */}
-      {presentationRef && pdfFailed ? (
+      {presentationRef && pdfFailed && showRetry ? (
         <div className="mt-2 flex justify-center">
           <button
             type="button"
