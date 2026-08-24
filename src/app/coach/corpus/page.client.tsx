@@ -687,10 +687,10 @@ function IndexPanel({
         setProgress((p) => ({
           ...p,
           [i.sessionId]: {
-            labelled: q.queue.filter(
-              (x) =>
-                x.label?.value !== null || x.label?.unrateable === true
-            ).length,
+            // The mapper represents every unanswered row as `label: null`.
+            // Optional chaining returned `undefined` here, and
+            // `undefined !== null` incorrectly counted that row as answered.
+            labelled: q.queue.filter((x) => x.label !== null).length,
             total: q.queue.length,
           },
         }));
