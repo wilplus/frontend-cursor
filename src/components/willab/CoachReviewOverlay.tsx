@@ -11,7 +11,10 @@ import CoachVideoSlot from "./CoachVideoSlot";
 import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
-import type { CoachSnippetState, SessionFeeling } from "@/services/api/coachReview";
+import type {
+  CoachSnippetState,
+  SessionFeeling,
+} from "@/services/api/coachReview";
 import { type PublishSnippetState } from "@/services/api/publishWillabSession";
 import { saveCoachFeedback } from "@/services/api/saveCoachFeedback";
 import {
@@ -49,7 +52,8 @@ function FeelingBadge({ feeling }: { feeling: SessionFeeling }) {
   const emoji = FEELING_EMOJI[feeling.feeling] ?? "";
   const label =
     feeling.feeling.charAt(0).toUpperCase() + feeling.feeling.slice(1);
-  const takeLabel = feeling.takeIndex != null ? ` · Take ${feeling.takeIndex}` : "";
+  const takeLabel =
+    feeling.takeIndex != null ? ` · Take ${feeling.takeIndex}` : "";
   return (
     <span>
       {emoji} {label}
@@ -78,9 +82,9 @@ export default function CoachReviewOverlay({
   // cards can seed from it (they mount as soon as the session loads). Holds an
   // unpublished review that a closed tab would otherwise have lost.
   const [draftCache] = useState(() => readCoachReviewDraft(sessionId));
-  const [localState, setLocalState] = useState<Record<string, CoachSnippetState>>(
-    () => draftCache?.snippets ?? {}
-  );
+  const [localState, setLocalState] = useState<
+    Record<string, CoachSnippetState>
+  >(() => draftCache?.snippets ?? {});
   const [videoRef, setVideoRef] = useState<string | null>(null);
   const [overallMessage, setOverallMessage] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -124,14 +128,20 @@ export default function CoachReviewOverlay({
     // R4-8 — a crash-cache draft wins over the server overall message (the
     // coach was mid-edit); otherwise seed from the server as before.
     setOverallMessage((prev) =>
-      draftCache ? draftCache.overallMessage || prev : session.overallMessage
+      draftCache ? draftCache.overallMessage || prev : session.overallMessage,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  const onSnippetSaved = useCallback((snippetId: string, next: CoachSnippetState) => {
-    setLocalState((prev) => ({ ...prev, [snippetId]: next }));
-  }, []);
+  const onSnippetSaved = useCallback(
+    (snippetId: string, next: CoachSnippetState) => {
+      setLocalState((prev) => ({ ...prev, [snippetId]: next }));
+    },
+    [],
+  );
+  const onBlindRatingCommitted = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   // R4-8 — mirror the in-progress review to localStorage (debounced) as crash
   // insurance. No server traffic; stops once the arc is delivered.
@@ -154,7 +164,8 @@ export default function CoachReviewOverlay({
     if (r) setReviewState(r);
   }, [arcId]);
 
-  const atWrapupNow = !!session && cursor === session.snippets.length;
+  const atWrapupNow =
+    !!session && session.contextUnlocked && cursor === session.snippets.length;
   useEffect(() => {
     if (!arcId) return;
     void refreshReviewState();
@@ -164,7 +175,13 @@ export default function CoachReviewOverlay({
     if (reviewState?.published) return;
     const id = setInterval(() => void refreshReviewState(), 5000);
     return () => clearInterval(id);
-  }, [arcId, atWrapupNow, delivered, reviewState?.published, refreshReviewState]);
+  }, [
+    arcId,
+    atWrapupNow,
+    delivered,
+    reviewState?.published,
+    refreshReviewState,
+  ]);
 
   // FE-8 — informational only, NEVER a save gate: "reviewed, nothing to
   // surface" is a valid coach verdict. The BE stamps coach_feedback_saved_at
@@ -175,9 +192,7 @@ export default function CoachReviewOverlay({
   // notes, so a surfaced note-less snippet still reaches the user and must not
   // trip a "user gets nothing" banner.
   const nothingSurfaced = session
-    ? !session.snippets.some(
-        (s) => (localState[s.id] ?? s.coachState).surfaced
-      )
+    ? !session.snippets.some((s) => (localState[s.id] ?? s.coachState).surfaced)
     : true;
 
   // Delivery layer — the per-take action is a SAVE checkpoint, not a publish:
@@ -238,7 +253,9 @@ export default function CoachReviewOverlay({
     setPublishError(null);
     const publishPayloads = (reviewState?.takes ?? [])
       .map((take) => take.publishPayload)
-      .filter((payload): payload is NonNullable<typeof payload> => payload !== null);
+      .filter(
+        (payload): payload is NonNullable<typeof payload> => payload !== null,
+      );
     if (publishPayloads.length === 0) {
       setPublishing(false);
       setPublishError("Save at least one reviewed take before publishing.");
@@ -288,7 +305,12 @@ export default function CoachReviewOverlay({
             <p className="text-[15px] text-muted-foreground">
               Couldn&apos;t load this session.
             </p>
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="rounded-full"
+            >
               Back to Lounge
             </Button>
           </div>
@@ -307,8 +329,9 @@ export default function CoachReviewOverlay({
     );
   }
 
-  const total = session.snippets.length + 1; // last page = wrap-up
-  const isAtWrapup = cursor === session.snippets.length;
+  const total = session.snippets.length + (session.contextUnlocked ? 1 : 0);
+  const isAtWrapup =
+    session.contextUnlocked && cursor === session.snippets.length;
 
   return (
     <SnippetScreenShell
@@ -326,13 +349,19 @@ export default function CoachReviewOverlay({
       }
       // FE-2 — the wrap-up reads as its own page: no "Next". Its actions (Open
       // the ideal text / Save / Publish) live in the page below.
-      hideNext={isAtWrapup}
+      hideNext={
+        isAtWrapup ||
+        (!session.contextUnlocked && cursor === session.snippets.length - 1)
+      }
       managed={false}
       isCoachMessage={isAtWrapup}
     >
       {/* Snippet pages — all stay mounted for draft preservation. */}
       {session.snippets.map((s, i) => (
-        <div key={s.id} className={i === cursor ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
+        <div
+          key={`${s.id}:${session.contextUnlocked ? "context" : "blind"}`}
+          className={i === cursor ? "flex flex-col gap-4 px-4 py-4" : "hidden"}
+        >
           <CoachSnippetReviewCard
             sessionId={session.sessionId}
             snippet={s}
@@ -340,6 +369,8 @@ export default function CoachReviewOverlay({
             total={session.snippets.length}
             presentationRef={session.presentationRef}
             slides={session.slides}
+            contextUnlocked={session.contextUnlocked}
+            onBlindRatingCommitted={onBlindRatingCommitted}
             initialState={draftCache?.snippets[s.id] ?? null}
             onStateChange={onSnippetSaved}
           />
@@ -437,7 +468,10 @@ export default function CoachReviewOverlay({
                   className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
                 >
                   {publishing ? (
-                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="mr-1.5 h-4 w-4 animate-spin"
+                      aria-hidden
+                    />
                   ) : null}
                   Publish the full analysis
                 </Button>
@@ -503,7 +537,9 @@ export default function CoachReviewOverlay({
         <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-foreground">Re-cut snippets</p>
+              <p className="text-[13px] font-medium text-foreground">
+                Re-cut snippets
+              </p>
               <p className="text-[12px] text-muted-foreground">
                 Re-run segmentation on the stored audio.
               </p>

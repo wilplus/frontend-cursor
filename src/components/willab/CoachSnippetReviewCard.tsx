@@ -19,11 +19,7 @@ import {
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
-import {
-  CoachCard,
-  CoachEyebrow,
-  CoachMetaPill,
-} from "./coachChrome";
+import { CoachCard, CoachEyebrow, CoachMetaPill } from "./coachChrome";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachSnippetReviewCard — one snippet's full coach view (§F.3 + §F.4)       */
@@ -69,6 +65,8 @@ export default function CoachSnippetReviewCard({
   total,
   initialState = null,
   onStateChange,
+  onBlindRatingCommitted,
+  contextUnlocked,
   presentationRef,
   slides = [],
 }: {
@@ -87,13 +85,19 @@ export default function CoachSnippetReviewCard({
   /** Fires on EVERY local edit (R4-8: edits live locally until Publish) so the
    *  parent overlay tracks the publish payload + floor without a refetch. */
   onStateChange?: (snippetId: string, next: CoachSnippetState) => void;
+  /** Session-wide two-pass gate. False means this card may show only the
+   *  evidence and blind instrument; slide/context/authoring stay unavailable. */
+  contextUnlocked: boolean;
+  /** Refetches the session after an immutable blind answer so the server can
+   *  unlock the contextual pass as soon as the final piece is labelled. */
+  onBlindRatingCommitted?: () => void;
 }) {
   // R4-8 — save-on-publish: note/direction/tag/surfaced edits live in LOCAL
   // state only (mirrored to the overlay via onStateChange, which also feeds a
   // localStorage crash cache). Nothing hits the server per keystroke; the
   // overlay's Publish persists everything in one shot.
   const [coachState, setCoachState] = useState<CoachSnippetState>(
-    initialState ?? snippet.coachState
+    initialState ?? snippet.coachState,
   );
   // FE-5 — the freshest local state for async completions (a video upload
   // finishing must merge against what the coach has edited SINCE the click,
@@ -123,7 +127,7 @@ export default function CoachSnippetReviewCard({
   // #191 — no pre-fill: the coach writes the note from scratch (that IS the
   // training signal). The BE now sends note="" and no ai_draft_coach_note.
   const [noteDraft, setNoteDraft] = useState(
-    (initialState ?? snippet.coachState).note || ""
+    (initialState ?? snippet.coachState).note || "",
   );
   // R4-8 — auto-grow the note toward full screen as the coach types (same
   // pattern as BestPresentationOverlay's MarkerEditor): re-fit on every edit,
@@ -149,7 +153,7 @@ export default function CoachSnippetReviewCard({
       setCoachState(next);
       onStateChange?.(snippet.id, next);
     },
-    [snippet.id, onStateChange]
+    [snippet.id, onStateChange],
   );
 
   // One writer for both controls so the XOR can never be violated from the UI:
@@ -168,9 +172,11 @@ export default function CoachSnippetReviewCard({
       setRatingSaving(false);
       if (!result.ok) {
         setRatingError(result.error ?? "Couldn't save that. Try again.");
+      } else {
+        onBlindRatingCommitted?.();
       }
     },
-    [snippet.id]
+    [snippet.id, onBlindRatingCommitted],
   );
 
   function pickRating(value: TernaryValue) {
@@ -196,6 +202,41 @@ export default function CoachSnippetReviewCard({
     applyLocal({ note: value });
   }
 
+  const blindInstrument = (
+    <ConfidenceLabelChips
+      question={CONFIDENCE_QUESTION}
+      eyebrow={<CoachEyebrow className="ml-2">Private · training</CoachEyebrow>}
+      value={rating}
+      unrateable={unrateable}
+      saving={ratingSaving}
+      error={ratingError}
+      onPick={pickRating}
+      onToggleUnrateable={toggleUnrateable}
+    />
+  );
+
+  // Hard frontend fence: the contextual pass is not merely hidden with CSS.
+  // Until the server confirms the complete blind pass, the component returns
+  // before any slide, acoustic context, practice, note or delivery control is
+  // constructed. The backend independently redacts those fields as defence in
+  // depth, so neither side can accidentally anchor a blind label.
+  if (!contextUnlocked) {
+    return (
+      <CoachCard gap="lg">
+        <span className="text-[12px] text-muted-foreground">
+          Piece {index + 1} of {total}
+        </span>
+        <SnippetReadoutBlock
+          audioRef={snippet.audioRef}
+          startOffsetMs={snippet.startOffsetMs}
+          durationMs={snippet.durationMs}
+          transcript={snippet.transcript}
+        />
+        <div className="border-t border-border pt-4">{blindInstrument}</div>
+      </CoachCard>
+    );
+  }
+
   // #191 — no auto-seed. Every snippet defaults HIDDEN (surfaced=false): the
   // coach opts in only the key moments they mark, and there's no AI draft note
   // to pre-fill. Nothing reaches the student until the coach surfaces + publishes.
@@ -208,13 +249,13 @@ export default function CoachSnippetReviewCard({
   const statusLabel = coachState.surfaced
     ? "Sent to user"
     : rated
-    ? "Training only"
-    : "Skipped";
+      ? "Training only"
+      : "Skipped";
   const statusTone = coachState.surfaced
     ? "text-success"
     : rated
-    ? "text-primary"
-    : "text-muted-foreground";
+      ? "text-primary"
+      : "text-muted-foreground";
 
   return (
     <CoachCard gap="lg">
@@ -276,23 +317,16 @@ export default function CoachSnippetReviewCard({
         {/* THE shared instrument (founder 2026-08-10) — this card was the
             donor; it now renders the same component every other lane does,
             so the surfaces cannot drift. */}
-        <ConfidenceLabelChips
-          question={CONFIDENCE_QUESTION}
-          eyebrow={
-            <CoachEyebrow className="ml-2">Private · training</CoachEyebrow>
-          }
-          value={rating}
-          unrateable={unrateable}
-          saving={ratingSaving}
-          error={ratingError}
-          onPick={pickRating}
-          onToggleUnrateable={toggleUnrateable}
-        />
+        {blindInstrument}
 
         <CoachConfidencePracticeReview
           sessionId={sessionId}
           snippetId={snippet.id}
-          enabled={!ratingSaving && !unrateable && (rating === "yes" || rating === "no")}
+          enabled={
+            !ratingSaving &&
+            !unrateable &&
+            (rating === "yes" || rating === "no")
+          }
         />
 
         {/* Coach note — user-facing prose */}
@@ -327,10 +361,7 @@ export default function CoachSnippetReviewCard({
             {coachState.surfaced ? (
               <Eye className="h-4 w-4 text-success" aria-hidden />
             ) : (
-              <EyeOff
-                className="h-4 w-4 text-muted-foreground"
-                aria-hidden
-              />
+              <EyeOff className="h-4 w-4 text-muted-foreground" aria-hidden />
             )}
             Send this snippet to the user
           </span>
@@ -342,10 +373,7 @@ export default function CoachSnippetReviewCard({
         {/* Status footer — visible distinction between the three card states */}
         <div className="mt-3 flex items-center gap-1.5">
           {coachState.surfaced ? (
-            <CheckCircle2
-              className="h-3.5 w-3.5 text-success"
-              aria-hidden
-            />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-hidden />
           ) : (
             <span
               className={`inline-block h-2 w-2 rounded-full ${

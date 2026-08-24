@@ -61,6 +61,26 @@ describe("the blind labeling surface shows no machine read", () => {
     // "Yes" to what? The state carries the question, never the answer labels.
     expect(code(CARD)).toContain("CONFIDENCE_QUESTION");
   });
+
+  it("returns a blind-only tree before constructing contextual controls", () => {
+    const src = code(CARD);
+    const gateStart = src.indexOf("if (!contextUnlocked)");
+    const fullPassStart = src.indexOf("const rated =", gateStart);
+    expect(gateStart).toBeGreaterThan(-1);
+    expect(fullPassStart).toBeGreaterThan(gateStart);
+    const blindPass = src.slice(gateStart, fullPassStart);
+    expect(blindPass).toContain("SnippetReadoutBlock");
+    expect(blindPass).toContain("blindInstrument");
+    for (const contextual of [
+      "SlideRender",
+      "SnippetSlideCorrection",
+      "CoachConfidencePracticeReview",
+      "Coach note",
+      "toggleSurfaced",
+    ]) {
+      expect(blindPass).not.toContain(contextual);
+    }
+  });
 });
 
 describe("the F2 direction construct is purged from the FE", () => {
@@ -142,16 +162,15 @@ describe("buildRatingBody refuses to fabricate a label", () => {
   });
 
   it("an off-scale value is refused, never coerced", () => {
-    expect(
-      buildRatingBody("maybe" as unknown as "yes", false)
-    ).toBeNull();
+    expect(buildRatingBody("maybe" as unknown as "yes", false)).toBeNull();
   });
 
   it("carries a note only when there is one", () => {
-    expect(buildRatingBody("no", false, CONFIDENCE_STATE_ID, "  ")).not
-      .toHaveProperty("note");
     expect(
-      buildRatingBody("no", false, CONFIDENCE_STATE_ID, " clipped ")
+      buildRatingBody("no", false, CONFIDENCE_STATE_ID, "  "),
+    ).not.toHaveProperty("note");
+    expect(
+      buildRatingBody("no", false, CONFIDENCE_STATE_ID, " clipped "),
     ).toMatchObject({ note: "clipped" });
   });
 });
@@ -186,7 +205,7 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     // blocking screen can disagree about whether a take is being worked —
     // which is how stale text gets read behind a live Record button.
     expect(code(LOUNGE)).toContain(
-      'processingResume?.status === "analyzing" || documentSettle.pending'
+      'processingResume?.status === "analyzing" || documentSettle.pending',
     );
   });
 
@@ -213,14 +232,14 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     const lounge = code(LOUNGE);
     const terminal = lounge.slice(
       lounge.indexOf('r.state === "readout_ready"'),
-      lounge.indexOf("const documentSettle")
+      lounge.indexOf("const documentSettle"),
     );
     expect(terminal).toContain("transitionProcessingTakeToDocument");
     expect(terminal).not.toContain("clearProcessingTake");
     const lab = code(join("components", "willab", "LabOverlay.tsx"));
     const labTerminal = lab.slice(
       lab.indexOf('r.state === "readout_ready"'),
-      lab.indexOf("setReadout(r.readout)")
+      lab.indexOf("setReadout(r.readout)"),
     );
     expect(labTerminal).toContain("transitionProcessingTakeToDocument");
     expect(labTerminal).not.toContain("clearProcessingTake");
@@ -245,15 +264,16 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     // W5 — the flip of `analysisPending` must re-run the fetch effect, so a
     // student reading while the analysis lands gets the fresh document in
     // place rather than a stale one until they touch something.
-    expect(code(OVERLAY)).toMatch(
-      /\[arcId, analysisPending, refetchNonce/
-    );
+    expect(code(OVERLAY)).toMatch(/\[arcId, analysisPending, refetchNonce/);
   });
 
   it("the tap no longer dead-ends in a silent return", () => {
     const src = code(LOUNGE);
     const handler = src.slice(src.indexOf("function openIdealText("));
-    const body = handler.slice(0, handler.indexOf("function continueJourneyProject"));
+    const body = handler.slice(
+      0,
+      handler.indexOf("function continueJourneyProject"),
+    );
     expect(body).not.toMatch(/processingResume.*return/s);
   });
 
@@ -262,7 +282,10 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     // new string may ship from this change.
     const src = code(LOUNGE);
     const handler = src.slice(src.indexOf("function openIdealText("));
-    const body = handler.slice(0, handler.indexOf("function continueJourneyProject"));
+    const body = handler.slice(
+      0,
+      handler.indexOf("function continueJourneyProject"),
+    );
     expect(body).not.toMatch(/alert\(|toast|"[A-Z][a-z]+ [a-z]/);
   });
 });
@@ -275,16 +298,18 @@ describe("a failed take stays on screen until the user acts (W6)", () => {
     // once and there is no evidence anything went wrong.
     const src = code(LOUNGE);
     expect(src).not.toContain("failNoteTimerRef");
-    expect(src).not.toMatch(/setTimeout\(\s*\(\)\s*=>\s*setProcessingResume\(null\)/);
+    expect(src).not.toMatch(
+      /setTimeout\(\s*\(\)\s*=>\s*setProcessingResume\(null\)/,
+    );
   });
 
   it("idle state changes preserve a failed note; entering the Lab clears it", () => {
     const src = code(LOUNGE);
     expect(src).toContain(
-      'setProcessingResume((prev) => (prev?.status === "failed" ? prev : null))'
+      'setProcessingResume((prev) => (prev?.status === "failed" ? prev : null))',
     );
     expect(src).toContain(
-      'setProcessingResume((prev) => (prev?.status === "failed" ? null : prev))'
+      'setProcessingResume((prev) => (prev?.status === "failed" ? null : prev))',
     );
   });
 });

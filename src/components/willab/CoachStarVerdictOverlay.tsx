@@ -75,13 +75,11 @@ import ConfidenceLabelChips from "./ConfidenceLabelChips";
 /*  moderation — a verdict changes NOTHING the student sees (N2): the star     */
 /*  still renders for them exactly as before, including on a should_not_fire.  */
 /*                                                                            */
-/*  N1 / BLIND COACH — this surface SHOWS the machine's guess, so it must      */
-/*  never sit in or link from the blind labeling flow (CoachReviewOverlay /    */
-/*  CoachSnippetReviewCard, where the coach labels direction blind). It is a   */
-/*  separate overlay with its own entry on the student-detail screen, mounted  */
-/*  as a Lounge sibling; starVerdictSeparation.test.ts enforces the import     */
-/*  graph in both directions. Do not add an entry to the review wrap-up —      */
-/*  that page is part of the labeling flow.                                    */
+/*  N1 / BLIND COACH — this surface eventually SHOWS the machine's guess, so   */
+/*  it is a strict two-pass surface. Pass one renders and fetches only blind    */
+/*  confident-voice evidence. Only after every answer is committed does pass   */
+/*  two fetch and render machine/contextual verdicts. The independent          */
+/*  CoachReviewOverlay has the same session-wide gate.                         */
 /*                                                                            */
 /*  N3 — "Wrong kind" is never submittable bare: the pill only opens the       */
 /*  picker, and the PICK is the save. N5 — a saved verdict renders as the      */
@@ -161,7 +159,7 @@ export default function CoachStarVerdictOverlay({
   useBackDismiss(onClose);
   const [stars, setStars] = useState<ArcStar[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading"
+    "loading",
   );
   // In-flight saves PER ROW — judging star B while A settles is fine, and
   // must actually be: a global lock with per-row disabling silently swallowed
@@ -182,7 +180,69 @@ export default function CoachStarVerdictOverlay({
   const [whyDrafts, setWhyDrafts] = useState<Record<string, string>>({});
   const [replDrafts, setReplDrafts] = useState<Record<string, string>>({});
 
+  // ── CONFIDENT-VOICE FEEDBACKS, FIRST (founder 2026-08-10). The blind
+  // labeling rows for this arc's sessions, aggregated. The queue payload is
+  // blind BY CONSTRUCTION (the BE serves words + audio and "NOTHING that
+  // could hint at an answer"). Contextual star review is a SECOND pass and
+  // is neither fetched nor rendered until every row has a committed answer.
+  // A failed queue is blocking: silently skipping it would unlock context
+  // before the blind pass was actually complete. ──
+  const [cvRows, setCvRows] = useState<
+    Array<QueuePiece & { sessionKey: string }>
+  >([]);
+  const [cvStatus, setCvStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
+  const [cvSaving, setCvSaving] = useState<string | null>(null);
+  const [cvErrors, setCvErrors] = useState<Record<string, string>>({});
+  const sessionsKey = (sessionIds ?? []).join(",");
   useEffect(() => {
+    let active = true;
+    const ids = sessionsKey ? sessionsKey.split(",") : [];
+    if (ids.length === 0) {
+      setCvRows([]);
+      setCvStatus("ready");
+      return;
+    }
+    setCvStatus("loading");
+    void Promise.all(ids.map((sid) => fetchConfidenceQueue(sid))).then(
+      (queues) => {
+        if (!active) return;
+        if (queues.some((queue) => queue === null)) {
+          setCvRows([]);
+          setCvStatus("error");
+          return;
+        }
+        const out: Array<QueuePiece & { sessionKey: string }> = [];
+        queues.forEach((q, i) => {
+          for (const piece of q?.queue ?? []) {
+            out.push({ ...piece, sessionKey: ids[i] });
+          }
+        });
+        setCvRows(out);
+        setCvStatus("ready");
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [sessionsKey]);
+
+  const blindComplete =
+    cvStatus === "ready" &&
+    cvRows.every(
+      (row) => row.label?.value !== null || row.label?.unrateable === true,
+    );
+
+  // Do not even request the machine/contextual payload until the blind pass
+  // is complete. This is stronger than a visual hide: the browser has no
+  // contextual response available to reveal while the coach is labeling.
+  useEffect(() => {
+    if (!blindComplete) {
+      setStars(null);
+      setStatus("loading");
+      return;
+    }
     let active = true;
     setStatus("loading");
     void fetchCoachArcStars(arcId).then((r) => {
@@ -193,44 +253,7 @@ export default function CoachStarVerdictOverlay({
     return () => {
       active = false;
     };
-  }, [arcId]);
-
-  // ── CONFIDENT-VOICE FEEDBACKS, FIRST (founder 2026-08-10). The blind
-  // labeling rows for this arc's sessions, aggregated. The queue payload is
-  // blind BY CONSTRUCTION (the BE serves words + audio and "NOTHING that
-  // could hint at an answer"), so BLIND COACH holds per-row even though this
-  // panel shows machine guesses further down: a CV row carries no guess to
-  // see. Best-effort per session — a queue that fails to load just isn't
-  // shown. ──
-  const [cvRows, setCvRows] = useState<
-    Array<QueuePiece & { sessionKey: string }>
-  >([]);
-  const [cvSaving, setCvSaving] = useState<string | null>(null);
-  const [cvErrors, setCvErrors] = useState<Record<string, string>>({});
-  const sessionsKey = (sessionIds ?? []).join(",");
-  useEffect(() => {
-    let active = true;
-    const ids = sessionsKey ? sessionsKey.split(",") : [];
-    if (ids.length === 0) {
-      setCvRows([]);
-      return;
-    }
-    void Promise.all(ids.map((sid) => fetchConfidenceQueue(sid))).then(
-      (queues) => {
-        if (!active) return;
-        const out: Array<QueuePiece & { sessionKey: string }> = [];
-        queues.forEach((q, i) => {
-          for (const piece of q?.queue ?? []) {
-            out.push({ ...piece, sessionKey: ids[i] });
-          }
-        });
-        setCvRows(out);
-      }
-    );
-    return () => {
-      active = false;
-    };
-  }, [sessionsKey]);
+  }, [arcId, blindComplete]);
 
   // TERNARY (founder 2026-08-10: same instrument as the coach snippet card
   // and the game — yes / no / Ambiguous + the unrateable abstention). Saves
@@ -238,7 +261,7 @@ export default function CoachStarVerdictOverlay({
   const labelVoice = (
     row: QueuePiece,
     value: TernaryValue | null,
-    unrateable = false
+    unrateable = false,
   ) => {
     if (cvSaving !== null) return;
     const body = buildRatingBody(value, unrateable);
@@ -254,8 +277,7 @@ export default function CoachStarVerdictOverlay({
       if (!r.ok) {
         setCvErrors((e) => ({
           ...e,
-          [row.snippetId]:
-            r.error ?? "Couldn't save this label. Try again.",
+          [row.snippetId]: r.error ?? "Couldn't save this label. Try again.",
         }));
         return;
       }
@@ -273,8 +295,8 @@ export default function CoachStarVerdictOverlay({
                   note: null,
                 },
               }
-            : x
-        )
+            : x,
+        ),
       );
     });
   };
@@ -284,12 +306,14 @@ export default function CoachStarVerdictOverlay({
   // same server-mirrored gate (review-state's can_publish + blockers) and
   // the same shipped copy — so the coach finishes a review WHERE they
   // review, and the SESSIONS rows stop being a second way in. ──
-  const [reviewState, setReviewState] = useState<CoachReviewState | null>(
-    null
-  );
+  const [reviewState, setReviewState] = useState<CoachReviewState | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   useEffect(() => {
+    if (!blindComplete) {
+      setReviewState(null);
+      return;
+    }
     let active = true;
     void fetchCoachReviewState(arcId).then((r) => {
       if (active) setReviewState(r);
@@ -297,7 +321,7 @@ export default function CoachStarVerdictOverlay({
     return () => {
       active = false;
     };
-  }, [arcId]);
+  }, [arcId, blindComplete]);
   const handlePublish = () => {
     if (publishing || reviewState?.published) return;
     const publishPayloads = (reviewState?.takes ?? [])
@@ -313,7 +337,7 @@ export default function CoachStarVerdictOverlay({
       setPublishing(false);
       if (r.kind === "ok") {
         setReviewState((prev) =>
-          prev ? { ...prev, published: true, canPublish: false } : prev
+          prev ? { ...prev, published: true, canPublish: false } : prev,
         );
         return;
       }
@@ -338,7 +362,7 @@ export default function CoachStarVerdictOverlay({
    *  via inFlightRef, so a blur landing on top of a pending debounce cannot
    *  double-post. */
   const autosaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
-    {}
+    {},
   );
 
   const flushDraft = useCallback(
@@ -353,17 +377,16 @@ export default function CoachStarVerdictOverlay({
       const dirty =
         shouldAutosaveDraft(noteDrafts[key], star.note, true) ||
         shouldAutosaveDraft(whyDrafts[key], effectiveWhy(star), true) ||
-        shouldAutosaveDraft(
-          replDrafts[key],
-          effectiveReplacement(star),
-          true
-        );
+        shouldAutosaveDraft(replDrafts[key], effectiveReplacement(star), true);
       if (!dirty) return;
-      void save(star, star.verdict as StarVerdict,
-                star.correctedDevice ?? undefined);
+      void save(
+        star,
+        star.verdict as StarVerdict,
+        star.correctedDevice ?? undefined,
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [noteDrafts, whyDrafts, replDrafts]
+    [noteDrafts, whyDrafts, replDrafts],
   );
 
   /** Debounced sibling of flushDraft — called on every keystroke. */
@@ -377,7 +400,7 @@ export default function CoachStarVerdictOverlay({
         flushDraft(star);
       }, AUTOSAVE_DEBOUNCE_MS);
     },
-    [flushDraft]
+    [flushDraft],
   );
 
   // Nothing typed may be lost to an unmount mid-debounce.
@@ -391,7 +414,7 @@ export default function CoachStarVerdictOverlay({
   async function save(
     star: ArcStar,
     verdict: StarVerdict,
-    correctedDevice?: string
+    correctedDevice?: string,
   ) {
     const key = starRowKey(star);
     if (inFlightRef.current.has(key)) return;
@@ -433,7 +456,7 @@ export default function CoachStarVerdictOverlay({
                 ...r,
                 verdict,
                 correctedDevice:
-                  verdict === "wrong_kind" ? correctedDevice ?? null : null,
+                  verdict === "wrong_kind" ? (correctedDevice ?? null) : null,
                 note: body.note ?? null,
                 // A rewrite that just landed makes this row edited, and the
                 // row now says what the coach wrote — mirror both locally so
@@ -446,8 +469,8 @@ export default function CoachStarVerdictOverlay({
                   body.why_final !== undefined ||
                   body.replacement_text_final !== undefined,
               }
-            : r
-        ) ?? null
+            : r,
+        ) ?? null,
     );
     setPickerId((id) => (id === key ? null : id));
   }
@@ -457,8 +480,73 @@ export default function CoachStarVerdictOverlay({
   // rows the body renders, so the strip and the review can never disagree.
   const verifiedVoices =
     stars?.filter(
-      (s) => s.verdict === "keep" && s.audioRef && s.durationMs > 0
+      (s) => s.verdict === "keep" && s.audioRef && s.durationMs > 0,
     ) ?? [];
+
+  if (!blindComplete) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-background">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-semibold text-foreground">
+              Blind confidence pass
+            </span>
+            <CoachEyebrow>Coach only · training</CoachEyebrow>
+          </span>
+          <OverlayCloseButton
+            onClick={onClose}
+            ariaLabel="Close blind confidence pass"
+          />
+        </div>
+        <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
+            {cvStatus === "loading" ? (
+              <div className="flex min-h-64 items-center justify-center">
+                <VoiceMark size={48} />
+              </div>
+            ) : cvStatus === "error" ? (
+              <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
+                Couldn&apos;t load every blind-label queue. Close and try again;
+                contextual review stays locked.
+              </p>
+            ) : (
+              cvRows.map((row, index) => (
+                <CoachCard key={row.snippetId}>
+                  <CoachMetaPill tone="muted">
+                    Piece {index + 1} of {cvRows.length}
+                  </CoachMetaPill>
+                  {row.audioRef && row.durationMs > 0 ? (
+                    <MediaPlayer
+                      src={row.audioRef}
+                      startOffsetMs={row.startOffsetMs}
+                      durationMs={row.durationMs}
+                    />
+                  ) : null}
+                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                    <p className="text-[15px] leading-relaxed text-foreground">
+                      {row.transcript}
+                    </p>
+                  </div>
+                  <ConfidenceLabelChips
+                    question="Was this voice confident?"
+                    value={row.label?.value ?? null}
+                    unrateable={row.label?.unrateable === true}
+                    disabled={cvSaving === row.snippetId}
+                    saving={cvSaving === row.snippetId}
+                    error={cvErrors[row.snippetId] ?? null}
+                    onPick={(value) => labelVoice(row, value)}
+                    onToggleUnrateable={() =>
+                      labelVoice(row, null, !(row.label?.unrateable === true))
+                    }
+                  />
+                </CoachCard>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -495,91 +583,91 @@ export default function CoachStarVerdictOverlay({
           narrow inside it. */}
       <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
-        {cvRows.length > 0 ? (
-          // CONFIDENT-VOICE FEEDBACKS — always at the top of the list
-          // (founder 2026-08-10). Blind rows: play, read, answer. The copy
-          // is the corpus view's shipped coach copy, verbatim.
-          <div className="flex flex-col gap-3">
-            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-              Confident voices
-            </span>
-            {cvRows.map((row) => (
-              <CoachCard key={row.snippetId}>
-                {row.audioRef && row.durationMs > 0 ? (
-                  <MediaPlayer
-                    src={row.audioRef}
-                    startOffsetMs={row.startOffsetMs}
-                    durationMs={row.durationMs}
-                  />
-                ) : null}
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-                  <p className="text-[15px] leading-relaxed text-foreground">
-                    {row.transcript}
-                  </p>
-                </div>
-                {/* THE shared instrument (founder 2026-08-10): the same
+          {cvRows.length > 0 ? (
+            // CONFIDENT-VOICE FEEDBACKS — always at the top of the list
+            // (founder 2026-08-10). Blind rows: play, read, answer. The copy
+            // is the corpus view's shipped coach copy, verbatim.
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+                Confident voices
+              </span>
+              {cvRows.map((row) => (
+                <CoachCard key={row.snippetId}>
+                  {row.audioRef && row.durationMs > 0 ? (
+                    <MediaPlayer
+                      src={row.audioRef}
+                      startOffsetMs={row.startOffsetMs}
+                      durationMs={row.durationMs}
+                    />
+                  ) : null}
+                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                    <p className="text-[15px] leading-relaxed text-foreground">
+                      {row.transcript}
+                    </p>
+                  </div>
+                  {/* THE shared instrument (founder 2026-08-10): the same
                     component the snippet card and the game render — three
                     answers + the abstention, no per-surface drift. The
                     question keeps this row's shipped copy. */}
-                <ConfidenceLabelChips
-                  question="Was this voice confident?"
-                  value={row.label?.value ?? null}
-                  unrateable={row.label?.unrateable === true}
-                  disabled={cvSaving === row.snippetId}
-                  saving={cvSaving === row.snippetId}
-                  error={cvErrors[row.snippetId] ?? null}
-                  onPick={(v) => labelVoice(row, v)}
-                  onToggleUnrateable={() =>
-                    labelVoice(row, null, !(row.label?.unrateable === true))
-                  }
-                />
-              </CoachCard>
-            ))}
-          </div>
-        ) : null}
-        {verifiedVoices.length > 0 ? (
-          // The strip: confident voices at the TOP of the star review — the
-          // founder's fold of what used to be a separate panel. Horizontal,
-          // playback-only; judging still happens on the rows below.
-          <div className="flex flex-col gap-2">
-            <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-              Confident voices
-            </span>
-            <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
-              {verifiedVoices.map((s) => (
-                <div
-                  key={starRowKey(s)}
-                  className="w-64 shrink-0 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-3"
-                >
-                  <MediaPlayer
-                    src={s.audioRef!}
-                    startOffsetMs={s.startOffsetMs}
-                    durationMs={s.durationMs}
+                  <ConfidenceLabelChips
+                    question="Was this voice confident?"
+                    value={row.label?.value ?? null}
+                    unrateable={row.label?.unrateable === true}
+                    disabled={cvSaving === row.snippetId}
+                    saving={cvSaving === row.snippetId}
+                    error={cvErrors[row.snippetId] ?? null}
+                    onPick={(v) => labelVoice(row, v)}
+                    onToggleUnrateable={() =>
+                      labelVoice(row, null, !(row.label?.unrateable === true))
+                    }
                   />
-                </div>
+                </CoachCard>
               ))}
             </div>
-          </div>
-        ) : null}
-        {status === "loading" ? (
-          <div className="flex flex-1 items-center justify-center">
-            <VoiceMark size={48} />
-          </div>
-        ) : status === "error" || stars === null ? (
-          <p className="max-w-sm text-[15px] text-muted-foreground">
-            Couldn&apos;t load the stars just now. Close and reopen this view
-            to try again.
-          </p>
-        ) : stars.length === 0 ? (
-          // Nothing to review is a valid state, not an error.
-          <p className="text-[15px] text-muted-foreground">
-            No stars fired on this arc.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {/* Founder 2026-08-10: confident-voice feedbacks first. Stable
+          ) : null}
+          {verifiedVoices.length > 0 ? (
+            // The strip: confident voices at the TOP of the star review — the
+            // founder's fold of what used to be a separate panel. Horizontal,
+            // playback-only; judging still happens on the rows below.
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+                Confident voices
+              </span>
+              <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                {verifiedVoices.map((s) => (
+                  <div
+                    key={starRowKey(s)}
+                    className="w-64 shrink-0 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-3"
+                  >
+                    <MediaPlayer
+                      src={s.audioRef!}
+                      startOffsetMs={s.startOffsetMs}
+                      durationMs={s.durationMs}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {status === "loading" ? (
+            <div className="flex flex-1 items-center justify-center">
+              <VoiceMark size={48} />
+            </div>
+          ) : status === "error" || stars === null ? (
+            <p className="max-w-sm text-[15px] text-muted-foreground">
+              Couldn&apos;t load the stars just now. Close and reopen this view
+              to try again.
+            </p>
+          ) : stars.length === 0 ? (
+            // Nothing to review is a valid state, not an error.
+            <p className="text-[15px] text-muted-foreground">
+              No stars fired on this arc.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {/* Founder 2026-08-10: confident-voice feedbacks first. Stable
                 within each half, so the server's unjudged-first order still
                 holds on both sides of the split.
 
@@ -591,359 +679,378 @@ export default function CoachStarVerdictOverlay({
                 historical star to the bottom — silently, since a sort that
                 loses a row still renders. Mirrors the backend's
                 CONFIDENT_VOICE_TRIGGERS. */}
-            {[...stars]
-              .sort(
-                (a, b) => Number(isConfidentVoice(b)) - Number(isConfidentVoice(a))
-              )
-              .map((s) => {
-              const key = starRowKey(s);
-              return (
-              <CoachCard as="li" key={key}>
-                <div className="flex items-center gap-2">
-                  {/* Founder 2026-08-11: stars are eradicated platform-wide,
+              {[...stars]
+                .sort(
+                  (a, b) =>
+                    Number(isConfidentVoice(b)) - Number(isConfidentVoice(a)),
+                )
+                .map((s) => {
+                  const key = starRowKey(s);
+                  return (
+                    <CoachCard as="li" key={key}>
+                      <div className="flex items-center gap-2">
+                        {/* Founder 2026-08-11: stars are eradicated platform-wide,
                       this coach tool included. A neutral approval mark — the
                       row is a machine suggestion awaiting the coach's
                       verdict, and the icon should say only that. */}
-                  <BadgeCheck
-                    className="h-4 w-4 shrink-0 text-muted-foreground"
-                    fill="none"
-                    aria-hidden
-                  />
-                  <CoachMetaPill>{starChipLabel(s)}</CoachMetaPill>
-                  {s.takeIndex !== null ? (
-                    <CoachMetaPill tone="outline">
-                      Take {s.takeIndex}
-                    </CoachMetaPill>
-                  ) : null}
-                  {/* The edit→keep pair only enters the corpus when the star
+                        <BadgeCheck
+                          className="h-4 w-4 shrink-0 text-muted-foreground"
+                          fill="none"
+                          aria-hidden
+                        />
+                        <CoachMetaPill>{starChipLabel(s)}</CoachMetaPill>
+                        {s.takeIndex !== null ? (
+                          <CoachMetaPill tone="outline">
+                            Take {s.takeIndex}
+                          </CoachMetaPill>
+                        ) : null}
+                        {/* The edit→keep pair only enters the corpus when the star
                       is KEPT (BE 2026-07-28) — so an edited star without a
                       verdict wears the amber nudge until it gets one. */}
-                  {s.edited ? (
-                    <CoachMetaPill tone={s.verdict === null ? "warn" : "muted"}>
-                      {s.verdict === null ? "Edited — add a verdict" : "Edited"}
-                    </CoachMetaPill>
-                  ) : null}
-                </div>
+                        {s.edited ? (
+                          <CoachMetaPill
+                            tone={s.verdict === null ? "warn" : "muted"}
+                          >
+                            {s.verdict === null
+                              ? "Edited — add a verdict"
+                              : "Edited"}
+                          </CoachMetaPill>
+                        ) : null}
+                      </div>
 
-                {/* PLAYBACK FIRST (founder 2026-07-27) — a verdict on a star
+                      {/* PLAYBACK FIRST (founder 2026-07-27) — a verdict on a star
                     is a verdict on a spoken moment, and the coach cannot make
                     it from the machine's why alone. The player clamps to
                     exactly the snippet's slice of the take's file (the same
                     parent+offset model the labeler uses). Rendered only when
                     the payload carries the audio — a text-only payload
                     degrades to a text-only row, never a broken player. */}
-                {s.audioRef && s.durationMs > 0 ? (
-                  <MediaPlayer
-                    src={s.audioRef}
-                    startOffsetMs={s.startOffsetMs}
-                    durationMs={s.durationMs}
-                  />
-                ) : null}
-                {s.transcript ? (
-                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-                    <p className="text-[15px] leading-relaxed text-foreground">
-                      {s.transcript}
-                    </p>
-                  </div>
-                ) : null}
+                      {s.audioRef && s.durationMs > 0 ? (
+                        <MediaPlayer
+                          src={s.audioRef}
+                          startOffsetMs={s.startOffsetMs}
+                          durationMs={s.durationMs}
+                        />
+                      ) : null}
+                      {s.transcript ? (
+                        <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                          <p className="text-[15px] leading-relaxed text-foreground">
+                            {s.transcript}
+                          </p>
+                        </div>
+                      ) : null}
 
-                {/* What the star SAYS — the coach's wording when they have
+                      {/* What the star SAYS — the coach's wording when they have
                     rewritten it, else the machine's (the "Edited" chip above
                     is what tells them which they are looking at). Both the
                     reason and the replacement may be present. */}
-                {effectiveWhy(s) ? (
-                  <p className="text-[14px] leading-relaxed text-foreground">
-                    {effectiveWhy(s)}
-                  </p>
-                ) : null}
-                {effectiveReplacement(s) ? (
-                  <p className="rounded-xl bg-muted/40 px-3 py-2 text-[14px] leading-relaxed text-foreground">
-                    <CoachEyebrow strong className="mr-2">
-                      Suggested
-                    </CoachEyebrow>
-                    {effectiveReplacement(s)}
-                  </p>
-                ) : null}
+                      {effectiveWhy(s) ? (
+                        <p className="text-[14px] leading-relaxed text-foreground">
+                          {effectiveWhy(s)}
+                        </p>
+                      ) : null}
+                      {effectiveReplacement(s) ? (
+                        <p className="rounded-xl bg-muted/40 px-3 py-2 text-[14px] leading-relaxed text-foreground">
+                          <CoachEyebrow strong className="mr-2">
+                            Suggested
+                          </CoachEyebrow>
+                          {effectiveReplacement(s)}
+                        </p>
+                      ) : null}
 
-                {/* The three-way control. Keep / Shouldn't fire save on tap;
+                      {/* The three-way control. Keep / Shouldn't fire save on tap;
                     Wrong kind only OPENS the picker — the pick saves (N3).
                     The saved verdict is the active pill, not a locked answer:
                     tapping another replaces it (N5). */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <CoachChip
-                    active={s.verdict === "keep"}
-                    disabled={savingKeys[key] === true}
-                    onClick={() => void save(s, "keep")}
-                  >
-                    Keep
-                  </CoachChip>
-                  <CoachChip
-                    active={s.verdict === "wrong_kind"}
-                    disabled={savingKeys[key] === true}
-                    onClick={() =>
-                      setPickerId((id) => (id === key ? null : key))
-                    }
-                  >
-                    Wrong kind…
-                  </CoachChip>
-                  <CoachChip
-                    active={s.verdict === "should_not_fire"}
-                    disabled={savingKeys[key] === true}
-                    onClick={() => void save(s, "should_not_fire")}
-                  >
-                    Shouldn&apos;t fire
-                  </CoachChip>
-                  {savingKeys[key] === true ? <VoiceMark size={20} /> : null}
-                </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CoachChip
+                          active={s.verdict === "keep"}
+                          disabled={savingKeys[key] === true}
+                          onClick={() => void save(s, "keep")}
+                        >
+                          Keep
+                        </CoachChip>
+                        <CoachChip
+                          active={s.verdict === "wrong_kind"}
+                          disabled={savingKeys[key] === true}
+                          onClick={() =>
+                            setPickerId((id) => (id === key ? null : key))
+                          }
+                        >
+                          Wrong kind…
+                        </CoachChip>
+                        <CoachChip
+                          active={s.verdict === "should_not_fire"}
+                          disabled={savingKeys[key] === true}
+                          onClick={() => void save(s, "should_not_fire")}
+                        >
+                          Shouldn&apos;t fire
+                        </CoachChip>
+                        {savingKeys[key] === true ? (
+                          <VoiceMark size={20} />
+                        ) : null}
+                      </div>
 
-                {pickerId === key ? (
-                  <div>
-                    <p className="text-[12px] text-muted-foreground">
-                      What should it have been?
-                    </p>
-                    {/* Options come from the row's device_options (N4) — or
+                      {pickerId === key ? (
+                        <div>
+                          <p className="text-[12px] text-muted-foreground">
+                            What should it have been?
+                          </p>
+                          {/* Options come from the row's device_options (N4) — or
                         the other star families when the kind has no devices.
                         Picking one IS the save; there is no second step. */}
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      {correctionOptions(s).map((opt) => (
-                        <CoachChip
-                          key={opt}
-                          size="sm"
-                          active={
-                            s.verdict === "wrong_kind" &&
-                            s.correctedDevice === opt
-                          }
-                          disabled={savingKeys[key] === true}
-                          onClick={() => void save(s, "wrong_kind", opt)}
-                        >
-                          {humanizeToken(opt)}
-                        </CoachChip>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                          <div className="mt-1.5 flex flex-wrap gap-2">
+                            {correctionOptions(s).map((opt) => (
+                              <CoachChip
+                                key={opt}
+                                size="sm"
+                                active={
+                                  s.verdict === "wrong_kind" &&
+                                  s.correctedDevice === opt
+                                }
+                                disabled={savingKeys[key] === true}
+                                onClick={() => void save(s, "wrong_kind", opt)}
+                              >
+                                {humanizeToken(opt)}
+                              </CoachChip>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
 
-                {/* THE EDITOR — the coach rewrites what the star says. Only
+                      {/* THE EDITOR — the coach rewrites what the star says. Only
                     offered when there is something to rewrite. Like the note,
                     it rides the verdict: with no verdict yet it is held and
                     sent by the next Keep / Wrong-kind / Shouldn't-fire tap;
                     with one already saved, "Save wording" re-sends the SAME
                     verdict carrying the new text (the PUT is an upsert). */}
-                {editOpen[key] ? (
-                  <div className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      What this star says
-                    </p>
-                    {s.why !== null || s.whyFinal !== null ? (
-                      <textarea
-                        aria-label="What this star says"
-                        value={whyDrafts[key] ?? effectiveWhy(s) ?? ""}
-                        onChange={(e) => {
-                          setWhyDrafts((d) => ({ ...d, [key]: e.target.value }));
-                          queueAutosave(s);
-                        }}
-                        onBlur={() => flushDraft(s)}
-                        rows={2}
-                        placeholder="The reason, in your words"
-                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-                      />
-                    ) : null}
-                    {s.replacementText !== null ||
-                    s.replacementTextFinal !== null ? (
-                      <textarea
-                        aria-label="Suggested text"
-                        value={
-                          replDrafts[key] ?? effectiveReplacement(s) ?? ""
-                        }
-                        onChange={(e) => {
-                          setReplDrafts((d) => ({ ...d, [key]: e.target.value }));
-                          queueAutosave(s);
-                        }}
-                        onBlur={() => flushDraft(s)}
-                        rows={2}
-                        placeholder="The suggested wording"
-                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-                      />
-                    ) : null}
-                    {s.verdict ? (
-                      <button
-                        type="button"
-                        disabled={savingKeys[key] === true}
-                        onClick={() =>
-                          void save(
-                            s,
-                            s.verdict as StarVerdict,
-                            s.correctedDevice ?? undefined
-                          )
-                        }
-                        className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
-                      >
-                        Save wording
-                      </button>
-                    ) : (
-                      <p className="text-[12px] text-muted-foreground">
-                        Saved with your verdict.
-                      </p>
-                    )}
-                  </div>
-                ) : effectiveWhy(s) !== null ||
-                  effectiveReplacement(s) !== null ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditOpen((n) => ({ ...n, [key]: true }))}
-                    className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
-                  >
-                    Edit what it says
-                  </button>
-                ) : null}
+                      {editOpen[key] ? (
+                        <div className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            What this star says
+                          </p>
+                          {s.why !== null || s.whyFinal !== null ? (
+                            <textarea
+                              aria-label="What this star says"
+                              value={whyDrafts[key] ?? effectiveWhy(s) ?? ""}
+                              onChange={(e) => {
+                                setWhyDrafts((d) => ({
+                                  ...d,
+                                  [key]: e.target.value,
+                                }));
+                                queueAutosave(s);
+                              }}
+                              onBlur={() => flushDraft(s)}
+                              rows={2}
+                              placeholder="The reason, in your words"
+                              className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                            />
+                          ) : null}
+                          {s.replacementText !== null ||
+                          s.replacementTextFinal !== null ? (
+                            <textarea
+                              aria-label="Suggested text"
+                              value={
+                                replDrafts[key] ?? effectiveReplacement(s) ?? ""
+                              }
+                              onChange={(e) => {
+                                setReplDrafts((d) => ({
+                                  ...d,
+                                  [key]: e.target.value,
+                                }));
+                                queueAutosave(s);
+                              }}
+                              onBlur={() => flushDraft(s)}
+                              rows={2}
+                              placeholder="The suggested wording"
+                              className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                            />
+                          ) : null}
+                          {s.verdict ? (
+                            <button
+                              type="button"
+                              disabled={savingKeys[key] === true}
+                              onClick={() =>
+                                void save(
+                                  s,
+                                  s.verdict as StarVerdict,
+                                  s.correctedDevice ?? undefined,
+                                )
+                              }
+                              className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
+                            >
+                              Save wording
+                            </button>
+                          ) : (
+                            <p className="text-[12px] text-muted-foreground">
+                              Saved with your verdict.
+                            </p>
+                          )}
+                        </div>
+                      ) : effectiveWhy(s) !== null ||
+                        effectiveReplacement(s) !== null ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditOpen((n) => ({ ...n, [key]: true }))
+                          }
+                          className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
+                        >
+                          Edit what it says
+                        </button>
+                      ) : null}
 
-                {noteOpen[key] ? (
-                  <div className="flex flex-col gap-1.5">
-                    <textarea
-                      value={noteDrafts[key] ?? s.note ?? ""}
-                      onChange={(e) => {
-                        setNoteDrafts((d) => ({
-                          ...d,
-                          [key]: e.target.value,
-                        }));
-                        queueAutosave(s);
-                      }}
-                      onBlur={() => flushDraft(s)}
-                      rows={2}
-                      maxLength={NOTE_MAX_CHARS}
-                      placeholder="Why — in your words"
-                      className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-                    />
-                    {s.verdict ? (
-                      <button
-                        type="button"
-                        disabled={savingKeys[key] === true}
-                        onClick={() =>
-                          void save(s, s.verdict as StarVerdict, s.correctedDevice ?? undefined)
-                        }
-                        className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
-                      >
-                        Save note
-                      </button>
-                    ) : (
-                      <p className="text-[12px] text-muted-foreground">
-                        Saved with your verdict.
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setNoteOpen((n) => ({ ...n, [key]: true }))
-                    }
-                    className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
-                  >
-                    {s.note ? "Edit note" : "Add note"}
-                  </button>
-                )}
+                      {noteOpen[key] ? (
+                        <div className="flex flex-col gap-1.5">
+                          <textarea
+                            value={noteDrafts[key] ?? s.note ?? ""}
+                            onChange={(e) => {
+                              setNoteDrafts((d) => ({
+                                ...d,
+                                [key]: e.target.value,
+                              }));
+                              queueAutosave(s);
+                            }}
+                            onBlur={() => flushDraft(s)}
+                            rows={2}
+                            maxLength={NOTE_MAX_CHARS}
+                            placeholder="Why — in your words"
+                            className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                          />
+                          {s.verdict ? (
+                            <button
+                              type="button"
+                              disabled={savingKeys[key] === true}
+                              onClick={() =>
+                                void save(
+                                  s,
+                                  s.verdict as StarVerdict,
+                                  s.correctedDevice ?? undefined,
+                                )
+                              }
+                              className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
+                            >
+                              Save note
+                            </button>
+                          ) : (
+                            <p className="text-[12px] text-muted-foreground">
+                              Saved with your verdict.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNoteOpen((n) => ({ ...n, [key]: true }))
+                          }
+                          className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
+                        >
+                          {s.note ? "Edit note" : "Add note"}
+                        </button>
+                      )}
 
-                {errors[key] ? (
-                  <CoachErrorLine>{errors[key]}</CoachErrorLine>
-                ) : null}
-              </CoachCard>
-              );
-            })}
-          </ul>
-        )}
-        {reviewState && reviewState.takes.length > 0 ? (
-          // The per-take review rows (final migration): each take's saved
-          // state, tappable into its review while unsaved work remains. The
-          // vocabulary is the wrap-up's shipped chip language.
-          <div className="flex flex-col gap-2">
-            <span className="text-[13px] font-medium text-foreground">
-              Takes
-            </span>
-            {orderTakesForReview(reviewState.takes).map((t) => {
-              const label =
-                t.reviewState === "delivered"
-                  ? "Delivered"
-                  : t.reviewState === "reviewed"
-                    ? "Reviewed"
-                    : "To review";
-              const tone =
-                t.reviewState === "delivered"
-                  ? "bg-success/10 text-success"
-                  : t.reviewState === "reviewed"
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-primary/10 text-primary";
-              const row = (
-                <>
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
-                    {t.takeIndex !== null ? `Take ${t.takeIndex}` : "Take"}
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}
-                  >
-                    {label}
-                  </span>
-                </>
-              );
-              return onOpenTakeReview && t.reviewState !== "delivered" ? (
-                <button
-                  key={t.sessionId}
-                  type="button"
-                  onClick={() => onOpenTakeReview(t.sessionId)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
-                >
-                  {row}
-                </button>
-              ) : (
-                <div
-                  key={t.sessionId}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
-                >
-                  {row}
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-        {reviewState ? (
-          reviewState.published ? (
-            <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
-              <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
-            </div>
-          ) : (
+                      {errors[key] ? (
+                        <CoachErrorLine>{errors[key]}</CoachErrorLine>
+                      ) : null}
+                    </CoachCard>
+                  );
+                })}
+            </ul>
+          )}
+          {reviewState && reviewState.takes.length > 0 ? (
+            // The per-take review rows (final migration): each take's saved
+            // state, tappable into its review while unsaved work remains. The
+            // vocabulary is the wrap-up's shipped chip language.
             <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                onClick={handlePublish}
-                disabled={!reviewState.canPublish || publishing}
-                className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
-              >
-                {publishing ? (
-                  <Loader2
-                    className="mr-1.5 h-4 w-4 animate-spin"
-                    aria-hidden
-                  />
-                ) : null}
-                Publish the full analysis
-              </Button>
-              {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
-                <p className="text-center text-[12px] text-muted-foreground">
-                  {reviewState.blockers.map(blockerReason).join(" · ")}
-                </p>
-              ) : reviewState.advisories.length > 0 ? (
-                /* Advisory, not a gate: says what a publish now would leave
-                   out. The button above stays enabled. */
-                <p className="text-center text-[12px] text-muted-foreground">
-                  {reviewState.advisories.map(advisoryNote).join(" · ")}
-                </p>
-              ) : null}
-              {publishError ? (
-                <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
-                  {publishError}
-                </p>
-              ) : null}
+              <span className="text-[13px] font-medium text-foreground">
+                Takes
+              </span>
+              {orderTakesForReview(reviewState.takes).map((t) => {
+                const label =
+                  t.reviewState === "delivered"
+                    ? "Delivered"
+                    : t.reviewState === "reviewed"
+                      ? "Reviewed"
+                      : "To review";
+                const tone =
+                  t.reviewState === "delivered"
+                    ? "bg-success/10 text-success"
+                    : t.reviewState === "reviewed"
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-primary/10 text-primary";
+                const row = (
+                  <>
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
+                      {t.takeIndex !== null ? `Take ${t.takeIndex}` : "Take"}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}
+                    >
+                      {label}
+                    </span>
+                  </>
+                );
+                return onOpenTakeReview && t.reviewState !== "delivered" ? (
+                  <button
+                    key={t.sessionId}
+                    type="button"
+                    onClick={() => onOpenTakeReview(t.sessionId)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
+                  >
+                    {row}
+                  </button>
+                ) : (
+                  <div
+                    key={t.sessionId}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+                  >
+                    {row}
+                  </div>
+                );
+              })}
             </div>
-          )
-        ) : null}
+          ) : null}
+          {reviewState ? (
+            reviewState.published ? (
+              <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
+                <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={!reviewState.canPublish || publishing}
+                  className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {publishing ? (
+                    <Loader2
+                      className="mr-1.5 h-4 w-4 animate-spin"
+                      aria-hidden
+                    />
+                  ) : null}
+                  Publish the full analysis
+                </Button>
+                {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
+                  <p className="text-center text-[12px] text-muted-foreground">
+                    {reviewState.blockers.map(blockerReason).join(" · ")}
+                  </p>
+                ) : reviewState.advisories.length > 0 ? (
+                  /* Advisory, not a gate: says what a publish now would leave
+                   out. The button above stays enabled. */
+                  <p className="text-center text-[12px] text-muted-foreground">
+                    {reviewState.advisories.map(advisoryNote).join(" · ")}
+                  </p>
+                ) : null}
+                {publishError ? (
+                  <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
+                    {publishError}
+                  </p>
+                ) : null}
+              </div>
+            )
+          ) : null}
         </div>
       </div>
     </div>
