@@ -102,7 +102,7 @@ jobs:
           node e2e/bets-reorder.spec.mjs
           node e2e/corpus.spec.mjs
           node e2e/star-verdicts.spec.mjs
-          node e2e/deck.spec.mjs
+          node e2e/ideal-text-canonical.spec.mjs
           MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
 
       - name: Dev-server log on failure
