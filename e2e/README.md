@@ -9,7 +9,7 @@ failure.
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
-| `game.spec.mjs` | `/dev/game` | `GAME_URL` → `:3111` |
+| `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
 | `star-verdicts.spec.mjs` | `/dev/star-verdicts` | `STARS_URL` → `:3111` |
@@ -45,8 +45,8 @@ npx next dev -p 3111              # in one terminal
 
 node e2e/bets-reorder.spec.mjs    # in another
 node e2e/corpus.spec.mjs
-node e2e/game.spec.mjs
 node e2e/star-verdicts.spec.mjs
+node e2e/deck.spec.mjs
 MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
 ```
 
