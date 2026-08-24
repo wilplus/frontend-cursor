@@ -27,6 +27,14 @@ const SRC = join(fileURLToPath(new URL("../../../", import.meta.url)));
 const SERVICE = join("services", "api", "trainingCorpus.ts");
 const CLIENT = join("app", "coach", "corpus", "page.client.tsx");
 const PAGE = join("app", "coach", "corpus", "page.tsx");
+const SUMMARY_PAGE = join(
+  "app",
+  "coach",
+  "corpus",
+  "summary",
+  "[sessionId]",
+  "page.tsx",
+);
 
 /** Any quoted path naming the corpus lane — shape-agnostic on purpose, so it
  *  catches `import`, `import type`, dynamic `import()` and `require` alike. */
@@ -60,8 +68,7 @@ const isCorpusOwned = (rel: string) =>
  *  fence is about what a USER can reach, and a production-gated fixture is
  *  reachable by nobody. (Same bargain the Life Panel and star-verdict fences
  *  strike.) */
-const isDevFixture = (rel: string) =>
-  rel.startsWith(join("app", "dev") + sep);
+const isDevFixture = (rel: string) => rel.startsWith(join("app", "dev") + sep);
 
 describe("training corpus fences", () => {
   it("N4 — only the shared menu links to the workbench, and only for a coach", () => {
@@ -83,7 +90,7 @@ describe("training corpus fences", () => {
       [
         join("components", "SiteHeader.tsx"),
         join("components", "dashboard", "DashboardHeader.tsx"),
-      ].sort()
+      ].sort(),
     );
   });
 
@@ -95,7 +102,7 @@ describe("training corpus fences", () => {
       const src = readFileSync(join(SRC, rel), "utf8");
       expect(
         /corpusHref=\{[^}]*isCoach[^}]*\}/.test(src),
-        `${rel} links the corpus without gating on isCoach`
+        `${rel} links the corpus without gating on isCoach`,
       ).toBe(true);
     }
     // AppMenu renders the row only when the host passed an href, so a
@@ -117,9 +124,9 @@ describe("training corpus fences", () => {
     for (const rel of fixtures) {
       expect(
         /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(
-          readFileSync(join(SRC, rel), "utf8")
+          readFileSync(join(SRC, rel), "utf8"),
         ),
-        `${rel} reaches the corpus but is not gated out of production`
+        `${rel} reaches the corpus but is not gated out of production`,
       ).toBe(true);
     }
   });
@@ -137,7 +144,7 @@ describe("training corpus fences", () => {
       for (const lane of MACHINE_READ_LANES) {
         expect(
           new RegExp(`["'][^"'\\n]*${lane}["']`).test(src),
-          `${rel} imports ${lane} — the labelling screen must stay blind to the machine's read (N1)`
+          `${rel} imports ${lane} — the labelling screen must stay blind to the machine's read (N1)`,
         ).toBe(false);
       }
     }
@@ -147,13 +154,30 @@ describe("training corpus fences", () => {
     const client = readFileSync(join(SRC, CLIENT), "utf8");
     // Comments explaining the fence are fine; rendered JSX text is not. Strip
     // block comments, then look for the words in what is left.
-    const code = client.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-    for (const word of ["band", "power_score", "powerScore", "confidence_score"]) {
+    const code = client
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+    for (const word of [
+      "band",
+      "power_score",
+      "powerScore",
+      "confidence_score",
+    ]) {
       expect(
         code.includes(word),
-        `"${word}" appears in the labelling screen's code — N1 forbids surfacing the machine's read`
+        `"${word}" appears in the labelling screen's code — N1 forbids surfacing the machine's read`,
       ).toBe(false);
     }
+  });
+
+  it("keeps the post-label founder audit on a separate exact-email route", () => {
+    const page = readFileSync(join(SRC, SUMMARY_PAGE), "utf8");
+    expect(page).toContain('"artur@willonski.com"');
+    expect(page).toContain("notFound()");
+    // The blind corpus service must never import the audit response shape.
+    expect(readFileSync(join(SRC, SERVICE), "utf8")).not.toContain(
+      "founderConfidenceComparison",
+    );
   });
 
   it("N5/FE-4 — the normal user's upload path carries no stage vocabulary", () => {
@@ -172,7 +196,7 @@ describe("training corpus fences", () => {
       }
       expect(
         /"stages"|'stages'|\bstages:/.test(src),
-        `${rel} mentions stages — the user's upload path must stay untouched (FE-4)`
+        `${rel} mentions stages — the user's upload path must stay untouched (FE-4)`,
       ).toBe(false);
     }
   });

@@ -28,7 +28,6 @@ export function useCoachReview(sessionId: string | null): UseCoachReviewResult {
 
   const refresh = useCallback(async () => {
     if (!sessionId) return;
-    setStatus("loading");
     const next = await fetchCoachReviewSession(sessionId);
     if (next) {
       setSession(next);

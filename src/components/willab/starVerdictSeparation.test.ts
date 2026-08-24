@@ -8,10 +8,9 @@ import { describe, expect, it } from "vitest";
 /*                                                                            */
 /*  The star-verdict surface SHOWS the machine's guesses (that is its job:     */
 /*  the coach judges whether each star should have fired). The blind labeling  */
-/*  flow (CoachSnippetReviewCard's Direction chips, hosted by                  */
-/*  CoachReviewOverlay) must never see a machine guess — §S.3 label hygiene.   */
-/*  Putting the two on one screen would anchor the blind label, so the spec's  */
-/*  N1 demands a separate screen and a separate navigation entry.              */
+/*  flow must never see a machine guess — §S.3 label hygiene. The consolidated */
+/*  review overlay therefore has two strict phases: blind labels first, then  */
+/*  (and only then) the contextual machine-verdict pass.                       */
 /*                                                                            */
 /*  Intent does not survive refactors; an import graph test does. Same         */
 /*  discipline as the Life Panel's isolation test. If this file is red, the    */
@@ -47,7 +46,9 @@ const SHARED_CHROME = join("components", "willab", "coachChrome.tsx");
  *  both flows. The detail/roster screens carry the entry callback (a plain
  *  prop, no star imports needed — listed here only for the overlay, which
  *  they never import today; tightening later is fine). */
-const PERMITTED_OVERLAY_IMPORTERS = [join("components", "willab", "Lounge.tsx")];
+const PERMITTED_OVERLAY_IMPORTERS = [
+  join("components", "willab", "Lounge.tsx"),
+];
 const PERMITTED_SERVICE_IMPORTERS = [OVERLAY];
 
 /** Any QUOTED module path naming the lane — deliberately shape-agnostic so it
@@ -57,7 +58,8 @@ const PERMITTED_SERVICE_IMPORTERS = [OVERLAY];
  *  fence is only as strong as its dullest matcher. A comment merely NAMING
  *  the lane inside a labeler file will also trip this — that is accepted:
  *  it forces a deliberate decision, which is the fence's whole job. */
-const STAR_LANE_IMPORT = /["'][^"'\n]*(?:starVerdicts|CoachStarVerdictOverlay)["']/;
+const STAR_LANE_IMPORT =
+  /["'][^"'\n]*(?:starVerdicts|CoachStarVerdictOverlay)["']/;
 
 const OVERLAY_IMPORT = /["'][^"'\n]*CoachStarVerdictOverlay["']/;
 const SERVICE_IMPORT = /["'][^"'\n]*(?:\/|^)starVerdicts["']/;
@@ -89,7 +91,7 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
       const src = readFileSync(join(SRC, rel), "utf8");
       expect(
         STAR_LANE_IMPORT.test(src),
-        `${rel} imports the star-verdict lane — the blind flow must never see the machine's guesses`
+        `${rel} imports the star-verdict lane — the blind flow must never see the machine's guesses`,
       ).toBe(false);
     }
   });
@@ -100,8 +102,28 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     // corpus; the verdict lane must not touch it even for types.
     expect(src).not.toMatch(/from\s+["']@?\/?.*coachReview["']/);
     expect(src).not.toMatch(
-      /from\s+["'].*(?:CoachSnippetReviewCard|CoachReviewOverlay|SnippetReadoutBlock|useCoachReview)["']/
+      /from\s+["'].*(?:CoachSnippetReviewCard|CoachReviewOverlay|SnippetReadoutBlock|useCoachReview)["']/,
     );
+  });
+
+  it("does not fetch or render contextual star review until the blind pass is complete", () => {
+    const src = readFileSync(join(SRC, OVERLAY), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    const fetchIndex = src.indexOf("void fetchCoachArcStars");
+    const fetchEffect = src.slice(
+      src.lastIndexOf("useEffect", fetchIndex),
+      src.indexOf("const handlePublish"),
+    );
+    expect(fetchEffect).toContain("blindComplete");
+    const blindReturn = src.indexOf("if (!blindComplete)");
+    const contextualReturn = src.lastIndexOf("return (");
+    expect(blindReturn).toBeGreaterThan(-1);
+    expect(contextualReturn).toBeGreaterThan(blindReturn);
+    const blindTree = src.slice(blindReturn, contextualReturn);
+    expect(blindTree).toContain("ConfidenceLabelChips");
+    expect(blindTree).not.toContain("starChipLabel");
+    expect(blindTree).not.toContain("Publish the full analysis");
   });
 
   it("the shared coach chrome bridges neither lane", () => {
@@ -109,12 +131,12 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     // Direction 1 — chrome must not reach into the star lane.
     expect(
       STAR_LANE_IMPORT.test(src),
-      "coachChrome imports the star-verdict lane — shared chrome must not bridge the lanes"
+      "coachChrome imports the star-verdict lane — shared chrome must not bridge the lanes",
     ).toBe(false);
     // Direction 2 — nor into the blind flow or its label service.
     expect(src).not.toMatch(/from\s+["']@?\/?.*coachReview["']/);
     expect(src).not.toMatch(
-      /from\s+["'].*(?:CoachSnippetReviewCard|CoachReviewOverlay|SnippetReadoutBlock|useCoachReview)["']/
+      /from\s+["'].*(?:CoachSnippetReviewCard|CoachReviewOverlay|SnippetReadoutBlock|useCoachReview)["']/,
     );
   });
 
@@ -125,7 +147,9 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     const src = readFileSync(join(SRC, SHARED_CHROME), "utf8");
     // Prose in the header comment explains WHY the fence exists and must stay
     // readable, so only code is searched.
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
     for (const banned of [
       "threat",
       "ambiguous",
@@ -139,7 +163,7 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     ]) {
       expect(
         new RegExp(`\\b${banned}\\b`, "i").test(code),
-        `coachChrome names "${banned}" — that vocabulary belongs to a lane, not to shared chrome`
+        `coachChrome names "${banned}" — that vocabulary belongs to a lane, not to shared chrome`,
       ).toBe(false);
     }
   });
@@ -151,7 +175,8 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
       const rel = relative(SRC, file);
       if (rel === SERVICE || isDevFixture(rel)) continue;
       const src = readFileSync(file, "utf8");
-      if (rel !== OVERLAY && OVERLAY_IMPORT.test(src)) overlayImporters.push(rel);
+      if (rel !== OVERLAY && OVERLAY_IMPORT.test(src))
+        overlayImporters.push(rel);
       if (SERVICE_IMPORT.test(src)) serviceImporters.push(rel);
     }
     // A new name here is a new surface for coach verdicts — decide
@@ -167,12 +192,17 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     // becomes visible to the student by inference.
     const idealText = readFileSync(
       join(SRC, "services", "api", "idealText.ts"),
-      "utf8"
+      "utf8",
     );
-    for (const marker of ["star_verdict", "wrong_kind", "should_not_fire", "corrected_device"]) {
+    for (const marker of [
+      "star_verdict",
+      "wrong_kind",
+      "should_not_fire",
+      "corrected_device",
+    ]) {
       expect(
         idealText.includes(marker),
-        `idealText.ts mentions "${marker}" — the student lane must stay verdict-blind`
+        `idealText.ts mentions "${marker}" — the student lane must stay verdict-blind`,
       ).toBe(false);
     }
   });
@@ -181,15 +211,19 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     const fixtures = walk(SRC)
       .map((f) => relative(SRC, f))
       .filter(isDevFixture)
-      .filter((rel) => STAR_LANE_IMPORT.test(readFileSync(join(SRC, rel), "utf8")));
+      .filter((rel) =>
+        STAR_LANE_IMPORT.test(readFileSync(join(SRC, rel), "utf8")),
+      );
     // The exemption above and this gate are the same decision: a fixture is
     // only outside the fence while it cannot be reached.
     expect(fixtures.length).toBeGreaterThan(0);
     for (const rel of fixtures) {
       const src = readFileSync(join(SRC, rel), "utf8");
       expect(
-        /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(src),
-        `${rel} imports the star lane but is not gated out of production`
+        /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(
+          src,
+        ),
+        `${rel} imports the star lane but is not gated out of production`,
       ).toBe(true);
     }
   });
@@ -198,7 +232,7 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     for (const rel of [...LABELER_FILES, OVERLAY, SERVICE, SHARED_CHROME]) {
       expect(
         statSync(join(SRC, rel)).isFile(),
-        `${rel} is gone — update the separation fence alongside the rename`
+        `${rel} is gone — update the separation fence alongside the rename`,
       ).toBe(true);
     }
   });

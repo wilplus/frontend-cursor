@@ -23,5 +23,11 @@ export default async function CoachCorpusPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?redirectTo=/coach/corpus");
-  return <CorpusPageClient />;
+  return (
+    <CorpusPageClient
+      canViewFounderComparison={
+        user.email?.trim().toLowerCase() === "artur@willonski.com"
+      }
+    />
+  );
 }

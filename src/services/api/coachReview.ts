@@ -22,7 +22,8 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
   form.append("upload_idempotency_key", meta.idempotencyKey);
   if (meta.device) form.append("device", meta.device);
   if (meta.source) form.append("source", meta.source);
-  if (meta.durationSec != null) form.append("duration", String(meta.durationSec));
+  if (meta.durationSec != null)
+    form.append("duration", String(meta.durationSec));
 }
 
 import type { TernaryValue } from "./stateRatings";
@@ -121,6 +122,16 @@ export interface CoachReviewSession {
   arcIdealReady: boolean;
   /** The session's arc (rides with arc_ideal_ready); null on older payloads. */
   arcId: string | null;
+  /** True only after this coach has committed a blind answer (or an explicit
+   *  abstention) for every evidence piece. Until then the backend redacts all
+   *  presentation and authoring context, and the frontend independently keeps
+   *  the contextual controls unavailable. */
+  contextUnlocked: boolean;
+  blindLabel: {
+    labelled: number;
+    total: number;
+    complete: boolean;
+  };
 }
 
 /** What the FE sends per per-snippet save. Any subset of fields. The BE
@@ -158,7 +169,8 @@ function pickFeeling(raw: unknown): SessionFeeling | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const f = r.feeling;
-  if (f !== "nervous" && f !== "excited" && f !== "calm" && f !== "unsure") return null;
+  if (f !== "nervous" && f !== "excited" && f !== "calm" && f !== "unsure")
+    return null;
   return {
     feeling: f,
     takeIndex: typeof r.take_index === "number" ? r.take_index : null,
@@ -179,8 +191,8 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       typeof r.audio_ref === "string"
         ? r.audio_ref
         : typeof r.audioRef === "string"
-        ? r.audioRef
-        : null,
+          ? r.audioRef
+          : null,
     startOffsetMs:
       typeof r.start_offset_ms === "number" ? r.start_offset_ms : 0,
     durationMs: typeof r.duration_ms === "number" ? r.duration_ms : 0,
@@ -211,8 +223,8 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       r.recording_kind === "read"
         ? "read"
         : r.recording_kind === "spoken"
-        ? "spoken"
-        : null,
+          ? "spoken"
+          : null,
     // FP-5 / BE-2 — the parent take this snippet belongs to.
     takeSessionId:
       typeof r.take_session_id === "string" && r.take_session_id.length > 0
@@ -222,13 +234,41 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
   };
 }
 
-export function mapCoachReviewSession(
-  raw: unknown
-): CoachReviewSession | null {
+export function mapCoachReviewSession(raw: unknown): CoachReviewSession | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.session_id !== "string") return null;
   const state = r.state;
+  const parsedSnippets = Array.isArray(r.snippets)
+    ? r.snippets
+        .map(pickSnippet)
+        .filter((s): s is CoachReviewSnippet => s !== null)
+    : [];
+  const spoken = parsedSnippets.filter((s) => s.recordingKind !== "read");
+  const reads = parsedSnippets.filter((s) => s.recordingKind === "read");
+  spoken.sort(
+    (a, b) => (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity),
+  );
+  const snippets = [...spoken, ...reads];
+  const derivedLabelled = snippets.filter(
+    (snippet) =>
+      snippet.coachState.ratingValue !== null ||
+      snippet.coachState.ratingUnrateable,
+  ).length;
+  const blindRaw =
+    r.blind_label && typeof r.blind_label === "object"
+      ? (r.blind_label as Record<string, unknown>)
+      : null;
+  const blindTotal =
+    typeof blindRaw?.total === "number" ? blindRaw.total : snippets.length;
+  const blindLabelled =
+    typeof blindRaw?.labelled === "number"
+      ? blindRaw.labelled
+      : derivedLabelled;
+  const blindComplete =
+    typeof blindRaw?.complete === "boolean"
+      ? blindRaw.complete
+      : blindTotal === blindLabelled;
   return {
     sessionId: r.session_id,
     pseudonym: typeof r.pseudonym === "string" ? r.pseudonym : "",
@@ -266,25 +306,24 @@ export function mapCoachReviewSession(
     // the parent take's flow, never sorted back among the spoken snippets they
     // correct. So we slide-order the spoken snippets only and keep the reads in
     // their BE tail position. (Older packets have no reads → identical result.)
-    snippets: (() => {
-      const parsed = Array.isArray(r.snippets)
-        ? r.snippets
-            .map(pickSnippet)
-            .filter((s): s is CoachReviewSnippet => s !== null)
-        : [];
-      const spoken = parsed.filter((s) => s.recordingKind !== "read");
-      const reads = parsed.filter((s) => s.recordingKind === "read");
-      spoken.sort(
-        (a, b) => (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity)
-      );
-      return [...spoken, ...reads];
-    })(),
+    snippets,
     feelings: Array.isArray(r.feelings)
-      ? r.feelings.map(pickFeeling).filter((f): f is SessionFeeling => f !== null)
+      ? r.feelings
+          .map(pickFeeling)
+          .filter((f): f is SessionFeeling => f !== null)
       : [],
     arcIdealReady: r.arc_ideal_ready === true,
     arcId:
       typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
+    contextUnlocked:
+      typeof r.context_unlocked === "boolean"
+        ? r.context_unlocked
+        : blindComplete,
+    blindLabel: {
+      labelled: blindLabelled,
+      total: blindTotal,
+      complete: blindComplete,
+    },
   };
 }
 
@@ -293,13 +332,13 @@ export function mapCoachReviewSession(
 /** Fetch the per-session review payload. Returns null on any failure so
  *  the overlay can render an error state cleanly. */
 export async function fetchCoachReviewSession(
-  sessionId: string
+  sessionId: string,
 ): Promise<CoachReviewSession | null> {
   let res: Response;
   try {
     res = await fetch(
       `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}`,
-      { credentials: "include", cache: "no-store" }
+      { credentials: "include", cache: "no-store" },
     );
   } catch {
     return null;
@@ -317,7 +356,7 @@ export async function fetchCoachReviewSession(
 export async function uploadCoachVideo(
   sessionId: string,
   file: File,
-  meta: CoachVideoMeta
+  meta: CoachVideoMeta,
 ): Promise<string | null> {
   const form = new FormData();
   form.append("video_file", file, file.name || "video.webm");
@@ -330,7 +369,7 @@ export async function uploadCoachVideo(
         method: "POST",
         body: form,
         credentials: "include",
-      }
+      },
     );
   } catch {
     return null;
@@ -347,7 +386,7 @@ export async function uploadCoachVideo(
 export async function saveCoachSnippet(
   sessionId: string,
   snippetId: string,
-  patch: CoachSnippetSavePatch
+  patch: CoachSnippetSavePatch,
 ): Promise<CoachSnippetState | null> {
   const body: Record<string, unknown> = {};
   if (patch.note !== undefined) body.note = patch.note;
@@ -358,14 +397,14 @@ export async function saveCoachSnippet(
   try {
     res = await fetch(
       `/api/v2/coach/sessions/${encodeURIComponent(
-        sessionId
+        sessionId,
       )}/snippets/${encodeURIComponent(snippetId)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         credentials: "include",
-      }
+      },
     );
   } catch {
     return null;

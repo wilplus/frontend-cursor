@@ -19,7 +19,7 @@ describe("mapCoachStudent (E3)", () => {
         domain: "sales",
         last_active: "2026-06-08T00:00:00Z",
         session_count: 7,
-      })
+      }),
     ).toEqual({
       id: "u_123",
       pseudonym: "Playful Octopus",
@@ -33,10 +33,10 @@ describe("mapCoachStudent (E3)", () => {
   it("coerces a numeric id and prefers user_id over id", () => {
     expect(mapCoachStudent({ pseudonym: "P", user_id: 42 })?.id).toBe("42");
     expect(
-      mapCoachStudent({ pseudonym: "P", user_id: "u_1", id: "z_9" })?.id
+      mapCoachStudent({ pseudonym: "P", user_id: "u_1", id: "z_9" })?.id,
     ).toBe("u_1");
     expect(mapCoachStudent({ pseudonym: "P", id: "fallback" })?.id).toBe(
-      "fallback"
+      "fallback",
     );
   });
 
@@ -60,7 +60,12 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
     const d = mapCoachStudentDetail({
       pseudonym: "P",
       sessions: [
-        { session_id: "a", review_state: "to_review", arc_id: "arc1", arc_ideal_ready: true },
+        {
+          session_id: "a",
+          review_state: "to_review",
+          arc_id: "arc1",
+          arc_ideal_ready: true,
+        },
         { session_id: "b", review_state: "reviewed" },
         { session_id: "c", review_state: "delivered" },
         { session_id: "d", review_state: "garbage", arc_ideal_ready: "yes" },
@@ -91,7 +96,7 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
             state: "done",
           },
         ],
-      })
+      }),
     ).toEqual({
       pseudonym: "Playful Octopus",
       domain: "sales",
@@ -146,7 +151,7 @@ describe("mapReviewQueueRow", () => {
         n_snippets: 8,
         state: "pending",
         sent_at: "2026-06-01T00:00:00Z",
-      })
+      }),
     ).toEqual({
       sessionId: "s",
       userId: null,
@@ -162,9 +167,11 @@ describe("mapReviewQueueRow", () => {
 
   it("maps user_id when present (FP-4 / BE-4)", () => {
     expect(
-      mapReviewQueueRow({ session_id: "s", user_id: "u-42" })?.userId
+      mapReviewQueueRow({ session_id: "s", user_id: "u-42" })?.userId,
     ).toBe("u-42");
-    expect(mapReviewQueueRow({ session_id: "s", user_id: "" })?.userId).toBeNull();
+    expect(
+      mapReviewQueueRow({ session_id: "s", user_id: "" })?.userId,
+    ).toBeNull();
   });
 
   it("defaults missing optionals + clamps unknown state to pending", () => {
@@ -172,7 +179,7 @@ describe("mapReviewQueueRow", () => {
       mapReviewQueueRow({
         session_id: "s",
         state: "weird",
-      })
+      }),
     ).toEqual({
       sessionId: "s",
       userId: null,
@@ -189,20 +196,21 @@ describe("mapReviewQueueRow", () => {
   it("maps annotation_mode true (T4 — coach annotation upload)", () => {
     expect(
       mapReviewQueueRow({ session_id: "s", annotation_mode: true })
-        ?.annotationMode
+        ?.annotationMode,
     ).toBe(true);
     // strict-bool: a truthy-but-not-true value is not an annotation.
     expect(
-      mapReviewQueueRow({ session_id: "s", annotation_mode: 1 })?.annotationMode
+      mapReviewQueueRow({ session_id: "s", annotation_mode: 1 })
+        ?.annotationMode,
     ).toBe(false);
   });
 
   it("accepts in_progress and done states", () => {
     expect(
-      mapReviewQueueRow({ session_id: "s", state: "in_progress" })?.state
+      mapReviewQueueRow({ session_id: "s", state: "in_progress" })?.state,
     ).toBe("in_progress");
     expect(mapReviewQueueRow({ session_id: "s", state: "done" })?.state).toBe(
-      "done"
+      "done",
     );
   });
 
@@ -215,7 +223,7 @@ describe("mapReviewQueueRow", () => {
 describe("reconcileReviewQueue (C2)", () => {
   const row = (
     sessionId: string,
-    state: ReviewQueueRow["state"] = "pending"
+    state: ReviewQueueRow["state"] = "pending",
   ): ReviewQueueRow => ({
     sessionId,
     userId: null,
@@ -238,7 +246,7 @@ describe("reconcileReviewQueue (C2)", () => {
 
   it("coerces a still-present published row to done (BE lag)", () => {
     expect(
-      reconcileReviewQueue([row("b", "in_progress")], [row("b", "done")])
+      reconcileReviewQueue([row("b", "in_progress")], [row("b", "done")]),
     ).toEqual([row("b", "done")]);
   });
 
@@ -251,7 +259,7 @@ describe("reconcileReviewQueue (C2)", () => {
 describe("groupReviewQueueByStudent (FP-4)", () => {
   const row = (
     sessionId: string,
-    over: Partial<ReviewQueueRow> = {}
+    over: Partial<ReviewQueueRow> = {},
   ): ReviewQueueRow => ({
     sessionId,
     userId: null,
@@ -484,7 +492,7 @@ describe("mapCoachReviewSession — neutral auto_comment", () => {
       ],
     });
     expect(s?.snippets[0].autoComment).toBe(
-      "The pace was steadier than nearby moments."
+      "The pace was steadier than nearby moments.",
     );
     expect(s?.snippets[0]).not.toHaveProperty("acousticRead");
   });
@@ -492,10 +500,7 @@ describe("mapCoachReviewSession — neutral auto_comment", () => {
   it("nulls auto_comment when absent or malformed", () => {
     const s = mapCoachReviewSession({
       session_id: "s",
-      snippets: [
-        { id: "n1" },
-        { id: "n2", auto_comment: 12 },
-      ],
+      snippets: [{ id: "n1" }, { id: "n2", auto_comment: 12 }],
     });
     expect(s?.snippets[0].autoComment).toBeNull();
     expect(s?.snippets[1].autoComment).toBeNull();
@@ -547,13 +552,51 @@ describe("mapCoachReviewSession — re-read ordering (FP-5)", () => {
   it("maps take_session_id → takeSessionId (null when absent)", () => {
     const s = mapCoachReviewSession({
       session_id: "s",
-      snippets: [
-        { id: "n1", take_session_id: "take-7" },
-        { id: "n2" },
-      ],
+      snippets: [{ id: "n1", take_session_id: "take-7" }, { id: "n2" }],
     });
     const byId = (id: string) => s?.snippets.find((n) => n.id === id);
     expect(byId("n1")?.takeSessionId).toBe("take-7");
     expect(byId("n2")?.takeSessionId).toBeNull();
+  });
+});
+
+describe("mapCoachReviewSession — blind-first context gate", () => {
+  it("uses the authoritative server gate and progress", () => {
+    const session = mapCoachReviewSession({
+      session_id: "s",
+      context_unlocked: false,
+      blind_label: { labelled: 1, total: 2, complete: false },
+      snippets: [
+        {
+          id: "one",
+          coach_state: { rating_value: "yes", rating_unrateable: false },
+        },
+        { id: "two", coach_state: {} },
+      ],
+    });
+    expect(session?.contextUnlocked).toBe(false);
+    expect(session?.blindLabel).toEqual({
+      labelled: 1,
+      total: 2,
+      complete: false,
+    });
+  });
+
+  it("derives a safe fallback for older payloads", () => {
+    const session = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        {
+          id: "one",
+          coach_state: { rating_value: "neutral" },
+        },
+        {
+          id: "two",
+          coach_state: { rating_unrateable: true },
+        },
+      ],
+    });
+    expect(session?.contextUnlocked).toBe(true);
+    expect(session?.blindLabel.complete).toBe(true);
   });
 });
