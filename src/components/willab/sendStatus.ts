@@ -1,15 +1,13 @@
 /* -------------------------------------------------------------------------- */
-/*  sendStatus — unsigned send hand-off + review-pending status flag           */
+/*  sendStatus — unsigned Project Take hand-off + review-pending status flag   */
 /*                                                                            */
 /*  §13 Path 2: tap Send while unsigned → park the recording, stash its         */
-/*  session_id here, redirect to OAuth. After auth the global                  */
-/*  <WillabPendingSend> reads it back and runs merge-then-send (§3.5).         */
+/*  Project/Take coordinates here, redirect to OAuth. After auth the global    */
+/*  pending sender claims the guest graph, then sends that exact owned Take.   */
 /*                                                                            */
 /*  `review_pending` is a separate persisted status flag so the Lounge shows    */
 /*  the "with your coach" chip after a send AND across a reload (both paths).   */
 /*  Best-effort localStorage (Safari private mode fails soft).                 */
-/*  (Named distinctly from the WillabPendingSend component — case-only          */
-/*  filename clashes break case-insensitive filesystems.)                      */
 /* -------------------------------------------------------------------------- */
 
 const SEND_KEY = "willab.pending_send";
@@ -41,11 +39,33 @@ function del(key: string): void {
   }
 }
 
-export function setPendingSend(sessionId: string): void {
-  set(SEND_KEY, sessionId);
+export interface PendingCoachSend {
+  projectId: string;
+  takeId: string;
 }
-export function getPendingSend(): string | null {
-  return get(SEND_KEY);
+
+export function setPendingSend(projectId: string, takeId: string): void {
+  set(SEND_KEY, JSON.stringify({ projectId, takeId }));
+}
+export function getPendingSend(): PendingCoachSend | null {
+  const raw = get(SEND_KEY);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<PendingCoachSend> | null;
+    if (
+      !value ||
+      typeof value.projectId !== "string" ||
+      !value.projectId ||
+      typeof value.takeId !== "string" ||
+      !value.takeId
+    ) {
+      return null;
+    }
+    return { projectId: value.projectId, takeId: value.takeId };
+  } catch {
+    // Old bare-session handoffs depended on retired ownerless claiming.
+    return null;
+  }
 }
 export function clearPendingSend(): void {
   del(SEND_KEY);

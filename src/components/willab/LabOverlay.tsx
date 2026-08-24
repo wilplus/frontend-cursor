@@ -12,6 +12,7 @@ import {
   fetchGuestLabReadout,
   retryLabProcessing,
 } from "@/services/api/labRecording";
+import { createProject } from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
@@ -354,15 +355,20 @@ export default function LabOverlay({
   // key: a retry re-runs this effect with the same Blob, and a new recording
   // is a new Blob and must not collapse onto the old take.
   const uploadKeyRef = useRef<{ blob: Blob; key: string } | null>(null);
-  const uploadKeyFor = (b: Blob): string | undefined => {
+  const uploadKeyFor = (b: Blob): string => {
     if (uploadKeyRef.current?.blob !== b) {
       try {
         uploadKeyRef.current = { blob: b, key: crypto.randomUUID() };
       } catch {
-        return undefined;   // ancient WebView — the helper falls back
+        // randomUUID is absent only in old WebViews. The key is an opaque
+        // retry coordinate, not an authorization secret; never omit it.
+        uploadKeyRef.current = {
+          blob: b,
+          key: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
       }
     }
-    return uploadKeyRef.current?.key;
+    return uploadKeyRef.current.key;
   };
   // Guards for the deckless file-upload path. uploadSeqRef is bumped on every
   // upload pick AND on mic start, so a slow duration read (up to 4s) that
@@ -442,7 +448,7 @@ export default function LabOverlay({
     }
     if (!blob || !context || uploadStartedRef.current) return;
     uploadStartedRef.current = true;
-    recordedTakeRef.current = exploreEnabled ? arcTakeIndex : null;
+    recordedTakeRef.current = arcTakeIndex;
     // C7 — capture the named feeling for this take, then clear the active value.
     // Only overwrite when a fresh value is present so a retry / re-record
     // re-running this effect (the active key is already cleared) can't null out
@@ -458,7 +464,6 @@ export default function LabOverlay({
       // write the returned arc + next take_index (+ deck) to localStorage so the
       // next LabOverlay session picks the arc up.
       const carryArc = (rArcId: string | null, rTakeIdx: number | null) => {
-        if (!exploreEnabled) return;
         const returnedArcId = rArcId ?? arcId;
         if (!returnedArcId) return;
         const nextIdx =
@@ -484,8 +489,38 @@ export default function LabOverlay({
           : initArc?.deck;
         return { returnedArcId, nextIdx, deck };
       };
+      let projectId = arcId;
+      if (!projectId) {
+        const created = await createProject({
+          displayName: context.topic,
+          presentationRef: recordingDeck.isDefault
+            ? null
+            : context.presentationRef,
+          setup: {
+            topic: context.topic,
+            audience: context.audience,
+            target_length_seconds: context.target_length_seconds,
+            domain_vocabulary: context.domain_vocabulary,
+            slides: recordingSlides,
+            presentation_ref: recordingDeck.isDefault
+              ? null
+              : context.presentationRef,
+            strategic_context: context.strategicContext ?? null,
+            presentation_mode: recordingDeck.isDefault ? "deckless" : "pdf",
+          },
+        });
+        if (!active) return;
+        if (created.kind === "error") {
+          setUploadError(created.message);
+          return;
+        }
+        projectId = created.projectId;
+        setArcId(projectId);
+        setExploreEnabled(true);
+      }
       const result = await submitLabRecording({
         audioBlob: blob,
+        projectId,
         uploadIdempotencyKey: uploadKeyFor(blob),
         durationSec: durationRef.current,
         topic: context.topic,
@@ -520,30 +555,6 @@ export default function LabOverlay({
           mic.getAudioStartedAt(),
           recordStartRef.current
         ),
-        // Explore-arc fields — omitted for standalone recordings.
-        exploreSession: exploreEnabled && arcId === null ? true : undefined,
-        // Identity is USER INTENT, never inferred from topic/default slides/
-        // uploaded-deck hashes. A clean arc state means "new"; only a seeded
-        // project selected by the user means "continue".
-        projectIntent: exploreEnabled
-          ? arcId
-            ? "continue"
-            : "new"
-          : undefined,
-        arcId: arcId ?? undefined,
-        takeIndex: exploreEnabled ? arcTakeIndex : undefined,
-        // Context-aware setup — the project this take continues. This is the
-        // authoritative field: production overrides the arc to it and computes
-        // take_index itself, discarding anything we send. It is set from the
-        // SAME value as arcId above, which is what keeps us out of the one
-        // real hazard here — an arc_id sent WITHOUT continue_arc_id and
-        // without a take_index resolves to take 1 every time, so every take
-        // would land in the right project under a colliding number.
-        //
-        // NOT sending it at all is the other failure: resolve_arc mints a
-        // fresh arc whenever no arc is supplied, which is a new project per
-        // take. Both are FE-side; neither is fixed by a backend deploy.
-        continueArcId: arcId ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
       });
       if (!active) return;
@@ -585,7 +596,7 @@ export default function LabOverlay({
             sessionId: result.sessionId,
             arcId: result.arcId ?? arcId,
             takeIndex:
-              result.takeIndex ?? (exploreEnabled ? arcTakeIndex : null),
+              result.takeIndex ?? arcTakeIndex,
             startedAt: Date.now(),
             phase: "document",
             phaseStartedAt: Date.now(),
@@ -613,7 +624,7 @@ export default function LabOverlay({
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
           takeIndex:
-            result.takeIndex ?? (exploreEnabled ? arcTakeIndex : null),
+            result.takeIndex ?? arcTakeIndex,
           startedAt: Date.now(),
         });
         setPollSessionId(result.sessionId);
@@ -747,6 +758,7 @@ export default function LabOverlay({
       const parked = readParked();
       if (parked) {
         setReadout(parked.readout);
+        setArcId(parked.projectId);
         setLabSessionId(parked.sessionId);
         setContext({
           topic: parked.topic,
@@ -784,8 +796,13 @@ export default function LabOverlay({
 
   // Park the held Readout (persist + route to the Lounge's parked chip).
   function parkReadout() {
-    if (readout) {
-      writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
+    if (readout && arcId) {
+      writeParked({
+        projectId: arcId,
+        sessionId: labSessionId,
+        topic: context?.topic ?? "",
+        readout,
+      });
     }
     goTo("parked");
   }
@@ -794,14 +811,18 @@ export default function LabOverlay({
   // /signup — the SIGN-UP (create-account) view. A non-registered guest who
   // just recorded their first take needs "create account" (Google/LinkedIn/
   // email), not a sign-in form; /signup leads with account creation and keeps
-  // "already have an account? sign in" as the secondary link. The resume
-  // mechanism is unchanged: the global <WillabPendingSend> reads the pending
-  // id on any post-auth landing (SIGNED_IN event from any provider) and runs
-  // merge-then-send.
+  // "already have an account? sign in" as the secondary link.
+  // The global pending sender claims the guest-owned graph on any post-auth
+  // landing, then sends this exact Project Take through the strict endpoint.
   function startUnsignedSend() {
-    if (readout && labSessionId) {
-      writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
-      setPendingSend(labSessionId);
+    if (readout && labSessionId && arcId) {
+      writeParked({
+        projectId: arcId,
+        sessionId: labSessionId,
+        topic: context?.topic ?? "",
+        readout,
+      });
+      setPendingSend(arcId, labSessionId);
     }
     // Suppress useBackDismiss's unmount history.back() BEFORE we close +
     // navigate. LabOverlay pushes a throwaway history entry while open and
@@ -1150,6 +1171,7 @@ export default function LabOverlay({
             payload={
               readout ?? {
                 snippets: [],
+                feedbackItems: [],
                 overallMessage: null,
                 videoRef: null,
                 presentationRef: null,
@@ -1216,6 +1238,7 @@ export default function LabOverlay({
         {(state === "sendgate_unsigned" || state === "sendgate_signed") && (
           <SendGate
             sessionId={labSessionId}
+            projectId={arcId}
             signedIn={signedIn}
             onSent={() => {
               clearParked();

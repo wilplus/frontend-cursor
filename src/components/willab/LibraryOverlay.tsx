@@ -118,9 +118,9 @@ export default function LibraryOverlay({
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
   const [general, setGeneral] = useState<StrengthMoment[]>([]);
-  // R4-13 — arc-grouped trainings (the tab's new source). null = the endpoint
-  // isn't live yet → the legacy strengths-fed view below stays in charge.
-  const [trainings, setTrainings] = useState<TrainingArc[] | null>(null);
+  // Trainings is the sole project-history source. Strong Sides is retired and
+  // must never become a hidden fallback when this request fails.
+  const [trainings, setTrainings] = useState<TrainingArc[]>([]);
   // Delivery layer — a take's feedback page / the arc's ideal-text notebook,
   // opened over this overlay.
   const [feedbackTake, setFeedbackTake] = useState<{
@@ -176,33 +176,17 @@ export default function LibraryOverlay({
 
   useEffect(() => {
     let active = true;
-    // R4-13 — prefer the arc-grouped /user/trainings source (deckless arcs
-    // included). While the endpoint isn't live (null), fall back to the legacy
-    // strengths view so the tab keeps working; the swap is automatic once the
-    // BE ships.
     void fetchTrainings().then((arcs) => {
       if (!active) return;
-      if (arcs !== null) {
-        setTrainings(arcs);
-        setStatus("ready");
-        return;
-      }
-      void fetchStrengths().then((v) => {
-        if (!active) return;
-        setPresentations(v.presentations);
-        setGeneral(v.general);
-        setStatus("ready");
-      });
+      setTrainings(arcs ?? []);
+      setStatus("ready");
     });
     return () => {
       active = false;
     };
   }, []);
 
-  const isEmpty =
-    trainings !== null
-      ? trainings.length === 0
-      : presentations.length === 0 && general.length === 0;
+  const isEmpty = trainings.length === 0;
 
   /* ── breadcrumbs ── */
   const goL1 = () => setNav({ level: "L1" });
@@ -429,28 +413,13 @@ export default function LibraryOverlay({
         ) : isEmpty ? (
           <>
             <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
-              Nothing here yet. Your strongest moments collect here as your
-              coach sends reads.
+              Nothing here yet.
             </p>
           </>
-        ) : trainings !== null ? (
-          <>
-            <TrainingsList
-              trainings={trainings}
-              onOpen={(arc) => setNav({ level: "T2", arc })}
-            />
-          </>
         ) : (
-          <PresentationsList
-            presentations={presentations}
-            general={general}
-            onOpenPresentation={(p) => {
-              // update nav to L2 with fresh presentation state
-              goL2(p);
-            }}
-            onOpenGeneral={() => setNav({ level: "L2g" })}
-            onDeletePresentation={handleDeletePresentation}
-            deleteError={deleteError}
+          <TrainingsList
+            trainings={trainings}
+            onOpen={(arc) => setNav({ level: "T2", arc })}
           />
         )}
       </div>

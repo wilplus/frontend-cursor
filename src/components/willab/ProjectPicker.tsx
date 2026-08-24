@@ -21,16 +21,14 @@ import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 /*  "Start a new topic" is a BUTTON above the list, never a list item, so      */
 /*  starting fresh can never be mistaken for continuing something.            */
 /*                                                                            */
-/*  One title == one project == one arc == one ideal text. Picking a title     */
-/*  continues THAT arc (its setup prefills, its master document grows); the    */
-/*  new-topic path is today's blank flow, untouched.                          */
+/*  One row identifies one immutable project and its Ideal Text. Picking it    */
+/*  continues exactly that project; visible names are never identity.          */
 /*                                                                            */
 /*  FE-4 (2026-07-27) — NO DEFAULTS, EVER. There is no last-used project, no   */
 /*  auto-select when the list holds exactly one entry, and no "continue where  */
 /*  you left off". Every entry into recording asks. This is not a UX           */
-/*  preference: a take submitted with the wrong continue_arc_id lands in the   */
-/*  wrong project, which splits the arc and corrupts the cross-take comparison */
-/*  the ideal text is ranked across. Silence here is a data defect.            */
+/*  preference: a take must carry the explicitly selected Project ID.          */
+/*  Guessing from a title or deck would be a data-isolation defect.             */
 /*                                                                            */
 /*  With NO projects there is nothing to choose between, so the screen is a    */
 /*  single centred "Start your first project" — one thing, nothing competing.  */

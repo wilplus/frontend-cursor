@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mergeSession } from "@/services/api/mergeSession";
+import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import {
   fetchIdealText,
   saveIdealUserEdit,
@@ -57,7 +57,7 @@ import type { ReadoutPayload } from "./readout";
 /*  paragraphs, font one step up, editable — under a grey                      */
 /*  "Pending verification" badge. No Approve buttons, no "Send                 */
 /*  for analysis": a signed-in take is sent to the coach AUTOMATICALLY on      */
-/*  arrival (mergeSession, once); a guest gets one button to save the text by  */
+/*  arrival (exact Project Take, once); a guest gets one button to save text by */
 /*  creating an account (that is account creation, not a send step).           */
 /* -------------------------------------------------------------------------- */
 
@@ -255,13 +255,13 @@ export default function IdealTextReadout({
 
   // Automatic delivery — no send button. Once, when signed in with a session.
   useEffect(() => {
-    if (!signedIn || !sessionId || firedRef.current) return;
+    if (!signedIn || !sessionId || !arcId || firedRef.current) return;
     firedRef.current = true;
-    void mergeSession(sessionId).then((r) => {
+    void sendTakeToCoach(arcId, sessionId).then((r) => {
       if (r.kind === "sent") onAutoSent();
       else if (r.kind !== "unauthenticated") setSendFailed(true);
     });
-  }, [signedIn, sessionId, onAutoSent]);
+  }, [signedIn, sessionId, arcId, onAutoSent]);
 
   // #214 — arm persistence AND adopt the served ideal text. The SD GET is the
   // authority: its text carries the key-moment anchors (and any folds the BE

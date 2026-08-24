@@ -32,6 +32,7 @@ beforeEach(() => {
       json: () =>
         Promise.resolve({
           session_id: "sess_1",
+          project_id: "arc_default",
           arc_id: "arc_default",
           state: "readout_ready",
           readout: { snippets: [] },
@@ -44,6 +45,8 @@ afterEach(() => vi.unstubAllGlobals());
 
 const baseInput = () => ({
   audioBlob: new Blob(["fake-audio"], { type: "audio/webm" }),
+  projectId: "arc_default",
+  uploadIdempotencyKey: "upload-default",
   durationSec: 75,
   topic: "Q3 pitch",
 });
@@ -115,8 +118,6 @@ describe("submitLabRecording — new-project background brief", () => {
 
     await submitLabRecording({
       ...baseInput(),
-      projectIntent: "new",
-      exploreSession: true,
       contextDocument: brief,
     });
 
@@ -151,65 +152,31 @@ describe("submitLabRecording — F2 §2 the named state rides both emotion lanes
   });
 });
 
-describe("submitLabRecording — explicit project identity", () => {
-  it("sends new intent without any carried project id", async () => {
+describe("submitLabRecording — canonical project identity", () => {
+  it("sends only the canonical project id and upload key", async () => {
     const res = await submitLabRecording({
       ...baseInput(),
-      exploreSession: true,
-      projectIntent: "new",
       slides: [{ title: "shared default", body: "same content" }],
       presentationRef: null,
     });
     expect(res.kind).toBe("ok");
     const form = captured as FormData;
-    expect(form.get("project_intent")).toBe("new");
+    expect(form.get("project_id")).toBe("arc_default");
+    expect(form.get("upload_idempotency_key")).toBe("upload-default");
+    expect(form.get("project_intent")).toBeNull();
     expect(form.get("arc_id")).toBeNull();
     expect(form.get("continue_arc_id")).toBeNull();
+    expect(form.get("guest_session_id")).toBeNull();
   });
 
-  it("sends continue intent only with one matching selected project", async () => {
-    const res = await submitLabRecording({
-      ...baseInput(),
-      projectIntent: "continue",
-      arcId: "arc_default",
-      continueArcId: "arc_default",
-      takeIndex: 7,
-    });
-    expect(res.kind).toBe("ok");
-    const form = captured as FormData;
-    expect(form.get("project_intent")).toBe("continue");
-    expect(form.get("arc_id")).toBe("arc_default");
-    expect(form.get("continue_arc_id")).toBe("arc_default");
-    expect(form.get("take_index")).toBeNull();
-  });
-
-  it("fails locally when new carries an old id", async () => {
-    const guarded = guardRecordingInput({
-      ...baseInput(),
-      projectIntent: "new",
-      arcId: "old-arc",
-    });
-    expect(guarded.ok).toBe(false);
-
-    const res = await submitLabRecording({
-      ...baseInput(),
-      projectIntent: "new",
-      arcId: "old-arc",
-    });
-    expect(res.kind).toBe("rejected");
-    expect(captured).toBeNull();
-  });
-
-  it("fails locally when continue has no selected id or conflicting ids", () => {
+  it("fails locally without either required identity coordinate", () => {
     expect(
-      guardRecordingInput({ ...baseInput(), projectIntent: "continue" }).ok
+      guardRecordingInput({ ...baseInput(), projectId: "" }).ok
     ).toBe(false);
     expect(
       guardRecordingInput({
         ...baseInput(),
-        projectIntent: "continue",
-        arcId: "arc-a",
-        continueArcId: "arc-b",
+        uploadIdempotencyKey: "",
       }).ok
     ).toBe(false);
   });
@@ -217,28 +184,30 @@ describe("submitLabRecording — explicit project identity", () => {
   it("rejects a successful response that echoes the wrong project", async () => {
     stubResponse(201, {
       session_id: "sess_wrong",
+      project_id: "arc-other",
       arc_id: "arc-other",
       state: "readout_ready",
       readout: { snippets: [] },
     });
     const res = await submitLabRecording({
       ...baseInput(),
-      projectIntent: "continue",
-      arcId: "arc-selected",
-      continueArcId: "arc-selected",
+      projectId: "arc-selected",
     });
     expect(res.kind).toBe("error");
     if (res.kind !== "error") throw new Error("unreachable");
     expect(res.code).toBe("PROJECT_IDENTITY_MISMATCH");
   });
 
-  it("requires the backend to return the fresh id for a new project", () => {
-    expect(projectIdentityError({ projectIntent: "new" }, null)).toContain(
+  it("requires the backend to echo the exact selected project", () => {
+    expect(projectIdentityError({ projectId: "project-1" }, null)).toContain(
       "did not return"
     );
     expect(
-      projectIdentityError({ projectIntent: "new" }, "fresh-project-id")
+      projectIdentityError({ projectId: "project-1" }, "project-1")
     ).toBeNull();
+    expect(projectIdentityError({ projectId: "project-1" }, "project-2")).toContain(
+      "different project"
+    );
   });
 });
 
@@ -271,12 +240,14 @@ describe("submitLabRecording — §A2 PROCESSING_TIMEOUT is still-processing, no
       error:
         "That recording is taking longer than expected — it's still processing, check back shortly.",
       session_id: "sess_504",
+      project_id: "arc_default",
+      arc_id: "arc_default",
     });
     const res = await submitLabRecording(baseInput());
     expect(res).toEqual({
       kind: "processing",
       sessionId: "sess_504",
-      arcId: null,
+      arcId: "arc_default",
       takeIndex: null,
       takeCount: null,
     });
@@ -336,7 +307,8 @@ describe("submitLabRecording — response branch characterization", () => {
   it("keeps an accepted async upload in the processing state", async () => {
     stubResponse(202, {
       session_id: "sess_async",
-      arc_id: "arc_async",
+      project_id: "arc_default",
+      arc_id: "arc_default",
       take_index: 2,
       take_count: 2,
       state: "processing",
@@ -345,7 +317,7 @@ describe("submitLabRecording — response branch characterization", () => {
     expect(await submitLabRecording(baseInput())).toEqual({
       kind: "processing",
       sessionId: "sess_async",
-      arcId: "arc_async",
+      arcId: "arc_default",
       takeIndex: 2,
       takeCount: 2,
     });
@@ -355,7 +327,8 @@ describe("submitLabRecording — response branch characterization", () => {
     stubResponse(201, {
       duplicate: true,
       session_id: "sess_original",
-      arc_id: "arc_original",
+      project_id: "arc_default",
+      arc_id: "arc_default",
       take_index: 1,
       take_count: 2,
     });
@@ -363,7 +336,7 @@ describe("submitLabRecording — response branch characterization", () => {
     expect(await submitLabRecording(baseInput())).toEqual({
       kind: "processing",
       sessionId: "sess_original",
-      arcId: "arc_original",
+      arcId: "arc_default",
       takeIndex: 1,
       takeCount: null,
     });
@@ -421,6 +394,8 @@ describe("submitLabRecording — response branch characterization", () => {
 describe("submitLabRecording — Cloudflare upload-proxy routing", () => {
   const okBody = {
     session_id: "sess_1",
+    project_id: "arc_default",
+    arc_id: "arc_default",
     state: "readout_ready",
     readout: { snippets: [] },
   };

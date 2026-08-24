@@ -73,63 +73,39 @@ describe("mapReadoutPayload", () => {
     expect(mapReadoutPayload({ snippets: "nope" }).snippets).toEqual([]);
   });
 
-  it("maps the post-publish coach lane (overall_message + snippet.coach)", () => {
+  it("maps exact-evidence feedback and the separate coach review", () => {
     const p = mapReadoutPayload({
-      insights_payload: { overall_message: "Strong session." },
-      snippets: [
-        { id: "a", coach: { note: "nice open", tag: "strong" } },
-        { id: "b", coach: { note: "rushed", tag: "to_work_on" } },
-        { id: "c" }, // no coach yet
-      ],
+      coach_review: {
+        overall_message: "Strong session.",
+        video_ref: "https://cdn/coach.mp4",
+      },
+      feedback_items: [{
+        id: "coach:take-1:piece-1",
+        family: "rewrite_for_clarity",
+        message: "This sentence can be clearer.",
+        review_state: "refined",
+        replacement_text: "A clearer sentence.",
+        application_guidance: "Use this when opening the proposal.",
+        examples: ["A short example."],
+        user_decision: "pending",
+        evidence: {
+          project_id: "project-1",
+          take_id: "take-1",
+          slide_index: 0,
+          paragraph_index: 1,
+          piece_id: "piece-1",
+          evidence_span: { start: 5, end: 20, text: "Original sentence." },
+          audio_interval: null,
+        },
+      }],
+      snippets: [{ id: "piece-1" }],
     });
     expect(p.overallMessage).toBe("Strong session.");
-    expect(p.snippets[0]?.coach).toEqual({
-      note: "nice open",
-      tag: "strong",
-      when: null,
-      examples: [],
-      transcriptCorrected: null,
-    });
-    expect(p.snippets[1]?.coach?.tag).toBe("to_work_on");
-    expect(p.snippets[2]?.coach).toBeNull();
-  });
-
-  it("maps the coach When guidance + examples, dropping blank examples", () => {
-    const p = mapReadoutPayload({
-      snippets: [
-        {
-          id: "a",
-          coach: {
-            note: "great open",
-            tag: "strong",
-            when: "Reuse this opener when you want to land emphasis.",
-            examples: ["Why should you care?", "", "Why us?"],
-          },
-        },
-      ],
-    });
-    expect(p.snippets[0]?.coach?.when).toBe(
-      "Reuse this opener when you want to land emphasis."
-    );
-    expect(p.snippets[0]?.coach?.examples).toEqual([
-      "Why should you care?",
-      "Why us?",
-    ]);
-  });
-
-  it("maps the coach-corrected transcript (free, unconditional)", () => {
-    const p = mapReadoutPayload({
-      snippets: [
-        // A corrected transcript alone makes the coach object non-null even
-        // with no note/tag (it's free coach content, always surfaced).
-        { id: "a", coach: { transcript_corrected: "The corrected line." } },
-        { id: "b", coach: { note: "n", transcript_corrected: "" } }, // blank → null
-        { id: "c", coach: { note: "n" } }, // absent → null
-      ],
-    });
-    expect(p.snippets[0]?.coach?.transcriptCorrected).toBe("The corrected line.");
-    expect(p.snippets[1]?.coach?.transcriptCorrected).toBeNull();
-    expect(p.snippets[2]?.coach?.transcriptCorrected).toBeNull();
+    expect(p.videoRef).toBe("https://cdn/coach.mp4");
+    expect(p.feedbackItems).toHaveLength(1);
+    expect(p.feedbackItems[0]?.family).toBe("rewrite_for_clarity");
+    expect(p.feedbackItems[0]?.evidence.pieceId).toBe("piece-1");
+    expect(p.feedbackItems[0]?.replacementText).toBe("A clearer sentence.");
   });
 
   it("no longer carries the retired humanFeedbackVisible field", () => {
@@ -141,8 +117,10 @@ describe("mapReadoutPayload", () => {
     );
   });
 
-  it("defaults overall_message to null pre-publish", () => {
-    expect(mapReadoutPayload({ snippets: [] }).overallMessage).toBeNull();
+  it("defaults the unpublished coach layer to empty", () => {
+    const p = mapReadoutPayload({ snippets: [] });
+    expect(p.overallMessage).toBeNull();
+    expect(p.feedbackItems).toEqual([]);
   });
 
   it("maps deck slides + complete per-slide transcripts (sorted, '' valid)", () => {

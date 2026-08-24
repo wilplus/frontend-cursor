@@ -107,7 +107,7 @@ export default {
         headers: {
           ...cors,
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "authorization, content-type, x-requested-with",
+          "Access-Control-Allow-Headers": "authorization, content-type, x-requested-with, x-willab-guest-owner",
           "Access-Control-Max-Age": "86400",
         },
       });
@@ -136,6 +136,8 @@ export default {
     if (contentType) upstreamHeaders.set("Content-Type", contentType);
     const requestedWith = request.headers.get("X-Requested-With");
     if (requestedWith) upstreamHeaders.set("X-Requested-With", requestedWith);
+    const guestOwner = request.headers.get("X-Willab-Guest-Owner");
+    if (guestOwner) upstreamHeaders.set("X-Willab-Guest-Owner", guestOwner);
     if (token) upstreamHeaders.set("Authorization", `Bearer ${token}`);
 
     // §B abort ladder, worker edition. The timer covers upload + processing

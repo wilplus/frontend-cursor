@@ -75,7 +75,7 @@ export default function WillabSurface({
   // same reconcile so the publish event is the single source of truth (no 2nd write).
   const { goTo } = flow;
   // FE-2 (bug 1a) — the publish signal must NEVER navigate the user out of the
-  // Lab. When a signed-in take auto-delivers, mergeSession sets review_pending;
+  // Lab. When a signed-in take auto-delivers, the exact Project Take send sets review_pending;
   // the very next publish tick (realtime or the 20s poll) then reconciled to
   // review_pending and yanked the user off their fresh ideal-text readout ~10s
   // after it landed. Read the live state through a ref so onPublish stays

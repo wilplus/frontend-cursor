@@ -10,7 +10,8 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Body accepts any subset of:
  *   { note?, tag?, surfaced? }
  *
- * USER LANE ONLY — note/tag/surfaced → insights_payload (library-bound).
+ * USER LANE ONLY — surfaced authored feedback becomes an exact-evidence
+ * FeedbackItem at publish time.
  *
  * Retired private-direction fields are not part of this user-lane contract.
  * Blind labeling writes the state-generic ternary through

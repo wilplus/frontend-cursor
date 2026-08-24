@@ -33,9 +33,9 @@ const SSE_HEADERS = {
  * GET /api/v2/lab/recordings/[sessionId]/events
  *
  * SSE for the async-analysis status the Lab (2s) and Lounge (5s) used to poll
- * from the browser. Same optional-auth trust model as the readout proxy: an
- * unclaimed session's unguessable UUID is the capability; a claimed session
- * needs its owner's token.
+ * from the browser. Same optional-auth trust model as the readout proxy:
+ * account token or canonical signed Guest ID. A session UUID alone is never
+ * access.
  *
  * Two modes, decided per request:
  *   1. PASSTHROUGH — if the backend exposes native SSE at
@@ -70,12 +70,14 @@ export async function GET(
 
   // Optional auth — same contract as the readout proxy.
   const token = await getV2AccessToken(req);
+  const guestOwner = req.headers.get("X-Willab-Guest-Owner");
   const id = encodeURIComponent(params.sessionId);
 
   // Mode 1 — PASSTHROUGH when the backend speaks SSE natively.
   try {
     const headers: Record<string, string> = { Accept: "text/event-stream" };
     if (token) headers.Authorization = `Bearer ${token}`;
+    else if (guestOwner) headers["X-Willab-Guest-Owner"] = guestOwner;
     const upstream = await fetch(`${backend}/v2/lab/recordings/${id}/events`, {
       method: "GET",
       headers,
@@ -130,6 +132,7 @@ export async function GET(
               Accept: "application/json",
             };
             if (token) headers.Authorization = `Bearer ${token}`;
+            else if (guestOwner) headers["X-Willab-Guest-Owner"] = guestOwner;
             const upstream = await fetch(
               `${backend}/v2/lab/recordings/${id}/readout`,
               { method: "GET", headers, cache: "no-store", signal: req.signal }

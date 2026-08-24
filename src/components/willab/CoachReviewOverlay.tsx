@@ -12,10 +12,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
 import type { CoachSnippetState, SessionFeeling } from "@/services/api/coachReview";
-import {
-  type PublishNote,
-  type PublishSnippetState,
-} from "@/services/api/publishWillabSession";
+import { type PublishSnippetState } from "@/services/api/publishWillabSession";
 import { saveCoachFeedback } from "@/services/api/saveCoachFeedback";
 import {
   fetchCoachReviewState,
@@ -193,9 +190,8 @@ export default function CoachReviewOverlay({
     setSaving(true);
     setPublishError(null);
 
-    const notes: PublishNote[] = [];
     // The full per-snippet state array persists in one shot (R4-8 save-on-
-    // publish became save-on-Save); notes ride along with the snapshot.
+    // publish became save-on-Save).
     const snippets: PublishSnippetState[] = [];
     for (const s of session.snippets) {
       const cs = localState[s.id] ?? s.coachState;
@@ -205,15 +201,11 @@ export default function CoachReviewOverlay({
         tag: cs.tag,
         surfaced: cs.surfaced,
       });
-      if (cs.surfaced && cs.note.trim()) {
-        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? null });
-      }
     }
 
     const result = await saveCoachFeedback({
       sessionId: session.sessionId,
       overallMessage: overallMessage.trim() || null,
-      notes,
       snippets,
     });
 

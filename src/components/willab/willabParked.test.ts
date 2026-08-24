@@ -41,25 +41,34 @@ describe("willabParked.readParked", () => {
     // voiceMetricsAvailable.
     window.localStorage.setItem(
       "willab.parked",
-      JSON.stringify({ sessionId: "s1", topic: "T", readout: { snippets: [] } })
+      JSON.stringify({
+        projectId: "p1",
+        sessionId: "s1",
+        topic: "T",
+        readout: { snippets: [] },
+      })
     );
     const p = readParked();
     expect(p).not.toBeNull();
     expect(p!.readout.slides).toEqual([]);
     expect(p!.readout.slideTranscripts).toEqual([]);
+    expect(p!.readout.feedbackItems).toEqual([]);
     // Absent → true, so an old park never shows a spurious "metrics unavailable".
     expect(p!.readout.voiceMetricsAvailable).toBe(true);
     // Absent → true (paid), so an old park never shows a spurious "$50 unlock".
     expect(p!.readout.auditPaid).toBe(true);
     expect(p!.sessionId).toBe("s1");
+    expect(p!.projectId).toBe("p1");
   });
 
   it("round-trips a current payload, preserving the new fields", () => {
     writeParked({
+      projectId: "project-pitch",
       sessionId: null,
       topic: "Pitch",
       readout: {
         snippets: [],
+        feedbackItems: [],
         overallMessage: null,
         videoRef: null,
         presentationRef: null,
@@ -82,10 +91,12 @@ describe("willabParked.readParked", () => {
 
   it("clears the parked readout", () => {
     writeParked({
+      projectId: "project-t",
       sessionId: null,
       topic: "T",
       readout: {
         snippets: [],
+        feedbackItems: [],
         overallMessage: null,
         videoRef: null,
         presentationRef: null,

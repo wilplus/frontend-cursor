@@ -23,12 +23,11 @@ const API = readFileSync("src/services/api/labRecording.ts", "utf8");
 const HOST = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
 
 describe("the upload key is one per recording, not one per attempt", () => {
-  it("the helper prefers the CALLER's key over a fresh uuid", () => {
+  it("the helper requires and sends exactly the caller's key", () => {
     expect(API).toMatch(
-      /input\.uploadIdempotencyKey \|\| crypto\.randomUUID\(\)/
+      /form\.append\("upload_idempotency_key", input\.uploadIdempotencyKey\)/
     );
-    // The bare mint must not survive anywhere else in the form builder — it
-    // is the exact line that made the backend's guard unreachable.
+    expect(API).not.toMatch(/crypto\.randomUUID\(\)/);
     const forms = API.match(/form\.append\(\s*"upload_idempotency_key"/g) ?? [];
     expect(forms).toHaveLength(1);
   });
@@ -43,10 +42,8 @@ describe("the upload key is one per recording, not one per attempt", () => {
     expect(HOST).toMatch(/uploadIdempotencyKey: uploadKeyFor\(blob\)/);
   });
 
-  it("an ancient WebView with no randomUUID still uploads", () => {
-    // Degrades to exactly the old behaviour rather than blocking the take:
-    // no key, no collapse, one upload.
-    expect(HOST).toMatch(/return undefined;/);
-    expect(API).toMatch(/catch \{/);
+  it("a missing key is rejected instead of silently disabling retry collapse", () => {
+    expect(API).toMatch(/!input\.uploadIdempotencyKey\.trim\(\)/);
+    expect(HOST).toMatch(/key: `\$\{Date\.now\(\)\}-\$\{Math\.random\(\)/);
   });
 });

@@ -38,9 +38,17 @@ afterEach(() => {
 describe("sendStatus — pending send", () => {
   it("round-trips and clears", () => {
     expect(getPendingSend()).toBeNull();
-    setPendingSend("sess-1");
-    expect(getPendingSend()).toBe("sess-1");
+    setPendingSend("project-1", "take-1");
+    expect(getPendingSend()).toEqual({
+      projectId: "project-1",
+      takeId: "take-1",
+    });
     clearPendingSend();
+    expect(getPendingSend()).toBeNull();
+  });
+
+  it("rejects the retired bare-session handoff", () => {
+    window.localStorage.setItem("willab.pending_send", "sess-legacy");
     expect(getPendingSend()).toBeNull();
   });
 });

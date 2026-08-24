@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
+const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 
 /**
  * PUT /api/v2/user/sessions/[sessionId]/transcript-edits
@@ -11,16 +12,16 @@ export const runtime = "nodejs";
  * text }. Owner-gated + upserted BE-side; the coach still reviews the original.
  * Forwards status + body faithfully.
  *
- * PUBLIC / guest (BE #199): a signed-out user approving a suggestion must
- * persist too — the unclaimed session's own unguessable id is the capability.
- * The token is forwarded when present (signed-in scoping) but never required;
- * the BE remains authoritative on ownership. Same pattern as the Lab upload.
+ * PUBLIC / guest: a signed-out user's matching Guest ID can persist edits.
+ * The session UUID alone is never authorization. Account auth wins when
+ * present; otherwise the BFF forwards the signed Guest ID.
  */
 export async function PUT(
   req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   const token = await getV2AccessToken(req); // optional — guest-allowed
+  const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
   const backend = getBackendUrl();
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
@@ -39,6 +40,7 @@ export async function PUT(
     Accept: "application/json",
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (!token && guestOwner) headers[GUEST_OWNER_HEADER] = guestOwner;
   let upstream: Response;
   try {
     upstream = await fetch(`${backend}/v2/user/sessions/${id}/transcript-edits`, {

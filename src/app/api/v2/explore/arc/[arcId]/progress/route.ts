@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
+const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 
 /**
  * GET /api/v2/explore/arc/[arcId]/progress
@@ -11,15 +12,15 @@ export const runtime = "nodejs";
  * affordances live on the BE terminal Lounge card (best_presentation_ready /
  * transcript_ready), not here.
  *
- * PUBLIC / guest (BE #199): a signed-out user recording an arc sees their own
- * take counter — the arc id is the capability. The token is forwarded when
- * present (signed-in scoping) but never required; the BE stays authoritative.
+ * PUBLIC / guest: a signed-out user may see the progress of the Project owned
+ * by their signed Guest ID. The Project UUID alone is never authorization.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
   const token = await getV2AccessToken(req); // optional — guest-allowed
+  const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
   const backend = getBackendUrl();
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
@@ -28,6 +29,7 @@ export async function GET(
   const id = encodeURIComponent(params.arcId);
   const headers: Record<string, string> = { Accept: "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (!token && guestOwner) headers[GUEST_OWNER_HEADER] = guestOwner;
   let upstream: Response;
   try {
     upstream = await fetch(`${backend}/v2/explore/arc/${id}/progress`, {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
+const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 
 /**
  * POST /api/v2/user/snippets/[snippetId]/suggestion-feedback
@@ -9,9 +10,9 @@ export const runtime = "nodejs";
  * BFF proxy — records that the user applied / preferred a Say-It-Stronger
  * suggestion (or applied all) on an instant-view piece (#190). Body:
  * { session_id, target, action, upgrade_index?, suggestion_version }.
- * PUBLIC / guest — the readout is walkable on an unclaimed session, so auth is
- * forwarded when present but never required. Fire-and-forget on the client;
- * status + body are relayed verbatim so the client reads { saved: bool }.
+ * PUBLIC / guest — auth is forwarded when present; otherwise the signed Guest
+ * ID is forwarded. A bare session UUID is never authorization. Status + body
+ * are relayed verbatim so the client reads { saved: bool }.
  */
 export async function POST(
   req: NextRequest,
@@ -26,6 +27,7 @@ export async function POST(
   }
 
   const token = await getV2AccessToken(req); // optional — guest-allowed
+  const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
   let body: string;
   try {
     body = await req.text();
@@ -38,6 +40,7 @@ export async function POST(
     Accept: "application/json",
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (!token && guestOwner) headers[GUEST_OWNER_HEADER] = guestOwner;
 
   const id = encodeURIComponent(params.snippetId);
   let upstream: Response;

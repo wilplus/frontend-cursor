@@ -23,17 +23,14 @@ const ALLOWED = new Set([`${API_ROOT}/_lib/backend.ts`]);
 
 /** Grandfathered direct-fetch files (pre-rule). Shrink me, never grow me. */
 const BASELINE = new Set([
-  "src/app/api/auth/merge-session/route.ts",
   "src/app/api/auth/signup/route.ts",
   "src/app/api/coaching/[coachingId]/route.ts",
   "src/app/api/coaching/start/route.ts",
   "src/app/api/coaching/trial-recording/route.ts",
   "src/app/api/coaching/turn/route.ts",
-  "src/app/api/public/shaky-voice/claim/route.ts",
   "src/app/api/public/unsubscribe/route.ts",
   "src/app/api/results/state/route.ts",
   "src/app/api/user/sessions/current/route.ts",
-  "src/app/api/v2/auth/merge-session/route.ts",
   "src/app/api/v2/chat/query/route.ts",
   "src/app/api/v2/chat/session-state/route.ts",
   "src/app/api/v2/chat/snippet-followup/route.ts",
@@ -107,7 +104,6 @@ const BASELINE = new Set([
   "src/app/api/v2/user/sessions/[sessionId]/transcript-edits/route.ts",
   "src/app/api/v2/user/snippets/[snippetId]/confidence-review/route.ts",
   "src/app/api/v2/user/snippets/[snippetId]/suggestion-feedback/route.ts",
-  "src/app/api/v2/user/strengths/route.ts",
   "src/app/api/v2/user/trainings/route.ts",
 ]);
 
