@@ -116,9 +116,10 @@ async function slideCanvas(
   } else if (slide.page !== null) {
     throw new Error("The presentation slide could not be rendered for PDF export.");
   } else if (slide.hasVisual) {
-    const mock = renderMockPresentationSlide({
+    const mock = await renderMockPresentationSlide({
       title: slide.title,
       body: slide.body,
+      artworkSrc: slide.artworkSrc,
       targetWidth: contentWidth,
     });
     ctx.drawImage(mock, MARGIN, y);

@@ -179,6 +179,51 @@ export function TextSlide({ title, body }: { title: string; body: string }) {
   );
 }
 
+/** The one visual treatment for the canonical deckless presentation.
+ *  Generated artwork supplies the photographic/editorial layer; live HTML
+ *  supplies exact, readable text, so the slide can look real without ever
+ *  inheriting image-generation spelling errors. */
+export function MockPresentationSlide({
+  artworkSrc,
+  title,
+  body,
+}: {
+  artworkSrc: string;
+  title: string;
+  body: string;
+}) {
+  const bullets = bulletLines(body);
+  return (
+    <div
+      className="relative h-full w-full overflow-hidden bg-[#061a3a] bg-cover bg-center"
+      style={{ backgroundImage: `url(${artworkSrc})` }}
+      role="img"
+      aria-label={`${title}. ${bullets.join(" ")}`.trim()}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,19,45,0.98)_0%,rgba(3,19,45,0.86)_35%,rgba(3,19,45,0.12)_66%,rgba(3,19,45,0)_100%)]" />
+      <div className="absolute inset-y-0 left-0 flex w-[56%] flex-col justify-center px-[6%] py-[5%] text-white">
+        <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
+        <h3 className="text-[clamp(1rem,3vw,2.2rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
+          {title}
+        </h3>
+        {bullets.length > 0 ? (
+          <ul className="mt-[6%] flex flex-col gap-[0.45em] text-[clamp(0.58rem,1.25vw,1rem)] leading-[1.35] text-white/90">
+            {bullets.map((line) => (
+              <li key={line} className="flex gap-[0.6em]">
+                <span
+                  aria-hidden="true"
+                  className="mt-[0.55em] size-1 shrink-0 rounded-full bg-primary"
+                />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** What a viewer shows for one slide: the rendered PDF page when a deck PDF is
  *  present (and renders), otherwise the text card. PDF failure → text. */
 export function SlideRender({
@@ -186,6 +231,7 @@ export function SlideRender({
   pageIndex,
   title,
   body,
+  artworkSrc,
   className,
   showRetry = true,
   fit = false,
@@ -194,6 +240,7 @@ export function SlideRender({
   pageIndex: number;
   title: string;
   body: string;
+  artworkSrc?: string;
   className?: string;
   showRetry?: boolean;
   fit?: boolean;
@@ -212,6 +259,17 @@ export function SlideRender({
         className={className}
         fit={fit}
       />
+    );
+  }
+  if (!presentationRef && artworkSrc) {
+    return (
+      <div className={className}>
+        <MockPresentationSlide
+          artworkSrc={artworkSrc}
+          title={title}
+          body={body}
+        />
+      </div>
     );
   }
   return (

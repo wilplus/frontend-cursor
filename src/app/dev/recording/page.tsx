@@ -25,7 +25,15 @@ import type { PresentationSlide } from "@/components/willab/presentation";
 const SLIDES: PresentationSlide[] = DEFAULT_DECK.map((s) => ({
   title: s.title,
   body: s.body,
+  artworkSrc: s.artworkSrc,
 }));
+
+const DEMO_ROOTS = [
+  { slideIndex: 0, text: "Open with the one idea", type: "flagship" as const },
+  { slideIndex: 0, text: "Show why it matters now", type: "neutral" as const },
+  { slideIndex: 1, text: "Make the audience benefit concrete", type: "neutral" as const },
+  { slideIndex: 2, text: "End with the next action", type: "flagship" as const },
+];
 
 export default function RecordingHarness() {
   const [slide, setSlide] = useState(0);
@@ -58,7 +66,7 @@ export default function RecordingHarness() {
         <OverlayCloseButton onClick={() => {}} />
       </header>
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
       >
         <RecordingPhase
           micState={{ status: "recording", partialText: "" }}
@@ -71,10 +79,8 @@ export default function RecordingHarness() {
           slides={SLIDES}
           presentationRef={null}
           currentSlide={slide}
-          roots={[]}
-          onAdvance={(dir) =>
-            setSlide((i) => Math.min(Math.max(i + dir, 0), SLIDES.length - 1))
-          }
+          roots={DEMO_ROOTS}
+          onSlideChange={setSlide}
         />
       </div>
     </div>
