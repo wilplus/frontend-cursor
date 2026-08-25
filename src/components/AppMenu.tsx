@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { TOKENS_COPY } from "@/components/tokens/copy";
+import type { ProductMenuEntry } from "@/lib/productDiscovery";
 
 /* -------------------------------------------------------------------------- */
 /*  AppMenu (FE-3) — ONE hamburger, mounted twice                              */
@@ -39,28 +40,6 @@ import { TOKENS_COPY } from "@/components/tokens/copy";
 export const MENU_ITEM_CLASS =
   "block w-full px-4 py-3.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
 
-/* THE "demo" CHIP (founder 2026-08-15).
- *
- * The first attempt put a one-line description under these two rows and the
- * founder cut it: "remove that cluttered little text next to the title, add
- * the small 'demo'". He was right — three lines of prose under two of seven
- * rows turned a list you SCAN into a page you READ, and it buried the labels
- * it was supposed to serve.
- *
- * What the rows needed was one word of STATUS, not an explanation.
- * "Voice-game" and "Principles" are real but unfinished, and a student should
- * know that before they tap, not after they arrive. Set beside the label and
- * sized well under it — a footnote on the row, never a second title. */
-const MENU_DEMO_CHIP_CLASS =
-  "ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 " +
-  "align-middle text-[10px] font-medium uppercase tracking-wide " +
-  "text-muted-foreground";
-
-/** SERVER-SENT rows carrying the chip, keyed by the entry's own `key`. A
- *  lookup rather than a branch in the loop, because the menu list is the
- *  server's: a row that stops being sent takes its chip with it. */
-const LIFE_MENU_DEMO = new Set(["principles"]);
-
 const MENU_ID = "app-header-menu";
 
 export interface AppMenuProps {
@@ -78,6 +57,8 @@ export interface AppMenuProps {
   /** Life Panel entries, straight from the gate payload. Absent for everyone
    *  the payload does not list them for, which is the normal case. */
   lifeMenu?: LifeMenuEntry[];
+  /** Products introduced through a persisted, structured main-chat action. */
+  productMenu?: ProductMenuEntry[];
   /** Support mailto target. */
   supportEmail: string;
   /** The Skool community. Off-site, so a new tab. */
@@ -87,8 +68,6 @@ export interface AppMenuProps {
   /** Where "Lab" goes. The blog links into the product; the lab itself is
    *  already there, so its mount passes null and the row is omitted. */
   labHref?: string | null;
-  /** The signed-in user's personal Voice Album. */
-  voiceAlbumHref?: string | null;
   /** The training-corpus workbench. COACH ONLY (N4): the host passes this
    *  only when the signed-in user is a coach, so the row does not exist for
    *  anyone else — not greyed out, not present. */
@@ -100,30 +79,19 @@ export default function AppMenu({
   userEmail = null,
   tokensLabel = null,
   lifeMenu = [],
+  productMenu = [],
   supportEmail,
   communityUrl,
   onLogout,
   loggingOut = false,
   labHref = null,
-  voiceAlbumHref = null,
   corpusHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
-  const [highlightVoiceAlbum, setHighlightVoiceAlbum] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const openByKeyboardRef = useRef(false);
-
-  useEffect(() => {
-    const openVoiceAlbum = () => {
-      setOpen(true);
-      setHighlightVoiceAlbum(true);
-    };
-    window.addEventListener("willab:open-voice-album-menu", openVoiceAlbum);
-    return () =>
-      window.removeEventListener("willab:open-voice-album-menu", openVoiceAlbum);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -175,7 +143,8 @@ export default function AppMenu({
         size="icon"
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
+          if (e.key === "Enter" || e.key === " ")
+            openByKeyboardRef.current = true;
         }}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
@@ -215,23 +184,19 @@ export default function AppMenu({
             </Link>
           ) : null}
 
-          {signedIn && voiceAlbumHref ? (
-            <Link
-              ref={firstRef()}
-              href={voiceAlbumHref}
-              className={cn(
-                MENU_ITEM_CLASS,
-                highlightVoiceAlbum &&
-                  "bg-primary/10 text-primary ring-2 ring-inset ring-primary"
-              )}
-              onClick={() => {
-                setHighlightVoiceAlbum(false);
-                setOpen(false);
-              }}
-            >
-              Voice Album
-            </Link>
-          ) : null}
+          {signedIn
+            ? productMenu.map((entry) => (
+                <Link
+                  key={entry.product}
+                  ref={firstRef()}
+                  href={entry.href}
+                  className={MENU_ITEM_CLASS}
+                  onClick={() => setOpen(false)}
+                >
+                  {entry.label}
+                </Link>
+              ))
+            : null}
 
           {signedIn && corpusHref ? (
             <Link
@@ -269,11 +234,8 @@ export default function AppMenu({
                     onClick={() => setOpen(false)}
                   >
                     {entry.label}
-                    {LIFE_MENU_DEMO.has(entry.key) ? (
-                      <span className={MENU_DEMO_CHIP_CLASS}>demo</span>
-                    ) : null}
                   </Link>
-                )
+                ),
               )}
             </>
           ) : null}
@@ -306,14 +268,18 @@ export default function AppMenu({
           {signedIn && tokensLabel ? (
             <Link
               href="/dashboard/pricing"
-              className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
+              className={cn(
+                MENU_ITEM_CLASS,
+                "flex items-center justify-between",
+              )}
               onClick={() => setOpen(false)}
             >
               <span>{TOKENS_COPY.menuRowLabel}</span>
-              <span className="font-normal text-muted-foreground">{tokensLabel}</span>
+              <span className="font-normal text-muted-foreground">
+                {tokensLabel}
+              </span>
             </Link>
           ) : null}
-
 
           {signedIn ? (
             <button

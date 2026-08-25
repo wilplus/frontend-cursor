@@ -15,6 +15,7 @@ import {
   mergeLocalLoungeThreadToServer,
   readLocalLoungeThread,
 } from "@/lib/funnel/loungeLocalThread";
+import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
 
 /* -------------------------------------------------------------------------- */
 /*  useLoungeThread — the willab Lounge's persistent chat history (§3/§11)    */
@@ -69,6 +70,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       if (signedIn) {
         const page = await fetchLoungeHistory();
         if (cancelled) return;
+        announceDiscoveriesFromPersistedMessages(page.messages);
         setMessages(page.messages);
         setHasMore(page.has_more);
         oldestCursorRef.current = page.oldest_cursor;
@@ -93,7 +95,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       setMessages((prev) => [...prev, msg]);
       try {
         if (signedIn) {
-          await appendLoungeMessages([msg]);
+          const persisted = await appendLoungeMessages([msg]);
+          announceDiscoveriesFromPersistedMessages(persisted);
         } else {
           appendLocalLoungeMessage(msg);
         }
@@ -104,7 +107,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       }
       return msg;
     },
-    [signedIn]
+    [signedIn],
   );
 
   const appendLocalOnly = useCallback(
@@ -113,7 +116,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
       setMessages((prev) => [...prev, msg]);
       return msg;
     },
-    []
+    [],
   );
 
   const loadOlder = useCallback(async () => {
@@ -123,6 +126,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     setLoadingOlder(true);
     try {
       const page = await fetchLoungeHistory({ before: cursor });
+      announceDiscoveriesFromPersistedMessages(page.messages);
       // Older page is ASC; prepend ahead of the current window.
       setMessages((prev) => [...page.messages, ...prev]);
       setHasMore(page.has_more);
@@ -144,6 +148,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     // Insight pings are server-written; the local thread has nothing new to pull.
     if (!signedIn) return;
     const page = await fetchLoungeHistory();
+    announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;
@@ -153,6 +158,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
     const page = await fetchLoungeHistory();
+    announceDiscoveriesFromPersistedMessages(page.messages);
     setMessages(page.messages);
     setHasMore(page.has_more);
     oldestCursorRef.current = page.oldest_cursor;

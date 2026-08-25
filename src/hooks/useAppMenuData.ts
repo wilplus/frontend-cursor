@@ -10,6 +10,14 @@ import { hamburgerMenu, panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, formatTokens } from "@/components/tokens/copy";
+import {
+  isProductOwnedMenuKey,
+  productMenuEntries,
+  subscribeProductDiscovery,
+  type ProductId,
+  type ProductMenuEntry,
+} from "@/lib/productDiscovery";
+import { fetchProductDiscoveries } from "@/services/api/productDiscoveries";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -44,6 +52,7 @@ export interface AppMenuData {
    *  same label without either learning how a balance is read or formatted. */
   tokensLabel: string | null;
   lifeMenu: LifeMenuEntry[];
+  productMenu: ProductMenuEntry[];
   loggingOut: boolean;
   logout: () => void;
 }
@@ -62,6 +71,9 @@ export function useAppMenuData(): AppMenuData {
   // what the payload contains and nothing more (N1), so a surface the server
   // omits cannot appear, and nothing is rendered greyed out as "coming soon".
   const [lifeMenu, setLifeMenu] = useState<LifeMenuEntry[]>([]);
+  const [discoveredProducts, setDiscoveredProducts] = useState<Set<ProductId>>(
+    () => new Set(),
+  );
 
   /** Auth identity for the menu. No balance polling lives here any more: the
    *  token wallet owns its own read (useTokenWallet), and the legacy credits
@@ -104,13 +116,37 @@ export function useAppMenuData(): AppMenuData {
     }
     let cancelled = false;
     const apply = (state: Parameters<typeof panelMenu>[0]) => {
-      // hamburgerMenu, not panelMenu: the app menu shows Principles as the
-      // door, and the eight views inside it are reached from that tab's own
-      // nav rather than listed a second time out here.
+      // Product-owned rows are removed below and reintroduced only through
+      // the durable discovery contract. All other server menu entries retain
+      // their existing gate and ordering.
       if (!cancelled) setLifeMenu(hamburgerMenu(state));
     };
     void loadLifeState().then(apply);
     const unsubscribe = subscribeLifeState(apply);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [authState]);
+
+  useEffect(() => {
+    if (authState !== "signed_in") {
+      setDiscoveredProducts(new Set());
+      return;
+    }
+    setDiscoveredProducts(new Set());
+    let cancelled = false;
+    void fetchProductDiscoveries().then((products) => {
+      if (!cancelled) {
+        setDiscoveredProducts((current) => new Set([...current, ...products]));
+      }
+    });
+    const unsubscribe = subscribeProductDiscovery((product) => {
+      setDiscoveredProducts((current) => {
+        if (current.has(product)) return current;
+        return new Set([...current, product]);
+      });
+    });
     return () => {
       cancelled = true;
       unsubscribe();
@@ -142,13 +178,17 @@ export function useAppMenuData(): AppMenuData {
     wallet.enabled === true && wallet.balance.kind === "ready"
       ? TOKENS_COPY.menuRowValue(formatTokens(wallet.balance.balance))
       : null;
+  const ordinaryLifeMenu = lifeMenu.filter(
+    (entry) => !isProductOwnedMenuKey(entry.key),
+  );
   return {
     authState,
     isCoach,
     userEmail,
     wallet,
     tokensLabel,
-    lifeMenu,
+    lifeMenu: ordinaryLifeMenu,
+    productMenu: productMenuEntries(discoveredProducts),
     loggingOut,
     logout,
   };
