@@ -58,11 +58,36 @@ export interface CeoViewState {
   active_lens: CeoLens;
 }
 
+export interface CeoTimelineEvent {
+  id: string;
+  project_key: CeoProjectKey;
+  feature_id: string | null;
+  event_type: string;
+  entity_type: "bug" | "task" | "artifact";
+  entity_id: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CeoArtifactComment {
+  id: string;
+  artifact_id: string;
+  text: string;
+  status: "open" | "resolved";
+  reevaluation_status: "pending" | "processing" | "completed" | "failed";
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CeoBootstrap {
   projects: CeoProject[];
   features: CeoFeature[];
   artifacts: CeoArtifact[];
   view_state: CeoViewState[];
+  timeline: CeoTimelineEvent[];
+  comments: CeoArtifactComment[];
   vocabulary: {
     projects: CeoProjectKey[];
     surfaces: CeoSurface[];
