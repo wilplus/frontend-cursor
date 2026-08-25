@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
@@ -41,7 +41,7 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
-import SlideStage from "./SlideStage";
+import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import {
   readExploreArc,
   writeExploreArc,
@@ -158,7 +158,12 @@ export default function LabOverlay({
   // A mutable copy in the shared slide type: the module is pure and returns
   // readonly, while the recorder and the upload both take PresentationSlide[].
   const recordingSlides = useMemo<PresentationSlide[]>(
-    () => recordingDeck.slides.map((s) => ({ title: s.title, body: s.body })),
+    () =>
+      recordingDeck.slides.map((s) => ({
+        title: s.title,
+        body: s.body,
+        artworkSrc: s.artworkSrc,
+      })),
     [recordingDeck]
   );
   const { append: appendToThread, reload: reloadThread } = useLoungeThreadCtx();
@@ -836,15 +841,15 @@ export default function LabOverlay({
     router.push("/signup");
   }
 
-  // T8 — advance the deck during recording, logging the tap timeline. Any change
-  // (forward or back) is a real "what's on screen now" event with its timestamp.
-  function advanceSlide(dir: 1 | -1) {
+  // T8 — the anchor scroller selects the deck page during recording. Any real
+  // change (forward or back) is still a "what's on screen now" timeline event.
+  function selectSlide(index: number) {
     // The deck ON SCREEN, which for a speaker who uploaded nothing is the
     // default one — their taps are real slide events either way.
     const total = recordingDeck.slides.length;
     if (total === 0) return;
     setCurrentSlide((c) => {
-      const next = Math.min(Math.max(c + dir, 0), total - 1);
+      const next = Math.min(Math.max(index, 0), total - 1);
       if (next !== c) {
         slideAdvancesRef.current.push({
           index: next,
@@ -966,12 +971,16 @@ export default function LabOverlay({
           page, it is one"). The readout's deck is itself a snap-scroller, so
           on that screen this band must NOT scroll — otherwise the slide moves
           under your thumb and the whole card moves behind it, and neither
-          gesture is the one you meant. `min-h-0` is what lets the deck shrink
-          to the space left instead of forcing the page taller than the phone.
-          Every other state still scrolls: they are ordinary content. */}
+          gesture is the one you meant. Recording owns one inner roadmap
+          scroller for the same reason: its bottom dock must stay still while
+          slide + roots move together. `min-h-0` is what lets either surface
+          shrink to the available phone height. Every other state still
+          scrolls: they are ordinary content. */}
       <div
         className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6 ${SCREEN_BOTTOM_GAP} ${
-          state === "readout" ? "min-h-0 overflow-hidden" : "overflow-y-auto"
+          state === "readout" || state === "lab_recording"
+            ? "min-h-0 overflow-hidden"
+            : "overflow-y-auto"
         }`}
       >
         {state === "lab_feelings" && (
@@ -1079,10 +1088,8 @@ export default function LabOverlay({
               recordingDeck.isDefault ? null : context?.presentationRef ?? null
             }
             currentSlide={currentSlide}
-            roots={recordingRoots.filter(
-              (root) => root.slideIndex === currentSlide
-            )}
-            onAdvance={advanceSlide}
+            roots={recordingRoots}
+            onSlideChange={selectSlide}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
             // (the context is already deckless-standalone, so just re-submit
             // the new blob). Live-recorded rejections keep "Record again" only.
@@ -1309,7 +1316,7 @@ export function RecordingPhase({
   presentationRef,
   currentSlide,
   roots,
-  onAdvance,
+  onSlideChange,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
@@ -1328,9 +1335,9 @@ export function RecordingPhase({
   slides: PresentationSlide[];
   presentationRef: string | null;
   currentSlide: number;
-  /** Static roadmap for the current slide; never synchronized to audio. */
-  roots: Array<{ text: string; type: "flagship" | "neutral" }>;
-  onAdvance: (dir: 1 | -1) => void;
+  /** Static roadmap for every slide; never synchronized to audio. */
+  roots: RecordingRoot[];
+  onSlideChange: (slideIndex: number) => void;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
@@ -1431,8 +1438,6 @@ export function RecordingPhase({
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec); // for the bar fill only
   const hasDeck = slides.length > 0;
-  const atFirst = currentSlide <= 0;
-  const atLast = currentSlide >= slides.length - 1;
 
   /* THE RECORDING STRIP (respec §4) — ONE line: pulsing dot → clock →
      progress → stop. It used to be a four-storey tower (the word
@@ -1502,76 +1507,24 @@ export function RecordingPhase({
     );
   }
 
-  /* THE COLUMN (respec §2): the slide takes the room that is going spare and
-     the dock is PINNED to the bottom, above the home indicator. The controls
-     you need mid-sentence are always in the same place — they never ride up
-     and down with the length of a slide's text. */
+  /* THE COLUMN: the slide takes the room that is going spare and the recording
+     strip stays pinned above the home indicator. Slide selection belongs to
+     the one anchor scroller, not a second navigation dock. */
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-      {/* An uploaded presentation remains visible while the speaker records.
-          Deckless takes keep their three structural slide buckets and manual
-          navigation, but do not paint the generated prompt card or its pager. */}
-      <div className="flex flex-1 flex-col">
-        {presentationRef ? (
-          <SlideStage
-            slides={slides}
-            presentationRef={presentationRef}
-            current={currentSlide}
-            onNext={() => onAdvance(1)}
-          />
-        ) : null}
-        {roots.length > 0 ? (
-          <div
-            className="scrollbar-none mt-4 max-h-[26vh] overflow-y-auto overscroll-contain rounded-2xl bg-muted/60 px-4 py-3"
-            aria-label="Speaking anchors for this slide"
-          >
-            <div className="flex flex-col gap-3">
-              {roots.map((root, index) => (
-                <p
-                  key={`${index}-${root.text}`}
-                  className={
-                    root.type === "flagship"
-                      ? "text-[clamp(1.35rem,5vw,1.8rem)] font-semibold leading-tight text-primary"
-                      : "text-[clamp(1.35rem,5vw,1.8rem)] font-medium leading-tight text-muted-foreground"
-                  }
-                >
-                  {root.text}
-                </p>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
+    <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
+      {/* The preview stays visible while one native scroller carries the
+          current slide's roots. Reaching its edge selects the adjacent slide
+          and timestamps the same timeline as the retired buttons. */}
+      <RecordingRoadmap
+        slides={slides}
+        presentationRef={presentationRef}
+        currentSlide={currentSlide}
+        roots={roots}
+        onSlideChange={onSlideChange}
+      />
 
-      <div className="flex shrink-0 flex-col gap-3 pt-6 pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 -mx-1 shrink-0 border-t border-border/60 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]">
         {strip}
-        {/* THE NAV (respec §3) — Next is the whole width because it is the
-            one control you reach for while speaking; Back is a 56px circle
-            beside it, reachable but not competing. Both call the SAME
-            `onAdvance` the taps always did: those timestamps are the
-            word→slide bucketing input, so the layout moved and the wiring
-            did not. */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onAdvance(-1)}
-            disabled={atFirst}
-            aria-label="Previous slide"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onAdvance(1)}
-            disabled={atLast}
-            aria-label="Next slide"
-            className="flex h-14 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-[16px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
-          >
-            {atLast ? "Last slide" : "Next slide"}
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
       </div>
     </div>
   );

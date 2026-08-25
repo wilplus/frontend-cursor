@@ -34,6 +34,14 @@ describe("DEFAULT_DECK — the deckless three-part structure", () => {
       expect(s.body.trim().length).toBeGreaterThan(0);
     }
   });
+
+  it("every mock page owns a distinct real-slide visual", () => {
+    const artwork = DEFAULT_DECK.map((slide) => slide.artworkSrc);
+    expect(artwork.every((src) => src?.startsWith("/presentation/default-deck/"))).toBe(
+      true
+    );
+    expect(new Set(artwork).size).toBe(DEFAULT_DECK.length);
+  });
 });
 
 describe("deckForRecording — the substitution rule", () => {

@@ -168,7 +168,14 @@ function appendJsonArray<T>(
 }
 
 function appendDeckContext(form: FormData, input: LabUploadInput): void {
-  appendJsonArray(form, "slides", input.slides);
+  // UI-only default-deck artwork never becomes backend state. This explicit
+  // projection keeps the wire contract canonical even when the recorder is
+  // rendering the richer deckless mock.
+  const structuralSlides = input.slides?.map(({ title, body }) => ({
+    title,
+    body,
+  }));
+  appendJsonArray(form, "slides", structuralSlides);
   appendPresentFields(form, [
     ["presentation_ref", input.presentationRef],
   ]);

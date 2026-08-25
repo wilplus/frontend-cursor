@@ -86,29 +86,52 @@ function drawWrappedText({
   return lineY + lineHeight;
 }
 
+function loadPresentationArtwork(src: string | null): Promise<HTMLImageElement | null> {
+  if (!src) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
 /** The canonical deckless visual used by every downloaded format. */
-export function renderMockPresentationSlide({
+export async function renderMockPresentationSlide({
   title,
   body,
+  artworkSrc = null,
   targetWidth,
 }: {
   title: string;
   body: string;
+  artworkSrc?: string | null;
   targetWidth: number;
-}): HTMLCanvasElement {
+}): Promise<HTMLCanvasElement> {
   const width = Math.max(640, Math.round(targetWidth));
   const height = Math.round((width * 9) / 16);
   const output = createPresentationCanvas(width, height);
   const context = output.getContext("2d");
   if (!context) return output;
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
-  context.strokeStyle = "#e5e5e5";
-  context.lineWidth = Math.max(2, width / 500);
-  context.strokeRect(1, 1, width - 2, height - 2);
+  const artwork = await loadPresentationArtwork(artworkSrc);
+  if (artwork) {
+    context.drawImage(artwork, 0, 0, width, height);
+    const shade = context.createLinearGradient(0, 0, width * 0.7, 0);
+    shade.addColorStop(0, "rgba(3, 19, 45, 0.98)");
+    shade.addColorStop(0.52, "rgba(3, 19, 45, 0.76)");
+    shade.addColorStop(1, "rgba(3, 19, 45, 0)");
+    context.fillStyle = shade;
+    context.fillRect(0, 0, width, height);
+  } else {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.strokeStyle = "#e5e5e5";
+    context.lineWidth = Math.max(2, width / 500);
+    context.strokeRect(1, 1, width - 2, height - 2);
+  }
 
   const margin = Math.round(width * 0.07);
-  context.fillStyle = "#191919";
+  context.fillStyle = artwork ? "#ffffff" : "#191919";
   const titleSize = Math.round(width * 0.045);
   context.font = `650 ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
   context.fillText(title || "Presentation slide", margin, margin + titleSize);
@@ -122,13 +145,15 @@ export function renderMockPresentationSlide({
     context.beginPath();
     context.arc(margin + bodySize * 0.2, y - bodySize * 0.25, bodySize * 0.12, 0, Math.PI * 2);
     context.fill();
-    context.fillStyle = "#191919";
+    context.fillStyle = artwork ? "rgba(255,255,255,0.92)" : "#191919";
     y = drawWrappedText({
       context,
       text: line,
       x: margin + bodySize * 0.8,
       y,
-      maxWidth: width - margin * 2 - bodySize,
+      maxWidth: artwork
+        ? Math.round(width * 0.44)
+        : width - margin * 2 - bodySize,
       font: `400 ${bodySize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`,
       lineHeight,
     });

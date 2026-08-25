@@ -26,6 +26,9 @@ export interface DeckSlide {
   /** Free text; newlines read as bullets — the same shape an uploaded deck's
    *  slides take in `intake_context.slides`. */
   body: string;
+  /** Canonical visual for this deckless slide. The text stays deterministic
+   *  and is layered by the app rather than baked into generated artwork. */
+  artworkSrc?: string;
 }
 
 /* The rule lands on its OWN line in every slide; `bulletLines` splits on
@@ -33,6 +36,7 @@ export interface DeckSlide {
 export const DEFAULT_DECK: readonly DeckSlide[] = [
   {
     title: "Main premise",
+    artworkSrc: "/presentation/default-deck/main-premise.jpg",
     body:
       "Grab attention (question, surprising fact, story), state why it " +
       "matters to them, and tell them the one thing they'll get.\n" +
@@ -40,6 +44,7 @@ export const DEFAULT_DECK: readonly DeckSlide[] = [
   },
   {
     title: "Development",
+    artworkSrc: "/presentation/default-deck/development.jpg",
     body:
       "Make a single argument, back it with ~3 points, each with " +
       "evidence/example.\n" +
@@ -47,6 +52,7 @@ export const DEFAULT_DECK: readonly DeckSlide[] = [
   },
   {
     title: "Conclusion",
+    artworkSrc: "/presentation/default-deck/conclusion.jpg",
     body:
       "Restate the one takeaway, then tell them exactly what to do/feel/" +
       "remember next.\n" +

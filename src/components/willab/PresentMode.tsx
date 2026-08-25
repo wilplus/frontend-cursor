@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PdfPage, TextSlide, useDeckPageCount } from "./pdfSlides";
+import {
+  MockPresentationSlide,
+  PdfPage,
+  useDeckPageCount,
+} from "./pdfSlides";
 import { RichText } from "./RichText";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
@@ -175,7 +179,13 @@ export default function PresentMode({
                 </div>
               ) : !presentationRef && slide.hasVisual ? (
                 <div className="aspect-video overflow-hidden rounded-xl">
-                  <TextSlide title={slide.title} body={slide.body} />
+                  {slide.artworkSrc ? (
+                    <MockPresentationSlide
+                      artworkSrc={slide.artworkSrc}
+                      title={slide.title}
+                      body={slide.body}
+                    />
+                  ) : null}
                 </div>
               ) : null}
 

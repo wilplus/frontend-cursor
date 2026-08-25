@@ -62,9 +62,10 @@ export async function downloadPresentationDocx({
         ? await renderPresentationPage({ pdf, pageIndex: slide.page, targetWidth: 1000 })
         : null;
     if (!visual && slide.hasVisual && !presentationRef) {
-      visual = renderMockPresentationSlide({
+      visual = await renderMockPresentationSlide({
         title: slide.title,
         body: slide.body,
+        artworkSrc: slide.artworkSrc,
         targetWidth: 1000,
       });
     }

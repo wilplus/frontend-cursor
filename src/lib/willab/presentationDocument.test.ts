@@ -48,6 +48,9 @@ describe("buildPresentationDocument", () => {
     expect(document.map(({ title, body }) => ({ title, body }))).toEqual(
       DEFAULT_DECK.map(({ title, body }) => ({ title, body }))
     );
+    expect(document.map((slide) => slide.artworkSrc)).toEqual(
+      DEFAULT_DECK.map((slide) => slide.artworkSrc)
+    );
     expect(document.map((slide) => slide.rows.length)).toEqual([1, 1, 1]);
   });
 

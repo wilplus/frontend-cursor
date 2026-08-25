@@ -13,6 +13,10 @@ export interface PresentationSlide {
   title: string;
   /** Body as one string; newlines are bullet breaks (wire contract: body:string). */
   body: string;
+  /** Render-only artwork for the canonical deckless mock. It is deliberately
+   *  stripped at the upload boundary: the backend slide contract remains
+   *  exactly `{ title, body }`, while every UI can render the same real slide. */
+  artworkSrc?: string;
 }
 
 /** BE-enforced caps; the FE mirrors them as the first line (BE is the backstop). */
