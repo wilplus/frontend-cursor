@@ -56,7 +56,11 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
     const res = await submitLabRecording({
       ...baseInput(),
       slides: [
-        { title: "Intro", body: "welcome" },
+        {
+          title: "Intro",
+          body: "welcome",
+          artworkSrc: "/presentation/default-deck/main-premise.jpg",
+        },
         { title: "Problem", body: "pain point" },
       ],
       presentationRef: "https://pub-x.r2.dev/willab_presentations/abc.pdf",

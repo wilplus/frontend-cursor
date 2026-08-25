@@ -2,135 +2,144 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 /* -------------------------------------------------------------------------- */
-/*  THE RECORDING SCREEN (founder respec 2026-08-11, six numbered points +      */
-/*  three screenshots).                                                        */
+/*  THE RECORDING SCREEN                                                       */
 /*                                                                            */
-/*  A source scan, because this screen is the hardest one in the product to     */
-/*  open: it needs a live mic and a submitted setup form, so nothing could      */
-/*  render it in a test — which is exactly how it drifted into a four-storey   */
-/*  tower that pushed the slide off the top of a phone. (There is a harness at  */
-/*  /dev/recording now; these assertions are the parts a screenshot can't       */
-/*  prove, like which callback a button carries.)                              */
-/*                                                                            */
-/*  THE ONE THAT IS NOT COSMETIC: every slide control still calls `onAdvance`.  */
-/*  Those taps are timestamped into the slide timeline the backend buckets      */
-/*  words against — the F1 word→slide 1:1. A relayout that dropped one would    */
-/*  look perfect and quietly stop teaching the pipeline where the slides       */
-/*  changed.                                                                   */
+/*  A source scan, because this screen is difficult to open without a live mic.*/
+/*  The non-cosmetic invariant is that every scroll-selected slide still       */
+/*  reaches the overlay's canonical setter. Those changes are timestamped into */
+/*  the timeline the backend uses for word-to-slide bucketing.                 */
 /* -------------------------------------------------------------------------- */
 
 const LAB = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
 const STAGE = readFileSync("src/components/willab/SlideStage.tsx", "utf8");
+const ROADMAP = readFileSync(
+  "src/components/willab/RecordingRoadmap.tsx",
+  "utf8"
+);
 const CSS = readFileSync("src/app/globals.css", "utf8");
 const TW = readFileSync("tailwind.config.ts", "utf8");
 
-/** The RecordingPhase body — assertions about "the recording screen" must not
- *  accidentally pass on some other phase in the same file. */
 const PHASE = LAB.slice(LAB.indexOf("export function RecordingPhase"));
 
-describe("the recording screen (founder respec 2026-08-11)", () => {
-  it("§1 — the record signal is a TOKEN PAIR, in both themes, wired to Tailwind", () => {
+describe("the recording screen", () => {
+  it("keeps the recording token pair in both themes and Tailwind", () => {
     expect(CSS).toMatch(/--record:\s*[\d.]+ [\d.]+% [\d.]+%;/);
     expect(CSS).toMatch(/--record-foreground:/);
-    // Two definitions: :root and .dark. A signal defined once goes invisible
-    // on the theme nobody checked.
     expect(CSS.match(/--record:/g)?.length).toBe(2);
     expect(TW).toMatch(/record:\s*\{[\s\S]*?hsl\(var\(--record\)\)/);
     expect(TW).toMatch(/hsl\(var\(--record-foreground\)\)/);
   });
 
-  it("§1 — the live-capture UI stops borrowing --destructive", () => {
-    // destructive means ERROR. Recording is not one, and neither is running
-    // past your target ("the red is only a nudge").
+  it("keeps live capture distinct from destructive error styling", () => {
     expect(PHASE).toMatch(/bg-record/);
     expect(PHASE).toMatch(/text-record-foreground/);
-    const strip = PHASE.slice(PHASE.indexOf("const strip"), PHASE.indexOf("if (!hasDeck)"));
+    const strip = PHASE.slice(
+      PHASE.indexOf("const strip"),
+      PHASE.indexOf("if (!hasDeck)")
+    );
     expect(strip).not.toMatch(/destructive/);
   });
 
-  it("§2 — the column is capped and the dock is pinned above the safe area", () => {
-    expect(PHASE).toMatch(/mx-auto flex w-full max-w-md flex-1 flex-col/);
+  it("keeps the roadmap flexible and the recording strip pinned", () => {
+    expect(PHASE).toMatch(/mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col/);
     expect(PHASE).toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/);
-    // The visual area takes the space that is going spare — that is what keeps
-    // the dock at the bottom even when a deckless take paints no slide card.
-    expect(PHASE).toMatch(/<div className="flex flex-1 flex-col">/);
+    expect(PHASE).toMatch(/<RecordingRoadmap/);
+    expect(PHASE).toMatch(/shrink-0 border-t/);
+    expect(ROADMAP).toMatch(/relative min-h-0 flex-1/);
   });
 
-  it("§3 — Next is a 56px full-width pill; Back is a 56px circle beside it", () => {
-    expect(PHASE).toMatch(/h-14 flex-1[^"]*rounded-full bg-primary/);
-    expect(PHASE).toMatch(/h-14 w-14 shrink-0[^"]*rounded-full border/);
-    expect(PHASE).toMatch(/<ChevronRight/);
-    expect(PHASE).toMatch(/<ChevronLeft/);
-    // The old pair: two equal-weight pills under the slide, both with labels.
-    expect(STAGE).not.toMatch(/ChevronLeft|ChevronRight/);
-    expect(STAGE).not.toMatch(/flex-1 items-center justify-center gap-2 rounded-full bg-muted/);
+  it("keeps the slide visible above one native root scroller", () => {
+    expect(ROADMAP).toMatch(/h-full overflow-y-auto overscroll-contain/);
+    expect(ROADMAP).toMatch(/<SlideStage/);
+    expect(ROADMAP).toMatch(/currentRoots\.map/);
+    expect(ROADMAP).toMatch(/aria-current=\{currentSlide === index/);
+    expect(ROADMAP).toMatch(/onClick=\{\(\) => goToSlide\(index\)\}/);
+    expect(ROADMAP).toMatch(/wheelGestureStep\(wheelGestureRef\.current/);
+    expect(ROADMAP).not.toMatch(/max-h-\[26vh\]/);
   });
 
-  it("§4 — the recording strip is ONE row, and the tower is gone", () => {
-    const strip = PHASE.slice(PHASE.indexOf("const strip"), PHASE.indexOf("if (!hasDeck)"));
+  it("has no separate slide-changing panel", () => {
+    expect(PHASE).not.toMatch(/Previous slide|Next slide|Last slide/);
+    expect(PHASE).not.toMatch(/ChevronLeft|ChevronRight/);
+    expect(PHASE).toMatch(/onSlideChange=\{onSlideChange\}/);
+  });
+
+  it("keeps the recording strip to one compact row", () => {
+    const strip = PHASE.slice(
+      PHASE.indexOf("const strip"),
+      PHASE.indexOf("if (!hasDeck)")
+    );
     expect(strip).toMatch(/flex items-center gap-3 rounded-2xl bg-muted/);
-    // dot → clock → bar → finish, in that order, inside the one row.
-    const order = ["animate-pulse", "tabular-nums", "flex-1 overflow-hidden", "Finish take"];
+    const order = [
+      "animate-pulse",
+      "tabular-nums",
+      "flex-1 overflow-hidden",
+      "Finish take",
+    ];
     let at = -1;
     for (const token of order) {
       const next = strip.indexOf(token, at + 1);
       expect(next).toBeGreaterThan(at);
       at = next;
     }
-    expect(strip).toMatch(/h-10 shrink-0/); // the 40px finish control
-    expect(PHASE).not.toMatch(/h-20 w-20/); // …not the old 80px one
-    expect(PHASE).not.toMatch(/>Recording</); // the word the dot replaced
-    expect(PHASE).not.toMatch(/text-\[40px\]/); // the old clock
+    expect(strip).toMatch(/h-10 shrink-0/);
+    expect(PHASE).not.toMatch(/h-20 w-20|text-\[40px\]/);
   });
 
-  it("§4 — the progress bar still carries no number (AC-9)", () => {
-    const strip = PHASE.slice(PHASE.indexOf("const strip"), PHASE.indexOf("if (!hasDeck)"));
+  it("keeps the numberless duration bar", () => {
+    const strip = PHASE.slice(
+      PHASE.indexOf("const strip"),
+      PHASE.indexOf("if (!hasDeck)")
+    );
     expect(strip).toMatch(/aria-hidden/);
     expect(strip).not.toMatch(/%<|toFixed|Math\.round/);
   });
 
-  it("§5 — uploaded-deck progress is DOTS plus a count, not a sentence", () => {
-    expect(STAGE).toMatch(/w-6 bg-primary/); // the active dot widens
-    expect(STAGE).toMatch(/\{idx \+ 1\} \/ \{total\}/);
-    expect(STAGE).not.toMatch(/Slide \{idx \+ 1\} of \{total\}/);
+  it("uses one right-rail marker per slide", () => {
+    expect(ROADMAP).toMatch(/aria-label="Presentation slide position"/);
+    expect(ROADMAP).toMatch(/Go to slide \$\{index \+ 1\} of/);
+    expect(ROADMAP).toMatch(/h-6 w-1\.5 rounded-full bg-foreground/);
+    expect(STAGE).not.toMatch(/w-6 bg-primary|\{idx \+ 1\} \/ \{total\}/);
   });
 
-  it("§6 — the golden-thread line is gone from both components", () => {
-    expect(PHASE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
-    expect(STAGE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
+  it("scroll-selected slides still timestamp the recording", () => {
+    expect(ROADMAP).toMatch(/onSlideChangeRef\.current\(next\)/);
+    expect(PHASE).toMatch(/onSlideChange=\{onSlideChange\}/);
+    expect(LAB).toMatch(/function selectSlide\(index: number\)/);
+    expect(LAB).toMatch(/slideAdvancesRef\.current\.push/);
   });
 
-  it("THE WIRING: every slide control still reports to onAdvance", () => {
-    // The tap timeline is the word→slide bucketing input. An uploaded slide
-    // remains clickable, while Back and Next remain available for every take.
-    expect(STAGE).toMatch(/onClick=\{onNext\}/);
-    expect(PHASE).toMatch(/onNext=\{\(\) => onAdvance\(1\)\}/);
-    expect(PHASE).toMatch(/onClick=\{\(\) => onAdvance\(-1\)\}/);
-    expect(PHASE).toMatch(/onClick=\{\(\) => onAdvance\(1\)\}/);
-  });
-
-  it("an uploaded deck renders its own page; deckless mode omits the marked card", () => {
-    // The founder's line: "in the place where there is a text should be the
-    // slide; when slides are uploaded by the user". SlideRender draws the
-    // deck's PDF page whenever presentationRef is set and only falls back to
-    // the text card without one — so this slot must stay SlideRender, never
-    // a hardcoded text card.
+  it("renders the uploaded page or canonical default slide in one preview", () => {
     expect(STAGE).toMatch(/<SlideRender/);
     expect(STAGE).toMatch(/presentationRef=\{presentationRef\}/);
     expect(STAGE).toMatch(/showRetry=\{false\}/);
     expect(STAGE).toMatch(/fit/);
     expect(STAGE).not.toMatch(/<TextSlide/);
     expect(PHASE).toMatch(/presentationRef=\{presentationRef\}/);
-    expect(PHASE).toMatch(/\{presentationRef \? \(\s*<SlideStage/);
+    expect(ROADMAP).toMatch(/<SlideStage/);
+    expect(ROADMAP).not.toMatch(/\{presentationRef \?/);
   });
 
-  it("the screen names itself RECORDING, and only this screen does", () => {
-    // Founder 2026-08-11: "Let's drop 'Practice run' … to match our
-    // philosophy that every take matters." The word is the philosophy, so
-    // it is pinned, not left to whoever next tidies a header.
+  it("uses native-feeling scroll rather than the prototype's delayed clamp", () => {
+    expect(ROADMAP).not.toMatch(
+      /clampingRef|setTimeout|320|snap-y|snap-proximity/
+    );
+    expect(ROADMAP).not.toMatch(/onTouchStart|onTouchMove/);
+    expect(ROADMAP).toMatch(/scroller\.scrollTop \+= deltaY/);
+    expect(ROADMAP).toMatch(/wheelGestureStep/);
+    expect(ROADMAP).not.toMatch(/behavior: "smooth"/);
+  });
+
+  it("keeps the established Willab recording navbar", () => {
     expect(LAB).toMatch(/state === "lab_recording" \? "Recording" : ""/);
-    // What RENDERS, not the vocabulary: the comment beside that line records
-    // which word was retired and why, and that record is worth keeping.
+    expect(LAB).toMatch(
+      /<header className="flex h-12 shrink-0 items-center justify-between px-4">/
+    );
     expect(LAB).not.toMatch(/\?\s*"Practice run"/);
+  });
+
+  it("keeps the retired golden-thread line absent", () => {
+    expect(PHASE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
+    expect(STAGE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
   });
 });

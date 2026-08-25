@@ -21,6 +21,8 @@ export interface PresentationDocumentSlide {
   page: number | null;
   title: string;
   body: string;
+  /** Canonical deckless artwork; null for uploaded and unassigned content. */
+  artworkSrc: string | null;
   rows: PresentationDocumentRow[];
   /** False only for unassigned Ideal Text that must not be guessed onto a slide. */
   hasVisual: boolean;
@@ -106,6 +108,7 @@ export function buildPresentationDocument({
         page,
         title: slideTitles?.[page] || `Slide ${page + 1}`,
         body: "",
+        artworkSrc: null,
         rows: [],
         hasVisual: true,
       })
@@ -122,6 +125,7 @@ export function buildPresentationDocument({
         page: null,
         title: "",
         body: "",
+        artworkSrc: null,
         rows: unassigned,
         hasVisual: false,
       });
@@ -134,6 +138,7 @@ export function buildPresentationDocument({
     page: null,
     title: slide.title,
     body: slide.body,
+    artworkSrc: slide.artworkSrc ?? null,
     rows: [],
     hasVisual: true,
   }));
@@ -150,6 +155,7 @@ export function buildPresentationDocument({
       page: null,
       title: "",
       body: "",
+      artworkSrc: null,
       rows: unassigned,
       hasVisual: false,
     });

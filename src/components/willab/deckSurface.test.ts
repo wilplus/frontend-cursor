@@ -115,7 +115,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // stops scrolling on this state; the deck's snap-scroll is the movement.
     const LAB = code("src/components/willab/LabOverlay.tsx");
     expect(LAB).toMatch(
-      /state === "readout" \? "min-h-0 overflow-hidden" : "overflow-y-auto"/
+      /state === "readout" \|\| state === "lab_recording"[\s\S]*?\? "min-h-0 overflow-hidden"[\s\S]*?: "overflow-y-auto"/
     );
     // A MINIMUM height on the deck is what forced the page past the phone.
     // It takes the height that is left, so every link in the chain must be
