@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import {
+  CEO_ROOT_PATH,
+  ceoCanonicalUrl,
+  decideCeoHostRoute,
+} from "@/lib/ceo/hostRouting";
 
 // "/panel" — the Life Panel is signed-in only. The SECOND gate (feature flag,
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
@@ -156,6 +161,31 @@ function isAuthRoute(pathname: string) {
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
+  const ceoHostRoute = decideCeoHostRoute({
+    hostHeader: req.headers.get("host"),
+    forwardedHostHeader: req.headers.get("x-forwarded-host"),
+    pathname,
+  });
+
+  if (ceoHostRoute.action === "redirect-to-ceo") {
+    const destination = new URL(CEO_ROOT_PATH, req.url);
+    return NextResponse.redirect(destination);
+  }
+  if (ceoHostRoute.action === "redirect-to-ceo-host") {
+    return NextResponse.redirect(ceoCanonicalUrl(req.url));
+  }
+  if (ceoHostRoute.action === "not-found") {
+    return NextResponse.json(
+      { error: "not_found" },
+      {
+        status: 404,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      }
+    );
+  }
 
   // Skip middleware for Next.js internal routes, API routes, Fast Refresh, and RSC requests
   const searchParams = url.searchParams;
@@ -206,6 +236,9 @@ export async function middleware(req: NextRequest) {
   });
 
   applyCsp(res, cspDirectives);
+  if (ceoHostRoute.isCeoHost) {
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
 
   const isProd = process.env.NODE_ENV === "production";
   const supabase = createServerClient(
@@ -299,6 +332,10 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // API requests normally skip auth middleware, but they must still cross
+    // the hostname boundary so the CEO subdomain cannot expose the rest of
+    // the application's BFF surface.
+    "/api/:path*",
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
