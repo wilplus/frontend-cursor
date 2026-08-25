@@ -52,6 +52,7 @@ export default function DashboardHeader() {
             userEmail={menu.userEmail}
             tokensLabel={menu.tokensLabel}
             lifeMenu={menu.lifeMenu}
+            productMenu={menu.productMenu}
             supportEmail={SUPPORT_EMAIL}
             communityUrl={COMMUNITY_URL}
             onLogout={menu.logout}
@@ -59,7 +60,6 @@ export default function DashboardHeader() {
             // Reachable from /panel/* too, which is where this header also
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
-            voiceAlbumHref="/voice-album"
             corpusHref={menu.isCoach ? "/coach/corpus" : null}
           />
         </div>

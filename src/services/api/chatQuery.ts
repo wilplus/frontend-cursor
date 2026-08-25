@@ -85,6 +85,10 @@ export interface ChatQueryResponse {
   suggested_action?: "trainings" | "record_again" | null;
   /** Project-boundary replies sometimes require a deliberate pair of choices. */
   suggested_actions?: string[];
+  /** Explicit, versioned product destination. Copy never controls routing. */
+  product_action?: import("@/lib/productDiscovery").ProductAction;
+  /** True only when the backend durably stored the signed-in bot turn. */
+  persisted?: boolean;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;
@@ -130,7 +134,7 @@ export class ChatQueryRequestError extends Error {
 }
 
 export async function postChatQuery(
-  args: ChatQueryArgs
+  args: ChatQueryArgs,
 ): Promise<ChatQueryResponse> {
   let res: Response;
   if (args.audioBlob) {
@@ -140,7 +144,7 @@ export async function postChatQuery(
     if (args.presentationContext) {
       form.append(
         "presentation_context",
-        JSON.stringify(args.presentationContext)
+        JSON.stringify(args.presentationContext),
       );
     }
     if (args.sessionId) form.append("session_id", args.sessionId);
@@ -174,9 +178,9 @@ export async function postChatQuery(
         // #2 — server-owned persistence (signed-in only). The BE dedups the
         // user turn on client_id; absent → BE does not persist this turn.
         persist: args.persist ? true : undefined,
-        client_id: args.persist ? args.clientId ?? undefined : undefined,
+        client_id: args.persist ? (args.clientId ?? undefined) : undefined,
         client_created_at: args.persist
-          ? args.clientCreatedAt ?? undefined
+          ? (args.clientCreatedAt ?? undefined)
           : undefined,
       }),
       credentials: "include",
@@ -196,7 +200,7 @@ export async function postChatQuery(
     throw new ChatQueryRequestError(
       res.status,
       data.code,
-      typeof data.error === "string" ? data.error : undefined
+      typeof data.error === "string" ? data.error : undefined,
     );
   }
 

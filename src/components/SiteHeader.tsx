@@ -35,12 +35,12 @@ export default function SiteHeader() {
         userEmail={menu.userEmail}
         tokensLabel={menu.tokensLabel}
         lifeMenu={menu.lifeMenu}
+        productMenu={menu.productMenu}
         supportEmail={SUPPORT_EMAIL}
         communityUrl={COMMUNITY_URL}
         onLogout={menu.logout}
         loggingOut={menu.loggingOut}
         labHref="/chat"
-        voiceAlbumHref="/voice-album"
         corpusHref={menu.isCoach ? "/coach/corpus" : null}
       />
     </header>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
@@ -36,9 +37,7 @@ import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
-import IdealTextOverlay, {
-  type IdealTextLaunchMode,
-} from "./IdealTextOverlay";
+import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
@@ -81,10 +80,12 @@ import {
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { useLifeTags } from "@/lib/life/useLifeTags";
 import { applyPick } from "@/lib/life/hashtags";
+import { LifeChatCard, LifeTagPicker } from "@/components/life/LifeChatLayer";
 import {
-  LifeChatCard,
-  LifeTagPicker,
-} from "@/components/life/LifeChatLayer";
+  announceDiscoveriesFromPersistedMessages,
+  productActionFromMetadata,
+  productSpec,
+} from "@/lib/productDiscovery";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -117,8 +118,7 @@ type ThreadItem =
       reactKey: string;
       // FP-4 — one item per student (grouped), not per session.
       group: ReviewStudentGroup;
-    }
-  ;
+    };
 
 export default function Lounge({
   state,
@@ -173,7 +173,8 @@ export default function Lounge({
     // scrollbar over a box that had just been sized to fit.
     const cs = window.getComputedStyle(el);
     const border =
-      parseFloat(cs.borderTopWidth || "0") + parseFloat(cs.borderBottomWidth || "0");
+      parseFloat(cs.borderTopWidth || "0") +
+      parseFloat(cs.borderBottomWidth || "0");
     el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
   }, [draftText]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
@@ -186,7 +187,9 @@ export default function Lounge({
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
-  const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
+  const [bestPresentationArcId, setBestPresentationArcId] = useState<
+    string | null
+  >(null);
   // Star Verdict (2026-07-27) — the coach's star-review overlay for one arc.
   // A SIBLING of the review overlay on purpose (N1): the verdict surface
   // shows the machine's guesses, so it never mounts inside the blind
@@ -248,12 +251,12 @@ export default function Lounge({
   // snapshot taken at open time.
   const reviewGroups = useMemo<ReviewStudentGroup[]>(
     () => (isCoach ? groupReviewQueueByStudent(reviewQueue.rows) : []),
-    [isCoach, reviewQueue.rows]
+    [isCoach, reviewQueue.rows],
   );
   // The live group behind an open ReviewGroupOverlay (null when none open or the
   // group emptied out). Looked up by key so it tracks row-state changes.
   const activeReviewGroup = reviewGroupKey
-    ? reviewGroups.find((g) => g.key === reviewGroupKey) ?? null
+    ? (reviewGroups.find((g) => g.key === reviewGroupKey) ?? null)
     : null;
 
   const threadItems = useMemo<ThreadItem[]>(() => {
@@ -376,7 +379,7 @@ export default function Lounge({
 
   function openIdealText(
     arcId: string,
-    mode: IdealTextLaunchMode = "notebook"
+    mode: IdealTextLaunchMode = "notebook",
   ): void {
     if (state === "insights_ready") {
       clearInsightsReady();
@@ -393,7 +396,7 @@ export default function Lounge({
       arcId,
       Math.max(1, completedTake + 1),
       cached?.arcId === arcId ? cached.deck : undefined,
-      latestArcSessionId(arcId)
+      latestArcSessionId(arcId),
     );
     (onStartInProject ?? onStart)();
   }
@@ -405,7 +408,8 @@ export default function Lounge({
   // flips true.
   const deepLinkOpenedRef = useRef(false);
   useEffect(() => {
-    if (deepLinkOpenedRef.current || !isCoach || !initialReviewSessionId) return;
+    if (deepLinkOpenedRef.current || !isCoach || !initialReviewSessionId)
+      return;
     deepLinkOpenedRef.current = true;
     setReviewSessionId(initialReviewSessionId);
   }, [isCoach, initialReviewSessionId]);
@@ -472,7 +476,6 @@ export default function Lounge({
     return () => clearTimeout(t);
   }, [thread.loading, messages.length]);
 
-
   // F2 — install affordance primitives (platform + dismiss state). Drives both
   // whether to surface the install offer and the footer action pair.
   const install = useInstallOffer();
@@ -498,8 +501,9 @@ export default function Lounge({
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
-  const [confidencePracticeId, setConfidencePracticeId] =
-    useState<string | null>(null);
+  const [confidencePracticeId, setConfidencePracticeId] = useState<
+    string | null
+  >(null);
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
   // server-side; resume its persisted marker and subscribe until terminal:
@@ -605,7 +609,7 @@ export default function Lounge({
             marker.arcId,
             (marker.takeIndex ?? 0) + 1,
             cached?.arcId === marker.arcId ? cached.deck : undefined,
-            marker.sessionId
+            marker.sessionId,
           );
         }
         // SPEC-lockin-loop §1 (handoff §6.4 S3) — the readout going terminal
@@ -619,7 +623,7 @@ export default function Lounge({
         setResumeWatch(null);
       }
     },
-    5000
+    5000,
   );
 
   // SPEC-lockin-loop §1 — the document-phase authority. Probes the served
@@ -699,7 +703,7 @@ export default function Lounge({
       }
       return undefined;
     },
-    [messages]
+    [messages],
   );
 
   // The settle stamp: a recording_summary minted AFTER the thread settled is
@@ -728,14 +732,20 @@ export default function Lounge({
     if (installHandledRef.current || hasOffer(messages, "install")) return;
     const settle = settleTimeRef.current;
     const freshSend = messages.some(
-      (m) => m.kind === "recording_summary" && m.client_created_at > settle
+      (m) => m.kind === "recording_summary" && m.client_created_at > settle,
     );
     if (!freshSend) return;
     installHandledRef.current = true;
     void thread.append(offerDraft("install"));
     openOffer("install");
-  }, [state, install.canOffer, thread.loading, messages, thread.append, openOffer]);
-
+  }, [
+    state,
+    install.canOffer,
+    thread.loading,
+    messages,
+    thread.append,
+    openOffer,
+  ]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
@@ -809,7 +819,11 @@ export default function Lounge({
       // The user turn always persists (optimistic + FE write); for signed-in the
       // BE also writes it from the client_id we pass below, and the server dedups
       // on (user_id, client_id) so it collapses to one row (#2).
-      const userMsg = await thread.append({ role: "user", kind: "text", body: q });
+      const userMsg = await thread.append({
+        role: "user",
+        kind: "text",
+        body: q,
+      });
 
       setBotThinking(true);
       try {
@@ -834,9 +848,10 @@ export default function Lounge({
         // B-1 — the one quick-action the BE suggests for this turn (S1),
         // rendered as an in-bubble chip (trainings / audit).
         const suggested = coerceSuggestedAction(resp.suggested_action);
-        const suggestedActions = coerceSuggestedActions(
-          resp.suggested_actions
-        );
+        const suggestedActions = coerceSuggestedActions(resp.suggested_actions);
+        const productAction = productActionFromMetadata({
+          product_action: resp.product_action,
+        });
         const answer = (resp.answer ?? "").trim();
         // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
         // We persist the joined body and the thread re-splits on the same
@@ -853,15 +868,23 @@ export default function Lounge({
           // and scroll-back. For signed-in, the BE persists this same row (chip
           // included) — see #2; we show it optimistically without re-persisting
           // to avoid a duplicate. Anonymous → the FE persists it locally.
-          metadata:
-            suggestedActions.length > 0
+          metadata: {
+            ...(suggestedActions.length > 0
               ? { suggested_actions: suggestedActions }
               : suggested
                 ? { suggested_action: suggested }
-                : null,
+                : {}),
+            ...(productAction ? { product_action: productAction } : {}),
+          },
         };
-        if (thread.signedIn) thread.appendLocalOnly(botDraft);
-        else await thread.append(botDraft);
+        if (thread.signedIn) {
+          const botMessage = thread.appendLocalOnly(botDraft);
+          if (resp.persisted) {
+            announceDiscoveriesFromPersistedMessages([botMessage]);
+          }
+        } else {
+          await thread.append(botDraft);
+        }
       } catch {
         await thread.append({
           role: "bot",
@@ -916,7 +939,9 @@ export default function Lounge({
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                onOpenBestPresentation={(arcId) =>
+                  setBestPresentationArcId(arcId)
+                }
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
@@ -937,7 +962,7 @@ export default function Lounge({
                 group={item.group}
                 onOpen={openReviewGroup}
               />
-            )
+            ),
           )
         )}
 
@@ -1228,7 +1253,7 @@ export default function Lounge({
                 arcId,
                 (version ?? 0) + 1,
                 undefined,
-                latestArcSessionId(arcId)
+                latestArcSessionId(arcId),
               );
             }
             setIdealTextArcId(null);
@@ -1265,7 +1290,7 @@ export default function Lounge({
               arc.arcId,
               arc.nextTakeIndex,
               deck,
-              arc.sessionId ?? latestArcSessionId(arc.arcId)
+              arc.sessionId ?? latestArcSessionId(arc.arcId),
             );
             setLibraryOpen(false);
             // The arc is seeded immediately above — never ask WHICH project
@@ -1360,7 +1385,7 @@ export default function Lounge({
                 bestPresentationArcId,
                 takesDone + 1,
                 undefined,
-                latestArcSessionId(bestPresentationArcId)
+                latestArcSessionId(bestPresentationArcId),
               );
             }
             setBestPresentationArcId(null);
@@ -1388,7 +1413,6 @@ export default function Lounge({
           onClose={() => setStarVerdictArcId(null)}
         />
       )}
-
     </div>
   );
 }
@@ -1396,7 +1420,13 @@ export default function Lounge({
 /** B-1 — a single intent-driven quick-action button (from the BE's
  *  suggested_action, S1). Lives inside the bot bubble it came with, persists
  *  in thread history, and is always clickable (action is idempotent). */
-function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => void }) {
+function ActionButton({
+  action,
+  onClick,
+}: {
+  action: ChipAction;
+  onClick: () => void;
+}) {
   return (
     <div className="mr-auto flex max-w-[85%]">
       <button
@@ -1475,7 +1505,7 @@ function SequentialBotBubbles({
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     setReduceMotion(
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     );
   }, []);
 
@@ -1586,7 +1616,10 @@ function Bubble({
     );
   }
   if (message.role === "bot") {
-    const voiceAlbumReady = message.metadata?.voice_album_ready === true;
+    const productAction = productActionFromMetadata(message.metadata);
+    const productDestination = productAction
+      ? productSpec(productAction.product)
+      : null;
     const confidenceCorrection =
       message.metadata?.confidence_material_correction === true &&
       typeof message.metadata?.arc_id === "string" &&
@@ -1607,7 +1640,7 @@ function Bubble({
     const journeyActions =
       journey && Array.isArray(message.metadata?.actions)
         ? message.metadata.actions.filter(
-            (value): value is string => typeof value === "string"
+            (value): value is string => typeof value === "string",
           )
         : [];
     const journeyArc =
@@ -1626,11 +1659,7 @@ function Bubble({
       keep_practising: "Keep practising",
     };
     const runJourneyAction = (action: string) => {
-      if (
-        action === "keep_practising" &&
-        journeyArc &&
-        journeyTake !== null
-      ) {
+      if (action === "keep_practising" && journeyArc && journeyTake !== null) {
         onContinueProject?.(journeyArc, journeyTake);
         return;
       }
@@ -1644,16 +1673,19 @@ function Bubble({
       }
     };
     // B-1 — read the persisted action from metadata; render below the bubbles.
-    const actions = onChip && message.metadata
-      ? (() => {
-          const many = coerceSuggestedActions(
-            message.metadata.suggested_actions
-          );
-          if (many.length > 0) return many;
-          const one = coerceSuggestedAction(message.metadata.suggested_action);
-          return one ? [one] : [];
-        })()
-      : [];
+    const actions =
+      onChip && message.metadata
+        ? (() => {
+            const many = coerceSuggestedActions(
+              message.metadata.suggested_actions,
+            );
+            if (many.length > 0) return many;
+            const one = coerceSuggestedAction(
+              message.metadata.suggested_action,
+            );
+            return one ? [one] : [];
+          })()
+        : [];
     return (
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
@@ -1661,19 +1693,16 @@ function Bubble({
           chunks={splitBotMessage(message.body)}
           animate={animate}
         />
-        {voiceAlbumReady ? (
+        {productDestination ? (
           <div className="mr-auto pt-1">
             <Button
-              type="button"
+              asChild
               variant="outline"
               className="h-9 rounded-full px-4 text-[13px]"
-              onClick={() =>
-                window.dispatchEvent(
-                  new Event("willab:open-voice-album-menu")
-                )
-              }
             >
-              Find my Voice Album
+              <Link href={productDestination.href}>
+                {productDestination.actionLabel}
+              </Link>
             </Button>
           </div>
         ) : null}
@@ -1714,7 +1743,7 @@ function Bubble({
                 >
                   {journeyLabel[action]}
                 </Button>
-              ) : null
+              ) : null,
             )}
           </div>
         ) : null}
@@ -1763,7 +1792,10 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
         // width without the label shrinking the dot or spilling the pill.
         className="flex w-full max-w-sm items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-5 py-4 text-[16px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
       >
-        <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" aria-hidden />
+        <span
+          className="h-3 w-3 shrink-0 rounded-full bg-red-500"
+          aria-hidden
+        />
         Start your first recording
       </button>
     </div>
