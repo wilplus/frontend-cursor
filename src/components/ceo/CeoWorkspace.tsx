@@ -269,14 +269,14 @@ export default function CeoWorkspace() {
           {state.surface === "tasks" ? (
             <CeoTasks project={project} features={features} />
           ) : null}
-          {state.surface === "settings" ? <CeoSettings /> : null}
+          {state.surface === "settings" ? <CeoSettings data={data} /> : null}
         </section>
       </div>
     </div>
   );
 }
 
-function CeoSettings() {
+function CeoSettings({ data }: { data: CeoBootstrap }) {
   return (
     <div className="mx-auto max-w-3xl">
       <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
@@ -298,7 +298,39 @@ function CeoSettings() {
             Look up balances and grant non-expiring tokens.
           </p>
         </Link>
+        <div className="rounded-2xl border border-border p-5 sm:col-span-2">
+          <h3 className="font-semibold">CEO Intelligence usage</h3>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <UsageMetric label="Runs" value={data.intelligence_usage?.runs ?? 0} />
+            <UsageMetric
+              label="Input tokens"
+              value={data.intelligence_usage?.prompt_tokens ?? 0}
+            />
+            <UsageMetric
+              label="Output tokens"
+              value={data.intelligence_usage?.completion_tokens ?? 0}
+            />
+            <UsageMetric
+              label="Total tokens"
+              value={data.intelligence_usage?.total_tokens ?? 0}
+            />
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Counts include completed CEO Architecture and ML proposal runs only.
+          </p>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function UsageMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums">
+        {new Intl.NumberFormat().format(value)}
+      </p>
     </div>
   );
 }
