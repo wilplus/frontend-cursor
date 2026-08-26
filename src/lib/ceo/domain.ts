@@ -1,6 +1,5 @@
 export const CEO_PROJECT_KEYS = ["product", "research"] as const;
 export const CEO_SURFACES = ["overview", "bugs", "tasks", "settings"] as const;
-export const CEO_GESTURE_SURFACES = ["overview", "bugs", "tasks"] as const;
 export const CEO_LENSES = ["architecture", "ml", "vision"] as const;
 export const CEO_SCOPE_KINDS = ["project", "feature"] as const;
 
@@ -203,25 +202,4 @@ export function artifactAtAddress(
         artifact.lens === address.lens
     ) ?? null
   );
-}
-
-/** Bugs is the centre of the gesture: swipe right to Overview, left to Tasks. */
-export function ceoSurfaceAfterSwipe(
-  surface: CeoSurface,
-  deltaX: number,
-  minimumDistance = 48
-): CeoSurface {
-  if (Math.abs(deltaX) < minimumDistance || surface === "settings") {
-    return surface;
-  }
-  const index = CEO_GESTURE_SURFACES.indexOf(
-    surface as (typeof CEO_GESTURE_SURFACES)[number]
-  );
-  if (index < 0) return surface;
-  const direction = deltaX > 0 ? -1 : 1;
-  const next = Math.max(
-    0,
-    Math.min(CEO_GESTURE_SURFACES.length - 1, index + direction)
-  );
-  return CEO_GESTURE_SURFACES[next];
 }
