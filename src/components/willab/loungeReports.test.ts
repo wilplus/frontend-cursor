@@ -7,8 +7,6 @@ import {
   isReportMessage,
   readoutSummaryDraft,
   readoutView,
-  TAKE_PROCESSED_BODY,
-  takeProcessedDraft,
 } from "./loungeReports";
 
 describe("readoutSummaryDraft", () => {
@@ -49,29 +47,6 @@ describe("isReportMessage", () => {
     expect(isReportMessage({ kind: "insight" })).toBe(true);
     expect(isReportMessage({ kind: "text" })).toBe(false);
     expect(isReportMessage({ kind: "status" })).toBe(false);
-  });
-});
-
-describe("takeProcessedDraft", () => {
-  it("is one exact, per-session terminal result for a later take", () => {
-    const sessionId = "77777777-7777-4777-8777-777777777777";
-    expect(
-      takeProcessedDraft({ sessionId, arcId: "arc-1", takeIndex: 2 }),
-    ).toEqual({
-      clientId: sessionId,
-      role: "bot",
-      kind: "ideal_text",
-      body: TAKE_PROCESSED_BODY,
-      metadata: {
-        variant: "take_processed",
-        arc_id: "arc-1",
-        take_session_id: sessionId,
-        take_index: 2,
-      },
-    });
-    expect(TAKE_PROCESSED_BODY).toBe(
-      "Take processed. Your Ideal Text was kept unchanged.",
-    );
   });
 });
 

@@ -31,7 +31,6 @@ import { useUserId } from "./useUserId";
 import {
   idealTextUnconfirmedDraft,
   readoutSummaryDraft,
-  takeProcessedDraft,
 } from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
 import { setPendingSend, setReviewPending } from "./sendStatus";
@@ -58,7 +57,6 @@ import {
   writeProcessingTake,
   markProcessingTakeFailed,
   markProcessingTakeIdealTextUnconfirmed,
-  processingTakeKeepsIdealText,
   transitionProcessingTakeToDocument,
   updateProcessingTakeProgress,
 } from "@/lib/willab/processingTake";
@@ -652,22 +650,12 @@ export default function LabOverlay({
           takeIndex:
             result.takeIndex ?? recordedTakeRef.current ?? arcTakeIndex,
         };
-        const keepsIdealText = processingTakeKeepsIdealText(completedTake);
-        if (result.sessionId && keepsIdealText) {
-          // The synchronous and background transports terminate through the
-          // same L1 rule and the same per-session event. A deployment-mode
-          // switch can therefore never resurrect the impossible version wait.
-          clearProcessingTake(userId, result.sessionId);
-          void appendToThread(
-            takeProcessedDraft({
-              sessionId: result.sessionId,
-              arcId: completedTake.arcId,
-              takeIndex: completedTake.takeIndex,
-            }),
-          );
-        } else if (result.sessionId && completedTake.arcId) {
-          // Take 1 really created a document. Write a document-phase marker so
-          // the served Ideal Text must prove it landed before it is revealed.
+        const waitsForReview = !!(result.sessionId && completedTake.arcId);
+        if (result.sessionId && completedTake.arcId) {
+          // Every spoken Take has a durable review version. Take 1 proves the
+          // initial document; Take 2+ proves 2.0/3.0 without rewriting its
+          // canonical words. The served API must show that identity before the
+          // blocking screen releases.
           const startedAt = Date.now();
           setProcessingCycleStartedAt(startedAt);
           writeProcessingTake(userId, {
@@ -681,9 +669,9 @@ export default function LabOverlay({
           });
         }
         setProcessingProgress(
-          keepsIdealText
-            ? { stage: "completed", percent: 100 }
-            : { stage: "document_assembly", percent: null },
+          waitsForReview
+            ? { stage: "document_assembly", percent: null }
+            : { stage: "completed", percent: 100 },
         );
         setProcessingReady(true);
       } else if (result.kind === "ideal_text_unconfirmed") {
@@ -832,33 +820,22 @@ export default function LabOverlay({
               arcId: carried?.returnedArcId ?? arcId,
               takeIndex: recordedTakeRef.current,
             };
-      const keepsIdealText = processingTakeKeepsIdealText(completedTake);
-      if (keepsIdealText) {
-        // Same terminal contract as Lounge resume: the job is complete and a
-        // later take deliberately keeps the document, so there is no document
-        // delta to wait for. The session UUID dedupes this append against the
-        // backend writer and every reconnect.
-        clearProcessingTake(userId, liveSessionId);
-        void appendToThread(
-          takeProcessedDraft({
-            sessionId: liveSessionId,
-            arcId: completedTake.arcId,
-            takeIndex: completedTake.takeIndex,
-          }),
-        );
-      } else {
-        // Take 1 created a real document. Its served version must land before
-        // the readout may reveal the Ideal Text.
+      if (completedTake.arcId) {
+        // The worker has finalized the Take's review version. Observe it from
+        // the public read model before revealing the Ideal Text; this is the
+        // same boundary for synchronous, queued, and resumed processing.
         transitionProcessingTakeToDocument(userId, liveSessionId);
+      } else {
+        clearProcessingTake(userId, liveSessionId);
       }
       setPollSessionId(null);
       setPollSlow(false);
       setReadout(r.readout);
       setUploadError(null);
       setProcessingProgress(
-        keepsIdealText
-          ? { stage: "completed", percent: 100 }
-          : { stage: "document_assembly", percent: null },
+        completedTake.arcId
+          ? { stage: "document_assembly", percent: null }
+          : { stage: "completed", percent: 100 },
       );
       setProcessingReady(true);
     }

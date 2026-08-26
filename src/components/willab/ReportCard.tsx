@@ -163,7 +163,6 @@ export default function ReportCard({
   //   metadata.variant "instant" → the FREE machine draft at take 3: a plain
   //     grey card (deliberately NOT purple, so the later coach-perfected purple
   //     bubble still reads as the upgrade moment, never a duplicate).
-  //   metadata.variant "take_processed" → later-take terminal result.
   //   no variant / "perfected" → the publish-time PURPLE card (unchanged).
   if (message.kind === "ideal_text") {
     const arcId =
@@ -239,58 +238,6 @@ export default function ReportCard({
                     arcId: arcId!,
                     takeSessionId,
                     takeIndex: 1,
-                  })
-                }
-                className="h-10 w-full rounded-full"
-              >
-                View this take&apos;s feedback
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-    if (variant === "take_processed") {
-      const takeSessionId =
-        typeof message.metadata?.take_session_id === "string"
-          ? message.metadata.take_session_id
-          : null;
-      const takeIndex =
-        typeof message.metadata?.take_index === "number" &&
-        Number.isFinite(message.metadata.take_index)
-          ? message.metadata.take_index
-          : null;
-      const feedbackOpenable = !!(arcId && takeSessionId && onOpenFeedback);
-      return (
-        <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
-          <div className="flex items-start gap-2">
-            <Check
-              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-              aria-hidden
-            />
-            <p className="text-[15px] leading-relaxed text-foreground">
-              {message.body}
-            </p>
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            {openable ? (
-              <Button
-                type="button"
-                onClick={open}
-                className="h-10 w-full rounded-full"
-              >
-                Open your Ideal Text
-              </Button>
-            ) : null}
-            {feedbackOpenable ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  onOpenFeedback!({
-                    arcId: arcId!,
-                    takeSessionId,
-                    takeIndex,
                   })
                 }
                 className="h-10 w-full rounded-full"

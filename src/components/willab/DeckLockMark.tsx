@@ -26,6 +26,7 @@ const STYLE_LABEL = "Style";
 
 export default function DeckLockMark({
   status,
+  pendingCount = 0,
   flagship = false,
   onClick,
   disabled = false,
@@ -34,6 +35,8 @@ export default function DeckLockMark({
   reviewStatus = null,
 }: {
   status: ChunkStatus;
+  /** Number already selected for this chunk from the Take's immutable ≤3. */
+  pendingCount?: number;
   /** True only when the paragraph contains user-accepted orange text. */
   flagship?: boolean;
   onClick: () => void;
@@ -54,7 +57,7 @@ export default function DeckLockMark({
 
   // A neutral paragraph with no remaining action has no feedback icon. The
   // paragraph still has a neutral rehearsal root, and the slide remains
-  // editable through “Edit this slide”.
+  // editable through “Edit the text”.
   if (!flagship && !unresolved) return null;
 
   return (
@@ -62,6 +65,9 @@ export default function DeckLockMark({
       type="button"
       aria-label={[
         flagship ? "Flagship accepted" : ARIA[status],
+        status === "waiting" && pendingCount > 0
+          ? `${pendingCount} feedback item${pendingCount === 1 ? "" : "s"}`
+          : null,
         hasCoach ? COACH_LABEL : null,
         reviewStatus === "pending_coach_review" ? "Pending coach review" : null,
         reviewStatus === "coach_reviewed" ? "Coach reviewed" : null,
@@ -87,6 +93,11 @@ export default function DeckLockMark({
         fill={flagship ? "currentColor" : "none"}
         aria-hidden
       />
+      {status === "waiting" && pendingCount > 1 ? (
+        <span className="pr-1 text-[11px] font-semibold tabular-nums" aria-hidden>
+          {Math.min(3, pendingCount)}
+        </span>
+      ) : null}
       {reviewStatus === "pending_coach_review" ? (
         <span className="pr-1 text-[10px] font-semibold uppercase tracking-[0.08em]">
           Pending

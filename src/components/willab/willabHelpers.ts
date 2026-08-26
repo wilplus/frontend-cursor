@@ -21,7 +21,9 @@ export function isRetiredLoungeMessage(
   return (
     message.role === "bot" &&
     ((message.kind === "cadence" && message.metadata?.beat === 0) ||
-      (message.kind === "text" && message.metadata?.note === "human_check"))
+      (message.kind === "text" && message.metadata?.note === "human_check") ||
+      (message.kind === "ideal_text" &&
+        message.metadata?.variant === "take_processed"))
   );
 }
 

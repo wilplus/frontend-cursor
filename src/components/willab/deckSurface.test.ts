@@ -28,6 +28,7 @@ function code(path: string): string {
 }
 
 const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
+const MODAL = code("src/components/willab/DeckChunkModal.tsx");
 const MARK = code("src/components/willab/DeckLockMark.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
 const READOUT = code("src/components/willab/IdealTextReadout.tsx");
@@ -46,6 +47,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
   it("the chunk renders its words directly, with the mark beside them", () => {
     // Not merely "no classes today" — no wrapper to hang classes ON.
     expect(DECK).toMatch(/<RichText text=\{c\.part\.text\} \/>\s*<DeckLockMark/);
+  });
+
+  it("reveals the frozen feedback inventory before any decision", () => {
+    // Up to three belong to the whole Take. If several route to one chunk,
+    // the page shows their count and the modal lists every identity up front;
+    // resolving #1 may navigate to #2, but can never make a hidden #2 appear.
+    expect(DECK).toMatch(/pendingCount=\{c\.pendingIds\.length\}/);
+    expect(DECK).toMatch(/pendingSuggestions=\{openSuggestions\}/);
+    expect(MODAL).toMatch(/Feedback ready · \{feedbackInventory\.length\}/);
+    expect(MODAL).toMatch(/feedbackInventory\.map/);
+    expect(MODAL).toMatch(/\.slice\(0, 3\)/);
+    expect(MODAL).toMatch(/advanceAfterDecision\(suggestion\.id\)/);
   });
 
   it("there are THREE chunk states", () => {
@@ -120,12 +133,15 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(
       /groupChunksBySlide\(chunks, pieceSlideIndexes, slideCount\)/
     );
-    // An unprovable mapping becomes one visible, non-interactive error state:
-    // no copy action, page rail, editor, or guessed navigation survives it.
-    expect(DECK).toMatch(/role="alert"/);
-    expect(DECK).toMatch(/\{grouping\.ok \? \(/);
-    expect(DECK).toMatch(/\{grouping\.ok && openChunk \? \(/);
-    expect(DECK).toMatch(/grouping\.ok &&\s*\(screens\.length > 1/);
+    // Slide linkage is optional metadata. If it is unprovable, the words
+    // remain openable as one unlinked "Your talk" section; no slide number is
+    // guessed and the old whole-document error state is gone.
+    expect(DECK).toMatch(
+      /grouping\.ok\s*\? grouping\.groups\s*:\s*chunks\.length > 0\s*\? \[\{ slideIndex: null/
+    );
+    expect(DECK).toMatch(/data-slide-linkage=\{grouping\.ok \? "linked" : "unlinked"\}/);
+    expect(DECK).not.toMatch(/role="alert"/);
+    expect(DECK).not.toMatch(/Couldn&apos;t load your ideal text/);
   });
 
   it("the readout screen has exactly ONE scroller — the deck", () => {
