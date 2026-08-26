@@ -76,6 +76,7 @@ describe("the app-wide loading contract", () => {
       "src/app/coach/compare/page.client.tsx",
       "src/app/coach/corpus/page.client.tsx",
       "src/app/coach/corpus/summary/[sessionId]/page.client.tsx",
+      "src/components/willab/RaterLanguageGate.tsx",
       "src/components/willab/CoachReviewOverlay.tsx",
       "src/components/willab/CoachStarVerdictOverlay.tsx",
       "src/components/willab/ConfidencePracticeOverlay.tsx",
