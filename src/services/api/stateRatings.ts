@@ -50,6 +50,9 @@ export interface StateRatingBody {
   state_id: string;
   value: ConfidenceRatingValue;
   note?: string;
+  /** Stable retry identity for the immutable canonical judgment. It is not a
+   * label and never appears in the coach UI. */
+  idempotency_key?: string;
   /** True only when the row came from the server's mandatory second-listen
    * queue. It is workflow provenance, never a rating value. */
   re_review?: boolean;
@@ -74,6 +77,7 @@ export function buildRatingBody(
   const body: StateRatingBody = { state_id: stateId, value: resolved };
   const trimmed = note?.trim() ?? "";
   if (trimmed) body.note = trimmed;
+  body.idempotency_key = crypto.randomUUID();
   return body;
 }
 
@@ -120,9 +124,9 @@ export async function saveConfidenceAgreement(
   return { ok: false, error: typeof err === "string" && err ? err : null };
 }
 
-/** Persist one rating. Re-rating REPLACES this rater's row (the corpus wants
- *  their current view); other raters' rows are untouched, so multi-rater
- *  agreement stays possible.
+/** Persist one rating. The compatibility read keeps this rater's latest row;
+ *  the canonical write appends reconsiderations as immutable revisions.
+ *  Other raters remain separate, so multi-rater agreement stays possible.
  *
  *  Never throws — the caller renders `error` inline. A null error means "no
  *  session / transport died", which is not the same as the backend's verbatim

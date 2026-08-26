@@ -168,10 +168,11 @@ describe("the card resumes the coach's OWN answer", () => {
 
 describe("buildRatingBody refuses to fabricate a label", () => {
   it("builds a plain ternary answer", () => {
-    expect(buildRatingBody("yes", false)).toEqual({
+    expect(buildRatingBody("yes", false)).toEqual(expect.objectContaining({
       state_id: CONFIDENCE_STATE_ID,
       value: "yes",
-    });
+    }));
+    expect(buildRatingBody("yes", false)?.idempotency_key).toBeTruthy();
   });
 
   it("accepts every value in the fixed answer space", () => {
@@ -181,10 +182,11 @@ describe("buildRatingBody refuses to fabricate a label", () => {
   });
 
   it("an unclear-audio response is explicit and distinct", () => {
-    expect(buildRatingBody(null, true)).toEqual({
+    expect(buildRatingBody(null, true)).toEqual(expect.objectContaining({
       state_id: CONFIDENCE_STATE_ID,
       value: "audio_unclear",
-    });
+    }));
+    expect(buildRatingBody(null, true)?.idempotency_key).toBeTruthy();
   });
 
   it("an abstention drops any value handed to it", () => {

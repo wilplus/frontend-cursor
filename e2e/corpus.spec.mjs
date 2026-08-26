@@ -21,6 +21,13 @@ const check = (name, ok, detail = "") => {
 const calls = (page) => page.evaluate(() => window.__corpusCalls ?? []);
 const labels = async (page) =>
   (await calls(page)).filter((c) => c.url.includes("/confidence-label"));
+const isConfidenceLabelBody = (body, value) =>
+  body?.state_id === "confidence" &&
+  body?.value === value &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    body?.idempotency_key ?? ""
+  ) &&
+  Object.keys(body).sort().join(",") === "idempotency_key,state_id,value";
 
 const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } });
@@ -437,13 +444,11 @@ await page.waitForTimeout(350);
 let put = await labels(page);
 check(
   // 2026-08-10, the unified ternary instrument; 2026-08-11, the intensity
-  // cut. One write shape is left in the product: the ternary body. An
-  // answer alone is the complete label, and nothing rides along
-  // uninvited (N3).
-  "Yes alone is THE complete label — the ternary body, nothing else on the wire",
-  put.length === 1 &&
-    JSON.stringify(put[0].body) ===
-      JSON.stringify({ state_id: "confidence", value: "yes" }),
+  // cut. One semantic write shape is left in the product: the ternary body.
+  // The UUID is transport provenance for idempotent immutable storage, never
+  // another label or a value visible to the coach (N3).
+  "Yes alone is THE complete label — plus an opaque idempotency key, nothing semantic",
+  put.length === 1 && isConfidenceLabelBody(put[0].body, "yes"),
   JSON.stringify(put[0]?.body)
 );
 check(
@@ -571,9 +576,7 @@ await page.waitForTimeout(400);
 put = await labels(page);
 check(
   "No rides the same ternary body and is complete on its own — no grade step follows it",
-  put.length === 3 &&
-    JSON.stringify(put[2].body) ===
-      JSON.stringify({ state_id: "confidence", value: "no" }),
+  put.length === 3 && isConfidenceLabelBody(put[2].body, "no"),
   JSON.stringify(put[2]?.body)
 );
 check(
