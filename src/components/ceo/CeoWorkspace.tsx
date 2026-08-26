@@ -7,7 +7,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Logo from "@/components/Logo";
 import CeoOverview from "@/components/ceo/CeoOverview";
 import CeoSegmentedControl from "@/components/ceo/CeoSegmentedControl";
@@ -18,7 +18,6 @@ import {
   CEO_PROJECT_KEYS,
   CEO_SURFACES,
   activeCeoFeatures,
-  ceoSurfaceAfterSwipe,
   defaultCeoViewState,
   type CeoBootstrap,
   type CeoProjectKey,
@@ -66,8 +65,6 @@ export default function CeoWorkspace() {
     product: "",
     research: "",
   });
-  const touchStartX = useRef<number | null>(null);
-
   useEffect(() => {
     const remembered = window.localStorage.getItem("ceo-active-project");
     if (remembered === "product" || remembered === "research") {
@@ -152,22 +149,6 @@ export default function CeoWorkspace() {
     [data?.features, project]
   );
 
-  function beginSwipe(event: React.TouchEvent<HTMLElement>) {
-    const target = event.target as HTMLElement;
-    if (target.closest("input, textarea, button, a")) return;
-    touchStartX.current = event.touches[0]?.clientX ?? null;
-  }
-
-  function endSwipe(event: React.TouchEvent<HTMLElement>) {
-    const start = touchStartX.current;
-    touchStartX.current = null;
-    if (start === null) return;
-    const end = event.changedTouches[0]?.clientX;
-    if (end === undefined) return;
-    const surface = ceoSurfaceAfterSwipe(state.surface, end - start);
-    if (surface !== state.surface) updateState({ surface });
-  }
-
   if (loadError) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-20">
@@ -245,11 +226,7 @@ export default function CeoWorkspace() {
           </nav>
         </div>
 
-        <section
-          className="mt-6 min-h-[65vh]"
-          onTouchStart={beginSwipe}
-          onTouchEnd={endSwipe}
-        >
+        <section className="mt-6 min-h-[65vh]">
           {state.surface === "bugs" ? (
             <CeoBugCapture
               project={project}

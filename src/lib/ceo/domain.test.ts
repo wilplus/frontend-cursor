@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   activeCeoFeatures,
   artifactAtAddress,
-  ceoSurfaceAfterSwipe,
   defaultCeoViewState,
   type CeoArtifact,
   type CeoFeature,
@@ -114,12 +113,5 @@ describe("CEO domain", () => {
         lens: "architecture",
       })
     ).toBeNull();
-  });
-
-  it("places Bugs between Overview and Tasks for horizontal swipes", () => {
-    expect(ceoSurfaceAfterSwipe("bugs", 90)).toBe("overview");
-    expect(ceoSurfaceAfterSwipe("bugs", -90)).toBe("tasks");
-    expect(ceoSurfaceAfterSwipe("bugs", 20)).toBe("bugs");
-    expect(ceoSurfaceAfterSwipe("settings", -90)).toBe("settings");
   });
 });
