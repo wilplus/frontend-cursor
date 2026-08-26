@@ -462,17 +462,36 @@ function ProposalReview({
 }
 
 function ArchitecturePreview({ content }: { content: CeoArchitectureContent }) {
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${content.columns.length}, minmax(10rem, 1fr))`,
+  };
+  const gridWidth = Math.max(560, content.columns.length * 176);
   return (
     <div className="mt-5 space-y-4">
-      <div className="overflow-hidden rounded-xl border border-border">
-        <div className="grid grid-cols-3 gap-3 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <span>Input</span><span>Measurement</span><span>Output</span>
-        </div>
-        {content.flows.map((flow) => (
-          <div key={flow.id} className="grid grid-cols-3 gap-3 border-t border-border px-3 py-3 text-sm">
-            <span>{flow.input}</span><span>{flow.measurement}</span><span>{flow.output}</span>
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <div style={{ minWidth: gridWidth }}>
+          <div
+            className="grid gap-3 bg-muted px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+            style={gridStyle}
+          >
+            {content.columns.map((column) => (
+              <span key={column.id}>{column.label}</span>
+            ))}
           </div>
-        ))}
+          {content.rows.map((row) => (
+            <div
+              key={row.id}
+              className="grid gap-3 border-t border-border px-3 py-3 text-sm"
+              style={gridStyle}
+            >
+              {content.columns.map((column) => (
+                <span key={column.id}>
+                  {row.cells.find((cell) => cell.column_id === column.id)?.value ?? ""}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
       <PreviewList title="Blind spots, tech debt & risks" rows={content.risks} />
       <PreviewList title="Next steps" rows={content.next_steps} />
