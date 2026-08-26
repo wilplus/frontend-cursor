@@ -413,8 +413,22 @@ function MlEditor({
             <div className="flex items-center gap-3 border-b border-border pb-2">
               {draft.columns.map((column, columnIndex) => (
                 <div key={column.id} className="contents">
-                  <div className="flex min-w-48 flex-1 items-center justify-between gap-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    <span>Column {columnIndex + 1}</span>
+                  <div className="flex min-w-48 flex-1 items-center gap-1 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <input
+                      value={column.label}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        columns: current.columns.map((item) =>
+                          item.id === column.id
+                            ? { ...item, label: event.target.value }
+                            : item
+                        ),
+                      }))}
+                      maxLength={120}
+                      aria-label={`ML column ${columnIndex + 1} name`}
+                      placeholder="Column name"
+                      className="min-w-0 flex-1 bg-transparent py-1 font-medium uppercase tracking-wider outline-none focus:text-foreground"
+                    />
                     <button
                       type="button"
                       onClick={() => setDraft((current) =>
@@ -445,7 +459,7 @@ function MlEditor({
                       <div key={column.id} className="contents">
                         {node ? (
                           <div className="relative min-w-48 flex-1 rounded-xl border border-border bg-muted/30 p-3">
-                            <input
+                            <textarea
                               value={node.label}
                               onChange={(event) => setNodes(draft.nodes.map((item) =>
                                 item.id === node.id
@@ -454,7 +468,8 @@ function MlEditor({
                               ))}
                               aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1} stage name`}
                               placeholder="Stage name"
-                              className="w-full bg-transparent pr-8 text-sm font-semibold outline-none"
+                              rows={3}
+                              className="w-full resize-y bg-transparent pr-8 text-sm font-semibold outline-none"
                             />
                             <textarea
                               value={node.detail}

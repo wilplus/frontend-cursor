@@ -505,6 +505,18 @@ function MlPreview({ content }: { content: CeoMlContent }) {
     <div className="mt-5 space-y-4">
       <div className="overflow-x-auto pb-2">
         <div className="space-y-3" style={{ minWidth: gridWidth }}>
+          <div className="flex items-center gap-3 border-b border-border pb-2">
+            {content.columns.map((column, columnIndex) => (
+              <div key={column.id} className="contents">
+                <span className="min-w-44 flex-1 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {column.label}
+                </span>
+                {columnIndex < content.columns.length - 1 ? (
+                  <span className="h-4 w-4 shrink-0" aria-hidden />
+                ) : null}
+              </div>
+            ))}
+          </div>
           {content.rows.map((row) => (
             <div key={row.id} className="flex items-stretch gap-3">
               {content.columns.map((column, columnIndex) => {
