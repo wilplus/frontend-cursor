@@ -15,7 +15,7 @@ describe("buildRootPhraseLayer", () => {
     ]);
   });
 
-  it("can project accepted orange phrases only for the editable deck", () => {
+  it("can exclude neutral rehearsal fallbacks when a presenter asks for it", () => {
     expect(
       buildRootPhraseLayer(
         [
