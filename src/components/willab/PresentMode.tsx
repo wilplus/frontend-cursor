@@ -14,6 +14,7 @@ import {
   buildPresentationDocument,
   type PresentationExportFormat,
 } from "@/lib/willab/presentationDocument";
+import { buildRootPhraseLayer } from "@/lib/willab/rootPhraseLayer";
 
 /* -------------------------------------------------------------------------- */
 /*  PresentMode — the ideal text, fullscreen, for actually presenting it.      */
@@ -193,16 +194,22 @@ export default function PresentMode({
                   reserved for an accepted flagship; fallback roots stay
                   neutral even when no orange anchors exist. */}
               <div className="flex flex-col gap-3 py-1">
-                {slide.rows.map((row) => (
+                {buildRootPhraseLayer(
+                  slide.rows.map((row) => ({
+                    key: row.key,
+                    rootPhrase: row.rootPhrase,
+                    rootType: row.rootType,
+                  })),
+                ).map((root) => (
                   <p
-                    key={`root-${row.key}`}
+                    key={`root-${root.key}`}
                     className={
-                      row.rootType === "flagship"
+                      root.type === "flagship"
                         ? "text-[clamp(1.55rem,4vw,2.25rem)] font-semibold leading-tight text-primary"
                         : "text-[clamp(1.55rem,4vw,2.25rem)] font-medium leading-tight text-muted-foreground"
                     }
                   >
-                    {row.rootPhrase}
+                    {root.text}
                   </p>
                 ))}
               </div>

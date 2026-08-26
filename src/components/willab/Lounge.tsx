@@ -2019,29 +2019,33 @@ function Bubble({
 }
 
 function LoungeEmptyState({ onStart }: { onStart: () => void }) {
-  // Founder 2026-07-27 — the Will greeting is replaced by the thing it was
-  // asking for. An empty thread had a paragraph explaining that recording is
-  // the point; now it IS the point: one big oval button and nothing else
-  // competing with it.
-  //
   // Same destination as the composer's Record: ALWAYS the project choice,
   // never a last-used default (FE-4).
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <button
-        type="button"
-        onClick={onStart}
-        // ONE line, always: `whitespace-nowrap` is the guarantee, and the copy
-        // plus the padding are sized so it holds at the narrowest supported
-        // width without the label shrinking the dot or spilling the pill.
-        className="flex w-full max-w-sm items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-5 py-4 text-[16px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
-      >
-        <span
-          className="h-3 w-3 shrink-0 rounded-full bg-red-500"
-          aria-hidden
-        />
-        Start your first recording
-      </button>
+      <div className="flex w-full max-w-[23rem] flex-col items-center">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Your first take
+        </p>
+        <h1 className="mt-3 text-balance text-[clamp(1.5rem,6vw,2rem)] font-semibold leading-[1.18] tracking-[-0.03em] text-foreground">
+          Create your first Ideal Text
+        </h1>
+        <p className="mt-3 max-w-[20rem] text-balance text-[15px] leading-[1.55] text-muted-foreground">
+          Record your talk as it is today. We’ll shape it into a clear text and
+          prepare focused feedback for you to review.
+        </p>
+        <button
+          type="button"
+          onClick={onStart}
+          className="mt-7 flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+        >
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
+            aria-hidden
+          />
+          Start your first recording
+        </button>
+      </div>
     </div>
   );
 }
