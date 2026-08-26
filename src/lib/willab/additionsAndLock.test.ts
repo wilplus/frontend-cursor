@@ -119,11 +119,11 @@ describe("the lock belongs to the PART, not to the words", () => {
     locked: true,
   });
 
-  it("survives a reword", () => {
-    // The reason identity is stored rather than derived: locked text is
-    // exactly the text that keeps being restyled.
+  it("keeps identity but reopens after a reword", () => {
+    // A commit protects exact words. Editing creates a working copy on the
+    // same Paragraph identity and requires a new explicit lock.
     const out = updatePart([locked("a", "Original.")], 0, "Reworded.");
-    expect(out[0]).toEqual({ id: "a", text: "Reworded.", locked: true });
+    expect(out[0]).toEqual({ id: "a", text: "Reworded.", locked: false });
   });
 
   it("survives a rewrite of a NEIGHBOURING paragraph", () => {

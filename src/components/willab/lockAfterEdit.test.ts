@@ -24,8 +24,7 @@ import { readFileSync } from "node:fs";
 /*    • deckLockPart then cleared the dirty flag — the only thing keeping the  */
 /*      800ms debounce alive — and refetched, so the server's text came back   */
 /*      over the student's words;                                             */
-/*    • the auto-lock that rides that same PUT ("typed = committed") never     */
-/*      happened, because the PUT never happened.                             */
+/*    • the explicit lock that follows the save could only target stale words.*/
 /*                                                                            */
 /*  The chunk came back unlocked, wearing its old words. Styling did not cause */
 /*  it — applyStyle nulls savedTextRef and refetches, so a lock landing before */
@@ -92,7 +91,10 @@ describe("the edit lane's text ref moves with its state", () => {
     const body = callbackBody(READOUT, "deckLockPart");
     expect(body).toMatch(/applyEdit\(/);
     expect(body).toMatch(/await flushEdits\(\)/);
-    expect(body).toMatch(/if \(!ok\) return "failed"/);
+    expect(body).toMatch(
+      /if \(!ok\) return \{ outcome: "failed", rootPhraseProposal: null \}/
+    );
+    expect(body).toMatch(/await setPartLock\(/);
     // applyEdit must come FIRST — flushing before the edit exists would send
     // the old document just as surely as a stale ref did.
     expect(body.indexOf("applyEdit(")).toBeLessThan(
@@ -113,7 +115,8 @@ describe("the edit lane's text ref moves with its state", () => {
     // straight to saveDocument, which is why it never had this bug. Pinned so
     // a later "tidy-up" does not route it through a ref for symmetry.
     const body = callbackBody(OVERLAY, "deckLockPart");
-    expect(body).toMatch(/saveDocument\(partsToText\(next\), next\)/);
+    expect(body).toMatch(/const nextText = partsToText\(next\)/);
+    expect(body).toMatch(/saveDocument\(nextText, next\)/);
     expect(body).not.toMatch(/textRef/);
   });
 });

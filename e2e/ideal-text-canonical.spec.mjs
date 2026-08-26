@@ -33,7 +33,7 @@ check(
 );
 check(
   "the two outline bookmarks describe feedback and protected-text attention",
-  (await page.locator('button[aria-label="Feedback waiting — review it"]').count()) === 1 &&
+  (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 1 &&
     (await page.locator('button[aria-label*="Paragraph protected"][aria-label*="Coach note:"][aria-label*="Style"]').count()) === 1
 );
 check(
@@ -71,7 +71,7 @@ check(
 );
 
 /* ----------------------- rewrite is a proposed decision ------------------- */
-await page.locator('button[aria-label="Feedback waiting — review it"]').click();
+await page.locator('button[aria-label^="Feedback waiting — review it"]').click();
 await page.waitForSelector("text=Suggested change");
 check(
   "rewrite feedback shows exact source, replacement, and rationale",
@@ -87,24 +87,35 @@ check(
   })()
 );
 check(
-  "rewrite offers the two canonical decisions",
-  (await page.locator("button", { hasText: /^Use clearer version$/ }).count()) === 1 &&
-    (await page.locator("button", { hasText: /^Keep mine$/ }).count()) === 1
+  "improvement offers the three canonical decisions",
+  (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 1 &&
+    (await page.locator("button", { hasText: /^Edit myself$/ }).count()) === 1 &&
+    (await page.locator("button", { hasText: /^Keep wording$/ }).count()) === 1
 );
-await page.locator("button", { hasText: /^Use clearer version$/ }).click();
+await page.locator("button", { hasText: /^Apply suggestion$/ }).click();
 await page.waitForTimeout(700);
 let writes = await calls(page);
+const responseWrites = writes.filter((entry) =>
+  entry.url.includes("/feedback-response")
+);
 let suggestionWrites = writes.filter((entry) =>
   entry.url.includes("suggestion-feedback")
 );
 check(
-  "accepting the rewrite sends one exact decision",
-  suggestionWrites.length === 1 &&
+  "accepting the rewrite stores one immutable family response and one exact document decision",
+    responseWrites.length === 1 &&
+    responseWrites[0].body.feedback_family === "rewrite_clarity" &&
+    responseWrites[0].body.response === "apply_suggestion" &&
+    suggestionWrites.length === 1 &&
     suggestionWrites[0].body.action === "applied" &&
     suggestionWrites[0].body.target === "document_replace" &&
     suggestionWrites[0].body.quote === "believed the numbers" &&
     suggestionWrites[0].body.proposed_text === "trusted the figures",
-  JSON.stringify(suggestionWrites[0]?.body)
+  JSON.stringify({
+    responseWrites,
+    suggestionWrites,
+    dialog: await dialog(page).innerText(),
+  })
 );
 check(
   "the document changes immediately and keeps Undo in the open feedback history",
@@ -113,10 +124,12 @@ check(
 );
 check(
   "the resolved rewrite bookmark disappears",
-  (await page.locator('button[aria-label="Feedback waiting — review it"]').count()) === 0
+  (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
 );
 
-await dialog(page).locator("button", { hasText: /^Lock in$/ }).click();
+await dialog(page).locator("button", { hasText: /^Lock for next Take$/ }).click();
+await page.waitForSelector("button:text-is('Make this phrase orange')");
+await dialog(page).locator("button", { hasText: /^Make this phrase orange$/ }).click();
 await page.waitForTimeout(700);
 writes = await calls(page);
 const lockWrites = writes.filter((entry) => entry.url.includes("/lock"));
@@ -126,6 +139,14 @@ check(
     lockWrites[0].body.locked === true &&
     typeof lockWrites[0].body.text_echo === "string" &&
     Array.isArray(lockWrites[0].body.parts)
+);
+const rootWrites = writes.filter((entry) => entry.url.includes("/root"));
+check(
+  "the post-lock orange choice stores one exact root span",
+  rootWrites.length === 1 &&
+    rootWrites[0].body.phrase === "trusted the figures" &&
+    Number.isInteger(rootWrites[0].body.start) &&
+    rootWrites[0].body.end - rootWrites[0].body.start === "trusted the figures".length
 );
 
 /* ------------------ protected paragraph: style + coach note --------------- */
@@ -161,7 +182,7 @@ await page.waitForTimeout(500);
 writes = await calls(page);
 check(
   "coach copy loads only after the deliberate tap",
-  writes.filter((entry) => entry.url.includes("/feedback")).length === 1 &&
+  writes.filter((entry) => entry.url.endsWith("/feedback")).length === 1 &&
     (await dialog(page).locator("text=This is the turn — say it slower.").count()) === 1
 );
 await dialog(page).locator('button[aria-label="Close"]').click();
@@ -170,10 +191,10 @@ await page.waitForTimeout(200);
 /* -------------------------- slide-scoped editing -------------------------- */
 check(
   "editing is explicit and slide-scoped, separate from bookmarks",
-  (await page.locator("button", { hasText: /^Edit this slide$/ }).count()) === 2
+  (await page.locator("button", { hasText: /^Edit the text$/ }).count()) === 2
 );
-await page.locator("button", { hasText: /^Edit this slide$/ }).first().click();
-await page.waitForSelector('[role="dialog"][aria-label="Edit this slide"]');
+await page.locator("button", { hasText: /^Edit the text$/ }).first().click();
+await page.waitForSelector('[role="dialog"][aria-label="Edit the text"]');
 const editors = dialog(page).locator('[role="textbox"][contenteditable]');
 check(
   "the first slide editor contains only its two paragraphs",
@@ -188,12 +209,13 @@ await page.waitForTimeout(800);
 writes = await calls(page);
 const editWrites = writes.filter((entry) => entry.url.includes("/user-edit"));
 check(
-  "saving one slide sends one atomic document edit with the touched paragraph protected",
+  "saving one slide sends one atomic document edit while leaving the touched paragraph evolvable",
   editWrites.length === 1 &&
     Array.isArray(editWrites[0].body.parts) &&
     editWrites[0].body.parts.some(
-      (part) => part.text.includes("never looked back") && part.locked === true
-    )
+      (part) => part.text.includes("never looked back") && part.locked === false
+    ),
+  JSON.stringify(editWrites[0]?.body?.parts ?? null)
 );
 check(
   "the other slide remains unchanged",
@@ -205,8 +227,8 @@ const fresh = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await fresh.emulateMedia({ reducedMotion: "reduce" });
 await fresh.goto(`${BASE}?noparts=1`, { waitUntil: "networkidle" });
 await fresh.waitForSelector("text=Garage pitch");
-await fresh.locator("button", { hasText: /^Edit this slide$/ }).first().click();
-await fresh.waitForSelector('[role="dialog"][aria-label="Edit this slide"]');
+await fresh.locator("button", { hasText: /^Edit the text$/ }).first().click();
+await fresh.waitForSelector('[role="dialog"][aria-label="Edit the text"]');
 const freshEditor = fresh.locator(
   '[role="dialog"] [role="textbox"][contenteditable]'
 ).first();
@@ -224,9 +246,9 @@ check(
     Array.isArray(freshEdits[0].body.parts) &&
     freshEdits[0].body.parts.length === 4 &&
     freshEdits[0].body.parts.some(
-      (part) => part.text.includes("Fresh.") && part.locked === true
+      (part) => part.text.includes("Fresh.") && part.locked === false
     ),
-  JSON.stringify(freshEdits[0]?.body?.parts?.length ?? null)
+  JSON.stringify(freshEdits[0]?.body?.parts ?? null)
 );
 await fresh.close();
 

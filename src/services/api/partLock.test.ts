@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setPartLock } from "./partLock";
+import { setPartLock, setPartRootPhrase } from "./partLock";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
 
@@ -43,7 +43,11 @@ describe("setPartLock", () => {
   it("PUTs the lock with the words the student was looking at", async () => {
     mockFetch(200, { locked: true, part_id: "p1" });
     const r = await setPartLock("arc1", "p1", true, "The doc.");
-    expect(r).toEqual({ kind: "ok", locked: true });
+    expect(r).toEqual({
+      kind: "ok",
+      locked: true,
+      rootPhraseProposal: null,
+    });
     expect(calls[0].url).toContain("/parts/p1/lock");
     expect(calls[0].body).toEqual({ locked: true, text_echo: "The doc." });
   });
@@ -76,6 +80,41 @@ describe("setPartLock", () => {
     expect(calls[0].body).not.toHaveProperty("parts");
     await setPartLock("arc1", "p1", true, "Doc.");
     expect(calls[1].body).not.toHaveProperty("parts");
+  });
+
+  it("maps the exact rooting-phrase proposal and records keep-evolving", async () => {
+    mockFetch(200, {
+      root_phrase_proposal: { text: "exact words", start: 4, end: 15 },
+    });
+    const result = await setPartLock("a", "p", false, "The exact words.", {
+      reason: "keep_evolving",
+    });
+    expect(result).toEqual({
+      kind: "ok",
+      locked: false,
+      rootPhraseProposal: { text: "exact words", start: 4, end: 15 },
+    });
+    expect(calls[0].body.reason).toBe("keep_evolving");
+  });
+
+  it("stores or explicitly skips an exact orange phrase", async () => {
+    mockFetch(200);
+    expect(await setPartRootPhrase(
+      "a", "p", "The exact words.", { text: "exact words", start: 4, end: 15 },
+    )).toBe(true);
+    expect(calls[0].body).toEqual({
+      text_echo: "The exact words.",
+      phrase: "exact words",
+      start: 4,
+      end: 15,
+    });
+    await setPartRootPhrase("a", "p", "The exact words.", null);
+    expect(calls[1].body).toEqual({
+      text_echo: "The exact words.",
+      phrase: null,
+      start: null,
+      end: null,
+    });
   });
 
   it("discriminates UNDECIDED from STALE on the same 409", async () => {

@@ -35,7 +35,7 @@ export default function DeckLockMark({
   reviewStatus = null,
 }: {
   status: ChunkStatus;
-  /** Number already selected for this chunk from the Take's immutable ≤3. */
+  /** Number selected for this chunk from the Take's immutable three. */
   pendingCount?: number;
   /** True only when the paragraph contains user-accepted orange text. */
   flagship?: boolean;
