@@ -360,4 +360,27 @@ describe("Confident Voice micro-practice mapping", () => {
     expect(c?.cueKeys).toEqual([]);
     expect(c?.practiceExercise).toBeNull();
   });
+
+  it("keeps exact evidence for an explicitly deckless talk section", () => {
+    const c = mapDocumentSuggestions([{
+      id: "cv-deckless", snippet_id: "s", take_session_id: "t",
+      kind: "bold", source: "confident_voice",
+      feedback_family: "confident_voice",
+      quote: "same text", span: { start: 0, end: 9 },
+      evidence: {
+        project_id: "project-1",
+        take_session_id: "t",
+        slide_index: null,
+        paragraph_index: 0,
+        span: { start: 0, end: 9 },
+      },
+    }] as never)?.[0];
+
+    expect(c?.evidence).toMatchObject({
+      projectId: "project-1",
+      takeSessionId: "t",
+      slideIndex: null,
+      paragraphIndex: 0,
+    });
+  });
 });

@@ -11,8 +11,12 @@ function code(path: string): string {
 const LAB = code("src/components/willab/LabOverlay.tsx");
 const LOUNGE = code("src/components/willab/Lounge.tsx");
 const REPORT = code("src/components/willab/ReportCard.tsx");
+const HELPERS = code("src/components/willab/willabHelpers.ts");
 const WAIT = code("src/components/willab/ProcessingWait.tsx");
 const LOADING = code("src/components/willab/LoadingState.tsx");
+const ANALYSIS = code(
+  "src/components/willab/RecordingAnalysisPresentation.tsx",
+);
 const TIP_CYCLE = code("src/components/willab/processingTipCycle.ts");
 const EVENTS = code(
   "src/app/api/v2/lab/recordings/[sessionId]/events/route.ts",
@@ -33,26 +37,22 @@ describe("the processing-to-Ideal-Text journey", () => {
     );
   });
 
-  it("later takes finish per session instead of waiting for a forbidden version bump", () => {
+  it("every spoken take settles its exact Ideal Text review version", () => {
     for (const owner of [LAB, LOUNGE]) {
-      expect(owner).toMatch(/processingTakeKeepsIdealText\(/);
-      expect(owner).toMatch(/takeProcessedDraft\(\{/);
-      expect(owner).toMatch(/clearProcessingTake\(/);
       expect(owner).toMatch(/transitionProcessingTakeToDocument\(/);
+      expect(owner).not.toMatch(/processingTakeKeepsIdealText\(/);
+      expect(owner).not.toMatch(/takeProcessedDraft\(\{/);
     }
-    // Lab owns two transport completions: synchronous 201 and background-job
-    // terminal. Both must append through the same result abstraction.
-    expect(
-      LAB.match(/void appendToThread\(\s*takeProcessedDraft\(\{/g),
-    ).toHaveLength(2);
+    expect(LAB).toMatch(/waitsForReview[\s\S]*phase: "document"/);
+    expect(LAB).toMatch(
+      /completedTake\.arcId[\s\S]*transitionProcessingTakeToDocument/,
+    );
   });
 
-  it("replaces the working bubble with the approved two-action terminal card", () => {
-    expect(REPORT).toContain('variant === "take_processed"');
-    expect(REPORT).toContain("Open your Ideal Text");
-    expect(REPORT).toContain("View this take&apos;s feedback");
-    expect(REPORT).toMatch(
-      /onOpenFeedback!\(\{[\s\S]*takeSessionId,[\s\S]*takeIndex/,
+  it("retires the obsolete kept-unchanged card from persisted history", () => {
+    expect(REPORT).not.toContain('variant === "take_processed"');
+    expect(HELPERS).toMatch(
+      /message\.kind === "ideal_text"[\s\S]*variant === "take_processed"/,
     );
   });
 
@@ -69,26 +69,27 @@ describe("the processing-to-Ideal-Text journey", () => {
   });
 
   it("uses the sealed, proportional processing hero", () => {
-    expect(WAIT).toMatch(/<LoadingPresentation/);
+    expect(WAIT).toMatch(/<RecordingAnalysisPresentation/);
     expect(WAIT).toMatch(/label=\{PROCESSING_STAGES\[current\]\}/);
     expect(LOADING).toMatch(/<VoiceMark size=\{64\}/);
-    expect(LOADING).toMatch(/max-w-\[34rem\]/);
-    expect(LOADING).toMatch(/pb-\[12vh\]/);
-    expect(LOADING).toMatch(/h-\[3px\]/);
-    expect(LOADING).toMatch(/duration-700 ease-out/);
-    expect(LOADING).toMatch(/text-\[clamp\(1\.45rem,5\.2vw,2\.05rem\)\]/);
-    expect(LOADING).toMatch(/leading-\[1\.28\]/);
-    expect(LOADING).toMatch(/tracking-\[-0\.015em\]/);
-    expect(LOADING).toMatch(/text-balance/);
+    expect(LOADING).not.toMatch(/While you wait|role="progressbar"/);
+    expect(ANALYSIS).toMatch(/max-w-\[34rem\]/);
+    expect(ANALYSIS).toMatch(/pb-\[12vh\]/);
+    expect(ANALYSIS).toMatch(/h-\[3px\]/);
+    expect(ANALYSIS).toMatch(/duration-700 ease-out/);
+    expect(ANALYSIS).toMatch(/text-\[clamp\(1\.45rem,5\.2vw,2\.05rem\)\]/);
+    expect(ANALYSIS).toMatch(/leading-\[1\.28\]/);
+    expect(ANALYSIS).toMatch(/tracking-\[-0\.015em\]/);
+    expect(ANALYSIS).toMatch(/text-balance/);
     expect(TIP_CYCLE).toMatch(/TIP_VISIBLE_MS = 7_000/);
     expect(TIP_CYCLE).toMatch(/TIP_FADE_MS = 420/);
-    expect(LOADING).toMatch(/aria-live="polite"/);
-    expect(LOADING).toMatch(/prefers-reduced-motion: reduce/);
-    expect(LOADING).toMatch(/percent === null \? "…"/);
-    expect(LOADING).toMatch(
+    expect(ANALYSIS).toMatch(/aria-live="polite"/);
+    expect(ANALYSIS).toMatch(/prefers-reduced-motion: reduce/);
+    expect(ANALYSIS).toMatch(/percent === null \? "…"/);
+    expect(ANALYSIS).toMatch(
       /aria-busy=\{percent === null \? true : undefined\}/,
     );
     expect(WAIT).not.toMatch(/markSize/);
-    expect(LOADING).not.toMatch(/snap-mandatory/);
+    expect(ANALYSIS).not.toMatch(/snap-mandatory/);
   });
 });

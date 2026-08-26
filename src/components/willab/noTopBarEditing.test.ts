@@ -87,6 +87,6 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     expect(usage).not.toBeNull();
     expect(usage?.[0]).not.toMatch(/disabled/);
     expect(usage?.[0]).toMatch(/onClick=\{\(\) => setOpenPartId/);
-    expect(deck).toContain("Edit this slide");
+    expect(deck).toContain("Edit the text");
   });
 });

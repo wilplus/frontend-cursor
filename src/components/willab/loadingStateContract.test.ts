@@ -10,36 +10,44 @@ function code(path: string): string {
 
 const LOADING = code("src/components/willab/LoadingState.tsx");
 const PROCESSING = code("src/components/willab/ProcessingWait.tsx");
+const ANALYSIS = code(
+  "src/components/willab/RecordingAnalysisPresentation.tsx",
+);
 const OAUTH = code("src/app/auth/oauth-complete/page.tsx");
 
 describe("the app-wide loading contract", () => {
-  it("seals one 64px composition for viewport and overlay waits", () => {
+  it("seals one mark-only 64px composition for generic waits", () => {
     expect(LOADING).toMatch(/<VoiceMark size=\{64\}/);
-    expect(LOADING.match(/<VoiceMark size=\{64\}/g)).toHaveLength(1);
+    expect(LOADING.match(/<VoiceMark size=\{64\}/g)).toHaveLength(2);
     expect(LOADING).toMatch(/placement: "viewport" \| "surface"/);
-    expect(LOADING).toMatch(/max-w-\[34rem\]/);
-    expect(LOADING).toMatch(/pb-\[12vh\]/);
-    expect(LOADING).toMatch(/h-\[3px\]/);
-    expect(LOADING).toMatch(/While you wait/);
     expect(LOADING).toMatch(/min-h-full[\s\S]*self-stretch/);
+    expect(LOADING).toMatch(/<span className="sr-only" role="status">/);
+    expect(LOADING).not.toMatch(/While you wait/);
+    expect(LOADING).not.toMatch(/role="progressbar"/);
+    expect(LOADING).not.toMatch(/processingTipFrame|WAITING_TIPS/);
     expect(LOADING).not.toMatch(/fullscreen/);
     expect(LOADING).not.toMatch(/withTip/);
     expect(LOADING).not.toMatch(/VoiceMark size=\{96\}/);
+    expect(LOADING).not.toMatch(/VoiceMark size=\{48\}/);
   });
 
-  it("shares presentation while preserving real processing truth", () => {
-    expect(PROCESSING).toMatch(/<LoadingPresentation/);
+  it("keeps recommendations and real progress exclusive to recording analysis", () => {
+    expect(PROCESSING).toMatch(/<RecordingAnalysisPresentation/);
     expect(PROCESSING).toMatch(/percent=\{/);
-    expect(LOADING).toMatch(
-      /<LoadingPresentation[\s\S]*label=\{label\}[\s\S]*percent=\{null\}/,
-    );
+    expect(ANALYSIS).toMatch(/max-w-\[34rem\]/);
+    expect(ANALYSIS).toMatch(/pb-\[12vh\]/);
+    expect(ANALYSIS).toMatch(/h-\[3px\]/);
+    expect(ANALYSIS).toMatch(/While you wait/);
+    expect(ANALYSIS).toMatch(/processingTipFrame/);
+    expect(LOADING).not.toMatch(/RecordingAnalysisPresentation/);
     expect(LOADING).not.toMatch(/setInterval/);
   });
 
-  it("has one semantic owner for stage and progress announcements", () => {
-    expect(LOADING).toMatch(/role="progressbar"/);
-    expect(LOADING).toMatch(/aria-valuetext=/);
-    expect(LOADING).not.toMatch(/<span role="status">\{label\}<\/span>/);
+  it("has one semantic owner for real stage and progress announcements", () => {
+    expect(ANALYSIS).toMatch(/role="progressbar"/);
+    expect(ANALYSIS).toMatch(/aria-valuetext=/);
+    expect(LOADING).toMatch(/role="status"/);
+    expect(LOADING).not.toMatch(/aria-valuetext=/);
   });
 
   it("uses the canonical presentation for both OAuth wait paths", () => {

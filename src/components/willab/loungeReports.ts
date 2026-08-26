@@ -15,8 +15,6 @@ import type {
 
 export const REPORT_KINDS = ["recording_summary", "insight"] as const;
 
-export const TAKE_PROCESSED_BODY =
-  "Take processed. Your Ideal Text was kept unchanged.";
 export const IDEAL_TEXT_UNCONFIRMED_BODY =
   "We processed your take, but couldn’t create your Ideal Text.";
 
@@ -59,30 +57,6 @@ export function readoutSummaryDraft(input: {
       feeling: input.feeling,
       speech_rate: input.speechRate,
       pause_ratio: input.pauseRatio,
-    },
-  };
-}
-
-/** A later take completed without replacing the canonical Ideal Text.
- *
- *  The take session UUID is also the Lounge client id. It is the one stable
- *  identity shared by the worker and every browser observer, so a reconnect,
- *  a retry, and a backend/frontend race all upsert the same terminal card. */
-export function takeProcessedDraft(input: {
-  sessionId: string;
-  arcId: string;
-  takeIndex: number;
-}): LoungeMessageDraft {
-  return {
-    clientId: input.sessionId,
-    role: "bot",
-    kind: "ideal_text",
-    body: TAKE_PROCESSED_BODY,
-    metadata: {
-      variant: "take_processed",
-      arc_id: input.arcId,
-      take_session_id: input.sessionId,
-      take_index: input.takeIndex,
     },
   };
 }
