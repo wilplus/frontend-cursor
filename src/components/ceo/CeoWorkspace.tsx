@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  ArrowUpRight,
   Settings,
   Users,
   WalletCards,
@@ -281,18 +282,36 @@ function CeoSettings({ data }: { data: CeoBootstrap }) {
     <div className="mx-auto max-w-3xl">
       <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border p-5">
-          <Users className="h-5 w-5 text-muted-foreground" aria-hidden />
+        <Link
+          href="/admin/users"
+          className="group rounded-2xl border border-border p-5 transition-colors hover:bg-muted/50"
+        >
+          <div className="flex items-center justify-between">
+            <Users className="h-5 w-5 text-muted-foreground" aria-hidden />
+            <ArrowUpRight
+              className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </div>
           <h3 className="mt-5 font-semibold">Users</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Admin access and user details will live here.
+            Review registered accounts and open a top-up by email.
           </p>
-        </div>
+        </Link>
         <Link
           href="/admin/tokens"
-          className="rounded-2xl border border-border p-5 transition-colors hover:bg-muted/50"
+          className="group rounded-2xl border border-border p-5 transition-colors hover:bg-muted/50"
         >
-          <WalletCards className="h-5 w-5 text-muted-foreground" aria-hidden />
+          <div className="flex items-center justify-between">
+            <WalletCards
+              className="h-5 w-5 text-muted-foreground"
+              aria-hidden
+            />
+            <ArrowUpRight
+              className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </div>
           <h3 className="mt-5 font-semibold">Tokens</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Look up balances and grant non-expiring tokens.

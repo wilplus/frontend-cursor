@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AdminGate from "@/components/admin/AdminGate";
 
 /* -------------------------------------------------------------------------- */
@@ -70,8 +70,8 @@ function TokenTopUpPanel() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const lookup = useCallback(async () => {
-    const target = email.trim();
+  const lookupEmail = useCallback(async (value: string) => {
+    const target = value.trim();
     if (!target) return;
     setBusy(true);
     setError(null);
@@ -98,7 +98,18 @@ function TokenTopUpPanel() {
     } finally {
       setBusy(false);
     }
-  }, [email]);
+  }, []);
+
+  const lookup = useCallback(() => lookupEmail(email), [email, lookupEmail]);
+
+  useEffect(() => {
+    const target = new URLSearchParams(window.location.search)
+      .get("email")
+      ?.trim();
+    if (!target) return;
+    setEmail(target);
+    void lookupEmail(target);
+  }, [lookupEmail]);
 
   const grant = useCallback(async () => {
     const target = email.trim();
@@ -163,7 +174,11 @@ function TokenTopUpPanel() {
             id="admin-email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setAccount(null);
+              setNote(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") void lookup();
             }}
