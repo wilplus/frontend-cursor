@@ -25,10 +25,17 @@ export interface CeoMlEdge {
   label: string;
 }
 
+export interface CeoCitation {
+  id: string;
+  source_id: string;
+  claim: string;
+}
+
 export interface CeoArchitectureContent {
   flows: CeoFlowRow[];
   risks: CeoTextRow[];
   next_steps: CeoTextRow[];
+  citations: CeoCitation[];
 }
 
 export interface CeoMlContent {
@@ -36,6 +43,7 @@ export interface CeoMlContent {
   edges: CeoMlEdge[];
   risks: CeoTextRow[];
   next_steps: CeoTextRow[];
+  citations: CeoCitation[];
 }
 
 export interface CeoVisionContent {
@@ -69,6 +77,14 @@ function textRows(value: unknown): CeoTextRow[] {
   return rows(value).map((row) => ({ id: id(row.id), text: text(row.text) }));
 }
 
+function citations(value: unknown): CeoCitation[] {
+  return rows(value).map((row) => ({
+    id: id(row.id),
+    source_id: text(row.source_id),
+    claim: text(row.claim),
+  }));
+}
+
 export function newCeoRowId(): string {
   return globalThis.crypto?.randomUUID?.() ??
     `ceo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -89,6 +105,7 @@ export function artifactDraft(
       })),
       risks: textRows(content.risks),
       next_steps: textRows(content.next_steps),
+      citations: citations(content.citations),
     };
   }
   if (lens === "ml") {
@@ -115,6 +132,7 @@ export function artifactDraft(
       edges: savedEdges.length ? savedEdges : linearMlEdges(nodes),
       risks: textRows(content.risks),
       next_steps: textRows(content.next_steps),
+      citations: citations(content.citations),
     };
   }
   return { document: text(content.document) };

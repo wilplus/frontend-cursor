@@ -3,6 +3,7 @@
 import { ChevronRight, LoaderCircle, Plus, X } from "lucide-react";
 import { useState } from "react";
 import CeoArtifactEditor from "@/components/ceo/CeoArtifactEditor";
+import CeoIntelligence from "@/components/ceo/CeoIntelligence";
 import CeoSegmentedControl from "@/components/ceo/CeoSegmentedControl";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,13 @@ export default function CeoOverview({
   );
   const comments = (data.comments ?? []).filter(
     (comment) => comment.artifact_id === artifact?.id
+  );
+  const analysisBlocked = (data.analysis_runs ?? []).some(
+    (run) =>
+      run.artifact_id === artifact?.id &&
+      (run.status === "queued" ||
+        run.status === "running" ||
+        run.status === "preview_ready")
   );
 
   async function createFeature() {
@@ -213,12 +221,20 @@ export default function CeoOverview({
             onChange={(value) => updateState({ active_lens: value as CeoLens })}
           />
         </div>
+        <CeoIntelligence
+          data={data}
+          feature={activeFeature}
+          artifact={artifact}
+          lens={state.active_lens}
+          onBootstrap={onBootstrap}
+        />
         <CeoArtifactEditor
           key={`${artifact?.id ?? "missing"}:${artifact?.revision?.id ?? "none"}`}
           artifact={artifact}
           lens={state.active_lens}
           timeline={timeline}
           comments={comments}
+          analysisBlocked={analysisBlocked}
           onBootstrap={onBootstrap}
         />
       </div>

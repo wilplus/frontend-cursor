@@ -13,6 +13,11 @@ describe("CEO artifact drafts", () => {
       }],
       risks: [{ id: "risk-1", text: "Sparse baseline" }],
       next_steps: [],
+      citations: [{
+        id: "citation-1",
+        source_id: "source-1",
+        claim: "The source describes the flow.",
+      }],
       invented: [{ text: "ignored" }],
     });
 
@@ -25,6 +30,11 @@ describe("CEO artifact drafts", () => {
       }],
       risks: [{ id: "risk-1", text: "Sparse baseline" }],
       next_steps: [],
+      citations: [{
+        id: "citation-1",
+        source_id: "source-1",
+        claim: "The source describes the flow.",
+      }],
     });
   });
 
