@@ -37,6 +37,10 @@ import {
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
 import type { Part } from "@/lib/willab/documentParts";
+import {
+  buildRootPhraseLayer,
+  type RootPhraseLayerItem,
+} from "@/lib/willab/rootPhraseLayer";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -220,6 +224,26 @@ export default function TranscriptReviewDeck({
    * next screen. The nested scroll steps between screens; the rail shows
    * slide → screen (the chunk grain was cut 2026-08-15 — see the rail). */
   const screens = useMemo(() => buildScreens(groups), [groups]);
+  const rootsBySlide = useMemo(() => {
+    const out = new Map<string, RootPhraseLayerItem[]>();
+    for (const group of groups) {
+      out.set(
+        String(group.slideIndex),
+        buildRootPhraseLayer(
+          group.chunks.map((chunk) => ({
+            key: chunk.part.id,
+            rootPhrase: chunk.part.rootPhrase,
+            // A phrase on a Part exists only after the user explicitly chose
+            // the orange/rooting treatment. Neutral rehearsal fallbacks live
+            // only in fullscreen Presentation Mode.
+            rootType: "flagship" as const,
+          })),
+          { includeNeutral: false },
+        ),
+      );
+    }
+    return out;
+  }, [groups]);
   const railSlides = useMemo(() => {
     const out: { slideIndex: number | null; first: number; count: number }[] =
       [];
@@ -486,8 +510,11 @@ export default function TranscriptReviewDeck({
         const head = [kickerFor(g.slideIndex, i), titleFor(g.slideIndex)]
           .filter(Boolean)
           .join(" — ");
+        const roots = (rootsBySlide.get(String(g.slideIndex)) ?? [])
+          .map((root) => root.text)
+          .join("\n");
         const body = g.chunks.map((c) => c.part.text).join("\n\n");
-        return `${head}\n\n${body}`;
+        return [head, roots, body].filter(Boolean).join("\n\n");
       })
       .join("\n\n———\n\n");
     try {
@@ -593,6 +620,23 @@ export default function TranscriptReviewDeck({
                       onError={() => undefined}
                       className="w-full"
                     />
+                  </div>
+                ) : null}
+                {g.screenOfSlide === 0 &&
+                (rootsBySlide.get(String(g.slideIndex))?.length ?? 0) > 0 ? (
+                  <div
+                    data-rooting-phrases
+                    aria-label="Rooting phrases"
+                    className="mt-5 flex flex-col gap-2.5"
+                  >
+                    {rootsBySlide.get(String(g.slideIndex))?.map((root) => (
+                      <p
+                        key={root.key}
+                        className="text-[clamp(1.25rem,4vw,1.65rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-primary"
+                      >
+                        {root.text}
+                      </p>
+                    ))}
                   </div>
                 ) : null}
                 <button
