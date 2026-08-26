@@ -11,9 +11,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import {
+  appendArchitectureColumn,
+  appendArchitectureRow,
   artifactDraft,
   linearMlEdges,
   newCeoRowId,
+  removeArchitectureColumn,
   type CeoArchitectureContent,
   type CeoArtifactContent,
   type CeoMlContent,
@@ -249,53 +252,119 @@ function ArchitectureEditor({
   onSave: (content: CeoArchitectureContent) => void;
 }) {
   const [draft, setDraft] = useState(initial);
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${draft.columns.length}, minmax(10rem, 1fr)) 2.25rem`,
+  };
+  const gridWidth = Math.max(640, draft.columns.length * 176 + 52);
 
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-2xl border border-border">
-        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 bg-muted px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <span>Input</span><span>Measurement</span><span>Output</span><span />
-        </div>
-        {draft.flows.length ? (
-          <div className="divide-y divide-border">
-            {draft.flows.map((row) => (
-              <div key={row.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 p-3">
-                {(["input", "measurement", "output"] as const).map((field) => (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: gridWidth }}>
+            <div
+              className="grid gap-3 bg-muted px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              style={gridStyle}
+            >
+              {draft.columns.map((column, index) => (
+                <div key={column.id} className="flex min-w-0 items-center gap-1">
                   <input
-                    key={field}
-                    value={row[field]}
+                    value={column.label}
                     onChange={(event) => setDraft((current) => ({
                       ...current,
-                      flows: current.flows.map((item) =>
-                        item.id === row.id ? { ...item, [field]: event.target.value } : item
+                      columns: current.columns.map((item) =>
+                        item.id === column.id
+                          ? { ...item, label: event.target.value }
+                          : item
                       ),
                     }))}
-                    placeholder={field === "input" ? "Voice sample" : field === "measurement" ? "F0 variance" : "Intervention"}
-                    className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                    maxLength={120}
+                    aria-label={`Column ${index + 1} name`}
+                    placeholder="Column name"
+                    className="min-w-0 flex-1 bg-transparent py-1 font-medium uppercase tracking-wider outline-none focus:text-foreground"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setDraft((current) =>
+                      removeArchitectureColumn(current, column.id)
+                    )}
+                    disabled={draft.columns.length <= 1}
+                    aria-label={`Remove ${column.label || `column ${index + 1}`}`}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-background hover:text-foreground disabled:invisible"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ))}
+              <span />
+            </div>
+            {draft.rows.length ? (
+              <div className="divide-y divide-border">
+                {draft.rows.map((row, rowIndex) => (
+                  <div key={row.id} className="grid gap-3 p-3" style={gridStyle}>
+                    {draft.columns.map((column) => {
+                      const cell = row.cells.find(
+                        (item) => item.column_id === column.id
+                      );
+                      return (
+                        <input
+                          key={column.id}
+                          value={cell?.value ?? ""}
+                          onChange={(event) => setDraft((current) => ({
+                            ...current,
+                            rows: current.rows.map((item) =>
+                              item.id === row.id
+                                ? {
+                                    ...item,
+                                    cells: item.cells.map((candidate) =>
+                                      candidate.column_id === column.id
+                                        ? { ...candidate, value: event.target.value }
+                                        : candidate
+                                    ),
+                                  }
+                                : item
+                            ),
+                          }))}
+                          maxLength={4000}
+                          aria-label={`Row ${rowIndex + 1}, ${column.label || "unnamed column"}`}
+                          placeholder={column.label || "Value"}
+                          className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                        />
+                      );
+                    })}
+                    <IconButton
+                      label={`Remove row ${rowIndex + 1}`}
+                      onClick={() => setDraft((current) => ({
+                        ...current,
+                        rows: current.rows.filter((item) => item.id !== row.id),
+                      }))}
+                    />
+                  </div>
                 ))}
-                <IconButton label="Remove flow" onClick={() => setDraft((current) => ({
-                  ...current,
-                  flows: current.flows.filter((item) => item.id !== row.id),
-                }))} />
               </div>
-            ))}
+            ) : (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                Add the first row to map this architecture.
+              </p>
+            )}
           </div>
-        ) : (
-          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Add the first input → measurement → output flow.
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => setDraft((current) => ({
-            ...current,
-            flows: [...current.flows, { id: newCeoRowId(), input: "", measurement: "", output: "" }],
-          }))}
-          className="flex w-full items-center justify-center gap-2 border-t border-border px-4 py-3 text-sm font-medium hover:bg-muted/50"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add flow
-        </button>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-border p-3">
+          <button
+            type="button"
+            onClick={() => setDraft(appendArchitectureRow)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add row
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraft(appendArchitectureColumn)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add column
+          </button>
+        </div>
       </section>
       <TextList
         title="Blind spots, tech debt & risks"
@@ -341,7 +410,7 @@ function MlEditor({
                   ))}
                   aria-label={`Stage ${index + 1} name`}
                   placeholder="Stage name"
-                  className="w-full bg-transparent text-sm font-semibold outline-none"
+                  className="w-full bg-transparent pr-8 text-sm font-semibold outline-none"
                 />
                 <textarea
                   value={node.detail}
@@ -357,7 +426,7 @@ function MlEditor({
                   type="button"
                   onClick={() => setNodes(draft.nodes.filter((item) => item.id !== node.id))}
                   aria-label={`Remove ${node.label || `stage ${index + 1}`}`}
-                  className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="absolute right-2 top-2 rounded bg-background/90 p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 </button>

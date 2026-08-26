@@ -1,10 +1,18 @@
 import type { CeoLens } from "@/lib/ceo/domain";
 
-export interface CeoFlowRow {
+export interface CeoArchitectureColumn {
   id: string;
-  input: string;
-  measurement: string;
-  output: string;
+  label: string;
+}
+
+export interface CeoArchitectureCell {
+  column_id: string;
+  value: string;
+}
+
+export interface CeoArchitectureRow {
+  id: string;
+  cells: CeoArchitectureCell[];
 }
 
 export interface CeoTextRow {
@@ -32,7 +40,8 @@ export interface CeoCitation {
 }
 
 export interface CeoArchitectureContent {
-  flows: CeoFlowRow[];
+  columns: CeoArchitectureColumn[];
+  rows: CeoArchitectureRow[];
   risks: CeoTextRow[];
   next_steps: CeoTextRow[];
   citations: CeoCitation[];
@@ -85,6 +94,58 @@ function citations(value: unknown): CeoCitation[] {
   }));
 }
 
+function defaultArchitectureColumns(): CeoArchitectureColumn[] {
+  return [
+    { id: "input", label: "Input" },
+    { id: "measurement", label: "Measurement" },
+    { id: "output", label: "Output" },
+  ];
+}
+
+function architectureColumns(value: unknown): CeoArchitectureColumn[] {
+  const seen = new Set<string>();
+  const saved = rows(value)
+    .map((column) => ({ id: id(column.id), label: text(column.label) }))
+    .filter((column) => {
+      if (seen.has(column.id)) return false;
+      seen.add(column.id);
+      return true;
+    });
+  return saved.length ? saved : defaultArchitectureColumns();
+}
+
+function architectureRows(
+  value: unknown,
+  columns: CeoArchitectureColumn[]
+): CeoArchitectureRow[] {
+  const columnIds = new Set(columns.map((column) => column.id));
+  return rows(value).map((row) => {
+    const values = new Map<string, string>();
+    for (const cell of rows(row.cells)) {
+      const columnId = text(cell.column_id);
+      if (columnIds.has(columnId)) values.set(columnId, text(cell.value));
+    }
+    return {
+      id: id(row.id),
+      cells: columns.map((column) => ({
+        column_id: column.id,
+        value: values.get(column.id) ?? "",
+      })),
+    };
+  });
+}
+
+function legacyArchitectureRows(value: unknown): CeoArchitectureRow[] {
+  return rows(value).map((row) => ({
+    id: id(row.id),
+    cells: [
+      { column_id: "input", value: text(row.input) },
+      { column_id: "measurement", value: text(row.measurement) },
+      { column_id: "output", value: text(row.output) },
+    ],
+  }));
+}
+
 export function newCeoRowId(): string {
   return globalThis.crypto?.randomUUID?.() ??
     `ceo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -96,13 +157,13 @@ export function artifactDraft(
 ): CeoArtifactContent {
   const content = record(value);
   if (lens === "architecture") {
+    const columns = architectureColumns(content.columns);
+    const savedRows = architectureRows(content.rows, columns);
     return {
-      flows: rows(content.flows).map((row) => ({
-        id: id(row.id),
-        input: text(row.input),
-        measurement: text(row.measurement),
-        output: text(row.output),
-      })),
+      columns,
+      rows: Array.isArray(content.rows)
+        ? savedRows
+        : legacyArchitectureRows(content.flows),
       risks: textRows(content.risks),
       next_steps: textRows(content.next_steps),
       citations: citations(content.citations),
@@ -136,6 +197,53 @@ export function artifactDraft(
     };
   }
   return { document: text(content.document) };
+}
+
+export function appendArchitectureRow(
+  content: CeoArchitectureContent
+): CeoArchitectureContent {
+  return {
+    ...content,
+    rows: [
+      ...content.rows,
+      {
+        id: newCeoRowId(),
+        cells: content.columns.map((column) => ({
+          column_id: column.id,
+          value: "",
+        })),
+      },
+    ],
+  };
+}
+
+export function appendArchitectureColumn(
+  content: CeoArchitectureContent
+): CeoArchitectureContent {
+  const column = { id: newCeoRowId(), label: "New column" };
+  return {
+    ...content,
+    columns: [...content.columns, column],
+    rows: content.rows.map((row) => ({
+      ...row,
+      cells: [...row.cells, { column_id: column.id, value: "" }],
+    })),
+  };
+}
+
+export function removeArchitectureColumn(
+  content: CeoArchitectureContent,
+  columnId: string
+): CeoArchitectureContent {
+  if (content.columns.length <= 1) return content;
+  return {
+    ...content,
+    columns: content.columns.filter((column) => column.id !== columnId),
+    rows: content.rows.map((row) => ({
+      ...row,
+      cells: row.cells.filter((cell) => cell.column_id !== columnId),
+    })),
+  };
 }
 
 export function linearMlEdges(nodes: CeoMlNode[]): CeoMlEdge[] {
