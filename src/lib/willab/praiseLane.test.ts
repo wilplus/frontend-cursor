@@ -126,9 +126,11 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     expect(MODAL).toMatch(/isConfidentVoice \? \([\s\S]{0,900}MediaPlayer/);
   });
 
-  it("offers the flagship decision explicitly", () => {
-    expect(MODAL).toMatch(/Use as flagship/);
-    expect(MODAL).toMatch(/Not now/);
+  it("records praise usefulness without turning praise into styling", () => {
+    expect(MODAL).toMatch(/Useful/);
+    expect(MODAL).toMatch(/Not useful/);
+    expect(MODAL).toMatch(/Not sure/);
+    expect(MODAL).not.toMatch(/Use as flagship/);
   });
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
@@ -148,10 +150,9 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
   });
 
-  it("renders the locked binary self-report", () => {
+  it("renders the five-choice immutable self-report", () => {
     expect(MODAL).toContain("Does this sound confident to you?");
-    expect(MODAL).toMatch(/\["yes", "no"\]/);
-    expect(MODAL).not.toMatch(/ConfidenceLabelChips/);
+    expect(MODAL).toMatch(/ConfidenceLabelChips/);
   });
 
   it("asks immediately after playback and reveals reasons afterwards", () => {
@@ -176,17 +177,10 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     );
   });
 
-  it("writes through the anchored owner-routing endpoint", () => {
-    // This answer is personal Voice Album routing. It is deliberately kept
-    // outside the blind peer-label corpus and can never become a quorum vote.
-    expect(MODAL).toMatch(/saveConfidenceAgreement/);
-  });
-
-  it("cannot construct an answer nobody gave", () => {
-    // buildRatingBody returns null for an inexpressible pair, and the send
-    // stops there rather than posting something the BE would have to reject.
-    expect(MODAL).toMatch(/buildRatingBody/);
-    expect(MODAL).toMatch(/if \(!body\) return;/);
+  it("writes the exact feedback and clip identities to the immutable route", () => {
+    expect(MODAL).toMatch(/saveTakeFeedbackResponse/);
+    expect(MODAL).toMatch(/feedbackFamily: "confident_voice"/);
+    expect(MODAL).toMatch(/snippetId/);
   });
 
   it("rolls the chip back when the write fails", () => {

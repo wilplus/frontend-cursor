@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Lock, Sparkles, Undo2, X } from "lucide-react";
+import { Check, Loader2, Lock, Sparkles, Undo2 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import {
-  buildRatingBody,
-  saveConfidenceAgreement,
-  type ConfidenceRatingValue,
-} from "@/services/api/stateRatings";
+  saveTakeFeedbackResponse,
+  type FeedbackResponse,
+} from "@/services/api/takeFeedback";
+import type { RootPhraseSpan } from "@/services/api/partLock";
 import {
   AGREE_THANKS,
   CONFIDENT_VOICE_NO,
@@ -55,6 +57,10 @@ import { displayKind } from "./displayKind";
 export { displayKind };
 
 export type LockOutcome = "ok" | "blocked" | "failed";
+export type LockResult = {
+  outcome: LockOutcome;
+  rootPhraseProposal: RootPhraseSpan | null;
+};
 
 interface DeckChunkModalProps {
   chunk: DeckChunk;
@@ -73,7 +79,11 @@ interface DeckChunkModalProps {
   /** Decide disregard ("Keep mine"). Resolves true when saved. */
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   /** Commit the draft (when changed) and lock the part. */
-  onLockIn: (text: string) => Promise<LockOutcome>;
+  onLockIn: (text: string) => Promise<LockResult>;
+  /** Save the draft but explicitly leave this paragraph replaceable. */
+  onKeepEvolving: (text: string) => Promise<LockOutcome>;
+  /** Post-lock orange metadata; null is an explicit Skip. */
+  onSetRootPhrase: (phrase: RootPhraseSpan | null) => Promise<boolean>;
   /** UNDO the lock (founder 2026-08-15) — the inverse of onLockIn, and the
    *  only thing "Discard" means on a locked chunk. Optional: a host that
    *  cannot unlock simply shows no button there, which is the pre-08-15
@@ -83,7 +93,7 @@ interface DeckChunkModalProps {
   /** THE STYLE LANE (slice 2) — a pending post-lock bold for this chunk,
    *  surfaced ONLY here. Null = none. */
   styleSuggestion?: DocumentSuggestion | null;
-  /** Apply the style proposal (already counted in the whole-Take ≤3 set). */
+  /** Apply a legacy style proposal; new roots use onSetRootPhrase. */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
   /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals; the modal
    *  lists the ones whose words belong to this chunk. */
@@ -110,6 +120,8 @@ export default function DeckChunkModal({
   onUndoAccept,
   onKeepMine,
   onLockIn,
+  onKeepEvolving,
+  onSetRootPhrase,
   onUnlockPart = null,
   onClose,
   styleSuggestion = null,
@@ -155,7 +167,7 @@ export default function DeckChunkModal({
   // pending proposal could still open the editor. The proposal itself is the
   // only thing that decides whether there is a review to run — and on a
   // re-opened locked chunk (R1 gen-4) that is exactly the case that matters.
-  const [face, setFace] = useState<"review" | "editor">(
+  const [face, setFace] = useState<"review" | "editor" | "root">(
     chunk.pendingIds.length > 0 && suggestion ? "review" : "editor",
   );
   const [busy, setBusy] = useState(false);
@@ -164,13 +176,19 @@ export default function DeckChunkModal({
     useState<DocumentSuggestion | null>(null);
   const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
     useState(false);
+  const hadFeedback = feedbackInventory.length > 0;
+  const [rootProposal, setRootProposal] = useState<RootPhraseSpan | null>(null);
+  const [customRoot, setCustomRoot] = useState("");
+  const [choosingRoot, setChoosingRoot] = useState(false);
 
   function advanceAfterDecision(decidedId: string): boolean {
     const remaining = feedbackInventory.filter(
       (item) => item.id !== decidedId && !resolvedFeedbackIds.has(item.id),
     );
     setResolvedFeedbackIds((previous) => new Set(previous).add(decidedId));
-    if (remaining.length === 0) return false;
+    if (remaining.length === 0) {
+      return false;
+    }
     setActiveFeedbackId(remaining[0].id);
     setRewriteCollisionConfirmed(false);
     setError(null);
@@ -196,6 +214,8 @@ export default function DeckChunkModal({
   const kicker =
     face === "review" && suggestion
       ? `${displayKind(suggestion)}${iterTail}`
+      : face === "root"
+        ? `Locked for the next Take${iterTail}`
       : // THE PAGE no longer distinguishes accepted from clean — since
         // 2026-08-15 only a server lock turns the mark green, because the
         // merged state flashed green on its way to grey on every accept. In
@@ -215,42 +235,11 @@ export default function DeckChunkModal({
   const title =
     face === "review"
       ? "Suggested change"
+      : face === "root"
+        ? "Choose a rooting phrase"
       : chunk.part.locked
         ? "Locked chunk"
         : "Edit this chunk";
-
-  async function accept() {
-    if (!suggestion || busy) return;
-    if (rewriteOverlapsFlagship && !rewriteCollisionConfirmed) {
-      setRewriteCollisionConfirmed(true);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const ok = await onAccept(suggestion);
-    setBusy(false);
-    if (!ok) {
-      setError("Couldn't save that decision. Try again.");
-      return;
-    }
-    if (advanceAfterDecision(suggestion.id)) {
-      // The next item was already visible in the inventory above. Stay on the
-      // review face; this is navigation inside a frozen set, not feedback
-      // trickling in after the decision.
-      return;
-    }
-    // The student is never dropped back to the page mid-decision: the modal
-    // re-renders as the editor over the freshly accepted words.
-    dirtyRef.current = false;
-    if (
-      suggestion.kind === "replace" &&
-      suggestion.source !== "new_take" &&
-      suggestion.source !== "prior_take"
-    ) {
-      setAcceptedRewrite(suggestion);
-    }
-    setFace("editor");
-  }
 
   async function undoAcceptedRewrite() {
     if (!acceptedRewrite || !onUndoAccept || busy) return;
@@ -266,38 +255,132 @@ export default function DeckChunkModal({
     onClose();
   }
 
-  async function keepMine() {
+  async function recordFeedbackResponse(response: FeedbackResponse): Promise<boolean> {
+    if (!suggestion?.takeSessionId || !suggestion.feedbackFamily) return false;
+    const result = await saveTakeFeedbackResponse({
+      takeSessionId: suggestion.takeSessionId,
+      feedbackId: suggestion.id,
+      feedbackFamily: suggestion.feedbackFamily,
+      response,
+      snippetId: suggestion.snippetId,
+    });
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't save that response. Try again.");
+      return false;
+    }
+    return true;
+  }
+
+  async function resolveObservedFeedback(response: FeedbackResponse) {
     if (!suggestion || busy) return;
     setBusy(true);
     setError(null);
-    const ok = await onKeepMine(suggestion);
+    const ok = await recordFeedbackResponse(response);
     setBusy(false);
-    if (!ok) {
-      setError("Couldn't save that decision. Try again.");
+    if (!ok) return;
+    if (advanceAfterDecision(suggestion.id)) return;
+    setFace("editor");
+  }
+
+  async function applyImprovement() {
+    if (!suggestion || busy) return;
+    if (rewriteOverlapsFlagship && !rewriteCollisionConfirmed) {
+      setRewriteCollisionConfirmed(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const responseSaved = await recordFeedbackResponse("apply_suggestion");
+    const applied = responseSaved ? await onAccept(suggestion) : false;
+    setBusy(false);
+    if (!responseSaved || !applied) {
+      if (responseSaved && !applied) {
+        setError("Your choice is safe, but the text update needs another try.");
+      }
       return;
     }
     if (advanceAfterDecision(suggestion.id)) return;
-    // Keep mine: the words are untouched and the proposal moves into
-    // history. The modal closes (Lovable §3.1); the lock stays one tap away
-    // for a student who wants to commit their own wording.
-    onClose();
+    setAcceptedRewrite(suggestion.kind === "replace" ? suggestion : null);
+    setFace("editor");
+  }
+
+  async function editImprovementMyself() {
+    if (!suggestion || busy) return;
+    setBusy(true);
+    setError(null);
+    const ok = await recordFeedbackResponse("edit_myself");
+    setBusy(false);
+    if (!ok) return;
+    const decidedId = suggestion.id;
+    if (advanceAfterDecision(decidedId)) return;
+    setFace("editor");
+  }
+
+  async function keepImprovementWording() {
+    if (!suggestion || busy) return;
+    setBusy(true);
+    setError(null);
+    const responseSaved = await recordFeedbackResponse("keep_wording");
+    const kept = responseSaved ? await onKeepMine(suggestion) : false;
+    setBusy(false);
+    if (!responseSaved || !kept) {
+      if (responseSaved && !kept) setError("Your choice is safe. Refresh to continue.");
+      return;
+    }
+    if (advanceAfterDecision(suggestion.id)) return;
+    setFace("editor");
   }
 
   async function lockIn() {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const outcome = await onLockIn(draft.trim());
+    const result = await onLockIn(draft.trim());
+    setBusy(false);
+    if (result.outcome === "ok") {
+      setRootProposal(result.rootPhraseProposal);
+      setFace("root");
+      return;
+    }
+    setError(
+      result.outcome === "blocked"
+        ? "Decide every suggestion on this chunk first."
+        : "Couldn't lock this in. Try again.",
+    );
+  }
+
+  async function keepEvolving() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const outcome = await onKeepEvolving(draft.trim());
     setBusy(false);
     if (outcome === "ok") {
       onClose();
       return;
     }
-    setError(
-      outcome === "blocked"
-        ? "Decide every suggestion on this chunk first."
-        : "Couldn't lock this in. Try again.",
-    );
+    setError("Couldn't keep this paragraph evolving. Try again.");
+  }
+
+  async function saveRoot(phrase: RootPhraseSpan | null) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const ok = await onSetRootPhrase(phrase);
+    setBusy(false);
+    if (ok) {
+      onClose();
+      return;
+    }
+    setError("Choose exact words from this paragraph and try again.");
+  }
+
+  function customRootSpan(): RootPhraseSpan | null {
+    const phrase = customRoot.trim();
+    if (!phrase) return null;
+    const start = draft.indexOf(phrase);
+    if (start < 0 || draft.lastIndexOf(phrase) !== start) return null;
+    return { text: phrase, start, end: start + phrase.length };
   }
 
   /* APPLY THE EMPHASIS ON THE SPOT (founder 2026-08-15: "when I clicked to
@@ -369,7 +452,12 @@ export default function DeckChunkModal({
   const rewriteOverlapsFlagship = Boolean(
     suggestion?.kind === "replace" &&
       suggestion.quote?.trim() &&
-      parseRichSpans(chunk.part.text).some((span) => {
+      ([
+        ...(chunk.part.rootPhrase
+          ? [{ text: chunk.part.rootPhrase, highlight: true }]
+          : []),
+        ...parseRichSpans(chunk.part.text),
+      ]).some((span) => {
         if (!span.highlight || !span.text.trim()) return false;
         const accepted = span.text.trim().toLocaleLowerCase();
         const rewrite = suggestion.quote!.trim().toLocaleLowerCase();
@@ -427,20 +515,20 @@ export default function DeckChunkModal({
   const [agreeError, setAgreeError] = useState<string | null>(null);
   const [agreeSaved, setAgreeSaved] = useState(false);
 
-  async function sendAgreement(
-    value: ConfidenceRatingValue | null,
-    unrateable: boolean
-  ) {
+  async function sendAgreement(value: ConfidenceRatingValue) {
     const snippetId = suggestion?.snippetId;
-    if (!snippetId || agreeSaving) return;
-    const body = buildRatingBody(value, unrateable);
-    // null means the pair could not express a real answer — a body that would
-    // fabricate a label nobody gave must be impossible to send, not merely
-    // rejected later.
-    if (!body) return;
+    const takeSessionId = suggestion?.takeSessionId;
+    if (!suggestion || !snippetId || !takeSessionId || agreeSaving) return;
     setAgreeSaving(true);
     setAgreeError(null);
-    const r = await saveConfidenceAgreement(snippetId, body);
+    setAgreeValue(value);
+    const r = await saveTakeFeedbackResponse({
+      takeSessionId,
+      feedbackId: suggestion.id,
+      feedbackFamily: "confident_voice",
+      response: value,
+      snippetId,
+    });
     setAgreeSaving(false);
     if (r.ok) {
       setAgreeSaved(true);
@@ -448,39 +536,18 @@ export default function DeckChunkModal({
     }
     // Roll the chip back rather than leaving it lit over a row the server
     // never took — the same rule the style apply follows.
-    setAgreeValue(null);
-    setAgreeError(r.error ?? "Couldn't save that. Try again.");
+      setAgreeValue(null);
+      setAgreeError(r.error ?? "Couldn't save that. Try again.");
   }
 
-  // ONE BUTTON, AND THE LOCK DECIDES WHICH (founder 2026-08-15: "it should be
-  // either lock or discard — lock on the unlocked, discard on the locked").
-  //
-  // Discard used to sit beside Lock in on EVERY editor face, wired to
-  // `onClose`. On an untouched chunk that discards nothing — it is a second
-  // close button wearing the word "Discard", which is why it read as a no-op
-  // (founder 2026-08-12: "if I click discard nothing happens"). The 08-12 fix
-  // hid BOTH buttons on a settled locked chunk; the real problem was that the
-  // pair was never two choices in the first place.
-  //
-  // So the row is now a TOGGLE of the thing the icon shows:
-  //   unlocked            → Lock in
-  //   locked + untouched  → Discard, which UNLOCKS (the inverse, not a close)
-  //   locked + edited     → Lock in, so the edit can be saved
-  //
-  // The last line is load-bearing: a locked chunk stays editable by design,
-  // and an edit the student cannot lock in is an edit they cannot save. It is
-  // compared against the served text rather than the dirty ref on purpose —
-  // typing a change and typing it back leaves nothing to save either, and a
-  // ref would not re-render anyway.
-  //
-  // Discarding an EDIT needs no button: closing the modal already drops it,
-  // on a locked and an unlocked chunk alike.
-  //
-  // Not gated on `chunk.status`: a re-opened locked chunk (pending work beats
-  // the lock) is already on the REVIEW face, which owns its own buttons.
+  // Paragraph versioning boundary: after this Take's feedback is resolved,
+  // the student explicitly chooses Lock for next Take or Keep evolving.
+  // Reopening a settled paragraph that had no feedback keeps the established
+  // inverse action (unlock). A paragraph that did have feedback must pass the
+  // explicit commit boundary again even if it arrived already locked.
   const lockedAndSettled =
     chunk.part.locked === true && draft === chunk.part.text;
-  const showUnlock = lockedAndSettled && !!onUnlockPart;
+  const showUnlock = lockedAndSettled && !hadFeedback && !!onUnlockPart;
 
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
   // follows the pointer continuously, then settles to one of two detents.
@@ -711,37 +778,15 @@ export default function DeckChunkModal({
                     />
                   ) : null}
                   {!agreeSaved ? (
-                    <div className="flex flex-col gap-3">
-                      <p className="text-sm font-semibold text-foreground">
-                        Does this sound confident to you?
-                      </p>
-                      <div className="flex gap-2">
-                        {(["yes", "no"] as const).map((value) => (
-                          <button
-                            key={value}
-                            type="button"
-                            disabled={agreeSaving}
-                            onClick={() => {
-                              setAgreeValue(value);
-                              void sendAgreement(value, false);
-                            }}
-                            className={`rounded-full border px-5 py-2 text-[14px] font-medium transition-colors disabled:opacity-50 ${
-                              agreeValue === value
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border bg-background text-foreground hover:bg-muted"
-                            }`}
-                          >
-                            {value === "yes" ? "Yes" : "No"}
-                          </button>
-                        ))}
-                      </div>
-                      {agreeSaving ? (
-                        <p className="text-[12px] text-muted-foreground">Saving…</p>
-                      ) : null}
-                      {agreeError ? (
-                        <p className="text-[12px] text-destructive">{agreeError}</p>
-                      ) : null}
-                    </div>
+                    <ConfidenceLabelChips
+                      question="Does this sound confident to you?"
+                      value={agreeValue}
+                      disabled={agreeSaving}
+                      saving={agreeSaving}
+                      error={agreeError}
+                      ownerWording
+                      onPick={(value) => void sendAgreement(value)}
+                    />
                   ) : agreeValue === "no" ? (
                     <>
                       <p className="text-[15px] font-medium leading-relaxed text-foreground">
@@ -758,7 +803,7 @@ export default function DeckChunkModal({
                         />
                       ) : null}
                     </>
-                  ) : (
+                  ) : agreeValue === "yes" ? (
                     <>
                       <p className="text-[15px] font-medium leading-relaxed text-foreground">
                         {CONFIDENT_VOICE_WHY}
@@ -794,12 +839,18 @@ export default function DeckChunkModal({
                         />
                       ) : null}
                     </>
+                  ) : (
+                    <p className="text-[13px] leading-relaxed text-muted-foreground">
+                      {AGREE_THANKS} This stays a calibration note, not a styling decision.
+                    </p>
                   )}
                 </div>
               ) : isPraise ? (
                 <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
                   <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                    {PRAISE_LEAD}
+                    {suggestion.tentative
+                      ? "This may be one of the strongest formulations in this Take."
+                      : PRAISE_LEAD}
                   </p>
                   <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5">
                     <p className="text-[15px] font-semibold leading-relaxed text-primary">
@@ -841,6 +892,52 @@ export default function DeckChunkModal({
                 <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
               ) : null}
             </>
+          ) : face === "root" ? (
+            <div className="flex flex-col gap-4">
+              <p className="text-[15px] leading-relaxed text-foreground">
+                This paragraph is now locked: these exact words survive the next
+                Take. Do you also want one short phrase to appear in orange while
+                you record?
+              </p>
+              {rootProposal ? (
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Suggested exact phrase
+                  </p>
+                  <p className="mt-2 text-[17px] font-semibold leading-relaxed text-primary">
+                    {rootProposal.text}
+                  </p>
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-border bg-muted/40 p-4 text-[14px] leading-relaxed text-muted-foreground">
+                  No unambiguous short phrase was found. Choose exact words from
+                  the paragraph or skip this step.
+                </p>
+              )}
+              {choosingRoot ? (
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <label
+                    className="text-[12px] font-medium text-foreground"
+                    htmlFor="custom-root-phrase"
+                  >
+                    Copy exact words from this paragraph
+                  </label>
+                  <input
+                    id="custom-root-phrase"
+                    value={customRoot}
+                    onChange={(event) => {
+                      setCustomRoot(event.target.value);
+                      setError(null);
+                    }}
+                    className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-primary"
+                  />
+                  <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                    It must occur exactly once. We never guess which repeated
+                    words you meant.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           ) : (
             <>
               {acceptedRewrite && onUndoAccept ? (
@@ -892,9 +989,9 @@ export default function DeckChunkModal({
                 <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
               ) : null}
 
-              {/* THE STYLE LANE (slice 2): the post-lock emphasis proposal,
-                  surfaced ONLY here — the page never re-marks locked text.
-                  Rides OUTSIDE the ≤3 budget. */}
+              {/* Legacy post-lock emphasis remains reversible for records that
+                  already contain it. New orange roots use the explicit root
+                  choice immediately after Lock for next Take. */}
               {styleSuggestion && onApplyStyle ? (
                 <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
                   <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -976,7 +1073,7 @@ export default function DeckChunkModal({
           ) : null}
         </div>
 
-        {face !== "review" && lockedAndSettled && !onUnlockPart ? (
+        {face === "editor" && lockedAndSettled && !hadFeedback && !onUnlockPart ? (
           // A host that cannot unlock (no callback wired) keeps the 08-12
           // behaviour: a settled locked chunk shows no buttons rather than a
           // Discard that would do nothing — the exact no-op this replaced.
@@ -991,9 +1088,7 @@ export default function DeckChunkModal({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() =>
-                  void (agreeValue === "yes" ? accept() : keepMine())
-                }
+                onClick={() => void resolveObservedFeedback(agreeValue ?? "not_sure")}
                 className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
               >
                 {busy ? (
@@ -1004,35 +1099,38 @@ export default function DeckChunkModal({
                 Done
               </button>
             ) : face === "review" && suggestion && isPraise ? (
-              <>
+              <div className="col-span-2 grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void accept()}
-                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                  onClick={() => void resolveObservedFeedback("useful")}
+                  className="flex items-center justify-center rounded-full bg-foreground px-3 py-3 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
                 >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Check className="h-4 w-4" aria-hidden />
-                  )}
-                  Use as flagship
+                  Useful
                 </button>
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void keepMine()}
-                  className="flex items-center justify-center rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  onClick={() => void resolveObservedFeedback("not_useful")}
+                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                 >
-                  Not now
+                  Not useful
                 </button>
-              </>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void resolveObservedFeedback("not_sure")}
+                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  Not sure
+                </button>
+              </div>
             ) : face === "review" && suggestion ? (
-              <>
+              <div className="col-span-2 grid gap-2">
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void accept()}
+                  onClick={() => void applyImprovement()}
                   className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
                 >
                   {busy ? (
@@ -1040,22 +1138,67 @@ export default function DeckChunkModal({
                   ) : (
                     <Check className="h-4 w-4" aria-hidden />
                   )}
-                  {suggestion.kind === "replace"
-                    ? rewriteOverlapsFlagship && rewriteCollisionConfirmed
-                      ? "Confirm clearer version"
-                      : "Use clearer version"
-                    : "Accept"}
+                  Apply suggestion
                 </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void keepMine()}
-                  className="flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                  Keep mine
-                </button>
-              </>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void editImprovementMyself()}
+                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    Edit myself
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void keepImprovementWording()}
+                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    Keep wording
+                  </button>
+                </div>
+              </div>
+            ) : face === "root" ? (
+              <div className="col-span-2 grid gap-2">
+                {choosingRoot ? (
+                  <button
+                    type="button"
+                    disabled={busy || customRootSpan() === null}
+                    onClick={() => void saveRoot(customRootSpan())}
+                    className="rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                  >
+                    Use these exact words
+                  </button>
+                ) : rootProposal ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveRoot(rootProposal)}
+                    className="rounded-full bg-primary px-5 py-3 text-[14px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    Make this phrase orange
+                  </button>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setChoosingRoot(true)}
+                    className="rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    Choose different words
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveRoot(null)}
+                    className="rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    Skip orange phrase
+                  </button>
+                </div>
+              </div>
             ) : showUnlock ? (
               // LOCKED AND UNTOUCHED → the only move is to undo the lock.
               <button
@@ -1072,20 +1215,29 @@ export default function DeckChunkModal({
                 Discard
               </button>
             ) : (
-              // EVERYTHING ELSE → the only move is to lock it in.
-              <button
-                type="button"
-                disabled={busy || draft.trim().length === 0}
-                onClick={() => void lockIn()}
-                className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Lock className="h-4 w-4" aria-hidden />
-                )}
-                Lock in
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={busy || draft.trim().length === 0}
+                  onClick={() => void lockIn()}
+                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-3 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Lock className="h-4 w-4" aria-hidden />
+                  )}
+                  Lock for next Take
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || draft.trim().length === 0}
+                  onClick={() => void keepEvolving()}
+                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  Keep evolving
+                </button>
+              </>
             )}
           </div>
         )}
