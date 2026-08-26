@@ -70,7 +70,7 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
       "utf8"
     );
     expect(modal).toMatch(/<MarkedEditor/);
-    expect(modal).toMatch(/Lock in/);
+    expect(modal).toMatch(/Lock for next Take/);
     // And it is the MARKER-AWARE field, never a raw one: a textarea over the
     // marker source prints "**bold**" at the student, which FE-1 forbids —
     // and this modal is the only way into the text.

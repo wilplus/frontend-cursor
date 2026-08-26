@@ -75,6 +75,7 @@ function payload() {
       snippet_id: "snip-1",
       take_session_id: "sess-1",
       kind: "replace",
+      feedback_family: "rewrite_clarity",
       source: "polish",
       span: { start: text.indexOf(quote), end: text.indexOf(quote) + quote.length },
       quote,
@@ -191,6 +192,17 @@ function payload() {
 }
 
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+  const session = {
+    access_token: "dev-token",
+    token_type: "bearer",
+    expires_at: 4102444800,
+    refresh_token: "dev-refresh",
+    user: { id: "dev-user" },
+  };
+  document.cookie = `sb-dummy-auth-token=base64-${btoa(
+    JSON.stringify(session)
+  )}; path=/`;
+
   if (!window.__deckCalls) {
     window.__deckCalls = [];
     const real = window.fetch.bind(window);
@@ -221,6 +233,14 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         else decided = body.action === "applied" ? "approved" : "dismissed";
         return json({ saved: true });
       }
+      if (url.includes("/feedback-response") && method === "POST") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        window.__deckCalls!.push({ url, method, body, t: performance.now() });
+        return json({ saved: true });
+      }
       if (/\/parts\/[^/]+\/lock/.test(url) && method === "PUT") {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<
           string,
@@ -228,7 +248,25 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         >;
         window.__deckCalls!.push({ url, method, body, t: performance.now() });
         if (url.includes("part-1")) locked1 = true;
-        return json({ locked: true, part_id: "stub" });
+        const phrase = "trusted the figures";
+        const start = P1_AFTER.indexOf(phrase);
+        return json({
+          locked: true,
+          part_id: "stub",
+          root_phrase_proposal: {
+            text: phrase,
+            start,
+            end: start + phrase.length,
+          },
+        });
+      }
+      if (/\/parts\/[^/]+\/root/.test(url) && method === "PUT") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        window.__deckCalls!.push({ url, method, body, t: performance.now() });
+        return json({ saved: true });
       }
       if (url.includes("/user-edit") && method === "PUT") {
         const body = JSON.parse(String(init?.body ?? "{}")) as Record<

@@ -61,11 +61,7 @@ describe("saveIdealUserEdit", () => {
     });
   });
 
-  it("sends the lock flag WITH the parts — auto-lock lives or dies on this wire", async () => {
-    // "Typed = committed" is computed client-side (autoLockTouched) and the
-    // BE stamps locked_at only for parts sent `locked: true`. The original
-    // wire mapping dropped the flag, which silently unwound the whole
-    // feature: parts landed, every one open. This test is the tripwire.
+  it("preserves an explicit paragraph lock on the parts wire", async () => {
     mockFetch({ status: 200, body: { version: 2 } });
     await saveIdealUserEdit("arc1", "One.\n\nTwo.", 1, {
       parts: [
@@ -75,17 +71,17 @@ describe("saveIdealUserEdit", () => {
     });
     expect((calls[0].body as { parts: unknown }).parts).toEqual([
       { id: "a-1", text: "One.", locked: true },
-      { id: "b-2", text: "Two." },
+      { id: "b-2", text: "Two.", locked: false },
     ]);
   });
 
-  it("never sends locked: false — the PUT only ADDS locks, absence is the wire form of 'no claim'", async () => {
+  it("sends locked: false so an edited commit becomes a working copy", async () => {
     mockFetch({ status: 200, body: { version: 2 } });
     await saveIdealUserEdit("arc1", "One.", 1, {
       parts: [{ id: "a-1", text: "One.", locked: false }],
     });
     expect((calls[0].body as { parts: unknown }).parts).toEqual([
-      { id: "a-1", text: "One." },
+      { id: "a-1", text: "One.", locked: false },
     ]);
   });
 

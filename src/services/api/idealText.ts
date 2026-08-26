@@ -219,6 +219,8 @@ export interface DocumentSuggestion {
     | "great_formulation"
     | "rewrite_clarity"
     | null;
+  /** Weak evidence is shown with tentative language, never hidden or inflated. */
+  tentative?: boolean;
   /** advice only — which coaching observation this is. The FE renders the
    *  SAME founder-approved copy it already uses for delivery/structural
    *  stars (BE-C: "popover copy from device as today"). null → no copy, so
@@ -234,6 +236,7 @@ export interface DocumentSuggestion {
      *  only device that is not a note to work on, so it is the only one
      *  that renders `cueKeys` and a player. */
     | "impeccable"
+    | "tentative_formulation"
     | "contrast"
     | "list_of_three"
     | null;
@@ -350,6 +353,7 @@ const SUGGESTION_DEVICES: readonly SuggestionDevice[] = [
   "pause",
   "congruence",
   "impeccable",
+  "tentative_formulation",
   "contrast",
   "list_of_three",
 ];
@@ -566,6 +570,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     kind,
     proposedText,
     feedbackFamily: readEnum(record.feedback_family, FEEDBACK_FAMILIES),
+    tentative: record.tentative === true,
     device,
     why,
     source,
@@ -816,7 +821,24 @@ export function mapParts(raw: unknown): Part[] | null {
       r.iteration >= 0
         ? r.iteration
         : 0;
-    out.push({ id, text, locked: r.locked === true, iteration: it });
+    const rootPhrase = typeof r.root_phrase === "string" && r.root_phrase
+      ? r.root_phrase
+      : null;
+    const rootStart = typeof r.root_start === "number" && Number.isInteger(r.root_start)
+      ? r.root_start
+      : null;
+    const rootEnd = typeof r.root_end === "number" && Number.isInteger(r.root_end)
+      ? r.root_end
+      : null;
+    out.push({
+      id,
+      text,
+      locked: r.locked === true,
+      iteration: it,
+      rootPhrase,
+      rootStart,
+      rootEnd,
+    });
   }
   return out;
 }
@@ -1430,16 +1452,16 @@ export async function saveIdealUserEdit(
           // back to `text`, so the two are always written together or not at
           // all.
           //
-          // `locked` MUST ride: auto-lock ("typed = committed") is computed
-          // client-side by autoLockTouched, and the BE stamps locked_at only
-          // for parts sent locked. Dropping the flag here silently unwound
-          // the whole feature — the parts landed, every one open.
+          // `locked` rides for every Paragraph. Explicit false is load-bearing:
+          // editing committed words reopens that same identity for a new
+          // commit. The version gate protects this full-state write from a
+          // stale client.
           ...(opts?.parts && opts.parts.length > 0
             ? {
                 parts: opts.parts.map((p) => ({
                   id: p.id,
                   text: p.text,
-                  ...(p.locked === true ? { locked: true } : {}),
+                  locked: p.locked === true,
                 })),
               }
             : {}),

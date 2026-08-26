@@ -43,6 +43,7 @@ import {
 } from "./BlockVariantPicker";
 import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
@@ -51,9 +52,12 @@ import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
 import AdditionsPanel from "./AdditionsPanel";
-import { setPartLock } from "@/services/api/partLock";
 import {
-  autoLockTouched,
+  setPartLock,
+  setPartRootPhrase,
+  type RootPhraseSpan,
+} from "@/services/api/partLock";
+import {
   lockTargetAt,
   partsToText,
   reconcileParts,
@@ -328,10 +332,8 @@ export default function IdealTextOverlay({
         versionArmedRef.current = true;
         // The document's stored identity. When the BE has none (nothing
         // saved yet, or stale rows refused), the baseline is DERIVED from the
-        // served machine text — unlocked, ids minted locally. Without this
-        // the first typed save would have no baseline, and auto-lock's
-        // "no baseline = all authorship" rule would lock every MACHINE
-        // paragraph the student never touched, freezing refresh everywhere.
+        // served machine text — unlocked, ids minted locally. Without this,
+        // the first explicit paragraph commit would have no stable baseline.
         partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
         setStatus("ready");
         // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
@@ -399,28 +401,31 @@ export default function IdealTextOverlay({
     async (
       at: number,
       paragraphText: string
-    ): Promise<"ok" | "blocked" | "failed"> => {
+    ): Promise<LockResult> => {
       const parts = reconcileParts(displayText, partsRef.current ?? []);
       partsRef.current = parts;
       const target = lockTargetAt(parts, at, paragraphText);
-      if (!target) return "failed";
-      if (target.locked) return "ok"; // already settled — nothing to write
+      if (!target) return { outcome: "failed", rootPhraseProposal: null };
       const r = await setPartLock(arcId, target.id, true, displayText, {
         seedParts: parts,
       });
-      if (r.kind === "undecided") return "blocked";
+      if (r.kind === "undecided") {
+        return { outcome: "blocked", rootPhraseProposal: null };
+      }
       if (r.kind === "stale") {
         setRefetchNonce((n) => n + 1);
-        return "failed";
+        return { outcome: "failed", rootPhraseProposal: null };
       }
-      if (r.kind === "error") return "failed";
+      if (r.kind === "error") {
+        return { outcome: "failed", rootPhraseProposal: null };
+      }
       partsRef.current = (partsRef.current ?? []).map((p) =>
         p.id === target.id ? { ...p, locked: true } : p
       );
       // Refetch so the layer filter sees the lock — open offers on this
       // paragraph stop being served, which the student just asked for.
       setRefetchNonce((n) => n + 1);
-      return "ok";
+      return { outcome: "ok", rootPhraseProposal: r.rootPhraseProposal };
     },
     [arcId, displayText]
   );
@@ -484,15 +489,9 @@ export default function IdealTextOverlay({
       // reconcile against what we hold, which keeps the id of every paragraph
       // the student did not touch. Re-minting them all would discard the locks
       // PR 3 will hang on those ids, on paragraphs that never changed.
-      // AUTO-LOCK ("typed = committed"): every part this edit touched is
-      // sent locked, judged against the last served baseline — a pure move
-      // stays unlocked (arrangement is not authorship). The BE pins locked
-      // paragraphs across takes from here on, which is what retired the
-      // superseded-edit card.
-      const parts = autoLockTouched(
-        reconcileParts(next, nextParts ?? partsRef.current ?? []),
-        partsRef.current
-      );
+      // Editing and committing are separate decisions. A typed paragraph is
+      // saved here but stays evolvable until the explicit post-feedback lock.
+      const parts = reconcileParts(next, nextParts ?? partsRef.current ?? []);
       partsRef.current = parts;
       const before = ideal?.text ?? "";
       setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
@@ -551,15 +550,14 @@ export default function IdealTextOverlay({
     [arcId, ideal?.text, refreshVariants]
   );
 
-  // THE DECK's lock (slice 1a): commit the modal's draft when it changed —
-  // the save lane's auto-lock ("typed = committed") locks the touched part in
-  // the same PUT — else the plain part-lock with seeding. One identity, both
-  // paths; the deck cannot fork the contract.
+  // THE DECK's lock: save the modal draft first when it changed, then call the
+  // explicit paragraph-lock endpoint. Editing and committing are deliberately
+  // separate transitions; both retain the same Paragraph identity.
   const deckLockPart = useCallback(
     async (
       chunk: DeckChunk,
       newText: string
-    ): Promise<"ok" | "blocked" | "failed"> => {
+    ): Promise<LockResult> => {
       // BY POSITION + WORDS, never by part id. The deck derives identity from
       // the SERVED parts and this host from whatever it last held; when the
       // backend has none stored — every document never manually edited — the
@@ -572,14 +570,96 @@ export default function IdealTextOverlay({
       if (trimmed && trimmed !== chunk.part.text.trim()) {
         const parts = reconcileParts(displayText, partsRef.current ?? []);
         partsRef.current = parts;
-        if (at < 0 || at >= parts.length) return "failed";
+        if (at < 0 || at >= parts.length) {
+          return { outcome: "failed", rootPhraseProposal: null };
+        }
         const next = updatePart(parts, at, trimmed);
-        const ok = await saveDocument(partsToText(next), next);
-        return ok ? "ok" : "failed";
+        const nextText = partsToText(next);
+        const ok = await saveDocument(nextText, next);
+        if (!ok) return { outcome: "failed", rootPhraseProposal: null };
+        const target = next[at];
+        const result = await setPartLock(arcId, target.id, true, nextText, {
+          seedParts: next,
+        });
+        if (result.kind === "undecided") {
+          return { outcome: "blocked", rootPhraseProposal: null };
+        }
+        if (result.kind !== "ok") {
+          if (result.kind === "stale") setRefetchNonce((n) => n + 1);
+          return { outcome: "failed", rootPhraseProposal: null };
+        }
+        partsRef.current = next.map((part) =>
+          part.id === target.id ? { ...part, locked: true } : part
+        );
+        setRefetchNonce((n) => n + 1);
+        return {
+          outcome: "ok",
+          rootPhraseProposal: result.rootPhraseProposal,
+        };
       }
       return lockParagraph(at, chunk.part.text);
     },
-    [displayText, saveDocument, lockParagraph]
+    [arcId, displayText, saveDocument, lockParagraph]
+  );
+
+  const deckKeepEvolving = useCallback(
+    async (chunk: DeckChunk, newText: string): Promise<"ok" | "blocked" | "failed"> => {
+      const at = chunk.paragraphIndex;
+      let next = reconcileParts(displayText, partsRef.current ?? []);
+      if (at < 0 || at >= next.length) return "failed";
+      const trimmed = newText.trim();
+      if (!trimmed) return "failed";
+      if (trimmed !== next[at].text.trim()) {
+        next = updatePart(next, at, trimmed);
+        if (!(await saveDocument(partsToText(next), next))) return "failed";
+      }
+      const textEcho = partsToText(next);
+      const target = next[at];
+      const result = await setPartLock(arcId, target.id, false, textEcho, {
+        reason: "keep_evolving",
+      });
+      if (result.kind !== "ok") {
+        if (result.kind === "stale") setRefetchNonce((n) => n + 1);
+        return "failed";
+      }
+      partsRef.current = next.map((part) =>
+        part.id === target.id
+          ? {
+              ...part,
+              locked: false,
+              rootPhrase: null,
+              rootStart: null,
+              rootEnd: null,
+            }
+          : part
+      );
+      setRefetchNonce((n) => n + 1);
+      return "ok";
+    },
+    [arcId, displayText, saveDocument],
+  );
+
+  const deckSetRootPhrase = useCallback(
+    async (chunk: DeckChunk, phrase: RootPhraseSpan | null): Promise<boolean> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      const target = parts[chunk.paragraphIndex];
+      if (!target) return false;
+      const ok = await setPartRootPhrase(arcId, target.id, displayText, phrase);
+      if (!ok) return false;
+      partsRef.current = parts.map((part) =>
+        part.id === target.id
+          ? {
+              ...part,
+              rootPhrase: phrase?.text ?? null,
+              rootStart: phrase?.start ?? null,
+              rootEnd: phrase?.end ?? null,
+            }
+          : part
+      );
+      setRefetchNonce((n) => n + 1);
+      return true;
+    },
+    [arcId, displayText],
   );
 
   const deckEditSlide = useCallback(
@@ -723,9 +803,8 @@ export default function IdealTextOverlay({
     return true;
   };
 
-  // THE STYLE LANE (slice 2): apply a post-lock emphasis. `styleLane` keeps
-  // its decision provenance distinct, while the Manager has already counted
-  // it inside the whole-Take ≤3. The fold bakes server-side; refetch brings it in.
+  // Legacy post-lock emphasis rows remain reversible for already-created
+  // records. New root styling uses the explicit exact-span root endpoint.
   const applyStyle = async (s: DocumentSuggestion): Promise<boolean> => {
     if (!s.snippetId || !s.takeSessionId) return false;
     const r = await sendSuggestionFeedback({
@@ -870,6 +949,8 @@ export default function IdealTextOverlay({
             onUndoAccept={undoTracked}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
+            onKeepEvolving={deckKeepEvolving}
+            onSetRootPhrase={deckSetRootPhrase}
             onEditSlide={deckEditSlide}
             onUnlockPart={unlockParagraph}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({

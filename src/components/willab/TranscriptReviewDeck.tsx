@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
   type LockOutcome,
+  type LockResult,
 } from "@/components/willab/DeckChunkModal";
+import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
@@ -78,6 +80,8 @@ export default function TranscriptReviewDeck({
   onUndoAccept,
   onKeepMine,
   onLockPart,
+  onKeepEvolving,
+  onSetRootPhrase,
   onEditSlide,
   onUnlockPart = null,
   onClose,
@@ -118,7 +122,12 @@ export default function TranscriptReviewDeck({
    *  ever match. That mismatch is what made every lock fail with
    *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
    *  the lock endpoint verifies anyway. */
-  onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
+  onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockResult>;
+  onKeepEvolving: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
+  onSetRootPhrase: (
+    chunk: DeckChunk,
+    phrase: RootPhraseSpan | null,
+  ) => Promise<boolean>;
   /** Save only the current slide's changed paragraphs in one atomic document
    *  edit; all other slides remain byte-for-byte unchanged. */
   onEditSlide: (
@@ -129,9 +138,7 @@ export default function TranscriptReviewDeck({
    *  host without the capability shows no button rather than a dead one. */
   onUnlockPart?: ((chunk: DeckChunk) => Promise<LockOutcome>) | null;
   onClose?: () => void;
-  /** THE STYLE LANE (slice 2) — post-lock bold proposals. They count inside
-   *  the same whole-Take ≤3; modal-only, so the page never re-marks locked
-   *  text. */
+  /** Legacy post-lock bold proposals, retained for already-created records. */
   styleChanges?: readonly DocumentSuggestion[] | null;
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
   /** PROPOSAL HISTORY (slice 2) — decided proposals, texts included. */
@@ -638,7 +645,7 @@ export default function TranscriptReviewDeck({
                       <DeckLockMark
                         status={c.status}
                         pendingCount={c.pendingIds.length}
-                        flagship={parseRichSpans(c.part.text).some(
+                        flagship={Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
                         onClick={() => setOpenPartId(c.part.id)}
@@ -767,17 +774,19 @@ export default function TranscriptReviewDeck({
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
           onKeepMine={onKeepMine}
-          onLockIn={async (text: string): Promise<LockOutcome> => {
-            const outcome = await onLockPart(openChunk, text);
-            if (outcome === "ok") {
+          onLockIn={async (text: string): Promise<LockResult> => {
+            const result = await onLockPart(openChunk, text);
+            if (result.outcome === "ok") {
               // §11.7.1: the page shows the lock the instant the server
               // confirms it — the modal closes itself on "ok".
               setOptimisticLocked((prev) =>
                 new Set(prev).add(openChunk.part.id)
               );
             }
-            return outcome;
+            return result;
           }}
+          onKeepEvolving={(text) => onKeepEvolving(openChunk, text)}
+          onSetRootPhrase={(phrase) => onSetRootPhrase(openChunk, phrase)}
           onUnlockPart={
             onUnlockPart
               ? async (): Promise<LockOutcome> => {
