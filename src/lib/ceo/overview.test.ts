@@ -102,6 +102,8 @@ describe("CEO artifact drafts", () => {
     expect("edges" in draft && draft.edges).toHaveLength(2);
     expect("nodes" in draft && draft.rows).toHaveLength(1);
     expect("nodes" in draft && draft.columns).toHaveLength(3);
+    expect("nodes" in draft && draft.columns.map((column) => column.label))
+      .toEqual(["Column 1", "Column 2", "Column 3"]);
   });
 
   it("rebuilds the ML path when stages change", () => {
@@ -141,7 +143,10 @@ describe("CEO artifact drafts", () => {
   it("preserves a sparse saved ML grid", () => {
     const draft = artifactDraft("ml", {
       rows: [{ id: "training" }, { id: "research" }],
-      columns: [{ id: "capture" }, { id: "application" }],
+      columns: [
+        { id: "capture", label: "Evidence" },
+        { id: "application", label: "Destination" },
+      ],
       nodes: [{
         id: "audio",
         row_id: "training",
@@ -155,7 +160,8 @@ describe("CEO artifact drafts", () => {
 
     expect(draft.rows).toEqual([{ id: "training" }, { id: "research" }]);
     expect(draft.columns).toEqual([
-      { id: "capture" }, { id: "application" },
+      { id: "capture", label: "Evidence" },
+      { id: "application", label: "Destination" },
     ]);
     expect(draft.nodes[0]).toMatchObject({
       row_id: "training",
@@ -166,7 +172,10 @@ describe("CEO artifact drafts", () => {
 
   it("builds ML edges within each row without joining separate lanes", () => {
     const rows = [{ id: "row-a" }, { id: "row-b" }];
-    const columns = [{ id: "col-a" }, { id: "col-b" }];
+    const columns = [
+      { id: "col-a", label: "Input" },
+      { id: "col-b", label: "Output" },
+    ];
     const nodes = [
       {
         id: "a1", row_id: "row-a", column_id: "col-a",

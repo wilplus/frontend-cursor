@@ -34,6 +34,7 @@ export interface CeoMlLayoutRow {
 
 export interface CeoMlLayoutColumn {
   id: string;
+  label: string;
 }
 
 export interface CeoMlEdge {
@@ -169,6 +170,23 @@ function mlAxes(value: unknown): { id: string }[] {
     });
 }
 
+function mlColumns(value: unknown): CeoMlLayoutColumn[] {
+  const seen = new Set<string>();
+  const saved = rows(value)
+    .map((axis, index) => ({
+      id: id(axis.id),
+      label: text(axis.label) || `Column ${index + 1}`,
+    }))
+    .filter((axis) => {
+      if (seen.has(axis.id)) return false;
+      seen.add(axis.id);
+      return true;
+    });
+  return saved.length
+    ? saved
+    : [{ id: newCeoRowId(), label: "Column 1" }];
+}
+
 function legacyMlGrid(value: unknown): Pick<
   CeoMlContent,
   "rows" | "columns" | "nodes"
@@ -186,7 +204,10 @@ function legacyMlGrid(value: unknown): Pick<
         detail: "",
       }));
   const row = { id: newCeoRowId() };
-  const columns = source.map(() => ({ id: newCeoRowId() }));
+  const columns = source.map((_node, index) => ({
+    id: newCeoRowId(),
+    label: `Column ${index + 1}`,
+  }));
   return {
     rows: [row],
     columns,
@@ -203,9 +224,9 @@ function savedMlGrid(content: Record<string, unknown>): Pick<
   "rows" | "columns" | "nodes"
 > {
   const savedRows = mlAxes(content.rows);
-  const savedColumns = mlAxes(content.columns);
+  const savedColumns = mlColumns(content.columns);
   const layoutRows = savedRows.length ? savedRows : [{ id: newCeoRowId() }];
-  const columns = savedColumns.length ? savedColumns : [{ id: newCeoRowId() }];
+  const columns = savedColumns;
   const rowIds = new Set(layoutRows.map((row) => row.id));
   const columnIds = new Set(columns.map((column) => column.id));
   const occupied = new Set<string>();
@@ -375,7 +396,7 @@ export function appendMlRow(content: CeoMlContent): CeoMlContent {
 }
 
 export function appendMlColumn(content: CeoMlContent): CeoMlContent {
-  const column = { id: newCeoRowId() };
+  const column = { id: newCeoRowId(), label: "New column" };
   const firstRow = content.rows[0];
   return withMlEdges({
     ...content,
