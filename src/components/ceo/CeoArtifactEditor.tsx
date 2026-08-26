@@ -479,7 +479,6 @@ function MlEditor({
                                   : item
                               ))}
                               aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1} stage detail`}
-                              placeholder="Data, training, transformation…"
                               rows={3}
                               className="mt-2 w-full resize-none bg-transparent text-xs text-muted-foreground outline-none"
                             />
