@@ -25,13 +25,21 @@ describe("CEO hostname routing", () => {
     });
   });
 
-  it("allows only the CEO and the authentication paths it needs", () => {
+  it("allows only the CEO tools and the authentication paths they need", () => {
     expect(decide(CEO_CANONICAL_HOST, "/login").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/api/v2/admin/whoami").action).toBe(
       "allow"
     );
     expect(
       decide(CEO_CANONICAL_HOST, "/api/v2/admin/ceo/bootstrap").action
+    ).toBe("allow");
+    expect(decide(CEO_CANONICAL_HOST, "/admin/users").action).toBe("allow");
+    expect(decide(CEO_CANONICAL_HOST, "/admin/tokens").action).toBe("allow");
+    expect(decide(CEO_CANONICAL_HOST, "/api/v2/admin/users").action).toBe(
+      "allow"
+    );
+    expect(
+      decide(CEO_CANONICAL_HOST, "/api/v2/admin/tokens/lookup").action
     ).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/dashboard").action).toBe(
       "redirect-to-ceo"
@@ -45,8 +53,20 @@ describe("CEO hostname routing", () => {
     expect(decide("www.willpowerlab.com", "/admin/ceo").action).toBe(
       "redirect-to-ceo-host"
     );
+    expect(decide("www.willpowerlab.com", "/admin/users").action).toBe(
+      "redirect-to-ceo-host"
+    );
+    expect(decide("www.willpowerlab.com", "/admin/tokens").action).toBe(
+      "redirect-to-ceo-host"
+    );
     expect(
       decide("willpowerlab.com", "/api/v2/admin/ceo/bootstrap").action
+    ).toBe("not-found");
+    expect(
+      decide("willpowerlab.com", "/api/v2/admin/users").action
+    ).toBe("not-found");
+    expect(
+      decide("willpowerlab.com", "/api/v2/admin/tokens/grant").action
     ).toBe("not-found");
   });
 

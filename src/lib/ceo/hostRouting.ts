@@ -1,6 +1,13 @@
 export const CEO_CANONICAL_HOST = "dev.willpowerlab.com";
 export const CEO_ROOT_PATH = "/admin/ceo";
 
+const CEO_SURFACE_PATHS = [CEO_ROOT_PATH, "/admin/users", "/admin/tokens"];
+const CEO_API_PATHS = [
+  "/api/v2/admin/ceo",
+  "/api/v2/admin/users",
+  "/api/v2/admin/tokens",
+];
+
 export type CeoHostRouteAction =
   | "allow"
   | "redirect-to-ceo"
@@ -47,8 +54,10 @@ function isLocalHostname(hostname: string): boolean {
 }
 
 function isAllowedOnCeoHost(pathname: string): boolean {
-  if (isPathOrChild(pathname, CEO_ROOT_PATH)) return true;
-  if (isPathOrChild(pathname, "/api/v2/admin/ceo")) return true;
+  if (CEO_SURFACE_PATHS.some((path) => isPathOrChild(pathname, path))) {
+    return true;
+  }
+  if (CEO_API_PATHS.some((path) => isPathOrChild(pathname, path))) return true;
   if (pathname === "/api/v2/admin/whoami") return true;
   if (isPathOrChild(pathname, "/api/auth")) return true;
   if (isPathOrChild(pathname, "/auth")) return true;
@@ -98,10 +107,10 @@ export function decideCeoHostRoute({
     return { action: "redirect-to-ceo", isCeoHost: true };
   }
 
-  if (isPathOrChild(pathname, CEO_ROOT_PATH)) {
+  if (CEO_SURFACE_PATHS.some((path) => isPathOrChild(pathname, path))) {
     return { action: "redirect-to-ceo-host", isCeoHost: false };
   }
-  if (isPathOrChild(pathname, "/api/v2/admin/ceo")) {
+  if (CEO_API_PATHS.some((path) => isPathOrChild(pathname, path))) {
     return { action: "not-found", isCeoHost: false };
   }
 
