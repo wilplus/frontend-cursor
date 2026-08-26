@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildRatingBody,
+  CONFIDENCE_RATING_VALUES,
   CONFIDENCE_STATE_ID,
-  TERNARY_VALUES,
 } from "@/services/api/stateRatings";
 
 /* -------------------------------------------------------------------------- */
@@ -27,7 +27,18 @@ const SRC = join(fileURLToPath(new URL("../../", import.meta.url)));
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 
 const CARD = join("components", "willab", "CoachSnippetReviewCard.tsx");
-const READOUT = join("components", "willab", "SnippetReadoutBlock.tsx");
+const READOUT = join(
+  "components",
+  "willab",
+  "ConfidenceEvidenceReadout.tsx",
+);
+const INSTRUMENT = join("components", "willab", "ConfidenceLabelChips.tsx");
+const STAR_REVIEW = join(
+  "components",
+  "willab",
+  "CoachStarVerdictOverlay.tsx",
+);
+const CORPUS = join("app", "coach", "corpus", "page.client.tsx");
 
 /** Strip block + line comments so a comment EXPLAINING the fence never trips
  *  it. (Learned the hard way twice on the backend side of this batch.) */
@@ -69,7 +80,7 @@ describe("the blind labeling surface shows no machine read", () => {
     expect(gateStart).toBeGreaterThan(-1);
     expect(fullPassStart).toBeGreaterThan(gateStart);
     const blindPass = src.slice(gateStart, fullPassStart);
-    expect(blindPass).toContain("SnippetReadoutBlock");
+    expect(blindPass).toContain("ConfidenceEvidenceReadout");
     expect(blindPass).toContain("blindInstrument");
     for (const contextual of [
       "SlideRender",
@@ -80,6 +91,33 @@ describe("the blind labeling surface shows no machine read", () => {
     ]) {
       expect(blindPass).not.toContain(contextual);
     }
+  });
+
+  it("withholds exact words until the server confirms the answer", () => {
+    const card = code(CARD);
+    const blindStart = card.indexOf("if (!contextUnlocked)");
+    const blindEnd = card.indexOf("const rated =", blindStart);
+    const blindPass = card.slice(blindStart, blindEnd);
+    expect(blindPass).toContain("transcript={revealedTranscript}");
+    expect(blindPass).not.toContain("transcript={snippet.transcript}");
+    expect(card).toContain("setRevealedTranscript(result.transcript");
+
+    const readout = code(READOUT);
+    expect(readout).toContain("transcriptRevealed && transcript");
+  });
+
+  it("uses the same saved-answer transcript gate in the corpus", () => {
+    const corpus = code(CORPUS);
+    expect(corpus).toContain("<ConfidenceEvidenceReadout");
+    expect(corpus).toContain("transcriptRevealed={piece.label !== null}");
+    expect(corpus).not.toContain("{piece.transcript}</p>");
+  });
+
+  it("uses the same shared evidence readout in the combined review", () => {
+    const review = code(STAR_REVIEW);
+    expect(review).toContain("<ConfidenceEvidenceReadout");
+    expect(review).toContain("transcriptRevealed={row.label !== null}");
+    expect(review).toContain("transcript: r.transcript ?? x.transcript");
   });
 });
 
@@ -137,22 +175,22 @@ describe("buildRatingBody refuses to fabricate a label", () => {
   });
 
   it("accepts every value in the fixed answer space", () => {
-    for (const v of TERNARY_VALUES) {
+    for (const v of CONFIDENCE_RATING_VALUES) {
       expect(buildRatingBody(v, false)).toMatchObject({ value: v });
     }
   });
 
-  it("an abstention carries NO value", () => {
-    // The backend rejects a body with both; more importantly, `unrateable` is
-    // a judgment about the RATER and `neutral` one about the MOMENT. Folding
-    // them together books bad audio as a real middling rating.
-    const body = buildRatingBody(null, true);
-    expect(body).toEqual({ state_id: CONFIDENCE_STATE_ID, unrateable: true });
-    expect(body).not.toHaveProperty("value");
+  it("an unclear-audio response is explicit and distinct", () => {
+    expect(buildRatingBody(null, true)).toEqual({
+      state_id: CONFIDENCE_STATE_ID,
+      value: "audio_unclear",
+    });
   });
 
   it("an abstention drops any value handed to it", () => {
-    expect(buildRatingBody("yes", true)).not.toHaveProperty("value");
+    expect(buildRatingBody("yes", true)).toMatchObject({
+      value: "audio_unclear",
+    });
   });
 
   it("no answer and no abstention is UNBUILDABLE", () => {
@@ -172,6 +210,27 @@ describe("buildRatingBody refuses to fabricate a label", () => {
     expect(
       buildRatingBody("no", false, CONFIDENCE_STATE_ID, " clipped "),
     ).toMatchObject({ note: "clipped" });
+  });
+});
+
+describe("the five-state instrument preserves its UX hierarchy", () => {
+  it("keeps the three perceptual positions primary", () => {
+    expect(code(INSTRUMENT)).toContain('{ value: "yes", label: "Yes"');
+    expect(code(INSTRUMENT)).toContain(
+      '{ value: "in_between", label: "In-between"',
+    );
+    expect(code(INSTRUMENT)).toContain('{ value: "no", label: "No"');
+    expect(code(INSTRUMENT)).toContain("grid-cols-3");
+  });
+
+  it("keeps uncertainty and technical failure secondary but distinct", () => {
+    expect(code(INSTRUMENT)).toContain(
+      '{ value: "not_sure", label: "Not sure"',
+    );
+    expect(code(INSTRUMENT)).toContain(
+      '{ value: "audio_unclear", label: "Audio unclear"',
+    );
+    expect(code(INSTRUMENT)).toContain("Other");
   });
 });
 

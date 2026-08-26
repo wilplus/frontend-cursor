@@ -19,14 +19,14 @@ import { describe, expect, it } from "vitest";
 
 const SRC = join(fileURLToPath(new URL("../../", import.meta.url)));
 
-/** The blind labeling flow: the labeler card, its host overlay, the readout
- *  block inside the card, and the fetch hook. (Shared primitives like
+/** The blind labeling flow: the labeler card, its host overlay, and the fetch
+ *  hook. The confidence evidence readout is a shared, context-free primitive
+ *  with its own invariant tests. (Shared primitives like
  *  OverlayCloseButton / useBackDismiss are NOT the flow — both sides may use
  *  them freely.) */
 const LABELER_FILES = [
   join("components", "willab", "CoachSnippetReviewCard.tsx"),
   join("components", "willab", "CoachReviewOverlay.tsx"),
-  join("components", "willab", "SnippetReadoutBlock.tsx"),
   join("components", "willab", "useCoachReview.ts"),
 ];
 

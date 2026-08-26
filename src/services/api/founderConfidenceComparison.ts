@@ -1,4 +1,10 @@
-export type ConfidenceComparisonValue = "yes" | "no" | "neutral";
+export type ConfidenceComparisonValue =
+  | "yes"
+  | "in_between"
+  | "no"
+  | "not_sure"
+  | "audio_unclear"
+  | "neutral";
 
 export interface FounderComparisonRow {
   snippetId: string;
@@ -24,7 +30,14 @@ export interface FounderConfidenceComparison {
 }
 
 function value(raw: unknown): ConfidenceComparisonValue | null {
-  return raw === "yes" || raw === "no" || raw === "neutral" ? raw : null;
+  return raw === "yes" ||
+    raw === "in_between" ||
+    raw === "no" ||
+    raw === "not_sure" ||
+    raw === "audio_unclear" ||
+    raw === "neutral"
+    ? raw
+    : null;
 }
 
 function count(raw: unknown): number {

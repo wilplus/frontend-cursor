@@ -12,8 +12,10 @@ import {
 
 function label(value: ConfidenceComparisonValue | null): string {
   if (value === "yes") return "Confident";
+  if (value === "in_between") return "In-between";
   if (value === "no") return "Not confident";
-  if (value === "neutral") return "Ambiguous";
+  if (value === "not_sure" || value === "neutral") return "Not sure";
+  if (value === "audio_unclear") return "Audio unclear";
   return "No stored read";
 }
 

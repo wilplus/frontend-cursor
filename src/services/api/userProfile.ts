@@ -4,8 +4,9 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /*  userProfile — the willab one-time profile client (§2 / ① + §F.0)           */
 /*                                                                            */
 /*   GET  /api/v2/user/profile → { domain, goal, domain_vocabulary_default,    */
-/*                                  is_coach, sex }                             */
-/*   POST /api/v2/user/profile   body { domain?, goal?, sex? }                 */
+/*                                  is_coach, sex, proficient_languages }       */
+/*   POST /api/v2/user/profile   body { domain?, goal?, sex?,                  */
+/*                                      proficient_languages? }                */
 /*                                                                            */
 /*  Write is POST (not PUT) per the BE contract. `domain` is typed `string`    */
 /*  here (transport stays decoupled from the component enum) — the BE          */
@@ -41,6 +42,7 @@ import { getAuthToken } from "@/lib/api/auth-client";
 export type ProfileSex = "female" | "male" | "prefer_not_to_say";
 
 const SEX_VALUES: readonly string[] = ["female", "male", "prefer_not_to_say"];
+const ISO_LANGUAGE = /^[a-z]{2}$/;
 
 export interface UserProfile {
   domain: string | null;
@@ -57,6 +59,10 @@ export interface UserProfile {
    *                        "never asked": asking now would post into a field
    *                        that cannot store it, so we stay quiet instead. */
   sex: ProfileSex | null | undefined;
+  /** Explicit languages this person can use to judge vocal confidence.
+   *  This is queue routing only; it is never a label or a model feature.
+   *  null = supported but not configured; undefined = old backend contract. */
+  proficient_languages: string[] | null | undefined;
 }
 
 export interface UserProfileDraft {
@@ -65,6 +71,9 @@ export interface UserProfileDraft {
   /** Omit to leave untouched. Pass an explicit `null` to clear it back to
    *  never-asked. Anything outside the union is a 422 at the BE. */
   sex?: ProfileSex | null;
+  /** Omit to leave untouched. At least one ISO-639-1 code is required when
+   *  present; the backend independently validates the same contract. */
+  proficient_languages?: string[];
 }
 
 /**
@@ -86,6 +95,11 @@ export interface UserProfileDraft {
  */
 export function shouldAskSex(profile: UserProfile | null): boolean {
   return profile !== null && profile.sex === null;
+}
+
+/** Coaches must configure this once before receiving blind audio. */
+export function shouldAskRaterLanguages(profile: UserProfile | null): boolean {
+  return profile?.is_coach === true && profile.proficient_languages === null;
 }
 
 const ENDPOINT = "/api/v2/user/profile";
@@ -133,6 +147,16 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       ? undefined
       : SEX_VALUES.includes(data.sex as string)
         ? (data.sex as ProfileSex)
+        : null,
+    proficient_languages: !("proficient_languages" in data)
+      ? undefined
+      : Array.isArray(data.proficient_languages)
+        ? Array.from(new Set(
+            data.proficient_languages
+              .filter((value): value is string => typeof value === "string")
+              .map((value) => value.trim().toLowerCase())
+              .filter((value) => ISO_LANGUAGE.test(value))
+          )).sort()
         : null,
   };
 }

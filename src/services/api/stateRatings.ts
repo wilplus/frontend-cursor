@@ -1,22 +1,15 @@
 /* -------------------------------------------------------------------------- */
-/*  stateRatings — the state-generic ternary instrument (SPEC v3 §3.2, §6).    */
+/*  stateRatings — the state-generic confidence instrument (SPEC v3 §3.2).    */
 /*                                                                            */
 /*  ONE instrument for every measured cognitive state: a single clip, a single */
-/*  question, three answers — yes / no / neutral — plus a SEPARATE             */
-/*  `unrateable` control that is not an answer.                               */
+/*  question and five explicit responses. yes / in_between / no are the       */
+/*  perceptual positions; not_sure and audio_unclear preserve why a rater     */
+/*  did not make one of those three judgments.                                */
 /*                                                                            */
-/*  WHY `unrateable` IS NOT A FOURTH VALUE (mirrors services/state_ratings.py, */
-/*  which is the source of truth for this contract):                          */
-/*    `neutral` is a judgment about the MOMENT — it reads as middling.        */
-/*    `unrateable` is a judgment about the RATER's ability to make one,        */
-/*    usually because the audio is unclear. Folding the second into the first  */
-/*    books bad audio as a real middling rating and poisons the one class that */
-/*    defines the decision boundary. Kept apart, the ternary stays clean and   */
-/*    abstention rate survives as a rater-quality signal.                      */
-/*                                                                            */
-/*  This is why the UI puts "Ambiguous" among the primary chips and            */
-/*  "Unrateable" below them as a secondary control — the shapes differ because */
-/*  the quantities differ.                                                     */
+/*  VERSION 2 removes the old overloaded `neutral`: `in_between` is a real    */
+/*  perceptual middle, `not_sure` is rater uncertainty, and `audio_unclear`   */
+/*  is a technical failure. Historical neutral/unrateable rows remain readable */
+/*  but new writes always carry one of the five explicit values.              */
 /*                                                                            */
 /*  BLIND (I1). The backend stamps `saw_model_output: false` on every row it   */
 /*  writes here, so a surface that shows the machine's read while collecting a */
@@ -34,24 +27,28 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /** The fixed answer space. Never varies by state — the QUESTION carries the
  *  state. Per-state answer labels would make raters' behaviour incomparable
  *  across states, a wording effect masquerading as a reliability difference. */
-export const TERNARY_VALUES = ["yes", "no", "neutral"] as const;
-export type TernaryValue = (typeof TERNARY_VALUES)[number];
+export const CONFIDENCE_RATING_VALUES = [
+  "yes",
+  "in_between",
+  "no",
+  "not_sure",
+  "audio_unclear",
+] as const;
+export type ConfidenceRatingValue =
+  (typeof CONFIDENCE_RATING_VALUES)[number];
 
 /** The only state with a written operational definition today (§1.4). A state
  *  with no definition cannot ship — the backend refuses it by name. */
 export const CONFIDENCE_STATE_ID = "confidence";
 
 /** The question text for `confidence`, mirroring services/state_ratings.py's
- *  `conf-q-v1`. Rendered above the chips so "Yes" means something: without the
+ *  `conf-q-v2`. Rendered above the controls so "Yes" means something: without the
  *  question on screen the answer space is unanchored. */
 export const CONFIDENCE_QUESTION = "Does the speaker sound confident here?";
 
 export interface StateRatingBody {
   state_id: string;
-  /** Omitted entirely when `unrateable` is true — the backend rejects a body
-   *  carrying both, and that rejection is the contract, not a formality. */
-  value?: TernaryValue;
-  unrateable?: boolean;
+  value: ConfidenceRatingValue;
   note?: string;
   /** True only when the row came from the server's mandatory second-listen
    * queue. It is workflow provenance, never a rating value. */
@@ -63,25 +60,26 @@ export interface StateRatingBody {
  *  The null return is the point: a body that would fabricate a label the coach
  *  never gave must be impossible to CONSTRUCT, not merely rejected later. */
 export function buildRatingBody(
-  value: TernaryValue | null,
-  unrateable: boolean,
+  value: ConfidenceRatingValue | null,
+  legacyUnrateable = false,
   stateId: string = CONFIDENCE_STATE_ID,
   note?: string | null
 ): StateRatingBody | null {
-  const body: StateRatingBody = { state_id: stateId };
-  if (unrateable) {
-    // Abstention. `value` is deliberately NOT sent — see the header.
-    body.unrateable = true;
-  } else {
-    if (value === null || !TERNARY_VALUES.includes(value)) return null;
-    body.value = value;
-  }
+  const resolved = legacyUnrateable ? "audio_unclear" : value;
+  if (
+    resolved === null ||
+    !CONFIDENCE_RATING_VALUES.includes(resolved)
+  )
+    return null;
+  const body: StateRatingBody = { state_id: stateId, value: resolved };
   const trimmed = note?.trim() ?? "";
   if (trimmed) body.note = trimmed;
   return body;
 }
 
-export type SaveRatingResult = { ok: true } | { ok: false; error: string | null };
+export type SaveRatingResult =
+  | { ok: true; transcript?: string }
+  | { ok: false; error: string | null };
 
 /** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
  *
@@ -152,11 +150,18 @@ export async function saveStateRating(
   } catch {
     return { ok: false, error: null };
   }
-  if (res.ok) return { ok: true };
   const data = (await res.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
+  if (res.ok) {
+    return {
+      ok: true,
+      ...(typeof data?.transcript === "string"
+        ? { transcript: data.transcript }
+        : {}),
+    };
+  }
   const err = data?.error;
   return { ok: false, error: typeof err === "string" && err ? err : null };
 }

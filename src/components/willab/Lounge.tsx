@@ -44,6 +44,7 @@ import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
+import RaterLanguageGate from "./RaterLanguageGate";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import {
   clearExploreArc,
@@ -1345,14 +1346,16 @@ export default function Lounge({
         />
       )}
       {reviewSessionId && (
-        <CoachReviewOverlay
-          sessionId={reviewSessionId}
-          onClose={closeReview}
-          onPublished={reviewQueue.markDone}
-          // The wrap-up cue opens the ideal-text panel (mounted last, so it
-          // paints above this review; LIFO back-dismiss returns here).
-          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-        />
+        <RaterLanguageGate onClose={closeReview}>
+          <CoachReviewOverlay
+            sessionId={reviewSessionId}
+            onClose={closeReview}
+            onPublished={reviewQueue.markDone}
+            // The wrap-up cue opens the ideal-text panel (mounted last, so it
+            // paints above this review; LIFO back-dismiss returns here).
+            onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          />
+        </RaterLanguageGate>
       )}
 
       {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
@@ -1402,16 +1405,18 @@ export default function Lounge({
           the LIFO back-dismiss top means Back returns to the detail. Never
           opened from the review overlay (N1 — that flow labels blind). */}
       {starVerdictArcId && (
-        <CoachStarVerdictOverlay
-          arcId={starVerdictArcId.arcId}
-          sessionIds={starVerdictArcId.sessionIds}
-          // Final migration (founder 2026-08-10): the panel's per-take rows
-          // open the take review from HERE — the Lounge, the one hub allowed
-          // to know both flows, wires the walker in as a prop so the panel
-          // imports nothing from the blind-labeling lane (N1).
-          onOpenTakeReview={openReview}
-          onClose={() => setStarVerdictArcId(null)}
-        />
+        <RaterLanguageGate onClose={() => setStarVerdictArcId(null)}>
+          <CoachStarVerdictOverlay
+            arcId={starVerdictArcId.arcId}
+            sessionIds={starVerdictArcId.sessionIds}
+            // Final migration (founder 2026-08-10): the panel's per-take rows
+            // open the take review from HERE — the Lounge, the one hub allowed
+            // to know both flows, wires the walker in as a prop so the panel
+            // imports nothing from the blind-labeling lane (N1).
+            onOpenTakeReview={openReview}
+            onClose={() => setStarVerdictArcId(null)}
+          />
+        </RaterLanguageGate>
       )}
     </div>
   );

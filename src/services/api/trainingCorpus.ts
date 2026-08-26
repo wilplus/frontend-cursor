@@ -662,11 +662,16 @@ export async function fetchTrainingImports(
 
 /* ------------------------------ the queue --------------------------------- */
 
-/** The coach's own prior call on a piece — TERNARY since 2026-08-10 (the
- *  shipped instrument: yes / no / neutral, unrateable separate). */
+/** The coach's own prior call on a piece. New rows use the explicit v2
+ *  five-state instrument; unrateable remains read compatibility for v1. */
 export interface ConfidenceLabel {
-  /** The answer — null only when the rater abstained (unrateable). */
-  value: "yes" | "no" | "neutral" | null;
+  value:
+    | "yes"
+    | "in_between"
+    | "no"
+    | "not_sure"
+    | "audio_unclear"
+    | null;
   /** The rater couldn't judge (bad audio) — an abstention, not an answer. */
   unrateable: boolean;
   /** Legacy binary mirror (yes→true, no→false, neutral/abstained→null) —
@@ -718,14 +723,17 @@ function pickIntensity(v: unknown): number | null {
 function pickLabel(raw: unknown): ConfidenceLabel | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  // TERNARY FIRST (2026-08-10). A stored neutral row carries confident=NULL
-  // by design (the honest record — coercing it to false would fabricate a
-  // negative), and the old boolean-only read here rendered exactly those
-  // rows as UNLABELLED: the panel re-asked a question the coach had already
-  // answered. Legacy boolean rows still resolve through `confident`.
+  // V2 values are read without coercion. Legacy neutral (v1's IDK) maps to
+  // not_sure so the current UI can display it without calling it a middle.
   const value =
-    r.value === "yes" || r.value === "no" || r.value === "neutral"
+    r.value === "yes" ||
+    r.value === "in_between" ||
+    r.value === "no" ||
+    r.value === "not_sure" ||
+    r.value === "audio_unclear"
       ? r.value
+      : r.value === "neutral"
+        ? ("not_sure" as const)
       : typeof r.confident === "boolean"
         ? r.confident
           ? ("yes" as const)

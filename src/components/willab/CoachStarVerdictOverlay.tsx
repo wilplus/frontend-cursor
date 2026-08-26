@@ -48,9 +48,10 @@ import {
 import {
   buildRatingBody,
   saveStateRating,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
+import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachStarVerdictOverlay — FEEDBACKS REVIEW: the coach's one scrollable     */
@@ -260,7 +261,7 @@ export default function CoachStarVerdictOverlay({
   // through the same ternary write the snippet card uses.
   const labelVoice = (
     row: QueuePiece,
-    value: TernaryValue | null,
+    value: ConfidenceRatingValue | null,
     unrateable = false,
   ) => {
     if (cvSaving !== null) return;
@@ -294,6 +295,7 @@ export default function CoachStarVerdictOverlay({
                   intensity: null,
                   note: null,
                 },
+                transcript: r.transcript ?? x.transcript,
               }
             : x,
         ),
@@ -515,18 +517,13 @@ export default function CoachStarVerdictOverlay({
                   <CoachMetaPill tone="muted">
                     Piece {index + 1} of {cvRows.length}
                   </CoachMetaPill>
-                  {row.audioRef && row.durationMs > 0 ? (
-                    <MediaPlayer
-                      src={row.audioRef}
-                      startOffsetMs={row.startOffsetMs}
-                      durationMs={row.durationMs}
-                    />
-                  ) : null}
-                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-                    <p className="text-[15px] leading-relaxed text-foreground">
-                      {row.transcript}
-                    </p>
-                  </div>
+                  <ConfidenceEvidenceReadout
+                    audioRef={row.audioRef}
+                    startOffsetMs={row.startOffsetMs}
+                    durationMs={row.durationMs}
+                    transcript={row.transcript}
+                    transcriptRevealed={row.label !== null}
+                  />
                   <ConfidenceLabelChips
                     question="Was this voice confident?"
                     value={row.label?.value ?? null}
@@ -535,9 +532,6 @@ export default function CoachStarVerdictOverlay({
                     saving={cvSaving === row.snippetId}
                     error={cvErrors[row.snippetId] ?? null}
                     onPick={(value) => labelVoice(row, value)}
-                    onToggleUnrateable={() =>
-                      labelVoice(row, null, !(row.label?.unrateable === true))
-                    }
                   />
                 </CoachCard>
               ))
@@ -594,18 +588,13 @@ export default function CoachStarVerdictOverlay({
               </span>
               {cvRows.map((row) => (
                 <CoachCard key={row.snippetId}>
-                  {row.audioRef && row.durationMs > 0 ? (
-                    <MediaPlayer
-                      src={row.audioRef}
-                      startOffsetMs={row.startOffsetMs}
-                      durationMs={row.durationMs}
-                    />
-                  ) : null}
-                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-                    <p className="text-[15px] leading-relaxed text-foreground">
-                      {row.transcript}
-                    </p>
-                  </div>
+                  <ConfidenceEvidenceReadout
+                    audioRef={row.audioRef}
+                    startOffsetMs={row.startOffsetMs}
+                    durationMs={row.durationMs}
+                    transcript={row.transcript}
+                    transcriptRevealed
+                  />
                   {/* THE shared instrument (founder 2026-08-10): the same
                     component the snippet card and the game render — three
                     answers + the abstention, no per-surface drift. The
@@ -618,9 +607,6 @@ export default function CoachStarVerdictOverlay({
                     saving={cvSaving === row.snippetId}
                     error={cvErrors[row.snippetId] ?? null}
                     onPick={(v) => labelVoice(row, v)}
-                    onToggleUnrateable={() =>
-                      labelVoice(row, null, !(row.label?.unrateable === true))
-                    }
                   />
                 </CoachCard>
               ))}
