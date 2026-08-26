@@ -1,6 +1,6 @@
 "use client";
 
-import { LoadingPresentation } from "./LoadingState";
+import RecordingAnalysisPresentation from "./RecordingAnalysisPresentation";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -68,7 +68,7 @@ export default function ProcessingWait({
   const measuredPercent = progress?.percent;
 
   return (
-    <LoadingPresentation
+    <RecordingAnalysisPresentation
       label={PROCESSING_STAGES[current]}
       percent={
         typeof measuredPercent === "number" ? measuredPercent : null

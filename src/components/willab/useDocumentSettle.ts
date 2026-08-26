@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearProcessingTake,
+  markProcessingTakeFailed,
   markProcessingTakeIdealTextUnconfirmed,
   readProcessingTake,
   type ProcessingTake,
@@ -24,10 +25,10 @@ import { useUserId } from "./useUserId";
 /*  written by another tab, or transitioned mid-view, is seen within 500ms     */
 /*  without waiting for the next navigation.                                   */
 /*                                                                            */
-/*  While a Take 1/legacy marker is in its "document" phase, probes the served */
-/*  ideal text every second and clears it only on evidence the new text landed.*/
-/*  The bounded cap becomes the explicit unconfirmed terminal state. Later    */
-/*  takes never enter this phase because the locked L1 document cannot change. */
+/*  While any spoken Take is in its "document" phase, probes the served Ideal */
+/*  Text every second and clears it only on evidence the Take's review version */
+/*  landed. The cap is Take 1's explicit unconfirmed terminal state; a later  */
+/*  Take becomes an ordinary failed job rather than silently succeeding.       */
 /*  The "analysis" phase is NOT probed here: the readout watches (LabOverlay   */
 /*  live,                                                                        */
 /*  Lounge resume) own that phase and transition it to "document" at their     */
@@ -133,10 +134,17 @@ export function useDocumentSettle({
 
   const expire = useCallback(
     (take: ProcessingTake) => {
-      markProcessingTakeIdealTextUnconfirmed(userId, take.sessionId);
+      const takeOne = take.takeIndex === 1;
+      if (takeOne) {
+        markProcessingTakeIdealTextUnconfirmed(userId, take.sessionId);
+      } else {
+        markProcessingTakeFailed(userId, take.sessionId);
+      }
       const terminal = {
         ...take,
-        status: "failed_ideal_text_unconfirmed" as const,
+        status: takeOne
+          ? ("failed_ideal_text_unconfirmed" as const)
+          : ("failed" as const),
       };
       setMarker(terminal);
       firstProbeRef.current = null;

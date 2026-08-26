@@ -3,11 +3,12 @@
  *
  * The BE now accepts an upload with 202 and finishes `process_lab_recording`
  * in a background daemon, so the analysis SURVIVES a closed tab / locked
- * phone. This marker is written the moment a 202 lands. Take 1 success advances
- * into document assembly; later-take success clears into a per-session result
- * because L1 deliberately keeps the document unchanged. Failure preserves the
- * marker for manual retry against the same stored audio. A user who leaves
- * mid-analysis therefore returns to the real job instead of a swallowed take.
+ * phone. This marker is written the moment a 202 lands. Every spoken Take
+ * advances into document settlement: Take 1 proves document creation; later
+ * Takes prove their 2.0/3.0 review version while preserving the canonical
+ * words. Failure preserves the marker for manual retry against the same stored
+ * audio. A user who leaves mid-analysis therefore returns to the real job
+ * instead of a swallowed take.
  *
  * TWO PHASES (SPEC-lockin-loop §1, closing handoff §6.4 S3/S4). The readout
  * going terminal is NOT the text being ready: the arc-level ideal-text
@@ -18,9 +19,9 @@
  *
  *   "analysis"  — the take itself is processing (the readout watch owns
  *                 clearing/transitioning this);
- *   "document"  — Take 1 (or an older unknown marker) is done analysing and
- *                 its document is assembling; the settle probe owns clearing
- *                 it by observing the served Ideal Text.
+ *   "document"  — analysis is done and the Take's durable Ideal Text review
+ *                 version is settling; the probe owns clearing it only after
+ *                 observing that exact version.
  *
  * A marker with no phase is an "analysis" one written by an older tab.
  */
@@ -63,25 +64,6 @@ export interface ProcessingTake {
    *  reopening a presentation change only — the screen never jumps back to
    *  zero while the same job keeps running. */
   progress: ProcessingTakeProgress | null;
-}
-
-/** L1 document contract: Take 1 creates the canonical Ideal Text; later takes
- *  complete as feedback-only work and keep that document unchanged. This is
- *  the single routing predicate used by both the open Lab and Lounge resume
- *  paths, so neither can reintroduce a wait for an impossible version bump. */
-export function processingTakeKeepsIdealText(
-  take: Pick<ProcessingTake, "arcId" | "takeIndex">,
-): take is Pick<ProcessingTake, "arcId" | "takeIndex"> & {
-  arcId: string;
-  takeIndex: number;
-} {
-  return (
-    typeof take.arcId === "string" &&
-    take.arcId.length > 0 &&
-    typeof take.takeIndex === "number" &&
-    Number.isInteger(take.takeIndex) &&
-    take.takeIndex > 1
-  );
 }
 
 function parseProgress(v: unknown): ProcessingTakeProgress | null {

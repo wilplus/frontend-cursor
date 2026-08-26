@@ -29,7 +29,6 @@ import {
   clearProcessingTake,
   markProcessingTakeFailed,
   markProcessingTakeIdealTextUnconfirmed,
-  processingTakeKeepsIdealText,
   transitionProcessingTakeToDocument,
   updateProcessingTakeProgress,
   writeProcessingTake,
@@ -44,7 +43,7 @@ import ReportCard, {
   type FeedbackBubbleTarget,
   type IdealTextRetryTarget,
 } from "./ReportCard";
-import { idealTextUnconfirmedDraft, takeProcessedDraft } from "./loungeReports";
+import { idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
@@ -764,24 +763,9 @@ export default function Lounge({
             marker.sessionId,
           );
         }
-        if (marker && processingTakeKeepsIdealText(marker)) {
-          // Take 2+ is terminal HERE: the full worker has completed and L1
-          // guarantees that this take cannot replace the canonical document.
-          // Waiting for a version delta would therefore be waiting for an
-          // event the product explicitly forbids. Clear the working bubble
-          // and persist the per-session result under the session UUID.
-          clearProcessingTake(userId, resumeWatch.sessionId);
-          setProcessingResume(null);
-          void thread.append(
-            takeProcessedDraft({
-              sessionId: marker.sessionId,
-              arcId: marker.arcId,
-              takeIndex: marker.takeIndex,
-            }),
-          );
-        } else {
-          // Take 1 still owns a real document handoff. Hold until the served
-          // Ideal Text proves that new document landed.
+        if (marker?.arcId) {
+          // Every spoken Take owns a durable review version. Hold until the
+          // served Ideal Text proves that exact 1.0/2.0/3.0 state landed.
           transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
           setProcessingResume((current) =>
             current?.sessionId === resumeWatch.sessionId &&
@@ -792,6 +776,9 @@ export default function Lounge({
                 }
               : current,
           );
+        } else {
+          clearProcessingTake(userId, resumeWatch.sessionId);
+          setProcessingResume(null);
         }
         setResumeWatch(null);
       }

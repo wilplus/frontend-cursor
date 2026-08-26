@@ -3,7 +3,6 @@ import {
   clearProcessingTake,
   markProcessingTakeFailed,
   markProcessingTakeIdealTextUnconfirmed,
-  processingTakeKeepsIdealText,
   readProcessingTake,
   transitionProcessingTakeToDocument,
   updateProcessingTakeProgress,
@@ -169,14 +168,5 @@ describe("processing take account isolation", () => {
       stage: "completed",
       percent: 100,
     });
-  });
-
-  it("routes only later project takes around document settlement", () => {
-    expect(processingTakeKeepsIdealText(take)).toBe(true);
-    expect(processingTakeKeepsIdealText({ ...take, takeIndex: 1 })).toBe(false);
-    expect(processingTakeKeepsIdealText({ ...take, takeIndex: null })).toBe(
-      false,
-    );
-    expect(processingTakeKeepsIdealText({ ...take, arcId: null })).toBe(false);
   });
 });

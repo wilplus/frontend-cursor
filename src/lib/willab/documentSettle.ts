@@ -7,20 +7,19 @@
 /*  end, after `readout_ready`). The FE has no "assembled" event, so the       */
 /*  document phase OBSERVES the served ideal text and decides from evidence:   */
 /*                                                                            */
-/*    settled  — the served document demonstrably contains the awaited take    */
-/*               (a piece carries its take index), OR the version moved under  */
-/*               the probe (a reassembly happened while we watched — the       */
-/*               signal that also covers a take that won no block).            */
+/*    settled  — the served document demonstrably contains the awaited take:   */
+/*               either a piece carries its take index, or the durable review  */
+/*               version has reached that absolute take index. A version delta */
+/*               remains a compatibility signal for legacy/null-index callers.*/
 /*    expired  — the cap passed without database-visible evidence. The caller  */
 /*               must enter failed_ideal_text_unconfirmed; never clear as if    */
 /*               document generation succeeded.                                */
 /*    waiting  — neither yet.                                                 */
 /*                                                                            */
-/*  THE ONE CASE THIS CANNOT CATCH: assembly finished BEFORE the first probe   */
-/*  and the take won no block (no version delta observable, no take index in   */
-/*  pieces). That runs to the cap — a bounded over-block on a rare case,       */
-/*  which errs the direction the founder chose ("locked out of the old         */
-/*  text"), never the stale-text direction. Pure — no fetch, no clock reads.   */
+/*  The version is an ABSOLUTE review identity, not a generic revision count:  */
+/*  Take N finalization transactionally publishes version N. This matters for  */
+/*  synchronous processing, where finalization can finish before the first     */
+/*  browser probe and therefore no version *change* can be observed.            */
 /* -------------------------------------------------------------------------- */
 
 /** What one probe of the served ideal text saw. */
@@ -43,6 +42,17 @@ export function documentSettled(
   phaseStartedAt: number,
   now: number,
 ): "settled" | "waiting" | "expired" {
+  // Durable confirmation for both async and synchronous completion. The
+  // backend's Take finalizer makes review version == take index in one
+  // transaction, so reaching N proves that Take N's review is openable even
+  // when none of its wording won a place in the master document.
+  if (
+    awaitTakeIndex !== null &&
+    current.version !== null &&
+    current.version >= awaitTakeIndex
+  ) {
+    return "settled";
+  }
   // Positive confirmation: the document contains the awaited take.
   if (
     awaitTakeIndex !== null &&

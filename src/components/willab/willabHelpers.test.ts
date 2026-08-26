@@ -37,6 +37,15 @@ describe("isRetiredLoungeMessage", () => {
       isRetiredLoungeMessage(
         m({
           role: "bot",
+          kind: "ideal_text",
+          metadata: { variant: "take_processed", arc_id: "arc-1" },
+        })
+      )
+    ).toBe(true);
+    expect(
+      isRetiredLoungeMessage(
+        m({
+          role: "bot",
           kind: "text",
           metadata: { note: "human_check", arc_id: "arc-1" },
         })
@@ -83,6 +92,15 @@ describe("isRetiredLoungeMessage", () => {
     expect(
       isRetiredLoungeMessage(
         m({ role: "user", kind: "cadence", metadata: { beat: 0 } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({
+          role: "user",
+          kind: "ideal_text",
+          metadata: { variant: "take_processed" },
+        })
       )
     ).toBe(false);
   });
