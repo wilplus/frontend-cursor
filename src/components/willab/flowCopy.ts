@@ -26,8 +26,8 @@
 /*      It is also what AC-9 requires anyway (no numbers, no counters). The    */
 /*      research and the fence happen to agree.                               */
 /*                                                                            */
-/*   3. TWO SENTENCES, HARD CAP: one line of state, one of what's next. If a   */
-/*      third seems needed, the state machine is wrong, not the copy.         */
+/*   3. TWO SENTENCES, HARD CAP. The active processing chip is the deliberate */
+/*      one-line exception: it becomes the way back into the processing view. */
 /*                                                                            */
 /*   4. EVERY STATE HAS AN EXIT. "Left alone" is exactly the feeling of a      */
 /*      screen with nothing to tap.                                           */
@@ -38,12 +38,10 @@ export const FLOW_COPY = {
    *  step from "I was speaking" to "the app has it" is never ambiguous. */
   uploaded: "Got that.",
 
-  /** S3 · analysing. Two lines. The second is doing the real work — it grants
-   *  PERMISSION TO LEAVE, which is what stops someone sitting and staring at
-   *  a spinner. Progress indicators only free you to do something else if you
-   *  are told you may. */
+  /** S3 · analysing. One line, founder-approved 2026-08-26. The processing
+   *  status itself becomes the way back into the full processing view, so a
+   *  second explanatory line is no longer needed. */
   analysing: "Working on your take.",
-  analysingNext: "Your ideal text updates when this finishes — you can leave this screen.",
 
   /** S3-long · past ~90s the line SOFTENS rather than escalating. Never an
    *  estimate: we would be guessing, and a missed estimate is worse than

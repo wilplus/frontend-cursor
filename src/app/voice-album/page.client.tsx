@@ -47,7 +47,7 @@ export default function VoiceAlbumPageClient({
       </header>
 
       {status === "loading" ? (
-        <LoadingState />
+        <LoadingState placement="surface" />
       ) : status === "error" ? (
         <Centered>We couldn&apos;t load your Voice Album just now.</Centered>
       ) : status === "empty" || !item || !entries ? (

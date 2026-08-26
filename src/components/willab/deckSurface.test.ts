@@ -107,6 +107,27 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/posRef\.current = \{ slide: gi, chunk \}/);
   });
 
+  it("the real deck owns slide identity — paragraphs can never mint slides", () => {
+    // Regression for the phantom Slide 4 (2026-08-25): the fourth paragraph
+    // used to fall back to index 3 when its piece had no slide_index. A null
+    // mapping is a continuation of the preceding real slide; it is never the
+    // paragraph ordinal wearing a slide label.
+    expect(CHUNKS).not.toMatch(/pieceSlideIndexes\[i\]\s*\?\?\s*i/);
+    expect(CHUNKS).toMatch(/slide = previousSlide/);
+    // The backend's title array has one slot per real slide, including an
+    // empty string for an untitled one. Its length is therefore the bound.
+    expect(DECK).toMatch(/const slideCount = slideTitles\?\.length \?\? null/);
+    expect(DECK).toMatch(
+      /groupChunksBySlide\(chunks, pieceSlideIndexes, slideCount\)/
+    );
+    // An unprovable mapping becomes one visible, non-interactive error state:
+    // no copy action, page rail, editor, or guessed navigation survives it.
+    expect(DECK).toMatch(/role="alert"/);
+    expect(DECK).toMatch(/\{grouping\.ok \? \(/);
+    expect(DECK).toMatch(/\{grouping\.ok && openChunk \? \(/);
+    expect(DECK).toMatch(/grouping\.ok &&\s*\(screens\.length > 1/);
+  });
+
   it("the readout screen has exactly ONE scroller — the deck", () => {
     // Founder 2026-08-11: "this whole screen is movable and should not be…
     // I can scroll on the slides and on the page, it is one". Two nested

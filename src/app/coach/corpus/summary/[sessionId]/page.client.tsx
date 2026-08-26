@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import LoadingState from "@/components/willab/LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import {
   fetchFounderConfidenceComparison,
@@ -58,11 +58,9 @@ export default function FounderComparisonClient({
         />
       </header>
 
-      <div className="scrollbar-none flex-1 overflow-y-auto px-4 py-6">
+      <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-4 py-6">
         {!comparison && !failed ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-          </div>
+          <LoadingState placement="surface" />
         ) : failed ? (
           <p className="text-center text-[14px] text-muted-foreground">
             This comparison is unavailable.

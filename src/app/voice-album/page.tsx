@@ -17,7 +17,7 @@ export default function VoiceAlbumPage({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   return (
-    <Suspense fallback={<LoadingState fullscreen />}>
+    <Suspense fallback={<LoadingState placement="viewport" />}>
       <VoiceAlbumPageClient
         initialProjectId={firstQueryValue(searchParams.arc)}
       />

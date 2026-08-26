@@ -11,6 +11,20 @@ import type { ChatHistoryEntry } from "@/services/api/chatQuery";
 /** Bot history window (turns) the Lounge passes to /v2/chat/query (§3/§7). */
 export const LOUNGE_HISTORY_TURNS = 20;
 
+/** Founder-approved presentation retirements. Stored rows remain available for
+ * audit/recovery; only exact server-authored metadata discriminators are
+ * omitted from the visible Lounge thread. Keep these checks strict so malformed
+ * or unrelated historic messages are never hidden by accident. */
+export function isRetiredLoungeMessage(
+  message: Pick<LoungeMessage, "role" | "kind" | "metadata">
+): boolean {
+  return (
+    message.role === "bot" &&
+    ((message.kind === "cadence" && message.metadata?.beat === 0) ||
+      (message.kind === "text" && message.metadata?.note === "human_check"))
+  );
+}
+
 /**
  * Map the persisted Lounge thread into the bot's history shape: only
  * conversational user/bot turns (text/joke), most recent `LOUNGE_HISTORY_TURNS`,
@@ -20,6 +34,7 @@ export function loungeToHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
   return msgs
     .filter(
       (m) =>
+        !isRetiredLoungeMessage(m) &&
         (m.role === "user" || m.role === "bot") &&
         (m.kind === "text" || m.kind === "joke")
     )

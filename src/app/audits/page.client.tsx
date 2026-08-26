@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
-import { VoiceMark } from "@/components/willab/LoadingState";
+import LoadingState from "@/components/willab/LoadingState";
 import { fetchUserAudits, type UserAudit } from "@/services/api/userAudits";
 
 function auditDateLabel(iso: string): string {
@@ -28,6 +28,10 @@ export default function AuditsPageClient() {
     });
   }, []);
 
+  if (status === "loading") {
+    return <LoadingState placement="viewport" />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="flex h-14 items-center border-b border-border px-4">
@@ -44,11 +48,7 @@ export default function AuditsPageClient() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
-        {status === "loading" ? (
-          <div className="flex items-center justify-center py-16">
-            <VoiceMark size={40} />
-          </div>
-        ) : audits.length === 0 ? (
+        {audits.length === 0 ? (
           <p className="text-[15px] text-muted-foreground">Nothing here yet.</p>
         ) : (
           <ul className="flex flex-col gap-3">

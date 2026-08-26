@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Mic, MoreHorizontal } from "lucide-react";
-import { VoiceMark } from "./LoadingState";
+import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import type { ExploreArc } from "@/lib/willab/exploreArc";
@@ -327,9 +327,7 @@ export default function LibraryOverlay({
 
       <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
         {status === "loading" ? (
-          <div className="flex flex-1 items-center justify-center">
-            <VoiceMark size={48} />
-          </div>
+          <LoadingState placement="surface" />
         ) : nav.level === "L4" ? (
           <LibraryMomentPage
             deck={nav.deck}

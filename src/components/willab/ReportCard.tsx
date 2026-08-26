@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Crown, FileText, Mic, ShieldAlert, Sparkles } from "lucide-react";
+import {
+  Check,
+  Crown,
+  FileText,
+  Mic,
+  ShieldAlert,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
 import { fetchIdealText } from "@/services/api/idealText";
@@ -10,7 +17,11 @@ import {
   rememberIdealTitle,
 } from "@/lib/willab/idealTitleCache";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { bestPresentationView, insightView, readoutView } from "./loungeReports";
+import {
+  bestPresentationView,
+  insightView,
+  readoutView,
+} from "./loungeReports";
 import ArcActionPrice from "@/components/tokens/ArcActionPrice";
 
 /* -------------------------------------------------------------------------- */
@@ -44,7 +55,7 @@ function reportDateLabel(iso: string | undefined): string | null {
 function detailLine(
   topic: string | null,
   takeIndex: number | null,
-  date: string | null
+  date: string | null,
 ): string {
   const parts: string[] = [];
   if (topic) parts.push(topic);
@@ -60,6 +71,12 @@ export interface FeedbackBubbleTarget {
   takeIndex: number | null;
 }
 
+export interface IdealTextRetryTarget {
+  arcId: string;
+  takeSessionId: string;
+  takeIndex: 1;
+}
+
 export default function ReportCard({
   message,
   onViewInsights,
@@ -67,6 +84,7 @@ export default function ReportCard({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  onRetryIdealText,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
@@ -75,16 +93,23 @@ export default function ReportCard({
   onOpenTranscripts?: () => void;
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  /** Take 1 failure card — enqueue document-only work from stored artifacts. */
+  onRetryIdealText?: (
+    target: IdealTextRetryTarget,
+  ) => boolean | Promise<boolean>;
   /** Delivery layer — the purple bubble opens the ideal-text notebook.
    *  ALWAYS the live, editable document — version bubbles are history markers,
    *  not frozen read-only destinations (founder 2026-07-29). */
   onOpenIdealText?: (arcId: string) => void;
 }) {
+  const [retryingIdealText, setRetryingIdealText] = useState(false);
   // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
   // behind the tap: the feedback page itself renders the unlock panel).
   if (message.kind === "feedback") {
     const arcId =
-      typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+      typeof message.metadata?.arc_id === "string"
+        ? message.metadata.arc_id
+        : null;
     const takeSessionId =
       typeof message.metadata?.take_session_id === "string"
         ? message.metadata.take_session_id
@@ -134,15 +159,19 @@ export default function ReportCard({
     );
   }
 
-  // Delivery layer — the ideal-text cards. Two variants share the kind:
+  // Delivery layer — the ideal-text cards. Lifecycle variants share the kind:
   //   metadata.variant "instant" → the FREE machine draft at take 3: a plain
   //     grey card (deliberately NOT purple, so the later coach-perfected purple
   //     bubble still reads as the upgrade moment, never a duplicate).
+  //   metadata.variant "take_processed" → later-take terminal result.
   //   no variant / "perfected" → the publish-time PURPLE card (unchanged).
   if (message.kind === "ideal_text") {
     const arcId =
-      typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+      typeof message.metadata?.arc_id === "string"
+        ? message.metadata.arc_id
+        : null;
     const openable = !!(arcId && onOpenIdealText);
+    const variant = message.metadata?.variant;
     // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
     // posts its own card, 1.0 unverified through N.0 verified. The version and
     // the verification state both ride on the BE metadata.
@@ -150,7 +179,9 @@ export default function ReportCard({
     const version =
       typeof rawV === "number" && Number.isFinite(rawV)
         ? rawV
-        : typeof rawV === "string" && rawV.trim() && Number.isFinite(Number(rawV))
+        : typeof rawV === "string" &&
+            rawV.trim() &&
+            Number.isFinite(Number(rawV))
           ? Number(rawV)
           : null;
     // Every bubble opens the SAME live, editable notebook — the version on
@@ -158,8 +189,121 @@ export default function ReportCard({
     const open = () => {
       if (arcId && onOpenIdealText) onOpenIdealText(arcId);
     };
-    const verified = message.metadata?.variant === "verified";
-    if (message.metadata?.variant === "instant") {
+    if (variant === "ideal_text_unconfirmed") {
+      const takeSessionId =
+        typeof message.metadata?.take_session_id === "string"
+          ? message.metadata.take_session_id
+          : null;
+      const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
+      const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
+      return (
+        <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+              aria-hidden
+            />
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {message.body}
+            </p>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {canRetry ? (
+              <Button
+                type="button"
+                disabled={retryingIdealText}
+                onClick={async () => {
+                  if (!arcId || !takeSessionId || !onRetryIdealText) return;
+                  setRetryingIdealText(true);
+                  try {
+                    await onRetryIdealText({
+                      arcId,
+                      takeSessionId,
+                      takeIndex: 1,
+                    });
+                  } finally {
+                    setRetryingIdealText(false);
+                  }
+                }}
+                className="h-10 w-full rounded-full"
+              >
+                Try creating it again
+              </Button>
+            ) : null}
+            {canOpenFeedback ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  onOpenFeedback!({
+                    arcId: arcId!,
+                    takeSessionId,
+                    takeIndex: 1,
+                  })
+                }
+                className="h-10 w-full rounded-full"
+              >
+                View this take&apos;s feedback
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+    if (variant === "take_processed") {
+      const takeSessionId =
+        typeof message.metadata?.take_session_id === "string"
+          ? message.metadata.take_session_id
+          : null;
+      const takeIndex =
+        typeof message.metadata?.take_index === "number" &&
+        Number.isFinite(message.metadata.take_index)
+          ? message.metadata.take_index
+          : null;
+      const feedbackOpenable = !!(arcId && takeSessionId && onOpenFeedback);
+      return (
+        <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+          <div className="flex items-start gap-2">
+            <Check
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+              aria-hidden
+            />
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {message.body}
+            </p>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {openable ? (
+              <Button
+                type="button"
+                onClick={open}
+                className="h-10 w-full rounded-full"
+              >
+                Open your Ideal Text
+              </Button>
+            ) : null}
+            {feedbackOpenable ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  onOpenFeedback!({
+                    arcId: arcId!,
+                    takeSessionId,
+                    takeIndex,
+                  })
+                }
+                className="h-10 w-full rounded-full"
+              >
+                View this take&apos;s feedback
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+    const verified = variant === "verified";
+    if (variant === "instant") {
       return (
         <div
           role={openable ? "button" : undefined}
@@ -273,7 +417,9 @@ export default function ReportCard({
   // OWN take's feedback page (metadata carries arc_id + session_id since the
   // draft was extended); legacy rows without arc_id stay plain history.
   const rsArcId =
-    typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+    typeof message.metadata?.arc_id === "string"
+      ? message.metadata.arc_id
+      : null;
   const rsSessionId =
     typeof message.metadata?.session_id === "string"
       ? message.metadata.session_id
@@ -386,7 +532,6 @@ export function IdealTextHeroCard({
     </div>
   );
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  FE-C — the crucial bubble: the app's ONE deliverable, a tall grey card.    */
@@ -510,7 +655,7 @@ function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
   const promise = fetchIdealText(arcId).then((r) =>
     r.kind === "single"
       ? { title: r.title, status: r.status, version: r.version }
-      : null
+      : null,
   );
   liveDocCache.set(arcId, { at: Date.now(), promise });
   return promise;

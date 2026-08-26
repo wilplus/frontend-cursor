@@ -913,10 +913,12 @@ export default function IdealTextOverlay({
               // `analysisPending` flips and the fetch effect pulls the fresh
               // document into this same view.
               <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
-                <ProcessingWait markSize={36} />
+                <ProcessingWait
+                  progress={{ stage: "document_assembly", percent: null }}
+                />
               </div>
             ) : (
-              <LoadingState />
+              <LoadingState placement="surface" />
             )
           ) : status === "pending" ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">

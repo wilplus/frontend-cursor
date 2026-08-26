@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { VoiceMark } from "./LoadingState";
+import LoadingState from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 
@@ -70,12 +70,7 @@ export default function SendGate({
   }, [signedIn, runSend]);
 
   if (send.kind === "sending") {
-    return (
-      <Centered>
-        <VoiceMark size={48} />
-        <p className="text-[15px] text-foreground">Sending to your coach…</p>
-      </Centered>
-    );
+    return <LoadingState placement="surface" label="Sending to your coach" />;
   }
 
   if (send.kind === "sent") {

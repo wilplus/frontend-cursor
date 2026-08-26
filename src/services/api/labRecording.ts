@@ -1,7 +1,13 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { uploadProxyBase } from "@/lib/api/uploadProxy";
-import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
-import { mapRecordingProgress, type RecordingProgress } from "./recordingProgress";
+import {
+  mapReadoutPayload,
+  type ReadoutPayload,
+} from "@/components/willab/readout";
+import {
+  mapRecordingProgress,
+  type RecordingProgress,
+} from "./recordingProgress";
 import { type PresentationSlide } from "@/components/willab/presentation";
 import { type Feeling } from "@/components/willab/willabFeelings";
 import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
@@ -62,17 +68,43 @@ export interface LabUploadInput {
 }
 
 export type LabUploadResult =
-  | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null; recordingProgress: RecordingProgress | null }
+  | {
+      kind: "ok";
+      sessionId: string | null;
+      state: string | null;
+      readout: ReadoutPayload;
+      arcId: string | null;
+      takeIndex: number | null;
+      recordingProgress: RecordingProgress | null;
+    }
   /** Async analysis (delivery layer): the BE accepted the upload (202) — or its
    *  sync budget ran out (504 PROCESSING_TIMEOUT, handoff §A2: NOT a failure) —
    *  and the analysis finishes in the background. Poll the readout until
    *  `ready`/`failed`. Survives a closed tab / locked phone. */
-  | { kind: "processing"; sessionId: string; arcId: string | null; takeIndex: number | null; takeCount: number | null }
+  | {
+      kind: "processing";
+      sessionId: string;
+      arcId: string | null;
+      takeIndex: number | null;
+      takeCount: number | null;
+    }
+  | {
+      kind: "ideal_text_unconfirmed";
+      sessionId: string;
+      arcId: string;
+      takeIndex: 1;
+    }
   | { kind: "rejected"; message: string } // 422 — min-content gate
   /** `code` is the stable branch key (§A1 — never branch on `error` text);
    *  `ref` joins the generic copy to the real exception in backend logs and is
    *  already folded into `message` ("Reference: …") for display. */
-  | { kind: "error"; status: number; message: string; code?: string; ref?: string };
+  | {
+      kind: "error";
+      status: number;
+      message: string;
+      code?: string;
+      ref?: string;
+    };
 
 /** FE-1 (P0, 2026-07-20) — the recording state machine's ONE invariant, at the
  *  single choke point every upload passes through.
@@ -93,7 +125,7 @@ export type LabUploadResult =
  *
  *  Returns the sanitized input, or a rejection to return as-is. Pure. */
 export function guardRecordingInput(
-  input: LabUploadInput
+  input: LabUploadInput,
 ): { ok: true; input: LabUploadInput } | { ok: false; message: string } {
   if (
     typeof input.projectId !== "string" ||
@@ -130,7 +162,7 @@ export function guardRecordingInput(
  *  never silently move the UI onto another project's ideal text. */
 export function projectIdentityError(
   input: Pick<LabUploadInput, "projectId">,
-  returnedProjectId: string | null
+  returnedProjectId: string | null,
 ): string | null {
   if (!returnedProjectId) return "The lab did not return a project id.";
   if (returnedProjectId !== input.projectId) {
@@ -150,7 +182,7 @@ interface LabResponseContext {
 
 function appendPresentFields(
   form: FormData,
-  fields: Array<[name: string, value: string | null | undefined]>
+  fields: Array<[name: string, value: string | null | undefined]>,
 ): void {
   for (const [name, value] of fields) {
     if (value) form.append(name, value);
@@ -160,7 +192,7 @@ function appendPresentFields(
 function appendJsonArray<T>(
   form: FormData,
   name: string,
-  values: T[] | undefined
+  values: T[] | undefined,
 ): void {
   if (values && values.length > 0) {
     form.append(name, JSON.stringify(values));
@@ -176,9 +208,7 @@ function appendDeckContext(form: FormData, input: LabUploadInput): void {
     body,
   }));
   appendJsonArray(form, "slides", structuralSlides);
-  appendPresentFields(form, [
-    ["presentation_ref", input.presentationRef],
-  ]);
+  appendPresentFields(form, [["presentation_ref", input.presentationRef]]);
 
   const strategicContext = input.strategicContext?.trim();
   if (strategicContext) {
@@ -188,7 +218,7 @@ function appendDeckContext(form: FormData, input: LabUploadInput): void {
     form.append(
       "context_document",
       input.contextDocument,
-      input.contextDocument.name
+      input.contextDocument.name,
     );
   }
   if (input.slideAdvances && input.slideAdvances.length > 0) {
@@ -198,8 +228,8 @@ function appendDeckContext(form: FormData, input: LabUploadInput): void {
         input.slideAdvances.map((advance) => ({
           index: advance.index,
           t_ms: advance.tMs,
-        }))
-      )
+        })),
+      ),
     );
   }
   if (
@@ -208,7 +238,7 @@ function appendDeckContext(form: FormData, input: LabUploadInput): void {
   ) {
     form.append(
       "slide_clock_offset_ms",
-      String(Math.round(input.slideClockOffsetMs))
+      String(Math.round(input.slideClockOffsetMs)),
     );
   }
 }
@@ -253,7 +283,7 @@ function authHeaders(token: string | null): Record<string, string> {
 
 async function postLabUpload(
   form: FormData,
-  headers: Record<string, string>
+  headers: Record<string, string>,
 ): Promise<Response> {
   const post = (url: string) =>
     fetch(url, {
@@ -282,8 +312,7 @@ function responseContext(body: LabResponseBody): LabResponseContext {
       typeof body?.error === "string" && body.error.trim()
         ? body.error
         : undefined,
-    ref:
-      typeof body?.ref === "string" && body.ref ? body.ref : undefined,
+    ref: typeof body?.ref === "string" && body.ref ? body.ref : undefined,
   };
 }
 
@@ -297,22 +326,17 @@ function numberOrNull(value: unknown): number | null {
 
 function hasSessionId(body: LabResponseBody): body is Record<string, unknown> {
   return (
-    !!body &&
-    typeof body.session_id === "string" &&
-    body.session_id.length > 0
+    !!body && typeof body.session_id === "string" && body.session_id.length > 0
   );
 }
 
-function withResponseRef(
-  message: string,
-  ref: string | undefined
-): string {
+function withResponseRef(message: string, ref: string | undefined): string {
   return ref ? message + " (Reference: " + ref + ")" : message;
 }
 
 function projectIdentityFailure(
   input: LabUploadInput,
-  body: LabResponseBody
+  body: LabResponseBody,
 ): LabUploadResult | null {
   const returnedProjectId = stringOrNull(body?.project_id);
   if (!projectIdentityError(input, returnedProjectId)) return null;
@@ -326,7 +350,7 @@ function projectIdentityFailure(
 
 function processingResult(
   body: Record<string, unknown>,
-  takeCount: number | null
+  takeCount: number | null,
 ): LabUploadResult {
   return {
     kind: "processing",
@@ -339,19 +363,21 @@ function processingResult(
 
 function isProcessingTimeout(
   response: Response,
-  code: string | undefined
+  code: string | undefined,
 ): boolean {
   return response.status === 504 || code === "PROCESSING_TIMEOUT";
 }
 
 function mapProcessingTimeout(
   input: LabUploadInput,
-  context: LabResponseContext
+  context: LabResponseContext,
 ): LabUploadResult {
   const { body, code, error, ref } = context;
   if (hasSessionId(body)) {
     const identityError = projectIdentityFailure(input, body);
-    return identityError ?? processingResult(body, numberOrNull(body.take_count));
+    return (
+      identityError ?? processingResult(body, numberOrNull(body.take_count))
+    );
   }
   return {
     kind: "error",
@@ -361,14 +387,14 @@ function mapProcessingTimeout(
     message: withResponseRef(
       error ??
         "That recording is taking longer than expected — it's still processing, check back shortly.",
-      ref
+      ref,
     ),
   };
 }
 
 function mapUnhandledHttpError(
   response: Response,
-  context: LabResponseContext
+  context: LabResponseContext,
 ): LabUploadResult {
   const { code, error, ref } = context;
   return {
@@ -381,7 +407,7 @@ function mapUnhandledHttpError(
         "Analysis failed (HTTP " +
           response.status +
           "). Try again in a moment.",
-      ref
+      ref,
     ),
   };
 }
@@ -389,7 +415,7 @@ function mapUnhandledHttpError(
 function mapLabFailure(
   input: LabUploadInput,
   response: Response,
-  context: LabResponseContext
+  context: LabResponseContext,
 ): LabUploadResult | null {
   const { code, error } = context;
   if (response.status === 422) {
@@ -438,10 +464,24 @@ function readoutState(value: unknown): string {
 function mapSuccessfulLabUpload(
   input: LabUploadInput,
   response: Response,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ): LabUploadResult {
   const identityError = projectIdentityFailure(input, body);
   if (identityError) return identityError;
+
+  if (
+    body.state === "failed_ideal_text_unconfirmed" &&
+    hasSessionId(body) &&
+    typeof body.arc_id === "string" &&
+    body.arc_id.length > 0
+  ) {
+    return {
+      kind: "ideal_text_unconfirmed",
+      sessionId: body.session_id as string,
+      arcId: body.arc_id,
+      takeIndex: 1,
+    };
+  }
 
   // An idempotency duplicate adopts the first session and never increments the
   // visible take count.
@@ -469,13 +509,9 @@ function mapSuccessfulLabUpload(
 function mapLabUploadResponse(
   input: LabUploadInput,
   response: Response,
-  body: LabResponseBody
+  body: LabResponseBody,
 ): LabUploadResult {
-  const failure = mapLabFailure(
-    input,
-    response,
-    responseContext(body)
-  );
+  const failure = mapLabFailure(input, response, responseContext(body));
   if (failure) return failure;
   if (!body) {
     return {
@@ -488,7 +524,7 @@ function mapLabUploadResponse(
 }
 
 export async function submitLabRecording(
-  rawInput: LabUploadInput
+  rawInput: LabUploadInput,
 ): Promise<LabUploadResult> {
   const guard = guardRecordingInput(rawInput);
   if (!guard.ok) return { kind: "rejected", message: guard.message };
@@ -539,7 +575,7 @@ export interface LabReadoutReread {
  *  the fetch poll below and useLabReadoutLive so the two transports cannot
  *  drift. */
 export function mapLabReadoutRereadBody(
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ): LabReadoutReread {
   const readoutObj = {
     ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
@@ -565,7 +601,7 @@ export function mapLabReadoutRereadBody(
 }
 
 export async function fetchGuestLabReadout(
-  sessionId: string
+  sessionId: string,
 ): Promise<LabReadoutReread | null> {
   const token = await getAuthToken(); // forwarded when present; never required
   const headers: Record<string, string> = token ? {} : guestOwnerHeaders();
@@ -575,14 +611,17 @@ export async function fetchGuestLabReadout(
   try {
     res = await fetch(
       `/api/v2/lab/recordings/${encodeURIComponent(sessionId)}/readout`,
-      { headers, cache: "no-store" }
+      { headers, cache: "no-store" },
     );
   } catch {
     return null;
   }
   if (!res.ok) return null;
 
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
   if (!body) return null;
   return mapLabReadoutRereadBody(body);
 }
@@ -599,7 +638,29 @@ export async function retryLabProcessing(sessionId: string): Promise<boolean> {
         method: "POST",
         headers,
         cache: "no-store",
-      }
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Retry only Take 1 Ideal Text generation from stored analysis artifacts. */
+export async function retryIdealTextGeneration(
+  sessionId: string,
+): Promise<boolean> {
+  const token = await getAuthToken();
+  try {
+    const headers: Record<string, string> = token ? {} : guestOwnerHeaders();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(
+      `/api/v2/lab/recordings/${encodeURIComponent(sessionId)}/retry-ideal-text`,
+      {
+        method: "POST",
+        headers,
+        cache: "no-store",
+      },
     );
     return response.ok;
   } catch {

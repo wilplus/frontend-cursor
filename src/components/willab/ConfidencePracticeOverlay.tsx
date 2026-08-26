@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
+import LoadingState from "@/components/willab/LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   fetchConfidencePractice,
@@ -55,12 +56,9 @@ export default function ConfidencePracticeOverlay({
         </button>
       </header>
       <main className="scrollbar-none flex-1 overflow-y-auto overscroll-contain px-5 py-6">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-              Loading exercise…
-            </div>
+            <LoadingState placement="surface" label="Loading exercise" />
           ) : error ? (
             <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-[14px] text-destructive">
               {error}

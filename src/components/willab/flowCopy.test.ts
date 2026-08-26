@@ -74,10 +74,11 @@ describe("FLOW_COPY — the retired nudge stays retired", () => {
 });
 
 describe("FLOW_COPY — nobody is left with nothing to do", () => {
-  it("pairs every waiting/failure state with a what-next line", () => {
-    // The states that strand a user are the ones where they cannot act. Each
-    // must ship with its follow-up, or the screen is a dead end.
-    expect(FLOW_COPY.analysingNext.trim().length).toBeGreaterThan(0);
+  it("keeps the active processing status to its approved single line", () => {
+    expect(FLOW_COPY).not.toHaveProperty("analysingNext");
+  });
+
+  it("pairs failure with a what-next line", () => {
     expect(FLOW_COPY.failedNext.trim().length).toBeGreaterThan(0);
   });
 

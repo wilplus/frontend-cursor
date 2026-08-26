@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { VoiceMark } from "@/components/willab/LoadingState";
+import LoadingState from "@/components/willab/LoadingState";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -29,7 +29,14 @@ import { Button } from "@/components/ui/button";
  */
 export default function UnsubscribePage() {
   return (
-    <Suspense fallback={<UnsubscribeShell><UpdatingState /></UnsubscribeShell>}>
+    <Suspense
+      fallback={
+        <LoadingState
+          placement="viewport"
+          label="Updating your email preferences"
+        />
+      }
+    >
       <UnsubscribeInner />
     </Suspense>
   );
@@ -97,9 +104,17 @@ function UnsubscribeInner() {
     };
   }, [token]);
 
+  if (phase.kind === "loading") {
+    return (
+      <LoadingState
+        placement="viewport"
+        label="Updating your email preferences"
+      />
+    );
+  }
+
   return (
     <UnsubscribeShell>
-      {phase.kind === "loading" && <UpdatingState />}
       {phase.kind === "missing-token" && <MissingTokenState />}
       {phase.kind === "success" && (
         <SuccessState
@@ -130,19 +145,6 @@ function UnsubscribeShell({ children }: { children: React.ReactNode }) {
 /* -------------------------------------------------------------------------- */
 /* States                                                                      */
 /* -------------------------------------------------------------------------- */
-
-/* Renamed from a local `LoadingState` to avoid colliding with the shared
-   willab LoadingState (the one circular logo loader). */
-function UpdatingState() {
-  return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      <VoiceMark size={48} />
-      <p className="text-sm text-muted-foreground">
-        Updating your email preferences…
-      </p>
-    </div>
-  );
-}
 
 function MissingTokenState() {
   return (

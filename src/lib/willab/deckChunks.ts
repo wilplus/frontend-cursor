@@ -265,30 +265,115 @@ export interface DeckSlideGroup {
   chunks: DeckChunk[];
 }
 
-/** Group chunks into slide sections using the pieces zip.
+export type DeckSlideGroupingError =
+  | "piece_count_mismatch"
+  | "missing_slide_mapping"
+  | "missing_parent_slide"
+  | "invalid_slide_index"
+  | "slide_out_of_range"
+  | "slide_order_regression";
+
+export type DeckSlideGroupingResult =
+  | { ok: true; groups: DeckSlideGroup[] }
+  | {
+      ok: false;
+      error: DeckSlideGroupingError;
+      /** Paragraph whose mapping made the invariant unprovable, when known. */
+      paragraphIndex: number | null;
+    };
+
+function groupingError(
+  error: DeckSlideGroupingError,
+  paragraphIndex: number | null = null
+): DeckSlideGroupingResult {
+  return { ok: false, error, paragraphIndex };
+}
+
+/** Group chunks into real slide sections using the exact pieces zip.
  *
- *  Same safe-ahead rule the pill lane follows (IdealPiece.slideIndex): the
- *  zip is trusted ONLY when the counts match exactly — paragraph i is piece
- *  i. A piece without slide_index falls back to "paragraph i = page i". On
- *  any mismatch the deck shows one untitled section rather than guessing an
- *  attachment. */
+ *  The deck count is authority. Paragraph ORDINAL is never a slide identity:
+ *  a null slide index inherits the nearest preceding real slide and therefore
+ *  remains in that slide's group (where buildScreens may make a continuation
+ *  screen if the words do not fit). A leading null, an invalid/out-of-range
+ *  explicit index, a backwards mapping, or a broken zip is an explicit
+ *  recoverable error — never a fabricated slide.
+ *
+ *  A null slideCount is the safe-ahead older-payload case. Explicit mappings
+ *  can still be used, but no upper bound is invented. With no mapping and no
+ *  known deck, the document remains one untitled talk section. */
 export function groupChunksBySlide(
   chunks: readonly DeckChunk[],
-  pieceSlideIndexes: readonly (number | null)[] | null | undefined
-): DeckSlideGroup[] {
-  const zip =
-    pieceSlideIndexes != null && pieceSlideIndexes.length === chunks.length;
-  if (!zip) {
-    return chunks.length > 0
-      ? [{ slideIndex: null, chunks: [...chunks] }]
-      : [];
+  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
+  slideCount: number | null
+): DeckSlideGroupingResult {
+  if (chunks.length === 0) return { ok: true, groups: [] };
+
+  const canonicalSlideCount =
+    typeof slideCount === "number" &&
+    Number.isInteger(slideCount) &&
+    slideCount >= 0
+      ? slideCount
+      : null;
+
+  if (pieceSlideIndexes == null) {
+    if (canonicalSlideCount !== null && canonicalSlideCount > 0) {
+      return groupingError("missing_slide_mapping");
+    }
+    return {
+      ok: true,
+      groups: [{ slideIndex: null, chunks: [...chunks] }],
+    };
   }
+
+  if (pieceSlideIndexes.length !== chunks.length) {
+    return groupingError("piece_count_mismatch");
+  }
+
+  if (canonicalSlideCount === 0) {
+    const explicitAt = pieceSlideIndexes.findIndex((slide) => slide !== null);
+    if (explicitAt >= 0) {
+      return groupingError("slide_out_of_range", explicitAt);
+    }
+    return {
+      ok: true,
+      groups: [{ slideIndex: null, chunks: [...chunks] }],
+    };
+  }
+
   const groups: DeckSlideGroup[] = [];
-  chunks.forEach((c, i) => {
-    const slide = pieceSlideIndexes[i] ?? i;
+  let previousSlide: number | null = null;
+  for (let i = 0; i < chunks.length; i += 1) {
+    const mappedSlide = pieceSlideIndexes[i];
+    let slide: number;
+    if (mappedSlide === null) {
+      if (previousSlide === null) {
+        return groupingError("missing_parent_slide", i);
+      }
+      slide = previousSlide;
+    } else {
+      if (
+        !Number.isInteger(mappedSlide) ||
+        mappedSlide < 0 ||
+        !Number.isFinite(mappedSlide)
+      ) {
+        return groupingError("invalid_slide_index", i);
+      }
+      if (
+        canonicalSlideCount !== null &&
+        mappedSlide >= canonicalSlideCount
+      ) {
+        return groupingError("slide_out_of_range", i);
+      }
+      if (previousSlide !== null && mappedSlide < previousSlide) {
+        return groupingError("slide_order_regression", i);
+      }
+      slide = mappedSlide;
+    }
+
     const last = groups[groups.length - 1];
-    if (last && last.slideIndex === slide) last.chunks.push(c);
-    else groups.push({ slideIndex: slide, chunks: [c] });
-  });
-  return groups;
+    if (last && last.slideIndex === slide) last.chunks.push(chunks[i]);
+    else groups.push({ slideIndex: slide, chunks: [chunks[i]] });
+    previousSlide = slide;
+  }
+  return { ok: true, groups };
 }
