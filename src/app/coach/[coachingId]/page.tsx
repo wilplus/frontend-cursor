@@ -11,6 +11,7 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
+import LoadingState from "@/components/willab/LoadingState";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -290,12 +291,7 @@ export default function CoachingPage({ params }: PageProps) {
     return (
       <div className="willab-chat flex h-full flex-col bg-background">
         <DashboardHeader />
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2
-            className="h-6 w-6 animate-spin text-muted-foreground"
-            aria-hidden
-          />
-        </div>
+        <LoadingState placement="surface" />
       </div>
     );
   }

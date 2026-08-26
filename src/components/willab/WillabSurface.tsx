@@ -111,7 +111,7 @@ export default function WillabSurface({
 
   // Resolving the initial state post-mount (hydration-safe).
   if (flow.state === null) {
-    return shell(<LoadingState />);
+    return shell(<LoadingState placement="surface" />);
   }
 
   // First-run, full-screen (no Lounge underneath yet).

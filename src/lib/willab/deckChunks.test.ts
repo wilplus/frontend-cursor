@@ -248,31 +248,100 @@ describe("coachMomentForChunk — the coach's feedback finds its words", () => {
   });
 });
 
-describe("groupChunksBySlide — the safe-ahead zip", () => {
+describe("groupChunksBySlide — canonical deck identity", () => {
   const chunks = () => buildDeckChunks(DOC, parts(), []);
+  const groupsFor = (
+    indexes: readonly (number | null)[] | null,
+    slideCount: number | null
+  ) => {
+    const result = groupChunksBySlide(chunks(), indexes, slideCount);
+    if (!result.ok) throw new Error(result.error);
+    return result.groups;
+  };
 
   it("groups consecutive chunks by their piece slide index when the counts match", () => {
-    const groups = groupChunksBySlide(chunks(), [0, 0, 1]);
+    const groups = groupsFor([0, 0, 1], 2);
     expect(groups.map((g) => g.slideIndex)).toEqual([0, 1]);
     expect(groups[0].chunks).toHaveLength(2);
     expect(groups[1].chunks).toHaveLength(1);
   });
 
-  it("a piece without slide_index falls back to paragraph i = page i", () => {
-    const groups = groupChunksBySlide(chunks(), [0, null, null]);
-    // 0, then 1, then 2 — the exact-count zip, never a guess.
-    expect(groups.map((g) => g.slideIndex)).toEqual([0, 1, 2]);
-  });
-
-  it("a count mismatch yields ONE untitled section — never a guessed attachment", () => {
-    const groups = groupChunksBySlide(chunks(), [0, 1]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].slideIndex).toBeNull();
+  it("a null mapping inherits the nearest preceding real slide", () => {
+    const groups = groupsFor([0, null, null], 1);
+    expect(groups.map((g) => g.slideIndex)).toEqual([0]);
     expect(groups[0].chunks).toHaveLength(3);
   });
 
-  it("no pieces at all → one untitled section; no chunks → no sections", () => {
-    expect(groupChunksBySlide(chunks(), null)[0].slideIndex).toBeNull();
-    expect(groupChunksBySlide([], null)).toEqual([]);
+  it("the fourth paragraph can never manufacture Slide 4 in a three-slide deck", () => {
+    const base = chunks();
+    const fourth = {
+      ...base[2],
+      paragraphIndex: 3,
+      part: { ...base[2].part, id: "p4", text: "One final line." },
+    };
+    const result = groupChunksBySlide(
+      [...base, fourth],
+      [0, 1, 2, null],
+      3
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.groups.map((g) => g.slideIndex)).toEqual([0, 1, 2]);
+    expect(result.groups[2].chunks).toHaveLength(2);
+  });
+
+  it("rejects an explicit slide beyond the canonical deck count", () => {
+    expect(groupChunksBySlide(chunks(), [0, 1, 3], 3)).toEqual({
+      ok: false,
+      error: "slide_out_of_range",
+      paragraphIndex: 2,
+    });
+  });
+
+  it("rejects a leading null because it has no real parent slide", () => {
+    expect(groupChunksBySlide(chunks(), [null, 0, 1], 2)).toEqual({
+      ok: false,
+      error: "missing_parent_slide",
+      paragraphIndex: 0,
+    });
+  });
+
+  it("rejects a broken zip instead of guessing an attachment", () => {
+    expect(groupChunksBySlide(chunks(), [0, 1], 2)).toEqual({
+      ok: false,
+      error: "piece_count_mismatch",
+      paragraphIndex: null,
+    });
+  });
+
+  it("rejects a backwards explicit mapping", () => {
+    expect(groupChunksBySlide(chunks(), [0, 2, 1], 3)).toEqual({
+      ok: false,
+      error: "slide_order_regression",
+      paragraphIndex: 2,
+    });
+  });
+
+  it("a known deck without any mapping is an error", () => {
+    expect(groupChunksBySlide(chunks(), null, 3)).toEqual({
+      ok: false,
+      error: "missing_slide_mapping",
+      paragraphIndex: null,
+    });
+  });
+
+  it("a deckless or older unmapped talk remains one untitled section", () => {
+    const deckless = groupChunksBySlide(chunks(), [null, null, null], 0);
+    expect(deckless.ok).toBe(true);
+    if (deckless.ok) expect(deckless.groups[0].slideIndex).toBeNull();
+
+    const older = groupChunksBySlide(chunks(), null, null);
+    expect(older.ok).toBe(true);
+    if (older.ok) expect(older.groups[0].slideIndex).toBeNull();
+
+    expect(groupChunksBySlide([], null, 3)).toEqual({
+      ok: true,
+      groups: [],
+    });
   });
 });

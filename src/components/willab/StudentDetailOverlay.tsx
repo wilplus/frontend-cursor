@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BadgeCheck, Crown } from "lucide-react";
-import { VoiceMark } from "./LoadingState";
+import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
@@ -138,9 +138,7 @@ export default function StudentDetailOverlay({
 
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
-          <div className="flex flex-1 items-center justify-center">
-            <VoiceMark size={48} />
-          </div>
+          <LoadingState placement="surface" />
         ) : status === "error" || !detail ? (
           <p className="max-w-sm text-[15px] text-muted-foreground">
             Couldn&apos;t load this student just now. Try again in a moment.

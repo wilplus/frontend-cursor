@@ -239,7 +239,7 @@ export default function BestPresentationOverlay({
   if (status === "loading" || !result) {
     return (
       <PreShellOverlay onClose={onClose}>
-        <LoadingState />
+        <LoadingState placement="surface" />
       </PreShellOverlay>
     );
   }

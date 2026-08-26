@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
-import { VoiceMark } from "@/components/willab/LoadingState";
+import LoadingState from "@/components/willab/LoadingState";
 import ConfidenceEvidenceReadout from "@/components/willab/ConfidenceEvidenceReadout";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
@@ -82,11 +82,7 @@ export default function CorpusPageClient({
   }, [isCoach, refresh]);
 
   if (loading) {
-    return (
-      <main className="flex h-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </main>
-    );
+    return <LoadingState placement="viewport" />;
   }
   // N4 — nothing for a non-coach, even by direct URL. No hint that a corpus
   // exists; the BE would refuse them anyway.
@@ -1109,9 +1105,7 @@ function LabelScreen({
 
       <div className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
-          <div className="flex flex-1 items-center justify-center">
-            <VoiceMark size={48} />
-          </div>
+          <LoadingState placement="surface" />
         ) : status === "error" || !queue ? (
           <p className="text-[15px] text-muted-foreground">
             Couldn&apos;t load the queue just now. Close and reopen to try

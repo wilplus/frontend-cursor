@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchRecording } from "@/lib/api/client";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import CompletedCard from "@/components/session/CompletedCard";
-import LoadingState from "@/components/willab/LoadingState";
+import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -47,7 +47,7 @@ export default function RecordingPage() {
         <DashboardHeader />
         <main className="mx-auto max-w-4xl px-4 py-8">
           <Card className="p-6">
-            <LoadingState />
+            <SectionLoadingState label="Loading recording" />
           </Card>
         </main>
       </div>

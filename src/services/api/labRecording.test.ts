@@ -8,6 +8,7 @@ vi.mock("@/lib/api/auth-client", () => ({
 import {
   guardRecordingInput,
   projectIdentityError,
+  retryIdealTextGeneration,
   submitLabRecording,
 } from "./labRecording";
 
@@ -76,7 +77,7 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
 
     expect(form.get("topic")).toBe("Q3 pitch");
     expect(form.get("presentation_ref")).toBe(
-      "https://pub-x.r2.dev/willab_presentations/abc.pdf"
+      "https://pub-x.r2.dev/willab_presentations/abc.pdf",
     );
     expect(JSON.parse(form.get("slides") as string)).toEqual([
       { title: "Intro", body: "welcome" },
@@ -174,14 +175,14 @@ describe("submitLabRecording — canonical project identity", () => {
   });
 
   it("fails locally without either required identity coordinate", () => {
-    expect(
-      guardRecordingInput({ ...baseInput(), projectId: "" }).ok
-    ).toBe(false);
+    expect(guardRecordingInput({ ...baseInput(), projectId: "" }).ok).toBe(
+      false,
+    );
     expect(
       guardRecordingInput({
         ...baseInput(),
         uploadIdempotencyKey: "",
-      }).ok
+      }).ok,
     ).toBe(false);
   });
 
@@ -204,13 +205,45 @@ describe("submitLabRecording — canonical project identity", () => {
 
   it("requires the backend to echo the exact selected project", () => {
     expect(projectIdentityError({ projectId: "project-1" }, null)).toContain(
-      "did not return"
+      "did not return",
     );
     expect(
-      projectIdentityError({ projectId: "project-1" }, "project-1")
+      projectIdentityError({ projectId: "project-1" }, "project-1"),
     ).toBeNull();
-    expect(projectIdentityError({ projectId: "project-1" }, "project-2")).toContain(
-      "different project"
+    expect(
+      projectIdentityError({ projectId: "project-1" }, "project-2"),
+    ).toContain("different project");
+  });
+});
+
+describe("Take 1 Ideal Text confirmation boundary", () => {
+  it("maps the exact terminal state without reporting upload success", async () => {
+    stubResponse(200, {
+      session_id: "sess_take_1",
+      project_id: "arc_default",
+      arc_id: "arc_default",
+      take_index: 1,
+      state: "failed_ideal_text_unconfirmed",
+      analysis_state: "failed_ideal_text_unconfirmed",
+      readout: null,
+    });
+    await expect(submitLabRecording(baseInput())).resolves.toEqual({
+      kind: "ideal_text_unconfirmed",
+      sessionId: "sess_take_1",
+      arcId: "arc_default",
+      takeIndex: 1,
+    });
+  });
+
+  it("calls the document-only retry endpoint", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 202 } as Response),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(retryIdealTextGeneration("session one")).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v2/lab/recordings/session%20one/retry-ideal-text",
+      expect.objectContaining({ method: "POST", cache: "no-store" }),
     );
   });
 });
@@ -232,8 +265,10 @@ function stubResponse(status: number, body: unknown) {
       ok: status >= 200 && status < 300,
       status,
       json: () =>
-        body === null ? Promise.reject(new Error("not json")) : Promise.resolve(body),
-    } as unknown as Response)
+        body === null
+          ? Promise.reject(new Error("not json"))
+          : Promise.resolve(body),
+    } as unknown as Response),
   );
 }
 
@@ -294,7 +329,7 @@ describe("submitLabRecording — §A1 generic error copy + ref", () => {
     expect(res.code).toBe("V2_ERROR");
     expect(res.ref).toBe("a1b2c3d4");
     expect(res.message).toBe(
-      "Something went wrong on our end. (Reference: a1b2c3d4)"
+      "Something went wrong on our end. (Reference: a1b2c3d4)",
     );
   });
 
