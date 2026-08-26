@@ -296,7 +296,9 @@ export interface DocumentSuggestion {
   evidence?: {
     projectId: string;
     takeSessionId: string;
-    slideIndex: number;
+    /** null means an explicitly deckless/unlinked talk section; it never
+     *  means that the client should guess a slide. */
+    slideIndex: number | null;
     paragraphIndex: number;
     start: number;
     end: number;
@@ -445,7 +447,8 @@ function mapSuggestionEvidence(value: unknown): SuggestionEvidence | null {
     !evidence ||
     typeof evidence.project_id !== "string" ||
     typeof evidence.take_session_id !== "string" ||
-    typeof evidence.slide_index !== "number" ||
+    (evidence.slide_index !== null &&
+      typeof evidence.slide_index !== "number") ||
     typeof evidence.paragraph_index !== "number" ||
     typeof span?.start !== "number" ||
     typeof span.end !== "number"

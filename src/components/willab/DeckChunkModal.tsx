@@ -61,6 +61,10 @@ interface DeckChunkModalProps {
   /** The pending proposal to review, when the chunk is waiting. Null routes
    *  straight to the EDITOR face. */
   suggestion: DocumentSuggestion | null;
+  /** The immutable pending inventory for this chunk. It is shown up front so
+   *  resolving item one never makes item two appear as a surprise. The
+   *  backend caps the complete Take inventory at three. */
+  pendingSuggestions?: readonly DocumentSuggestion[];
   /** Decide approve. Resolves true when saved; the host refetches and the
    *  updated chunk text flows back down. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
@@ -79,7 +83,7 @@ interface DeckChunkModalProps {
   /** THE STYLE LANE (slice 2) — a pending post-lock bold for this chunk,
    *  surfaced ONLY here. Null = none. */
   styleSuggestion?: DocumentSuggestion | null;
-  /** Apply the style proposal (rides outside the ≤3 budget). */
+  /** Apply the style proposal (already counted in the whole-Take ≤3 set). */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
   /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals; the modal
    *  lists the ones whose words belong to this chunk. */
@@ -100,7 +104,8 @@ interface DeckChunkModalProps {
 
 export default function DeckChunkModal({
   chunk,
-  suggestion,
+  suggestion: initialSuggestion,
+  pendingSuggestions = [],
   onAccept,
   onUndoAccept,
   onKeepMine,
@@ -114,6 +119,36 @@ export default function DeckChunkModal({
   coachReviewStatus = null,
   arcId = null,
 }: DeckChunkModalProps) {
+  // Freeze the inventory for this modal opening. A refetch removes a decided
+  // payload row, but it must not rewrite the student's memory of which items
+  // were present when review began. Resolved rows are marked locally; no new
+  // identity can enter this list.
+  const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() => {
+    const source = pendingSuggestions.length > 0
+      ? pendingSuggestions
+      : initialSuggestion
+        ? [initialSuggestion]
+        : [];
+    const seen = new Set<string>();
+    return source.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }).slice(0, 3);
+  });
+  const [resolvedFeedbackIds, setResolvedFeedbackIds] = useState<
+    ReadonlySet<string>
+  >(new Set());
+  const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(
+    initialSuggestion?.id ?? feedbackInventory[0]?.id ?? null,
+  );
+  const unresolvedFeedback = feedbackInventory.filter(
+    (item) => !resolvedFeedbackIds.has(item.id),
+  );
+  const suggestion =
+    unresolvedFeedback.find((item) => item.id === activeFeedbackId) ??
+    unresolvedFeedback[0] ??
+    null;
   // Accept morphs the face; everything else derives from the chunk.
   // KEYED ON THE WORK, NOT THE STATE. `chunk.status` folds "approved, not
   // locked" into "locked", so reading it here meant a chunk with a real
@@ -129,6 +164,18 @@ export default function DeckChunkModal({
     useState<DocumentSuggestion | null>(null);
   const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
     useState(false);
+
+  function advanceAfterDecision(decidedId: string): boolean {
+    const remaining = feedbackInventory.filter(
+      (item) => item.id !== decidedId && !resolvedFeedbackIds.has(item.id),
+    );
+    setResolvedFeedbackIds((previous) => new Set(previous).add(decidedId));
+    if (remaining.length === 0) return false;
+    setActiveFeedbackId(remaining[0].id);
+    setRewriteCollisionConfirmed(false);
+    setError(null);
+    return true;
+  }
 
   // The always-editable draft. Re-synced from the served text whenever the
   // part's words change UNDER the modal (an accept reassembles the document)
@@ -186,6 +233,12 @@ export default function DeckChunkModal({
       setError("Couldn't save that decision. Try again.");
       return;
     }
+    if (advanceAfterDecision(suggestion.id)) {
+      // The next item was already visible in the inventory above. Stay on the
+      // review face; this is navigation inside a frozen set, not feedback
+      // trickling in after the decision.
+      return;
+    }
     // The student is never dropped back to the page mid-decision: the modal
     // re-renders as the editor over the freshly accepted words.
     dirtyRef.current = false;
@@ -223,6 +276,7 @@ export default function DeckChunkModal({
       setError("Couldn't save that decision. Try again.");
       return;
     }
+    if (advanceAfterDecision(suggestion.id)) return;
     // Keep mine: the words are untouched and the proposal moves into
     // history. The modal closes (Lovable §3.1); the lock stays one tap away
     // for a student who wants to commit their own wording.
@@ -577,6 +631,43 @@ export default function DeckChunkModal({
         </div>
 
         <div data-sheet-scroll className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
+          {face === "review" && feedbackInventory.length > 1 ? (
+            <div
+              className="rounded-2xl border border-border bg-card p-3"
+              aria-label="Feedback available in this part of your Take"
+            >
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Feedback ready · {feedbackInventory.length}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {feedbackInventory.map((item, index) => {
+                  const resolved = resolvedFeedbackIds.has(item.id);
+                  const active = suggestion?.id === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={resolved}
+                      aria-current={active ? "true" : undefined}
+                      onClick={() => {
+                        setActiveFeedbackId(item.id);
+                        setRewriteCollisionConfirmed(false);
+                        setError(null);
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-60 ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {resolved ? <Check className="h-3 w-3" aria-hidden /> : null}
+                      {index + 1}. {displayKind(item)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           {coachReviewStatus ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
               {coachReviewStatus === "pending_coach_review"

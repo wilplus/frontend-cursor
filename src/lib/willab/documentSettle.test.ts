@@ -16,6 +16,20 @@ import {
 const T0 = 1_000_000;
 
 describe("documentSettled", () => {
+  it("settles on the first probe when the durable review version reached the Take", () => {
+    // Synchronous processing may finish before this screen mounts, so there
+    // is no earlier browser probe from which to observe a version delta.
+    expect(
+      documentSettled(
+        2,
+        null,
+        { version: 2, maxTakeIndex: 1 },
+        T0,
+        T0 + 500
+      )
+    ).toBe("settled");
+  });
+
   it("settles when the served pieces contain the awaited take", () => {
     expect(
       documentSettled(
@@ -76,6 +90,18 @@ describe("documentSettled", () => {
         3,
         null,
         { version: 2, maxTakeIndex: 2 },
+        T0,
+        T0 + 4_000
+      )
+    ).toBe("waiting");
+  });
+
+  it("a lower durable version than awaited is not confirmation", () => {
+    expect(
+      documentSettled(
+        3,
+        null,
+        { version: 2, maxTakeIndex: 1 },
         T0,
         T0 + 4_000
       )

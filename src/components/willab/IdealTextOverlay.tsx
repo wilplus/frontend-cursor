@@ -723,9 +723,9 @@ export default function IdealTextOverlay({
     return true;
   };
 
-  // THE STYLE LANE (slice 2): apply a post-lock emphasis. Outside the ≤3
-  // budget — styleLane marks the ledger row lane:style, which the spend
-  // counter excludes. The fold bakes server-side; the refetch brings it in.
+  // THE STYLE LANE (slice 2): apply a post-lock emphasis. `styleLane` keeps
+  // its decision provenance distinct, while the Manager has already counted
+  // it inside the whole-Take ≤3. The fold bakes server-side; refetch brings it in.
   const applyStyle = async (s: DocumentSuggestion): Promise<boolean> => {
     if (!s.snippetId || !s.takeSessionId) return false;
     const r = await sendSuggestionFeedback({

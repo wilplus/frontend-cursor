@@ -129,8 +129,9 @@ export default function TranscriptReviewDeck({
    *  host without the capability shows no button rather than a dead one. */
   onUnlockPart?: ((chunk: DeckChunk) => Promise<LockOutcome>) | null;
   onClose?: () => void;
-  /** THE STYLE LANE (slice 2) — post-lock bold proposals, outside the ≤3.
-   *  Modal-only; the page never re-marks locked text. */
+  /** THE STYLE LANE (slice 2) — post-lock bold proposals. They count inside
+   *  the same whole-Take ≤3; modal-only, so the page never re-marks locked
+   *  text. */
   styleChanges?: readonly DocumentSuggestion[] | null;
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
   /** PROPOSAL HISTORY (slice 2) — decided proposals, texts included. */
@@ -190,7 +191,23 @@ export default function TranscriptReviewDeck({
       groupChunksBySlide(chunks, pieceSlideIndexes, slideCount),
     [chunks, pieceSlideIndexes, slideCount]
   );
-  const groups = grouping.ok ? grouping.groups : [];
+  // TEXT AVAILABILITY IS NOT SLIDE-LINKAGE AVAILABILITY (2026-08-26).
+  // A Take can finish with a durable Ideal Text while optional paragraph →
+  // deck provenance is stale or temporarily unavailable. The former screen
+  // treated that metadata defect as a broken document and replaced all of the
+  // user's text with "Couldn't load your ideal text." Keep the strict mapper
+  // (it still refuses to guess a slide), but degrade to one unlinked "Your
+  // talk" section. The words remain openable; no slide identity is invented.
+  const groups = useMemo(
+    () =>
+      grouping.ok
+        ? grouping.groups
+        : chunks.length > 0
+          ? [{ slideIndex: null, chunks: [...chunks] }]
+          : [],
+    [grouping, chunks],
+  );
+  const deckReady = groups.length > 0;
   /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
    * next screen. The nested scroll steps between screens; the rail shows
@@ -215,10 +232,10 @@ export default function TranscriptReviewDeck({
     number | null | undefined
   >(undefined);
   useEffect(() => {
-    if (grouping.ok) return;
+    if (deckReady) return;
     setOpenPartId(null);
     setEditingSlideIndex(undefined);
-  }, [grouping.ok]);
+  }, [deckReady]);
   const openChunk = openPartId
     ? (chunks.find((c) => c.part.id === openPartId) ?? null)
     : null;
@@ -226,6 +243,12 @@ export default function TranscriptReviewDeck({
     openChunk && openChunk.pendingIds.length > 0
       ? (suggestions.find((s) => s.id === openChunk.pendingIds[0]) ?? null)
       : null;
+  const openSuggestions = openChunk
+    ? openChunk.pendingIds
+        .map((id) => suggestions.find((s) => s.id === id) ?? null)
+        .filter((item): item is DocumentSuggestion => item !== null)
+        .slice(0, 3)
+    : [];
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -470,7 +493,10 @@ export default function TranscriptReviewDeck({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-background">
+    <div
+      className="flex h-full min-h-0 w-full flex-col bg-background"
+      data-slide-linkage={grouping.ok ? "linked" : "unlinked"}
+    >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -485,7 +511,7 @@ export default function TranscriptReviewDeck({
           ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          {grouping.ok ? (
+          {deckReady ? (
             <button
               type="button"
               onClick={() => void copyDeck()}
@@ -512,9 +538,9 @@ export default function TranscriptReviewDeck({
           CHUNK, bubbling across slides by the same rule as the gestures. */}
       <div
         ref={stageRef}
-        tabIndex={grouping.ok ? 0 : -1}
+        tabIndex={deckReady ? 0 : -1}
         onKeyDown={(e) => {
-          if (!grouping.ok) return;
+          if (!deckReady) return;
           const fwd =
             e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
           const back = e.key === "ArrowUp" || e.key === "PageUp";
@@ -524,22 +550,12 @@ export default function TranscriptReviewDeck({
         }}
         className="relative min-h-0 flex-1 outline-none"
       >
-        {!grouping.ok ? (
-          <div
-            className="flex h-full items-center justify-center px-6 text-center"
-            role="alert"
-          >
-            <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-              Couldn&apos;t load your ideal text. Try again in a moment.
-            </p>
-          </div>
-        ) : null}
         <div
           ref={scrollerRef}
           // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
           // would bypass the chunk gate through the kicker area, so the
           // track only moves via goTo/dots/keys.
-          className={grouping.ok ? "h-full overflow-hidden" : "hidden"}
+          className={deckReady ? "h-full overflow-hidden" : "hidden"}
         >
           {screens.map((g, gi) => (
             <section
@@ -577,7 +593,7 @@ export default function TranscriptReviewDeck({
                   onClick={() => setEditingSlideIndex(g.slideIndex)}
                   className="mt-3 text-[13px] font-medium text-primary transition-opacity hover:opacity-70"
                 >
-                  Edit this slide
+                  Edit the text
                 </button>
               </div>
               {/* The INNER chunk scroller: overscroll-contained so the
@@ -621,6 +637,7 @@ export default function TranscriptReviewDeck({
                       <RichText text={c.part.text} />
                       <DeckLockMark
                         status={c.status}
+                        pendingCount={c.pendingIds.length}
                         flagship={parseRichSpans(c.part.text).some(
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
@@ -666,7 +683,7 @@ export default function TranscriptReviewDeck({
             screen) is gone; see the mark below for why.
             POSITION ONLY — "slide 3, second of two screens" is navigation;
             the rail must never grade (AC-9). */}
-        {grouping.ok &&
+        {deckReady &&
         (screens.length > 1 || (counts[0] ?? 0) > 1) ? (
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2.5">
             {railSlides.map((rs, ord) => {
@@ -741,11 +758,12 @@ export default function TranscriptReviewDeck({
           says where you are, and a running word count is a number about
           your speech sitting under your speech. */}
 
-      {grouping.ok && openChunk ? (
+      {deckReady && openChunk ? (
         <DeckChunkModal
           key={openChunk.part.id}
           chunk={openChunk}
           suggestion={openSuggestion}
+          pendingSuggestions={openSuggestions}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
           onKeepMine={onKeepMine}
@@ -799,7 +817,7 @@ export default function TranscriptReviewDeck({
           arcId={arcId}
         />
       ) : null}
-      {grouping.ok && editingSlideIndex !== undefined ? (
+      {deckReady && editingSlideIndex !== undefined ? (
         <SlideEditor
           key={editingSlideIndex ?? "unlinked"}
           title={titleFor(editingSlideIndex) || kickerFor(editingSlideIndex, 0)}
@@ -844,12 +862,12 @@ function SlideEditor({
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label="Edit this slide"
+      aria-label="Edit the text"
     >
       <div className="flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:rounded-3xl">
         <div className="shrink-0 border-b border-border px-5 py-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Edit this slide
+            Edit the text
           </p>
           <h2 className="mt-1 text-[17px] font-semibold text-foreground">{title}</h2>
         </div>
