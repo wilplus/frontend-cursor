@@ -47,18 +47,25 @@ export default function CeoArtifactEditor({
   lens,
   timeline,
   comments,
+  analysisBlocked,
   onBootstrap,
 }: {
   artifact: CeoArtifact | null;
   lens: CeoLens;
   timeline: CeoTimelineEvent[];
   comments: CeoArtifactComment[];
+  analysisBlocked: boolean;
   onBootstrap: (bootstrap: CeoBootstrap) => void;
 }) {
   const [status, setStatus] = useState<MutationStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [commenting, setCommenting] = useState(false);
+  const reevaluationBlocked = analysisBlocked || comments.some(
+    (item) =>
+      item.reevaluation_status === "pending" ||
+      item.reevaluation_status === "processing"
+  );
 
   if (!artifact) {
     return (
@@ -180,6 +187,11 @@ export default function CeoArtifactEditor({
           Add guidance for the next model evaluation. This queues analysis; it
           does not modify the application or deploy code.
         </p>
+        {reevaluationBlocked ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Review the open proposal before requesting another evaluation.
+          </p>
+        ) : null}
         <textarea
           value={comment}
           onChange={(event) => setComment(event.target.value)}
@@ -192,7 +204,7 @@ export default function CeoArtifactEditor({
           <button
             type="button"
             onClick={() => void requestReevaluation()}
-            disabled={!comment.trim() || commenting}
+            disabled={!comment.trim() || commenting || reevaluationBlocked}
             className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-40"
           >
             {commenting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden /> : null}

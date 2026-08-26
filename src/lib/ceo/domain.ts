@@ -81,6 +81,67 @@ export interface CeoArtifactComment {
   updated_at: string;
 }
 
+export type CeoAnalysisStatus =
+  | "queued"
+  | "running"
+  | "preview_ready"
+  | "approved"
+  | "rejected"
+  | "failed";
+
+export interface CeoAnalysisRun {
+  id: string;
+  project_key: CeoProjectKey;
+  feature_id: string;
+  artifact_id: string;
+  lens: "architecture" | "ml";
+  trigger_type: "manual" | "comment" | "task_completed" | "source_change";
+  reason: string;
+  status: CeoAnalysisStatus;
+  base_revision_id: string;
+  proposal_revision_id: string | null;
+  source_snapshot_ids: string[];
+  model: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  duration_ms: number | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  reviewed_at: string | null;
+  proposal_revision: CeoArtifactRevision | null;
+}
+
+export interface CeoSourceSnapshot {
+  id: string;
+  project_key: CeoProjectKey;
+  feature_id: string | null;
+  source_type:
+    | "backend_code"
+    | "frontend_code"
+    | "migration"
+    | "documentation"
+    | "research_paper"
+    | "manual_note"
+    | "vision"
+    | "ceo_history";
+  source_ref: string;
+  title: string;
+  content_hash: string;
+  metadata: Record<string, unknown>;
+  captured_at: string;
+}
+
+export interface CeoIntelligenceUsage {
+  runs: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
 export interface CeoBootstrap {
   projects: CeoProject[];
   features: CeoFeature[];
@@ -88,6 +149,9 @@ export interface CeoBootstrap {
   view_state: CeoViewState[];
   timeline: CeoTimelineEvent[];
   comments: CeoArtifactComment[];
+  analysis_runs: CeoAnalysisRun[];
+  source_snapshots: CeoSourceSnapshot[];
+  intelligence_usage: CeoIntelligenceUsage;
   vocabulary: {
     projects: CeoProjectKey[];
     surfaces: CeoSurface[];
