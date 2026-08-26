@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   appendArchitectureColumn,
   appendArchitectureRow,
+  appendMlColumn,
+  appendMlRow,
   artifactDraft,
+  gridMlEdges,
   linearMlEdges,
   removeArchitectureColumn,
+  removeMlColumn,
+  removeMlRow,
+  type CeoArchitectureContent,
 } from "@/lib/ceo/overview";
 
 describe("CEO artifact drafts", () => {
@@ -61,17 +67,16 @@ describe("CEO artifact drafts", () => {
         id: "row-1",
         cells: [{ column_id: "signal", value: "Pitch variance" }],
       }],
-    });
+    }) as CeoArchitectureContent;
 
-    expect("rows" in draft && draft.rows[0].cells).toEqual([
+    expect(draft.rows[0].cells).toEqual([
       { column_id: "signal", value: "Pitch variance" },
       { column_id: "owner", value: "" },
     ]);
   });
 
   it("adds rows and columns independently and removes column cells", () => {
-    const initial = artifactDraft("architecture", {});
-    if (!("columns" in initial)) throw new Error("Expected Architecture content");
+    const initial = artifactDraft("architecture", {}) as CeoArchitectureContent;
 
     const withRow = appendArchitectureRow(initial);
     const withColumn = appendArchitectureColumn(withRow);
@@ -95,6 +100,8 @@ describe("CEO artifact drafts", () => {
       "Application",
     ]);
     expect("edges" in draft && draft.edges).toHaveLength(2);
+    expect("nodes" in draft && draft.rows).toHaveLength(1);
+    expect("nodes" in draft && draft.columns).toHaveLength(3);
   });
 
   it("rebuilds the ML path when stages change", () => {
@@ -108,5 +115,74 @@ describe("CEO artifact drafts", () => {
       ["a", "b"],
       ["b", "c"],
     ]);
+  });
+
+  it("adds and removes ML rows and columns independently", () => {
+    const initial = artifactDraft("ml", {});
+    if (!("nodes" in initial)) throw new Error("Expected ML content");
+
+    const withRow = appendMlRow(initial);
+    const withColumn = appendMlColumn(withRow);
+    const addedRow = withRow.rows.at(-1);
+    const addedColumn = withColumn.columns.at(-1);
+
+    expect(withRow.rows).toHaveLength(2);
+    expect(withRow.nodes.some((node) => node.row_id === addedRow?.id)).toBe(true);
+    expect(withColumn.columns).toHaveLength(4);
+    expect(
+      withColumn.nodes.some((node) => node.column_id === addedColumn?.id)
+    ).toBe(true);
+    expect(removeMlRow(withColumn, addedRow?.id ?? "").rows).toHaveLength(1);
+    expect(
+      removeMlColumn(withColumn, addedColumn?.id ?? "").columns
+    ).toHaveLength(3);
+  });
+
+  it("preserves a sparse saved ML grid", () => {
+    const draft = artifactDraft("ml", {
+      rows: [{ id: "training" }, { id: "research" }],
+      columns: [{ id: "capture" }, { id: "application" }],
+      nodes: [{
+        id: "audio",
+        row_id: "training",
+        column_id: "capture",
+        label: "Audio",
+        detail: "Raw voice",
+      }],
+      edges: [],
+    });
+    if (!("nodes" in draft)) throw new Error("Expected ML content");
+
+    expect(draft.rows).toEqual([{ id: "training" }, { id: "research" }]);
+    expect(draft.columns).toEqual([
+      { id: "capture" }, { id: "application" },
+    ]);
+    expect(draft.nodes[0]).toMatchObject({
+      row_id: "training",
+      column_id: "capture",
+      label: "Audio",
+    });
+  });
+
+  it("builds ML edges within each row without joining separate lanes", () => {
+    const rows = [{ id: "row-a" }, { id: "row-b" }];
+    const columns = [{ id: "col-a" }, { id: "col-b" }];
+    const nodes = [
+      {
+        id: "a1", row_id: "row-a", column_id: "col-a",
+        label: "Capture", detail: "",
+      },
+      {
+        id: "a2", row_id: "row-a", column_id: "col-b",
+        label: "Features", detail: "",
+      },
+      {
+        id: "b1", row_id: "row-b", column_id: "col-a",
+        label: "Research", detail: "",
+      },
+    ];
+
+    expect(gridMlEdges(rows, columns, nodes).map((edge) => [edge.from, edge.to]))
+      .toEqual([["a1", "a2"]]);
   });
 });
