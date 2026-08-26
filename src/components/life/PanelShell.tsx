@@ -152,7 +152,7 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
     return (
       <div className="flex min-h-full flex-col bg-background">
         <div className="flex flex-1 items-center justify-center">
-          <LoadingState withTip={false} />
+          <LoadingState placement="surface" />
         </div>
       </div>
     );

@@ -61,6 +61,10 @@ export interface LoungeMessage {
 /** The fields a caller supplies; client_id + client_created_at are stamped. */
 export type LoungeMessageDraft = Pick<LoungeMessage, "role" | "kind" | "body"> & {
   metadata?: Record<string, unknown> | null;
+  /** Optional durable idempotency identity. Most messages mint a UUID here;
+   *  lifecycle messages may supply the UUID of the thing that completed so
+   *  every observer (backend, open tab, resumed tab) converges on one row. */
+  clientId?: string;
 };
 
 export interface LoungeHistoryPage {
@@ -80,9 +84,10 @@ export interface LoungeHistoryPage {
 export function stampLoungeMessage(draft: LoungeMessageDraft): LoungeMessage {
   return {
     client_id:
-      typeof crypto !== "undefined" && crypto.randomUUID
+      draft.clientId ??
+      (typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
-        : `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+        : `${Date.now()}-${Math.round(Math.random() * 1e9)}`),
     client_created_at: new Date().toISOString(),
     role: draft.role,
     kind: draft.kind,

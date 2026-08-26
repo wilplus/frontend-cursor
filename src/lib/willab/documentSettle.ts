@@ -11,8 +11,9 @@
 /*               (a piece carries its take index), OR the version moved under  */
 /*               the probe (a reassembly happened while we watched — the       */
 /*               signal that also covers a take that won no block).            */
-/*    expired  — the cap passed. Release quietly: a stuck block is worse than  */
-/*               a stale read, and the pre-marker behavior was always stale.   */
+/*    expired  — the cap passed without database-visible evidence. The caller  */
+/*               must enter failed_ideal_text_unconfirmed; never clear as if    */
+/*               document generation succeeded.                                */
 /*    waiting  — neither yet.                                                 */
 /*                                                                            */
 /*  THE ONE CASE THIS CANNOT CATCH: assembly finished BEFORE the first probe   */
@@ -40,7 +41,7 @@ export function documentSettled(
   first: DocumentProbe | null,
   current: DocumentProbe,
   phaseStartedAt: number,
-  now: number
+  now: number,
 ): "settled" | "waiting" | "expired" {
   // Positive confirmation: the document contains the awaited take.
   if (

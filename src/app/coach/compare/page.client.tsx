@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import LoadingState from "@/components/willab/LoadingState";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import {
   fetchAbPairs,
@@ -90,11 +91,7 @@ export default function ComparePageClient() {
   }
 
   if (loading) {
-    return (
-      <main className="flex h-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </main>
-    );
+    return <LoadingState placement="viewport" />;
   }
   // Nothing for a non-coach, even by direct URL — the same rule the corpus
   // workbench follows. The BE would refuse them anyway.

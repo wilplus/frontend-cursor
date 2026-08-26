@@ -184,10 +184,13 @@ export default function TranscriptReviewDeck({
       return c;
     });
   }, [doc, parts, suggestions, optimisticLocked, optimisticUnlocked]);
-  const groups = useMemo(
-    () => groupChunksBySlide(chunks, pieceSlideIndexes),
-    [chunks, pieceSlideIndexes]
+  const slideCount = slideTitles?.length ?? null;
+  const grouping = useMemo(
+    () =>
+      groupChunksBySlide(chunks, pieceSlideIndexes, slideCount),
+    [chunks, pieceSlideIndexes, slideCount]
   );
+  const groups = grouping.ok ? grouping.groups : [];
   /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
    * next screen. The nested scroll steps between screens; the rail shows
@@ -211,6 +214,11 @@ export default function TranscriptReviewDeck({
   const [editingSlideIndex, setEditingSlideIndex] = useState<
     number | null | undefined
   >(undefined);
+  useEffect(() => {
+    if (grouping.ok) return;
+    setOpenPartId(null);
+    setEditingSlideIndex(undefined);
+  }, [grouping.ok]);
   const openChunk = openPartId
     ? (chunks.find((c) => c.part.id === openPartId) ?? null)
     : null;
@@ -477,18 +485,20 @@ export default function TranscriptReviewDeck({
           ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => void copyDeck()}
-            aria-label="Copy the whole text"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-success" aria-hidden />
-            ) : (
-              <Copy className="h-4 w-4" aria-hidden />
-            )}
-          </button>
+          {grouping.ok ? (
+            <button
+              type="button"
+              onClick={() => void copyDeck()}
+              aria-label="Copy the whole text"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-success" aria-hidden />
+              ) : (
+                <Copy className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          ) : null}
           {onClose ? (
             <OverlayCloseButton onClick={onClose} ariaLabel="Close the deck" />
           ) : null}
@@ -502,8 +512,9 @@ export default function TranscriptReviewDeck({
           CHUNK, bubbling across slides by the same rule as the gestures. */}
       <div
         ref={stageRef}
-        tabIndex={0}
+        tabIndex={grouping.ok ? 0 : -1}
         onKeyDown={(e) => {
+          if (!grouping.ok) return;
           const fwd =
             e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ";
           const back = e.key === "ArrowUp" || e.key === "PageUp";
@@ -513,12 +524,22 @@ export default function TranscriptReviewDeck({
         }}
         className="relative min-h-0 flex-1 outline-none"
       >
+        {!grouping.ok ? (
+          <div
+            className="flex h-full items-center justify-center px-6 text-center"
+            role="alert"
+          >
+            <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+              Couldn&apos;t load your ideal text. Try again in a moment.
+            </p>
+          </div>
+        ) : null}
         <div
           ref={scrollerRef}
           // PROGRAMMATIC-ONLY (§11.3): native scroll on the slide track
           // would bypass the chunk gate through the kicker area, so the
           // track only moves via goTo/dots/keys.
-          className="h-full overflow-hidden"
+          className={grouping.ok ? "h-full overflow-hidden" : "hidden"}
         >
           {screens.map((g, gi) => (
             <section
@@ -645,7 +666,8 @@ export default function TranscriptReviewDeck({
             screen) is gone; see the mark below for why.
             POSITION ONLY — "slide 3, second of two screens" is navigation;
             the rail must never grade (AC-9). */}
-        {screens.length > 1 || (counts[0] ?? 0) > 1 ? (
+        {grouping.ok &&
+        (screens.length > 1 || (counts[0] ?? 0) > 1) ? (
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2.5">
             {railSlides.map((rs, ord) => {
               const slideScreens = screens.slice(rs.first, rs.first + rs.count);
@@ -719,7 +741,7 @@ export default function TranscriptReviewDeck({
           says where you are, and a running word count is a number about
           your speech sitting under your speech. */}
 
-      {openChunk ? (
+      {grouping.ok && openChunk ? (
         <DeckChunkModal
           key={openChunk.part.id}
           chunk={openChunk}
@@ -777,7 +799,7 @@ export default function TranscriptReviewDeck({
           arcId={arcId}
         />
       ) : null}
-      {editingSlideIndex !== undefined ? (
+      {grouping.ok && editingSlideIndex !== undefined ? (
         <SlideEditor
           key={editingSlideIndex ?? "unlinked"}
           title={titleFor(editingSlideIndex) || kickerFor(editingSlideIndex, 0)}

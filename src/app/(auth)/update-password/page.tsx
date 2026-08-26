@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import UpdatePasswordForm from "@/components/auth/UpdatePasswordForm";
 import Logo from "@/components/Logo";
-import LoadingState from "@/components/willab/LoadingState";
+import { SectionLoadingState } from "@/components/willab/LoadingState";
 
 export const metadata: Metadata = {
   title: "Update Password | WillpowerLab",
@@ -20,7 +20,7 @@ export default function UpdatePasswordPage() {
             Set your new password below. You are not signed in yet — after saving, you’ll sign in with your new password.
           </p>
         </div>
-        <Suspense fallback={<LoadingState />}>
+        <Suspense fallback={<SectionLoadingState label="Loading password form" />}>
           <UpdatePasswordForm />
         </Suspense>
       </div>

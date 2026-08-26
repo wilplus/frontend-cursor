@@ -38,6 +38,17 @@ describe("stampLoungeMessage", () => {
     });
     expect(m.metadata).toEqual({ session_id: "s1" });
   });
+
+  it("honours a lifecycle message's durable client identity", () => {
+    const sessionId = "77777777-7777-4777-8777-777777777777";
+    const m = stampLoungeMessage({
+      clientId: sessionId,
+      role: "bot",
+      kind: "ideal_text",
+      body: "done",
+    });
+    expect(m.client_id).toBe(sessionId);
+  });
 });
 
 describe("chunkLoungeMessages", () => {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import TokenWalletPanel from "@/components/tokens/TokenWalletPanel";
 import { TOKENS_COPY } from "@/components/tokens/copy";
 import { Button } from "@/components/ui/button";
-import LoadingState from "@/components/willab/LoadingState";
+import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { useTokenWallet } from "@/hooks/useTokenWallet";
 
 /* -------------------------------------------------------------------------- */
@@ -77,7 +77,7 @@ export default function TokenWalletScreen() {
 
       {wallet.pricesState === "probing" ? (
         <div className="py-10">
-          <LoadingState />
+          <SectionLoadingState label="Loading token prices" />
         </div>
       ) : wallet.pricesState === "failed" ? (
         /* A read that failed says so and offers ONE user-initiated retry. The

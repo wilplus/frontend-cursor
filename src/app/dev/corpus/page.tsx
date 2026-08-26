@@ -102,10 +102,19 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       const method = (init?.method ?? "GET").toUpperCase();
 
       if (url.includes("/api/v2/user/profile") || url.includes("/profile")) {
-        return new Response(JSON.stringify({ is_coach: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            is_coach: true,
+            // The harness exercises the corpus itself, not the one-time
+            // language gate. Keep the mock on the current profile contract so
+            // that gate cannot hide the surface the browser spec is pinning.
+            proficient_languages: ["en"],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
       if (url.includes("/confidence-queue")) {
         // sess-full is a session whose every piece is already labelled, so

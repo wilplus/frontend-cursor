@@ -28,14 +28,18 @@ import {
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
-import { readoutSummaryDraft } from "./loungeReports";
+import {
+  idealTextUnconfirmedDraft,
+  readoutSummaryDraft,
+  takeProcessedDraft,
+} from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
 import { setPendingSend, setReviewPending } from "./sendStatus";
 import type { ReadoutPayload } from "./readout";
 import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
-import { VoiceMark } from "./LoadingState";
+import LoadingState, { VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
@@ -49,10 +53,14 @@ import {
   type ExploreArcDeck,
 } from "@/lib/willab/exploreArc";
 import {
-  writeProcessingTake,
   clearProcessingTake,
+  readProcessingTake,
+  writeProcessingTake,
   markProcessingTakeFailed,
+  markProcessingTakeIdealTextUnconfirmed,
+  processingTakeKeepsIdealText,
   transitionProcessingTakeToDocument,
+  updateProcessingTakeProgress,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
@@ -108,7 +116,9 @@ export default function LabOverlay({
   sessionId: string | null;
   goTo: (s: WillabState) => void;
   onClose: () => void;
-  onRecordingProgress?: (p: import("@/services/api/recordingProgress").RecordingProgress | null) => void;
+  onRecordingProgress?: (
+    p: import("@/services/api/recordingProgress").RecordingProgress | null,
+  ) => void;
 }) {
   // D-3 — back-gesture / Back exits the Lab instead of routing away. During the
   // readout phase, Back first steps the readout's own layout (collapse a moment,
@@ -126,7 +136,7 @@ export default function LabOverlay({
       mic.cancel();
       onClose();
     },
-    () => (state === "readout" ? readoutBackRef.current?.() ?? false : false)
+    () => (state === "readout" ? (readoutBackRef.current?.() ?? false) : false),
   );
   const router = useRouter();
   // T8 — the Lab transcribes server-side (Whisper) and never shows a live
@@ -153,7 +163,7 @@ export default function LabOverlay({
   // default is what they PRESENTED, not what they own.
   const recordingDeck = useMemo(
     () => deckForRecording(context?.slides, context?.presentationRef),
-    [context?.slides, context?.presentationRef]
+    [context?.slides, context?.presentationRef],
   );
   // A mutable copy in the shared slide type: the module is pure and returns
   // readonly, while the recorder and the upload both take PresentationSlide[].
@@ -164,9 +174,48 @@ export default function LabOverlay({
         body: s.body,
         artworkSrc: s.artworkSrc,
       })),
-    [recordingDeck]
+    [recordingDeck],
   );
   const { append: appendToThread, reload: reloadThread } = useLoungeThreadCtx();
+  const publishIdealTextUnconfirmed = async (target: {
+    sessionId: string;
+    arcId: string;
+  }) => {
+    const existing = readProcessingTake(userId);
+    if (existing?.sessionId === target.sessionId) {
+      markProcessingTakeIdealTextUnconfirmed(userId, target.sessionId);
+    } else {
+      const now = Date.now();
+      writeProcessingTake(userId, {
+        sessionId: target.sessionId,
+        arcId: target.arcId,
+        takeIndex: 1,
+        startedAt: now,
+        phaseStartedAt: now,
+        phase: "analysis",
+        status: "failed_ideal_text_unconfirmed",
+        progress: { stage: "ideal_text", percent: null },
+      });
+    }
+    try {
+      await appendToThread(
+        idealTextUnconfirmedDraft({
+          sessionId: target.sessionId,
+          arcId: target.arcId,
+          takeIndex: 1,
+        }),
+      );
+      // The local recovery marker is deleted only after the durable card is
+      // accepted. If delivery fails, Lounge sees the marker after this overlay
+      // closes and retries the same idempotent session-keyed append.
+      clearProcessingTake(userId, target.sessionId);
+      await reloadThread().catch(() => undefined);
+    } catch {
+      await reloadThread().catch(() => undefined);
+    } finally {
+      onClose();
+    }
+  };
   const reportedRef = useRef(false);
   // Timeline order (founder 2026-07-20): each bubble holds its publish moment.
   // The recording bubble is appended when the upload is ACCEPTED (before the
@@ -184,7 +233,7 @@ export default function LabOverlay({
         arcId: arcId ?? undefined,
         takeIndex: recordedTakeRef.current ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
-      })
+      }),
     );
   };
   // R4-5 — the Pre-record screen was removed: the Setup "Start recording" submit
@@ -236,13 +285,18 @@ export default function LabOverlay({
       setRecordingRoots(
         (result.pieces ?? []).flatMap((piece) =>
           typeof piece.slideIndex === "number" && piece.rootPhrase
-            ? [{
-                slideIndex: piece.slideIndex,
-                text: piece.rootPhrase,
-                type: piece.rootType === "flagship" ? "flagship" as const : "neutral" as const,
-              }]
-            : []
-        )
+            ? [
+                {
+                  slideIndex: piece.slideIndex,
+                  text: piece.rootPhrase,
+                  type:
+                    piece.rootType === "flagship"
+                      ? ("flagship" as const)
+                      : ("neutral" as const),
+                },
+              ]
+            : [],
+        ),
       );
     });
     return () => {
@@ -332,8 +386,11 @@ export default function LabOverlay({
   const [pollSlow, setPollSlow] = useState(false);
   const [processingProgress, setProcessingProgress] = useState<{
     stage: string;
-    percent: number;
+    percent: number | null;
   } | null>(null);
+  const [processingCycleStartedAt, setProcessingCycleStartedAt] = useState<
+    number | null
+  >(null);
   const [processingReady, setProcessingReady] = useState(false);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
@@ -382,14 +439,16 @@ export default function LabOverlay({
   // mid-recording. mountedRef bails if the overlay closed during that window.
   const uploadSeqRef = useRef(0);
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
   // A file the user picked from the Lounge footer ("Upload a recording"),
   // consumed once on mount. When present, the context form collects the topic
   // then submits this file straight through (deckless) instead of live-record.
   const stagedUploadRef = useRef<File | null>(takeLabUpload());
-
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
@@ -472,8 +531,9 @@ export default function LabOverlay({
         const returnedArcId = rArcId ?? arcId;
         if (!returnedArcId) return;
         const nextIdx =
-          (typeof rTakeIdx === "number" && rTakeIdx > 0 ? rTakeIdx : arcTakeIndex) +
-          1;
+          (typeof rTakeIdx === "number" && rTakeIdx > 0
+            ? rTakeIdx
+            : arcTakeIndex) + 1;
         const deck = context
           ? {
               topic: context.topic,
@@ -558,7 +618,7 @@ export default function LabOverlay({
         // ordering against the recorder's start event is not guaranteed).
         slideClockOffsetMs: measureSlideClockOffset(
           mic.getAudioStartedAt(),
-          recordStartRef.current
+          recordStartRef.current,
         ),
         feeling: recordedFeelingRef.current ?? undefined,
       });
@@ -576,7 +636,7 @@ export default function LabOverlay({
             carried.returnedArcId,
             carried.nextIdx,
             carried.deck,
-            result.sessionId ?? undefined
+            result.sessionId ?? undefined,
           );
           setArcId(carried.returnedArcId);
           setArcTakeIndex(carried.nextIdx);
@@ -586,27 +646,56 @@ export default function LabOverlay({
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
-        setProcessingProgress({ stage: "completed", percent: 100 });
-        setProcessingReady(true);
         onRecordingProgress?.(result.recordingProgress);
-        // SPEC-lockin-loop §1 (handoff §6.4 S4: "201 writes no marker"). A
-        // sync accept means the TRANSCRIPT is done — the arc's document
-        // still reassembles at pipeline end. Write the marker directly in
-        // its document phase so the blocking screen holds until the settle
-        // probe sees the new text, instead of the readout adopting the
-        // PRIOR take's document as current. No session id → nothing to
-        // scope a clear to, so no marker (the pre-marker behavior).
-        if (result.sessionId && (result.arcId ?? arcId)) {
+        const completedTake = {
+          arcId: result.arcId ?? arcId,
+          takeIndex:
+            result.takeIndex ?? recordedTakeRef.current ?? arcTakeIndex,
+        };
+        const keepsIdealText = processingTakeKeepsIdealText(completedTake);
+        if (result.sessionId && keepsIdealText) {
+          // The synchronous and background transports terminate through the
+          // same L1 rule and the same per-session event. A deployment-mode
+          // switch can therefore never resurrect the impossible version wait.
+          clearProcessingTake(userId, result.sessionId);
+          void appendToThread(
+            takeProcessedDraft({
+              sessionId: result.sessionId,
+              arcId: completedTake.arcId,
+              takeIndex: completedTake.takeIndex,
+            }),
+          );
+        } else if (result.sessionId && completedTake.arcId) {
+          // Take 1 really created a document. Write a document-phase marker so
+          // the served Ideal Text must prove it landed before it is revealed.
+          const startedAt = Date.now();
+          setProcessingCycleStartedAt(startedAt);
           writeProcessingTake(userId, {
             sessionId: result.sessionId,
-            arcId: result.arcId ?? arcId,
-            takeIndex:
-              result.takeIndex ?? arcTakeIndex,
-            startedAt: Date.now(),
+            arcId: completedTake.arcId,
+            takeIndex: completedTake.takeIndex,
+            startedAt,
             phase: "document",
-            phaseStartedAt: Date.now(),
+            phaseStartedAt: startedAt,
+            progress: { stage: "document_assembly", percent: null },
           });
         }
+        setProcessingProgress(
+          keepsIdealText
+            ? { stage: "completed", percent: 100 }
+            : { stage: "document_assembly", percent: null },
+        );
+        setProcessingReady(true);
+      } else if (result.kind === "ideal_text_unconfirmed") {
+        // Synchronous execution reached the same locked Take 1 boundary as
+        // queue/daemon mode. The take and feedback stay addressable; return to
+        // the Lounge only after its idempotent terminal card is present.
+        appendRecordingSummary(result.sessionId);
+        setLabSessionId(result.sessionId);
+        await publishIdealTextUnconfirmed({
+          sessionId: result.sessionId,
+          arcId: result.arcId,
+        });
       } else if (result.kind === "processing") {
         // Async analysis (delivery layer): the BE accepted the upload (202)
         // and finishes the analysis in a background daemon — it now SURVIVES a
@@ -625,12 +714,14 @@ export default function LabOverlay({
         setUploadStillProcessing(false);
         setProcessingProgress({ stage: "processing_recording", percent: 5 });
         setProcessingReady(false);
+        const startedAt = Date.now();
+        setProcessingCycleStartedAt(startedAt);
         writeProcessingTake(userId, {
           sessionId: result.sessionId,
           arcId: result.arcId ?? arcId,
-          takeIndex:
-            result.takeIndex ?? arcTakeIndex,
-          startedAt: Date.now(),
+          takeIndex: result.takeIndex ?? arcTakeIndex,
+          startedAt,
+          progress: { stage: "processing_recording", percent: 5 },
         });
         setPollSessionId(result.sessionId);
       } else if (result.kind === "rejected") {
@@ -670,11 +761,40 @@ export default function LabOverlay({
   }, [liveSessionId]);
   useLabReadoutLive(liveSessionId, (r) => {
     if (!liveSessionId) return;
-    if (r.processing) setProcessingProgress(r.processing);
+    const activeMarker = readProcessingTake(userId);
+    if (
+      activeMarker?.sessionId !== liveSessionId ||
+      activeMarker.phase !== "analysis" ||
+      activeMarker.status !== "processing"
+    ) {
+      return;
+    }
+    if (r.processing) {
+      const latestProgress = updateProcessingTakeProgress(
+        userId,
+        liveSessionId,
+        r.processing,
+      );
+      if (latestProgress) setProcessingProgress(latestProgress);
+    }
     const hasContent =
       r.readout.snippets.length > 0 ||
       r.readout.instantChunks.length > 0 ||
       r.readout.fullTranscriptChunks.length > 0;
+    if (r.state === "failed_ideal_text_unconfirmed") {
+      const failedArcId =
+        activeMarker.arcId ?? pendingCarryRef.current?.returnedArcId ?? arcId;
+      setPollSessionId(null);
+      setPollSlow(false);
+      setProcessingReady(false);
+      if (failedArcId && activeMarker.takeIndex === 1) {
+        void publishIdealTextUnconfirmed({
+          sessionId: liveSessionId,
+          arcId: failedArcId,
+        });
+      }
+      return;
+    }
     if (r.state === "failed") {
       // Keep the stashed arc bookkeeping: manual retry re-runs analysis for
       // this exact accepted session and commits it only after success.
@@ -682,9 +802,7 @@ export default function LabOverlay({
       setPollSessionId(null);
       setPollSlow(false);
       setProcessingReady(false);
-      setUploadError(
-        "We couldn’t finish preparing your feedback"
-      );
+      setUploadError("We couldn’t finish preparing your feedback");
       return;
     }
     if (
@@ -700,22 +818,48 @@ export default function LabOverlay({
           carried.returnedArcId,
           carried.nextIdx,
           carried.deck,
-          carried.sessionId
+          carried.sessionId,
         );
         setArcId(carried.returnedArcId);
         setArcTakeIndex(carried.nextIdx);
       }
       pendingCarryRef.current = null;
-      // SPEC-lockin-loop §1 (handoff §6.4 S3). The readout being ready is
-      // NOT the text being ready — the arc's document reassembles at
-      // pipeline end. Transition the marker to its document phase instead
-      // of clearing it; the settle probe clears it on evidence.
-      transitionProcessingTakeToDocument(userId, liveSessionId);
+      const storedMarker = readProcessingTake(userId);
+      const completedTake =
+        storedMarker?.sessionId === liveSessionId
+          ? storedMarker
+          : {
+              arcId: carried?.returnedArcId ?? arcId,
+              takeIndex: recordedTakeRef.current,
+            };
+      const keepsIdealText = processingTakeKeepsIdealText(completedTake);
+      if (keepsIdealText) {
+        // Same terminal contract as Lounge resume: the job is complete and a
+        // later take deliberately keeps the document, so there is no document
+        // delta to wait for. The session UUID dedupes this append against the
+        // backend writer and every reconnect.
+        clearProcessingTake(userId, liveSessionId);
+        void appendToThread(
+          takeProcessedDraft({
+            sessionId: liveSessionId,
+            arcId: completedTake.arcId,
+            takeIndex: completedTake.takeIndex,
+          }),
+        );
+      } else {
+        // Take 1 created a real document. Its served version must land before
+        // the readout may reveal the Ideal Text.
+        transitionProcessingTakeToDocument(userId, liveSessionId);
+      }
       setPollSessionId(null);
       setPollSlow(false);
       setReadout(r.readout);
       setUploadError(null);
-      setProcessingProgress({ stage: "completed", percent: 100 });
+      setProcessingProgress(
+        keepsIdealText
+          ? { stage: "completed", percent: 100 }
+          : { stage: "document_assembly", percent: null },
+      );
       setProcessingReady(true);
     }
   });
@@ -730,6 +874,14 @@ export default function LabOverlay({
     // captures the pre-assembly document version and lets the first document
     // probe prove the new Ideal Text landed instead of waiting for the cap.
     enabled: state === "lab_processing" || state === "readout",
+    onExpired: (take) => {
+      if (take.arcId && take.takeIndex === 1) {
+        void publishIdealTextUnconfirmed({
+          sessionId: take.sessionId,
+          arcId: take.arcId,
+        });
+      }
+    },
   });
 
   // Processing completion is a state transition, not a second decision. The
@@ -750,7 +902,7 @@ export default function LabOverlay({
     const startedAt = performance.now();
     const id = setInterval(
       () => setElapsed((performance.now() - startedAt) / 1000),
-      250
+      250,
     );
     return () => clearInterval(id);
   }, [mic.state.status]);
@@ -793,11 +945,19 @@ export default function LabOverlay({
       // the optimistic bubble (review R-cb2). A parked restore (summary
       // already persisted, ref null) skips straight to the reload.
       void (summaryAppendRef.current ?? Promise.resolve()).then(() =>
-        reloadThread()
+        reloadThread(),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, context, appendToThread, readout, labSessionId, arcId, exploreEnabled]);
+  }, [
+    state,
+    context,
+    appendToThread,
+    readout,
+    labSessionId,
+    arcId,
+    exploreEnabled,
+  ]);
 
   // Park the held Readout (persist + route to the Lounge's parked chip).
   function parkReadout() {
@@ -872,7 +1032,10 @@ export default function LabOverlay({
    *  RecordingPhase's mic-error branch says so and its "Try again" is a direct
    *  tap. Silence is the one outcome that cannot happen. */
   function startAfterCheckIn() {
-    const restored = restoredSetupFor(preloadDeck, stagedUploadRef.current !== null);
+    const restored = restoredSetupFor(
+      preloadDeck,
+      stagedUploadRef.current !== null,
+    );
     if (!restored) {
       goTo("lab_session_context");
       return;
@@ -1085,7 +1248,9 @@ export default function LabOverlay({
             }}
             slides={recordingSlides}
             presentationRef={
-              recordingDeck.isDefault ? null : context?.presentationRef ?? null
+              recordingDeck.isDefault
+                ? null
+                : (context?.presentationRef ?? null)
             }
             currentSlide={currentSlide}
             roots={recordingRoots}
@@ -1116,12 +1281,28 @@ export default function LabOverlay({
           <Processing
             error={uploadError}
             progress={processingProgress}
+            cycleStartedAt={processingCycleStartedAt}
             stillProcessing={uploadStillProcessing}
             slow={pollSlow}
             onRetry={async () => {
               if (labSessionId) {
                 const restarted = await retryLabProcessing(labSessionId);
                 if (restarted) {
+                  const now = Date.now();
+                  const marker = readProcessingTake(userId);
+                  if (marker?.sessionId === labSessionId) {
+                    writeProcessingTake(userId, {
+                      ...marker,
+                      status: "processing",
+                      phase: "analysis",
+                      startedAt: now,
+                      phaseStartedAt: now,
+                      progress: {
+                        stage: "processing_recording",
+                        percent: 0,
+                      },
+                    });
+                  }
                   setUploadError(null);
                   setUploadStillProcessing(false);
                   setPollSlow(false);
@@ -1130,11 +1311,12 @@ export default function LabOverlay({
                     stage: "processing_recording",
                     percent: 0,
                   });
+                  setProcessingCycleStartedAt(now);
                   setPollSessionId(labSessionId);
                   return;
                 }
                 setUploadError(
-                  "We couldn’t restart processing just now. Your recording is still safe."
+                  "We couldn’t restart processing just now. Your recording is still safe.",
                 );
                 return;
               }
@@ -1142,7 +1324,10 @@ export default function LabOverlay({
               setUploadStillProcessing(false);
               setPollSlow(false);
               setProcessingReady(false);
-              setProcessingProgress({ stage: "processing_recording", percent: 5 });
+              setProcessingProgress({
+                stage: "processing_recording",
+                percent: 5,
+              });
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
             }}
@@ -1157,6 +1342,7 @@ export default function LabOverlay({
               setPollSlow(false);
               setProcessingReady(false);
               setProcessingProgress(null);
+              setProcessingCycleStartedAt(null);
               uploadStartedRef.current = false;
               setBlob(null);
               startPendingRef.current = true;
@@ -1198,6 +1384,7 @@ export default function LabOverlay({
             // SPEC-lockin-loop §1 — hold the SD fetch (and the text) behind
             // the blocking screen until the document settles.
             analysisPending={documentSettle.pending}
+            processingCycleStartedAt={processingCycleStartedAt}
             // The ✕ this screen draws in its own head. Same handler the bare
             // header used, so closing a readout still PARKS it (§4) — it is
             // the exit that moved, not what it does.
@@ -1265,7 +1452,10 @@ export default function LabOverlay({
           aria-labelledby="discard-take-title"
         >
           <div className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl">
-            <h2 id="discard-take-title" className="text-[18px] font-semibold text-foreground">
+            <h2
+              id="discard-take-title"
+              className="text-[18px] font-semibold text-foreground"
+            >
               Discard this take?
             </h2>
             <p className="mt-2 text-[14px] text-muted-foreground">
@@ -1392,14 +1582,7 @@ export function RecordingPhase({
   // mic.start()). Show a brief connecting state so it never reads "Recording"
   // before the mic is actually live.
   if (micState.status === "idle") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={48} />
-        <p className="text-[15px] text-muted-foreground">
-          Getting your mic ready…
-        </p>
-      </div>
-    );
+    return <LoadingState placement="surface" label="Getting your mic ready" />;
   }
 
   if (micState.status === "error") {
@@ -1424,7 +1607,11 @@ export function RecordingPhase({
             Open in Safari
           </a>
         ) : (
-          <Button onClick={onRecordAgain} variant="outline" className="rounded-full px-6">
+          <Button
+            onClick={onRecordAgain}
+            variant="outline"
+            className="rounded-full px-6"
+          >
             Try again
           </Button>
         )}
@@ -1435,7 +1622,10 @@ export function RecordingPhase({
   // R5 — Apple-style clock: count DOWN from the setup target, read 0:00 at the
   // target, then count UP as a negative red overrun (never auto-stopping — the
   // red is only a nudge). No/invalid target → count up raw elapsed, never red.
-  const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
+  const { label: clockLabel, overrun } = formatRecordingClock(
+    elapsed,
+    targetSec,
+  );
   const target = coerceTargetSeconds(targetSec); // for the bar fill only
   const hasDeck = slides.length > 0;
 
@@ -1535,6 +1725,7 @@ export function RecordingPhase({
 function Processing({
   error,
   progress,
+  cycleStartedAt,
   stillProcessing = false,
   slow = false,
   onRetry,
@@ -1542,7 +1733,9 @@ function Processing({
   onClose,
 }: {
   error: string | null;
-  progress?: { stage: string; percent: number } | null;
+  progress?: { stage: string; percent: number | null } | null;
+  /** Shared job epoch so leaving and reopening never restarts the tip cycle. */
+  cycleStartedAt?: number | null;
   /** §A2 — PROCESSING_TIMEOUT with nothing to poll: the take is stored and
    *  still processing server-side. Neutral styling, NO retry and NO re-record
    *  offer — either would duplicate a take that is not lost. */
@@ -1561,7 +1754,7 @@ function Processing({
   if (!error && slow) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={72} />
+        <VoiceMark size={64} />
         <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
           This is taking longer than usual. Your recording is safe and the
           analysis keeps running on our side, even if you close this.
@@ -1590,7 +1783,7 @@ function Processing({
     // library when done — the only honest action here is to head back.
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <VoiceMark size={72} />
+        <VoiceMark size={64} />
         <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
           {error}
         </p>
@@ -1609,8 +1802,8 @@ function Processing({
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] text-destructive">{error}</p>
         <p className="max-w-sm text-[12px] text-muted-foreground">
-          Your recording is safe. You can try processing again now, or leave
-          and return later.
+          Your recording is safe. You can try processing again now, or leave and
+          return later.
         </p>
         <div className="flex gap-2">
           <Button onClick={onRetry} className="rounded-full px-6">
@@ -1631,7 +1824,7 @@ function Processing({
   // the wait never changes its subject halfway through (founder 2026-08-11).
   return (
     <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
-      <ProcessingWait progress={progress} />
+      <ProcessingWait progress={progress} cycleStartedAt={cycleStartedAt} />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearProcessingTake,
+  markProcessingTakeIdealTextUnconfirmed,
   readProcessingTake,
   type ProcessingTake,
 } from "@/lib/willab/processingTake";
@@ -20,13 +21,15 @@ import { useUserId } from "./useUserId";
 /*                                                                            */
 /*  Reads the processing-take marker on an interval (500ms) rather than on     */
 /*  flips, which closes §6.4 S5's blindness for its consumers: a marker        */
-/*  written by another tab, or transitioned mid-view, is seen within two       */
-/*  the next navigation.                                                       */
+/*  written by another tab, or transitioned mid-view, is seen within 500ms     */
+/*  without waiting for the next navigation.                                   */
 /*                                                                            */
-/*  While the marker is in its "document" phase, probes the served ideal text  */
-/*  every second and clears the marker on evidence the new text landed (or on  */
-/*  bounded cap — lib/willab/documentSettle.ts owns the rules). The            */
-/*  "analysis" phase is NOT probed here: the readout watches (LabOverlay live, */
+/*  While a Take 1/legacy marker is in its "document" phase, probes the served */
+/*  ideal text every second and clears it only on evidence the new text landed.*/
+/*  The bounded cap becomes the explicit unconfirmed terminal state. Later    */
+/*  takes never enter this phase because the locked L1 document cannot change. */
+/*  The "analysis" phase is NOT probed here: the readout watches (LabOverlay   */
+/*  live,                                                                        */
 /*  Lounge resume) own that phase and transition it to "document" at their     */
 /*  terminal states.                                                          */
 /*                                                                            */
@@ -48,13 +51,17 @@ const MARKER_STALE_MS = 30 * 60_000;
 export function useDocumentSettle({
   enabled,
   onSettled,
+  onExpired,
 }: {
   /** Read + probe only while true. Consumers gate on their own visibility so
    *  a surface that stood down (Lounge under the Lab) does not double-probe. */
   enabled: boolean;
-  /** Fired once per settle/expiry, AFTER the marker cleared — the refetch
+  /** Fired once after positive settlement and marker clear — the refetch
    *  hook for consumers that need to pull the fresh document into view. */
   onSettled?: () => void;
+  /** Defensive fallback for a document phase that reaches the same locked
+   *  120-second boundary before the backend terminal event arrives. */
+  onExpired?: (take: ProcessingTake) => void;
 }): {
   /** A take is in flight (either phase) — the text surfaces must block. */
   pending: boolean;
@@ -75,11 +82,14 @@ export function useDocumentSettle({
   // during ANALYSIS is a safe "before" — the first document-phase probe then
   // confirms in seconds. Keyed by session; a late mount that missed the
   // analysis phase falls back to the old first-probe rule + cap.
-  const baselineRef = useRef<{ sessionId: string; probe: DocumentProbe } | null>(
-    null
-  );
+  const baselineRef = useRef<{
+    sessionId: string;
+    probe: DocumentProbe;
+  } | null>(null);
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
 
   // The marker read loop. Also runs immediately on enable, so a surface that
   // mounts mid-analysis blocks on its first paint rather than one poll later.
@@ -96,9 +106,13 @@ export function useDocumentSettle({
         return;
       }
       setMarker((prev) =>
-        prev?.sessionId === m?.sessionId && prev?.phase === m?.phase
+        prev?.sessionId === m?.sessionId &&
+        prev?.phase === m?.phase &&
+        prev?.status === m?.status &&
+        prev?.progress?.stage === m?.progress?.stage &&
+        prev?.progress?.percent === m?.progress?.percent
           ? prev
-          : m
+          : m,
       );
     };
     read();
@@ -106,18 +120,43 @@ export function useDocumentSettle({
     return () => clearInterval(id);
   }, [enabled, userId]);
 
-  const settle = useCallback((sessionId: string) => {
-    clearProcessingTake(userId, sessionId);
-    setMarker(null);
-    firstProbeRef.current = null;
-    probedSessionRef.current = null;
-    onSettledRef.current?.();
-  }, [userId]);
+  const settle = useCallback(
+    (sessionId: string) => {
+      clearProcessingTake(userId, sessionId);
+      setMarker(null);
+      firstProbeRef.current = null;
+      probedSessionRef.current = null;
+      onSettledRef.current?.();
+    },
+    [userId],
+  );
+
+  const expire = useCallback(
+    (take: ProcessingTake) => {
+      markProcessingTakeIdealTextUnconfirmed(userId, take.sessionId);
+      const terminal = {
+        ...take,
+        status: "failed_ideal_text_unconfirmed" as const,
+      };
+      setMarker(terminal);
+      firstProbeRef.current = null;
+      probedSessionRef.current = null;
+      onExpiredRef.current?.(terminal);
+    },
+    [userId],
+  );
 
   // The analysis-phase baseline read: ONE fetch per session, while the take
   // is still transcribing — before assembly can have moved the version.
   useEffect(() => {
-    if (!enabled || !marker || marker.phase !== "analysis") return;
+    if (
+      !enabled ||
+      !marker ||
+      marker.phase !== "analysis" ||
+      marker.status !== "processing"
+    ) {
+      return;
+    }
     const { sessionId, arcId } = marker;
     if (!arcId || baselineRef.current?.sessionId === sessionId) return;
     let active = true;
@@ -137,7 +176,14 @@ export function useDocumentSettle({
 
   // The document-phase probe.
   useEffect(() => {
-    if (!enabled || !marker || marker.phase !== "document") return;
+    if (
+      !enabled ||
+      !marker ||
+      marker.phase !== "document" ||
+      marker.status !== "processing"
+    ) {
+      return;
+    }
     const { sessionId, arcId, takeIndex, phaseStartedAt } = marker;
     if (!arcId) {
       // No arc → no document to observe. A standalone recording assembles no
@@ -166,17 +212,17 @@ export function useDocumentSettle({
             firstProbeRef.current,
             { version: null, maxTakeIndex: null },
             phaseStartedAt,
-            Date.now()
+            Date.now(),
           ) === "expired"
         ) {
-          settle(sessionId);
+          expire(marker);
         }
         return;
       }
       const current = probeOf(
         r.kind === "single"
           ? { version: r.version, pieces: r.pieces }
-          : { version: null, pieces: null }
+          : { version: null, pieces: null },
       );
       if (firstProbeRef.current === null) firstProbeRef.current = current;
       const verdict = documentSettled(
@@ -184,9 +230,10 @@ export function useDocumentSettle({
         firstProbeRef.current,
         current,
         phaseStartedAt,
-        Date.now()
+        Date.now(),
       );
-      if (verdict !== "waiting") settle(sessionId);
+      if (verdict === "settled") settle(sessionId);
+      if (verdict === "expired") expire(marker);
     };
     void probe();
     const id = setInterval(() => void probe(), PROBE_MS);
@@ -194,10 +241,10 @@ export function useDocumentSettle({
       active = false;
       clearInterval(id);
     };
-  }, [enabled, marker, settle]);
+  }, [enabled, marker, settle, expire]);
 
   return {
-    pending: enabled && marker !== null,
+    pending: enabled && marker !== null && marker.status === "processing",
     takeIndex: marker?.takeIndex ?? null,
   };
 }

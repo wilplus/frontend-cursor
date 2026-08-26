@@ -92,7 +92,11 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     async (draft: LoungeMessageDraft): Promise<LoungeMessage> => {
       const msg = stampLoungeMessage(draft);
       // Optimistic — the bubble shows instantly; persistence trails.
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) =>
+        prev.some((item) => item.client_id === msg.client_id)
+          ? prev
+          : [...prev, msg]
+      );
       try {
         if (signedIn) {
           const persisted = await appendLoungeMessages([msg]);

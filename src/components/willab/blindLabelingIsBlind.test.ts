@@ -283,25 +283,28 @@ describe("the record -> analyse -> read cycle is locked in both directions", () 
     expect(gate).toContain("return");
   });
 
-  it("the readout going terminal TRANSITIONS the marker — it never clears it", () => {
-    // Handoff §6.4 S3 — the exact window the founder kept hitting: marker
-    // cleared at readout_ready, document still the previous version, blocking
-    // screen gone. Both watchers now hand the marker to the document phase,
-    // and only the settle probe (or its bounded cap) may clear it.
+  it("Take 1 waits for its document; later takes terminate without rewriting it", () => {
+    // Handoff §6.4 S3 + locked L1. Take 1 hands its marker to the document
+    // phase, and only database-visible document evidence may clear it. Take
+    // 2+ cannot rewrite the canonical document, so those sessions terminate
+    // directly and persist their own result card instead of waiting forever
+    // for a version change that the product expressly forbids.
     const lounge = code(LOUNGE);
     const terminal = lounge.slice(
       lounge.indexOf('r.state === "readout_ready"'),
       lounge.indexOf("const documentSettle"),
     );
-    expect(terminal).toContain("transitionProcessingTakeToDocument");
-    expect(terminal).not.toContain("clearProcessingTake");
+    expect(terminal).toMatch(
+      /processingTakeKeepsIdealText\([\s\S]*clearProcessingTake\([\s\S]*else \{[\s\S]*transitionProcessingTakeToDocument/,
+    );
     const lab = code(join("components", "willab", "LabOverlay.tsx"));
     const labTerminal = lab.slice(
       lab.indexOf('r.state === "readout_ready"'),
       lab.indexOf("setReadout(r.readout)"),
     );
-    expect(labTerminal).toContain("transitionProcessingTakeToDocument");
-    expect(labTerminal).not.toContain("clearProcessingTake");
+    expect(labTerminal).toMatch(
+      /processingTakeKeepsIdealText\([\s\S]*clearProcessingTake\([\s\S]*else \{[\s\S]*transitionProcessingTakeToDocument/,
+    );
   });
 
   it("the in-Lab readout blocks too — S3's other half", () => {
