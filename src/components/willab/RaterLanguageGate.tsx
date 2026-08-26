@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IMPORT_LANGUAGES } from "@/services/api/trainingCorpus";
 import { saveUserProfile } from "@/services/api/userProfile";
+import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useUserProfile } from "./useUserProfile";
 
@@ -43,11 +44,7 @@ export default function RaterLanguageGate({
   }
 
   if (loading) {
-    return (
-      <main className="fixed inset-0 z-[60] flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </main>
-    );
+    return <LoadingState placement="viewport" />;
   }
 
   // The containing coach surface remains responsible for its role fence.
