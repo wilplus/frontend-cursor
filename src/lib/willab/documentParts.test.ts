@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  autoLockTouched,
   insertPart,
   lockTargetAt,
   movePart,
@@ -211,10 +210,28 @@ describe("the arranger's operations carry ids through", () => {
   });
 
   it("a REWORD keeps the id", () => {
-    // The second thing a position cannot survive. Locked text is exactly the
-    // text that keeps being restyled, so a reword must not mint a new part.
+    // The second thing a position cannot survive. Rewording opens a working
+    // copy but must not mint a new Paragraph identity.
     const out = updatePart(base(), 1, "Two, but better.");
-    expect(out[1]).toEqual(P("b", "Two, but better."));
+    expect(out[1]).toEqual({ id: "b", text: "Two, but better.", locked: false });
+  });
+
+  it("a REWORD reopens the version and clears its exact orange root", () => {
+    const parts: Part[] = [{
+      id: "a",
+      text: "The committed wording.",
+      locked: true,
+      iteration: 2,
+      rootPhrase: "committed wording",
+      rootStart: 4,
+      rootEnd: 21,
+    }];
+    expect(updatePart(parts, 0, "The edited wording.")[0]).toEqual({
+      id: "a",
+      text: "The edited wording.",
+      locked: false,
+      iteration: 2,
+    });
   });
 
   it("an unchanged reword returns the SAME array", () => {
@@ -230,53 +247,6 @@ describe("the arranger's operations carry ids through", () => {
     expect(ids(removePart(base(), 1))).toEqual(["a", "c"]);
     const parts = base();
     expect(removePart(parts, 9)).toBe(parts);
-  });
-});
-
-describe("autoLockTouched — typed = committed (founder 2026-08-10)", () => {
-  const served = (
-    ...specs: Array<[string, string, boolean?]>
-  ): Part[] => specs.map(([id, text, locked]) => ({ id, text, locked }));
-
-  it("a typed reword locks its part", () => {
-    // reconcileParts mints a NEW id for changed words, so a reworded part
-    // shows up as absent from the baseline → touched → locked.
-    const base = served(["a", "Original."], ["b", "Untouched."]);
-    const next = reconcileParts("Reworded by hand.\n\nUntouched.", base);
-    const out = autoLockTouched(next, base);
-    expect(out[0].locked).toBe(true);
-    expect(out[1].locked).toBe(false);
-  });
-
-  it("a brand-new typed paragraph locks", () => {
-    const base = served(["a", "One."]);
-    const out = autoLockTouched(
-      reconcileParts("One.\n\nAdded by hand.", base),
-      base
-    );
-    expect(out.map((p) => p.locked)).toEqual([false, true]);
-  });
-
-  it("a pure MOVE does not lock — arrangement is not authorship", () => {
-    const base = served(["a", "One."], ["b", "Two."]);
-    const out = autoLockTouched(reconcileParts("Two.\n\nOne.", base), base);
-    expect(out.every((p) => p.locked === false)).toBe(true);
-  });
-
-  it("an existing lock is never dropped", () => {
-    // Mirrors the server rule: the save path only ADDS locks; removal is
-    // the R5-gated endpoint's job alone.
-    const base = served(["a", "Pinned.", true], ["b", "Open."]);
-    const out = autoLockTouched(
-      reconcileParts("Pinned.\n\nOpen.", base),
-      base
-    );
-    expect(out[0].locked).toBe(true);
-  });
-
-  it("no baseline locks everything — a first save is all authorship", () => {
-    const out = autoLockTouched(reconcileParts("One.\n\nTwo."), null);
-    expect(out.every((p) => p.locked === true)).toBe(true);
   });
 });
 

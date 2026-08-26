@@ -151,7 +151,7 @@ async function caretIn(page, needle, offset) {
   {
     const page = await open("say it **louder**");
     await page.locator('[role="textbox"]').focus();
-    await page.keyboard.press("Control+A");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await page.keyboard.type("fresh");
     check("7 select-all then type replaces the document", await serialized(page), "fresh");
     await page.close();

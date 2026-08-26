@@ -28,8 +28,8 @@ import {
 /*  existing semantics) or its ✕.                                             */
 /*                                                                            */
 /*  Every change reports the WHOLE next parts list; the host joins it to the   */
-/*  document and runs the one save lane (auto-lock "typed = committed"        */
-/*  included — that path reads the parts this component hands back).          */
+/*  document and runs the one save lane. Locking remains a later, explicit    */
+/*  paragraph commit.                                                         */
 /* -------------------------------------------------------------------------- */
 
 export default function ChunkedEditor({

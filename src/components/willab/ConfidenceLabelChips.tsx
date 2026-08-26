@@ -32,6 +32,12 @@ export const SECONDARY_RATING_OPTIONS: RatingOption[] = [
   { value: "audio_unclear", label: "Audio unclear", icon: VolumeX },
 ];
 
+const OWNER_PRIMARY_RATING_OPTIONS: RatingOption[] = [
+  { value: "yes", label: "Yes — Confident", icon: Check },
+  { value: "in_between", label: "In-between", icon: Minus },
+  { value: "no", label: "No — Not confident", icon: X },
+];
+
 export default function ConfidenceLabelChips({
   question = CONFIDENCE_QUESTION,
   value,
@@ -40,6 +46,7 @@ export default function ConfidenceLabelChips({
   saving = false,
   error = null,
   eyebrow = null,
+  ownerWording = false,
   onPick,
 }: {
   /** null hides the question line — for hosts that render the question as
@@ -53,9 +60,14 @@ export default function ConfidenceLabelChips({
   error?: string | null;
   /** Small right-of-question tag (the coach lanes show "Private · training"). */
   eyebrow?: ReactNode;
+  /** Exact self-report wording; blind-rater controls keep their neutral labels. */
+  ownerWording?: boolean;
   onPick: (value: ConfidenceRatingValue) => void;
 }) {
   const selected = unrateable ? "audio_unclear" : value;
+  const primaryOptions = ownerWording
+    ? OWNER_PRIMARY_RATING_OPTIONS
+    : PRIMARY_RATING_OPTIONS;
   return (
     <div>
       {question !== null ? (
@@ -65,7 +77,7 @@ export default function ConfidenceLabelChips({
         </p>
       ) : null}
       <div className="mt-3 grid grid-cols-3 gap-2">
-        {PRIMARY_RATING_OPTIONS.map((option) => {
+        {primaryOptions.map((option) => {
           const Icon = option.icon;
           const active = selected === option.value;
           return (

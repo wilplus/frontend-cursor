@@ -181,33 +181,25 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // the modal shows an edit box with no suggestion in it.
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
     expect(MODAL).toMatch(
-      /useState<"review" \| "editor">\(\s*chunk\.pendingIds\.length > 0 && suggestion \? "review" : "editor"/
+      /useState<"review" \| "editor" \| "root">\(\s*chunk\.pendingIds\.length > 0 && suggestion \? "review" : "editor"/
     );
   });
 
-  it("ONE button, and the lock decides which (founder 2026-08-15)", () => {
-    // The 08-12 complaint was "if smth is locked in, why is there a big button
-    // to lock it in? and the discard button? and if I click discard nothing
-    // happens" — both were no-ops, and Discard was `onClose` wearing another
-    // word. That fix hid BOTH on a settled locked chunk. The 08-15 ruling goes
-    // to the root: the pair was never two choices. Now it is a toggle of what
-    // the icon shows —
-    //   unlocked           → Lock in
-    //   locked + untouched → Discard, which UNLOCKS (the inverse, not a close)
-    //   locked + edited    → Lock in, so the edit can still be saved
+  it("ends a reviewed paragraph with an explicit lock-or-evolve commit", () => {
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
     expect(MODAL).toMatch(
       /const lockedAndSettled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
     );
-    expect(MODAL).toMatch(/const showUnlock = lockedAndSettled && !!onUnlockPart;/);
-    // Discard must NEVER be wired to onClose again — that is the no-op.
-    expect(MODAL).not.toMatch(/onClick=\{onClose\}[\s\S]{0,200}Discard/);
+    expect(MODAL).toMatch(
+      /const showUnlock = lockedAndSettled && !hadFeedback && !!onUnlockPart;/
+    );
+    expect(MODAL).toMatch(/Lock for next Take/);
+    expect(MODAL).toMatch(/Keep evolving/);
+    expect(MODAL).toMatch(/onClick=\{\(\) => void keepEvolving\(\)\}/);
+    expect(MODAL).toMatch(/Choose a rooting phrase/);
+    expect(MODAL).toMatch(/Make this phrase orange/);
+    // Legacy unlock remains available for an already-settled paragraph.
     expect(MODAL).toMatch(/onClick=\{\(\) => void unlock\(\)\}/);
-    // A host with no unlock capability shows no button rather than a dead one.
-    expect(MODAL).toMatch(/lockedAndSettled && !onUnlockPart/);
-    // Compared against the SERVED TEXT, never the dirty ref: an edit must
-    // bring "Lock in" back or the student cannot save it, and typing a change
-    // back to identical leaves nothing to save either.
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 

@@ -19,7 +19,11 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /* -------------------------------------------------------------------------- */
 
 export type PartLockResult =
-  | { kind: "ok"; locked: boolean }
+  | {
+      kind: "ok";
+      locked: boolean;
+      rootPhraseProposal: RootPhraseSpan | null;
+    }
   /** 409 UNDECIDED — R3. Suggestions on this section are still open, and
    *  locking would make them unreachable. The caller shows the founder-approved
    *  line; it does NOT decide them on the student's behalf, because that would
@@ -46,6 +50,9 @@ export async function setPartLock(
      *  already exists; lock flags are NOT sent — the seed lands all open and
      *  only this request's target locks, behind the R3 gate. */
     seedParts?: ReadonlyArray<{ id: string; text: string }> | null;
+    /** Explicitly distinguishes an ordinary unlock from the post-review
+     *  "Keep evolving" versioning decision in the immutable revision log. */
+    reason?: "keep_evolving";
   }
 ): Promise<PartLockResult> {
   const token = await getAuthToken();
@@ -69,6 +76,7 @@ export async function setPartLock(
                 parts: opts.seedParts.map((p) => ({ id: p.id, text: p.text })),
               }
             : {}),
+          ...(opts?.reason ? { reason: opts.reason } : {}),
         }),
       }
     );
@@ -85,5 +93,64 @@ export async function setPartLock(
     return body?.code === "UNDECIDED" ? { kind: "undecided" } : { kind: "stale" };
   }
   if (!res.ok) return { kind: "error" };
-  return { kind: "ok", locked };
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  return {
+    kind: "ok",
+    locked,
+    rootPhraseProposal: mapRootPhraseSpan(body?.root_phrase_proposal),
+  };
+}
+
+export interface RootPhraseSpan {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function mapRootPhraseSpan(raw: unknown): RootPhraseSpan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  if (
+    typeof row.text !== "string" ||
+    !row.text ||
+    typeof row.start !== "number" ||
+    !Number.isInteger(row.start) ||
+    typeof row.end !== "number" ||
+    !Number.isInteger(row.end) ||
+    row.start < 0 ||
+    row.end <= row.start
+  ) return null;
+  return { text: row.text, start: row.start, end: row.end };
+}
+
+export async function setPartRootPhrase(
+  arcId: string,
+  partId: string,
+  textEcho: string,
+  phrase: RootPhraseSpan | null,
+): Promise<boolean> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    const res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(
+        partId
+      )}/root`,
+      {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          text_echo: textEcho,
+          phrase: phrase?.text ?? null,
+          start: phrase?.start ?? null,
+          end: phrase?.end ?? null,
+        }),
+      }
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
