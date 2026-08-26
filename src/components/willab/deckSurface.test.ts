@@ -101,6 +101,13 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/aria-current/);
   });
 
+  it("keeps the rooting roadmap inside PDF Presentation Mode only", () => {
+    const PRESENT = code("src/components/willab/PresentMode.tsx");
+    expect(PRESENT).toMatch(/buildRootPhraseLayer/);
+    expect(DECK).not.toMatch(/buildRootPhraseLayer/);
+    expect(DECK).not.toMatch(/data-rooting-phrases/);
+  });
+
   it("the rail is PAGES PER SLIDE — two grains, never three", () => {
     // Founder 2026-08-15: "just the pages per slide … one level of hierarchy
     // can be removed, this deepest one."

@@ -1,10 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*  rootPhraseLayer — the one ordered projection for rehearsal anchors.        */
 /*                                                                            */
-/*  A slide has three visual layers: its visual/title, its rooting phrases,    */
-/*  then the complete Ideal Text. This helper keeps the middle layer identical */
-/*  in the editable deck and fullscreen Presentation Mode. It never guesses a  */
-/*  phrase and never removes words from the detailed text underneath.           */
+/*  In fullscreen Presentation Mode a slide has three visual layers: its       */
+/*  visual, its rooting phrases, then the complete Ideal Text. This projection  */
+/*  belongs to that presenter/export surface only. It never guesses a phrase   */
+/*  and never removes words from the detailed text underneath.                  */
 /* -------------------------------------------------------------------------- */
 
 export interface RootPhraseLayerSource {
