@@ -33,7 +33,7 @@ export function useLoungeThreadCtx(): UseLoungeThreadReturn {
 export function LoungeThreadProvider({ children }: { children: React.ReactNode }) {
   const signedIn = useSignedIn();
   if (signedIn === null) {
-    return <LoadingState />;
+    return <LoadingState placement="viewport" />;
   }
   return <LoungeThreadInner signedIn={signedIn}>{children}</LoungeThreadInner>;
 }

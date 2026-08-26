@@ -16,6 +16,7 @@ import {
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   batchTake,
+  isRetiredLoungeMessage,
   isUploadAsk,
   loungeToHistory,
   splitBotMessage,
@@ -27,13 +28,23 @@ import {
   readProcessingTake,
   clearProcessingTake,
   markProcessingTakeFailed,
+  markProcessingTakeIdealTextUnconfirmed,
+  processingTakeKeepsIdealText,
   transitionProcessingTakeToDocument,
+  updateProcessingTakeProgress,
   writeProcessingTake,
 } from "@/lib/willab/processingTake";
-import { retryLabProcessing } from "@/services/api/labRecording";
+import {
+  retryIdealTextGeneration,
+  retryLabProcessing,
+} from "@/services/api/labRecording";
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
-import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
+import ReportCard, {
+  type FeedbackBubbleTarget,
+  type IdealTextRetryTarget,
+} from "./ReportCard";
+import { idealTextUnconfirmedDraft, takeProcessedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
@@ -87,6 +98,7 @@ import {
   productActionFromMetadata,
   productSpec,
 } from "@/lib/productDiscovery";
+import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -267,6 +279,7 @@ export default function Lounge({
     const seenIds = new Set<string>();
     const items: ThreadItem[] = [];
     for (const m of messages) {
+      if (isRetiredLoungeMessage(m)) continue;
       if (m.client_id) {
         if (seenIds.has(m.client_id)) continue;
         seenIds.add(m.client_id);
@@ -518,13 +531,70 @@ export default function Lounge({
     sessionId: string;
     takeIndex: number | null;
     status: "analyzing" | "failed";
+    startedAt: number;
+    progress: { stage: string; percent: number | null } | null;
   } | null>(null);
+  // A presentation key, not a second lifecycle owner. The job observer below
+  // stays mounted in the Lounge while this exact session is shown full-screen.
+  const [openedProcessingSessionId, setOpenedProcessingSessionId] = useState<
+    string | null
+  >(null);
+  const processingTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [resumeWatch, setResumeWatch] = useState<{
     sessionId: string;
     takeIndex: number | null;
     startedAt: number;
   } | null>(null);
+  const idealTextFailurePublishRef = useRef(new Set<string>());
+  const publishIdealTextUnconfirmed = useCallback(
+    async (target: {
+      sessionId: string;
+      arcId: string;
+      takeIndex: number | null;
+    }) => {
+      if (!target.arcId || target.takeIndex !== 1) return;
+      if (idealTextFailurePublishRef.current.has(target.sessionId)) return;
+      idealTextFailurePublishRef.current.add(target.sessionId);
+
+      const existing = readProcessingTake(userId);
+      if (existing?.sessionId === target.sessionId) {
+        markProcessingTakeIdealTextUnconfirmed(userId, target.sessionId);
+      } else {
+        const now = Date.now();
+        writeProcessingTake(userId, {
+          sessionId: target.sessionId,
+          arcId: target.arcId,
+          takeIndex: 1,
+          startedAt: now,
+          phaseStartedAt: now,
+          phase: "analysis",
+          status: "failed_ideal_text_unconfirmed",
+          progress: { stage: "ideal_text", percent: null },
+        });
+      }
+      setResumeWatch(null);
+      try {
+        await thread.append(
+          idealTextUnconfirmedDraft({
+            sessionId: target.sessionId,
+            arcId: target.arcId,
+            takeIndex: 1,
+          }),
+        );
+        // Clear only after the session-keyed card has been durably appended.
+        // If delivery fails, the terminal marker survives and this observer
+        // retries instead of letting the failure disappear.
+        clearProcessingTake(userId, target.sessionId);
+        setProcessingResume(null);
+      } catch {
+        await reload().catch(() => undefined);
+      } finally {
+        idealTextFailurePublishRef.current.delete(target.sessionId);
+      }
+    },
+    [reload, thread, userId],
+  );
   useEffect(() => {
     if (isLabOverlay(state)) {
       // The LabOverlay owns the live subscription while open. Entering the
@@ -534,58 +604,139 @@ export default function Lounge({
       setResumeWatch(null);
       return;
     }
-    const marker = readProcessingTake(userId);
-    if (!marker) {
-      // W6 (founder 2026-08-10) — a FAILED note survives idle state changes.
-      // It used to be wiped here by the first state flip after the 10s timer
-      // was removed, which re-created the vanishing it was meant to fix: a
-      // failed take must stay on screen until the user acts on it (opens the
-      // Lab) or a fresh take replaces it below.
-      setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
-      setResumeWatch(null);
-      return;
-    }
-    if (marker.status === "failed") {
-      setProcessingResume({
-        sessionId: marker.sessionId,
-        takeIndex: marker.takeIndex,
-        status: "failed",
+    const syncMarker = () => {
+      const marker = readProcessingTake(userId);
+      if (!marker) {
+        // W6 (founder 2026-08-10) — a FAILED note survives idle state changes.
+        // It used to be wiped here by the first state flip after the 10s timer
+        // was removed, which re-created the vanishing it was meant to fix: a
+        // failed take must stay on screen until the user acts on it (opens the
+        // Lab) or a fresh take replaces it below.
+        setProcessingResume((prev) =>
+          prev?.status === "failed" ? prev : null,
+        );
+        setResumeWatch(null);
+        return;
+      }
+      if (marker.status === "failed_ideal_text_unconfirmed") {
+        if (marker.arcId && marker.takeIndex === 1) {
+          void publishIdealTextUnconfirmed({
+            sessionId: marker.sessionId,
+            arcId: marker.arcId,
+            takeIndex: 1,
+          });
+        } else {
+          clearProcessingTake(userId, marker.sessionId);
+        }
+        return;
+      }
+      const status = marker.status === "failed" ? "failed" : "analyzing";
+      setProcessingResume((previous) => {
+        const unchanged =
+          previous?.sessionId === marker.sessionId &&
+          previous.takeIndex === marker.takeIndex &&
+          previous.status === status &&
+          previous.startedAt === marker.startedAt &&
+          previous.progress?.stage === marker.progress?.stage &&
+          previous.progress?.percent === marker.progress?.percent;
+        return unchanged
+          ? previous
+          : {
+              sessionId: marker.sessionId,
+              takeIndex: marker.takeIndex,
+              status,
+              startedAt: marker.startedAt,
+              progress: marker.progress,
+            };
       });
-      setResumeWatch(null);
-      return;
-    }
-    setProcessingResume({
-      sessionId: marker.sessionId,
-      takeIndex: marker.takeIndex,
-      status: "analyzing",
-    });
-    if (marker.phase === "document") {
-      // SPEC-lockin-loop §1 — the readout is done, the DOCUMENT is still
-      // assembling. There is no readout to watch in this phase; the settle
-      // hook below probes the served text and clears the marker on evidence.
-      setResumeWatch(null);
-      return;
-    }
-    setResumeWatch({
-      sessionId: marker.sessionId,
-      takeIndex: marker.takeIndex,
-      startedAt: marker.startedAt,
-    });
-  }, [state, userId]);
+      if (marker.status === "failed" || marker.phase === "document") {
+        // The readout is done in document phase; there is no analysis stream
+        // to watch. The settle hook below owns the remaining wait.
+        setResumeWatch(null);
+        return;
+      }
+      setResumeWatch((previous) =>
+        previous?.sessionId === marker.sessionId &&
+        previous.takeIndex === marker.takeIndex &&
+        previous.startedAt === marker.startedAt
+          ? previous
+          : {
+              sessionId: marker.sessionId,
+              takeIndex: marker.takeIndex,
+              startedAt: marker.startedAt,
+            },
+      );
+    };
+    syncMarker();
+    // Same-tab writes do not emit `storage`; the cheap local marker check also
+    // covers those. Cross-tab replacements are picked up immediately.
+    const markerPoll = window.setInterval(syncMarker, 500);
+    window.addEventListener("storage", syncMarker);
+    return () => {
+      window.clearInterval(markerPoll);
+      window.removeEventListener("storage", syncMarker);
+    };
+  }, [state, userId, publishIdealTextUnconfirmed]);
   useLabReadoutLive(
-    resumeWatch?.sessionId ?? null,
+    // Gate from the rendered flow state, not from the effect-lagging local
+    // state. A real Lab mount therefore tears this transport down in the same
+    // commit before the Lab can subscribe. The local resume overlay does not
+    // change flow state, so this one watcher continues without reconnecting.
+    !isLabOverlay(state) ? (resumeWatch?.sessionId ?? null) : null,
     (r) => {
       if (!resumeWatch) return;
+      const currentMarker = readProcessingTake(userId);
+      // A late response for session A must not mutate session B's marker OR
+      // the currently displayed progress/failure state. A terminal analysis
+      // has already moved to the document phase, so it is monotonic too: no
+      // late processing/failure envelope may pull it backwards.
+      if (
+        currentMarker?.sessionId !== resumeWatch.sessionId ||
+        currentMarker.phase !== "analysis" ||
+        currentMarker.status !== "processing"
+      ) {
+        return;
+      }
+      if (r.processing) {
+        const latestProgress = updateProcessingTakeProgress(
+          userId,
+          resumeWatch.sessionId,
+          r.processing,
+        );
+        setProcessingResume((current) =>
+          current?.sessionId === resumeWatch.sessionId &&
+          current.status === "analyzing" &&
+          latestProgress
+            ? { ...current, progress: latestProgress }
+            : current,
+        );
+      }
       const hasContent =
         r.readout.snippets.length > 0 ||
         r.readout.instantChunks.length > 0 ||
         r.readout.fullTranscriptChunks.length > 0;
+      if (r.state === "failed_ideal_text_unconfirmed") {
+        if (currentMarker.arcId && currentMarker.takeIndex === 1) {
+          void publishIdealTextUnconfirmed({
+            sessionId: currentMarker.sessionId,
+            arcId: currentMarker.arcId,
+            takeIndex: 1,
+          });
+        }
+        return;
+      }
       if (r.state === "failed") {
         markProcessingTakeFailed(userId, resumeWatch.sessionId);
+        const failedMarker = readProcessingTake(userId);
         setProcessingResume({
           sessionId: resumeWatch.sessionId,
           takeIndex: resumeWatch.takeIndex,
           status: "failed",
+          startedAt: resumeWatch.startedAt,
+          progress:
+            failedMarker?.sessionId === resumeWatch.sessionId
+              ? failedMarker.progress
+              : null,
         });
         setResumeWatch(null);
         // W6 (founder 2026-08-10) — the failure note used to clear itself
@@ -613,14 +764,35 @@ export default function Lounge({
             marker.sessionId,
           );
         }
-        // SPEC-lockin-loop §1 (handoff §6.4 S3) — the readout going terminal
-        // is NOT the text being ready: the arc's document reassembles at
-        // pipeline end. Hand the marker to the document phase instead of
-        // clearing it; the settle hook probes the served text, clears the
-        // marker on evidence, and reload() moved there with it (the
-        // ideal-text bubble also lands at pipeline end, not here). The
-        // "analyzing" chip deliberately stays up through this phase.
-        transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
+        if (marker && processingTakeKeepsIdealText(marker)) {
+          // Take 2+ is terminal HERE: the full worker has completed and L1
+          // guarantees that this take cannot replace the canonical document.
+          // Waiting for a version delta would therefore be waiting for an
+          // event the product explicitly forbids. Clear the working bubble
+          // and persist the per-session result under the session UUID.
+          clearProcessingTake(userId, resumeWatch.sessionId);
+          setProcessingResume(null);
+          void thread.append(
+            takeProcessedDraft({
+              sessionId: marker.sessionId,
+              arcId: marker.arcId,
+              takeIndex: marker.takeIndex,
+            }),
+          );
+        } else {
+          // Take 1 still owns a real document handoff. Hold until the served
+          // Ideal Text proves that new document landed.
+          transitionProcessingTakeToDocument(userId, resumeWatch.sessionId);
+          setProcessingResume((current) =>
+            current?.sessionId === resumeWatch.sessionId &&
+            current.status === "analyzing"
+              ? {
+                  ...current,
+                  progress: { stage: "document_assembly", percent: null },
+                }
+              : current,
+          );
+        }
         setResumeWatch(null);
       }
     },
@@ -639,6 +811,15 @@ export default function Lounge({
       // appended the ideal-text bubble at pipeline end, so pull it now.
       void reload();
     },
+    onExpired: (take) => {
+      if (take.arcId && take.takeIndex === 1) {
+        void publishIdealTextUnconfirmed({
+          sessionId: take.sessionId,
+          arcId: take.arcId,
+          takeIndex: 1,
+        });
+      }
+    },
   });
   // The ONE in-flight predicate: the analysis phase (chip + resume watch)
   // or the document phase (settle hook). Record holds and the ideal text
@@ -646,6 +827,26 @@ export default function Lounge({
   // a take is being worked.
   const takeInFlight =
     processingResume?.status === "analyzing" || documentSettle.pending;
+
+  const closeProcessingOverlay = useCallback(() => {
+    setOpenedProcessingSessionId(null);
+    requestAnimationFrame(() =>
+      processingTriggerRef.current?.focus({ preventScroll: true }),
+    );
+  }, []);
+
+  // The open view is pinned to one job identity. Completion, failure, or a
+  // replacement marker closes it instead of silently showing another take.
+  useEffect(() => {
+    if (!openedProcessingSessionId) return;
+    if (
+      !processingResume ||
+      processingResume.sessionId !== openedProcessingSessionId ||
+      processingResume.status !== "analyzing"
+    ) {
+      closeProcessingOverlay();
+    }
+  }, [openedProcessingSessionId, processingResume, closeProcessingOverlay]);
 
   /** Re-open the durable backend job against the original stored audio. */
   const retryPreservedProcessing = async () => {
@@ -663,17 +864,54 @@ export default function Lounge({
       phase: "analysis",
       startedAt: now,
       phaseStartedAt: now,
+      progress: { stage: "processing_recording", percent: 0 },
     });
     setProcessingResume({
       sessionId: marker.sessionId,
       takeIndex: marker.takeIndex,
       status: "analyzing",
+      startedAt: now,
+      progress: { stage: "processing_recording", percent: 0 },
     });
     setResumeWatch({
       sessionId: marker.sessionId,
       takeIndex: marker.takeIndex,
       startedAt: now,
     });
+  };
+
+  /** The Take 1 card's primary action. This starts the dedicated document job;
+   *  unlike retryPreservedProcessing it never re-enters audio analysis. */
+  const retryIdealTextFromCard = async (
+    target: IdealTextRetryTarget,
+  ): Promise<boolean> => {
+    const restarted = await retryIdealTextGeneration(target.takeSessionId);
+    if (!restarted) return false;
+    const now = Date.now();
+    writeProcessingTake(userId, {
+      sessionId: target.takeSessionId,
+      arcId: target.arcId,
+      takeIndex: 1,
+      startedAt: now,
+      status: "processing",
+      phase: "analysis",
+      phaseStartedAt: now,
+      progress: { stage: "ideal_text", percent: null },
+    });
+    setProcessingResume({
+      sessionId: target.takeSessionId,
+      takeIndex: 1,
+      status: "analyzing",
+      startedAt: now,
+      progress: { stage: "ideal_text", percent: null },
+    });
+    setResumeWatch({
+      sessionId: target.takeSessionId,
+      takeIndex: 1,
+      startedAt: now,
+    });
+    setOpenedProcessingSessionId(target.takeSessionId);
+    return true;
   };
 
   // Auto-open an offer in the footer, respecting priority so that when several
@@ -931,7 +1169,7 @@ export default function Lounge({
         )}
 
         {thread.loading ? (
-          <LoadingState />
+          <LoadingState placement="surface" />
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStart} />
         ) : (
@@ -946,6 +1184,7 @@ export default function Lounge({
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
+                onRetryIdealText={retryIdealTextFromCard}
                 onOpenConfidencePractice={setConfidencePracticeId}
                 onContinueProject={continueJourneyProject}
                 onChip={onChip}
@@ -1002,32 +1241,30 @@ export default function Lounge({
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
           locked phone) keeps finishing server-side — this chip resumes a calm
           indicator from the persisted marker and clears itself when done. */}
-      {processingResume ? (
-        <p
-          className={`mb-1.5 flex items-center justify-center gap-2 rounded-full px-4 py-1.5 text-center text-[13px] ${
-            processingResume.status === "failed"
-              ? "bg-destructive/10 text-destructive"
-              : "bg-muted text-muted-foreground"
-          }`}
+      {processingResume?.status === "analyzing" ? (
+        <button
+          ref={processingTriggerRef}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() =>
+            setOpenedProcessingSessionId(processingResume.sessionId)
+          }
+          className="mb-1.5 flex w-full items-center justify-center gap-2 rounded-full bg-muted px-4 py-1.5 text-center text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          {processingResume.status === "failed" ? null : (
-            <VoiceMark size={18} />
-          )}
-          {processingResume.status === "failed"
-            ? FLOW_COPY.failed
-            : FLOW_COPY.analysing}
+          <VoiceMark size={18} />
+          {FLOW_COPY.analysing}
+        </button>
+      ) : processingResume ? (
+        <p className="mb-1.5 flex items-center justify-center gap-2 rounded-full bg-destructive/10 px-4 py-1.5 text-center text-[13px] text-destructive">
+          {FLOW_COPY.failed}
         </p>
       ) : null}
-      {/* The SECOND line — what happens next (docs/ideal-text-flow-
-          communication.md, rule 3: one line of state, one of what's next).
-          On the analysing path it grants permission to leave, which is what
-          stops someone sitting and staring; on the failure path it bounds the
-          damage before offering the retry. */}
-      {processingResume ? (
+      {/* Failure keeps its damage-bounding line before the retry. Active
+          processing deliberately has only the approved primary status; that
+          status becomes the doorway back into the processing view. */}
+      {processingResume?.status === "failed" ? (
         <p className="mb-1.5 px-4 text-center text-[12px] leading-relaxed text-muted-foreground">
-          {processingResume.status === "failed"
-            ? FLOW_COPY.failedNext
-            : FLOW_COPY.analysingNext}
+          {FLOW_COPY.failedNext}
         </p>
       ) : null}
       {processingResume?.status === "failed" ? (
@@ -1418,6 +1655,16 @@ export default function Lounge({
           />
         </RaterLanguageGate>
       )}
+
+      {openedProcessingSessionId &&
+      processingResume?.sessionId === openedProcessingSessionId &&
+      processingResume.status === "analyzing" ? (
+        <ProcessingResumeOverlay
+          progress={processingResume.progress}
+          cycleStartedAt={processingResume.startedAt}
+          onClose={closeProcessingOverlay}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1552,6 +1799,7 @@ function Bubble({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  onRetryIdealText,
   onOpenConfidencePractice,
   onContinueProject,
   onChip,
@@ -1569,6 +1817,9 @@ function Bubble({
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — every ideal-text bubble opens the live notebook. */
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  onRetryIdealText?: (
+    target: IdealTextRetryTarget,
+  ) => boolean | Promise<boolean>;
   /** Coach-shared exercise opens independently of the three-take journey. */
   onOpenConfidencePractice?: (practiceId: string) => void;
   /** Begin an additional take on the exact project named by the journey. */
@@ -1608,6 +1859,7 @@ function Bubble({
         onOpenTranscripts={onOpenTranscripts}
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}
+        onRetryIdealText={onRetryIdealText}
       />
     );
   }

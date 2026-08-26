@@ -97,6 +97,7 @@ export default function IdealTextReadout({
   onReRead,
   onClose,
   analysisPending = false,
+  processingCycleStartedAt = null,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
@@ -110,6 +111,8 @@ export default function IdealTextReadout({
    *  S3-in-Lab); when it flips false the SD fetch re-runs and the fresh
    *  document swaps in. */
   analysisPending?: boolean;
+  /** The processing job's shared tip-cycle epoch. */
+  processingCycleStartedAt?: number | null;
   /** Fires once after the automatic send succeeds (review-pending bookkeeping). */
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
@@ -367,7 +370,9 @@ export default function IdealTextReadout({
         // The exact document the BE already refused — don't re-send it on
         // every keystroke. Any other words get a fresh attempt.
         if (invalidTextRef.current === t) return;
-        const r = await saveIdealUserEdit(aid, t, versionRef.current, { parts: partsFor(t) });
+        const r = await saveIdealUserEdit(aid, t, versionRef.current, {
+          parts: partsFor(t),
+        });
         if (r.ok) {
           versionRef.current = r.version ?? versionRef.current;
           savedTextRef.current = t;
@@ -425,7 +430,11 @@ export default function IdealTextReadout({
       const aid = arcIdRef.current;
       // Display-only rows never render a select button; belt-and-braces.
       if (!aid || block.blockKey === null || !variant.variantId) return true;
-      const r = await selectBlockVariant(aid, block.blockKey, variant.variantId);
+      const r = await selectBlockVariant(
+        aid,
+        block.blockKey,
+        variant.variantId
+      );
       if (r.kind === "error") return false;
       setPickerBlock(null);
       markDirty(false);
@@ -435,7 +444,6 @@ export default function IdealTextReadout({
     },
     [markDirty]
   );
-
 
   useEffect(() => {
     if (!dirtyRef.current || !canPersist || !arcId) return;
@@ -505,9 +513,8 @@ export default function IdealTextReadout({
         ).kind;
       } else if (s.source === "prior_take") {
         if (!arcId) return false;
-        outcome = (
-          await decidePriorTake(arcId, s, accept ? "accept" : "keep")
-        ).kind;
+        outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep"))
+          .kind;
       } else {
         if (!s.snippetId || !s.takeSessionId) return false;
         const r = await sendSuggestionFeedback({
@@ -826,7 +833,9 @@ export default function IdealTextReadout({
   );
 
   const deckEditSlide = useCallback(
-    async (edits: Array<{ chunk: DeckChunk; text: string }>): Promise<boolean> => {
+    async (
+      edits: Array<{ chunk: DeckChunk; text: string }>
+    ): Promise<boolean> => {
       if (edits.length === 0) return true;
       let next = reconcileParts(textRef.current, partsRef.current ?? []);
       for (const { chunk, text } of edits) {
@@ -883,7 +892,10 @@ export default function IdealTextReadout({
               and that copy is deleted rather than kept as a variant — the
               wait is one wait, and a second waiting screen that still exists
               is one that comes back. */}
-          <ProcessingWait markSize={36} />
+          <ProcessingWait
+            progress={{ stage: "document_assembly", percent: null }}
+            cycleStartedAt={processingCycleStartedAt}
+          />
         </div>
       </div>
     );
@@ -910,10 +922,12 @@ export default function IdealTextReadout({
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard?.writeText(stripRichMarkers(text)).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1600);
-              });
+              void navigator.clipboard
+                ?.writeText(stripRichMarkers(text))
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1600);
+                });
             }}
             aria-label={copied ? "Copied" : "Copy the text"}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -933,7 +947,6 @@ export default function IdealTextReadout({
           ) : null}
         </div>
       </div>
-
 
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}

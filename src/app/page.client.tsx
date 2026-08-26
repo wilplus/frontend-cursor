@@ -72,7 +72,7 @@ export default function LandingClient({
   // instead, so the entrance animation never flashes before the redirect.
   if (signedIn === true) return null;
   if (mounted && returningHint && signedIn === null) {
-    return <LoadingState fullscreen withTip={false} />;
+    return <LoadingState placement="viewport" />;
   }
 
   return (

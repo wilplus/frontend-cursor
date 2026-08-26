@@ -61,7 +61,7 @@ describe("the waiting screen carries nothing but the wait", () => {
   );
 
   it("shows ProcessingWait and no second affordance", () => {
-    expect(BLOCK).toMatch(/<ProcessingWait /);
+    expect(BLOCK).toMatch(/<ProcessingWait\b/);
     expect(BLOCK).not.toMatch(/Record the next take/);
     expect(BLOCK).not.toMatch(/onReRead/);
     expect(BLOCK).not.toMatch(/<Mic/);

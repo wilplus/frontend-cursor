@@ -114,9 +114,9 @@ export default function FeedbackOverlay({
       </div>
 
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-6">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6">
           {loading ? (
-            <LoadingState />
+            <LoadingState placement="surface" />
           ) : !take ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Your coach is still putting this feedback together. Check back

@@ -65,14 +65,15 @@ the feeling the user is having.
 **R1 — Never a bare spinner past 10 seconds.** A spinner says "alive." It does not say "what" or
 "then what." Every wait over ~10s carries a line of text.
 
-**R2 — Say what is coming, not how far along we are.** Finding (c) rules out percentages and
-counters. It also happens to be what AC-9 requires anyway: no numbers, no scores. The two
-constraints agree, which is a good sign. So: *"Your ideal text is being put together."* Never
-*"37% · slide 3 of 8."*
+**R2 — Say what is coming, not how the analysis judged the speaker.** The processing screen may
+show the real operational job percentage; it must never turn that number into an analysis
+result, score, verdict, or slide-quality counter. AC-9 still applies to evaluation, not to the
+truthful completion state of the job itself.
 
 **R3 — Two sentences, hard cap.** The founder: *"the communicates should not be too long."*
-One line of state, one line of what's next. If a third sentence seems necessary, the state
-machine is wrong, not the copy.
+One line of state and, only where needed, one line of what's next. Active processing is the
+explicit one-line case because its status control is itself the way back into the detailed
+processing view. If a third sentence seems necessary, the state machine is wrong, not the copy.
 
 **R4 — Every terminal state has an exit.** No state may leave the user with nothing to tap.
 S4 → open the text. S5 → present, or record again. A failure → retry. "Left alone" is precisely
@@ -115,14 +116,13 @@ has it" is never ambiguous.
 
 ### S3 · Analysing — *live chrome, no bubble*
 > **Working on your take.**
-> Your ideal text updates when this finishes — you can leave this screen.
 
-Two lines, per R3. The second is doing the real work: it grants **permission to leave**, which is
-what stops the user from sitting and staring. NN/g's framing of progress indicators is that they
-free the user to do something else; that only works if you tell them they may.
+One line, founder-approved 2026-08-26. The status control opens the detailed processing view, so
+the second explanatory line is removed rather than left dormant.
 
-No percentage (R2/AC-9). No time estimate — we would be guessing, and a missed estimate is worse
-than none.
+The detailed view shows the real job percentage. It never presents that operational progress as
+an evaluation of the speaker. No time estimate — we would be guessing, and a missed estimate is
+worse than none.
 
 **If it runs long** (past ~90s), the line softens rather than escalating:
 > **Still working.**
@@ -175,7 +175,7 @@ gives the exit (R4). Never "Error", never a code.
 ## 7 · Sign-off checklist
 
 - [ ] S2 "Got that."
-- [ ] S3 "Working on your take." / "Your ideal text updates when this finishes — you can leave this screen."
+- [x] S3 "Working on your take."
 - [ ] S3-long "Still working." / "Longer takes take longer to go through."
 - [ ] S4 "Your ideal text is ready."
 - [ ] S6 "Record it again whenever you're ready."

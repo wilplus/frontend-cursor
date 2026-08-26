@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import LoadingState from "@/components/willab/LoadingState";
 import { createClient } from "@/lib/supabase/client";
 import { consumeOAuthFromPwa, isStandalonePwa } from "@/lib/pwa";
 
@@ -158,16 +158,20 @@ function OAuthCompleteInner() {
     );
   }
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" aria-hidden />
-        <p className="mt-4 text-sm text-muted-foreground">
-          {errorMessage ?? "Signing you in…"}
+  if (errorMessage) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+        <p
+          className="max-w-sm text-center text-sm text-muted-foreground"
+          role="alert"
+        >
+          {errorMessage}
         </p>
-      </div>
-    </main>
-  );
+      </main>
+    );
+  }
+
+  return <LoadingState placement="viewport" label="Signing you in" />;
 }
 
 /**
@@ -180,12 +184,7 @@ export default function OAuthCompletePage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-background p-6">
-          <Loader2
-            className="h-8 w-8 animate-spin text-primary"
-            aria-hidden
-          />
-        </main>
+        <LoadingState placement="viewport" label="Signing you in" />
       }
     >
       <OAuthCompleteInner />

@@ -5,6 +5,7 @@ import {
   fmtClock,
   formatRecordingClock,
   isUploadAsk,
+  isRetiredLoungeMessage,
   loungeToHistory,
   parseVocabulary,
   splitBotMessage,
@@ -19,6 +20,72 @@ const m = (over: Partial<LoungeMessage>): LoungeMessage => ({
   body: "b",
   client_created_at: "t",
   ...over,
+});
+
+describe("isRetiredLoungeMessage", () => {
+  it("hides the exact retired server-authored messages", () => {
+    expect(
+      isRetiredLoungeMessage(
+        m({
+          role: "bot",
+          kind: "cadence",
+          metadata: { beat: 0, arc_id: "arc-1" },
+        })
+      )
+    ).toBe(true);
+    expect(
+      isRetiredLoungeMessage(
+        m({
+          role: "bot",
+          kind: "text",
+          metadata: { note: "human_check", arc_id: "arc-1" },
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("keeps later, missing, malformed, and unrelated messages visible", () => {
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "cadence", metadata: { beat: 1 } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "cadence", metadata: null })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "cadence", metadata: { beat: "0" } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "text", metadata: { beat: 0 } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "text", metadata: { note: "human-check" } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "cadence", metadata: { note: "human_check" } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "user", kind: "text", metadata: { note: "human_check" } })
+      )
+    ).toBe(false);
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "user", kind: "cadence", metadata: { beat: 0 } })
+      )
+    ).toBe(false);
+  });
 });
 
 describe("fmtClock", () => {
@@ -99,6 +166,24 @@ describe("loungeToHistory", () => {
     expect(h.length).toBe(20);
     expect(h[0]?.content).toBe("m5");
     expect(h[19]?.content).toBe("m24");
+  });
+
+  it("does not send retired hidden bubbles back into the chat model", () => {
+    const msgs = [
+      m({ role: "user", kind: "text", body: "question" }),
+      m({
+        role: "bot",
+        kind: "text",
+        body: "retired",
+        metadata: { note: "human_check" },
+      }),
+      m({ role: "bot", kind: "text", body: "answer" }),
+    ];
+
+    expect(loungeToHistory(msgs)).toEqual([
+      { role: "user", content: "question" },
+      { role: "assistant", content: "answer" },
+    ]);
   });
 });
 

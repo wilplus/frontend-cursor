@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { VoiceMark } from "./LoadingState";
+import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
@@ -299,7 +299,7 @@ export default function CoachReviewOverlay({
     return (
       <PreShellOverlay onClose={onClose}>
         {status === "loading" ? (
-          <VoiceMark size={48} />
+          <LoadingState placement="surface" />
         ) : (
           <div className="flex flex-col items-center gap-3 text-center">
             <p className="text-[15px] text-muted-foreground">

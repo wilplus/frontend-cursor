@@ -19,7 +19,12 @@ const BRIDGE_WINDOW_MS = 55_000;
 // Bounds the SERVER loop only — the FE client owns the real terminal decision
 // (it also treats a non-processing state WITH content as done), exactly as it
 // did when it polled.
-const TERMINAL_STATES = new Set(["ready", "readout_ready", "failed"]);
+const TERMINAL_STATES = new Set([
+  "ready",
+  "readout_ready",
+  "failed",
+  "failed_ideal_text_unconfirmed",
+]);
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -53,18 +58,18 @@ const SSE_HEADERS = {
  *   GET …/readout returns (the FE client owns the envelope shape, as with the
  *   readout proxy). `: ping` comment heartbeats every ~15s keep intermediaries
  *   from idling the socket. The stream ends after a terminal state (ready /
- *   readout_ready / failed) or the duration cap; clients reconnect until THEY
- *   decide the job is done.
+ *   readout_ready / failed / failed_ideal_text_unconfirmed) or the duration
+ *   cap; clients reconnect until THEY decide the job is done.
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: { sessionId: string } },
 ) {
   const backend = getBackendUrl();
   if (!backend) {
     return NextResponse.json(
       { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
+      { status: 502 },
     );
   }
 
@@ -87,7 +92,7 @@ export async function GET(
     if (
       upstream.ok &&
       (upstream.headers.get("content-type") ?? "").includes(
-        "text/event-stream"
+        "text/event-stream",
       ) &&
       upstream.body
     ) {
@@ -135,7 +140,7 @@ export async function GET(
             else if (guestOwner) headers["X-Willab-Guest-Owner"] = guestOwner;
             const upstream = await fetch(
               `${backend}/v2/lab/recordings/${id}/readout`,
-              { method: "GET", headers, cache: "no-store", signal: req.signal }
+              { method: "GET", headers, cache: "no-store", signal: req.signal },
             );
             if (upstream.ok) {
               const parsed: unknown = await upstream.json().catch(() => null);

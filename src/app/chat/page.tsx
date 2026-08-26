@@ -47,7 +47,7 @@ export default function ChatPage({
   const idealTextArcId = firstQueryValue(searchParams.idealArc);
 
   return (
-    <Suspense fallback={<LoadingState fullscreen />}>
+    <Suspense fallback={<LoadingState placement="viewport" />}>
       <ChatPageClient
         sessionId={sessionId}
         reviewSessionId={reviewSessionId}

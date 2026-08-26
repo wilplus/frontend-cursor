@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   bestPresentationView,
   insightView,
+  IDEAL_TEXT_UNCONFIRMED_BODY,
+  idealTextUnconfirmedDraft,
   isReportMessage,
   readoutSummaryDraft,
   readoutView,
+  TAKE_PROCESSED_BODY,
+  takeProcessedDraft,
 } from "./loungeReports";
 
 describe("readoutSummaryDraft", () => {
@@ -13,7 +17,10 @@ describe("readoutSummaryDraft", () => {
     expect(d.kind).toBe("recording_summary");
     expect(d.role).toBe("system");
     expect(d.body).toBe("Readout · Q3 pitch");
-    expect(d.metadata).toMatchObject({ report_type: "readout", topic: "Q3 pitch" });
+    expect(d.metadata).toMatchObject({
+      report_type: "readout",
+      topic: "Q3 pitch",
+    });
   });
 
   it("carries optional metrics + recording id when given", () => {
@@ -45,10 +52,62 @@ describe("isReportMessage", () => {
   });
 });
 
+describe("takeProcessedDraft", () => {
+  it("is one exact, per-session terminal result for a later take", () => {
+    const sessionId = "77777777-7777-4777-8777-777777777777";
+    expect(
+      takeProcessedDraft({ sessionId, arcId: "arc-1", takeIndex: 2 }),
+    ).toEqual({
+      clientId: sessionId,
+      role: "bot",
+      kind: "ideal_text",
+      body: TAKE_PROCESSED_BODY,
+      metadata: {
+        variant: "take_processed",
+        arc_id: "arc-1",
+        take_session_id: sessionId,
+        take_index: 2,
+      },
+    });
+    expect(TAKE_PROCESSED_BODY).toBe(
+      "Take processed. Your Ideal Text was kept unchanged.",
+    );
+  });
+});
+
+describe("idealTextUnconfirmedDraft", () => {
+  it("is the exact Take 1 terminal card under the session identity", () => {
+    const sessionId = "77777777-7777-4777-8777-777777777777";
+    expect(
+      idealTextUnconfirmedDraft({ sessionId, arcId: "arc-1", takeIndex: 1 }),
+    ).toEqual({
+      clientId: sessionId,
+      role: "bot",
+      kind: "ideal_text",
+      body: IDEAL_TEXT_UNCONFIRMED_BODY,
+      metadata: {
+        variant: "ideal_text_unconfirmed",
+        arc_id: "arc-1",
+        take_session_id: sessionId,
+        take_index: 1,
+        actions: ["retry_ideal_text", "view_take_feedback"],
+      },
+    });
+    expect(IDEAL_TEXT_UNCONFIRMED_BODY).toBe(
+      "We processed your take, but couldn’t create your Ideal Text.",
+    );
+  });
+});
+
 describe("readoutView / insightView", () => {
   it("reads readout metadata", () => {
     expect(
-      readoutView({ topic: "t", take_index: 2, speech_rate: 140, pause_ratio: 0.3 })
+      readoutView({
+        topic: "t",
+        take_index: 2,
+        speech_rate: 140,
+        pause_ratio: 0.3,
+      }),
     ).toEqual({
       topic: "t",
       takeIndex: 2,
@@ -79,7 +138,7 @@ describe("readoutView / insightView", () => {
         note_count: 3,
         topic: "My talk",
         take_index: 1,
-      })
+      }),
     ).toEqual({
       overallMessage: "nice work",
       noteCount: 3,
@@ -96,7 +155,7 @@ describe("readoutView / insightView", () => {
 
   it("reads best_presentation_ready metadata, defaulting to null", () => {
     expect(
-      bestPresentationView({ arc_id: "arc-7", topic: "Q3 pitch" })
+      bestPresentationView({ arc_id: "arc-7", topic: "Q3 pitch" }),
     ).toEqual({ arcId: "arc-7", topic: "Q3 pitch" });
     expect(bestPresentationView({ topic: "" })).toEqual({
       arcId: null,

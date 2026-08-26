@@ -377,12 +377,18 @@ check(
 );
 check(
   "it opens on the first UNLABELLED piece, without re-ordering (N2)",
-  (await page.locator("text=and we shipped it in a week").count()) === 1
+  await page.evaluate(
+    () =>
+      document
+        .querySelector('button[aria-label^="Piece 1"]')
+        ?.getAttribute("aria-current") === "true"
+  )
 );
 check(
-  "the piece is playable and its words are shown",
+  "the piece is playable while its exact words stay hidden before the answer",
   (await page.locator("audio").count()) === 1 &&
-    (await page.locator('button[aria-label="Play snippet"]').count()) === 1
+    (await page.locator('button[aria-label="Play snippet"]').count()) === 1 &&
+    (await page.locator("text=and we shipped it in a week").count()) === 0
 );
 
 /* ----------- N3: no default answer — and the 1–5 grade row is GONE --------- */
@@ -442,7 +448,12 @@ check(
 );
 check(
   "the answer is the whole act now — it auto-advances past the already-labelled piece to the next unlabelled one (there is no grade step to wait for)",
-  (await page.locator("text=I think maybe we could possibly").count()) === 1
+  await page.evaluate(
+    () =>
+      document
+        .querySelector('button[aria-label^="Piece 3"]')
+        ?.getAttribute("aria-current") === "true"
+  )
 );
 check("progress moved to 2 / 3", (await page.locator("text=2 / 3 labelled").count()) === 1);
 check(
@@ -520,7 +531,12 @@ check(
   await (async () => {
     await page.locator('button[aria-label^="Piece 3"]').click();
     await page.waitForTimeout(150);
-    return (await page.locator("text=I think maybe we could possibly try it that way").count()) === 1;
+    return page.evaluate(
+      () =>
+        document
+          .querySelector('button[aria-label^="Piece 3"]')
+          ?.getAttribute("aria-current") === "true"
+    );
   })()
 );
 check(

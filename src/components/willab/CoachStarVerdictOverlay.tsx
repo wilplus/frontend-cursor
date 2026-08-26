@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Sparkles } from "lucide-react";
-import { VoiceMark } from "./LoadingState";
+import LoadingState, { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
@@ -501,11 +501,9 @@ export default function CoachStarVerdictOverlay({
           />
         </div>
         <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-6">
+          <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-3 px-4 py-6">
             {cvStatus === "loading" ? (
-              <div className="flex min-h-64 items-center justify-center">
-                <VoiceMark size={48} />
-              </div>
+              <LoadingState placement="surface" />
             ) : cvStatus === "error" ? (
               <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
                 Couldn&apos;t load every blind-label queue. Close and try again;
@@ -576,7 +574,7 @@ export default function CoachStarVerdictOverlay({
           area now spans the viewport; the CONTENT stays centred and
           narrow inside it. */}
       <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 px-4 py-6">
           {cvRows.length > 0 ? (
             // CONFIDENT-VOICE FEEDBACKS — always at the top of the list
             // (founder 2026-08-10). Blind rows: play, read, answer. The copy
@@ -638,9 +636,7 @@ export default function CoachStarVerdictOverlay({
             </div>
           ) : null}
           {status === "loading" ? (
-            <div className="flex flex-1 items-center justify-center">
-              <VoiceMark size={48} />
-            </div>
+            <LoadingState placement="surface" />
           ) : status === "error" || stars === null ? (
             <p className="max-w-sm text-[15px] text-muted-foreground">
               Couldn&apos;t load the stars just now. Close and reopen this view
