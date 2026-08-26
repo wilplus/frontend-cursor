@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
 import { VoiceMark } from "@/components/willab/LoadingState";
-import MediaPlayer from "@/components/results/MediaPlayer";
+import ConfidenceEvidenceReadout from "@/components/willab/ConfidenceEvidenceReadout";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import {
@@ -26,9 +26,10 @@ import {
 import {
   buildRatingBody,
   saveStateRating,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
+import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
 
 /* -------------------------------------------------------------------------- */
 /*  /coach/corpus — the training corpus workbench (2026-07-28)                 */
@@ -101,48 +102,52 @@ export default function CorpusPageClient({
 
   if (openSession) {
     return (
-      <LabelScreen
-        item={openSession}
-        onClose={() => {
-          setOpenSession(null);
-          refresh();
-        }}
-      />
+      <RaterLanguageGate onClose={() => setOpenSession(null)}>
+        <LabelScreen
+          item={openSession}
+          onClose={() => {
+            setOpenSession(null);
+            refresh();
+          }}
+        />
+      </RaterLanguageGate>
     );
   }
 
   return (
-    <main className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[15px] font-semibold text-foreground">
-            Training corpus
+    <RaterLanguageGate onClose={() => router.push("/chat")}>
+      <main className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-[15px] font-semibold text-foreground">
+              Training corpus
+            </span>
+            <span className="shrink-0 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+              Coach only · training
+            </span>
           </span>
-          <span className="shrink-0 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-            Coach only · training
-          </span>
-        </span>
-        <OverlayCloseButton
-          onClick={() => router.push("/chat")}
-          ariaLabel="Close training corpus"
-        />
-      </div>
+          <OverlayCloseButton
+            onClick={() => router.push("/chat")}
+            ariaLabel="Close training corpus"
+          />
+        </div>
 
-      <div className="scrollbar-none flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
-        <ImportPanel onImported={refresh} onOpen={setOpenSession} />
-        <IndexPanel
-          imports={imports}
-          failed={indexFailed}
-          onOpen={setOpenSession}
-          canViewFounderComparison={canViewFounderComparison}
-          onOpenComparison={(sessionId) =>
-            router.push(
-              `/coach/corpus/summary/${encodeURIComponent(sessionId)}`
-            )
-          }
-        />
-      </div>
-    </main>
+        <div className="scrollbar-none flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+          <ImportPanel onImported={refresh} onOpen={setOpenSession} />
+          <IndexPanel
+            imports={imports}
+            failed={indexFailed}
+            onOpen={setOpenSession}
+            canViewFounderComparison={canViewFounderComparison}
+            onOpenComparison={(sessionId) =>
+              router.push(
+                `/coach/corpus/summary/${encodeURIComponent(sessionId)}`
+              )
+            }
+          />
+        </div>
+      </main>
+    </RaterLanguageGate>
   );
 }
 
@@ -900,7 +905,7 @@ function LabelScreen({
     "loading"
   );
   const [at, setAt] = useState(0);
-  const [pending, setPending] = useState<TernaryValue | null>(null);
+  const [pending, setPending] = useState<ConfidenceRatingValue | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   // The snippetId currently being written to the BE, or null. Only one save
@@ -948,7 +953,7 @@ function LabelScreen({
   const abstained = pending === null && piece?.label?.unrateable === true;
 
   async function save(
-    value: TernaryValue | null,
+    value: ConfidenceRatingValue | null,
     /** advance defaults TRUE — an answer finishes a piece now (founder
      *  2026-08-11: the 1–5 intensity row is CUT; pure ternary). A note
      *  saved on blur must NOT advance, or the coach would be thrown to
@@ -991,7 +996,13 @@ function LabelScreen({
         ? {
             ...q,
             queue: q.queue.map((p) =>
-              p.snippetId === piece.snippetId ? { ...p, label: saved } : p
+              p.snippetId === piece.snippetId
+                ? {
+                    ...p,
+                    label: saved,
+                    transcript: res.transcript ?? p.transcript,
+                  }
+                : p
             ),
           }
         : q
@@ -1112,20 +1123,16 @@ function LabelScreen({
           </p>
         ) : piece ? (
           <>
-            {/* The piece: play it, read it. NOTHING else — no read, no band,
-                no ordering cue (N1/N2). */}
-            {piece.audioRef && piece.durationMs > 0 ? (
-              <MediaPlayer
-                src={piece.audioRef}
-                startOffsetMs={piece.startOffsetMs}
-                durationMs={piece.durationMs}
-              />
-            ) : null}
-            <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-              <p className="text-[15px] leading-relaxed text-foreground">
-                {piece.transcript}
-              </p>
-            </div>
+            {/* Before a saved answer this is audio only. The shared readout
+                reveals exact words after this coach's label is committed.
+                There is still no machine read, band, or ordering cue. */}
+            <ConfidenceEvidenceReadout
+              audioRef={piece.audioRef}
+              startOffsetMs={piece.startOffsetMs}
+              durationMs={piece.durationMs}
+              transcript={piece.transcript}
+              transcriptRevealed={piece.label !== null}
+            />
 
             {/* THE shared instrument (founder 2026-08-10): the same
                 component the snippet card, the Feedbacks review and the
@@ -1140,12 +1147,6 @@ function LabelScreen({
               // say it twice, and the e2e pins exactly one.
               saving={false}
               onPick={(v) => void save(v)}
-              onToggleUnrateable={() =>
-                void save(null, {
-                  unrateable: !abstained,
-                  advance: false,
-                })
-              }
             />
 
             {/* Gated behind an answer (or an abstention): a note annotates a

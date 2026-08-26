@@ -8,7 +8,7 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   buildRatingBody,
   saveConfidenceAgreement,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import {
   AGREE_THANKS,
@@ -368,13 +368,13 @@ export default function DeckChunkModal({
   const isConfidentVoice =
     suggestion?.feedbackFamily === "confident_voice" ||
     suggestion?.source === "confident_voice";
-  const [agreeValue, setAgreeValue] = useState<TernaryValue | null>(null);
+  const [agreeValue, setAgreeValue] = useState<ConfidenceRatingValue | null>(null);
   const [agreeSaving, setAgreeSaving] = useState(false);
   const [agreeError, setAgreeError] = useState<string | null>(null);
   const [agreeSaved, setAgreeSaved] = useState(false);
 
   async function sendAgreement(
-    value: TernaryValue | null,
+    value: ConfidenceRatingValue | null,
     unrateable: boolean
   ) {
     const snippetId = suggestion?.snippetId;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
-import SnippetReadoutBlock from "./SnippetReadoutBlock";
+import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
 import { SlideRender } from "./pdfSlides";
 import SnippetSlideCorrection from "./SnippetSlideCorrection";
 import type { ReadoutSlide } from "./readout";
@@ -15,7 +15,7 @@ import {
   buildRatingBody,
   saveStateRating,
   CONFIDENCE_QUESTION,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
@@ -119,10 +119,20 @@ export default function CoachSnippetReviewCard({
   // re-rated from scratch — a second, non-independent look at one clip — or
   // skipped it as already done and left it unrated.
   const seeded = initialState ?? snippet.coachState;
-  const [rating, setRating] = useState<TernaryValue | null>(seeded.ratingValue);
+  const [rating, setRating] = useState<ConfidenceRatingValue | null>(seeded.ratingValue);
   const [unrateable, setUnrateable] = useState(seeded.ratingUnrateable);
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
+  const seededBlindAnswer =
+    typeof seeded.ratingValue === "string" || seeded.ratingUnrateable;
+  const [revealedTranscript, setRevealedTranscript] = useState(
+    seededBlindAnswer ? snippet.transcript : "",
+  );
+  useEffect(() => {
+    if (seededBlindAnswer && snippet.transcript) {
+      setRevealedTranscript(snippet.transcript);
+    }
+  }, [seededBlindAnswer, snippet.transcript]);
 
   // #191 — no pre-fill: the coach writes the note from scratch (that IS the
   // training signal). The BE now sends note="" and no ai_draft_coach_note.
@@ -161,7 +171,7 @@ export default function CoachSnippetReviewCard({
   // backend rejects a body carrying both; constructing one here would be a bug
   // that only shows up as a 400 the coach cannot act on.
   const submitRating = useCallback(
-    async (nextValue: TernaryValue | null, nextUnrateable: boolean) => {
+    async (nextValue: ConfidenceRatingValue | null, nextUnrateable: boolean) => {
       const body = buildRatingBody(nextValue, nextUnrateable);
       if (!body) return;
       setRating(nextValue);
@@ -173,24 +183,15 @@ export default function CoachSnippetReviewCard({
       if (!result.ok) {
         setRatingError(result.error ?? "Couldn't save that. Try again.");
       } else {
+        setRevealedTranscript(result.transcript ?? "");
         onBlindRatingCommitted?.();
       }
     },
     [snippet.id, onBlindRatingCommitted],
   );
 
-  function pickRating(value: TernaryValue) {
+  function pickRating(value: ConfidenceRatingValue) {
     void submitRating(value, false);
-  }
-
-  function toggleUnrateable() {
-    // Re-tapping an active abstention returns to "unanswered" locally; it does
-    // not send anything, because there is no body that means "never mind".
-    if (unrateable) {
-      setUnrateable(false);
-      return;
-    }
-    void submitRating(null, true);
   }
 
   function toggleSurfaced() {
@@ -211,7 +212,6 @@ export default function CoachSnippetReviewCard({
       saving={ratingSaving}
       error={ratingError}
       onPick={pickRating}
-      onToggleUnrateable={toggleUnrateable}
     />
   );
 
@@ -226,11 +226,12 @@ export default function CoachSnippetReviewCard({
         <span className="text-[12px] text-muted-foreground">
           Piece {index + 1} of {total}
         </span>
-        <SnippetReadoutBlock
+        <ConfidenceEvidenceReadout
           audioRef={snippet.audioRef}
           startOffsetMs={snippet.startOffsetMs}
           durationMs={snippet.durationMs}
-          transcript={snippet.transcript}
+          transcript={revealedTranscript}
+          transcriptRevealed={revealedTranscript.length > 0}
         />
         <div className="border-t border-border pt-4">{blindInstrument}</div>
       </CoachCard>
@@ -302,11 +303,12 @@ export default function CoachSnippetReviewCard({
           saw_model_output=false on every rating written below, so showing
           them here would make that stamp a lie. Judging the machine's output
           is the adjudication lane's job, on its own screen. */}
-      <SnippetReadoutBlock
+      <ConfidenceEvidenceReadout
         audioRef={snippet.audioRef}
         startOffsetMs={snippet.startOffsetMs}
         durationMs={snippet.durationMs}
         transcript={snippet.transcript}
+        transcriptRevealed
       />
 
       {/* Coach controls — the §F.3 split-sink surface */}

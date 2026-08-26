@@ -26,7 +26,7 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
     form.append("duration", String(meta.durationSec));
 }
 
-import type { TernaryValue } from "./stateRatings";
+import type { ConfidenceRatingValue } from "./stateRatings";
 
 export type CoachTag = "strong" | "to_work_on";
 
@@ -40,7 +40,7 @@ export interface CoachSnippetState {
    *  unanswered after a reload. Never another rater's — the BE scopes the
    *  read to the authenticated caller, because a second answer on screen
    *  anchors the next one and destroys inter-rater independence. */
-  ratingValue: TernaryValue | null;
+  ratingValue: ConfidenceRatingValue | null;
   ratingUnrateable: boolean;
   tag: CoachTag | null;
   surfaced: boolean;
@@ -145,8 +145,16 @@ export interface CoachSnippetSavePatch {
 
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
 
-function pickRating(raw: unknown): TernaryValue | null {
-  return raw === "yes" || raw === "no" || raw === "neutral" ? raw : null;
+function pickRating(raw: unknown): ConfidenceRatingValue | null {
+  return raw === "yes" ||
+    raw === "in_between" ||
+    raw === "no" ||
+    raw === "not_sure" ||
+    raw === "audio_unclear"
+    ? raw
+    : raw === "neutral"
+      ? "not_sure"
+    : null;
 }
 
 function pickTag(raw: unknown): CoachTag | null {
@@ -159,7 +167,8 @@ function pickCoachState(raw: unknown): CoachSnippetState {
   return {
     note: typeof r.note === "string" ? r.note : "",
     ratingValue: pickRating(r.rating_value),
-    ratingUnrateable: r.rating_unrateable === true,
+    ratingUnrateable:
+      r.rating_unrateable === true || r.rating_value === "audio_unclear",
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
   };

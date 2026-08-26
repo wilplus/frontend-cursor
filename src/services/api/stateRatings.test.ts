@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRatingBody,
+  CONFIDENCE_RATING_VALUES,
   CONFIDENCE_STATE_ID,
-  TERNARY_VALUES,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "./stateRatings";
 
 /* N3 lives HERE now: buildRatingBody is the one constructor for a label
@@ -16,8 +16,8 @@ import {
  * real one afterwards. */
 
 describe("buildRatingBody (N3 lives here)", () => {
-  it("each ternary answer alone is a complete rating", () => {
-    for (const value of TERNARY_VALUES) {
+  it("each of the five states alone is a complete rating", () => {
+    for (const value of CONFIDENCE_RATING_VALUES) {
       expect(buildRatingBody(value, false)).toEqual({
         state_id: CONFIDENCE_STATE_ID,
         value,
@@ -29,20 +29,21 @@ describe("buildRatingBody (N3 lives here)", () => {
     expect(buildRatingBody(null, false)).toBeNull();
     // Strings the type system would catch but a cast could smuggle: the BE
     // 400s on them, and coercing here would turn a bug into training data.
-    expect(buildRatingBody("maybe" as TernaryValue, false)).toBeNull();
-    expect(buildRatingBody("" as TernaryValue, false)).toBeNull();
+    expect(buildRatingBody("maybe" as ConfidenceRatingValue, false)).toBeNull();
+    expect(buildRatingBody("" as ConfidenceRatingValue, false)).toBeNull();
   });
 
-  it("an abstention carries NO value key — value XOR unrateable is the contract, and the backend rejects a body with both", () => {
-    const body = buildRatingBody(null, true);
-    expect(body).toEqual({ state_id: CONFIDENCE_STATE_ID, unrateable: true });
-    expect(body && "value" in body).toBe(false);
+  it("maps a historical unrateable control onto the explicit audio state", () => {
+    expect(buildRatingBody(null, true)).toEqual({
+      state_id: CONFIDENCE_STATE_ID,
+      value: "audio_unclear",
+    });
   });
 
   it("an abstention DISCARDS an answer passed alongside it rather than sending both", () => {
     expect(buildRatingBody("yes", true)).toEqual({
       state_id: CONFIDENCE_STATE_ID,
-      unrateable: true,
+      value: "audio_unclear",
     });
   });
 
@@ -60,7 +61,7 @@ describe("buildRatingBody (N3 lives here)", () => {
     // provenance an abstention needs.
     expect(buildRatingBody(null, true, undefined, "all wind")).toEqual({
       state_id: CONFIDENCE_STATE_ID,
-      unrateable: true,
+      value: "audio_unclear",
       note: "all wind",
     });
   });
@@ -73,7 +74,7 @@ describe("buildRatingBody (N3 lives here)", () => {
   });
 
   it("never carries an intensity — the 1–5 grade was cut (founder 2026-08-11) and the ternary body has no lane for it to sneak back through", () => {
-    for (const value of TERNARY_VALUES) {
+    for (const value of CONFIDENCE_RATING_VALUES) {
       const body = buildRatingBody(value, false, undefined, "note");
       expect(body && "intensity" in body).toBe(false);
       expect(Object.keys(body ?? {}).sort()).toEqual([

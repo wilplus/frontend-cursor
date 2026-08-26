@@ -73,13 +73,13 @@ describe("mapQueuePiece — drop-not-repair", () => {
     });
   });
 
-  it("a stored NEUTRAL reads back as answered — never re-asked (the 2026-08-10 read bug)", () => {
-    // A neutral row carries confident=NULL by design; the old boolean-only
-    // read rendered it unlabelled and the panel re-asked forever.
+  it("a stored v1 neutral reads back as v2 not-sure — never re-asked", () => {
+    // v1 neutral meant IDK. Preserve that meaning instead of silently
+    // relabeling the historical answer as v2's perceptual middle.
     expect(
       mapQueuePiece(piece({ label: { value: "neutral" } }))?.label
     ).toEqual({
-      value: "neutral",
+      value: "not_sure",
       unrateable: false,
       confident: null,
       intensity: null,

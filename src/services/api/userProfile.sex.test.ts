@@ -27,6 +27,7 @@ const base = {
   goal: "g",
   domain_vocabulary_default: [],
   is_coach: false,
+  proficient_languages: undefined,
 };
 
 function mockGet(body: unknown) {

@@ -1,33 +1,35 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CoachChip, CoachErrorLine } from "./coachChrome";
+import { Check, CircleHelp, Minus, VolumeX, X } from "lucide-react";
+import { CoachErrorLine } from "./coachChrome";
 import {
   CONFIDENCE_QUESTION,
-  type TernaryValue,
+  type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 
 /* -------------------------------------------------------------------------- */
-/*  ConfidenceLabelChips — THE one confident-voice instrument (founder         */
-/*  2026-08-10: "the confident voice label should has the same UI as the       */
-/*  coach based labelling and the voice game labelling").                      */
-/*                                                                            */
-/*  Extracted verbatim from CoachSnippetReviewCard, the reference lane: three  */
-/*  answer chips — Yes / No / Ambiguous (the founder's yes / no / idk; the     */
-/*  third answer is a judgment about the MOMENT, the backend's `neutral`) —    */
-/*  plus the SECONDARY abstention below ("Can't rate this — audio unclear"),   */
-/*  which is a judgment about the RATER and deliberately not a fourth chip:    */
-/*  giving it chip weight is what books bad audio as a real middling rating.   */
-/*                                                                            */
-/*  Every lane — the coach snippet card, the Feedbacks review, the training    */
-/*  corpus, the voice game, the ideal-text modal — renders THIS component,     */
-/*  so the instrument cannot drift per surface.                               */
+/*  The one blind confidence-rating instrument. The answer vocabulary and the */
+/*  visual hierarchy are shared by coach and peer corpus labeling. Primary    */
+/*  controls are perceptual judgments; secondary controls preserve rater      */
+/*  uncertainty and technical audio failure as distinct stored values.        */
 /* -------------------------------------------------------------------------- */
 
-export const RATING_OPTIONS: { value: TernaryValue; label: string }[] = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-  { value: "neutral", label: "Ambiguous" },
+type RatingOption = {
+  value: ConfidenceRatingValue;
+  label: string;
+  icon: typeof Check;
+};
+
+export const PRIMARY_RATING_OPTIONS: RatingOption[] = [
+  { value: "yes", label: "Yes", icon: Check },
+  { value: "in_between", label: "In-between", icon: Minus },
+  { value: "no", label: "No", icon: X },
+];
+
+export const SECONDARY_RATING_OPTIONS: RatingOption[] = [
+  { value: "not_sure", label: "Not sure", icon: CircleHelp },
+  { value: "audio_unclear", label: "Audio unclear", icon: VolumeX },
 ];
 
 export default function ConfidenceLabelChips({
@@ -39,22 +41,21 @@ export default function ConfidenceLabelChips({
   error = null,
   eyebrow = null,
   onPick,
-  onToggleUnrateable,
 }: {
   /** null hides the question line — for hosts that render the question as
    *  their own hero (the game's big centered ask). */
   question?: string | null;
-  value: TernaryValue | null;
+  value: ConfidenceRatingValue | null;
+  /** Read compatibility for historical rows. New writes use audio_unclear. */
   unrateable?: boolean;
   disabled?: boolean;
   saving?: boolean;
   error?: string | null;
   /** Small right-of-question tag (the coach lanes show "Private · training"). */
   eyebrow?: ReactNode;
-  onPick: (value: TernaryValue) => void;
-  /** Omit to hide the abstention where an abstention isn't offered. */
-  onToggleUnrateable?: () => void;
+  onPick: (value: ConfidenceRatingValue) => void;
 }) {
+  const selected = unrateable ? "audio_unclear" : value;
   return (
     <div>
       {question !== null ? (
@@ -63,39 +64,61 @@ export default function ConfidenceLabelChips({
           {eyebrow}
         </p>
       ) : null}
-      <div className="mt-2 flex flex-wrap gap-2">
-        {RATING_OPTIONS.map((r) => (
-          <CoachChip
-            key={r.value}
-            active={value === r.value && !unrateable}
-            // disabled reaches the DOM button, not just the handler — a
-            // second tap must not race an in-flight save, and the e2e pins
-            // the property, not the guard.
-            disabled={disabled}
-            onClick={() => {
-              if (!disabled) onPick(r.value);
-            }}
-          >
-            {r.label}
-          </CoachChip>
-        ))}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {PRIMARY_RATING_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const active = selected === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => onPick(option.value)}
+              className={`flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                active
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-foreground hover:border-foreground/50 hover:bg-muted/40"
+              }`}
+            >
+              <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+              <span className="text-sm font-semibold">{option.label}</span>
+            </button>
+          );
+        })}
       </div>
-      {onToggleUnrateable ? (
-        <button
-          type="button"
-          onClick={() => {
-            if (!disabled) onToggleUnrateable();
-          }}
-          aria-pressed={unrateable}
-          className={`mt-3 text-[12px] underline underline-offset-2 transition-colors ${
-            unrateable
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {unrateable ? "Marked unrateable" : "Can't rate this — audio unclear"}
-        </button>
-      ) : null}
+
+      <div className="my-3 flex items-center gap-3" aria-hidden>
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Other
+        </span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {SECONDARY_RATING_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const active = selected === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => onPick(option.value)}
+              className={`flex min-h-9 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                active
+                  ? "border-foreground bg-muted text-foreground"
+                  : "border-border/80 text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
       {saving ? (
         <p className="mt-1 text-[12px] text-muted-foreground">Saving…</p>
       ) : null}
