@@ -500,22 +500,44 @@ function ArchitecturePreview({ content }: { content: CeoArchitectureContent }) {
 }
 
 function MlPreview({ content }: { content: CeoMlContent }) {
+  const gridWidth = Math.max(520, content.columns.length * 192);
   return (
     <div className="mt-5 space-y-4">
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {content.nodes.map((node, index) => (
-          <div key={node.id} className="contents">
-            <div className="min-w-44 flex-1 rounded-xl border border-border p-3">
-              <p className="text-sm font-semibold">{node.label}</p>
-              {node.detail ? (
-                <p className="mt-1 text-xs text-muted-foreground">{node.detail}</p>
-              ) : null}
+      <div className="overflow-x-auto pb-2">
+        <div className="space-y-3" style={{ minWidth: gridWidth }}>
+          {content.rows.map((row) => (
+            <div key={row.id} className="flex items-stretch gap-3">
+              {content.columns.map((column, columnIndex) => {
+                const node = content.nodes.find((item) =>
+                  item.row_id === row.id && item.column_id === column.id
+                );
+                return (
+                  <div key={column.id} className="contents">
+                    <div className="min-w-44 flex-1 rounded-xl border border-border p-3">
+                      {node ? (
+                        <>
+                          <p className="text-sm font-semibold">{node.label}</p>
+                          {node.detail ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {node.detail}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Empty stage</p>
+                      )}
+                    </div>
+                    {columnIndex < content.columns.length - 1 ? (
+                      <span className="self-center text-muted-foreground" aria-hidden>
+                        →
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
-            {index < content.nodes.length - 1 ? (
-              <span className="self-center text-muted-foreground" aria-hidden>→</span>
-            ) : null}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       <PreviewList title="Blind spots, tech debt & risks" rows={content.risks} />
       <PreviewList title="Next steps towards autonomy" rows={content.next_steps} />
