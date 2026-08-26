@@ -22,8 +22,18 @@ export interface CeoTextRow {
 
 export interface CeoMlNode {
   id: string;
+  row_id: string;
+  column_id: string;
   label: string;
   detail: string;
+}
+
+export interface CeoMlLayoutRow {
+  id: string;
+}
+
+export interface CeoMlLayoutColumn {
+  id: string;
 }
 
 export interface CeoMlEdge {
@@ -48,6 +58,8 @@ export interface CeoArchitectureContent {
 }
 
 export interface CeoMlContent {
+  rows: CeoMlLayoutRow[];
+  columns: CeoMlLayoutColumn[];
   nodes: CeoMlNode[];
   edges: CeoMlEdge[];
   risks: CeoTextRow[];
@@ -146,6 +158,80 @@ function legacyArchitectureRows(value: unknown): CeoArchitectureRow[] {
   }));
 }
 
+function mlAxes(value: unknown): { id: string }[] {
+  const seen = new Set<string>();
+  return rows(value)
+    .map((axis) => ({ id: id(axis.id) }))
+    .filter((axis) => {
+      if (seen.has(axis.id)) return false;
+      seen.add(axis.id);
+      return true;
+    });
+}
+
+function legacyMlGrid(value: unknown): Pick<
+  CeoMlContent,
+  "rows" | "columns" | "nodes"
+> {
+  const saved = rows(value).map((node) => ({
+    id: id(node.id),
+    label: text(node.label),
+    detail: text(node.detail),
+  }));
+  const source = saved.length
+    ? saved
+    : ["Data", "Training", "Application"].map((label) => ({
+        id: newCeoRowId(),
+        label,
+        detail: "",
+      }));
+  const row = { id: newCeoRowId() };
+  const columns = source.map(() => ({ id: newCeoRowId() }));
+  return {
+    rows: [row],
+    columns,
+    nodes: source.map((node, index) => ({
+      ...node,
+      row_id: row.id,
+      column_id: columns[index].id,
+    })),
+  };
+}
+
+function savedMlGrid(content: Record<string, unknown>): Pick<
+  CeoMlContent,
+  "rows" | "columns" | "nodes"
+> {
+  const savedRows = mlAxes(content.rows);
+  const savedColumns = mlAxes(content.columns);
+  const layoutRows = savedRows.length ? savedRows : [{ id: newCeoRowId() }];
+  const columns = savedColumns.length ? savedColumns : [{ id: newCeoRowId() }];
+  const rowIds = new Set(layoutRows.map((row) => row.id));
+  const columnIds = new Set(columns.map((column) => column.id));
+  const occupied = new Set<string>();
+  const nodes = rows(content.nodes)
+    .map((node) => ({
+      id: id(node.id),
+      row_id: text(node.row_id),
+      column_id: text(node.column_id),
+      label: text(node.label),
+      detail: text(node.detail),
+    }))
+    .filter((node) => {
+      const cell = `${node.row_id}:${node.column_id}`;
+      if (
+        !rowIds.has(node.row_id) ||
+        !columnIds.has(node.column_id) ||
+        occupied.has(cell)
+      ) {
+        return false;
+      }
+      occupied.add(cell);
+      return true;
+    });
+  return { rows: layoutRows, columns, nodes };
+}
+
 export function newCeoRowId(): string {
   return globalThis.crypto?.randomUUID?.() ??
     `ceo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -170,18 +256,9 @@ export function artifactDraft(
     };
   }
   if (lens === "ml") {
-    const savedNodes = rows(content.nodes).map((row) => ({
-      id: id(row.id),
-      label: text(row.label),
-      detail: text(row.detail),
-    }));
-    const nodes = savedNodes.length
-      ? savedNodes
-      : ["Data", "Training", "Application"].map((label) => ({
-          id: newCeoRowId(),
-          label,
-          detail: "",
-        }));
+    const grid = Array.isArray(content.rows) && Array.isArray(content.columns)
+      ? savedMlGrid(content)
+      : legacyMlGrid(content.nodes);
     const savedEdges = rows(content.edges).map((row) => ({
       id: id(row.id),
       from: text(row.from),
@@ -189,8 +266,10 @@ export function artifactDraft(
       label: text(row.label),
     }));
     return {
-      nodes,
-      edges: savedEdges.length ? savedEdges : linearMlEdges(nodes),
+      ...grid,
+      edges: savedEdges.length
+        ? savedEdges
+        : gridMlEdges(grid.rows, grid.columns, grid.nodes),
       risks: textRows(content.risks),
       next_steps: textRows(content.next_steps),
       citations: citations(content.citations),
@@ -246,11 +325,93 @@ export function removeArchitectureColumn(
   };
 }
 
-export function linearMlEdges(nodes: CeoMlNode[]): CeoMlEdge[] {
+export function linearMlEdges(nodes: Pick<CeoMlNode, "id">[]): CeoMlEdge[] {
   return nodes.slice(0, -1).map((node, index) => ({
     id: newCeoRowId(),
     from: node.id,
     to: nodes[index + 1].id,
     label: "",
   }));
+}
+
+export function gridMlEdges(
+  rows: CeoMlLayoutRow[],
+  columns: CeoMlLayoutColumn[],
+  nodes: CeoMlNode[]
+): CeoMlEdge[] {
+  return rows.flatMap((row) => {
+    const ordered = columns
+      .map((column) => nodes.find(
+        (node) => node.row_id === row.id && node.column_id === column.id
+      ))
+      .filter((node): node is CeoMlNode => Boolean(node));
+    return linearMlEdges(ordered);
+  });
+}
+
+function withMlEdges(content: CeoMlContent): CeoMlContent {
+  return {
+    ...content,
+    edges: gridMlEdges(content.rows, content.columns, content.nodes),
+  };
+}
+
+export function appendMlRow(content: CeoMlContent): CeoMlContent {
+  const row = { id: newCeoRowId() };
+  const firstColumn = content.columns[0];
+  return withMlEdges({
+    ...content,
+    rows: [...content.rows, row],
+    nodes: firstColumn
+      ? [...content.nodes, {
+          id: newCeoRowId(),
+          row_id: row.id,
+          column_id: firstColumn.id,
+          label: "New stage",
+          detail: "",
+        }]
+      : content.nodes,
+  });
+}
+
+export function appendMlColumn(content: CeoMlContent): CeoMlContent {
+  const column = { id: newCeoRowId() };
+  const firstRow = content.rows[0];
+  return withMlEdges({
+    ...content,
+    columns: [...content.columns, column],
+    nodes: firstRow
+      ? [...content.nodes, {
+          id: newCeoRowId(),
+          row_id: firstRow.id,
+          column_id: column.id,
+          label: "New stage",
+          detail: "",
+        }]
+      : content.nodes,
+  });
+}
+
+export function removeMlRow(
+  content: CeoMlContent,
+  rowId: string
+): CeoMlContent {
+  if (content.rows.length <= 1) return content;
+  return withMlEdges({
+    ...content,
+    rows: content.rows.filter((row) => row.id !== rowId),
+    nodes: content.nodes.filter((node) => node.row_id !== rowId),
+  });
+}
+
+export function removeMlColumn(
+  content: CeoMlContent,
+  columnId: string
+): CeoMlContent {
+  if (content.columns.length <= 1) return content;
+  return withMlEdges({
+    ...content,
+    columns: content.columns.filter((column) => column.id !== columnId),
+    nodes: content.nodes.filter((node) => node.column_id !== columnId),
+  });
 }

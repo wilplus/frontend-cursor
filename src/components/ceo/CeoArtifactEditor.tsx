@@ -13,10 +13,14 @@ import { useState } from "react";
 import {
   appendArchitectureColumn,
   appendArchitectureRow,
+  appendMlColumn,
+  appendMlRow,
   artifactDraft,
-  linearMlEdges,
+  gridMlEdges,
   newCeoRowId,
   removeArchitectureColumn,
+  removeMlColumn,
+  removeMlRow,
   type CeoArchitectureContent,
   type CeoArtifactContent,
   type CeoMlContent,
@@ -391,61 +395,146 @@ function MlEditor({
   onSave: (content: CeoMlContent) => void;
 }) {
   const [draft, setDraft] = useState(initial);
+  const gridWidth = Math.max(560, draft.columns.length * 208 + 52);
 
   function setNodes(nodes: CeoMlContent["nodes"]) {
-    setDraft((current) => ({ ...current, nodes, edges: linearMlEdges(nodes) }));
+    setDraft((current) => ({
+      ...current,
+      nodes,
+      edges: gridMlEdges(current.rows, current.columns, nodes),
+    }));
   }
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-border p-5">
-        <div className="flex min-w-0 items-stretch gap-3 overflow-x-auto pb-2">
-          {draft.nodes.map((node, index) => (
-            <div key={node.id} className="contents">
-              <div className="relative min-w-48 flex-1 rounded-xl border border-border bg-muted/30 p-3">
-                <input
-                  value={node.label}
-                  onChange={(event) => setNodes(draft.nodes.map((item) =>
-                    item.id === node.id ? { ...item, label: event.target.value } : item
-                  ))}
-                  aria-label={`Stage ${index + 1} name`}
-                  placeholder="Stage name"
-                  className="w-full bg-transparent pr-8 text-sm font-semibold outline-none"
-                />
-                <textarea
-                  value={node.detail}
-                  onChange={(event) => setNodes(draft.nodes.map((item) =>
-                    item.id === node.id ? { ...item, detail: event.target.value } : item
-                  ))}
-                  aria-label={`Stage ${index + 1} detail`}
-                  placeholder="Data, training, transformation…"
-                  rows={3}
-                  className="mt-2 w-full resize-none bg-transparent text-xs text-muted-foreground outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setNodes(draft.nodes.filter((item) => item.id !== node.id))}
-                  aria-label={`Remove ${node.label || `stage ${index + 1}`}`}
-                  className="absolute right-2 top-2 rounded bg-background/90 p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                </button>
-              </div>
-              {index < draft.nodes.length - 1 ? (
-                <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" aria-hidden />
-              ) : null}
+      <section className="overflow-hidden rounded-2xl border border-border">
+        <div className="overflow-x-auto p-5">
+          <div style={{ minWidth: gridWidth }}>
+            <div className="flex items-center gap-3 border-b border-border pb-2">
+              {draft.columns.map((column, columnIndex) => (
+                <div key={column.id} className="contents">
+                  <div className="flex min-w-48 flex-1 items-center justify-between gap-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <span>Column {columnIndex + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDraft((current) =>
+                        removeMlColumn(current, column.id)
+                      )}
+                      disabled={draft.columns.length <= 1}
+                      aria-label={`Remove ML column ${columnIndex + 1}`}
+                      className="grid h-7 w-7 place-items-center rounded hover:bg-muted hover:text-foreground disabled:invisible"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
+                  {columnIndex < draft.columns.length - 1 ? (
+                    <span className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : null}
+                </div>
+              ))}
+              <span className="h-9 w-9 shrink-0" aria-hidden />
             </div>
-          ))}
+            <div className="divide-y divide-border">
+              {draft.rows.map((row, rowIndex) => (
+                <div key={row.id} className="flex items-stretch gap-3 py-3">
+                  {draft.columns.map((column, columnIndex) => {
+                    const node = draft.nodes.find((item) =>
+                      item.row_id === row.id && item.column_id === column.id
+                    );
+                    return (
+                      <div key={column.id} className="contents">
+                        {node ? (
+                          <div className="relative min-w-48 flex-1 rounded-xl border border-border bg-muted/30 p-3">
+                            <input
+                              value={node.label}
+                              onChange={(event) => setNodes(draft.nodes.map((item) =>
+                                item.id === node.id
+                                  ? { ...item, label: event.target.value }
+                                  : item
+                              ))}
+                              aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1} stage name`}
+                              placeholder="Stage name"
+                              className="w-full bg-transparent pr-8 text-sm font-semibold outline-none"
+                            />
+                            <textarea
+                              value={node.detail}
+                              onChange={(event) => setNodes(draft.nodes.map((item) =>
+                                item.id === node.id
+                                  ? { ...item, detail: event.target.value }
+                                  : item
+                              ))}
+                              aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1} stage detail`}
+                              placeholder="Data, training, transformation…"
+                              rows={3}
+                              className="mt-2 w-full resize-none bg-transparent text-xs text-muted-foreground outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setNodes(
+                                draft.nodes.filter((item) => item.id !== node.id)
+                              )}
+                              aria-label={`Remove ${node.label || `stage ${rowIndex + 1}.${columnIndex + 1}`}`}
+                              className="absolute right-2 top-2 rounded bg-background/90 p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setNodes([...draft.nodes, {
+                              id: newCeoRowId(),
+                              row_id: row.id,
+                              column_id: column.id,
+                              label: "New stage",
+                              detail: "",
+                            }])}
+                            className="grid min-h-28 min-w-48 flex-1 place-items-center rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <Plus className="h-4 w-4" aria-hidden /> Add stage
+                            </span>
+                          </button>
+                        )}
+                        {columnIndex < draft.columns.length - 1 ? (
+                          <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" aria-hidden />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  <div className="self-center">
+                    {draft.rows.length > 1 ? (
+                      <IconButton
+                        label={`Remove ML row ${rowIndex + 1}`}
+                        onClick={() => setDraft((current) =>
+                          removeMlRow(current, row.id)
+                        )}
+                      />
+                    ) : (
+                      <span className="block h-9 w-9" aria-hidden />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setNodes([...draft.nodes, {
-            id: newCeoRowId(), label: "New stage", detail: "",
-          }])}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add stage
-        </button>
+        <div className="flex flex-wrap gap-2 border-t border-border p-3">
+          <button
+            type="button"
+            onClick={() => setDraft(appendMlRow)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add row
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraft(appendMlColumn)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add column
+          </button>
+        </div>
       </section>
       <TextList
         title="Blind spots, tech debt & risks"
