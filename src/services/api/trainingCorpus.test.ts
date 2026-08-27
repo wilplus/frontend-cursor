@@ -37,15 +37,37 @@ describe("mapQueuePiece — drop-not-repair", () => {
       durationMs: 4200,
       label: null,
       reReview: false,
+      learningExposures: [],
     });
+  });
+
+  it("maps only production render-ACK handles for a blind row", () => {
+    const mapped = mapQueuePiece(piece({
+      learning_exposures: [{
+        presentation_id: "11111111-1111-4111-8111-111111111111",
+        acknowledgement_token: "22222222-2222-4222-8222-222222222222",
+        learning_surface: "confidence_classification",
+        evaluation_only: false,
+      }, {
+        presentation_id: "33333333-3333-4333-8333-333333333333",
+        acknowledgement_token: "44444444-4444-4444-8444-444444444444",
+        learning_surface: "confidence_classification",
+        evaluation_only: true,
+      }],
+    }));
+    expect(mapped?.learningExposures).toEqual([{
+      presentationId: "11111111-1111-4111-8111-111111111111",
+      acknowledgementToken: "22222222-2222-4222-8222-222222222222",
+      learningSurface: "confidence_classification",
+    }]);
   });
 
   it("drops a row with no snippet id — the label PUT would have nowhere to go", () => {
     expect(mapQueuePiece(piece({ snippet_id: "" }))).toBeNull();
   });
 
-  it("drops a row with no transcript — nothing to read alongside the audio", () => {
-    expect(mapQueuePiece(piece({ transcript: "" }))).toBeNull();
+  it("keeps the server-redacted pre-judgment row for audio-only blind review", () => {
+    expect(mapQueuePiece(piece({ transcript: "" }))?.transcript).toBe("");
   });
 
   it("keeps this coach's prior call, HISTORICAL intensity included — the 1–5 row is cut (2026-08-11) but rows graded before the cut must read back faithfully", () => {

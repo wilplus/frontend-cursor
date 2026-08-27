@@ -1,6 +1,10 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
+import {
+  mapLearningExposureHandles,
+  type LearningExposureHandle,
+} from "@/services/api/learningExposures";
 
 /** Browser-visible backend base, mirroring `presentationExtract`. Empty =
  *  no public URL in this env, so everything goes through the BFF proxy. */
@@ -696,6 +700,7 @@ export interface QueuePiece {
   durationMs: number;
   label: ConfidenceLabel | null;
   reReview: boolean;
+  learningExposures: LearningExposureHandle[];
 }
 
 export interface ConfidenceQueue {
@@ -755,10 +760,10 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
   const r = raw as Record<string, unknown>;
   const snippetId = str(r.snippet_id);
   const transcript = str(r.transcript);
-  // No id = the label PUT has nowhere to go. No transcript = nothing to read
-  // alongside the audio. Either way the piece is unjudgeable — dropped, not
-  // repaired.
-  if (!snippetId || !transcript) return null;
+  // No id = the label PUT has nowhere to go. An empty transcript is REQUIRED
+  // before this rater's immutable blind judgment: the server reveals exact
+  // words only after commit. Audio + timing are the pre-judgment evidence.
+  if (!snippetId) return null;
   return {
     snippetId,
     transcript,
@@ -767,6 +772,7 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
     durationMs: count(r.duration_ms),
     label: pickLabel(r.label),
     reReview: r.re_review === true,
+    learningExposures: mapLearningExposureHandles(r.learning_exposures),
   };
 }
 

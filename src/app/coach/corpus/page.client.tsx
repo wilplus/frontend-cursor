@@ -23,6 +23,7 @@ import {
   type QueuePiece,
   type TrainingImport,
 } from "@/services/api/trainingCorpus";
+import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import {
   buildRatingBody,
   saveStateRating,
@@ -931,6 +932,13 @@ function LabelScreen({
   const pieces = queue?.queue ?? [];
   const labelled = pieces.filter((p) => p.label !== null).length;
   const piece: QueuePiece | undefined = pieces[at];
+
+  useVisibleLearningExposure({
+    handles: piece?.learningExposures ?? [],
+    visibilityKey: `coach-confidence:${item.sessionId}:${piece?.snippetId ?? "none"}`,
+    enabled: status === "ready" && piece !== undefined && piece.label === null,
+    actorRole: "coach",
+  });
 
   // The note belongs to the PIECE, not the screen: moving on must never carry
   // one coach's aside about a piece onto the next one, and stepping back must

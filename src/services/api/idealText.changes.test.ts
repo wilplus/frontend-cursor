@@ -383,4 +383,33 @@ describe("Confident Voice micro-practice mapping", () => {
       paragraphIndex: 0,
     });
   });
+
+  it("keeps production ACK handles and never maps shadow packets", () => {
+    const c = mapDocumentSuggestions([{
+      id: "cv-exposure", snippet_id: "s", take_session_id: "t",
+      kind: "bold", source: "confident_voice",
+      feedback_family: "confident_voice",
+      quote: "same text", span: { start: 0, end: 9 },
+      learning_exposures: [
+        {
+          presentation_id: "11111111-1111-4111-8111-111111111111",
+          acknowledgement_token: "22222222-2222-4222-8222-222222222222",
+          learning_surface: "confidence_classification",
+          evaluation_only: false,
+        },
+        {
+          presentation_id: "33333333-3333-4333-8333-333333333333",
+          acknowledgement_token: "44444444-4444-4444-8444-444444444444",
+          learning_surface: "confidence_classification",
+          evaluation_only: true,
+        },
+      ],
+    }] as never)?.[0];
+
+    expect(c?.learningExposures).toEqual([{
+      presentationId: "11111111-1111-4111-8111-111111111111",
+      acknowledgementToken: "22222222-2222-4222-8222-222222222222",
+      learningSurface: "confidence_classification",
+    }]);
+  });
 });
