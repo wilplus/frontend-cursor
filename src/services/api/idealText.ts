@@ -2,6 +2,11 @@ import { getAuthToken } from "@/lib/api/auth-client";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
+import type {
+  LearningExposureHandle,
+  LearningSurface,
+} from "@/services/api/learningExposures";
+import { mapLearningExposureHandles } from "@/services/api/learningExposures";
 
 /* -------------------------------------------------------------------------- */
 /*  idealText — the Project's one canonical presentation document              */
@@ -328,6 +333,9 @@ export interface DocumentSuggestion {
   /** Optional micro-practice attached by the Feedback Manager to an already
    * selected Confident Voice item. It is never a fourth feedback item. */
   practiceExercise?: ConfidentVoicePracticeOffer | null;
+  /** Actor-bound ACK handles. Preparing them server-side is not exposure;
+   * the active Feedback modal acknowledges them only after visible mount. */
+  learningExposures: LearningExposureHandle[];
 }
 
 type SuggestionKind = DocumentSuggestion["kind"];
@@ -383,6 +391,15 @@ const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
   "great_formulation",
   "rewrite_clarity",
+];
+const LEARNING_SURFACES: readonly LearningSurface[] = [
+  "confidence_classification",
+  "correction_generation",
+  "coach_comment_generation",
+  "praise_generation",
+  "praise_selection",
+  "correction_selection",
+  "ideal_text_generation",
 ];
 
 const DEFAULT_PRACTICE_YES_INTRODUCTION =
@@ -530,6 +547,10 @@ function mapCueKeys(value: unknown): string[] {
   );
 }
 
+function mapLearningExposures(value: unknown): LearningExposureHandle[] {
+  return mapLearningExposureHandles(value);
+}
+
 function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
   const record = asRecord(item);
   if (!record) return null;
@@ -598,6 +619,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     startOffsetMs: readFiniteNumber(record.start_offset_ms),
     durationMs: readFiniteNumber(record.duration_ms),
     practiceExercise: mapPracticeExercise(record.practice_exercise),
+    learningExposures: mapLearningExposures(record.learning_exposures),
   };
 }
 
@@ -1052,6 +1074,8 @@ export type IdealTextResult =
       /** MATERIAL RECOVERY — words the speaker said that their script has no
        *  block for. [] when there are none (the section does not draw). */
       additions: Addition[];
+      /** Exact Ideal Text packet; ACKed only after the document paints. */
+      learningExposures: LearningExposureHandle[];
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -1380,6 +1404,9 @@ export async function fetchIdealText(
       slideTitles: Array.isArray(body.slide_titles)
         ? body.slide_titles.map((s) => (typeof s === "string" ? s : ""))
         : null,
+      learningExposures: mapLearningExposures(
+        body.learning_exposure ? [body.learning_exposure] : [],
+      ),
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

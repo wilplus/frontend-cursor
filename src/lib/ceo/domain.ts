@@ -141,6 +141,64 @@ export interface CeoIntelligenceUsage {
   total_tokens: number;
 }
 
+export interface LearningReadinessRow {
+  learning_surface: string;
+  status:
+    | "not_collecting_correctly"
+    | "collecting"
+    | "release_candidate_ready"
+    | "blocked";
+  canonical_take_count: number;
+  covered_take_count: number;
+  covered_owner_count: number;
+  covered_speaker_count: number;
+  covered_project_count: number;
+  covered_coach_count: number;
+  prepared_presentation_count: number;
+  visible_exposure_count: number;
+  shown_presentation_count: number;
+  answer_instrument_defined: boolean;
+  answered_exposure_count: number | null;
+  unanswered_exposure_count: number | null;
+  shadow_evaluation_count: number;
+  unacknowledged_presentation_count: number;
+  visible_coverage_ratio: number;
+  versioned_presentation_count: number;
+  version_coverage_ratio: number;
+  versions: Record<string, unknown>[];
+  coverage_dimensions: Record<
+    "language" | "device" | "recording_condition",
+    { status: string }
+  >;
+  missing_metadata: Record<string, number | null>;
+  contradictions_supported: boolean;
+  contradiction_count: number | null;
+  potential_duplicate_count: number | null;
+  duplicate_check_status: string;
+  dataset_release_count: number;
+  authorized_dataset_release_count: number;
+  eligible_item_count: number;
+  research_only_item_count: number;
+  exclusion_count: number;
+  exclusions_by_reason: Record<string, number>;
+  speaker_disjoint_split: {
+    strategy_version: string;
+    covered_owner_count: number;
+    assigned_owner_count: number;
+    ready: boolean;
+  };
+  blockers: string[];
+}
+
+export interface LearningReadinessReport {
+  contract_version: "readiness-v1";
+  generated_at?: string;
+  read_only: true;
+  surfaces: LearningReadinessRow[];
+  unavailable?: boolean;
+  blockers?: string[];
+}
+
 export interface CeoBootstrap {
   projects: CeoProject[];
   features: CeoFeature[];
@@ -151,6 +209,7 @@ export interface CeoBootstrap {
   analysis_runs: CeoAnalysisRun[];
   source_snapshots: CeoSourceSnapshot[];
   intelligence_usage: CeoIntelligenceUsage;
+  learning_readiness: LearningReadinessReport;
   vocabulary: {
     projects: CeoProjectKey[];
     surfaces: CeoSurface[];

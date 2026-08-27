@@ -43,6 +43,7 @@ const sug = (o: Partial<DocumentSuggestion> = {}): DocumentSuggestion => ({
   snippetAudioRef: null,
   startOffsetMs: null,
   durationMs: null,
+  learningExposures: [],
 });
 
 describe("the founder copy is exactly what was signed off", () => {
