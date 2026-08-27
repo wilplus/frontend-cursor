@@ -12,7 +12,7 @@ import { type PresentationSlide } from "@/components/willab/presentation";
 import { type Feeling } from "@/components/willab/willabFeelings";
 import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
 import { type LabSessionContext } from "@/components/willab/LabOverlay";
-import { guestOwnerHeaders } from "./projects";
+import { GUEST_OWNER_HEADER, guestOwnerHeaders } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  labRecording — the Lab upload client (seam ③, §3.3)                        */
@@ -28,6 +28,11 @@ export interface LabUploadInput {
   projectId: string;
   /** One key per captured take, reused unchanged for every network retry. */
   uploadIdempotencyKey: string;
+  /** Signed guest ownership proof returned with a newly-created Project.
+   *  Transport-only: never appended to the multipart body or persisted with
+   *  the recording. It closes the project-create -> Take-upload transaction
+   *  even when browser storage is unavailable. */
+  guestOwnerToken?: string | null;
   durationSec: number;
   topic: string;
   audience?: string;
@@ -532,9 +537,12 @@ export async function submitLabRecording(
   const input = guard.input;
   const form = buildLabUploadForm(input);
   const token = await getAuthToken();
+  const guestHeaders = input.guestOwnerToken
+    ? { [GUEST_OWNER_HEADER]: input.guestOwnerToken }
+    : guestOwnerHeaders();
   const headers = {
     ...authHeaders(token),
-    ...(token ? {} : guestOwnerHeaders()),
+    ...(token ? {} : guestHeaders),
   };
 
   let response: Response;
