@@ -13,6 +13,7 @@ import CeoOverview from "@/components/ceo/CeoOverview";
 import CeoSegmentedControl from "@/components/ceo/CeoSegmentedControl";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
+import CeoLearningReadiness from "@/components/ceo/CeoLearningReadiness";
 import { cn } from "@/lib/utils";
 import {
   CEO_PROJECT_KEYS,
@@ -235,14 +236,19 @@ export default function CeoWorkspace() {
             />
           ) : null}
           {state.surface === "overview" ? (
-            <CeoOverview
-              data={data}
-              project={project}
-              state={state}
-              features={features}
-              updateState={updateState}
-              onBootstrap={setData}
-            />
+            <div className="space-y-10">
+              {project === "research" ? (
+                <CeoLearningReadiness report={data.learning_readiness} />
+              ) : null}
+              <CeoOverview
+                data={data}
+                project={project}
+                state={state}
+                features={features}
+                updateState={updateState}
+                onBootstrap={setData}
+              />
+            </div>
           ) : null}
           {state.surface === "tasks" ? (
             <CeoTasks project={project} features={features} />

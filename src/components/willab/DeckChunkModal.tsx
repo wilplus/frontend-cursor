@@ -30,6 +30,7 @@ import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
 } from "@/services/api/idealText";
+import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 
 /* -------------------------------------------------------------------------- */
 /*  DeckChunkModal — the two faces behind a chunk's lock (founder 2026-08-11,  */
@@ -161,6 +162,11 @@ export default function DeckChunkModal({
     unresolvedFeedback.find((item) => item.id === activeFeedbackId) ??
     unresolvedFeedback[0] ??
     null;
+  useVisibleLearningExposure({
+    handles: suggestion?.learningExposures ?? [],
+    visibilityKey: suggestion?.id ?? "no-feedback",
+    enabled: suggestion !== null,
+  });
   // Accept morphs the face; everything else derives from the chunk.
   // KEYED ON THE WORK, NOT THE STATE. `chunk.status` folds "approved, not
   // locked" into "locked", so reading it here meant a chunk with a real
