@@ -30,6 +30,7 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
   snippetAudioRef: null,
   startOffsetMs: null,
   durationMs: null,
+  learningExposures: [],
 });
 
 const TEXT = "I think we can do this today.";

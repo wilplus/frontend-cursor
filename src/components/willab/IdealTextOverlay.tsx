@@ -43,6 +43,8 @@ import {
 } from "./BlockVariantPicker";
 import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
+import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
@@ -160,7 +162,14 @@ export default function IdealTextOverlay({
     canRecordTake: boolean | null;
     takeCount: number | null;
     journeyNextStepsSeen: boolean | null;
+    learningExposures: LearningExposureHandle[];
   } | null>(null);
+
+  useVisibleLearningExposure({
+    handles: sd?.learningExposures ?? [],
+    visibilityKey: `ideal-text:${arcId}:${sd?.version ?? "unknown"}`,
+    enabled: status === "ready" && ideal !== null && sd !== null,
+  });
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
   // BLOCK_VARIANTS — the picker pool, the revision timeline, and their open
@@ -327,6 +336,7 @@ export default function IdealTextOverlay({
           canRecordTake: r.canRecordTake,
           takeCount: r.takeCount,
           journeyNextStepsSeen: r.journeyNextStepsSeen,
+          learningExposures: r.learningExposures,
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
