@@ -22,11 +22,14 @@ import {
 /* -------------------------------------------------------------------------- */
 
 let captured: FormData | null = null;
+let capturedHeaders: Headers;
 
 beforeEach(() => {
   captured = null;
+  capturedHeaders = new Headers();
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
     captured = init?.body as FormData;
+    capturedHeaders = new Headers(init?.headers);
     return Promise.resolve({
       ok: true,
       status: 201,
@@ -53,6 +56,18 @@ const baseInput = () => ({
 });
 
 describe("submitLabRecording — §S deck fields ride the multipart upload", () => {
+  it("carries a newly issued guest credential as an ownership header only", async () => {
+    await submitLabRecording({
+      ...baseInput(),
+      guestOwnerToken: "principal.secret-value-that-is-long-enough",
+    });
+
+    expect(capturedHeaders.get("X-Willab-Guest-Owner")).toBe(
+      "principal.secret-value-that-is-long-enough",
+    );
+    expect((captured as FormData).get("guestOwnerToken")).toBeNull();
+  });
+
   it("appends slides + presentation_ref + slide_advances when a deck is attached", async () => {
     const res = await submitLabRecording({
       ...baseInput(),
