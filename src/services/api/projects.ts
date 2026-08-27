@@ -3,7 +3,7 @@ import { getAuthToken } from "@/lib/api/auth-client";
 export const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 const GUEST_OWNER_KEY = "willab_guest_owner:v1";
 
-function readGuestOwnerToken(): string | null {
+export function readGuestOwnerToken(): string | null {
   try {
     return localStorage.getItem(GUEST_OWNER_KEY);
   } catch {
@@ -37,7 +37,7 @@ export interface CreateProjectInput {
 }
 
 export type CreateProjectResult =
-  | { kind: "ok"; projectId: string }
+  | { kind: "ok"; projectId: string; guestOwnerToken: string | null }
   | { kind: "error"; message: string };
 
 export async function createProject(
@@ -76,10 +76,22 @@ export async function createProject(
           : "Couldn't create the project.",
     };
   }
-  if (typeof body.guest_owner_token === "string") {
-    writeGuestOwnerToken(body.guest_owner_token);
-  }
-  return { kind: "ok", projectId: body.project_id };
+  const issuedGuestOwnerToken =
+    typeof body.guest_owner_token === "string"
+      ? body.guest_owner_token
+      : null;
+  if (issuedGuestOwnerToken) writeGuestOwnerToken(issuedGuestOwnerToken);
+  return {
+    kind: "ok",
+    projectId: body.project_id,
+    // Carry the credential through the same in-memory transaction as project
+    // creation. localStorage remains the cross-screen persistence layer, but
+    // Safari storage restrictions must not orphan the Take created one line
+    // later from the guest principal that owns its Project.
+    guestOwnerToken: authToken
+      ? null
+      : issuedGuestOwnerToken ?? readGuestOwnerToken(),
+  };
 }
 
 /** Atomically transfer the complete guest-owned graph after authentication. */

@@ -12,7 +12,10 @@ import {
   fetchGuestLabReadout,
   retryLabProcessing,
 } from "@/services/api/labRecording";
-import { createProject } from "@/services/api/projects";
+import {
+  createProject,
+  readGuestOwnerToken,
+} from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
@@ -46,6 +49,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import {
+  clearExploreArc,
   readExploreArc,
   writeExploreArc,
   type ExploreArc,
@@ -553,6 +557,23 @@ export default function LabOverlay({
         return { returnedArcId, nextIdx, deck };
       };
       let projectId = arcId;
+      let uploadGuestOwnerToken =
+        signedIn === false ? readGuestOwnerToken() : null;
+
+      // A guest Project id without its signed Guest ID is not an identity: it
+      // is stale browser carry-over that can never pass the backend ownership
+      // boundary. Detach it before upload and create a fresh owned Project.
+      // This preserves fail-closed authorization without trapping the user in
+      // an unretryable processing screen.
+      if (signedIn === false && projectId && !uploadGuestOwnerToken) {
+        clearExploreArc(null);
+        projectId = null;
+        setInitArc(null);
+        setArcId(null);
+        setArcTakeIndex(1);
+        recordedTakeRef.current = 1;
+        setExploreEnabled(false);
+      }
       if (!projectId) {
         const created = await createProject({
           displayName: context.topic,
@@ -578,12 +599,14 @@ export default function LabOverlay({
           return;
         }
         projectId = created.projectId;
+        uploadGuestOwnerToken = created.guestOwnerToken;
         setArcId(projectId);
         setExploreEnabled(true);
       }
       const result = await submitLabRecording({
         audioBlob: blob,
         projectId,
+        guestOwnerToken: uploadGuestOwnerToken,
         uploadIdempotencyKey: uploadKeyFor(blob),
         durationSec: durationRef.current,
         topic: context.topic,
