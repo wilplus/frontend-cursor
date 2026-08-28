@@ -8,84 +8,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Terms of Service v1.1 (effective 13 August 2026). Body content is the
- * operator's commissioned draft. The wrapper, typography and back-link match
- * the Privacy page and are stable.
- *
- * v1.1 adds §4 (model improvement), §5 (community sharing / peer review),
- * §6 (human review), §7 (AI transparency), §13 (changes to the Service) and
- * §15 (general). Old §4-§11 shift down accordingly.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * FOUNDER RULINGS — 2026-08-13, on the pre-publication audit.
- *
- *  1. Effective date is 13 August 2026, matching the Privacy Policy.
- *  2. The model-improvement opt-out is NOT claimed in this version. The
- *     control does not exist (the consent flags on user_settings are
- *     mic / share / email / terms only — see the backend's
- *     add_consent_preferences_to_user_settings.sql), so §4 says nothing
- *     about opting out and points at the Privacy Policy for rights instead.
- *     Restore the sentence in the next revision, once the control ships.
- *  3. §6's opt-out is real — `share_consent` ("share snippets with the
- *     coach") is live via /v2/user/consent — but it is NOT in "account
- *     settings"; there is no such surface. The clause now says you can
- *     withdraw the consent, without naming a page that does not exist.
- *  4. Published with the §9 rewrite below.
- *
- * ⚠️ STILL CLAIMED BUT NOT YET BUILT — tracked in the backend's
- * docs/BACKLOG.md (Epic L — legal commitments). Published knowingly on the
- * founder's ruling; each needs either the build or a copy amendment:
- *
- *  - §5 sharing "opt-in, per recording, and revocable at any time".
- *    `share_consent` is a single account-level flag scoped to the coach —
- *    not per-recording, and not scoped to other users hearing you.
- *  - §10 "You may export your recordings, transcripts, and Ideal Text."
- *    No user-facing export route exists; the backend's exports are internal
- *    (annotation export, dev-tasks) or belong to the Life panel. Art. 20
- *    requests are served by hand until it ships.
- *  - §10 "You may delete your account at any time." No account-deletion
- *    route was found; per-take and per-session deletes exist.
- *  - §7 "opt-in and off by default" holds only because recording is gated on
- *    mic_consent, which defaults to NULL (never asked). If inference is ever
- *    decoupled from the mic gate, this sentence stops being true.
- *
- * ⚠️ DEVIATION FROM THE APPROVED v1.1 DRAFT — §9, and only §9.
- * The approved draft describes per-presentation, one-time unlocks and states
- * that charges are "not a recurring subscription; we do not auto-renew". That
- * is not what the Service charges for. The live model is recurring monthly
- * plans funding a token wallet:
- *    - services/stripe_subscription_tiers.py — "every tier renews monthly …
- *      all three paid tiers are recurring Stripe Prices";
- *    - services/token_account.py — "SET, never add … rollover ruled out";
- *    - services/token_prices.py — the published token price list;
- *    - this app's /dashboard/pricing renders TokenWalletScreen ("what you
- *      have, when it renews … the plans").
- * The rest of this page is a faithful port. §9 alone was rewritten, because
- * publishing a false statement about what we already charge is a different
- * class of problem from publishing a promise we have not built yet. It is
- * structural only — no prices, no tier names. Signed off 2026-08-13; a
- * consumer-law review is still outstanding.
- *
- * OPEN CHECKLIST (carried forward from v1.0, renumbered):
- *  - §1/§17: the operator's exact legal name / diacritics.
- *  - §9: confirm the express-consent (immediate-performance) checkbox is
- *    actually implemented at checkout so the withdrawal wording is truthful.
- *    NOT FOUND in the token-wallet components as of this revision. Note that
- *    a recurring subscription changes the withdrawal analysis — re-check with
- *    counsel rather than porting the old reasoning.
- *  - §12: liability-cap floor set to EUR 100.
- *  - §14: v1.0 linked the EU ODR platform; v1.1 drops it. The platform was
- *    wound down under Regulation (EU) 2024/3228 — confirm current status and
- *    whether replacement consumer-ADR information is required.
- *  - Article 9 voice-data characterisation: confirm with admitted Polish counsel.
- *  - Confirm the 30-day voice-data deletion window is enforced by the backend.
- *    NO retention or purge job was found — the Railway crons are annotation
- *    export, dev-bugs, drift, life-reminders, migrate, web and worker.
- *  - §17: both documents now use contact@willpowerlab.com. Confirm the mailbox
- *    is monitored — the supervisory authority will use it.
- *  - §16 requires prior notice for material changes. If any user accepted
- *    v1.0, they need notice of this revision.
- *  - Update the operating-entity details once the activity is registered.
+ * Terms of Service v1.2 (effective 28 August 2026). This revision aligns the
+ * recording/coaching service with the approved bundled explicit-consent
+ * contract and the shipped Data & consent withdrawal surface.
  */
 export default function TermsPage() {
   return (
@@ -104,7 +29,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-xs text-muted-foreground">
-            Effective date: 13 August 2026. Version 1.1. Last updated: 13
+            Effective date: 28 August 2026. Version 1.2. Last updated: 28
             August 2026.
           </p>
         </header>
@@ -113,13 +38,11 @@ export default function TermsPage() {
         <section className="space-y-2">
           <div className="rounded-md border border-border bg-muted/40 p-4 text-muted-foreground">
             <p>
-              <strong>What changed in version 1.1.</strong> New sections on
-              community sharing and peer review (§5), human coach review (§6),
-              AI transparency and automated decision-making (§7), changes to
-              the Service (§13), and general contract terms (§15). We corrected
-              the statement about how your content is used to improve our
-              models (§4), clarified the restriction on building competing
-              products (§8), and updated our contact address.
+              <strong>What changed in version 1.2.</strong> Recording and
+              coaching now require one explicit consent covering personalized
+              coaching and improvement of WillpowerLab&apos;s shared models. The
+              consent can be withdrawn from Data &amp; consent; withdrawal ends
+              access to those recording and coaching features (§4).
             </p>
           </div>
         </section>
@@ -241,15 +164,18 @@ export default function TermsPage() {
             </li>
           </ul>
           <p className="text-muted-foreground">
-            Your rights over this processing — including your right to object to
-            it — are set out in the{" "}
+            This use relies on the explicit bundled consent shown before
+            recording, not contract necessity or legitimate interests. You may
+            withdraw through Data &amp; consent. Withdrawal stops new training use
+            and ends access to recording and coaching; it does not affect prior
+            lawful processing. Your rights are set out in the{" "}
             <Link
               href="/privacy"
               className="text-primary no-underline hover:underline"
             >
               Privacy Policy
             </Link>
-            . Exercising them does not affect your ability to use the Service.
+            .
           </p>
         </section>
 

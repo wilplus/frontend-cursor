@@ -5,6 +5,7 @@ import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
+import { MLC2_FOUNDER_CANARY_EMAIL } from "@/services/api/mlc2Consent";
 
 /**
  * Shared sticky header for the public marketing pages (About, Journal/blog —
@@ -42,6 +43,11 @@ export default function SiteHeader() {
         loggingOut={menu.loggingOut}
         labHref="/chat"
         corpusHref={menu.isCoach ? "/coach/corpus" : null}
+        dataConsentHref={
+          menu.userEmail?.trim().toLowerCase() === MLC2_FOUNDER_CANARY_EMAIL
+            ? "/account/data-consent"
+            : null
+        }
       />
     </header>
   );
