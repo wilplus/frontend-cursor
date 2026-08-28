@@ -8,9 +8,12 @@ import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { isLabOverlay, useWillabFlow } from "./useWillabFlow";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
+import { useUserEmail } from "./useUserEmail";
+import { MLC2_FOUNDER_CANARY_EMAIL } from "@/services/api/mlc2Consent";
 import { useStatusHydration, reconcileWillabStatus } from "./useStatusHydration";
 import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
+import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
 import ProjectPicker from "./ProjectPicker";
@@ -67,6 +70,11 @@ export default function WillabSurface({
   const pickerSettle = useDocumentSettle({ enabled: pickedArcId !== null });
   const signedIn = useSignedIn();
   const userId = useUserId();
+  const userEmail = useUserEmail();
+  const founderConsentEligible =
+    signedIn === null || userEmail === undefined
+      ? null
+      : signedIn === true && userEmail === MLC2_FOUNDER_CANARY_EMAIL;
   // Reconcile the at-home status (review_pending / insights) with server truth
   // once on load…
   useStatusHydration(signedIn, flow.state, flow.goTo);
@@ -108,21 +116,30 @@ export default function WillabSurface({
       </div>
     </main>
   );
+  const consentedShell = (children: React.ReactNode, flush = false) =>
+    shell(
+      <Mlc2FounderConsentGate
+        founderEligible={founderConsentEligible}
+      >
+        {children}
+      </Mlc2FounderConsentGate>,
+      flush,
+    );
 
   // Resolving the initial state post-mount (hydration-safe).
   if (flow.state === null) {
-    return shell(<LoadingState placement="surface" />);
+    return consentedShell(<LoadingState placement="surface" />);
   }
 
   // First-run, full-screen (no Lounge underneath yet).
   if (flow.state === "welcome_consent") {
-    return shell(<WelcomeConsent onAccept={flow.acceptConsent} />);
+    return consentedShell(<WelcomeConsent onAccept={flow.acceptConsent} />);
   }
 
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
   // Both share one thread (LoungeThreadProvider) so the Lab can persist a
   // recording's Readout into the same scrollable history.
-  return shell(
+  return consentedShell(
     <LoungeThreadProvider>
       <Lounge
         state={flow.state}

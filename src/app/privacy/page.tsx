@@ -9,80 +9,12 @@ export const metadata: Metadata = {
 };
 
 /**
- * Privacy Policy v1.1 (effective 13 August 2026). Body content is the
- * operator's commissioned draft. The wrapper, typography and back-link match
- * the Terms page and are stable.
- *
- * v1.1 aligns this Policy with Terms of Service v1.1. New sections: §5 (model
- * improvement — the correction), §6 (what we infer from your voice — the target
- * of the cross-reference in Terms §7), §7 (community sharing and peer review),
- * §8 (human coach review). Old §5-§11 shift down accordingly, and the §3
- * cross-reference to the rights section now points at §11.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * FOUNDER RULINGS — 2026-08-13, on the pre-publication audit.
- *
- *  1. Effective date is 13 August 2026, matching the Terms.
- *  2. The model-improvement opt-out is NOT claimed in this version. The
- *     control does not exist (the consent flags on user_settings are
- *     mic / share / email / terms only — backend:
- *     add_consent_preferences_to_user_settings.sql), so §5 no longer offers
- *     one. The Art. 21 RIGHT TO OBJECT stays in §5 and §11: it is statutory,
- *     it does not depend on a toggle, and it is served at the contact address.
- *     Restore the settings opt-out in the next revision, once it ships.
- *  3. §8's coach opt-out is real — `share_consent` is live via
- *     /v2/user/consent — but it is not in "account settings"; there is no
- *     such surface. The clause says you can withdraw consent, not where.
- *
- * ⚠️ STILL CLAIMED BUT NOT YET BUILT — tracked in the backend's
- * docs/BACKLOG.md (Epic L — legal commitments). Published knowingly on the
- * founder's ruling; each needs either the build or a copy amendment:
- *
- *  - §7 sharing "opt-in, per recording, and revocable". `share_consent` is
- *    one account-level flag scoped to the coach — not per-recording, and not
- *    scoped to other users hearing you.
- *  - §11 portability / Terms §10 export. No user-facing export route exists;
- *    the backend's exports are internal (annotation export, dev-tasks) or
- *    belong to the Life panel. Art. 20 requests are served by hand until it
- *    ships — which is lawful, but slow, and the one-month clock still runs.
- *  - Art. 17 erasure: no account-deletion route was found. Per-take and
- *    per-session deletes exist; whole-account erasure is manual.
- *  - §6 "opt-in and off by default" holds only because recording is gated on
- *    mic_consent, which defaults to NULL (never asked). If inference is ever
- *    decoupled from the mic gate, this sentence stops being true.
- *  - §10 retention. v1.0 promised audio was "automatically deleted no later
- *    than 30 days"; NO retention or purge job exists (the Railway crons are
- *    annotation-export, dev-bugs, drift, life-reminders, migrate, web,
- *    worker). This revision states retention CRITERIA instead, which
- *    Art. 13(2)(a) permits — but the founder intent in v1.0 was a hard
- *    maximum, and it should not be quietly dropped. Set it, then enforce it.
- *
- * OPEN CHECKLIST (carried forward from v1.0, renumbered):
- *  - Confirm the operator's exact legal name / diacritics for the controller
- *    block.
- *  - Article 9 (voice as special-category data): confirm characterisation with
- *    admitted Polish counsel before go-live. §6 now discloses inference of
- *    delivery characteristics, which is the fact the assessment turns on.
- *  - §5: the training use is now stated affirmatively, per Terms v1.1 §4.
- *    The lawful basis is the open question — model improvement sits on
- *    Art. 6(1)(f) here (hence the Art. 21 objection right), while inference
- *    sits on Art. 6(1)(a). Counsel must confirm the split is defensible.
- *  - §9 sub-processors: Sentry, Resend, Cloudflare R2 and Vercel are ADDED in
- *    this revision. The first three on code evidence; Vercel on deployment
- *    evidence (it runs the checks on this repo's PRs — nothing in the tree
- *    names it, which is exactly why the repo alone is not a sufficient source
- *    for this table). Confirm a DPA and transfer safeguard for each, and
- *    audit for any other provider that is configured outside the code.
- *  - Contact: switched to contact@willpowerlab.com to match Terms v1.1.
- *    Confirm the mailbox is monitored — a data subject and the supervisory
- *    authority will both use it, and Art. 12(3) runs a one-month clock.
- *  - Update the controller details once the activity is registered
- *    (JDG / sp. z o.o.).
- *
- * NOTE ON THE CONSTRUCT FENCE. §6 discloses internal measurement, which a
- * privacy policy must do. It deliberately does NOT present any of it as a
- * user-facing score, ratio, or verdict. The description is qualitative and
- * limited to the measurements the current product actually uses.
+ * Privacy Policy v1.2 (effective 28 August 2026). This revision records the
+ * approved bundled explicit-consent basis for personalized coaching and pooled
+ * WillpowerLab model improvement. Article 6(1)(a) is the sole basis for those
+ * two purposes; Article 9(2)(a) applies if the processed voice features are
+ * special-category data. The consent is required for recording/coaching and is
+ * withdrawable from the shipped Data & consent surface.
  */
 export default function PrivacyPage() {
   return (
@@ -99,7 +31,7 @@ export default function PrivacyPage() {
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
           <p className="text-xs text-muted-foreground">
-            Effective date: 13 August 2026. Version 1.1. Last updated: 13
+            Effective date: 28 August 2026. Version 1.2. Last updated: 28
             August 2026.
           </p>
         </header>
@@ -108,13 +40,11 @@ export default function PrivacyPage() {
         <section className="space-y-2">
           <div className="rounded-md border border-border bg-muted/40 p-4 text-muted-foreground">
             <p>
-              <strong>What changed in version 1.1.</strong> We corrected what we
-              say about using your content to improve our models (§5) — the
-              previous version was true but incomplete. New sections explain
-              what we infer from your voice (§6), community sharing and peer
-              review (§7), and human coach review (§8). We added sub-processors
-              that were missing from the list (§9), restated data retention
-              (§10), and added the right to object (§11).
+              <strong>What changed in version 1.2.</strong> We now use one
+              explicit consent for personalized coaching and improvement of
+              WillpowerLab&apos;s shared models. Recording and coaching require
+              that consent. We also explain how to withdraw it and what happens
+              next (§3, §5, §10 and §11).
             </p>
           </div>
         </section>
@@ -237,30 +167,30 @@ export default function PrivacyPage() {
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
             <li>
               <strong>Performance of a contract (Article 6(1)(b)).</strong> We
-              process your Voice Data, Text Data, and Account Data to deliver the
-              core Service you have requested: recording and transcribing your
-              takes, running AI speech analysis, and assembling and presenting
-              your coaching notes and Ideal Text.
+              use this basis for account administration, purchases and other
+              non-recording contractual operations. We do not use it as the
+              basis for pooled model training.
             </li>
             <li>
-              <strong>Consent (Article 6(1)(a)).</strong> We record your voice
-              and generate speech analytics{" "}
+              <strong>Explicit consent (Article 6(1)(a)).</strong> We record your
+              voice, generate personalized coaching, and use eligible practice
+              data to evaluate, train and improve WillpowerLab&apos;s shared models{" "}
               <strong>
                 only after you have given clear, affirmative consent
               </strong>
-              . Consent is also the basis for the inference described in §6, for
-              sharing your extracts with other users (§7), and for human coach
-              review (§8). You may withdraw any consent at any time (see §11);
-              withdrawal does not affect processing carried out before
-              withdrawal.
+              . These two connected purposes are accepted together and are
+              required to use recording and coaching. Consent is also the basis
+              for the inference described in §6. You may withdraw at any time
+              (see §11); withdrawal ends recording and coaching access and does
+              not affect processing lawfully carried out before withdrawal.
             </li>
             <li>
               <strong>Legitimate interests (Article 6(1)(f)).</strong> We process
               Usage Data to secure the Service, prevent abuse, and improve
-              reliability, and we process your content to improve our own models
-              as described in §5, where such interests are not overridden by your
-              rights and freedoms. You have the right to object to this
-              processing (see §11).
+              reliability where those interests are not overridden by your
+              rights and freedoms. We do not use legitimate interests as the
+              basis for pooled model training. You may object to legitimate-
+              interests processing (see §11).
             </li>
             <li>
               <strong>Legal obligation (Article 6(1)(c)).</strong> We process
@@ -352,12 +282,12 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="text-muted-foreground">
-            <strong>
-              You may object to this processing at any time (Art. 21).
-            </strong>{" "}
-            Write to us at the address in §15 and we will stop using your
-            content to improve our models. Objecting does not affect your
-            ability to use the Service. See §11 for this and your other rights.
+            <strong>You may withdraw this consent at any time (Art. 7(3)).</strong>{" "}
+            Use Data &amp; consent in the account menu or contact us. We stop
+            including your data in new training and start the applicable
+            retention and purge process. Because the bundled consent is required
+            for both connected purposes, withdrawal ends access to recording and
+            coaching. See §11 for your other rights.
           </p>
         </section>
 
@@ -583,9 +513,9 @@ export default function PrivacyPage() {
             <li>
               <strong>Voice Data (audio files):</strong> retained for as long as
               needed to transcribe and analyse the take, to let you play it back,
-              and — where you have not opted out — for the model improvement
-              described in §5. Deleted on your request, and when you delete the
-              take or your account.
+              and — while the required consent remains active — for the model
+              improvement described in §5. Withdrawal starts the applicable
+              retention and purge process; deletion requests remain available.
             </li>
             <li>
               <strong>Shared extracts:</strong> retained while sharing is active,
@@ -646,14 +576,17 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Object:</strong> object at any time to processing based on
-              our legitimate interests, including the use of your content to
-              improve our models described in §5 (Art. 21).
+              our legitimate interests, including security and reliability
+              processing (Art. 21). Pooled model improvement relies on consent,
+              not legitimate interests.
             </li>
             <li>
               <strong>Withdraw consent:</strong> withdraw any consent at any
               time, without affecting the lawfulness of prior processing (Art.
-              7(3)). This includes consent to voice inference (§6), to sharing
-              your extracts (§7), and to human coach review (§8).
+              7(3)). This includes the bundled personalized-coaching and shared-
+              model consent (§5–§6), sharing your extracts (§7), and human coach
+              review (§8). Withdrawing the bundled consent ends recording and
+              coaching access.
             </li>
             <li>
               <strong>

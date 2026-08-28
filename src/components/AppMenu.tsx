@@ -72,6 +72,8 @@ export interface AppMenuProps {
    *  only when the signed-in user is a coach, so the row does not exist for
    *  anyone else — not greyed out, not present. */
   corpusHref?: string | null;
+  /** Signed-in privacy/consent management surface. */
+  dataConsentHref?: string | null;
 }
 
 export default function AppMenu({
@@ -86,6 +88,7 @@ export default function AppMenu({
   loggingOut = false,
   labHref = null,
   corpusHref = null,
+  dataConsentHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -206,6 +209,17 @@ export default function AppMenu({
               onClick={() => setOpen(false)}
             >
               Training corpus
+            </Link>
+          ) : null}
+
+          {signedIn && dataConsentHref ? (
+            <Link
+              ref={firstRef()}
+              href={dataConsentHref}
+              className={MENU_ITEM_CLASS}
+              onClick={() => setOpen(false)}
+            >
+              Data &amp; consent
             </Link>
           ) : null}
 
