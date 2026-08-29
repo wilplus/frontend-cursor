@@ -19,6 +19,36 @@ export interface RootPhraseLayerItem {
   type: "flagship" | "neutral";
 }
 
+export interface SlideRootPhraseLayerSource {
+  slideIndex?: number | null;
+  rootPhrase?: string | null;
+  rootType?: "flagship" | "neutral" | null;
+}
+
+export interface CommittedSlideRoot {
+  slideIndex: number;
+  text: string;
+  type: "flagship";
+}
+
+/** The recording roadmap projection. Only a user-approved orange flagship is
+ * authoritative enough to prompt the next Take; generated neutral text and
+ * unassigned phrases are deliberately absent. */
+export function buildCommittedSlideRoots(
+  sources: readonly SlideRootPhraseLayerSource[],
+): CommittedSlideRoot[] {
+  return sources.flatMap((source) => {
+    const text = source.rootPhrase?.trim() ?? "";
+    return source.rootType === "flagship" &&
+      typeof source.slideIndex === "number" &&
+      Number.isInteger(source.slideIndex) &&
+      source.slideIndex >= 0 &&
+      text
+      ? [{ slideIndex: source.slideIndex, text, type: "flagship" as const }]
+      : [];
+  });
+}
+
 export function buildRootPhraseLayer(
   sources: readonly RootPhraseLayerSource[],
   { includeNeutral = true }: { includeNeutral?: boolean } = {},

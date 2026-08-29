@@ -43,6 +43,7 @@ import {
 } from "@/services/api/partLock";
 import {
   lockTargetAt,
+  withPartRootPhrase,
   partsToText,
   reconcileParts,
   updatePart,
@@ -909,16 +910,9 @@ export default function IdealTextReadout({
       if (!target) return false;
       const ok = await setPartRootPhrase(aid, target.id, textRef.current, phrase);
       if (!ok) return false;
-      partsRef.current = parts.map((part) =>
-        part.id === target.id
-          ? {
-              ...part,
-              rootPhrase: phrase?.text ?? null,
-              rootStart: phrase?.start ?? null,
-              rootEnd: phrase?.end ?? null,
-            }
-          : part
-      );
+      const nextParts = withPartRootPhrase(parts, target.id, phrase);
+      partsRef.current = nextParts;
+      setSd((prev) => (prev ? { ...prev, parts: nextParts } : prev));
       setSdNonce((n) => n + 1);
       return true;
     },

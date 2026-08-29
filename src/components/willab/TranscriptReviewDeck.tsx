@@ -36,7 +36,7 @@ import {
   type DeckScreenModel,
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
-import type { Part } from "@/lib/willab/documentParts";
+import { partRootTint, type Part } from "@/lib/willab/documentParts";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -51,9 +51,9 @@ import type {
 /*  three decide lanes + the lock PUT — passed in as callbacks — so this       */
 /*  surface cannot fork the serve/decide/lock contract it renders.             */
 /*                                                                            */
-/*  VISUAL GRAMMAR (founder 2026-08-11, rewritten): THE TEXT IS NEVER          */
-/*  PAINTED. No underline, no wash, no tint — in any state. The three states   */
-/*  live entirely in the chunk's icon, and the words stay clean.               */
+/*  VISUAL GRAMMAR: feedback state never paints the text. The one intentional  */
+/*  exception is the user's separately approved, exact rooting phrase: its     */
+/*  persisted span is orange in the Ideal Text itself.                         */
 /*                                                                            */
 /*  The underline had to go because of what it did at scale rather than what   */
 /*  it meant: it marks the chunk a suggestion sits in, and when a whole talk   */
@@ -641,7 +641,10 @@ export default function TranscriptReviewDeck({
                       data-chunk
                       className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                     >
-                      <RichText text={c.part.text} />
+                      <RichText
+                        text={c.part.text}
+                        tint={partRootTint(c.part)}
+                      />
                       <DeckLockMark
                         status={c.status}
                         pendingCount={c.pendingIds.length}

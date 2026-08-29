@@ -3,13 +3,17 @@ import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 import { buildPresentationDocument } from "@/lib/willab/presentationDocument";
 import type { IdealPiece } from "@/services/api/idealText";
 
-function piece(pieceKey: number, slideIndex: number): IdealPiece {
+function piece(
+  pieceKey: number,
+  slideIndex: number,
+  rootType: "flagship" | "neutral" = "neutral",
+): IdealPiece {
   return {
     pieceKey,
     slideIndex,
     text: `Paragraph ${pieceKey}`,
     rootPhrase: `Root ${pieceKey}`,
-    rootType: "neutral",
+    rootType,
     takeIndex: 1,
     snippetId: `snippet-${pieceKey}`,
     takeSessionId: "take-1",
@@ -70,5 +74,19 @@ describe("buildPresentationDocument", () => {
       key: "unassigned-text",
       hasVisual: false,
     });
+  });
+
+  it("never invents roots and carries only accepted orange phrases", () => {
+    const document = buildPresentationDocument({
+      text: "Accepted paragraph\n\nUnrooted paragraph",
+      pieces: [piece(0, 0, "flagship"), piece(1, 1, "neutral")],
+      presentationRef: "https://example.test/deck.pdf",
+      pageCount: 2,
+      slideTitles: null,
+    });
+
+    expect(document[0].rows[0].rootPhrase).toBe("Root 0");
+    expect(document[0].rows[0].rootType).toBe("flagship");
+    expect(document[1].rows[0].rootPhrase).toBe("");
   });
 });

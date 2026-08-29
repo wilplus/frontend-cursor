@@ -61,6 +61,7 @@ import {
 } from "@/services/api/partLock";
 import {
   lockTargetAt,
+  withPartRootPhrase,
   partsToText,
   reconcileParts,
   updatePart,
@@ -656,16 +657,11 @@ export default function IdealTextOverlay({
       if (!target) return false;
       const ok = await setPartRootPhrase(arcId, target.id, displayText, phrase);
       if (!ok) return false;
-      partsRef.current = parts.map((part) =>
-        part.id === target.id
-          ? {
-              ...part,
-              rootPhrase: phrase?.text ?? null,
-              rootStart: phrase?.start ?? null,
-              rootEnd: phrase?.end ?? null,
-            }
-          : part
-      );
+      const nextParts = withPartRootPhrase(parts, target.id, phrase);
+      partsRef.current = nextParts;
+      // Refetch remains the reconciliation path, but the server-confirmed
+      // choice is projected into the rendered state in the same interaction.
+      setSd((prev) => (prev ? { ...prev, parts: nextParts } : prev));
       setRefetchNonce((n) => n + 1);
       return true;
     },

@@ -59,7 +59,7 @@ export function useDocumentSettle({
   enabled: boolean;
   /** Fired once after positive settlement and marker clear — the refetch
    *  hook for consumers that need to pull the fresh document into view. */
-  onSettled?: () => void;
+  onSettled?: (take: ProcessingTake) => void;
   /** Defensive fallback for a document phase that reaches the same locked
    *  120-second boundary before the backend terminal event arrives. */
   onExpired?: (take: ProcessingTake) => void;
@@ -122,12 +122,15 @@ export function useDocumentSettle({
   }, [enabled, userId]);
 
   const settle = useCallback(
-    (sessionId: string) => {
-      clearProcessingTake(userId, sessionId);
+    (take: ProcessingTake) => {
+      clearProcessingTake(userId, take.sessionId);
       setMarker(null);
       firstProbeRef.current = null;
       probedSessionRef.current = null;
-      onSettledRef.current?.();
+      // Preserve the exact completed Take across the marker-clear boundary.
+      // Consumers need its project identity to open the freshly-settled Ideal
+      // Text; asking localStorage again after clear would necessarily lose it.
+      onSettledRef.current?.(take);
     },
     [userId],
   );
@@ -196,7 +199,7 @@ export function useDocumentSettle({
     if (!arcId) {
       // No arc → no document to observe. A standalone recording assembles no
       // ideal text, so there is nothing to wait for.
-      settle(sessionId);
+      settle(marker);
       return;
     }
     if (probedSessionRef.current !== sessionId) {
@@ -240,7 +243,7 @@ export function useDocumentSettle({
         phaseStartedAt,
         Date.now(),
       );
-      if (verdict === "settled") settle(sessionId);
+      if (verdict === "settled") settle(marker);
       if (verdict === "expired") expire(marker);
     };
     void probe();
