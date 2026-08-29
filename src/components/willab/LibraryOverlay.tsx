@@ -19,7 +19,7 @@ import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import { SlideRender, TextSlide } from "./pdfSlides";
+import { SlideRender } from "./pdfSlides";
 import { SlidePlaceholder } from "./SlideTake";
 import SnippetScreenShell from "./SnippetScreenShell";
 import type { ReadoutFeatures } from "./readout";
@@ -935,19 +935,13 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
     <div className="flex flex-col">
       {/* Slide — edge-to-edge */}
       <div className="w-full bg-muted">
-        {deck.presentationRef ? (
-          <SlideRender
-            presentationRef={deck.presentationRef}
-            pageIndex={slide.index}
-            title={slide.title}
-            body={slide.body}
-            className="w-full"
-          />
-        ) : slide.title || slide.body ? (
-          <TextSlide title={slide.title} body={slide.body} />
-        ) : (
-          <SlidePlaceholder className="w-full" />
-        )}
+        <SlideRender
+          presentationRef={deck.presentationRef}
+          pageIndex={slide.index}
+          title={slide.title}
+          body={slide.body}
+          className="w-full"
+        />
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">

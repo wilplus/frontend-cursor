@@ -8,7 +8,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import { SlideRender, TextSlide } from "./pdfSlides";
+import { SlideRender } from "./pdfSlides";
 import type { ReadoutFeatures } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -27,7 +27,8 @@ export interface SlideTakeEntry {
   key: string;
   presentationRef: string | null;
   slideIndex: number;
-  /** Slide text — used as fallback when presentationRef is null. */
+  /** Slide text belongs to canonical deckless artwork only. It is never used
+   *  as a substitute image for an uploaded deck. */
   title?: string;
   body?: string;
   /** Rendered at the top of the content area below the slide image.
@@ -94,21 +95,13 @@ export function SlideTake({
         }}
       >
         <div className="aspect-video w-full bg-muted">
-          {entry.presentationRef ? (
-            <SlideRender
-              presentationRef={entry.presentationRef}
-              pageIndex={entry.slideIndex}
-              title={entry.title ?? ""}
-              body={entry.body ?? ""}
-              className="h-full w-full"
-            />
-          ) : entry.title || entry.body ? (
-            <div className="h-full w-full overflow-hidden">
-              <TextSlide title={entry.title ?? ""} body={entry.body ?? ""} />
-            </div>
-          ) : (
-            <SlidePlaceholder className="h-full w-full" />
-          )}
+          <SlideRender
+            presentationRef={entry.presentationRef}
+            pageIndex={entry.slideIndex}
+            title={entry.title ?? ""}
+            body={entry.body ?? ""}
+            className="h-full w-full"
+          />
         </div>
 
         {slideIdx > 0 ? <NavBtn side="left" onClick={() => go(-1)} /> : null}

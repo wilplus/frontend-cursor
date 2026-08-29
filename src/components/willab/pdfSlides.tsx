@@ -13,8 +13,8 @@ import { bulletLines } from "./presentation";
 /*  `canvas` bundling) and its worker is copied from the installed package and   */
 /*  served same-origin (workers can't load cross-origin, so a CDN workerSrc      */
 /*  silently degrades to main-thread rendering). ANY failure (CORS, network,     */
-/*  corrupt) degrades to the text card: the rendered deck is an enhancement      */
-/*  over a guaranteed text floor.                                               */
+/*  corrupt) shows an explicit retryable visual error. Spoken/transcribed text   */
+/*  is never substituted for the slide image.                                   */
 /* -------------------------------------------------------------------------- */
 
 type PdfDoc = PDFDocumentProxy;
@@ -108,7 +108,10 @@ export function PdfPage({
     setRendered(false);
     void (async () => {
       try {
-        const pageNum = Math.min(Math.max(pageIndex + 1, 1), doc.numPages || 1);
+        const pageNum = pageIndex + 1;
+        if (pageNum < 1 || pageNum > doc.numPages) {
+          throw new Error("requested slide is outside the uploaded deck");
+        }
         const page = await doc.getPage(pageNum);
         const canvas = canvasRef.current;
         const wrap = wrapRef.current;
@@ -149,32 +152,6 @@ export function PdfPage({
           fit ? "h-full w-full object-contain" : "h-auto max-w-full"
         } ${rendered ? "" : "hidden"}`}
       />
-    </div>
-  );
-}
-
-/** Text-card slide: title + newline bullets. The manual path AND the PDF
- *  fallback — so the deck always has a text floor. */
-export function TextSlide({ title, body }: { title: string; body: string }) {
-  const bullets = bulletLines(body);
-  const blank = title.trim() === "" && bullets.length === 0;
-  return (
-    <div className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-5">
-      {title ? (
-        <p className="text-[18px] font-semibold leading-snug text-gray-900">
-          {title}
-        </p>
-      ) : null}
-      {bullets.length > 0 ? (
-        <ul className="flex list-disc flex-col gap-2 pl-5 text-[15px] leading-relaxed text-gray-900 marker:text-[0.8em] marker:text-primary">
-          {bullets.map((b, i) => (
-            <li key={`${i}-${b.slice(0, 12)}`}>{b}</li>
-          ))}
-        </ul>
-      ) : null}
-      {blank ? (
-        <p className="m-auto text-[13px] text-gray-400">Blank slide</p>
-      ) : null}
     </div>
   );
 }
@@ -225,7 +202,11 @@ export function MockPresentationSlide({
 }
 
 /** What a viewer shows for one slide: the rendered PDF page when a deck PDF is
- *  present (and renders), otherwise the text card. PDF failure → text. */
+ *  present, or the canonical artwork for a deckless presentation.
+ *
+ *  A transcript is never a slide image. If the visual is unavailable we keep
+ *  that absence explicit and retryable instead of silently substituting the
+ *  words spoken while the slide was on screen. */
 export function SlideRender({
   presentationRef,
   pageIndex,
@@ -274,11 +255,11 @@ export function SlideRender({
   }
   return (
     <div className={className}>
-      <TextSlide title={title} body={body} />
-      {/* FE-1 — the deck already degrades to this text floor, so the user is
-          never blocked; when a served PDF failed to load (404 / CORS / network)
-          offer a retry. Clearing pdfFailed remounts PdfPage, and loadPdf evicts
-          the failed promise on error, so this actually re-fetches. */}
+      <div className="flex aspect-video h-full w-full items-center justify-center rounded-xl border border-border bg-muted text-[13px] text-muted-foreground">
+        Slide preview unavailable
+      </div>
+      {/* Clearing pdfFailed remounts PdfPage, and loadPdf evicts the failed
+          promise on error, so retry really re-fetches the visual. */}
       {presentationRef && pdfFailed && showRetry ? (
         <div className="mt-2 flex justify-center">
           <button

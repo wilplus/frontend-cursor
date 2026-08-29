@@ -16,6 +16,18 @@ const ROADMAP = readFileSync(
   "src/components/willab/RecordingRoadmap.tsx",
   "utf8"
 );
+const SLIDE_RENDER = readFileSync(
+  "src/components/willab/pdfSlides.tsx",
+  "utf8",
+);
+const SLIDE_TAKE = readFileSync(
+  "src/components/willab/SlideTake.tsx",
+  "utf8",
+);
+const LIBRARY = readFileSync(
+  "src/components/willab/LibraryOverlay.tsx",
+  "utf8",
+);
 const CSS = readFileSync("src/app/globals.css", "utf8");
 const TW = readFileSync("tailwind.config.ts", "utf8");
 
@@ -118,6 +130,13 @@ describe("the recording screen", () => {
     expect(PHASE).toMatch(/presentationRef=\{presentationRef\}/);
     expect(ROADMAP).toMatch(/<SlideStage/);
     expect(ROADMAP).not.toMatch(/\{presentationRef \?/);
+  });
+
+  it("never substitutes transcribed text for a missing slide image", () => {
+    expect(SLIDE_RENDER).not.toContain("function TextSlide");
+    expect(SLIDE_RENDER).toContain("Slide preview unavailable");
+    expect(SLIDE_TAKE).not.toContain("<TextSlide");
+    expect(LIBRARY).not.toContain("<TextSlide");
   });
 
   it("uses native-feeling scroll rather than the prototype's delayed clamp", () => {

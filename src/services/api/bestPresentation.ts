@@ -53,7 +53,7 @@ export interface BestPresentationResult {
   progress: BestPresentationProgress;
   slides: BestPresentationSlide[];
   /** The arc's deck PDF URL, if a presentation was attached. Passed through
-   *  SlideRender for PDF page thumbnails; null = TextSlide fallback. */
+   *  SlideRender for PDF page thumbnails; null = no uploaded visual. */
   presentationRef: string | null;
   /** BE #141 — false until a human coach has reviewed/confirmed this composed
    *  presentation. While false the FE shows a "draft, pending coach review"
