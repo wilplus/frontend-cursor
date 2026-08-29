@@ -190,9 +190,8 @@ export default function PresentMode({
                 </div>
               ) : null}
 
-              {/* One roadmap layer: exactly one root per paragraph. Orange is
-                  reserved for an accepted flagship; fallback roots stay
-                  neutral even when no orange anchors exist. */}
+              {/* Root layer: explicit locked-orange phrases only. No accepted
+                  root means no prompt for that paragraph. */}
               <div className="flex flex-col gap-3 py-1">
                 {buildRootPhraseLayer(
                   slide.rows.map((row) => ({
@@ -200,6 +199,7 @@ export default function PresentMode({
                     rootPhrase: row.rootPhrase,
                     rootType: row.rootType,
                   })),
+                  { includeNeutral: false },
                 ).map((root) => (
                   <p
                     key={`root-${root.key}`}

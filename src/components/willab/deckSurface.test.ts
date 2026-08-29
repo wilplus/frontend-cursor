@@ -46,7 +46,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
 
   it("the chunk renders its words directly, with the mark beside them", () => {
     // Not merely "no classes today" — no wrapper to hang classes ON.
-    expect(DECK).toMatch(/<RichText text=\{c\.part\.text\} \/>\s*<DeckLockMark/);
+    expect(DECK).toMatch(
+      /<RichText\s+text=\{c\.part\.text\}\s+tint=\{partRootTint\(c\.part\)\}\s+\/>\s*<DeckLockMark/,
+    );
   });
 
   it("reveals the frozen feedback inventory before any decision", () => {

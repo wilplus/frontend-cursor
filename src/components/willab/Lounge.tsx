@@ -792,11 +792,14 @@ export default function Lounge({
   // Lab, which owns its own settle watch there.
   const documentSettle = useDocumentSettle({
     enabled: !isLabOverlay(state),
-    onSettled: () => {
+    onSettled: (take) => {
       setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
-      // FE-B — the pipeline is done with the user in the Lounge; the BE
-      // appended the ideal-text bubble at pipeline end, so pull it now.
+      // Completion owns a document destination, not a chat destination. The
+      // settled Take is passed across the marker-clear boundary so this opens
+      // the exact freshly assembled Ideal Text rather than returning to a
+      // conversational bubble that may still be refreshing.
       void reload();
+      if (take.arcId) openIdealText(take.arcId, "notebook");
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
