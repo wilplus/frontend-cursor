@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildRootPhraseLayer } from "./rootPhraseLayer";
+import {
+  buildCommittedSlideRoots,
+  buildRootPhraseLayer,
+} from "./rootPhraseLayer";
 
 describe("buildRootPhraseLayer", () => {
   it("preserves paragraph order and keeps one phrase per rooted paragraph", () => {
@@ -26,6 +29,16 @@ describe("buildRootPhraseLayer", () => {
       ),
     ).toEqual([
       { key: 1, text: "Accepted phrase", type: "flagship" },
+    ]);
+  });
+
+  it("projects only explicitly accepted roots into a later recording", () => {
+    expect(buildCommittedSlideRoots([
+      { slideIndex: 0, rootPhrase: " Accepted phrase ", rootType: "flagship" },
+      { slideIndex: 1, rootPhrase: "Generated fallback", rootType: "neutral" },
+      { slideIndex: null, rootPhrase: "Unassigned", rootType: "flagship" },
+    ])).toEqual([
+      { slideIndex: 0, text: "Accepted phrase", type: "flagship" },
     ]);
   });
 });

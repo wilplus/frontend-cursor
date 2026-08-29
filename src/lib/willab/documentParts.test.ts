@@ -5,11 +5,13 @@ import {
   lockTargetAt,
   movePart,
   newPartId,
+  partRootTint,
   partsForDocument,
   partsToText,
   reconcileParts,
   removePart,
   updatePart,
+  withPartRootPhrase,
   type Part,
 } from "./documentParts";
 import { joinSegments, splitSegments } from "./documentSegments";
@@ -276,6 +278,38 @@ describe("lockTargetAt — the Accept→'Lock it' resolution (SPEC-lockin-loop �
     expect(lockTargetAt(parts, -1, "First paragraph.")).toBeNull();
     expect(lockTargetAt(parts, 2, "First paragraph.")).toBeNull();
     expect(lockTargetAt([], 0, "First paragraph.")).toBeNull();
+  });
+});
+
+describe("root phrase projection", () => {
+  it("projects the exact accepted span without mutating paragraph text", () => {
+    const parts: Part[] = [{ id: "p", text: "Make the decision clear.", locked: true }];
+    const next = withPartRootPhrase(parts, "p", {
+      text: "decision clear",
+      start: 9,
+      end: 23,
+    });
+    expect(next[0].text).toBe(parts[0].text);
+    expect(partRootTint(next[0])).toEqual([[9, 23]]);
+  });
+
+  it("refuses to paint stale, unlocked, or partial root metadata", () => {
+    expect(partRootTint({
+      id: "p",
+      text: "Exact words",
+      locked: false,
+      rootPhrase: "Exact",
+      rootStart: 0,
+      rootEnd: 5,
+    })).toBeUndefined();
+    expect(partRootTint({
+      id: "p",
+      text: "Changed words",
+      locked: true,
+      rootPhrase: "Exact",
+      rootStart: 0,
+      rootEnd: 5,
+    })).toBeUndefined();
   });
 });
 

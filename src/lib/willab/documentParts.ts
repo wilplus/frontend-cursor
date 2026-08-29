@@ -43,6 +43,53 @@ export interface Part {
   rootEnd?: number | null;
 }
 
+export interface PartRootPhrase {
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** Project a server-confirmed exact root onto one part without mutating the
+ * document text. Both Ideal Text hosts use this same operation, so the visible
+ * state and the persistence ref cannot drift after the user chooses orange. */
+export function withPartRootPhrase(
+  parts: readonly Part[],
+  partId: string,
+  phrase: PartRootPhrase | null,
+): Part[] {
+  return parts.map((part) =>
+    part.id === partId
+      ? {
+          ...part,
+          rootPhrase: phrase?.text ?? null,
+          rootStart: phrase?.start ?? null,
+          rootEnd: phrase?.end ?? null,
+        }
+      : part,
+  );
+}
+
+/** A render range exists only when all persisted exact-span coordinates still
+ * prove the same words. Stale or partial metadata paints nothing. */
+export function partRootTint(part: Part): Array<[number, number]> | undefined {
+  const { rootPhrase, rootStart, rootEnd } = part;
+  if (
+    part.locked !== true ||
+    typeof rootPhrase !== "string" ||
+    !rootPhrase ||
+    typeof rootStart !== "number" ||
+    !Number.isInteger(rootStart) ||
+    typeof rootEnd !== "number" ||
+    !Number.isInteger(rootEnd) ||
+    rootStart < 0 ||
+    rootEnd <= rootStart ||
+    part.text.slice(rootStart, rootEnd) !== rootPhrase
+  ) {
+    return undefined;
+  }
+  return [[rootStart, rootEnd]];
+}
+
 /** A v4 uuid. `crypto.randomUUID` where it exists (every current browser on a
  *  secure origin), else built from `getRandomValues`.
  *

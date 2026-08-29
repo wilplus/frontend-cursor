@@ -29,6 +29,9 @@ describe("the processing-to-Ideal-Text journey", () => {
     );
     expect(LAB).not.toContain("View Ideal Text and feedback");
     expect(LAB).not.toContain("Your feedback is ready");
+    expect(LOUNGE).toMatch(
+      /onSettled:\s*\(take\)[\s\S]*openIdealText\(take\.arcId, "notebook"\)/,
+    );
   });
 
   it("observes the document version before analysis completes", () => {

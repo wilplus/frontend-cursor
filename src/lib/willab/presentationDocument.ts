@@ -3,7 +3,6 @@ import {
   slidePagesForParagraphs,
   splitBadgeParagraphSpans,
 } from "@/lib/willab/pieceBadges";
-import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import type { IdealPiece } from "@/services/api/idealText";
 
 export type PresentationExportFormat = "pdf" | "docx";
@@ -26,15 +25,6 @@ export interface PresentationDocumentSlide {
   rows: PresentationDocumentRow[];
   /** False only for unassigned Ideal Text that must not be guessed onto a slide. */
   hasVisual: boolean;
-}
-
-function neutralRoot(text: string): string {
-  return stripRichMarkers(text)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 5)
-    .join(" ");
 }
 
 /**
@@ -82,7 +72,8 @@ export function buildPresentationDocument({
       page,
       value: {
         key: paragraph.start,
-        rootPhrase: piece?.rootPhrase || neutralRoot(paragraph.text),
+        rootPhrase:
+          piece?.rootType === "flagship" ? (piece.rootPhrase ?? "") : "",
         rootType:
           piece?.rootType === "flagship"
             ? ("flagship" as const)

@@ -18,6 +18,7 @@ import {
 } from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
+import { buildCommittedSlideRoots } from "@/lib/willab/rootPhraseLayer";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { fetchIdealText } from "@/services/api/idealText";
@@ -272,39 +273,26 @@ export default function LabOverlay({
     setPreloadDeck(cached?.deck ?? null);
   }, [signedIn, userId]);
 
-  // Take 1 intentionally has no generated roadmap. Every later take reads the
-  // current per-paragraph roots from this exact project; accepted flagships
-  // remain orange and deterministic fallbacks remain neutral.
+  // Take 1 intentionally has no roadmap. Every later recording entry reads
+  // the current project again and shows ONLY phrases the user explicitly
+  // locked and approved orange. An empty slide stays empty.
   useEffect(() => {
-    const aid = initArc?.arcId;
-    if (!aid || arcTakeIndex <= 1 || signedIn !== true) {
+    const aid = arcId ?? initArc?.arcId;
+    const enteringRecording =
+      state === "lab_session_context" || state === "lab_recording";
+    if (!aid || arcTakeIndex <= 1 || signedIn !== true || !enteringRecording) {
       setRecordingRoots([]);
       return;
     }
     let active = true;
     void fetchIdealText(aid).then((result) => {
       if (!active || result.kind !== "single") return;
-      setRecordingRoots(
-        (result.pieces ?? []).flatMap((piece) =>
-          typeof piece.slideIndex === "number" && piece.rootPhrase
-            ? [
-                {
-                  slideIndex: piece.slideIndex,
-                  text: piece.rootPhrase,
-                  type:
-                    piece.rootType === "flagship"
-                      ? ("flagship" as const)
-                      : ("neutral" as const),
-                },
-              ]
-            : [],
-        ),
-      );
+      setRecordingRoots(buildCommittedSlideRoots(result.pieces ?? []));
     });
     return () => {
       active = false;
     };
-  }, [arcTakeIndex, initArc?.arcId, signedIn]);
+  }, [arcId, arcTakeIndex, initArc?.arcId, signedIn, state]);
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
   // project inherits its full setup from the ARC, not a specific session —
