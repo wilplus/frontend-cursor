@@ -703,7 +703,10 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
     // A pending swap without a usable challenger cannot open a comparison —
     // degrade to settled rather than a glowing pill with an empty sheet.
     const why = (v: unknown): SwapWhy | null =>
-      v === "energy" || v === "steadiness" || v === "coverage" || v === "overall"
+      v === "energy" ||
+      v === "steadiness" ||
+      v === "coverage" ||
+      v === "overall"
         ? v
         : null;
     const challenger =
@@ -733,7 +736,8 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
       takeIndex: take(r.take_index),
       snippetId: str(r.snippet_id),
       takeSessionId: str(r.take_session_id),
-      status: r.status === "pending_swap" && challenger ? "pending_swap" : "settled",
+      status:
+        r.status === "pending_swap" && challenger ? "pending_swap" : "settled",
       challenger,
     });
   }
@@ -843,15 +847,16 @@ export function mapParts(raw: unknown): Part[] | null {
       r.iteration >= 0
         ? r.iteration
         : 0;
-    const rootPhrase = typeof r.root_phrase === "string" && r.root_phrase
-      ? r.root_phrase
-      : null;
-    const rootStart = typeof r.root_start === "number" && Number.isInteger(r.root_start)
-      ? r.root_start
-      : null;
-    const rootEnd = typeof r.root_end === "number" && Number.isInteger(r.root_end)
-      ? r.root_end
-      : null;
+    const rootPhrase =
+      typeof r.root_phrase === "string" && r.root_phrase ? r.root_phrase : null;
+    const rootStart =
+      typeof r.root_start === "number" && Number.isInteger(r.root_start)
+        ? r.root_start
+        : null;
+    const rootEnd =
+      typeof r.root_end === "number" && Number.isInteger(r.root_end)
+        ? r.root_end
+        : null;
     out.push({
       id,
       text,
@@ -878,7 +883,9 @@ export interface DecisionHistoryEntry {
  *  text are useless to a reader and are dropped (the BE filters them too —
  *  belt and braces, never invented). The why key is clamped to the same
  *  closed vocabulary as a live change: un-signed-off prose never renders. */
-export function mapDecisionHistory(raw: unknown): DecisionHistoryEntry[] | null {
+export function mapDecisionHistory(
+  raw: unknown,
+): DecisionHistoryEntry[] | null {
   if (!Array.isArray(raw)) return null;
   const out: DecisionHistoryEntry[] = [];
   for (const item of raw) {
@@ -946,7 +953,7 @@ export function mapKeyPoints(raw: unknown): KeyPoint[] | null {
  *  document's order and carries no importance signal. Pure. */
 export function keyPointTintRanges(
   text: string,
-  keyPoints: KeyPoint[] | null
+  keyPoints: KeyPoint[] | null,
 ): Array<[number, number]> {
   if (!text || !keyPoints || keyPoints.length === 0) return [];
   const out: Array<[number, number]> = [];
@@ -1076,6 +1083,11 @@ export type IdealTextResult =
       additions: Addition[];
       /** Exact Ideal Text packet; ACKed only after the document paints. */
       learningExposures: LearningExposureHandle[];
+      /** Immutable core revision. Enrichment must bind to this exact id. */
+      documentSnapshotId?: string | null;
+      documentSnapshotSha256?: string | null;
+      /** Optional section state; it never owns document availability. */
+      enrichmentSections?: Record<string, IdealTextEnrichmentSectionStatus>;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -1095,6 +1107,37 @@ export type IdealTextResult =
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
+}
+
+export type IdealTextEnrichmentSectionStatus =
+  | "ready"
+  | "pending"
+  | "unavailable"
+  | "failed";
+
+export type IdealTextEnrichmentResult =
+  | {
+      kind: "ready";
+      documentSnapshotId: string;
+      sections: Record<
+        string,
+        {
+          status: IdealTextEnrichmentSectionStatus;
+          data?: Record<string, unknown>;
+          retryable: boolean;
+        }
+      >;
+    }
+  | { kind: "stale"; currentDocumentSnapshotId: string | null }
+  | { kind: "error" };
+
+function recordIdealTextReadTiming(name: string, startedAt: number): void {
+  if (typeof performance === "undefined") return;
+  try {
+    performance.measure(name, { start: startedAt, end: performance.now() });
+  } catch {
+    // Performance instrumentation must never affect the document read.
+  }
 }
 
 /** Parse the `suggestion` object behind a grey star. Each family has a distinct
@@ -1162,7 +1205,11 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   // SD payloads may key moments by id instead of snippet_id. Ids may arrive
   // numeric (serializer-dependent) — coerce, never drop.
   const idOf = (v: unknown): string =>
-    typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : "";
+    typeof v === "string"
+      ? v
+      : typeof v === "number" && Number.isFinite(v)
+        ? String(v)
+        : "";
   const momentId = idOf(r.id) || idOf(r.moment_id) || null;
   if (!anchor || (!snippetId && !momentId)) return null;
   // MOMENT_SUGGESTIONS — all safe-ahead: an older payload omits these and the
@@ -1242,7 +1289,9 @@ export function mapIdealText(raw: unknown): IdealText | null {
   return {
     text,
     keyPhrases: Array.isArray(r.key_phrases)
-      ? r.key_phrases.filter((p): p is string => typeof p === "string" && p.length > 0)
+      ? r.key_phrases.filter(
+          (p): p is string => typeof p === "string" && p.length > 0,
+        )
       : [],
     keyMoments: Array.isArray(r.key_moments)
       ? r.key_moments
@@ -1257,7 +1306,7 @@ export function mapIdealText(raw: unknown): IdealText | null {
 /** Map a variant:"instant" payload → the free instant draft. Pure; null when
  *  the payload carries no usable text (the caller degrades to pending). */
 export function mapInstantIdealText(
-  raw: Record<string, unknown>
+  raw: Record<string, unknown>,
 ): Extract<IdealTextResult, { kind: "instant" }> | null {
   const ideal = mapIdealText(raw);
   if (!ideal) return null;
@@ -1276,7 +1325,7 @@ export function mapInstantIdealText(
  *  serves the live notebook unchanged. */
 export async function fetchIdealText(
   arcId: string,
-  version?: number | null
+  version?: number | null,
 ): Promise<IdealTextResult> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {};
@@ -1289,14 +1338,17 @@ export async function fetchIdealText(
   try {
     res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text${query}`,
-      { headers, credentials: "include", cache: "no-store" }
+      { headers, credentials: "include", cache: "no-store" },
     );
   } catch {
     return { kind: "error" };
   }
   if (res.status === 404) return { kind: "pending" };
   if (!res.ok) return { kind: "error" };
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
   const num = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) ? v : null;
   // FE-3b — the two historical answers, checked FIRST (they only ever arrive
@@ -1407,6 +1459,8 @@ export async function fetchIdealText(
       learningExposures: mapLearningExposures(
         body.learning_exposure ? [body.learning_exposure] : [],
       ),
+      documentSnapshotId: str(body.document_snapshot_id) || null,
+      documentSnapshotSha256: str(body.document_snapshot_sha256) || null,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
@@ -1420,6 +1474,312 @@ export async function fetchIdealText(
   if (!ideal) return { kind: "pending" };
   if (!ideal.approved) return { kind: "pending" };
   return { kind: "ready", ideal };
+}
+
+/** Map the deliberately small immutable cold-open payload. */
+function mapIdealTextCorePayload(
+  body: Record<string, unknown> | null,
+): Extract<IdealTextResult, { kind: "single" }> | null {
+  if (body?.status !== "unverified" && body?.status !== "verified") {
+    return null;
+  }
+  const ideal = mapIdealText(body);
+  if (!ideal) return null;
+  const numberOrNull = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+  return {
+    kind: "single",
+    ideal,
+    status: body.status,
+    version: numberOrNull(body.version),
+    momentsUnlocked: false,
+    explanationsAvailable: false,
+    userEdited: body.user_edited === true,
+    priorEdit: null,
+    canRecordTake:
+      typeof body.can_record_take === "boolean" ? body.can_record_take : null,
+    title: str(body.title) || null,
+    updatedAt: str(body.updated_at) || null,
+    takeCount: numberOrNull(body.take_count),
+    journeyNextStepsSeen: null,
+    latestTakeSessionId: str(body.latest_take_session_id) || null,
+    pieces: mapIdealPieces(body.pieces),
+    suggestions: null,
+    styleChanges: null,
+    decisionHistory: null,
+    saved: null,
+    keyPoints: null,
+    parts: mapParts(body.parts),
+    additions: [],
+    presentationRef: str(body.presentation_ref) || null,
+    slideTitles: Array.isArray(body.slide_titles)
+      ? body.slide_titles.map((value) =>
+          typeof value === "string" ? value : "",
+        )
+      : null,
+    learningExposures: [],
+    documentSnapshotId: str(body.document_snapshot_id) || null,
+    documentSnapshotSha256: str(body.document_snapshot_sha256) || null,
+    enrichmentSections: {},
+  };
+}
+
+/** Fast, strict document read. It never triggers composition or enrichment. */
+export async function fetchIdealTextCore(
+  arcId: string,
+): Promise<IdealTextResult> {
+  const startedAt = typeof performance === "undefined" ? 0 : performance.now();
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/core`,
+      { headers, credentials: "include", cache: "no-store" },
+    );
+  } catch {
+    recordIdealTextReadTiming("willab.ideal_text.core", startedAt);
+    return { kind: "error" };
+  }
+  recordIdealTextReadTiming("willab.ideal_text.core", startedAt);
+  if (response.status === 404) return { kind: "pending" };
+  if (!response.ok) return { kind: "error" };
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  return mapIdealTextCorePayload(body) ?? { kind: "error" };
+}
+
+/** Fetch optional sections for one immutable core revision. */
+export async function fetchIdealTextEnrichment(
+  arcId: string,
+  documentSnapshotId: string,
+  sections?: readonly string[],
+): Promise<IdealTextEnrichmentResult> {
+  const startedAt = typeof performance === "undefined" ? 0 : performance.now();
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const query = new URLSearchParams({
+    document_snapshot_id: documentSnapshotId,
+  });
+  if (sections?.length) query.set("sections", sections.join(","));
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/enrichment?${query.toString()}`,
+      { headers, credentials: "include", cache: "no-store" },
+    );
+  } catch {
+    recordIdealTextReadTiming("willab.ideal_text.enrichment", startedAt);
+    return { kind: "error" };
+  }
+  recordIdealTextReadTiming("willab.ideal_text.enrichment", startedAt);
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (response.status === 409 && body?.code === "SNAPSHOT_STALE") {
+    return {
+      kind: "stale",
+      currentDocumentSnapshotId:
+        str(body.current_document_snapshot_id) || null,
+    };
+  }
+  if (!response.ok || !body) return { kind: "error" };
+  const rawSections =
+    body.sections && typeof body.sections === "object"
+      ? (body.sections as Record<string, unknown>)
+      : {};
+  const mapped: Extract<
+    IdealTextEnrichmentResult,
+    { kind: "ready" }
+  >["sections"] = {};
+  for (const [name, raw] of Object.entries(rawSections)) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Record<string, unknown>;
+    const status: IdealTextEnrichmentSectionStatus =
+      row.status === "ready" ||
+      row.status === "pending" ||
+      row.status === "unavailable" ||
+      row.status === "failed"
+        ? row.status
+        : "failed";
+    mapped[name] = {
+      status,
+      data:
+        row.data && typeof row.data === "object"
+          ? (row.data as Record<string, unknown>)
+          : undefined,
+      retryable: row.retryable === true,
+    };
+  }
+  return {
+    kind: "ready",
+    documentSnapshotId: str(body.document_snapshot_id),
+    sections: mapped,
+  };
+}
+
+/** Apply only ready optional sections to their exact core revision. */
+export function mergeIdealTextEnrichment(
+  core: Extract<IdealTextResult, { kind: "single" }>,
+  enrichment: Extract<IdealTextEnrichmentResult, { kind: "ready" }>,
+): Extract<IdealTextResult, { kind: "single" }> {
+  if (
+    !core.documentSnapshotId ||
+    enrichment.documentSnapshotId !== core.documentSnapshotId
+  ) {
+    return core;
+  }
+  const readyData = (name: string): Record<string, unknown> | null => {
+    const section = enrichment.sections[name];
+    return section?.status === "ready" && section.data ? section.data : null;
+  };
+  const feedback = readyData("feedback");
+  const layers = readyData("document_layers");
+  const notes = readyData("notes");
+  const history = readyData("history");
+  const journey = readyData("journey");
+  const entitlement = readyData("entitlement");
+  const learning = readyData("learning");
+  const prior = layers?.prior_edit;
+  const priorRow =
+    prior && typeof prior === "object"
+      ? (prior as Record<string, unknown>)
+      : null;
+  const priorText = str(priorRow?.text);
+  return {
+    ...core,
+    ideal: {
+      ...core.ideal,
+      keyMoments: feedback
+        ? (Array.isArray(feedback.key_moments)
+            ? feedback.key_moments
+                .map(mapKeyMoment)
+                .filter((value): value is IdealKeyMomentLink => value !== null)
+            : [])
+        : core.ideal.keyMoments,
+      notes: notes ? str(notes.notes_text) || null : core.ideal.notes,
+    },
+    momentsUnlocked: entitlement
+      ? entitlement.moments_unlocked === true
+      : core.momentsUnlocked,
+    explanationsAvailable: feedback
+      ? feedback.explanations_available === true
+      : core.explanationsAvailable,
+    priorEdit: priorText
+      ? { text: priorText, version: numberOrNull(priorRow?.version) }
+      : core.priorEdit,
+    journeyNextStepsSeen: journey
+      ? journey.journey_next_steps_seen === true
+      : core.journeyNextStepsSeen,
+    suggestions: layers
+      ? mapDocumentSuggestions(layers.changes)
+      : core.suggestions,
+    styleChanges: layers
+      ? mapDocumentSuggestions(layers.style_changes)
+      : core.styleChanges,
+    saved: layers
+      ? typeof layers.is_saved === "boolean"
+        ? layers.is_saved
+        : typeof layers.saved === "boolean"
+          ? layers.saved
+          : core.saved
+      : core.saved,
+    keyPoints: layers ? mapKeyPoints(layers.key_points) : core.keyPoints,
+    additions: layers ? mapAdditions(layers.additions) : core.additions,
+    decisionHistory: history
+      ? mapDecisionHistory(history.decision_history)
+      : core.decisionHistory,
+    learningExposures: learning
+      ? mapLearningExposures(
+          learning.learning_exposure ? [learning.learning_exposure] : [],
+        )
+      : core.learningExposures,
+    enrichmentSections: Object.fromEntries(
+      Object.entries(enrichment.sections).map(([name, section]) => [
+        name,
+        section.status,
+      ]),
+    ),
+  };
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Ideal Text display handoff                                                 */
+/*                                                                            */
+/*  Processing settlement and live chat cards already read the complete       */
+/*  canonical document immediately before opening it. A second identical GET  */
+/*  made the opening screen pay for the same owner check, composition and      */
+/*  enrichment reads twice. This one-use handoff carries only a successful     */
+/*  live display result, for a very short window. Pollers remain network-fresh; */
+/*  the display consumes and deletes the entry, so this is not a document      */
+/*  cache and cannot keep serving an old Take.                                 */
+/* -------------------------------------------------------------------------- */
+
+// Long enough for the synchronous settle→open transition, short enough that
+// a coach edit or another Take cannot be masked by a general-purpose cache.
+const IDEAL_TEXT_DISPLAY_HANDOFF_MS = 3_000;
+
+const idealTextDisplayHandoffs = new Map<
+  string,
+  { createdAt: number; result: IdealTextResult }
+>();
+
+function isDisplayableIdealText(
+  result: IdealTextResult,
+): result is Extract<
+  IdealTextResult,
+  { kind: "single" | "ready" | "instant" }
+> {
+  return (
+    result.kind === "single" ||
+    result.kind === "ready" ||
+    result.kind === "instant"
+  );
+}
+
+/** Hand a fresh canonical read to the next screen. Never call this with a
+ * speculative/local document; only a successful `fetchIdealText` result. */
+export function primeIdealTextDisplay(
+  arcId: string,
+  result: IdealTextResult,
+): void {
+  if (!arcId || !isDisplayableIdealText(result)) return;
+  idealTextDisplayHandoffs.set(arcId, {
+    createdAt: Date.now(),
+    result,
+  });
+}
+
+/** First-paint read. Reuses one fresh canonical payload at most once, then
+ * falls back to the normal owner-authenticated network request. */
+export async function fetchIdealTextForDisplay(
+  arcId: string,
+): Promise<IdealTextResult> {
+  const handoff = idealTextDisplayHandoffs.get(arcId);
+  idealTextDisplayHandoffs.delete(arcId);
+  if (
+    handoff &&
+    Date.now() - handoff.createdAt <= IDEAL_TEXT_DISPLAY_HANDOFF_MS
+  ) {
+    return handoff.result;
+  }
+  return fetchIdealTextCore(arcId);
+}
+
+/** Mutation and test fence. Most entries are consumed immediately; this is
+ * the explicit escape hatch for a caller that invalidates the document before
+ * navigation completes. */
+export function invalidateIdealTextDisplay(arcId: string): void {
+  idealTextDisplayHandoffs.delete(arcId);
 }
 
 export type UserEditSaveResult =
@@ -1450,7 +1810,7 @@ export async function saveIdealUserEdit(
   arcId: string,
   text: string,
   version: number | null,
-  opts?: { reapplied?: boolean; parts?: readonly Part[] | null }
+  opts?: { reapplied?: boolean; parts?: readonly Part[] | null },
 ): Promise<UserEditSaveResult> {
   // Refuse a doomed PUT locally: the BE rejects past its ceiling with 400,
   // and the student's words must survive either way.
@@ -1458,7 +1818,9 @@ export async function saveIdealUserEdit(
   // Header when available; otherwise the BFF's cookie-session fallback
   // authenticates (same pattern as fetchIdealText / saveIdealNotes).
   const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
   let res: Response;
   try {
@@ -1493,7 +1855,7 @@ export async function saveIdealUserEdit(
               }
             : {}),
         }),
-      }
+      },
     );
   } catch {
     return { ok: false, reason: "error" };
@@ -1525,7 +1887,7 @@ export async function saveIdealUserEdit(
 /** Save the user's PERSONAL notebook copy (A6 — never the canonical). */
 export async function saveIdealNotes(
   arcId: string,
-  text: string
+  text: string,
 ): Promise<boolean> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {
@@ -1541,7 +1903,7 @@ export async function saveIdealNotes(
         headers,
         credentials: "include",
         body: JSON.stringify({ text }),
-      }
+      },
     );
   } catch {
     return false;
@@ -1575,11 +1937,15 @@ export interface CoachIdealText {
   presentationRef: string | null;
   /** #214 — the STUDENT's own edit of the current version (read-only reference
    *  for the coach; separate lane, never merged automatically). null = none. */
-  userEdit: { text: string; version: number | null; updatedAt: string | null } | null;
+  userEdit: {
+    text: string;
+    version: number | null;
+    updatedAt: string | null;
+  } | null;
 }
 
 export async function fetchCoachIdealText(
-  arcId: string
+  arcId: string,
 ): Promise<CoachIdealText | null> {
   const token = await getAuthToken();
   if (!token) return null;
@@ -1590,13 +1956,16 @@ export async function fetchCoachIdealText(
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
-      }
+      },
     );
   } catch {
     return null;
   }
   if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
   if (!body) return null;
   const text = str(body.text);
   const count = (v: unknown): number | null =>
@@ -1610,18 +1979,18 @@ export async function fetchCoachIdealText(
       body.assembly_state === "pending"
         ? "pending"
         : body.assembly_state === "empty"
-        ? "empty"
-        : body.assembly_state === "ready"
-        ? "ready"
-        : null,
+          ? "empty"
+          : body.assembly_state === "ready"
+            ? "ready"
+            : null,
     takesDone: count(body.takes_done),
     takesTarget: count(body.takes_target),
     source:
       body.source === "coach"
         ? "coach"
         : body.source === "machine"
-        ? "machine"
-        : null,
+          ? "machine"
+          : null,
     presentationRef:
       typeof body.presentation_ref === "string" &&
       body.presentation_ref.length > 0
@@ -1647,7 +2016,7 @@ export async function fetchCoachIdealText(
 
 export async function saveCoachIdealText(
   arcId: string,
-  text: string
+  text: string,
 ): Promise<boolean> {
   const token = await getAuthToken();
   if (!token) return false;
@@ -1662,7 +2031,7 @@ export async function saveCoachIdealText(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ text }),
-      }
+      },
     );
   } catch {
     return false;
@@ -1677,7 +2046,7 @@ export async function approveIdealText(arcId: string): Promise<boolean> {
   try {
     res = await fetch(
       `/api/v2/coach/arc/${encodeURIComponent(arcId)}/ideal-text/approve`,
-      { method: "POST", headers: { Authorization: `Bearer ${token}` } }
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
     );
   } catch {
     return false;
@@ -1706,7 +2075,7 @@ export interface IdealSegment {
 export function segmentIdealText(
   text: string,
   keyPhrases: string[],
-  keyMoments: IdealKeyMomentLink[]
+  keyMoments: IdealKeyMomentLink[],
 ): IdealSegment[] {
   if (!text) return [];
   const lower = text.toLowerCase();
@@ -1715,9 +2084,14 @@ export function segmentIdealText(
   // inside the token, or the range strictly inside it).
   const slicesToken = (start: number, end: number): boolean =>
     tokenSpans.some(
-      ([ts, te]) => start < te && end > ts && !(ts >= start && te <= end)
+      ([ts, te]) => start < te && end > ts && !(ts >= start && te <= end),
     );
-  type Range = { start: number; end: number; bold?: boolean; moment?: IdealKeyMomentLink };
+  type Range = {
+    start: number;
+    end: number;
+    bold?: boolean;
+    moment?: IdealKeyMomentLink;
+  };
   const candidates: Range[] = [];
   for (const m of keyMoments) {
     const a = m.anchor.trim().toLowerCase();
@@ -1738,7 +2112,7 @@ export function segmentIdealText(
   // Earlier start wins; a moment beats a phrase at the same start (it carries
   // the deep-link). Drop anything overlapping an accepted range.
   candidates.sort(
-    (a, b) => a.start - b.start || (a.moment ? -1 : 1) - (b.moment ? -1 : 1)
+    (a, b) => a.start - b.start || (a.moment ? -1 : 1) - (b.moment ? -1 : 1),
   );
   const accepted: Range[] = [];
   for (const c of candidates) {

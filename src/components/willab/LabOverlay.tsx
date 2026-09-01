@@ -21,7 +21,7 @@ import { useDocumentSettle } from "./useDocumentSettle";
 import { buildCommittedSlideRoots } from "@/lib/willab/rootPhraseLayer";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import { fetchIdealText } from "@/services/api/idealText";
+import { fetchIdealTextCore } from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
@@ -285,7 +285,7 @@ export default function LabOverlay({
       return;
     }
     let active = true;
-    void fetchIdealText(aid).then((result) => {
+    void fetchIdealTextCore(aid).then((result) => {
       if (!active || result.kind !== "single") return;
       setRecordingRoots(buildCommittedSlideRoots(result.pieces ?? []));
     });

@@ -18,6 +18,13 @@ export async function proxyResponse(upstreamRes: Response): Promise<NextResponse
     data = text ? { error: text } : null;
   }
   const headers: Record<string, string> = {};
+  // Preserve read-path observability and no-store semantics across the BFF.
+  // These are response metadata only; no hop-by-hop or authorization headers
+  // are forwarded.
+  const serverTiming = upstreamRes.headers.get("Server-Timing");
+  if (serverTiming) headers["Server-Timing"] = serverTiming;
+  const cacheControl = upstreamRes.headers.get("Cache-Control");
+  if (cacheControl) headers["Cache-Control"] = cacheControl;
   if (BFF_DEBUG) {
     headers["X-BFF-ProxyResponse"] = "1";
     headers["X-Upstream-Status"] = String(upstreamRes.status);

@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Lock, Presentation, Sparkles } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  Lock,
+  Presentation,
+  Sparkles,
+} from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
@@ -13,7 +20,10 @@ import IdealTextHeading from "./IdealTextHeading";
 import MarkedParagraphs from "./MarkedParagraphs";
 import {
   type Addition,
-  fetchIdealText,
+  fetchIdealTextCore,
+  fetchIdealTextEnrichment,
+  fetchIdealTextForDisplay,
+  mergeIdealTextEnrichment,
   saveIdealUserEdit,
   segmentIdealText,
   type DecisionHistoryEntry,
@@ -23,6 +33,7 @@ import {
   type KeyPoint,
   type IdealText,
   type MomentSuggestion,
+  type IdealTextResult,
 } from "@/services/api/idealText";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
@@ -177,7 +188,7 @@ export default function IdealTextOverlay({
   // sheets. null = feature off (the GET 404s) / not loaded: nothing new
   // renders anywhere.
   const [variantBlocks, setVariantBlocks] = useState<VariantBlock[] | null>(
-    null
+    null,
   );
   const [revisions, setRevisions] = useState<IdealTextRevision[] | null>(null);
   const [pickerBlock, setPickerBlock] = useState<VariantBlock | null>(null);
@@ -241,7 +252,8 @@ export default function IdealTextOverlay({
       initialModeAppliedRef.current ||
       !sd ||
       (status !== "ready" && status !== "instant")
-    ) return;
+    )
+      return;
     initialModeAppliedRef.current = true;
     if (initialMode === "presentation") setPresenting(true);
     if (initialMode === "export") setExportChooserOpen(true);
@@ -262,7 +274,6 @@ export default function IdealTextOverlay({
   // Saves run one at a time (same rule as the readout's edit lane).
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   const [copied, setCopied] = useState(false);
-
 
   useEffect(() => {
     let active = true;
@@ -293,7 +304,50 @@ export default function IdealTextOverlay({
       return;
     }
     const gen = ++fetchGenRef.current;
-    void fetchIdealText(arcId).then((r) => {
+    const read = firstLoad ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    const applySingle = (
+      r: Extract<IdealTextResult, { kind: "single" }>,
+      refreshDocumentVariants: boolean,
+    ) => {
+      setIdeal(r.ideal);
+      setNotes(null);
+      setSd({
+        status: r.status,
+        version: r.version,
+        momentsUnlocked: r.momentsUnlocked,
+        explanationsAvailable: r.explanationsAvailable,
+        title: r.title,
+        latestTakeSessionId: r.latestTakeSessionId,
+        pieces: r.pieces,
+        suggestions: r.suggestions,
+        styleChanges: r.styleChanges,
+        decisionHistory: r.decisionHistory,
+        saved: r.saved,
+        keyPoints: r.keyPoints,
+        presentationRef: r.presentationRef,
+        slideTitles: r.slideTitles,
+        parts: r.parts,
+        additions: r.additions,
+        userEdited: r.userEdited,
+        canRecordTake: r.canRecordTake,
+        takeCount: r.takeCount,
+        journeyNextStepsSeen: r.journeyNextStepsSeen,
+        learningExposures: r.learningExposures,
+      });
+      versionRef.current = r.version;
+      versionArmedRef.current = true;
+      partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
+      setStatus("ready");
+      if (refreshDocumentVariants) {
+        refreshVariants();
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            performance.mark("willab.ideal_text.core_painted");
+          });
+        }
+      }
+    };
+    void read(arcId).then(async (r) => {
       if (!active || gen !== fetchGenRef.current) return;
       /* A REFETCH that did not come back with a document keeps the one we are
        * already showing. Replacing a good document with "couldn't load this"
@@ -311,46 +365,40 @@ export default function IdealTextOverlay({
       }
       if (usable) loadedArcRef.current = arcId;
       if (r.kind === "single") {
-        // SD — the ONE living text: both statuses free to read; the only paid
-        // thing is opening the key moments. Renders through the ready view
-        // with the SD chrome (status chip, read-aloud CTA, moment behavior).
-        setIdeal(r.ideal);
-        setNotes(null);
-        setSd({
-          status: r.status,
-          version: r.version,
-          momentsUnlocked: r.momentsUnlocked,
-          explanationsAvailable: r.explanationsAvailable,
-          title: r.title,
-          latestTakeSessionId: r.latestTakeSessionId,
-          pieces: r.pieces,
-          suggestions: r.suggestions,
-          styleChanges: r.styleChanges,
-          decisionHistory: r.decisionHistory,
-          saved: r.saved,
-          keyPoints: r.keyPoints,
-          presentationRef: r.presentationRef,
-          slideTitles: r.slideTitles,
-          parts: r.parts,
-          additions: r.additions,
-          userEdited: r.userEdited,
-          canRecordTake: r.canRecordTake,
-          takeCount: r.takeCount,
-          journeyNextStepsSeen: r.journeyNextStepsSeen,
-          learningExposures: r.learningExposures,
-        });
-        versionRef.current = r.version;
-        versionArmedRef.current = true;
-        // The document's stored identity. When the BE has none (nothing
-        // saved yet, or stale rows refused), the baseline is DERIVED from the
-        // served machine text — unlocked, ids minted locally. Without this,
-        // the first explicit paragraph commit would have no stable baseline.
-        partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
-        setStatus("ready");
-        // BLOCK_VARIANTS — refresh the pool + timeline AFTER the document
-        // landed (§5 order), and only on the SD lane (the pool only exists
-        // where the master model does).
-        refreshVariants();
+        // Paint the immutable core first. Optional feedback and controls are
+        // attached only when they return for this exact snapshot.
+        applySingle(r, true);
+        if (r.documentSnapshotId) {
+          const enrichment = await fetchIdealTextEnrichment(
+            arcId,
+            r.documentSnapshotId,
+          );
+          if (!active || gen !== fetchGenRef.current) return;
+          if (enrichment.kind === "ready") {
+            let merged = mergeIdealTextEnrichment(r, enrichment);
+            applySingle(merged, false);
+            const retryable = Object.entries(enrichment.sections)
+              .filter(([, section]) => section.retryable)
+              .map(([name]) => name);
+            if (retryable.length) {
+              const retry = await fetchIdealTextEnrichment(
+                arcId,
+                r.documentSnapshotId,
+                retryable,
+              );
+              if (!active || gen !== fetchGenRef.current) return;
+              if (retry.kind === "ready") {
+                merged = mergeIdealTextEnrichment(merged, retry);
+                applySingle(merged, false);
+              }
+            }
+          } else if (enrichment.kind === "stale") {
+            // Never mix revisions. Pull the new core while keeping the
+            // already-painted document visible until it arrives.
+            setRefetchNonce((value) => value + 1);
+            return;
+          }
+        }
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
@@ -386,7 +434,10 @@ export default function IdealTextOverlay({
   // against a document that has moved rather than settling a paragraph the
   // student never read.
   const toggleLock = useCallback(
-    async (part: Part, locked: boolean): Promise<"ok" | "blocked" | "failed"> => {
+    async (
+      part: Part,
+      locked: boolean,
+    ): Promise<"ok" | "blocked" | "failed"> => {
       const r = await setPartLock(arcId, part.id, locked, displayText);
       if (r.kind === "undecided") return "blocked";
       if (r.kind === "error") return "failed";
@@ -395,12 +446,12 @@ export default function IdealTextOverlay({
         return "failed";
       }
       partsRef.current = (partsRef.current ?? []).map((p) =>
-        p.id === part.id ? { ...p, locked } : p
+        p.id === part.id ? { ...p, locked } : p,
       );
       setRefetchNonce((n) => n + 1);
       return "ok";
     },
-    [arcId, displayText]
+    [arcId, displayText],
   );
 
   // SPEC-lockin-loop §2 — the Accept→"Lock it" tap, addressed by rendered
@@ -409,10 +460,7 @@ export default function IdealTextOverlay({
   // covers the DoD flow, where a student who never manually edited has no
   // server-stored identity to lock against.
   const lockParagraph = useCallback(
-    async (
-      at: number,
-      paragraphText: string
-    ): Promise<LockResult> => {
+    async (at: number, paragraphText: string): Promise<LockResult> => {
       const parts = reconcileParts(displayText, partsRef.current ?? []);
       partsRef.current = parts;
       const target = lockTargetAt(parts, at, paragraphText);
@@ -431,14 +479,14 @@ export default function IdealTextOverlay({
         return { outcome: "failed", rootPhraseProposal: null };
       }
       partsRef.current = (partsRef.current ?? []).map((p) =>
-        p.id === target.id ? { ...p, locked: true } : p
+        p.id === target.id ? { ...p, locked: true } : p,
       );
       // Refetch so the layer filter sees the lock — open offers on this
       // paragraph stop being served, which the student just asked for.
       setRefetchNonce((n) => n + 1);
       return { outcome: "ok", rootPhraseProposal: r.rootPhraseProposal };
     },
-    [arcId, displayText]
+    [arcId, displayText],
   );
 
   /* UNDO A LOCK (founder 2026-08-15) — "Discard" on a locked chunk.
@@ -466,12 +514,12 @@ export default function IdealTextOverlay({
       }
       if (r.kind === "error" || r.kind === "undecided") return "failed";
       partsRef.current = (partsRef.current ?? []).map((p) =>
-        p.id === target.id ? { ...p, locked: false } : p
+        p.id === target.id ? { ...p, locked: false } : p,
       );
       setRefetchNonce((n) => n + 1);
       return "ok";
     },
-    [arcId, displayText]
+    [arcId, displayText],
   );
 
   // MATERIAL RECOVERY — accept promotes the candidate block into the master;
@@ -483,17 +531,20 @@ export default function IdealTextOverlay({
         arcId,
         addition.blockKey,
         accept ? "accept" : "keep",
-        addition.takeSessionId
+        addition.takeSessionId,
       );
       if (r.kind === "error") return false;
       setRefetchNonce((n) => n + 1);
       return true;
     },
-    [arcId]
+    [arcId],
   );
 
   const saveDocument = useCallback(
-    async (next: string, nextParts?: readonly Part[] | null): Promise<boolean> => {
+    async (
+      next: string,
+      nextParts?: readonly Part[] | null,
+    ): Promise<boolean> => {
       if (!versionArmedRef.current) return false;
       // PARTS (SPEC §3.1, Step 0). The arranger hands its parts straight
       // through, ids intact. The TEXTAREA lane does not have any — so
@@ -513,11 +564,11 @@ export default function IdealTextOverlay({
       // the version the FIRST one just consumed — a 409 that looks exactly
       // like a take landing when nothing of the sort happened.
       const run = chainRef.current.then(() =>
-        saveIdealUserEdit(arcId, next, versionRef.current, { parts })
+        saveIdealUserEdit(arcId, next, versionRef.current, { parts }),
       );
       chainRef.current = run.then(
         () => undefined,
-        () => undefined
+        () => undefined,
       );
       const r = await run;
       if (r.ok) {
@@ -525,7 +576,7 @@ export default function IdealTextOverlay({
         setSd((prev) =>
           prev
             ? { ...prev, version: versionRef.current, userEdited: true }
-            : prev
+            : prev,
         );
         // BLOCK_VARIANTS (§5) — a saved edit also lands block-level in the
         // pool, so the picker may have grown a "My edit" entry.
@@ -538,7 +589,7 @@ export default function IdealTextOverlay({
         // pinned inside it — so there is nothing to hold and offer back.
         if (r.currentVersion !== null) versionRef.current = r.currentVersion;
         setSd((prev) =>
-          prev ? { ...prev, version: versionRef.current } : prev
+          prev ? { ...prev, version: versionRef.current } : prev,
         );
         fetchGenRef.current++; // fence any in-flight pre-supersede GET
         setRefetchNonce((n) => n + 1); // adopt the NEW version's text
@@ -558,17 +609,14 @@ export default function IdealTextOverlay({
       setSaveFailed(true);
       return false;
     },
-    [arcId, ideal?.text, refreshVariants]
+    [arcId, ideal?.text, refreshVariants],
   );
 
   // THE DECK's lock: save the modal draft first when it changed, then call the
   // explicit paragraph-lock endpoint. Editing and committing are deliberately
   // separate transitions; both retain the same Paragraph identity.
   const deckLockPart = useCallback(
-    async (
-      chunk: DeckChunk,
-      newText: string
-    ): Promise<LockResult> => {
+    async (chunk: DeckChunk, newText: string): Promise<LockResult> => {
       // BY POSITION + WORDS, never by part id. The deck derives identity from
       // the SERVED parts and this host from whatever it last held; when the
       // backend has none stored — every document never manually edited — the
@@ -600,7 +648,7 @@ export default function IdealTextOverlay({
           return { outcome: "failed", rootPhraseProposal: null };
         }
         partsRef.current = next.map((part) =>
-          part.id === target.id ? { ...part, locked: true } : part
+          part.id === target.id ? { ...part, locked: true } : part,
         );
         setRefetchNonce((n) => n + 1);
         return {
@@ -610,11 +658,14 @@ export default function IdealTextOverlay({
       }
       return lockParagraph(at, chunk.part.text);
     },
-    [arcId, displayText, saveDocument, lockParagraph]
+    [arcId, displayText, saveDocument, lockParagraph],
   );
 
   const deckKeepEvolving = useCallback(
-    async (chunk: DeckChunk, newText: string): Promise<"ok" | "blocked" | "failed"> => {
+    async (
+      chunk: DeckChunk,
+      newText: string,
+    ): Promise<"ok" | "blocked" | "failed"> => {
       const at = chunk.paragraphIndex;
       let next = reconcileParts(displayText, partsRef.current ?? []);
       if (at < 0 || at >= next.length) return "failed";
@@ -642,7 +693,7 @@ export default function IdealTextOverlay({
               rootStart: null,
               rootEnd: null,
             }
-          : part
+          : part,
       );
       setRefetchNonce((n) => n + 1);
       return "ok";
@@ -651,7 +702,10 @@ export default function IdealTextOverlay({
   );
 
   const deckSetRootPhrase = useCallback(
-    async (chunk: DeckChunk, phrase: RootPhraseSpan | null): Promise<boolean> => {
+    async (
+      chunk: DeckChunk,
+      phrase: RootPhraseSpan | null,
+    ): Promise<boolean> => {
       const parts = reconcileParts(displayText, partsRef.current ?? []);
       const target = parts[chunk.paragraphIndex];
       if (!target) return false;
@@ -669,7 +723,9 @@ export default function IdealTextOverlay({
   );
 
   const deckEditSlide = useCallback(
-    async (edits: Array<{ chunk: DeckChunk; text: string }>): Promise<boolean> => {
+    async (
+      edits: Array<{ chunk: DeckChunk; text: string }>,
+    ): Promise<boolean> => {
       if (edits.length === 0) return true;
       let next = reconcileParts(displayText, partsRef.current ?? []);
       for (const { chunk, text } of edits) {
@@ -679,7 +735,7 @@ export default function IdealTextOverlay({
       }
       return saveDocument(partsToText(next), next);
     },
-    [displayText, saveDocument]
+    [displayText, saveDocument],
   );
 
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3: mix & match).
@@ -692,7 +748,11 @@ export default function IdealTextOverlay({
     async (block: VariantBlock, variant: BlockVariant): Promise<boolean> => {
       // Display-only rows never render a select button; belt-and-braces.
       if (block.blockKey === null || !variant.variantId) return true;
-      const r = await selectBlockVariant(arcId, block.blockKey, variant.variantId);
+      const r = await selectBlockVariant(
+        arcId,
+        block.blockKey,
+        variant.variantId,
+      );
       if (r.kind === "error") return false;
       setPickerBlock(null);
       // ok → the document reassembled synchronously inside the POST. gone /
@@ -703,7 +763,7 @@ export default function IdealTextOverlay({
       setRefetchNonce((n) => n + 1);
       return true;
     },
-    [arcId]
+    [arcId],
   );
 
   /** BLOCK_VARIANTS — restore (fear 2): repoint the head at what `revision`
@@ -720,9 +780,8 @@ export default function IdealTextOverlay({
       setRefetchNonce((n) => n + 1);
       return true;
     },
-    [arcId]
+    [arcId],
   );
-
 
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
@@ -732,7 +791,7 @@ export default function IdealTextOverlay({
   // ride the existing per-snippet feedback POST (the ledger remembers them).
   const decideTracked = async (
     s: DocumentSuggestion,
-    d: "accept" | "keep"
+    d: "accept" | "keep",
   ): Promise<boolean> => {
     const accept = d === "accept";
     // Route by SOURCE — each lane has its own decision endpoint (§2/§3); a
@@ -741,12 +800,17 @@ export default function IdealTextOverlay({
     if (s.source === "new_take") {
       if (s.blockKey === null || !s.takeSessionId) return false;
       outcome = (
-        await decideBlock(arcId, s.blockKey, accept ? "accept" : "keep",
+        await decideBlock(
+          arcId,
+          s.blockKey,
+          accept ? "accept" : "keep",
           s.takeSessionId,
-          { quote: s.quote, proposedText: s.proposedText, whyKey: s.why })
+          { quote: s.quote, proposedText: s.proposedText, whyKey: s.why },
+        )
       ).kind;
     } else if (s.source === "prior_take") {
-      outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep")).kind;
+      outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep"))
+        .kind;
     } else {
       if (!s.snippetId || !s.takeSessionId) return false;
       const r = await sendSuggestionFeedback({
@@ -776,10 +840,10 @@ export default function IdealTextOverlay({
             suggestions: (prev.suggestions ?? []).map((x) =>
               x.id === s.id
                 ? { ...x, status: accept ? "approved" : "dismissed" }
-                : x
+                : x,
             ),
           }
-        : prev
+        : prev,
     );
     // An accept reassembles the document BE-side (version bump) — pull it.
     if (accept) {
@@ -829,10 +893,10 @@ export default function IdealTextOverlay({
         ? {
             ...prev,
             styleChanges: (prev.styleChanges ?? []).map((x) =>
-              x.id === s.id ? { ...x, status: "approved" as const } : x
+              x.id === s.id ? { ...x, status: "approved" as const } : x,
             ),
           }
-        : prev
+        : prev,
     );
     fetchGenRef.current++;
     setRefetchNonce((n) => n + 1);
@@ -845,7 +909,7 @@ export default function IdealTextOverlay({
   const deckRef = useArcDeckRef(
     arcId,
     sd?.presentationRef ?? null,
-    status === "ready" && sd !== null
+    status === "ready" && sd !== null,
   );
 
   // Founder 2026-08-11 — the whole star layer is gone: the bulk polish lane,
@@ -853,10 +917,12 @@ export default function IdealTextOverlay({
   // student as chunk proposals in the deck, decided one at a time.
 
   function copyText() {
-    void navigator.clipboard?.writeText(stripRichMarkers(displayText)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    });
+    void navigator.clipboard
+      ?.writeText(stripRichMarkers(displayText))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      });
   }
 
   return (
@@ -986,83 +1052,89 @@ export default function IdealTextOverlay({
           ) : null}
         </div>
       ) : (
-      <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
-          {status === "loading" ? (
-            analysisPending ? (
-              // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
-              // an ordinary load: the old text is deliberately inaccessible
-              // while the take's document assembles. It used to carry its own
-              // "Working on your text" line; that copy is DELETED and both
-              // phases of the wait now render the one waiting screen (founder
-              // 2026-08-11), so the wait never changes its subject halfway
-              // through. When the settle probe clears the marker,
-              // `analysisPending` flips and the fetch effect pulls the fresh
-              // document into this same view.
-              <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
-                <ProcessingWait
-                  progress={{ stage: "document_assembly", percent: null }}
-                />
-              </div>
-            ) : (
-              <LoadingState placement="surface" />
-            )
-          ) : status === "pending" ? (
-            <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
-              Your coach is still shaping your ideal text. It lands here the
-              moment it&apos;s approved.
-            </p>
-          ) : status === "error" ? (
-            <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
-              Couldn&apos;t load your ideal text. Try again in a moment.
-            </p>
-          ) : status === "instant" && ideal ? (
-            <div className="flex flex-col gap-5">
-              {/* The persistent instant banner — this text is a free DRAFT the
+        <div className="scrollbar-none flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
+            {status === "loading" ? (
+              analysisPending ? (
+                // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
+                // an ordinary load: the old text is deliberately inaccessible
+                // while the take's document assembles. It used to carry its own
+                // "Working on your text" line; that copy is DELETED and both
+                // phases of the wait now render the one waiting screen (founder
+                // 2026-08-11), so the wait never changes its subject halfway
+                // through. When the settle probe clears the marker,
+                // `analysisPending` flips and the fetch effect pulls the fresh
+                // document into this same view.
+                <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
+                  <ProcessingWait
+                    progress={{ stage: "document_assembly", percent: null }}
+                  />
+                </div>
+              ) : (
+                <LoadingState placement="surface" />
+              )
+            ) : status === "pending" ? (
+              <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
+                Your coach is still shaping your ideal text. It lands here the
+                moment it&apos;s approved.
+              </p>
+            ) : status === "error" ? (
+              <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
+                Couldn&apos;t load your ideal text. Try again in a moment.
+              </p>
+            ) : status === "instant" && ideal ? (
+              <div className="flex flex-col gap-5">
+                {/* The persistent instant banner — this text is a free DRAFT the
                   machine assembled; the coach-perfected version replaces it
                   on this same screen once the coach approves it. */}
-              <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-                <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                <p className="text-[13px] leading-relaxed text-foreground">
-                  Instant draft. Your coach is polishing the full version.
-                </p>
-              </div>
-              {/* The free machine draft: the words and their markers, and
+                <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                  <Sparkles
+                    className="h-4 w-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  <p className="text-[13px] leading-relaxed text-foreground">
+                    Instant draft. Your coach is polishing the full version.
+                  </p>
+                </div>
+                {/* The free machine draft: the words and their markers, and
                   nothing else. It used to carry the star layer; stars are
                   gone (founder 2026-08-11) and this lane has no decisions of
                   its own — the coach's version arrives on the deck. */}
-              <MarkedParagraphs text={displayText} textSizeClass="text-[18px]" />
-            </div>
-          ) : ideal ? (
-            <div className="flex flex-col gap-4">
-              {/* The verification badge moved into the header (above) — a row
+                <MarkedParagraphs
+                  text={displayText}
+                  textSizeClass="text-[18px]"
+                />
+              </div>
+            ) : ideal ? (
+              <div className="flex flex-col gap-4">
+                {/* The verification badge moved into the header (above) — a row
                   of its own was a band of vertical space for one word. */}
-              {/* Founder 2026-08-11 — the star lane's Approve-all is retired
+                {/* Founder 2026-08-11 — the star lane's Approve-all is retired
                   with the stars: every proposal now decides one at a time
                   through the deck's REVIEW modal. */}
 
-              {tooLong ? (
-                <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  {IDEAL_EDIT_COPY.tooLong}
-                </p>
-              ) : saveFailed ? (
-                <p className="text-[12px] leading-relaxed text-muted-foreground">
-                  Couldn&apos;t save your edit just now. It stays here; change
-                  something and it retries.
-                </p>
-              ) : null}
+                {tooLong ? (
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    {IDEAL_EDIT_COPY.tooLong}
+                  </p>
+                ) : saveFailed ? (
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    Couldn&apos;t save your edit just now. It stays here; change
+                    something and it retries.
+                  </p>
+                ) : null}
 
-              {/* Legacy (non-SD) payload — a plain, star-free read. The SD
+                {/* Legacy (non-SD) payload — a plain, star-free read. The SD
                   lane renders the deck above; this fading lane keeps its
                   words and markers, nothing else (founder 2026-08-11: no
                   stars anywhere). */}
-              <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
-                <RichText text={displayText} />
-              </p>
-            </div>
-          ) : null}
+                <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
+                  <RichText text={displayText} />
+                </p>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
       )}
 
       {/* The PERSISTENT bottom control. Reading the text out loud used to sit
@@ -1149,10 +1221,10 @@ export default function IdealTextOverlay({
                 ? {
                     ...prev,
                     pieces: (prev.pieces ?? []).map((x) =>
-                      x.pieceKey === echoed.pieceKey ? echoed : x
+                      x.pieceKey === echoed.pieceKey ? echoed : x,
                     ),
                   }
-                : prev
+                : prev,
             );
           }
           return true;
