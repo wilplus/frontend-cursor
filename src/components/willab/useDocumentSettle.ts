@@ -13,7 +13,10 @@ import {
   probeOf,
   type DocumentProbe,
 } from "@/lib/willab/documentSettle";
-import { fetchIdealText } from "@/services/api/idealText";
+import {
+  fetchIdealTextCore,
+  primeIdealTextDisplay,
+} from "@/services/api/idealText";
 import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
@@ -171,7 +174,7 @@ export function useDocumentSettle({
     const { sessionId, arcId } = marker;
     if (!arcId || baselineRef.current?.sessionId === sessionId) return;
     let active = true;
-    void fetchIdealText(arcId).then((r) => {
+    void fetchIdealTextCore(arcId).then((r) => {
       if (!active || baselineRef.current?.sessionId === sessionId) return;
       if (r.kind === "single") {
         baselineRef.current = {
@@ -213,7 +216,7 @@ export function useDocumentSettle({
     }
     let active = true;
     const probe = async () => {
-      const r = await fetchIdealText(arcId);
+      const r = await fetchIdealTextCore(arcId);
       if (!active) return;
       if (r.kind !== "single" && r.kind !== "ready") {
         // No document served — only the cap can release from here.
@@ -243,7 +246,13 @@ export function useDocumentSettle({
         phaseStartedAt,
         Date.now(),
       );
-      if (verdict === "settled") settle(marker);
+      if (verdict === "settled") {
+        // The screen opened by `settle` needs this exact document. Hand the
+        // canonical payload across once instead of immediately downloading
+        // the same enriched packet again.
+        primeIdealTextDisplay(arcId, r);
+        settle(marker);
+      }
       if (verdict === "expired") expire(marker);
     };
     void probe();

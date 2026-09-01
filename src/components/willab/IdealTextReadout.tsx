@@ -5,7 +5,10 @@ import { Check, Copy, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import {
-  fetchIdealText,
+  fetchIdealTextCore,
+  fetchIdealTextEnrichment,
+  fetchIdealTextForDisplay,
+  mergeIdealTextEnrichment,
   saveIdealUserEdit,
   type DecisionHistoryEntry,
   type DocumentSuggestion,
@@ -13,6 +16,7 @@ import {
   type IdealPiece,
   type IdealText,
   type KeyPoint,
+  type IdealTextResult,
 } from "@/services/api/idealText";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
@@ -195,7 +199,7 @@ export default function IdealTextReadout({
   // (the GET 404s) / not loaded: nothing new renders. The timeline lives on
   // the notebook overlay only (§8.2); this screen carries just the picker.
   const [variantBlocks, setVariantBlocks] = useState<VariantBlock[] | null>(
-    null
+    null,
   );
   const [pickerBlock, setPickerBlock] = useState<VariantBlock | null>(null);
   // Staleness fence for the pool GET (same rule as the SD GET).
@@ -248,7 +252,7 @@ export default function IdealTextReadout({
   const persistArmedRef = useRef(false);
   const arcIdRef = useRef<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">(
-    "idle"
+    "idle",
   );
   textRef.current = text;
   arcIdRef.current = arcId;
@@ -287,46 +291,84 @@ export default function IdealTextReadout({
     if (analysisPending) return;
     let active = true;
     const gen = ++sdGenRef.current;
-    void fetchIdealText(arcId).then((r) => {
+    const read = sdNonce === 0 ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    const applySingle = (
+      r: Extract<IdealTextResult, { kind: "single" }>,
+      refreshDocumentVariants: boolean,
+    ) => {
+      versionRef.current = r.version;
+      partsRef.current = r.parts;
+      persistArmedRef.current = true;
+      setCanPersist(true);
+      setSd({
+        ideal: r.ideal,
+        status: r.status,
+        version: r.version,
+        momentsUnlocked: r.momentsUnlocked,
+        explanationsAvailable: r.explanationsAvailable,
+        title: r.title,
+        latestTakeSessionId: r.latestTakeSessionId,
+        pieces: r.pieces,
+        suggestions: r.suggestions,
+        styleChanges: r.styleChanges,
+        decisionHistory: r.decisionHistory,
+        saved: r.saved,
+        keyPoints: r.keyPoints,
+        presentationRef: r.presentationRef,
+        slideTitles: r.slideTitles,
+        parts: r.parts,
+        additions: r.additions,
+        userEdited: r.userEdited,
+        canRecordTake: r.canRecordTake,
+        takeCount: r.takeCount,
+        journeyNextStepsSeen: r.journeyNextStepsSeen,
+      });
+      if (!dirtyRef.current && r.ideal.text.trim()) {
+        savedTextRef.current = r.ideal.text;
+        setText(r.ideal.text);
+      }
+      setSdSettled(true);
+      if (refreshDocumentVariants) {
+        refreshVariants();
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => {
+            performance.mark("willab.ideal_text.core_painted");
+          });
+        }
+      }
+    };
+    void read(arcId).then(async (r) => {
       if (!active || gen !== sdGenRef.current) return;
       if (r.kind === "single") {
-        versionRef.current = r.version;
-        // Adopt the server's identity for this document. null = none stored,
-        // and the arranger mints locally on first render.
-        partsRef.current = r.parts;
-        persistArmedRef.current = true;
-        setCanPersist(true);
-        setSd({
-          ideal: r.ideal,
-          status: r.status,
-          version: r.version,
-          momentsUnlocked: r.momentsUnlocked,
-          explanationsAvailable: r.explanationsAvailable,
-          title: r.title,
-          latestTakeSessionId: r.latestTakeSessionId,
-          pieces: r.pieces,
-          suggestions: r.suggestions,
-          styleChanges: r.styleChanges,
-          decisionHistory: r.decisionHistory,
-          saved: r.saved,
-          keyPoints: r.keyPoints,
-          presentationRef: r.presentationRef,
-          slideTitles: r.slideTitles,
-          parts: r.parts,
-          additions: r.additions,
-          userEdited: r.userEdited,
-          canRecordTake: r.canRecordTake,
-          takeCount: r.takeCount,
-          journeyNextStepsSeen: r.journeyNextStepsSeen,
-        });
-        if (!dirtyRef.current && r.ideal.text.trim()) {
-          savedTextRef.current = r.ideal.text;
-          setText(r.ideal.text);
+        applySingle(r, true);
+        if (r.documentSnapshotId) {
+          const enrichment = await fetchIdealTextEnrichment(
+            arcId,
+            r.documentSnapshotId,
+          );
+          if (!active || gen !== sdGenRef.current) return;
+          if (enrichment.kind === "ready") {
+            let merged = mergeIdealTextEnrichment(r, enrichment);
+            applySingle(merged, false);
+            const retryable = Object.entries(enrichment.sections)
+              .filter(([, section]) => section.retryable)
+              .map(([name]) => name);
+            if (retryable.length) {
+              const retry = await fetchIdealTextEnrichment(
+                arcId,
+                r.documentSnapshotId,
+                retryable,
+              );
+              if (!active || gen !== sdGenRef.current) return;
+              if (retry.kind === "ready") {
+                merged = mergeIdealTextEnrichment(merged, retry);
+                applySingle(merged, false);
+              }
+            }
+          } else if (enrichment.kind === "stale") {
+            setSdNonce((value) => value + 1);
+          }
         }
-        // BLOCK_VARIANTS — refresh the pool AFTER the document landed (§5
-        // order), and only on the SD lane (the pool only exists where the
-        // master model does).
-        refreshVariants();
       }
       // Resolve the gate whatever the outcome — flag OFF / pending must not
       // hang the screen on the loading state forever.
@@ -417,7 +459,7 @@ export default function IdealTextReadout({
         setSaveState("failed");
       });
     },
-    [markDirty, partsFor, refreshVariants]
+    [markDirty, partsFor, refreshVariants],
   );
 
   /** BLOCK_VARIANTS — pick one variant for one block (fear 3). Same edit-
@@ -433,7 +475,7 @@ export default function IdealTextReadout({
       const r = await selectBlockVariant(
         aid,
         block.blockKey,
-        variant.variantId
+        variant.variantId,
       );
       if (r.kind === "error") return false;
       setPickerBlock(null);
@@ -442,7 +484,7 @@ export default function IdealTextReadout({
       setSdNonce((n) => n + 1);
       return true;
     },
-    [markDirty]
+    [markDirty],
   );
 
   useEffect(() => {
@@ -485,7 +527,7 @@ export default function IdealTextReadout({
         });
       }
     },
-    [partsFor]
+    [partsFor],
   );
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
@@ -508,7 +550,7 @@ export default function IdealTextReadout({
             s.blockKey,
             accept ? "accept" : "keep",
             s.takeSessionId,
-            { quote: s.quote, proposedText: s.proposedText, whyKey: s.why }
+            { quote: s.quote, proposedText: s.proposedText, whyKey: s.why },
           )
         ).kind;
       } else if (s.source === "prior_take") {
@@ -548,10 +590,10 @@ export default function IdealTextReadout({
               suggestions: (prev.suggestions ?? []).map((x) =>
                 x.id === s.id
                   ? { ...x, status: accept ? "approved" : "dismissed" }
-                  : x
+                  : x,
               ),
             }
-          : prev
+          : prev,
       );
       if (accept) {
         // The accepted words must become the DOCUMENT, not just a painted
@@ -572,7 +614,7 @@ export default function IdealTextReadout({
       }
       return true;
     },
-    [arcId, markDirty]
+    [arcId, markDirty],
   );
 
   const undoTracked = useCallback(
@@ -595,7 +637,7 @@ export default function IdealTextReadout({
       setSdNonce((n) => n + 1);
       return true;
     },
-    []
+    [],
   );
 
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
@@ -621,10 +663,7 @@ export default function IdealTextReadout({
   // lets the server refuse a document that moved. `seedParts` covers the
   // never-manually-edited document, which has no server-stored identity.
   const lockParagraph = useCallback(
-    async (
-      at: number,
-      paragraphText: string
-    ): Promise<LockResult> => {
+    async (at: number, paragraphText: string): Promise<LockResult> => {
       const aid = arcIdRef.current;
       if (!aid) return { outcome: "failed", rootPhraseProposal: null };
       const parts = reconcileParts(textRef.current, partsRef.current ?? []);
@@ -646,14 +685,14 @@ export default function IdealTextReadout({
         return { outcome: "failed", rootPhraseProposal: null };
       }
       partsRef.current = (partsRef.current ?? []).map((p) =>
-        p.id === target.id ? { ...p, locked: true } : p
+        p.id === target.id ? { ...p, locked: true } : p,
       );
       // Refetch so the layer filter sees the lock — open offers on this
       // paragraph stop being served, which the student just asked for.
       setSdNonce((n) => n + 1);
       return { outcome: "ok", rootPhraseProposal: r.rootPhraseProposal };
     },
-    []
+    [],
   );
 
   // MATERIAL RECOVERY — accept promotes the candidate block into the master
@@ -668,7 +707,7 @@ export default function IdealTextReadout({
         aid,
         addition.blockKey,
         accept ? "accept" : "keep",
-        addition.takeSessionId
+        addition.takeSessionId,
       );
       if (r.kind === "error") return false;
       // Stale counts as handled: a newer take moved the offer, and the refetch
@@ -677,7 +716,7 @@ export default function IdealTextReadout({
       setSdNonce((n) => n + 1);
       return true;
     },
-    []
+    [],
   );
 
   const applyEdit = useCallback(
@@ -720,7 +759,7 @@ export default function IdealTextReadout({
       // which is the one thing a reorder makes impossible.
       if (parts) partsRef.current = parts;
     },
-    [markDirty]
+    [markDirty],
   );
 
   // Legacy post-lock emphasis rows remain reversible for already-created
@@ -744,10 +783,10 @@ export default function IdealTextReadout({
           ? {
               ...prev,
               styleChanges: (prev.styleChanges ?? []).map((x) =>
-                x.id === s.id ? { ...x, status: "approved" as const } : x
+                x.id === s.id ? { ...x, status: "approved" as const } : x,
               ),
             }
-          : prev
+          : prev,
       );
       markDirty(false);
       savedTextRef.current = null;
@@ -755,7 +794,7 @@ export default function IdealTextReadout({
       setSdNonce((n) => n + 1);
       return true;
     },
-    [markDirty]
+    [markDirty],
   );
 
   // THE DECK's lock: save the modal draft first when it changed, then call the
@@ -794,19 +833,16 @@ export default function IdealTextReadout({
       }
       if (r.kind === "error" || r.kind === "undecided") return "failed";
       partsRef.current = (partsRef.current ?? []).map((pt) =>
-        pt.id === target.id ? { ...pt, locked: false } : pt
+        pt.id === target.id ? { ...pt, locked: false } : pt,
       );
       setSdNonce((n) => n + 1);
       return "ok";
     },
-    []
+    [],
   );
 
   const deckLockPart = useCallback(
-    async (
-      chunk: DeckChunk,
-      newText: string
-    ): Promise<LockResult> => {
+    async (chunk: DeckChunk, newText: string): Promise<LockResult> => {
       // BY POSITION + WORDS — see the note in IdealTextOverlay: a part id
       // minted by the deck cannot be found in a list this host minted
       // separately, which is what failed every lock on a document with no
@@ -843,7 +879,7 @@ export default function IdealTextReadout({
           return { outcome: "failed", rootPhraseProposal: null };
         }
         partsRef.current = savedParts.map((part) =>
-          part.id === target.id ? { ...part, locked: true } : part
+          part.id === target.id ? { ...part, locked: true } : part,
         );
         markDirty(false);
         setSdNonce((n) => n + 1);
@@ -854,11 +890,14 @@ export default function IdealTextReadout({
       }
       return lockParagraph(at, chunk.part.text);
     },
-    [applyEdit, flushEdits, lockParagraph, markDirty]
+    [applyEdit, flushEdits, lockParagraph, markDirty],
   );
 
   const deckKeepEvolving = useCallback(
-    async (chunk: DeckChunk, newText: string): Promise<"ok" | "blocked" | "failed"> => {
+    async (
+      chunk: DeckChunk,
+      newText: string,
+    ): Promise<"ok" | "blocked" | "failed"> => {
       const aid = arcIdRef.current;
       if (!aid) return "failed";
       const at = chunk.paragraphIndex;
@@ -892,7 +931,7 @@ export default function IdealTextReadout({
               rootStart: null,
               rootEnd: null,
             }
-          : part
+          : part,
       );
       markDirty(false);
       setSdNonce((n) => n + 1);
@@ -902,13 +941,21 @@ export default function IdealTextReadout({
   );
 
   const deckSetRootPhrase = useCallback(
-    async (chunk: DeckChunk, phrase: RootPhraseSpan | null): Promise<boolean> => {
+    async (
+      chunk: DeckChunk,
+      phrase: RootPhraseSpan | null,
+    ): Promise<boolean> => {
       const aid = arcIdRef.current;
       if (!aid) return false;
       const parts = reconcileParts(textRef.current, partsRef.current ?? []);
       const target = parts[chunk.paragraphIndex];
       if (!target) return false;
-      const ok = await setPartRootPhrase(aid, target.id, textRef.current, phrase);
+      const ok = await setPartRootPhrase(
+        aid,
+        target.id,
+        textRef.current,
+        phrase,
+      );
       if (!ok) return false;
       const nextParts = withPartRootPhrase(parts, target.id, phrase);
       partsRef.current = nextParts;
@@ -921,7 +968,7 @@ export default function IdealTextReadout({
 
   const deckEditSlide = useCallback(
     async (
-      edits: Array<{ chunk: DeckChunk; text: string }>
+      edits: Array<{ chunk: DeckChunk; text: string }>,
     ): Promise<boolean> => {
       if (edits.length === 0) return true;
       let next = reconcileParts(textRef.current, partsRef.current ?? []);
@@ -938,7 +985,7 @@ export default function IdealTextReadout({
       }
       return ok;
     },
-    [applyEdit, flushEdits, markDirty]
+    [applyEdit, flushEdits, markDirty],
   );
 
   // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
@@ -1215,10 +1262,10 @@ export default function IdealTextReadout({
                 ? {
                     ...prev,
                     pieces: (prev.pieces ?? []).map((x) =>
-                      x.pieceKey === echoed.pieceKey ? echoed : x
+                      x.pieceKey === echoed.pieceKey ? echoed : x,
                     ),
                   }
-                : prev
+                : prev,
             );
           }
           return true;

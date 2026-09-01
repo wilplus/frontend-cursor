@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
-import { fetchIdealText } from "@/services/api/idealText";
+import {
+  fetchIdealTextCore,
+  primeIdealTextDisplay,
+} from "@/services/api/idealText";
 import {
   cachedIdealTitle,
   rememberIdealTitle,
@@ -599,11 +602,14 @@ const liveDocCache = new Map<
 function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
   const hit = liveDocCache.get(arcId);
   if (hit && Date.now() - hit.at < 60_000) return hit.promise;
-  const promise = fetchIdealText(arcId).then((r) =>
-    r.kind === "single"
+  const promise = fetchIdealTextCore(arcId).then((r) => {
+    // The card's status refresh has already paid for the complete canonical
+    // document. Make it available to an immediate Open action once.
+    primeIdealTextDisplay(arcId, r);
+    return r.kind === "single"
       ? { title: r.title, status: r.status, version: r.version }
-      : null,
-  );
+      : null;
+  });
   liveDocCache.set(arcId, { at: Date.now(), promise });
   return promise;
 }
