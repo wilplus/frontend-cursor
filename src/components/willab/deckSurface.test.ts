@@ -204,6 +204,16 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     );
     expect(MODAL).toMatch(/Lock for next Take/);
     expect(MODAL).toMatch(/Keep evolving/);
+    expect(MODAL).toMatch(/Keep this wording for your next Take\?/);
+    expect(MODAL).toMatch(/acceptedRewrite \?/);
+    const applyStart = MODAL.indexOf("async function applyImprovement");
+    const applyBody = MODAL.slice(
+      applyStart,
+      MODAL.indexOf("async function editImprovementMyself", applyStart),
+    );
+    expect(applyBody.indexOf("setAcceptedRewrite(")).toBeLessThan(
+      applyBody.indexOf("advanceAfterDecision(suggestion.id)"),
+    );
     expect(MODAL).toMatch(/onClick=\{\(\) => void keepEvolving\(\)\}/);
     expect(MODAL).toMatch(/Choose a rooting phrase/);
     expect(MODAL).toMatch(/Make this phrase orange/);
