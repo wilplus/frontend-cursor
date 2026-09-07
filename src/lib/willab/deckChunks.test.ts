@@ -314,6 +314,21 @@ describe("groupChunksBySlide — canonical deck identity", () => {
     });
   });
 
+  it("rejects slide lineage attached to a different Paragraph id", () => {
+    expect(
+      groupChunksBySlide(
+        chunks(),
+        [0, 0, 1],
+        2,
+        ["part-0", "wrong", "part-2"]
+      )
+    ).toEqual({
+      ok: false,
+      error: "piece_identity_mismatch",
+      paragraphIndex: 1,
+    });
+  });
+
   it("rejects a backwards explicit mapping", () => {
     expect(groupChunksBySlide(chunks(), [0, 2, 1], 3)).toEqual({
       ok: false,

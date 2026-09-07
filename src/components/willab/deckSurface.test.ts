@@ -140,7 +140,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // empty string for an untitled one. Its length is therefore the bound.
     expect(DECK).toMatch(/const slideCount = slideTitles\?\.length \?\? null/);
     expect(DECK).toMatch(
-      /groupChunksBySlide\(chunks, pieceSlideIndexes, slideCount\)/
+      /groupChunksBySlide\(chunks, pieceSlideIndexes, slideCount, piecePartIds\)/
     );
     // Slide linkage is optional metadata. If it is unprovable, the words
     // remain openable as one unlinked "Your talk" section; no slide number is

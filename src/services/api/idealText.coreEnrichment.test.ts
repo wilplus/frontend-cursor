@@ -3,6 +3,7 @@ import {
   fetchIdealTextCore,
   fetchIdealTextEnrichment,
   mergeIdealTextEnrichment,
+  settleIdealTextEnrichment,
 } from "./idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
@@ -29,7 +30,14 @@ describe("Ideal Text core-first transport", () => {
         document_snapshot_sha256: "a".repeat(64),
         presentation_ref: "deck.pdf",
         slide_titles: ["Opening"],
-        pieces: [{ piece_key: 0, text: "Core document.", slide_index: 0 }],
+        pieces: [
+          {
+            piece_key: 0,
+            part_id: "part-1",
+            text: "Core document.",
+            slide_index: 0,
+          },
+        ],
         parts: null,
         can_record_take: true,
       }),
@@ -44,6 +52,7 @@ describe("Ideal Text core-first transport", () => {
     expect(result.documentSnapshotId).toBe("snapshot-2");
     expect(result.presentationRef).toBe("deck.pdf");
     expect(result.pieces?.[0]?.slideIndex).toBe(0);
+    expect(result.pieces?.[0]?.partId).toBe("part-1");
     expect(result.suggestions).toBeNull();
     expect(result.learningExposures).toEqual([]);
   });
@@ -139,5 +148,90 @@ describe("Ideal Text core-first transport", () => {
     const url = String(fetchMock.mock.calls[0]?.[0]);
     expect(url).toContain("sections=feedback%2Clearning");
   });
-});
 
+  it("keeps retrying the exact snapshot until Manager feedback is ready", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          document_snapshot_id: "snapshot-1",
+          sections: {
+            document_layers: { status: "pending", retryable: true },
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          document_snapshot_id: "snapshot-1",
+          sections: {
+            document_layers: { status: "failed", retryable: true },
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          document_snapshot_id: "snapshot-1",
+          sections: {
+            document_layers: {
+              status: "ready",
+              data: { changes: [{ id: "feedback-1" }] },
+            },
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = await fetchIdealTextEnrichment("arc-1", "snapshot-1");
+    if (initial.kind !== "ready") throw new Error("expected enrichment");
+    const settled = await settleIdealTextEnrichment(
+      "arc-1",
+      "snapshot-1",
+      initial,
+      { wait: async () => undefined },
+    );
+    expect(settled.kind).toBe("ready");
+    if (settled.kind !== "ready") return;
+    expect(settled.sections.document_layers.status).toBe("ready");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+      "document_snapshot_id=snapshot-1",
+    );
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
+      "sections=document_layers",
+    );
+  });
+
+  it("stops retries when the immutable snapshot becomes stale", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          response({
+            document_snapshot_id: "snapshot-1",
+            sections: {
+              document_layers: { status: "pending", retryable: true },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          response(
+            {
+              code: "SNAPSHOT_STALE",
+              current_document_snapshot_id: "snapshot-2",
+            },
+            409,
+          ),
+        ),
+    );
+    const initial = await fetchIdealTextEnrichment("arc-1", "snapshot-1");
+    if (initial.kind !== "ready") throw new Error("expected enrichment");
+    expect(
+      await settleIdealTextEnrichment("arc-1", "snapshot-1", initial, {
+        wait: async () => undefined,
+      }),
+    ).toEqual({
+      kind: "stale",
+      currentDocumentSnapshotId: "snapshot-2",
+    });
+  });
+});
