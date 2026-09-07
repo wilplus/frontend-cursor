@@ -63,6 +63,13 @@ export type LockResult = {
   rootPhraseProposal: RootPhraseSpan | null;
 };
 
+function isConfidentVoiceFeedback(item: DocumentSuggestion): boolean {
+  return (
+    item.feedbackFamily === "confident_voice" ||
+    item.source === "confident_voice"
+  );
+}
+
 interface DeckChunkModalProps {
   chunk: DeckChunk;
   /** The pending proposal to review, when the chunk is waiting. Null routes
@@ -347,6 +354,19 @@ export default function DeckChunkModal({
     const result = await onLockIn(draft.trim());
     setBusy(false);
     if (result.outcome === "ok") {
+      // A confidence-only item may create an orange speaking anchor only when
+      // the user explicitly agreed that the exact clip sounded confident.
+      // Other answers still permit the wording lock; they simply end here.
+      // Text/formulation feedback and a manual paragraph lock retain the
+      // established root chooser because their meaning is independent of the
+      // confidence self-report.
+      const confidenceOnly =
+        feedbackInventory.length > 0 &&
+        feedbackInventory.every(isConfidentVoiceFeedback);
+      if (confidenceOnly && agreeValue !== "yes") {
+        onClose();
+        return;
+      }
       setRootProposal(result.rootPhraseProposal);
       setFace("root");
       return;
