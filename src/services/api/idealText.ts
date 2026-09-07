@@ -1552,6 +1552,82 @@ export async function fetchIdealTextCore(
   return mapIdealTextCorePayload(body) ?? { kind: "error" };
 }
 
+export interface RecordingRoot {
+  partId: string;
+  slideIndex: number;
+  text: string;
+  type: "flagship";
+}
+
+export type RecordingRootsResult =
+  | {
+      kind: "ready";
+      roots: RecordingRoot[];
+      documentSnapshotId: string;
+      documentSnapshotSha256: string;
+    }
+  | { kind: "pending" | "stale" | "error" };
+
+export function mapRecordingRootsPayload(
+  body: Record<string, unknown> | null,
+): Extract<RecordingRootsResult, { kind: "ready" }> | null {
+  if (!body || !Array.isArray(body.roots)) return null;
+  const snapshotId = str(body.document_snapshot_id);
+  const snapshotSha256 = str(body.document_snapshot_sha256);
+  if (!snapshotId || !snapshotSha256) return null;
+  const roots: RecordingRoot[] = [];
+  for (const item of body.roots) {
+    const row = asRecord(item);
+    if (!row) return null;
+    const partId = str(row.part_id);
+    const text = str(row.text).trim();
+    const slideIndex = row.slide_index;
+    if (
+      !partId ||
+      !text ||
+      row.type !== "flagship" ||
+      typeof slideIndex !== "number" ||
+      !Number.isInteger(slideIndex) ||
+      slideIndex < 0
+    ) {
+      return null;
+    }
+    roots.push({ partId, slideIndex, text, type: "flagship" });
+  }
+  return {
+    kind: "ready",
+    roots,
+    documentSnapshotId: snapshotId,
+    documentSnapshotSha256: snapshotSha256,
+  };
+}
+
+/** Current committed recording anchors over exact immutable Slide lineage. */
+export async function fetchRecordingRoots(
+  arcId: string,
+): Promise<RecordingRootsResult> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/recording-roots`,
+      { headers, credentials: "include", cache: "no-store" },
+    );
+  } catch {
+    return { kind: "error" };
+  }
+  if (response.status === 404) return { kind: "pending" };
+  if (response.status === 409) return { kind: "stale" };
+  if (!response.ok) return { kind: "error" };
+  const body = (await response.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  return mapRecordingRootsPayload(body) ?? { kind: "error" };
+}
+
 /** Fetch optional sections for one immutable core revision. */
 export async function fetchIdealTextEnrichment(
   arcId: string,
