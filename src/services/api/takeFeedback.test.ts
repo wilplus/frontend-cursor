@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe("saveTakeFeedbackResponse", () => {
-  it("writes the frozen feedback identity and exact clip provenance", async () => {
+  it("writes the frozen feedback identity without a caller-controlled clip", async () => {
     let body: Record<string, unknown> | null = null;
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
       body = JSON.parse(String(init.body));
@@ -20,13 +20,11 @@ describe("saveTakeFeedbackResponse", () => {
       feedbackId: "confident-voice:clip-1",
       feedbackFamily: "confident_voice",
       response: "no",
-      snippetId: "clip-1",
     })).toEqual({ ok: true });
     expect(body).toEqual({
       feedback_id: "confident-voice:clip-1",
       feedback_family: "confident_voice",
       response: "no",
-      snippet_id: "clip-1",
     });
   });
 });

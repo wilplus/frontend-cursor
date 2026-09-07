@@ -177,10 +177,10 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     );
   });
 
-  it("writes the exact feedback and clip identities to the immutable route", () => {
+  it("writes the exact feedback identity and lets the database bind its clip", () => {
     expect(MODAL).toMatch(/saveTakeFeedbackResponse/);
     expect(MODAL).toMatch(/feedbackFamily: "confident_voice"/);
-    expect(MODAL).toMatch(/snippetId/);
+    expect(MODAL).not.toMatch(/response: value,[\s\S]{0,80}snippetId/);
   });
 
   it("rolls the chip back when the write fails", () => {

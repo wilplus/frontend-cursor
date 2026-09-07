@@ -15,7 +15,6 @@ export async function saveTakeFeedbackResponse(input: {
   feedbackId: string;
   feedbackFamily: FeedbackFamily;
   response: FeedbackResponse;
-  snippetId?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string | null }> {
   const token = await getAuthToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -32,7 +31,6 @@ export async function saveTakeFeedbackResponse(input: {
           feedback_id: input.feedbackId,
           feedback_family: input.feedbackFamily,
           response: input.response,
-          ...(input.snippetId ? { snippet_id: input.snippetId } : {}),
         }),
       }
     );
