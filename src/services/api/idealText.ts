@@ -645,6 +645,9 @@ export function mapDocumentSuggestions(
  *  swapped yet — the challenger awaiting the user's decision (the glow). */
 export interface IdealPiece {
   pieceKey: number;
+  /** Stable Paragraph identity carried by the immutable core. When present,
+   *  Slide mapping is accepted only for this exact rendered Paragraph. */
+  partId?: string | null;
   /** The KEYED pill→picker join (variant-picker handoff 2026-08-03): the
    *  master block this paragraph's words belong to. The variants sheet
    *  deep-links on THIS key — never by index-zipping two lists that merely
@@ -720,6 +723,7 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
         : null;
     out.push({
       pieceKey,
+      partId: str(r.part_id) || null,
       blockKey:
         typeof r.block_key === "number" && Number.isFinite(r.block_key)
           ? r.block_key
@@ -1697,6 +1701,54 @@ export async function fetchIdealTextEnrichment(
     documentSnapshotId: str(body.document_snapshot_id),
     sections: mapped,
   };
+}
+
+/** Finish only the optional sections that explicitly asked to be retried.
+ *
+ * The immutable core is already on screen while this runs.  Manager work can
+ * commit just after the first two-second enrichment budget expires; one eager
+ * retry used to race that same work and then abandon it until a full reload.
+ * This bounded backoff keeps polling the exact snapshot and never mixes a
+ * newer document into the visible one.
+ */
+export async function settleIdealTextEnrichment(
+  arcId: string,
+  documentSnapshotId: string,
+  initial: Extract<IdealTextEnrichmentResult, { kind: "ready" }>,
+  options?: {
+    attempts?: number;
+    wait?: (delayMs: number) => Promise<void>;
+  },
+): Promise<IdealTextEnrichmentResult> {
+  let current = initial;
+  const attempts = Math.max(0, options?.attempts ?? 3);
+  const wait =
+    options?.wait ??
+    ((delayMs: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+  const delays = [200, 500, 1000];
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const retryable = Object.entries(current.sections)
+      .filter(([, section]) => section.retryable)
+      .map(([name]) => name);
+    if (retryable.length === 0) return current;
+    await wait(delays[Math.min(attempt, delays.length - 1)]);
+    const next = await fetchIdealTextEnrichment(
+      arcId,
+      documentSnapshotId,
+      retryable,
+    );
+    if (next.kind === "stale") return next;
+    if (next.kind === "error") continue;
+    if (next.documentSnapshotId !== documentSnapshotId) {
+      return { kind: "stale", currentDocumentSnapshotId: null };
+    }
+    current = {
+      ...next,
+      sections: { ...current.sections, ...next.sections },
+    };
+  }
+  return current;
 }
 
 /** Apply only ready optional sections to their exact core revision. */

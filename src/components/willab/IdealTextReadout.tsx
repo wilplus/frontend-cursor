@@ -9,6 +9,7 @@ import {
   fetchIdealTextEnrichment,
   fetchIdealTextForDisplay,
   mergeIdealTextEnrichment,
+  settleIdealTextEnrichment,
   saveIdealUserEdit,
   type DecisionHistoryEntry,
   type DocumentSuggestion,
@@ -350,20 +351,17 @@ export default function IdealTextReadout({
           if (enrichment.kind === "ready") {
             let merged = mergeIdealTextEnrichment(r, enrichment);
             applySingle(merged, false);
-            const retryable = Object.entries(enrichment.sections)
-              .filter(([, section]) => section.retryable)
-              .map(([name]) => name);
-            if (retryable.length) {
-              const retry = await fetchIdealTextEnrichment(
-                arcId,
-                r.documentSnapshotId,
-                retryable,
-              );
-              if (!active || gen !== sdGenRef.current) return;
-              if (retry.kind === "ready") {
-                merged = mergeIdealTextEnrichment(merged, retry);
-                applySingle(merged, false);
-              }
+            const settled = await settleIdealTextEnrichment(
+              arcId,
+              r.documentSnapshotId,
+              enrichment,
+            );
+            if (!active || gen !== sdGenRef.current) return;
+            if (settled.kind === "ready") {
+              merged = mergeIdealTextEnrichment(merged, settled);
+              applySingle(merged, false);
+            } else if (settled.kind === "stale") {
+              setSdNonce((value) => value + 1);
             }
           } else if (enrichment.kind === "stale") {
             setSdNonce((value) => value + 1);
@@ -1113,6 +1111,7 @@ export default function IdealTextReadout({
             pieceSlideIndexes={
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
+            piecePartIds={sd.pieces?.map((p) => p.partId ?? null) ?? null}
             slideTitles={sd.slideTitles ?? undefined}
             presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
