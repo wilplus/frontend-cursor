@@ -275,7 +275,6 @@ export default function DeckChunkModal({
       feedbackId: suggestion.id,
       feedbackFamily: suggestion.feedbackFamily,
       response,
-      snippetId: suggestion.snippetId,
     });
     if (!result.ok) {
       setError(result.error ?? "Couldn't save that response. Try again.");
@@ -556,7 +555,6 @@ export default function DeckChunkModal({
       feedbackId: suggestion.id,
       feedbackFamily: "confident_voice",
       response: value,
-      snippetId,
     });
     setAgreeSaving(false);
     if (r.ok) {
