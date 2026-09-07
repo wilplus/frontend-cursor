@@ -222,6 +222,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
+  it("offers an orange root after confidence feedback only for exact Yes", () => {
+    expect(MODAL).toMatch(/feedbackInventory\.every\(isConfidentVoiceFeedback\)/);
+    expect(MODAL).toMatch(/if \(confidenceOnly && agreeValue !== "yes"\)/);
+    const gated = MODAL.indexOf(
+      'if (confidenceOnly && agreeValue !== "yes")',
+    );
+    const rootFace = MODAL.indexOf('setFace("root")', gated);
+    expect(gated).toBeGreaterThan(-1);
+    expect(rootFace).toBeGreaterThan(gated);
+    expect(MODAL.slice(gated, rootFace)).toMatch(/onClose\(\)/);
+  });
+
   it("the modal has two detents and a continuous Pointer Events drag", () => {
     // Founder 2026-08-11: "Make the modal a bit taller and expandable on
     // swipe to the top."
