@@ -161,4 +161,11 @@ describe("the recording screen", () => {
     expect(PHASE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
     expect(STAGE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
   });
+
+  it("preloads exact committed roots before a continued Take starts", () => {
+    expect(LAB).toMatch(/fetchRecordingRoots\(aid\)/);
+    expect(LAB).toMatch(/state === "lab_prerecord"/);
+    expect(LAB).toMatch(/attempt < 2/);
+    expect(LAB).not.toMatch(/buildCommittedSlideRoots\(result\.pieces/);
+  });
 });

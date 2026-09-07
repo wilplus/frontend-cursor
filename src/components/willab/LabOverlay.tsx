@@ -18,10 +18,12 @@ import {
 } from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
-import { buildCommittedSlideRoots } from "@/lib/willab/rootPhraseLayer";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import { fetchIdealTextCore } from "@/services/api/idealText";
+import {
+  fetchIdealTextCore,
+  fetchRecordingRoots,
+} from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
@@ -275,22 +277,36 @@ export default function LabOverlay({
 
   // Take 1 intentionally has no roadmap. Every later recording entry reads
   // the current project again and shows ONLY phrases the user explicitly
-  // locked and approved orange. An empty slide stays empty.
+  // locked and approved orange. Preload on the readiness screen: starting the
+  // microphone must not race the first root read. A bounded retry covers the
+  // short publication window after a root write; it never guesses a phrase.
   useEffect(() => {
     const aid = arcId ?? initArc?.arcId;
     const enteringRecording =
-      state === "lab_session_context" || state === "lab_recording";
+      state === "lab_session_context" ||
+      state === "lab_prerecord" ||
+      state === "lab_recording";
     if (!aid || arcTakeIndex <= 1 || signedIn !== true || !enteringRecording) {
       setRecordingRoots([]);
       return;
     }
     let active = true;
-    void fetchIdealTextCore(aid).then((result) => {
-      if (!active || result.kind !== "single") return;
-      setRecordingRoots(buildCommittedSlideRoots(result.pieces ?? []));
-    });
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    const load = async (attempt: number) => {
+      const result = await fetchRecordingRoots(aid);
+      if (!active) return;
+      if (result.kind === "ready") {
+        setRecordingRoots(result.roots);
+        return;
+      }
+      if (attempt < 2) {
+        retry = setTimeout(() => void load(attempt + 1), 350 * (attempt + 1));
+      }
+    };
+    void load(0);
     return () => {
       active = false;
+      if (retry) clearTimeout(retry);
     };
   }, [arcId, arcTakeIndex, initArc?.arcId, signedIn, state]);
 

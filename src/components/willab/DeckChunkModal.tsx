@@ -305,8 +305,11 @@ export default function DeckChunkModal({
       }
       return;
     }
-    if (advanceAfterDecision(suggestion.id)) return;
+    // Remember the accepted wording before advancing through another item in
+    // this paragraph. Otherwise accepting a rewrite first and resolving praise
+    // or voice feedback second lands on the editor with no lock prompt.
     setAcceptedRewrite(suggestion.kind === "replace" ? suggestion : null);
+    if (advanceAfterDecision(suggestion.id)) return;
     setFace("editor");
   }
 
@@ -946,6 +949,20 @@ export default function DeckChunkModal({
             </div>
           ) : (
             <>
+              {acceptedRewrite ? (
+                <div
+                  role="status"
+                  className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-4"
+                >
+                  <p className="text-[14px] font-semibold text-foreground">
+                    Keep this wording for your next Take?
+                  </p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                    Lock it below, then choose the short phrase that should
+                    appear in orange while you record.
+                  </p>
+                </div>
+              ) : null}
               {acceptedRewrite && onUndoAccept ? (
                 <button
                   type="button"
