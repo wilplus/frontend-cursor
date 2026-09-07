@@ -191,6 +191,50 @@ function payload() {
   };
 }
 
+const DOCUMENT_SNAPSHOT_ID = "snapshot-deck-1";
+const DOCUMENT_SNAPSHOT_SHA256 = "d".repeat(64);
+
+function corePayload() {
+  return {
+    ...payload(),
+    document_snapshot_id: DOCUMENT_SNAPSHOT_ID,
+    document_snapshot_sha256: DOCUMENT_SNAPSHOT_SHA256,
+  };
+}
+
+function enrichmentPayload() {
+  const current = payload();
+  return {
+    document_snapshot_id: DOCUMENT_SNAPSHOT_ID,
+    sections: {
+      feedback: {
+        status: "ready",
+        data: {
+          key_moments: current.key_moments,
+          explanations_available: current.explanations_available,
+        },
+      },
+      document_layers: {
+        status: "ready",
+        data: {
+          changes: current.changes,
+          style_changes: current.style_changes,
+          is_saved: current.is_saved,
+          additions: current.additions,
+        },
+      },
+      history: {
+        status: "ready",
+        data: { decision_history: current.decision_history },
+      },
+      entitlement: {
+        status: "ready",
+        data: { moments_unlocked: current.moments_unlocked },
+      },
+    },
+  };
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
   const session = {
     access_token: "dev-token",
@@ -220,8 +264,11 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           headers: { "Content-Type": "application/json" },
         });
 
+      if (url.includes("/ideal-text/enrichment") && method === "GET") {
+        return json(enrichmentPayload());
+      }
       if (url.includes("/ideal-text") && method === "GET") {
-        return json(payload());
+        return json(corePayload());
       }
       if (url.includes("/suggestion-feedback") && method === "POST") {
         const body = JSON.parse(String(init?.body ?? "{}")) as {
