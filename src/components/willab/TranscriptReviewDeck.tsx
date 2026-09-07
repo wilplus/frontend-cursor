@@ -74,6 +74,7 @@ export default function TranscriptReviewDeck({
   parts,
   suggestions,
   pieceSlideIndexes,
+  piecePartIds = null,
   slideTitles,
   presentationRef = null,
   onAccept,
@@ -103,6 +104,10 @@ export default function TranscriptReviewDeck({
   parts: readonly Part[] | null;
   suggestions: readonly DocumentSuggestion[];
   pieceSlideIndexes: readonly (number | null)[] | null;
+  /** Exact Paragraph ids paired with `pieceSlideIndexes`. Legacy payloads may
+   *  omit them; new payloads fail closed rather than attach a Slide to a
+   *  different Paragraph after an edit. */
+  piecePartIds?: readonly (string | null)[] | null;
   /** Slide titles by slide index, when the host knows them. Absent → the
    *  kicker says "Slide N" and no title line renders — never a guess. */
   slideTitles?: readonly (string | null)[];
@@ -195,8 +200,8 @@ export default function TranscriptReviewDeck({
   const slideCount = slideTitles?.length ?? null;
   const grouping = useMemo(
     () =>
-      groupChunksBySlide(chunks, pieceSlideIndexes, slideCount),
-    [chunks, pieceSlideIndexes, slideCount]
+      groupChunksBySlide(chunks, pieceSlideIndexes, slideCount, piecePartIds),
+    [chunks, pieceSlideIndexes, slideCount, piecePartIds]
   );
   // TEXT AVAILABILITY IS NOT SLIDE-LINKAGE AVAILABILITY (2026-08-26).
   // A Take can finish with a durable Ideal Text while optional paragraph →

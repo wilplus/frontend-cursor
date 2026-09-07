@@ -267,6 +267,7 @@ export interface DeckSlideGroup {
 
 export type DeckSlideGroupingError =
   | "piece_count_mismatch"
+  | "piece_identity_mismatch"
   | "missing_slide_mapping"
   | "missing_parent_slide"
   | "invalid_slide_index"
@@ -304,7 +305,8 @@ function groupingError(
 export function groupChunksBySlide(
   chunks: readonly DeckChunk[],
   pieceSlideIndexes: readonly (number | null)[] | null | undefined,
-  slideCount: number | null
+  slideCount: number | null,
+  piecePartIds?: readonly (string | null)[] | null
 ): DeckSlideGroupingResult {
   if (chunks.length === 0) return { ok: true, groups: [] };
 
@@ -328,6 +330,9 @@ export function groupChunksBySlide(
   if (pieceSlideIndexes.length !== chunks.length) {
     return groupingError("piece_count_mismatch");
   }
+  if (piecePartIds && piecePartIds.length !== chunks.length) {
+    return groupingError("piece_count_mismatch");
+  }
 
   if (canonicalSlideCount === 0) {
     const explicitAt = pieceSlideIndexes.findIndex((slide) => slide !== null);
@@ -343,6 +348,10 @@ export function groupChunksBySlide(
   const groups: DeckSlideGroup[] = [];
   let previousSlide: number | null = null;
   for (let i = 0; i < chunks.length; i += 1) {
+    const expectedPartId = piecePartIds?.[i] ?? null;
+    if (expectedPartId !== null && expectedPartId !== chunks[i].part.id) {
+      return groupingError("piece_identity_mismatch", i);
+    }
     const mappedSlide = pieceSlideIndexes[i];
     let slide: number;
     if (mappedSlide === null) {

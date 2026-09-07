@@ -24,6 +24,7 @@ import {
   fetchIdealTextEnrichment,
   fetchIdealTextForDisplay,
   mergeIdealTextEnrichment,
+  settleIdealTextEnrichment,
   saveIdealUserEdit,
   segmentIdealText,
   type DecisionHistoryEntry,
@@ -377,20 +378,17 @@ export default function IdealTextOverlay({
           if (enrichment.kind === "ready") {
             let merged = mergeIdealTextEnrichment(r, enrichment);
             applySingle(merged, false);
-            const retryable = Object.entries(enrichment.sections)
-              .filter(([, section]) => section.retryable)
-              .map(([name]) => name);
-            if (retryable.length) {
-              const retry = await fetchIdealTextEnrichment(
-                arcId,
-                r.documentSnapshotId,
-                retryable,
-              );
-              if (!active || gen !== fetchGenRef.current) return;
-              if (retry.kind === "ready") {
-                merged = mergeIdealTextEnrichment(merged, retry);
-                applySingle(merged, false);
-              }
+            const settled = await settleIdealTextEnrichment(
+              arcId,
+              r.documentSnapshotId,
+              enrichment,
+            );
+            if (!active || gen !== fetchGenRef.current) return;
+            if (settled.kind === "ready") {
+              merged = mergeIdealTextEnrichment(merged, settled);
+              applySingle(merged, false);
+            } else if (settled.kind === "stale") {
+              setRefetchNonce((value) => value + 1);
             }
           } else if (enrichment.kind === "stale") {
             // Never mix revisions. Pull the new core while keeping the
@@ -1015,6 +1013,7 @@ export default function IdealTextOverlay({
             pieceSlideIndexes={
               sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
             }
+            piecePartIds={sd.pieces?.map((p) => p.partId ?? null) ?? null}
             slideTitles={sd.slideTitles ?? undefined}
             presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
