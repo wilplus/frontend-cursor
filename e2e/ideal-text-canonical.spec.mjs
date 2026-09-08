@@ -26,13 +26,13 @@ await page.waitForSelector("text=Garage pitch");
 
 /* ------------------------ page-level visual contract ---------------------- */
 check(
-  "only actionable paragraphs have bookmarks",
-  (await page.locator('button[data-status="outline"]').count()) === 2 &&
+  "every paragraph has a stable bookmark from first paint",
+  (await page.locator('button[data-status="outline"]').count()) === 4 &&
     (await page.locator('button[data-status="filled"]').count()) === 0 &&
     (await page.locator('button[data-status="attention"]').count()) === 0
 );
 check(
-  "the two outline bookmarks describe feedback and protected-text attention",
+  "the actionable bookmarks describe feedback and protected-text attention",
   (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 1 &&
     (await page.locator('button[aria-label*="Paragraph protected"][aria-label*="Coach note:"][aria-label*="Style"]').count()) === 1
 );

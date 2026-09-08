@@ -93,6 +93,15 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MARK).not.toMatch(/accepted:/);
   });
 
+  it("keeps one stable bookmark beside every paragraph from first paint", () => {
+    // Optional feedback arrives after the core document. Hiding clean marks
+    // made the controls disappear and then pop back in when enrichment
+    // settled. The outline is the stable paragraph control; later state may
+    // change its fill or attention treatment, never its presence.
+    expect(MARK).not.toMatch(/if \(!flagship && !unresolved\) return null/);
+    expect(MARK).toMatch(/<Bookmark/);
+  });
+
   it("the deck has no footer — no review count, no position, no word count", () => {
     expect(DECK).not.toMatch(/to review/);
     expect(DECK).not.toMatch(/Nothing waiting/);

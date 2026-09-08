@@ -6,7 +6,7 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
 /* One feedback control per paragraph. The icon describes the user's feedback
  * state; it does not grade the words and it is not an edit button:
  *
- *   no icon    resolved ordinary paragraph
+ *   outline    resolved ordinary paragraph / feedback not loaded yet
  *   outline    a decision is waiting
  *   filled     an accepted flagship
  *   attention  an accepted flagship has a new decision waiting
@@ -54,11 +54,6 @@ export default function DeckLockMark({
     reviewStatus === "pending_coach_review" || reviewStatus === "not_confirmed";
   const unresolved = status === "waiting" || styled || hasCoach || reviewNeedsAttention;
   const attention = flagship && unresolved;
-
-  // A neutral paragraph with no remaining action has no feedback icon. The
-  // paragraph still has a neutral rehearsal root, and the slide remains
-  // editable through “Edit the text”.
-  if (!flagship && !unresolved) return null;
 
   return (
     <button
