@@ -207,6 +207,11 @@ export interface ConfidentVoicePracticeOffer {
 
 export interface DocumentSuggestion {
   id: string;
+  /** Opaque canonical response identity. These three travel together; they
+   * bind a click to one frozen candidate rather than a reusable display key. */
+  candidateId?: string | null;
+  feedbackMembershipId?: string | null;
+  feedbackExposureId?: string | null;
   /** [start, end) into the served `text`. */
   start: number;
   end: number;
@@ -585,6 +590,9 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
   const why = readEnum(record.why_key ?? record.why, CHANGE_WHY_KEYS);
   return {
     id: readSuggestionId(record.id, span.start, span.end, kind),
+    candidateId: readNonEmptyString(record.candidate_id),
+    feedbackMembershipId: readNonEmptyString(record.feedback_membership_id),
+    feedbackExposureId: readNonEmptyString(record.feedback_exposure_id),
     start: span.start,
     end: span.end,
     quote,

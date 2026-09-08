@@ -31,6 +31,8 @@ import type {
   DocumentSuggestion,
 } from "@/services/api/idealText";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
+import RootingPhraseQualificationActions from "@/components/willab/RootingPhraseQualificationActions";
+import type { RootingPhraseRoutingState } from "@/lib/willab/rootingPhraseQualification";
 
 /* -------------------------------------------------------------------------- */
 /*  DeckChunkModal — the two faces behind a chunk's lock (founder 2026-08-11,  */
@@ -118,6 +120,8 @@ interface DeckChunkModalProps {
     | null;
   /** The arc the coach's message is fetched from, on demand. */
   arcId?: string | null;
+  /** Disabled RPQ-V1 enrichment. It never changes the existing V3 inventory. */
+  rootingPhraseRoutingState?: RootingPhraseRoutingState | null;
 }
 
 export default function DeckChunkModal({
@@ -138,6 +142,7 @@ export default function DeckChunkModal({
   coachSnippetId = null,
   coachReviewStatus = null,
   arcId = null,
+  rootingPhraseRoutingState = null,
 }: DeckChunkModalProps) {
   // Freeze the inventory for this modal opening. A refetch removes a decided
   // payload row, but it must not rewrite the student's memory of which items
@@ -275,6 +280,9 @@ export default function DeckChunkModal({
       feedbackId: suggestion.id,
       feedbackFamily: suggestion.feedbackFamily,
       response,
+      candidateId: suggestion.candidateId,
+      feedbackMembershipId: suggestion.feedbackMembershipId,
+      feedbackExposureId: suggestion.feedbackExposureId,
     });
     if (!result.ok) {
       setError(result.error ?? "Couldn't save that response. Try again.");
@@ -555,6 +563,9 @@ export default function DeckChunkModal({
       feedbackId: suggestion.id,
       feedbackFamily: "confident_voice",
       response: value,
+      candidateId: suggestion.candidateId,
+      feedbackMembershipId: suggestion.feedbackMembershipId,
+      feedbackExposureId: suggestion.feedbackExposureId,
     });
     setAgreeSaving(false);
     if (r.ok) {
@@ -1112,6 +1123,10 @@ export default function DeckChunkModal({
           {error ? (
             <p className="text-[12px] text-destructive">{error}</p>
           ) : null}
+          <RootingPhraseQualificationActions
+            state={rootingPhraseRoutingState}
+            busy={busy}
+          />
         </div>
 
         {face === "editor" && lockedAndSettled && !hadFeedback && !onUnlockPart ? (
