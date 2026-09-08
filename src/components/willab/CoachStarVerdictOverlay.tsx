@@ -56,6 +56,12 @@ import {
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
+import CoachGuidanceComposer from "./CoachGuidanceComposer";
+import {
+  COACH_GUIDANCE_D3_UI_ENABLED,
+  fetchCoachGuidanceBatch,
+  type CoachGuidanceBatch,
+} from "@/services/api/coachGuidanceDelivery";
 import { useUserProfile } from "./useUserProfile";
 
 /* -------------------------------------------------------------------------- */
@@ -282,6 +288,26 @@ export default function CoachStarVerdictOverlay({
     cvRows.every(
       (row) => row.label?.value !== null || row.label?.unrateable === true,
     );
+  const [guidanceBatch, setGuidanceBatch] =
+    useState<CoachGuidanceBatch | null>(null);
+
+  // D3 is stricter than the legacy per-session queue: the browser requests
+  // acoustics and authoring identities only after the server has granted a
+  // complete, reviewer-specific batch reveal. The literal disabled flag has
+  // no environment override in this implementation slice.
+  useEffect(() => {
+    if (!COACH_GUIDANCE_D3_UI_ENABLED || !blindComplete) {
+      setGuidanceBatch(null);
+      return;
+    }
+    let active = true;
+    void fetchCoachGuidanceBatch(arcId).then((batch) => {
+      if (active) setGuidanceBatch(batch);
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcId, blindComplete]);
 
   // Do not even request the machine/contextual payload until the blind pass
   // is complete. This is stronger than a visual hide: the browser has no
@@ -692,6 +718,19 @@ export default function CoachStarVerdictOverlay({
                     error={cvErrors[row.snippetId] ?? null}
                     onPick={(v) => labelVoice(row, v)}
                   />
+                  {guidanceBatch?.items
+                    .filter(
+                      (item) =>
+                        item.snippetId === row.snippetId &&
+                        item.feedbackFamily === "confident_voice",
+                    )
+                    .map((item) => (
+                      <CoachGuidanceComposer
+                        key={item.feedbackCandidateId}
+                        item={item}
+                        enabled={COACH_GUIDANCE_D3_UI_ENABLED}
+                      />
+                    ))}
                 </CoachCard>
               ))}
             </div>
@@ -1021,6 +1060,20 @@ export default function CoachStarVerdictOverlay({
                       {errors[key] ? (
                         <CoachErrorLine>{errors[key]}</CoachErrorLine>
                       ) : null}
+                      {guidanceBatch?.items
+                        .filter(
+                          (item) =>
+                            item.legacyStarKey === key ||
+                            (item.legacyStarKey === null &&
+                              item.snippetId === s.snippetId),
+                        )
+                        .map((item) => (
+                          <CoachGuidanceComposer
+                            key={item.feedbackCandidateId}
+                            item={item}
+                            enabled={COACH_GUIDANCE_D3_UI_ENABLED}
+                          />
+                        ))}
                     </CoachCard>
                   );
                 })}
