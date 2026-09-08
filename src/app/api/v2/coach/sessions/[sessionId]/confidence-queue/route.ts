@@ -77,3 +77,48 @@ export async function GET(
     );
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { sessionId: string } }
+) {
+  try {
+    const backend = getBackendUrl();
+    if (!backend) {
+      return NextResponse.json(
+        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+        { status: 502 }
+      );
+    }
+    const token = await getV2AccessToken(req);
+    if (!token) {
+      return NextResponse.json(
+        { code: "UNAUTHENTICATED", error: "Not authenticated" },
+        { status: 401 }
+      );
+    }
+    const sid = encodeURIComponent(params.sessionId);
+    const body = await req.text();
+    const upstream = await fetch(
+      `${backend}/v2/coach/sessions/${sid}/language`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body,
+        cache: "no-store",
+      }
+    );
+    const data = await upstream.json().catch(() => ({}));
+    return NextResponse.json(data, { status: upstream.status });
+  } catch (err) {
+    console.error("coach_session_language.bff_thrown surface=fe-bff", err);
+    return NextResponse.json(
+      { code: "BFF_THROWN", error: "Language confirmation unavailable." },
+      { status: 500 }
+    );
+  }
+}

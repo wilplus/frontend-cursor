@@ -42,7 +42,11 @@ import {
 } from "@/lib/willab/autosaveDrafts";
 import { publishArc } from "@/services/api/arcBatch";
 import {
-  fetchConfidenceQueue,
+  confirmCoachSessionLanguage,
+  fetchConfidenceQueueResult,
+  IMPORT_LANGUAGES,
+  languageLabel,
+  type ConfidenceQueueFailure,
   type QueuePiece,
 } from "@/services/api/trainingCorpus";
 import {
@@ -52,6 +56,7 @@ import {
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
+import { useUserProfile } from "./useUserProfile";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachStarVerdictOverlay — FEEDBACKS REVIEW: the coach's one scrollable     */
@@ -196,6 +201,13 @@ export default function CoachStarVerdictOverlay({
   );
   const [cvSaving, setCvSaving] = useState<string | null>(null);
   const [cvErrors, setCvErrors] = useState<Record<string, string>>({});
+  const [cvIssues, setCvIssues] = useState<
+    Array<ConfidenceQueueFailure & { sessionId: string }>
+  >([]);
+  const [cvLanguageSaving, setCvLanguageSaving] = useState(false);
+  const [cvLanguageError, setCvLanguageError] = useState("");
+  const [cvReload, setCvReload] = useState(0);
+  const { profile } = useUserProfile();
   const sessionsKey = (sessionIds ?? []).join(",");
   useEffect(() => {
     let active = true;
@@ -206,18 +218,31 @@ export default function CoachStarVerdictOverlay({
       return;
     }
     setCvStatus("loading");
-    void Promise.all(ids.map((sid) => fetchConfidenceQueue(sid))).then(
-      (queues) => {
+    setCvIssues([]);
+    setCvLanguageError("");
+    void Promise.all(ids.map(async (sid) => ({
+      sid,
+      result: await fetchConfidenceQueueResult(sid),
+    }))).then(
+      (results) => {
         if (!active) return;
-        if (queues.some((queue) => queue === null)) {
+        const issues = results
+          .filter(({ result }) => !result.ok)
+          .map(({ sid, result }) => ({
+            ...(result as ConfidenceQueueFailure),
+            sessionId: sid,
+          }));
+        if (issues.length > 0) {
           setCvRows([]);
+          setCvIssues(issues);
           setCvStatus("error");
           return;
         }
         const out: Array<QueuePiece & { sessionKey: string }> = [];
-        queues.forEach((q, i) => {
-          for (const piece of q?.queue ?? []) {
-            out.push({ ...piece, sessionKey: ids[i] });
+        results.forEach(({ sid, result }) => {
+          if (!result.ok) return;
+          for (const piece of result.queue.queue) {
+            out.push({ ...piece, sessionKey: sid });
           }
         });
         setCvRows(out);
@@ -227,7 +252,30 @@ export default function CoachStarVerdictOverlay({
     return () => {
       active = false;
     };
-  }, [sessionsKey]);
+  }, [cvReload, sessionsKey]);
+
+  const unknownLanguageSessions = cvIssues
+    .filter((issue) => issue.code === "CLIP_LANGUAGE_UNKNOWN")
+    .map((issue) => issue.sessionId);
+  const reviewLanguages = IMPORT_LANGUAGES.filter(
+    ({ code }) => code && profile?.proficient_languages?.includes(code),
+  );
+  const confirmHistoricalLanguage = async (language: string) => {
+    if (unknownLanguageSessions.length === 0 || cvLanguageSaving) return;
+    setCvLanguageSaving(true);
+    setCvLanguageError("");
+    const results = await Promise.all(
+      unknownLanguageSessions.map((sessionId) =>
+        confirmCoachSessionLanguage(sessionId, language),
+      ),
+    );
+    setCvLanguageSaving(false);
+    if (results.every(Boolean)) {
+      setCvReload((value) => value + 1);
+      return;
+    }
+    setCvLanguageError("We couldn't save the presentation language. Try again.");
+  };
 
   const blindComplete =
     cvStatus === "ready" &&
@@ -505,10 +553,48 @@ export default function CoachStarVerdictOverlay({
             {cvStatus === "loading" ? (
               <LoadingState placement="surface" />
             ) : cvStatus === "error" ? (
-              <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
-                Couldn&apos;t load every blind-label queue. Close and try again;
-                contextual review stays locked.
-              </p>
+              unknownLanguageSessions.length > 0 &&
+              unknownLanguageSessions.length === cvIssues.length &&
+              reviewLanguages.length > 0 ? (
+                <section className="rounded-xl border border-border bg-card px-4 py-4">
+                  <p className="text-[14px] font-medium text-foreground">
+                    These older Takes have no saved language.
+                  </p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                    Which of your review languages is this presentation?
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {reviewLanguages.map(({ code }) => (
+                      <Button
+                        key={code}
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={cvLanguageSaving}
+                        onClick={() => void confirmHistoricalLanguage(code)}
+                      >
+                        {cvLanguageSaving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        {languageLabel(code)}
+                      </Button>
+                    ))}
+                  </div>
+                  {cvLanguageError ? (
+                    <p className="mt-3 text-[13px] text-destructive">
+                      {cvLanguageError}
+                    </p>
+                  ) : null}
+                </section>
+              ) : (
+                <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
+                  {cvIssues.some(
+                    (issue) => issue.code === "RATER_LANGUAGE_MISMATCH",
+                  )
+                    ? "This presentation is not in one of your review languages. Update your coach-language profile and try again."
+                    : "Couldn't load every blind-label queue. Close and try again; contextual review stays locked."}
+                </p>
+              )
             ) : (
               cvRows.map((row, index) => (
                 <CoachCard key={row.snippetId}>
