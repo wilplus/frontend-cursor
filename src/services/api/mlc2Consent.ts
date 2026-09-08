@@ -23,11 +23,39 @@ interface ErrorEnvelope {
   error?: string;
 }
 
-async function readStatus(response: Response): Promise<Mlc2ConsentStatus> {
+const PHASE2_DISABLED_STATUS: Mlc2ConsentStatus = {
+  applicable: false,
+  configured: false,
+  granted: false,
+  speaker_bound: false,
+  consent_policy_version: null,
+  required_for_service: false,
+  bundled_ui: false,
+  approval_reference: null,
+  approved_copy_sha256: null,
+  onboarding_copy: null,
+  terms_version: null,
+  privacy_policy_version: null,
+  article_6_basis: null,
+  article_9_treatment: null,
+};
+
+async function readStatus(
+  response: Response,
+  options: { phase2DisabledIsNotApplicable?: boolean } = {},
+): Promise<Mlc2ConsentStatus> {
   const payload = (await response.json().catch(() => ({}))) as
     | Mlc2ConsentStatus
     | ErrorEnvelope;
   if (!response.ok) {
+    if (
+      options.phase2DisabledIsNotApplicable === true &&
+      response.status === 410 &&
+      "code" in payload &&
+      payload.code === "PHASE2_DISABLED"
+    ) {
+      return PHASE2_DISABLED_STATUS;
+    }
     throw new Error(
       "error" in payload && payload.error
         ? payload.error
@@ -43,6 +71,7 @@ export async function fetchMlc2Consent(): Promise<Mlc2ConsentStatus> {
       method: "GET",
       cache: "no-store",
     }),
+    { phase2DisabledIsNotApplicable: true },
   );
 }
 
