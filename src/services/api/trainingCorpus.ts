@@ -709,6 +709,18 @@ export interface ConfidenceQueue {
   queue: QueuePiece[];
 }
 
+export interface ConfidenceQueueFailure {
+  ok: false;
+  status: number;
+  code: string | null;
+  error: string;
+  language: string | null;
+}
+
+export type ConfidenceQueueResult =
+  | { ok: true; queue: ConfidenceQueue }
+  | ConfidenceQueueFailure;
+
 /** Bounds of the RETIRED 1–5 grade (cut 2026-08-11) — kept, un-exported,
  *  because old rows still carry grades and reading them faithfully still
  *  means dropping anything out of range rather than clamping it: a clamped
@@ -788,11 +800,19 @@ export function mapConfidenceQueue(raw: unknown): ConfidenceQueue | null {
   };
 }
 
-export async function fetchConfidenceQueue(
+export async function fetchConfidenceQueueResult(
   sessionId: string
-): Promise<ConfidenceQueue | null> {
+): Promise<ConfidenceQueueResult> {
   const token = await getAuthToken();
-  if (!token) return null;
+  if (!token) {
+    return {
+      ok: false,
+      status: 401,
+      code: "UNAUTHENTICATED",
+      error: "Not authenticated",
+      language: null,
+    };
+  }
   let res: Response;
   try {
     res = await fetch(
@@ -800,11 +820,69 @@ export async function fetchConfidenceQueue(
       { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
     );
   } catch {
-    return null;
+    return {
+      ok: false,
+      status: 0,
+      code: "NETWORK_ERROR",
+      error: "Labelling queue unavailable.",
+      language: null,
+    };
   }
-  if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as unknown;
-  return mapConfidenceQueue(body);
+  if (!res.ok) {
+    const failure = body && typeof body === "object"
+      ? body as Record<string, unknown>
+      : {};
+    return {
+      ok: false,
+      status: res.status,
+      code: strOrNull(failure.code),
+      error: str(failure.error) || "Labelling queue unavailable.",
+      language: strOrNull(failure.language),
+    };
+  }
+  const queue = mapConfidenceQueue(body);
+  return queue
+    ? { ok: true, queue }
+    : {
+        ok: false,
+        status: res.status,
+        code: "INVALID_QUEUE_RESPONSE",
+        error: "Labelling queue returned an invalid response.",
+        language: null,
+      };
+}
+
+export async function fetchConfidenceQueue(
+  sessionId: string
+): Promise<ConfidenceQueue | null> {
+  const result = await fetchConfidenceQueueResult(sessionId);
+  return result.ok ? result.queue : null;
+}
+
+export async function confirmCoachSessionLanguage(
+  sessionId: string,
+  language: string,
+): Promise<boolean> {
+  const token = await getAuthToken();
+  const normalized = normalizeLanguage(language);
+  if (!token || !normalized) return false;
+  try {
+    const response = await fetch(
+      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ language: normalized }),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /* ------------------------------ the label ---------------------------------
