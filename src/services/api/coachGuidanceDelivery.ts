@@ -4,18 +4,23 @@ import { mapReadoutFeatures, type ReadoutFeatures } from "@/components/willab/re
  * gate and exact user/principal allowlist, so this cannot activate serving. */
 export const COACH_GUIDANCE_D3_UI_ENABLED =
   process.env.NEXT_PUBLIC_MLC3_PILOT_UI_ENABLED === "true";
+export const COACH_INLINE_AUTHORING_UI_ENABLED =
+  process.env.NEXT_PUBLIC_MLC3_COACH_INLINE_AUTHORING_ENABLED === "true";
 
 export interface CoachGuidanceIdentity {
   reviewBatchId: string;
   revealGrantId: string;
   revealAccessId: string;
   reviewAssignmentId: string;
-  feedbackMembershipId: string;
-  feedbackCandidateId: string;
+  /** Offer-specific V3 identity. Ordinary frozen batch items do not have an
+   * exercise offer and therefore carry neither value. */
+  feedbackMembershipId: string | null;
+  feedbackCandidateId: string | null;
 }
 
 export interface CoachGuidanceItem extends CoachGuidanceIdentity {
   snippetId: string;
+  transcript: string;
   legacyStarKey: string | null;
   feedbackFamily: "confident_voice" | "rewrite_clarity" | "great_formulation";
   features: ReadoutFeatures;
@@ -23,6 +28,15 @@ export interface CoachGuidanceItem extends CoachGuidanceIdentity {
   exerciseOfferId: string | null;
   exerciseVersionId: string | null;
   needContractId: string | null;
+  authorizationSnapshotId: string | null;
+  sourceRole: "source_before_exercise" | null;
+  sourcePattern:
+    | "low_confidence_rushing_dominant"
+    | "near_confident"
+    | "confident"
+    | null;
+  sourcePatternPolicyVersion: string | null;
+  ordinalPolicyVersion: string | null;
 }
 
 export interface CoachGuidanceBatch {
@@ -34,6 +48,21 @@ export interface CoachGuidanceBatch {
   syntheticOnly: boolean;
   servesUser: false;
   datasetEligible: false;
+}
+
+/** Select the post-blind item for one visible review act. D5 always supplies
+ * the exact assignment identity; snippet fallback exists only for legacy
+ * non-D5 rows and is never used to collapse the canonical batch. */
+export function coachGuidanceItemsForReviewAct(
+  batch: CoachGuidanceBatch | null,
+  identity: { reviewAssignmentId: string | null; snippetId: string },
+): CoachGuidanceItem[] {
+  if (!batch) return [];
+  return batch.items.filter((item) =>
+    identity.reviewAssignmentId
+      ? item.reviewAssignmentId === identity.reviewAssignmentId
+      : item.snippetId === identity.snippetId
+  );
 }
 
 export type FirstClientCoachDecision =
@@ -86,20 +115,43 @@ function mapItem(raw: unknown): CoachGuidanceItem | null {
     revealGrantId: text(row.reveal_grant_id),
     revealAccessId: text(row.reveal_access_id),
     reviewAssignmentId: text(row.review_assignment_id),
-    feedbackMembershipId: text(row.feedback_membership_id),
-    feedbackCandidateId: text(row.feedback_candidate_id),
     snippetId: text(row.snippet_id),
   };
   if (Object.values(mapped).some((value) => !value)) return null;
+  const exerciseEligible = row.exercise_eligible === true;
+  const feedbackMembershipId = optionalText(row.feedback_membership_id);
+  const feedbackCandidateId = optionalText(row.feedback_candidate_id);
+  // These identities describe the exact V3 offer, not the blind review act.
+  // Ordinary canonical assignments legitimately have neither; an exercise
+  // item must have both and fails closed if either is absent.
+  if (exerciseEligible && (!feedbackMembershipId || !feedbackCandidateId)) {
+    return null;
+  }
   return {
     ...mapped,
+    feedbackMembershipId,
+    feedbackCandidateId,
+    transcript: text(row.transcript),
     legacyStarKey: optionalText(row.legacy_star_key),
     feedbackFamily: feedbackFamily as CoachGuidanceItem["feedbackFamily"],
     features: mapReadoutFeatures(row.features),
-    exerciseEligible: row.exercise_eligible === true,
+    exerciseEligible,
     exerciseOfferId: optionalText(row.exercise_offer_id),
     exerciseVersionId: optionalText(row.exercise_version_id),
     needContractId: optionalText(row.need_contract_id),
+    authorizationSnapshotId: optionalText(row.authorization_snapshot_id),
+    sourceRole: row.source_role === "source_before_exercise"
+      ? "source_before_exercise"
+      : null,
+    sourcePattern: [
+      "low_confidence_rushing_dominant", "near_confident", "confident",
+    ].includes(text(row.source_pattern))
+      ? text(row.source_pattern) as CoachGuidanceItem["sourcePattern"]
+      : null,
+    sourcePatternPolicyVersion: optionalText(
+      row.source_pattern_policy_version,
+    ),
+    ordinalPolicyVersion: optionalText(row.ordinal_policy_version),
   };
 }
 
@@ -154,6 +206,7 @@ export async function submitCoachGuidance(input: {
   exerciseKey?: string;
   exerciseInstruction?: string;
   languageCode?: string;
+  idempotencyKey: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const body = new FormData();
   const { item } = input;
@@ -162,8 +215,8 @@ export async function submitCoachGuidance(input: {
     reveal_grant_id: item.revealGrantId,
     reveal_access_id: item.revealAccessId,
     review_assignment_id: item.reviewAssignmentId,
-    feedback_membership_id: item.feedbackMembershipId,
-    feedback_candidate_id: item.feedbackCandidateId,
+    feedback_membership_id: item.feedbackMembershipId ?? "",
+    feedback_candidate_id: item.feedbackCandidateId ?? "",
     attachment_class: input.attachmentClass,
     product_subcategory: input.productSubcategory ?? "",
     exercise_offer_id: input.attachmentClass === "mlc3_exercise"
@@ -185,6 +238,7 @@ export async function submitCoachGuidance(input: {
   if (input.video) body.append("video", input.video);
   const response = await fetch("/api/v2/coach/guidance/attachments", {
     method: "POST",
+    headers: { "Idempotency-Key": input.idempotencyKey },
     body,
   });
   if (response.ok) return { ok: true };
@@ -195,6 +249,77 @@ export async function submitCoachGuidance(input: {
       typeof payload.error === "string"
         ? payload.error
         : "We couldn't attach this guidance. Try again.",
+  };
+}
+
+export async function submitCoachInlineExerciseDraft(input: {
+  item: CoachGuidanceItem;
+  title: string;
+  instructionText: string;
+  video: File;
+  languageCode: string;
+  idempotencyKey: string;
+  supportedConfidencePatterns: Array<
+    "low_confidence_rushing_dominant" | "near_confident" | "confident"
+  >;
+}): Promise<
+  | { ok: true; draftId: string; playbackRef: string }
+  | { ok: false; error: string }
+> {
+  const { item } = input;
+  if (
+    !COACH_INLINE_AUTHORING_UI_ENABLED ||
+    !item.exerciseEligible ||
+    item.exerciseVersionId !== null ||
+    !item.feedbackMembershipId ||
+    !item.feedbackCandidateId ||
+    !item.exerciseOfferId ||
+    !item.needContractId ||
+    !item.authorizationSnapshotId ||
+    item.sourceRole !== "source_before_exercise"
+  ) {
+    return { ok: false, error: "This exercise draft is not available." };
+  }
+  const body = new FormData();
+  Object.entries({
+    reveal_access_id: item.revealAccessId,
+    feedback_membership_id: item.feedbackMembershipId,
+    feedback_candidate_id: item.feedbackCandidateId,
+    authorization_snapshot_id: item.authorizationSnapshotId,
+    exercise_offer_id: item.exerciseOfferId,
+    need_contract_id: item.needContractId,
+    title: input.title.trim(),
+    instruction_text: input.instructionText.trim(),
+    language_code: input.languageCode,
+  }).forEach(([key, value]) => body.append(key, value));
+  input.supportedConfidencePatterns.forEach((pattern) => {
+    body.append("supported_confidence_patterns", pattern);
+  });
+  body.append("video", input.video);
+  const response = await fetch("/api/v2/coach/guidance/exercise-drafts", {
+    method: "POST",
+    headers: { "Idempotency-Key": input.idempotencyKey },
+    body,
+  });
+  const payload = await response.json().catch(() => ({})) as Record<
+    string, unknown
+  >;
+  if (
+    response.ok &&
+    typeof payload.draft_id === "string" &&
+    typeof payload.playback_ref === "string"
+  ) {
+    return {
+      ok: true,
+      draftId: payload.draft_id,
+      playbackRef: payload.playback_ref,
+    };
+  }
+  return {
+    ok: false,
+    error: typeof payload.code === "string"
+      ? payload.code
+      : "We couldn't save this exercise draft. Try again.",
   };
 }
 

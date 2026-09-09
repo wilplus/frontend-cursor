@@ -116,7 +116,7 @@ describe("the blind labeling surface shows no machine read", () => {
   it("uses the same shared evidence readout in the combined review", () => {
     const review = code(STAR_REVIEW);
     expect(review).toContain("<ConfidenceEvidenceReadout");
-    expect(review).toContain("transcriptRevealed={row.label !== null}");
+    expect(review).toContain("transcriptRevealed={false}");
     expect(review).toContain("transcript: r.transcript ?? x.transcript");
   });
 });

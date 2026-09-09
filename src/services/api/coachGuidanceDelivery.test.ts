@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  COACH_INLINE_AUTHORING_UI_ENABLED,
   COACH_GUIDANCE_D3_UI_ENABLED,
+  coachGuidanceItemsForReviewAct,
   mapCoachGuidanceBatch,
   mapFirstClientCoachReviews,
+  submitCoachGuidance,
 } from "./coachGuidanceDelivery";
+
+afterEach(() => vi.restoreAllMocks());
 
 function wireItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -22,6 +27,11 @@ function wireItem(overrides: Record<string, unknown> = {}) {
     exercise_offer_id: "offer-1",
     exercise_version_id: "version-1",
     need_contract_id: "need-1",
+    authorization_snapshot_id: "authorization-1",
+    source_role: "source_before_exercise",
+    source_pattern: "near_confident",
+    source_pattern_policy_version: "confidence-pattern-source-v1",
+    ordinal_policy_version: "confidence-pattern-distance-v1",
     ...overrides,
   };
 }
@@ -29,6 +39,7 @@ function wireItem(overrides: Record<string, unknown> = {}) {
 describe("Coach Guidance D3 disabled boundary", () => {
   it("has no runtime environment override", () => {
     expect(COACH_GUIDANCE_D3_UI_ENABLED).toBe(false);
+    expect(COACH_INLINE_AUTHORING_UI_ENABLED).toBe(false);
     const firstClientApi = readFileSync(
       resolve(process.cwd(), "src/services/api/mlc3FirstClient.ts"),
       "utf8",
@@ -100,9 +111,164 @@ describe("Coach Guidance D3 disabled boundary", () => {
       resolve(process.cwd(), "src/components/willab/CoachStarVerdictOverlay.tsx"),
       "utf8",
     );
-    expect(overlay).toContain("if (!COACH_GUIDANCE_D3_UI_ENABLED || !blindComplete)");
+    expect(overlay).toContain("!COACH_INLINE_AUTHORING_UI_ENABLED");
     expect(overlay).toContain("fetchCoachGuidanceBatch(arcId)");
     expect(overlay).toContain("CoachGuidanceComposer");
+    expect(overlay).toContain("transcriptRevealed={false}");
+  });
+
+  it("maps exact source identity for inline no-match authoring", () => {
+    const batch = mapCoachGuidanceBatch({
+      review_batch_id: "batch-1",
+      reveal_grant_id: "grant-1",
+      batch_complete: true,
+      synthetic_only: true,
+      serves_user: false,
+      dataset_eligible: false,
+      items: [wireItem({ exercise_version_id: null })],
+    });
+    expect(batch?.items[0]).toMatchObject({
+      sourceRole: "source_before_exercise",
+      sourcePattern: "near_confident",
+      authorizationSnapshotId: "authorization-1",
+      exerciseVersionId: null,
+    });
+  });
+
+  it("maps and mounts both sides of a mixed canonical batch by review act", () => {
+    const batch = mapCoachGuidanceBatch({
+      review_batch_id: "batch-1",
+      reveal_grant_id: "grant-1",
+      batch_complete: true,
+      synthetic_only: true,
+      serves_user: false,
+      dataset_eligible: false,
+      items: [
+        wireItem(),
+        wireItem({
+          review_assignment_id: "assignment-ordinary",
+          reveal_access_id: "access-ordinary",
+          feedback_membership_id: null,
+          feedback_candidate_id: null,
+          snippet_id: "snippet-ordinary",
+          exercise_eligible: false,
+          exercise_offer_id: null,
+          exercise_version_id: null,
+          need_contract_id: null,
+          authorization_snapshot_id: null,
+          source_pattern: null,
+          source_pattern_policy_version: null,
+          ordinal_policy_version: null,
+        }),
+      ],
+    });
+    expect(batch?.items.map((item) => item.reviewAssignmentId)).toEqual([
+      "assignment-1", "assignment-ordinary",
+    ]);
+    const ordinary = coachGuidanceItemsForReviewAct(batch, {
+      reviewAssignmentId: "assignment-ordinary",
+      snippetId: "snippet-ordinary",
+    });
+    expect(ordinary).toHaveLength(1);
+    expect(ordinary[0]).toMatchObject({
+      feedbackMembershipId: null,
+      feedbackCandidateId: null,
+      exerciseEligible: false,
+    });
+    const overlay = readFileSync(
+      resolve(process.cwd(), "src/components/willab/CoachStarVerdictOverlay.tsx"),
+      "utf8",
+    );
+    expect(overlay).toContain("coachGuidanceItemsForReviewAct(guidanceBatch");
+    expect(overlay).toContain("key={item.reviewAssignmentId}");
+    expect(overlay).not.toContain("key={item.feedbackCandidateId}");
+  });
+
+  it("rejects exercise eligibility without exact offer-specific identities", () => {
+    const raw = {
+      review_batch_id: "batch-1",
+      reveal_grant_id: "grant-1",
+      batch_complete: true,
+      synthetic_only: true,
+      serves_user: false,
+      dataset_eligible: false,
+    };
+    expect(mapCoachGuidanceBatch({
+      ...raw,
+      items: [wireItem({ feedback_membership_id: null })],
+    })).toBeNull();
+    expect(mapCoachGuidanceBatch({
+      ...raw,
+      items: [wireItem({ feedback_candidate_id: null })],
+    })).toBeNull();
+  });
+
+  it("submits ordinary guidance with exact review identity and no fake offer IDs", async () => {
+    const batch = mapCoachGuidanceBatch({
+      review_batch_id: "batch-ordinary",
+      reveal_grant_id: "grant-ordinary",
+      batch_complete: true,
+      synthetic_only: true,
+      serves_user: false,
+      dataset_eligible: false,
+      items: [wireItem({
+        review_batch_id: "batch-ordinary",
+        reveal_grant_id: "grant-ordinary",
+        reveal_access_id: "access-ordinary",
+        review_assignment_id: "assignment-ordinary",
+        feedback_membership_id: null,
+        feedback_candidate_id: null,
+        exercise_eligible: false,
+        exercise_offer_id: null,
+        exercise_version_id: null,
+        need_contract_id: null,
+      })],
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ attachment_version_id: "version-1" }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const result = await submitCoachGuidance({
+      item: batch!.items[0],
+      writtenNote: "Slow down at the close.",
+      video: null,
+      attachmentClass: "general_product_guidance",
+      productSubcategory: "delivery",
+      idempotencyKey: "ordinary-guidance-1",
+    });
+    expect(result).toEqual({ ok: true });
+    const request = fetchMock.mock.calls[0][1]!;
+    const body = request.body as FormData;
+    expect(body.get("review_batch_id")).toBe("batch-ordinary");
+    expect(body.get("reveal_grant_id")).toBe("grant-ordinary");
+    expect(body.get("reveal_access_id")).toBe("access-ordinary");
+    expect(body.get("review_assignment_id")).toBe("assignment-ordinary");
+    expect(body.get("feedback_membership_id")).toBe("");
+    expect(body.get("feedback_candidate_id")).toBe("");
+    expect(body.get("attachment_class")).toBe("general_product_guidance");
+  });
+
+  it("forwards stable idempotency through both multipart BFF routes", () => {
+    const attachments = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/app/api/v2/coach/guidance/attachments/route.ts",
+      ),
+      "utf8",
+    );
+    const drafts = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/app/api/v2/coach/guidance/exercise-drafts/route.ts",
+      ),
+      "utf8",
+    );
+    for (const route of [attachments, drafts]) {
+      expect(route).toContain('req.headers.get("Idempotency-Key")');
+      expect(route).toContain('headers: { "Idempotency-Key": idempotencyKey }');
+    }
   });
 
   it("keeps pre-judgment coach playback opaque", () => {

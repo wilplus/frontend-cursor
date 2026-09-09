@@ -18,9 +18,7 @@ function piece(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     snippet_id: "snip-1",
     transcript: "and that is when everything changed for us",
-    audio_ref: "https://cdn.example/take.webm",
-    start_offset_ms: 12345,
-    duration_ms: 4200,
+    playback_reference_id: "11111111-1111-4111-8111-111111111111",
     session_id: "sess-1",
     label: null,
     ...over,
@@ -30,14 +28,17 @@ function piece(over: Record<string, unknown> = {}): Record<string, unknown> {
 describe("mapQueuePiece — drop-not-repair", () => {
   it("maps the contract's queue row", () => {
     expect(mapQueuePiece(piece())).toEqual({
+      reviewActId: "snip-1",
       snippetId: "snip-1",
       transcript: "and that is when everything changed for us",
-      audioRef: "https://cdn.example/take.webm",
-      startOffsetMs: 12345,
-      durationMs: 4200,
+      audioRef: "/api/v2/coach/mlc3/source-playback/11111111-1111-4111-8111-111111111111",
+      startOffsetMs: 0,
+      durationMs: 0,
       label: null,
       reReview: false,
+      canonicalPosition: null,
       learningExposures: [],
+      blindReview: null,
     });
   });
 
@@ -62,12 +63,47 @@ describe("mapQueuePiece — drop-not-repair", () => {
     }]);
   });
 
+  it("binds the visible card to the exact D5 batch assignment and packet", () => {
+    const mapped = mapQueuePiece(piece({
+      blind_review: {
+        project_id: "10000000-0000-4000-8000-000000000001",
+        review_batch_id: "10000000-0000-4000-8000-000000000002",
+        review_assignment_id: "10000000-0000-4000-8000-000000000003",
+        blind_packet_id: "10000000-0000-4000-8000-000000000004",
+        presentation_id: "10000000-0000-4000-8000-000000000005",
+        acknowledgement_token: "10000000-0000-4000-8000-000000000006",
+        visible_payload_sha256: "a".repeat(64),
+      },
+    }));
+    expect(mapped?.blindReview?.reviewAssignmentId).toBe(
+      "10000000-0000-4000-8000-000000000003",
+    );
+    expect(mapped?.blindReview?.blindPacketId).toBe(
+      "10000000-0000-4000-8000-000000000004",
+    );
+    expect(mapped?.reviewActId).toBe(
+      "10000000-0000-4000-8000-000000000003",
+    );
+  });
+
   it("drops a row with no snippet id — the label PUT would have nowhere to go", () => {
     expect(mapQueuePiece(piece({ snippet_id: "" }))).toBeNull();
   });
 
   it("keeps the server-redacted pre-judgment row for audio-only blind review", () => {
     expect(mapQueuePiece(piece({ transcript: "" }))?.transcript).toBe("");
+  });
+
+  it("ignores raw media URLs and coordinates; only an opaque assignment reference plays", () => {
+    const mapped = mapQueuePiece(piece({
+      playback_reference_id: "not-a-uuid",
+      audio_ref: "https://storage.example/private.wav",
+      start_offset_ms: 12345,
+      duration_ms: 4200,
+    }));
+    expect(mapped?.audioRef).toBeNull();
+    expect(mapped?.startOffsetMs).toBe(0);
+    expect(mapped?.durationMs).toBe(0);
   });
 
   it("keeps this coach's prior call, HISTORICAL intensity included — the 1–5 row is cut (2026-08-11) but rows graded before the cut must read back faithfully", () => {
@@ -137,6 +173,33 @@ describe("mapQueuePiece — drop-not-repair", () => {
 });
 
 describe("mapConfidenceQueue", () => {
+  it("preserves two exact assignments that share one snippet", () => {
+    const blind = (suffix: string, position: number) => piece({
+      snippet_id: "shared-snippet",
+      canonical_position: position,
+      playback_reference_id: `10000000-0000-4000-8000-00000000000${suffix}`,
+      blind_review: {
+        project_id: "20000000-0000-4000-8000-000000000001",
+        review_batch_id: "20000000-0000-4000-8000-000000000002",
+        review_assignment_id: `10000000-0000-4000-8000-00000000000${suffix}`,
+        blind_packet_id: `20000000-0000-4000-8000-00000000000${suffix}`,
+        presentation_id: `30000000-0000-4000-8000-00000000000${suffix}`,
+        acknowledgement_token: `40000000-0000-4000-8000-00000000000${suffix}`,
+        visible_payload_sha256: suffix.repeat(64),
+      },
+    });
+    const mapped = mapConfidenceQueue({
+      session_id: "sess-1",
+      queue: [blind("3", 1), blind("4", 2)],
+    });
+    expect(mapped?.queue).toHaveLength(2);
+    expect(mapped?.queue.map((item) => item.reviewActId)).toEqual([
+      "10000000-0000-4000-8000-000000000003",
+      "10000000-0000-4000-8000-000000000004",
+    ]);
+    expect(mapped?.queue.map((item) => item.canonicalPosition)).toEqual([1, 2]);
+  });
+
   it("keeps payload order — the queue is band-shuffled so position is not a tell (N2)", () => {
     const m = mapConfidenceQueue({
       session_id: "sess-1",

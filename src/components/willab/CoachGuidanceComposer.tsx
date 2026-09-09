@@ -4,9 +4,18 @@ import { useRef, useState } from "react";
 import { Loader2, Video } from "lucide-react";
 import SpeechDataPanel from "./SpeechDataPanel";
 import {
+  COACH_INLINE_AUTHORING_UI_ENABLED,
+  submitCoachInlineExerciseDraft,
   submitCoachGuidance,
   type CoachGuidanceItem,
 } from "@/services/api/coachGuidanceDelivery";
+
+type ConfidencePattern = NonNullable<CoachGuidanceItem["sourcePattern"]>;
+const CONFIDENCE_PATTERNS: ConfidencePattern[] = [
+  "low_confidence_rushing_dominant",
+  "near_confident",
+  "confident",
+];
 
 export default function CoachGuidanceComposer({
   item,
@@ -16,6 +25,8 @@ export default function CoachGuidanceComposer({
   enabled: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftIdempotencyRef = useRef<string | null>(null);
+  const guidanceIdempotencyRef = useRef<string | null>(null);
   const [note, setNote] = useState("");
   const [video, setVideo] = useState<File | null>(null);
   const [asExercise, setAsExercise] = useState(item.exerciseEligible);
@@ -28,12 +39,26 @@ export default function CoachGuidanceComposer({
   );
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
+  const canCreateExercise =
+    COACH_INLINE_AUTHORING_UI_ENABLED &&
+    item.exerciseEligible &&
+    item.feedbackMembershipId !== null &&
+    item.feedbackCandidateId !== null &&
+    item.exerciseVersionId === null &&
+    item.exerciseOfferId !== null &&
+    item.authorizationSnapshotId !== null &&
+    item.sourceRole === "source_before_exercise";
+  const [supportedPatterns, setSupportedPatterns] = useState<ConfidencePattern[]>(
+    item.sourcePattern ? [item.sourcePattern] : [],
+  );
+  const [draftPlaybackRef, setDraftPlaybackRef] = useState<string | null>(null);
   if (!enabled) return null;
 
   const submit = async () => {
     if (status === "saving" || (!note.trim() && !video)) return;
     setStatus("saving");
     setError("");
+    guidanceIdempotencyRef.current ??= crypto.randomUUID();
     const result = await submitCoachGuidance({
       item,
       writtenNote: note,
@@ -48,6 +73,7 @@ export default function CoachGuidanceComposer({
       exerciseKey,
       exerciseInstruction,
       languageCode: "en",
+      idempotencyKey: guidanceIdempotencyRef.current,
     });
     if (!result.ok) {
       setStatus("idle");
@@ -56,6 +82,142 @@ export default function CoachGuidanceComposer({
     }
     setStatus("saved");
   };
+
+  const submitExerciseDraft = async () => {
+    if (
+      status === "saving" ||
+      !video ||
+      !exerciseKey.trim() ||
+      !exerciseInstruction.trim() ||
+      supportedPatterns.length === 0
+    ) return;
+    setStatus("saving");
+    setError("");
+    draftIdempotencyRef.current ??= crypto.randomUUID();
+    const result = await submitCoachInlineExerciseDraft({
+      item,
+      title: exerciseKey,
+      instructionText: exerciseInstruction,
+      video,
+      languageCode: "en",
+      idempotencyKey: draftIdempotencyRef.current,
+      supportedConfidencePatterns: supportedPatterns,
+    });
+    if (!result.ok) {
+      setStatus("idle");
+      setError(result.error);
+      return;
+    }
+    setDraftPlaybackRef(result.playbackRef);
+    setStatus("saved");
+  };
+
+  if (canCreateExercise) {
+    return (
+      <section className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
+        <SpeechDataPanel features={item.features} label="Speech data" />
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">
+            Create an exercise for this moment
+          </p>
+          <p className="mt-1 text-[12px] text-muted-foreground">
+            This Take is the before-exercise example. The user&apos;s next
+            recording after playback will be the practice attempt.
+          </p>
+        </div>
+        <input
+          value={exerciseKey}
+          maxLength={120}
+          onChange={(event) => setExerciseKey(event.target.value)}
+          placeholder="Exercise title"
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <textarea
+          value={exerciseInstruction}
+          maxLength={2000}
+          onChange={(event) => setExerciseInstruction(event.target.value)}
+          placeholder="What should the user practise?"
+          rows={3}
+          className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <fieldset className="grid gap-2">
+          <legend className="text-[12px] text-muted-foreground">
+            Voice patterns this exercise supports
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {CONFIDENCE_PATTERNS.map((pattern) => {
+              const checked = supportedPatterns.includes(pattern);
+              return (
+                <label
+                  key={pattern}
+                  className={`rounded-full border px-3 py-1.5 text-[12px] ${
+                    checked
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-foreground"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={checked}
+                    onChange={() => setSupportedPatterns((current) =>
+                      checked
+                        ? current.filter((value) => value !== pattern)
+                        : [...current, pattern]
+                    )}
+                  />
+                  {pattern.replaceAll("_", " ")}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="video/*"
+          className="sr-only"
+          onChange={(event) => setVideo(event.target.files?.[0] ?? null)}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center gap-2 self-start rounded-full border border-border bg-background px-3 py-2 text-[13px] text-foreground"
+        >
+          <Video className="h-4 w-4" aria-hidden />
+          {video ? video.name : "Add demonstration video"}
+        </button>
+        {draftPlaybackRef ? (
+          <video
+            controls
+            preload="metadata"
+            src={draftPlaybackRef}
+            className="w-full rounded-xl bg-black"
+          />
+        ) : null}
+        <button
+          type="button"
+          disabled={
+            status === "saving" || status === "saved" || !video ||
+            !exerciseKey.trim() || !exerciseInstruction.trim() ||
+            supportedPatterns.length === 0
+          }
+          onClick={() => void submitExerciseDraft()}
+          className="flex items-center justify-center rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background disabled:opacity-40"
+        >
+          {status === "saving" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          {status === "saved" ? "Draft exercise — awaiting review" : "Save exercise draft"}
+        </button>
+        {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
+      </section>
+    );
+  }
+
+  // A no-match confidence item must use the exact inline-draft contract. Do
+  // not fall through to the older attachment endpoint when that gate is off.
+  if (item.exerciseEligible && item.exerciseVersionId === null) return null;
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-border bg-muted/10 p-3">
