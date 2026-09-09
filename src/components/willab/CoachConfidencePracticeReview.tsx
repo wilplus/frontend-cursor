@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Upload } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   fetchCoachConfidencePractice,
   saveCoachConfidencePractice,
   type CoachConfidencePractice,
 } from "@/services/api/coachConfidencePractice";
+import { uploadCoachVideo } from "@/services/api/coachReview";
+import {
+  newUploadKey,
+  readVideoDurationSec,
+  videoProvenance,
+} from "@/services/api/coachVideoMeta";
 
 export default function CoachConfidencePracticeReview({
   sessionId,
@@ -29,6 +35,8 @@ export default function CoachConfidencePracticeReview({
   const [customTitle, setCustomTitle] = useState("");
   const [customInstruction, setCustomInstruction] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
   const [saving, setSaving] = useState<"private" | "share" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +99,26 @@ export default function CoachConfidencePracticeReview({
     setPractice(updated);
   }
 
+  async function uploadExerciseVideo(file: File | null) {
+    if (!file || videoUploading) return;
+    setVideoUploading(true);
+    setError(null);
+    const durationSec = await readVideoDurationSec(file);
+    const provenance = videoProvenance("coach-exercise-upload");
+    const ref = await uploadCoachVideo(sessionId, file, {
+      idempotencyKey: newUploadKey(),
+      device: provenance.device,
+      source: provenance.source,
+      durationSec,
+    });
+    setVideoUploading(false);
+    if (!ref) {
+      setError("Couldn't upload the exercise video. Try again.");
+      return;
+    }
+    setVideoUrl(ref);
+  }
+
   // The endpoint deliberately returns nothing until the blind Yes/No answer
   // is saved. A 404 means this snippet had no practice, so no empty card.
   if (!enabled || (!loading && !practice)) return null;
@@ -139,7 +167,7 @@ export default function CoachConfidencePracticeReview({
             <div key={attempt.id} className="rounded-xl border border-border bg-background p-3">
               <p className="mb-2 text-[12px] font-medium text-muted-foreground">
                 Attempt {attempt.attemptIndex}
-                {attempt.isStrongest ? " · acoustically strongest" : ""}
+                {attempt.isStrongest ? " · first valid comparison" : ""}
                 {attempt.isSelected ? " · selected by user" : ""}
                 {attempt.kept ? ` · kept (${attempt.userAnswer ?? "unanswered"})` : ""}
               </p>
@@ -155,7 +183,7 @@ export default function CoachConfidencePracticeReview({
           {practice.attempts.some((attempt) => attempt.isSelected) ? (
             <div className="rounded-xl border border-primary/30 bg-background p-3">
               <p className="text-[13px] font-semibold text-foreground">
-                Does the selected practice recording sound confident?
+                Does the practice recording sound better than the original?
               </p>
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
                 Judge this new recording itself. The original clip’s rating does not apply here.
@@ -271,16 +299,59 @@ export default function CoachConfidencePracticeReview({
               </label>
             </div>
           )}
-          <label className="text-[13px] font-medium text-foreground">
-            Explanation video URL
+          <div className="rounded-xl border border-border bg-background p-3">
+            <p className="text-[13px] font-semibold text-foreground">
+              Exercise video
+            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Upload a demonstration or use an already reviewed video URL.
+            </p>
             <input
-              type="url"
-              value={videoUrl}
-              onChange={(event) => setVideoUrl(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] outline-none focus:border-primary"
-              placeholder="https://…"
+              ref={videoInputRef}
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
+              className="sr-only"
+              onChange={(event) => {
+                void uploadExerciseVideo(event.target.files?.[0] ?? null);
+                event.currentTarget.value = "";
+              }}
             />
-          </label>
+            <button
+              type="button"
+              disabled={videoUploading}
+              onClick={() => videoInputRef.current?.click()}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground disabled:opacity-50"
+            >
+              {videoUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden />
+              )}
+              {videoUploading ? "Uploading…" : "Upload video"}
+            </button>
+            {videoUrl ? (
+              <div className="mt-3 overflow-hidden rounded-xl border border-border bg-black">
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="max-h-52 w-full"
+                />
+              </div>
+            ) : null}
+            <label className="mt-3 block text-[12px] font-medium text-muted-foreground">
+              Or paste a reviewed video URL
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(event) => setVideoUrl(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] text-foreground outline-none focus:border-primary"
+                placeholder="https://…"
+              />
+            </label>
+          </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

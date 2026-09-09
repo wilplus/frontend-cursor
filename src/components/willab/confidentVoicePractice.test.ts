@@ -8,6 +8,8 @@ const practice = read("src/components/willab/ConfidentVoicePractice.tsx");
 const lounge = read("src/components/willab/Lounge.tsx");
 const api = read("src/services/api/confidentVoicePractice.ts");
 const coach = read("src/components/willab/CoachConfidencePracticeReview.tsx");
+const firstClient = read("src/components/willab/Mlc3FirstClientPractice.tsx");
+const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
 
 describe("Confident Voice micro-practice journey fences", () => {
   it("stays hidden until the owner answers, then supports either answer", () => {
@@ -55,7 +57,23 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(coach).toContain("Create new exercise");
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
-    expect(coach).toContain("Does the selected practice recording sound confident?");
+    expect(coach).toContain("Does the practice recording sound better than the original?");
     expect(coach).toContain("selectedAttemptDecision");
+  });
+
+  it("keeps unresolved capture bytes and identity until exact replay succeeds", () => {
+    expect(firstClient).toContain("const captureId = freshId()");
+    expect(firstClient).toContain("capture.idempotencyKey");
+    expect(firstClient).toContain("capture.audio ??= audio");
+    expect(firstClient).toContain("setRetryPending(true)");
+    expect(firstClient).toContain('"Retry saving"');
+    expect(firstClient).toContain("if (activeCapture.current)");
+    expect(firstClient).not.toContain("nextAttemptIndex");
+    expect(firstClient).not.toContain("const attemptIndex = attempts.length + 1");
+    expect(firstClientApi).not.toContain('form.append("attempt_index"');
+    expect(firstClientApi).toContain('form.append("capture_completed_at", captureCompletedAt)');
+    expect(firstClientApi).not.toContain(
+      'form.append("capture_completed_at", new Date().toISOString())',
+    );
   });
 });
