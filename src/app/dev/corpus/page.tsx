@@ -53,6 +53,7 @@ function wavDataUri(): string {
 const QUEUE = [
   {
     snippet_id: "piece-c",
+    playback_reference_id: "11111111-1111-4111-8111-111111111111",
     transcript: "and we shipped it in a week which nobody believed",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -63,6 +64,7 @@ const QUEUE = [
   },
   {
     snippet_id: "piece-a",
+    playback_reference_id: "22222222-2222-4222-8222-222222222222",
     transcript: "so we moved the launch to the second week of March",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -73,6 +75,7 @@ const QUEUE = [
   },
   {
     snippet_id: "piece-b",
+    playback_reference_id: "33333333-3333-4333-8333-333333333333",
     transcript: "I think maybe we could possibly try it that way",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -129,6 +132,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               queue: [
                 {
                   snippet_id: "full-a",
+                  playback_reference_id: "44444444-4444-4444-8444-444444444444",
                   transcript: "we knew it would work",
                   start_offset_ms: 0,
                   duration_ms: 250,
@@ -138,6 +142,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 },
                 {
                   snippet_id: "full-b",
+                  playback_reference_id: "55555555-5555-4555-8555-555555555555",
                   transcript: "and it did",
                   start_offset_ms: 0,
                   duration_ms: 250,

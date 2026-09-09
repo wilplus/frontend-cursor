@@ -30,6 +30,7 @@ import {
   type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
+import CoachInlineBlindExposureBoundary from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
 
 /* -------------------------------------------------------------------------- */
@@ -943,9 +944,9 @@ function LabelScreen({
   // The note belongs to the PIECE, not the screen: moving on must never carry
   // one coach's aside about a piece onto the next one, and stepping back must
   // show the note that was saved rather than an empty box.
-  const pieceId = piece?.snippetId;
+  const pieceId = piece?.reviewActId;
   useEffect(() => {
-    setNote(pieces.find((p) => p.snippetId === pieceId)?.label?.note ?? "");
+    setNote(pieces.find((p) => p.reviewActId === pieceId)?.label?.note ?? "");
     // Re-reading the label here would fight the local write after a save, so
     // this deliberately keys on the piece only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -962,10 +963,15 @@ function LabelScreen({
      *  2026-08-11: the 1–5 intensity row is CUT; pure ternary). A note
      *  saved on blur must NOT advance, or the coach would be thrown to
      *  the next piece by clicking away from a text box. */
-    opts?: { advance?: boolean; unrateable?: boolean }
+    opts?: {
+      advance?: boolean;
+      unrateable?: boolean;
+      blindExposureId?: string | null;
+    }
   ) {
     if (!piece || inFlightRef.current) return;
     const snippetId = piece.snippetId;
+    const reviewActId = piece.reviewActId;
     const trimmed = note.trim();
     const unrateable = opts?.unrateable === true;
     // ONE write shape (founder 2026-08-11): the ternary instrument,
@@ -978,9 +984,14 @@ function LabelScreen({
     if (!body) return;
     if (piece.reReview) body.re_review = true;
     inFlightRef.current = true;
-    setSavingId(snippetId); // "pending" — its dot pulses until this resolves.
+    setSavingId(reviewActId); // exact review act, never snippet identity.
     setError(null);
-    const res = await saveStateRating(snippetId, body);
+    const res = await saveStateRating(
+      snippetId,
+      body,
+      piece.blindReview,
+      opts?.blindExposureId,
+    );
     inFlightRef.current = false;
     setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
     if (!res.ok) {
@@ -1000,7 +1011,7 @@ function LabelScreen({
         ? {
             ...q,
             queue: q.queue.map((p) =>
-              p.snippetId === piece.snippetId
+              p.reviewActId === piece.reviewActId
                 ? {
                     ...p,
                     label: saved,
@@ -1016,7 +1027,8 @@ function LabelScreen({
       // Answered (or abstained) — this piece is done; move on to the next
       // unlabelled one. The note stays reachable by stepping Back.
       const next = pieces.findIndex(
-        (p, i) => i > at && p.label === null && p.snippetId !== piece.snippetId
+        (p, i) => i > at && p.label === null &&
+          p.reviewActId !== piece.reviewActId
       );
       setAt(next >= 0 ? next : Math.min(at + 1, pieces.length - 1));
     }
@@ -1056,12 +1068,12 @@ function LabelScreen({
           <div className="flex items-center gap-2">
             <div className="flex flex-1 flex-wrap gap-1.5">
               {pieces.map((p, i) => {
-                const isSaving = savingId === p.snippetId;
+                const isSaving = savingId === p.reviewActId;
                 const answeredDot = p.label !== null;
                 const current = i === at;
                 return (
                   <button
-                    key={p.snippetId}
+                    key={p.reviewActId}
                     type="button"
                     aria-label={`Piece ${i + 1}${
                       isSaving ? ", saving" : answeredDot ? ", answered" : ""
@@ -1124,7 +1136,11 @@ function LabelScreen({
             Nothing queued to label on this import.
           </p>
         ) : piece ? (
-          <>
+          <CoachInlineBlindExposureBoundary
+            key={piece.reviewActId}
+            blindReview={piece.blindReview}
+          >
+            {({ exposureId, error: renderError }) => <>
             {/* Before a saved answer this is audio only. The shared readout
                 reveals exact words after this coach's label is committed.
                 There is still no machine read, band, or ordering cue. */}
@@ -1143,12 +1159,15 @@ function LabelScreen({
               question="Was this voice confident?"
               value={abstained ? null : answered}
               unrateable={abstained}
-              disabled={savingId === piece.snippetId}
+              disabled={
+                savingId === piece.reviewActId ||
+                (piece.blindReview !== null && !exposureId)
+              }
               // The NAV BAR owns the pending state on this screen ("Saving…"
               // + the amber dot) — a second Saving… inside the chips would
               // say it twice, and the e2e pins exactly one.
               saving={false}
-              onPick={(v) => void save(v)}
+              onPick={(v) => void save(v, { blindExposureId: exposureId })}
             />
 
             {/* Gated behind an answer (or an abstention): a note annotates a
@@ -1173,6 +1192,7 @@ function LabelScreen({
                       void save(answered, {
                         advance: false,
                         unrateable: abstained,
+                        blindExposureId: exposureId,
                       });
                     }
                   }}
@@ -1184,6 +1204,9 @@ function LabelScreen({
 
             {error ? (
               <p className="text-[12px] text-destructive">{error}</p>
+            ) : null}
+            {renderError ? (
+              <p className="text-[12px] text-destructive">{renderError}</p>
             ) : null}
 
             <div className="mt-auto flex items-center justify-between pt-2">
@@ -1212,7 +1235,8 @@ function LabelScreen({
                 Skip
               </button>
             </div>
-          </>
+            </>}
+          </CoachInlineBlindExposureBoundary>
         ) : null}
       </div>
     </main>

@@ -15,8 +15,6 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ code: "INVALID_MULTIPART" }, { status: 400 });
   }
-  const outbound = new FormData();
-  for (const [key, value] of inbound.entries()) outbound.append(key, value);
   const idempotencyKey = req.headers.get("Idempotency-Key");
   if (!idempotencyKey) {
     return NextResponse.json(
@@ -24,20 +22,28 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  let upstream: Response;
+  const outbound = new FormData();
+  for (const [key, value] of inbound.entries()) outbound.append(key, value);
   try {
-    upstream = await backendFetch("/v2/coach/guidance/attachments", {
-      method: "POST",
-      headers: { "Idempotency-Key": idempotencyKey },
-      body: outbound,
+    const upstream = await backendFetch(
+      "/v2/coach/guidance/exercise-drafts",
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: outbound,
+      },
+    );
+    return NextResponse.json(await upstream.json().catch(() => ({})), {
+      status: upstream.status,
     });
   } catch (error) {
-    if (error instanceof BackendNotConfiguredError) {
-      return NextResponse.json({ code: "BACKEND_UNAVAILABLE" }, { status: 502 });
-    }
-    return NextResponse.json({ code: "PROXY_ERROR" }, { status: 502 });
+    return NextResponse.json(
+      {
+        code: error instanceof BackendNotConfiguredError
+          ? "BACKEND_UNAVAILABLE"
+          : "PROXY_ERROR",
+      },
+      { status: 502 },
+    );
   }
-  return NextResponse.json(await upstream.json().catch(() => ({})), {
-    status: upstream.status,
-  });
 }
