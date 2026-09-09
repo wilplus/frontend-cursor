@@ -85,6 +85,89 @@ export type SaveRatingResult =
   | { ok: true; transcript?: string }
   | { ok: false; error: string | null };
 
+export interface CoachInlineBlindReviewHandle {
+  projectId: string;
+  reviewBatchId: string;
+  reviewAssignmentId: string;
+  blindPacketId: string;
+  presentationId: string;
+  acknowledgementToken: string;
+  visiblePayloadSha256: string;
+}
+
+export interface CoachInlineBlindRenderReceipt {
+  reviewAssignmentId: string;
+  presentationId: string;
+  exposureId: string;
+}
+
+export type BlindRenderResult =
+  | { ok: true; receipt: CoachInlineBlindRenderReceipt }
+  | { ok: false; error: string | null };
+
+/** Confirm an actually painted D5 card independently of any answer.
+ *
+ * The caller owns the stable render instance, timestamp and retry key. That
+ * makes transport retries byte-identical and lets silence remain a real
+ * rendered exposure with no judgment. */
+export async function acknowledgeCoachInlineBlindRender(
+  blindReview: CoachInlineBlindReviewHandle,
+  request: {
+    renderInstanceId: string;
+    clientRenderedAt: string;
+    idempotencyKey: string;
+  },
+): Promise<BlindRenderResult> {
+  const token = await getAuthToken();
+  if (!token) return { ok: false, error: null };
+  try {
+    const rendered = await fetch(
+      `/api/v2/coach/mlc3/inline/assignments/${encodeURIComponent(
+        blindReview.reviewAssignmentId
+      )}/render`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": request.idempotencyKey,
+        },
+        body: JSON.stringify({
+          project_id: blindReview.projectId,
+          blind_packet_id: blindReview.blindPacketId,
+          presentation_id: blindReview.presentationId,
+          acknowledgement_token: blindReview.acknowledgementToken,
+          render_instance_id: request.renderInstanceId,
+          client_rendered_at: request.clientRenderedAt,
+          client_version: "coach-inline-blind-v1",
+          visible_payload_sha256: blindReview.visiblePayloadSha256,
+        }),
+        cache: "no-store",
+      },
+    );
+    const body = (await rendered.json().catch(() => null)) as
+      Record<string, unknown> | null;
+    if (!rendered.ok || typeof body?.exposure_id !== "string") {
+      return {
+        ok: false,
+        error: typeof body?.error === "string"
+          ? body.error
+          : "Couldn't confirm this blind review card. Try again.",
+      };
+    }
+    return {
+      ok: true,
+      receipt: {
+        reviewAssignmentId: blindReview.reviewAssignmentId,
+        presentationId: blindReview.presentationId,
+        exposureId: body.exposure_id,
+      },
+    };
+  } catch {
+    return { ok: false, error: null };
+  }
+}
+
 /** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
  *
  *  This is an ANCHORED owner response on a card that has already told the
@@ -133,10 +216,61 @@ export async function saveConfidenceAgreement(
  *  400 and must not be shown as one. */
 export async function saveStateRating(
   snippetId: string,
-  body: StateRatingBody
+  body: StateRatingBody,
+  blindReview?: CoachInlineBlindReviewHandle | null,
+  blindExposureId?: string | null,
 ): Promise<SaveRatingResult> {
   const token = await getAuthToken();
   if (!token) return { ok: false, error: null };
+  if (blindReview) {
+    if (!blindExposureId) {
+      return {
+        ok: false,
+        error: "This blind review card has not been visibly confirmed yet.",
+      };
+    }
+    const decision = {
+      yes: "rating_yes",
+      in_between: "rating_in_between",
+      no: "rating_no",
+      not_sure: "rating_not_sure",
+      audio_unclear: "rating_audio_unclear",
+    }[body.value];
+    const baseKey = body.idempotency_key ?? crypto.randomUUID();
+    try {
+      const judged = await fetch(
+        `/api/v2/coach/mlc3/inline/assignments/${encodeURIComponent(
+          blindReview.reviewAssignmentId
+        )}/judgments`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "Idempotency-Key": `${baseKey}:judgment`,
+          },
+          body: JSON.stringify({
+            project_id: blindReview.projectId,
+            blind_packet_id: blindReview.blindPacketId,
+            exposure_id: blindExposureId,
+            decision,
+          }),
+          cache: "no-store",
+        },
+      );
+      const judgmentBody = (await judged.json().catch(() => null)) as
+        Record<string, unknown> | null;
+      if (judged.ok) return { ok: true };
+      return {
+        ok: false,
+        error: typeof judgmentBody?.error === "string"
+          ? judgmentBody.error
+          : "Couldn't save this blind judgment. Try again.",
+      };
+    } catch {
+      return { ok: false, error: null };
+    }
+  }
   let res: Response;
   try {
     res = await fetch(

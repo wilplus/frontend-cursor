@@ -56,11 +56,14 @@ import {
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
+import CoachInlineBlindExposureBoundary from "./CoachInlineBlindExposureBoundary";
 import CoachGuidanceComposer from "./CoachGuidanceComposer";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
 import FirstClientCoachBlindReview from "./FirstClientCoachBlindReview";
 import {
+    COACH_INLINE_AUTHORING_UI_ENABLED,
     COACH_GUIDANCE_D3_UI_ENABLED,
+    coachGuidanceItemsForReviewAct,
     fetchFirstClientCoachReviews,
     fetchCoachGuidanceBatch,
     type FirstClientCoachReviewSet,
@@ -198,8 +201,8 @@ export default function CoachStarVerdictOverlay({
 
   // ── CONFIDENT-VOICE FEEDBACKS, FIRST (founder 2026-08-10). The blind
   // labeling rows for this arc's sessions, aggregated. The queue payload is
-  // blind BY CONSTRUCTION (the BE serves words + audio and "NOTHING that
-  // could hint at an answer"). Contextual star review is a SECOND pass and
+  // blind BY CONSTRUCTION (the BE serves opaque audio and nothing that could
+  // hint at an answer). Contextual star review is a SECOND pass and
   // is neither fetched nor rendered until every row has a committed answer.
   // A failed queue is blocking: silently skipping it would unlock context
   // before the blind pass was actually complete. ──
@@ -292,7 +295,11 @@ export default function CoachStarVerdictOverlay({
   >([]);
   const [serviceReviewStatus, setServiceReviewStatus] = useState<
     "loading" | "ready" | "error"
-  >(COACH_GUIDANCE_D3_UI_ENABLED ? "loading" : "ready");
+  >(
+    COACH_GUIDANCE_D3_UI_ENABLED || COACH_INLINE_AUTHORING_UI_ENABLED
+      ? "loading"
+      : "ready"
+  );
   useEffect(() => {
     if (!COACH_GUIDANCE_D3_UI_ENABLED) {
       setServiceReviewSets([]);
@@ -334,13 +341,33 @@ export default function CoachStarVerdictOverlay({
   // complete, reviewer-specific batch reveal. The literal disabled flag has
   // no environment override in this implementation slice.
   useEffect(() => {
-    if (!COACH_GUIDANCE_D3_UI_ENABLED || !blindComplete) {
+    if (
+      (!COACH_GUIDANCE_D3_UI_ENABLED &&
+        !COACH_INLINE_AUTHORING_UI_ENABLED) ||
+      !blindComplete
+    ) {
       setGuidanceBatch(null);
       return;
     }
     let active = true;
     void fetchCoachGuidanceBatch(arcId).then((batch) => {
-      if (active) setGuidanceBatch(batch);
+      if (!active) return;
+      setGuidanceBatch(batch);
+      if (batch) {
+        const revealedByAssignment = new Map(
+          batch.items.map((item) => [
+            item.reviewAssignmentId, item.transcript,
+          ]),
+        );
+        setCvRows((rows) => rows.map((row) => ({
+          ...row,
+          transcript: row.blindReview
+            ? revealedByAssignment.get(
+                row.blindReview.reviewAssignmentId,
+              ) ?? row.transcript
+            : row.transcript,
+        })));
+      }
     });
     return () => {
       active = false;
@@ -375,28 +402,31 @@ export default function CoachStarVerdictOverlay({
     row: QueuePiece,
     value: ConfidenceRatingValue | null,
     unrateable = false,
+    blindExposureId: string | null = null,
   ) => {
     if (cvSaving !== null) return;
     const body = buildRatingBody(value, unrateable);
     if (!body) return;
     if (row.reReview) body.re_review = true;
-    setCvSaving(row.snippetId);
+    setCvSaving(row.reviewActId);
     setCvErrors((e) => {
-      const { [row.snippetId]: _gone, ...rest } = e;
+      const { [row.reviewActId]: _gone, ...rest } = e;
       return rest;
     });
-    void saveStateRating(row.snippetId, body).then((r) => {
+    void saveStateRating(
+      row.snippetId, body, row.blindReview, blindExposureId,
+    ).then((r) => {
       setCvSaving(null);
       if (!r.ok) {
         setCvErrors((e) => ({
           ...e,
-          [row.snippetId]: r.error ?? "Couldn't save this label. Try again.",
+          [row.reviewActId]: r.error ?? "Couldn't save this label. Try again.",
         }));
         return;
       }
       setCvRows((rows) =>
         rows.map((x) =>
-          x.snippetId === row.snippetId
+          x.reviewActId === row.reviewActId
             ? {
                 ...x,
                 label: {
@@ -668,7 +698,11 @@ export default function CoachStarVerdictOverlay({
             ) : (
               <>
               {cvRows.map((row, index) => (
-                <CoachCard key={row.snippetId}>
+                <CoachInlineBlindExposureBoundary
+                  key={row.reviewActId}
+                  blindReview={row.blindReview}
+                >
+                  {({ exposureId, error: renderError }) => <CoachCard>
                   <CoachMetaPill tone="muted">
                     Piece {index + 1} of {cvRows.length}
                   </CoachMetaPill>
@@ -677,18 +711,24 @@ export default function CoachStarVerdictOverlay({
                     startOffsetMs={row.startOffsetMs}
                     durationMs={row.durationMs}
                     transcript={row.transcript}
-                    transcriptRevealed={row.label !== null}
+                    transcriptRevealed={false}
                   />
                   <ConfidenceLabelChips
                     question="Was this voice confident?"
                     value={row.label?.value ?? null}
                     unrateable={row.label?.unrateable === true}
-                    disabled={cvSaving === row.snippetId}
-                    saving={cvSaving === row.snippetId}
-                    error={cvErrors[row.snippetId] ?? null}
-                    onPick={(value) => labelVoice(row, value)}
+                    disabled={
+                      cvSaving === row.reviewActId ||
+                      (row.blindReview !== null && !exposureId)
+                    }
+                    saving={cvSaving === row.reviewActId}
+                    error={cvErrors[row.reviewActId] ?? renderError ?? null}
+                    onPick={(value) => labelVoice(
+                      row, value, false, exposureId,
+                    )}
                   />
-                </CoachCard>
+                  </CoachCard>}
+                </CoachInlineBlindExposureBoundary>
               ))}
               {serviceReviewSets
                 .filter((set) => !set.complete)
@@ -752,7 +792,7 @@ export default function CoachStarVerdictOverlay({
                 Confident voices
               </span>
               {cvRows.map((row) => (
-                <CoachCard key={row.snippetId}>
+                <CoachCard key={row.reviewActId}>
                   <ConfidenceEvidenceReadout
                     audioRef={row.audioRef}
                     startOffsetMs={row.startOffsetMs}
@@ -768,9 +808,11 @@ export default function CoachStarVerdictOverlay({
                     question="Was this voice confident?"
                     value={row.label?.value ?? null}
                     unrateable={row.label?.unrateable === true}
-                    disabled={cvSaving === row.snippetId}
-                    saving={cvSaving === row.snippetId}
-                    error={cvErrors[row.snippetId] ?? null}
+                    disabled={
+                      cvSaving === row.reviewActId || row.blindReview !== null
+                    }
+                    saving={cvSaving === row.reviewActId}
+                    error={cvErrors[row.reviewActId] ?? null}
                     onPick={(v) => labelVoice(row, v)}
                   />
                   <CoachConfidencePracticeReview
@@ -782,17 +824,20 @@ export default function CoachStarVerdictOverlay({
                         row.label?.unrateable === true)
                     }
                   />
-                  {guidanceBatch?.items
-                    .filter(
-                      (item) =>
-                        item.snippetId === row.snippetId &&
-                        item.feedbackFamily === "confident_voice",
-                    )
+                  {coachGuidanceItemsForReviewAct(guidanceBatch, {
+                    reviewAssignmentId:
+                      row.blindReview?.reviewAssignmentId ?? null,
+                    snippetId: row.snippetId,
+                  })
+                    .filter((item) => item.feedbackFamily === "confident_voice")
                     .map((item) => (
                       <CoachGuidanceComposer
-                        key={item.feedbackCandidateId}
+                        key={item.reviewAssignmentId}
                         item={item}
-                        enabled={COACH_GUIDANCE_D3_UI_ENABLED}
+                        enabled={
+                          COACH_GUIDANCE_D3_UI_ENABLED ||
+                          COACH_INLINE_AUTHORING_UI_ENABLED
+                        }
                       />
                     ))}
                 </CoachCard>
@@ -1133,9 +1178,12 @@ export default function CoachStarVerdictOverlay({
                         )
                         .map((item) => (
                           <CoachGuidanceComposer
-                            key={item.feedbackCandidateId}
+                            key={item.reviewAssignmentId}
                             item={item}
-                            enabled={COACH_GUIDANCE_D3_UI_ENABLED}
+                            enabled={
+                              COACH_GUIDANCE_D3_UI_ENABLED ||
+                              COACH_INLINE_AUTHORING_UI_ENABLED
+                            }
                           />
                         ))}
                     </CoachCard>

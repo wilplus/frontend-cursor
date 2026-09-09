@@ -5,6 +5,7 @@ import {
   mapLearningExposureHandles,
   type LearningExposureHandle,
 } from "@/services/api/learningExposures";
+import type { CoachInlineBlindReviewHandle } from "@/services/api/stateRatings";
 
 /** Browser-visible backend base, mirroring `presentationExtract`. Empty =
  *  no public URL in this env, so everything goes through the BFF proxy. */
@@ -693,6 +694,9 @@ export interface ConfidenceLabel {
 }
 
 export interface QueuePiece {
+  /** Exact review-act identity. D5 uses the canonical assignment, while the
+   * legacy path falls back to the globally unique snippet. */
+  reviewActId: string;
   snippetId: string;
   transcript: string;
   audioRef: string | null;
@@ -701,7 +705,12 @@ export interface QueuePiece {
   label: ConfidenceLabel | null;
   reReview: boolean;
   learningExposures: LearningExposureHandle[];
+  canonicalPosition: number | null;
+  blindReview: CoachInlineBlindReviewHandle | null;
 }
+
+const OPAQUE_PLAYBACK_REFERENCE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface ConfidenceQueue {
   sessionId: string;
@@ -771,20 +780,48 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const snippetId = str(r.snippet_id);
+  const playbackReferenceId = str(r.playback_reference_id);
   const transcript = str(r.transcript);
-  // No id = the label PUT has nowhere to go. An empty transcript is REQUIRED
-  // before this rater's immutable blind judgment: the server reveals exact
-  // words only after commit. Audio + timing are the pre-judgment evidence.
+  const blind = r.blind_review && typeof r.blind_review === "object"
+    ? r.blind_review as Record<string, unknown>
+    : null;
+  const blindReview = blind && [
+    "project_id", "review_batch_id", "review_assignment_id",
+    "blind_packet_id", "presentation_id", "acknowledgement_token",
+  ].every((key) => OPAQUE_PLAYBACK_REFERENCE.test(str(blind[key]))) &&
+    /^[0-9a-f]{64}$/.test(str(blind.visible_payload_sha256))
+    ? {
+        projectId: str(blind.project_id),
+        reviewBatchId: str(blind.review_batch_id),
+        reviewAssignmentId: str(blind.review_assignment_id),
+        blindPacketId: str(blind.blind_packet_id),
+        presentationId: str(blind.presentation_id),
+        acknowledgementToken: str(blind.acknowledgement_token),
+        visiblePayloadSha256: str(blind.visible_payload_sha256),
+      }
+    : null;
+  // No id = the label PUT has nowhere to go. The response carries only an
+  // opaque assignment-bound playback reference; the BFF resolves the clipped
+  // audio, while transcript and raw timing remain server-side until reveal.
   if (!snippetId) return null;
   return {
+    reviewActId: blindReview?.reviewAssignmentId ?? snippetId,
     snippetId,
     transcript,
-    audioRef: strOrNull(r.audio_ref),
-    startOffsetMs: count(r.start_offset_ms),
-    durationMs: count(r.duration_ms),
+    audioRef: OPAQUE_PLAYBACK_REFERENCE.test(playbackReferenceId)
+      ? `/api/v2/coach/mlc3/source-playback/${encodeURIComponent(playbackReferenceId)}`
+      : null,
+    // The authenticated endpoint returns an already-clipped WAV. Raw source
+    // coordinates never cross the blind queue response boundary.
+    startOffsetMs: 0,
+    durationMs: 0,
     label: pickLabel(r.label),
     reReview: r.re_review === true,
+    canonicalPosition: Number.isInteger(r.canonical_position)
+      ? Number(r.canonical_position)
+      : null,
     learningExposures: mapLearningExposureHandles(r.learning_exposures),
+    blindReview,
   };
 }
 

@@ -12,6 +12,9 @@ const UUID = "[0-9a-fA-F-]{36}";
 const ALLOWED = [
   new RegExp(`^reviews/${UUID}$`),
   new RegExp(`^reviews/playback/${UUID}$`),
+  new RegExp(`^source-playback/${UUID}$`),
+  new RegExp(`^inline/assignments/${UUID}/render$`),
+  new RegExp(`^inline/assignments/${UUID}/judgments$`),
   new RegExp(`^reviews/assignments/${UUID}/render$`),
   new RegExp(`^reviews/assignments/${UUID}/judgments$`),
   new RegExp(`^reviews/${UUID}/complete$`),
@@ -38,7 +41,7 @@ async function forward(
       { status: 400 },
     );
   }
-  if (method === "GET" && /^\/v2\/coach\/mlc3\/reviews\/playback\//.test(path)) {
+  if (method === "GET" && /^\/v2\/coach\/mlc3\/(?:reviews\/playback|source-playback)\//.test(path)) {
     const token = await getAccessToken();
     if (!token) {
       return NextResponse.json(
