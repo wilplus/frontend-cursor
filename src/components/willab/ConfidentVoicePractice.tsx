@@ -272,7 +272,7 @@ export default function ConfidentVoicePractice({
                 className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-[13px] font-medium text-foreground disabled:opacity-50"
               >
                 <Check className="h-4 w-4" aria-hidden />
-                This feels right
+                Compare with original
               </button>
             ) : null}
           </div>
@@ -344,12 +344,12 @@ function FinalChoice({
   onAnswer: (answer: "yes" | "no") => void;
   onClose: () => void;
 }) {
-  const strongest = practice?.strongestAttempt;
-  if (!practice || !strongest) return null;
+  const comparisonAttempt = practice?.strongestAttempt;
+  if (!practice || !comparisonAttempt) return null;
   return (
     <div className="mt-4">
-      <PracticeMessage side="right" label="Your strongest attempt">
-        <MediaPlayer src={strongest.audioRef} startOffsetMs={0} durationMs={strongest.durationMs} />
+      <PracticeMessage side="right" label="Your first valid attempt">
+        <MediaPlayer src={comparisonAttempt.audioRef} startOffsetMs={0} durationMs={comparisonAttempt.durationMs} />
       </PracticeMessage>
       <PracticeMessage side="left" label="Willab">
         <p className="text-[13px] leading-relaxed text-foreground">

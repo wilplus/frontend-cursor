@@ -338,6 +338,19 @@ export interface DocumentSuggestion {
   /** Optional micro-practice attached by the Feedback Manager to an already
    * selected Confident Voice item. It is never a fourth feedback item. */
   practiceExercise?: ConfidentVoicePracticeOffer | null;
+  /** Exact allowlisted-service identity. Absent while the four pilot gates
+   * are closed; the legacy practice path remains the fallback. */
+  firstClientService?: {
+    projectId: string;
+    takeId: string;
+    membershipId: string;
+    candidateId: string;
+    feedbackExposureId: string;
+    contentIdentitySha256: string;
+    n1CandidateSetId: string;
+    authorizationCheckId: string;
+    sourceAcquisitionReceiptId: string;
+  } | null;
   /** Actor-bound ACK handles. Preparing them server-side is not exposure;
    * the active Feedback modal acknowledges them only after visible mount. */
   learningExposures: LearningExposureHandle[];
@@ -556,6 +569,28 @@ function mapLearningExposures(value: unknown): LearningExposureHandle[] {
   return mapLearningExposureHandles(value);
 }
 
+function mapFirstClientService(value: unknown): NonNullable<
+  DocumentSuggestion["firstClientService"]
+> | null {
+  const row = asRecord(value);
+  if (!row) return null;
+  const fields = {
+    projectId: row.project_id,
+    takeId: row.take_id,
+    membershipId: row.membership_id,
+    candidateId: row.candidate_id,
+    feedbackExposureId: row.feedback_exposure_id,
+    contentIdentitySha256: row.content_identity_sha256,
+    n1CandidateSetId: row.n1_candidate_set_id,
+    authorizationCheckId: row.authorization_check_id,
+    sourceAcquisitionReceiptId: row.source_acquisition_receipt_id,
+  };
+  if (Object.values(fields).some((field) => typeof field !== "string" || !field)) {
+    return null;
+  }
+  return fields as NonNullable<DocumentSuggestion["firstClientService"]>;
+}
+
 function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
   const record = asRecord(item);
   if (!record) return null;
@@ -627,6 +662,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     startOffsetMs: readFiniteNumber(record.start_offset_ms),
     durationMs: readFiniteNumber(record.duration_ms),
     practiceExercise: mapPracticeExercise(record.practice_exercise),
+    firstClientService: mapFirstClientService(record.mlc3_service),
     learningExposures: mapLearningExposures(record.learning_exposures),
   };
 }
