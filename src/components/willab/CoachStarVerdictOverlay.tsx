@@ -57,10 +57,14 @@ import {
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
 import CoachGuidanceComposer from "./CoachGuidanceComposer";
+import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
+import FirstClientCoachBlindReview from "./FirstClientCoachBlindReview";
 import {
-  COACH_GUIDANCE_D3_UI_ENABLED,
-  fetchCoachGuidanceBatch,
-  type CoachGuidanceBatch,
+    COACH_GUIDANCE_D3_UI_ENABLED,
+    fetchFirstClientCoachReviews,
+    fetchCoachGuidanceBatch,
+    type FirstClientCoachReviewSet,
+    type CoachGuidanceBatch,
 } from "@/services/api/coachGuidanceDelivery";
 import { useUserProfile } from "./useUserProfile";
 
@@ -283,11 +287,45 @@ export default function CoachStarVerdictOverlay({
     setCvLanguageError("We couldn't save the presentation language. Try again.");
   };
 
+  const [serviceReviewSets, setServiceReviewSets] = useState<
+    FirstClientCoachReviewSet[]
+  >([]);
+  const [serviceReviewStatus, setServiceReviewStatus] = useState<
+    "loading" | "ready" | "error"
+  >(COACH_GUIDANCE_D3_UI_ENABLED ? "loading" : "ready");
+  useEffect(() => {
+    if (!COACH_GUIDANCE_D3_UI_ENABLED) {
+      setServiceReviewSets([]);
+      setServiceReviewStatus("ready");
+      return;
+    }
+    let active = true;
+    setServiceReviewStatus("loading");
+    void fetchFirstClientCoachReviews(arcId).then((batch) => {
+      if (!active) return;
+      if (!batch) {
+        setServiceReviewSets([]);
+        setServiceReviewStatus("error");
+        return;
+      }
+      setServiceReviewSets(batch.reviewSets);
+      setServiceReviewStatus("ready");
+    });
+    return () => { active = false; };
+  }, [arcId]);
+  const markServiceReviewComplete = useCallback((reviewSetId: string) => {
+    setServiceReviewSets((sets) => sets.map((set) =>
+      set.reviewSetId === reviewSetId ? { ...set, complete: true } : set,
+    ));
+  }, []);
+  const serviceBlindComplete =
+    serviceReviewStatus === "ready" &&
+    serviceReviewSets.every((set) => set.complete);
   const blindComplete =
     cvStatus === "ready" &&
     cvRows.every(
       (row) => row.label?.value !== null || row.label?.unrateable === true,
-    );
+    ) && serviceBlindComplete;
   const [guidanceBatch, setGuidanceBatch] =
     useState<CoachGuidanceBatch | null>(null);
 
@@ -621,8 +659,15 @@ export default function CoachStarVerdictOverlay({
                     : "Couldn't load every blind-label queue. Close and try again; contextual review stays locked."}
                 </p>
               )
+            ) : serviceReviewStatus === "loading" ? (
+              <LoadingState placement="surface" />
+            ) : serviceReviewStatus === "error" ? (
+              <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
+                Couldn&apos;t load the first-client blind practice queue. Contextual review stays locked.
+              </p>
             ) : (
-              cvRows.map((row, index) => (
+              <>
+              {cvRows.map((row, index) => (
                 <CoachCard key={row.snippetId}>
                   <CoachMetaPill tone="muted">
                     Piece {index + 1} of {cvRows.length}
@@ -644,7 +689,17 @@ export default function CoachStarVerdictOverlay({
                     onPick={(value) => labelVoice(row, value)}
                   />
                 </CoachCard>
-              ))
+              ))}
+              {serviceReviewSets
+                .filter((set) => !set.complete)
+                .map((set) => (
+                  <FirstClientCoachBlindReview
+                    key={set.reviewSetId}
+                    reviewSet={set}
+                    onComplete={markServiceReviewComplete}
+                  />
+                ))}
+              </>
             )}
           </div>
         </div>
@@ -717,6 +772,15 @@ export default function CoachStarVerdictOverlay({
                     saving={cvSaving === row.snippetId}
                     error={cvErrors[row.snippetId] ?? null}
                     onPick={(v) => labelVoice(row, v)}
+                  />
+                  <CoachConfidencePracticeReview
+                    sessionId={row.sessionKey}
+                    snippetId={row.snippetId}
+                    enabled={
+                      COACH_GUIDANCE_D3_UI_ENABLED &&
+                      (row.label?.value !== null ||
+                        row.label?.unrateable === true)
+                    }
                   />
                   {guidanceBatch?.items
                     .filter(

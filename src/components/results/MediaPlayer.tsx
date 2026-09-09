@@ -10,10 +10,10 @@ interface MediaPlayerProps {
   /** Where in the source file this snippet starts (ms). For concat'd
    *  full.webm files this is non-zero; for one-snippet-per-file rows
    *  it'll be 0. */
-  startOffsetMs: number;
+  startOffsetMs?: number;
   /** Slice length (ms). Drives the visible duration label and the
    *  hard pause-at-end clamp. */
-  durationMs: number;
+  durationMs?: number;
 }
 
 /**
@@ -38,24 +38,28 @@ interface MediaPlayerProps {
  */
 export default function MediaPlayer({
   src,
-  startOffsetMs,
+  startOffsetMs = 0,
   durationMs,
 }: MediaPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   // Position INSIDE the slice (audio.currentTime - seekSec).
   const [sliceCurrent, setSliceCurrent] = useState(0);
+  const [mediaDuration, setMediaDuration] = useState(0);
   // True once <audio> emits an `error` (404 / decode failure). We swap
   // in a small disabled state instead of leaving a silent player.
   const [errored, setErrored] = useState(false);
 
   const seekSec = startOffsetMs / 1000;
-  const clipDuration = durationMs / 1000;
+  const clipDuration = typeof durationMs === "number" && durationMs > 0
+    ? durationMs / 1000
+    : mediaDuration;
   const clipEndSec = seekSec + clipDuration;
 
   // Reset error flag when src changes — re-fetched URLs deserve a retry.
   useEffect(() => {
     setErrored(false);
+    setMediaDuration(0);
   }, [src]);
 
   // Pre-position the playhead whenever boundaries change so press-play
@@ -69,6 +73,9 @@ export default function MediaPlayer({
   const handleLoadedMetadata = () => {
     const el = audioRef.current;
     if (!el) return;
+    if (!(typeof durationMs === "number" && durationMs > 0)) {
+      setMediaDuration(Number.isFinite(el.duration) ? el.duration : 0);
+    }
     if (seekSec > 0) el.currentTime = seekSec;
   };
 
@@ -168,7 +175,7 @@ export default function MediaPlayer({
               ? "audio unavailable"
               : disabled
               ? "—"
-              : fmtClock(clipDuration)}
+              : clipDuration > 0 ? fmtClock(clipDuration) : "…"}
           </span>
         </div>
       </div>

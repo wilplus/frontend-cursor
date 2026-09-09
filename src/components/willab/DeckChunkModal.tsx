@@ -26,6 +26,8 @@ import { parseRichSpans } from "@/lib/willab/richMarkers";
 import { type DeckChunk } from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import ConfidentVoicePractice from "@/components/willab/ConfidentVoicePractice";
+import Mlc3FirstClientPractice from "@/components/willab/Mlc3FirstClientPractice";
+import { mlc3FirstClientPresentationEnabled } from "@/services/api/mlc3FirstClient";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -815,7 +817,10 @@ export default function DeckChunkModal({
                       durationMs={suggestion.durationMs ?? 0}
                     />
                   ) : null}
-                  {!agreeSaved ? (
+                  {mlc3FirstClientPresentationEnabled &&
+                  suggestion.firstClientService ? (
+                    <Mlc3FirstClientPractice suggestion={suggestion} />
+                  ) : !agreeSaved ? (
                     <ConfidenceLabelChips
                       question="Does this sound confident to you?"
                       value={agreeValue}

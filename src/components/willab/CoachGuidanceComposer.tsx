@@ -19,6 +19,10 @@ export default function CoachGuidanceComposer({
   const [note, setNote] = useState("");
   const [video, setVideo] = useState<File | null>(null);
   const [asExercise, setAsExercise] = useState(item.exerciseEligible);
+  const [publishToCatalog, setPublishToCatalog] = useState(false);
+  const [independentCleanMedia, setIndependentCleanMedia] = useState(false);
+  const [exerciseKey, setExerciseKey] = useState("");
+  const [exerciseInstruction, setExerciseInstruction] = useState("");
   const [subcategory, setSubcategory] = useState<"structure" | "delivery" | null>(
     null,
   );
@@ -39,6 +43,11 @@ export default function CoachGuidanceComposer({
           ? "mlc3_exercise"
           : "general_product_guidance",
       productSubcategory: asExercise ? null : subcategory,
+      publishToCatalog: asExercise && publishToCatalog,
+      independentCleanMedia: asExercise && independentCleanMedia,
+      exerciseKey,
+      exerciseInstruction,
+      languageCode: "en",
     });
     if (!result.ok) {
       setStatus("idle");
@@ -78,14 +87,58 @@ export default function CoachGuidanceComposer({
         {video ? video.name : "Add coaching video"}
       </button>
       {item.exerciseEligible ? (
-        <label className="flex items-center gap-2 text-[13px] text-foreground">
-          <input
-            type="checkbox"
-            checked={asExercise}
-            onChange={(event) => setAsExercise(event.target.checked)}
-          />
-          Attach as the matched voice exercise
-        </label>
+        <div className="grid gap-3">
+          <label className="flex items-center gap-2 text-[13px] text-foreground">
+            <input
+              type="checkbox"
+              checked={asExercise}
+              onChange={(event) => setAsExercise(event.target.checked)}
+            />
+            Attach as a voice exercise
+          </label>
+          {asExercise && video ? (
+            <>
+              <label className="flex items-center gap-2 text-[13px] text-foreground">
+                <input
+                  type="checkbox"
+                  checked={independentCleanMedia}
+                  onChange={(event) => {
+                    setIndependentCleanMedia(event.target.checked);
+                    if (!event.target.checked) setPublishToCatalog(false);
+                  }}
+                />
+                This video contains no user audio, transcript, identity,
+                project context, or unique user passage
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-foreground">
+                <input
+                  type="checkbox"
+                  checked={publishToCatalog}
+                  disabled={!independentCleanMedia}
+                  onChange={(event) => setPublishToCatalog(event.target.checked)}
+                />
+                Publish a new reviewed version to the exercise catalogue
+              </label>
+              {publishToCatalog ? (
+                <div className="grid gap-2">
+                  <input
+                    value={exerciseKey}
+                    onChange={(event) => setExerciseKey(event.target.value)}
+                    placeholder="Exercise key, e.g. rushed_ending_reset"
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <textarea
+                    value={exerciseInstruction}
+                    onChange={(event) => setExerciseInstruction(event.target.value)}
+                    placeholder="Reusable exercise instruction"
+                    rows={2}
+                    className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       ) : (
         <div className="flex gap-2">
           {(["structure", "delivery"] as const).map((value) => (
@@ -106,7 +159,10 @@ export default function CoachGuidanceComposer({
       )}
       <button
         type="button"
-        disabled={status === "saving" || (!note.trim() && !video)}
+        disabled={
+          status === "saving" || (!note.trim() && !video) ||
+          (publishToCatalog && (!exerciseKey.trim() || !exerciseInstruction.trim()))
+        }
         onClick={() => void submit()}
         className="flex items-center justify-center rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background disabled:opacity-40"
       >
