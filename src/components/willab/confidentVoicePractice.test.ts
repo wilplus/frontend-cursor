@@ -77,4 +77,17 @@ describe("Confident Voice micro-practice journey fences", () => {
       'form.append("capture_completed_at", new Date().toISOString())',
     );
   });
+
+  it("requires an explicit self-voice action for each comparison recording", () => {
+    expect(firstClient).toContain("Is this your voice in this recording?");
+    expect(firstClient).toContain("Yes, this is my voice");
+    expect(firstClient).toContain("Not sure or someone else");
+    expect(firstClient).toContain("It is not a confidence score");
+    expect(practiceFlow).toContain("confirmSourceSelfSpeaker");
+    expect(practiceFlow).toContain("confirmPracticeSelfSpeaker");
+    expect(practiceFlow).toContain('setSourceSpeakerState("declined")');
+    expect(practiceFlow).toContain("speakerConfirmationRequired");
+    expect(firstClientApi).toContain('assertion: "this_is_my_voice"');
+    expect(firstClientApi).not.toContain('assertion: "not_my_voice"');
+  });
 });

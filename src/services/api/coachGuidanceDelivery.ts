@@ -1,9 +1,10 @@
 import { mapReadoutFeatures, type ReadoutFeatures } from "@/components/willab/readout";
 
 /** Presentation-only switch. The API still requires its independent master
- * gate and exact user/principal allowlist, so this cannot activate serving. */
+ * gate and rollout-aware database enrollment, so this cannot authorize a
+ * principal or activate serving. */
 export const COACH_GUIDANCE_D3_UI_ENABLED =
-  process.env.NEXT_PUBLIC_MLC3_PILOT_UI_ENABLED === "true";
+  process.env.NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED === "true";
 export const COACH_INLINE_AUTHORING_UI_ENABLED =
   process.env.NEXT_PUBLIC_MLC3_COACH_INLINE_AUTHORING_ENABLED === "true";
 
@@ -44,7 +45,11 @@ export interface CoachGuidanceBatch {
   revealGrantId: string;
   batchComplete: true;
   items: CoachGuidanceItem[];
-  operationMode: "synthetic_dark" | "allowlisted_service";
+  operationMode:
+    | "synthetic_dark"
+    | "allowlisted_service"
+    | "cohort_service"
+    | "general_service";
   syntheticOnly: boolean;
   servesUser: false;
   datasetEligible: false;

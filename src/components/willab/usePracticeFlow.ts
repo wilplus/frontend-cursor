@@ -7,6 +7,8 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import {
   answerServiceFeedback,
   answerServicePracticePreference,
+  confirmPracticeSelfSpeaker,
+  confirmSourceSelfSpeaker,
   confirmFeedbackRender,
   createServiceExerciseOffer,
   createServicePracticeSession,
@@ -60,6 +62,12 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
   const activeCapture = useRef<ActiveCapture | null>(null);
   const [renderReceiptId, setRenderReceiptId] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<ConfidenceRatingValue | null>(null);
+  const [sourceSpeakerState, setSourceSpeakerState] = useState<
+    "pending" | "confirmed" | "declined" | null
+  >(null);
+  const [feedbackResponseBindingId, setFeedbackResponseBindingId] = useState<
+    string | null
+  >(null);
   const [offer, setOffer] = useState<ServiceExerciseOffer | null>(null);
   const [practice, setPractice] = useState<ServicePracticeSession | null>(null);
   const [attempts, setAttempts] = useState<ServicePracticeAttempt[]>([]);
@@ -184,18 +192,42 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
       setBusy(false);
       return;
     }
+    setFeedbackResponseBindingId(answered.value.response_binding_id);
+    setSourceSpeakerState("pending");
+    setBusy(false);
+  }, [busy, feedbackKey, identity, renderReceiptId]);
+
+  const confirmSourceSpeaker = useCallback(async (confirmed: boolean) => {
+    if (!identity || !feedbackResponseBindingId || busy) return;
+    if (!confirmed) {
+      setSourceSpeakerState("declined");
+      setError(null);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const speaker = await confirmSourceSelfSpeaker(
+      identity,
+      `mlc3-source-speaker:${identity.membershipId}:${identity.candidateId}`,
+    );
+    if (!speaker.ok) {
+      setBusy(false);
+      setError(speaker.error ?? "Couldn't confirm this recording yet.");
+      return;
+    }
     const created = await createServiceExerciseOffer(
       identity,
-      answered.value.response_binding_id,
-      `mlc3-service-offer:${answered.value.response_binding_id}`,
+      feedbackResponseBindingId,
+      `mlc3-service-offer:${feedbackResponseBindingId}`,
     );
     setBusy(false);
     if (!created.ok) {
       setError(created.error ?? "A matching exercise is not ready yet.");
       return;
     }
+    setSourceSpeakerState("confirmed");
     setOffer(created.value);
-  }, [busy, feedbackKey, identity, renderReceiptId]);
+  }, [busy, feedbackResponseBindingId, identity]);
 
   const openPractice = useCallback(async () => {
     if (!offer || !identity || !suggestion.quote.trim() || busy) return;
@@ -245,6 +277,44 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     if (audio) void uploadAttempt(audio);
   }, [uploadAttempt]);
 
+  const confirmPracticeSpeaker = useCallback(async (
+    attemptId: string,
+    confirmed: boolean,
+  ) => {
+    if (busy) return;
+    if (!confirmed) {
+      setAttempts((current) => current.map((attempt) => (
+        attempt.attemptId === attemptId
+          ? { ...attempt, speakerConfirmationRequired: false }
+          : attempt
+      )));
+      setError(
+        "This recording won't be compared. You can record another attempt.",
+      );
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await confirmPracticeSelfSpeaker(
+      attemptId,
+      `mlc3-practice-speaker:${attemptId}`,
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error ?? "Couldn't confirm this recording yet.");
+      return;
+    }
+    setAttempts((current) => current.map((attempt) => (
+      attempt.attemptId === attemptId
+        ? {
+            ...attempt,
+            speakerConfirmationRequired: false,
+            ownerPair: result.value.ownerPair,
+          }
+        : attempt
+    )));
+  }, [busy]);
+
   const savePreference = useCallback(async (value: PracticePreference) => {
     const selected = [...attempts].reverse().find((item) => item.ownerPair);
     if (!practice || !selected?.ownerPair || busy) return;
@@ -266,6 +336,9 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
   }, [attempts, busy, practice]);
 
   const selectedAttempt = [...attempts].reverse().find((item) => item.ownerPair);
+  const speakerPendingAttempt = [...attempts].reverse().find(
+    (item) => item.speakerConfirmationRequired && !item.ownerPair,
+  );
   return {
     active: mlc3FirstClientPresentationEnabled && Boolean(identity),
     identity,
@@ -274,6 +347,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     offerRenderId,
     practiceRenderId,
     confidence,
+    sourceSpeakerState,
     offer,
     practice,
     attempts,
@@ -284,10 +358,13 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     retryPending,
     error,
     selectedAttempt,
+    speakerPendingAttempt,
     answerConfidence,
+    confirmSourceSpeaker,
     openPractice,
     startRecording,
     retryUpload,
+    confirmPracticeSpeaker,
     savePreference,
   };
 }
