@@ -66,6 +66,41 @@ function CoachGuidanceCard({ item }: { item: ServiceCoachGuidance }) {
 
 type PracticeFlow = ReturnType<typeof usePracticeFlow>;
 
+function SpeakerConfirmation({
+  busy,
+  onAnswer,
+}: {
+  busy: boolean;
+  onAnswer: (confirmed: boolean) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-4">
+      <p className="text-sm font-semibold">Is this your voice in this recording?</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        This keeps comparisons on your own voice. It is not a confidence score.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAnswer(true)}
+          className="rounded-xl bg-foreground px-4 py-3 text-sm font-medium text-background disabled:opacity-50"
+        >
+          Yes, this is my voice
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAnswer(false)}
+          className="rounded-xl border border-border px-4 py-3 text-sm font-medium disabled:opacity-50"
+        >
+          Not sure or someone else
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OfferStep({ flow }: { flow: PracticeFlow }) {
   const exercise = flow.offer?.exercise;
   if (!flow.offer || !exercise) return null;
@@ -193,6 +228,18 @@ function PracticeStep({
       </div>
       {flow.selectedAttempt
         ? <PreferenceAction flow={flow} />
+        : flow.speakerPendingAttempt
+          ? (
+            <div className="mt-4">
+              <SpeakerConfirmation
+                busy={flow.busy}
+                onAnswer={(confirmed) => void flow.confirmPracticeSpeaker(
+                  flow.speakerPendingAttempt!.attemptId,
+                  confirmed,
+                )}
+              />
+            </div>
+          )
         : <RecordingAction flow={flow} />}
       {flow.error ? (
         <p className="mt-3 text-xs text-destructive">{flow.error}</p>
@@ -219,6 +266,21 @@ function PracticeStage({
         ownerWording
         onPick={(value) => void flow.answerConfidence(value)}
       />
+    );
+  }
+  if (flow.sourceSpeakerState === "pending") {
+    return (
+      <SpeakerConfirmation
+        busy={flow.busy}
+        onAnswer={(confirmed) => void flow.confirmSourceSpeaker(confirmed)}
+      />
+    );
+  }
+  if (flow.sourceSpeakerState === "declined") {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Voice practice is unavailable for this recording.
+      </p>
     );
   }
   if (flow.offer?.outcome === "coach_exercise_requested") {

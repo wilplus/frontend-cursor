@@ -1,6 +1,10 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import {
+  backendFetch,
+  callBackend,
+  getAccessToken,
+} from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -8,15 +12,20 @@ export const maxDuration = 60;
 const UUID = "[0-9a-fA-F-]{36}";
 const ALLOWED = [
   /^feedback\/(render|respond)$/,
+  /^feedback\/speaker$/,
   /^exercise-offers$/,
   new RegExp(`^exercise-offers/${UUID}$`),
+  new RegExp(`^exercise-offers/${UUID}/playback$`),
   new RegExp(`^exercise-offers/${UUID}/events$`),
   new RegExp(`^exercise-offers/${UUID}/practice-sessions$`),
   new RegExp(`^practice-sessions/${UUID}$`),
   new RegExp(`^practice-sessions/${UUID}/events$`),
   new RegExp(`^practice-sessions/${UUID}/attempts$`),
   new RegExp(`^practice-sessions/${UUID}/preference$`),
+  new RegExp(`^practice-attempts/${UUID}/speaker$`),
+  new RegExp(`^practice-attempts/${UUID}/playback$`),
   new RegExp(`^guidance/${UUID}$`),
+  new RegExp(`^guidance/${UUID}/playback$`),
   new RegExp(`^guidance/${UUID}/events$`),
 ] as const;
 
@@ -35,6 +44,26 @@ async function forward(
   const path = target(parts);
   if (!path) {
     return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
+  }
+  const isPlayback = method === "GET" && /\/playback$/.test(path);
+  if (isPlayback) {
+    const token = await getAccessToken();
+    if (!token) {
+      return NextResponse.json(
+        { code: "UNAUTHENTICATED", error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const upstream = await backendFetch(path, { method: "GET", token });
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": upstream.headers.get("Content-Type") ??
+          "application/octet-stream",
+        "Cache-Control": "private, no-store, max-age=0",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   }
   const idempotency = req.headers.get("Idempotency-Key")?.trim();
   if (!idempotency) {
