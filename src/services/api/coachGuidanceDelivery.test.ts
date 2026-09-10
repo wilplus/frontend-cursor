@@ -44,7 +44,8 @@ describe("Coach Guidance D3 disabled boundary", () => {
       resolve(process.cwd(), "src/services/api/mlc3FirstClient.ts"),
       "utf8",
     );
-    expect(firstClientApi).toContain("NEXT_PUBLIC_MLC3_PILOT_UI_ENABLED");
+    expect(firstClientApi).toContain("NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED");
+    expect(firstClientApi).not.toContain("NEXT_PUBLIC_MLC3_PILOT_UI_ENABLED");
     expect(firstClientApi).not.toContain(
       'process.env.NEXT_PUBLIC_MLC3_PILOT_ENABLED === "true"',
     );

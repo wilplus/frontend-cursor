@@ -1,7 +1,7 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 
 export const mlc3FirstClientPresentationEnabled =
-  process.env.NEXT_PUBLIC_MLC3_PILOT_UI_ENABLED === "true";
+  process.env.NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED === "true";
 
 export type FiveStateConfidence =
   | "confident_yes"
@@ -56,12 +56,22 @@ export interface ServicePracticeAttempt {
   reasonCodes: string[];
   selectionState: string;
   selectedAttemptId: string | null;
+  speakerConfirmationRequired: boolean;
   ownerPair: null | {
     pairRevisionId: string;
     pairAssignmentId: string;
     leftClip: "before" | "after";
     rightClip: "before" | "after";
   };
+}
+
+export interface ServiceSpeakerTarget {
+  assertionId: string;
+  speakerId: string;
+  targetBindingId: string;
+  replayed: boolean;
+  meaning: "identity_routing_only";
+  datasetEligible: false;
 }
 
 export interface ServiceCoachGuidance {
@@ -198,6 +208,47 @@ export async function answerServiceFeedback(
       response,
     }),
   });
+}
+
+function mapSpeakerTarget(value: unknown): ServiceSpeakerTarget | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.assertion_id !== "string" ||
+    typeof row.speaker_id !== "string" ||
+    typeof row.target_binding_id !== "string" ||
+    typeof row.replayed !== "boolean" ||
+    row.meaning !== "identity_routing_only" ||
+    row.dataset_eligible !== false
+  ) return null;
+  return {
+    assertionId: row.assertion_id,
+    speakerId: row.speaker_id,
+    targetBindingId: row.target_binding_id,
+    replayed: row.replayed,
+    meaning: row.meaning,
+    datasetEligible: false,
+  };
+}
+
+export async function confirmSourceSelfSpeaker(
+  identity: ServiceFeedbackIdentity,
+  idempotencyKey: string,
+): Promise<ApiResult<ServiceSpeakerTarget>> {
+  const auth = await headers(idempotencyKey);
+  if (!auth) return { ok: false, error: null };
+  const result = await request<Record<string, unknown>>("feedback/speaker", {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({
+      membership_id: identity.membershipId,
+      candidate_id: identity.candidateId,
+      assertion: "this_is_my_voice",
+    }),
+  });
+  if (!result.ok) return result;
+  const target = mapSpeakerTarget(result.value);
+  return target ? { ok: true, value: target } : { ok: false, error: null };
 }
 
 export async function createServiceExerciseOffer(
@@ -447,7 +498,56 @@ export async function uploadServicePracticeAttempt(
         typeof row.selected_attempt_id === "string"
           ? row.selected_attempt_id
           : null,
+      speakerConfirmationRequired: row.speaker_confirmation_required === true,
       ownerPair,
+    },
+  };
+}
+
+export async function confirmPracticeSelfSpeaker(
+  attemptId: string,
+  idempotencyKey: string,
+): Promise<ApiResult<{
+  speakerTarget: ServiceSpeakerTarget;
+  eligibilityResult: "same_speaker_eligible";
+  ownerPair: NonNullable<ServicePracticeAttempt["ownerPair"]>;
+}>> {
+  const auth = await headers(idempotencyKey);
+  if (!auth) return { ok: false, error: null };
+  const result = await request<Record<string, unknown>>(
+    `practice-attempts/${encodeURIComponent(attemptId)}/speaker`,
+    {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ assertion: "this_is_my_voice" }),
+    },
+  );
+  if (!result.ok) return result;
+  const speakerTarget = mapSpeakerTarget(result.value.speaker_target);
+  const pair = result.value.owner_pair;
+  if (
+    !speakerTarget ||
+    result.value.eligibility_result !== "same_speaker_eligible" ||
+    !pair || typeof pair !== "object"
+  ) return { ok: false, error: null };
+  const ownerPair = pair as Record<string, unknown>;
+  if (
+    typeof ownerPair.pair_revision_id !== "string" ||
+    typeof ownerPair.pair_assignment_id !== "string" ||
+    (ownerPair.left_clip !== "before" && ownerPair.left_clip !== "after") ||
+    (ownerPair.right_clip !== "before" && ownerPair.right_clip !== "after")
+  ) return { ok: false, error: null };
+  return {
+    ok: true,
+    value: {
+      speakerTarget,
+      eligibilityResult: "same_speaker_eligible",
+      ownerPair: {
+        pairRevisionId: ownerPair.pair_revision_id,
+        pairAssignmentId: ownerPair.pair_assignment_id,
+        leftClip: ownerPair.left_clip,
+        rightClip: ownerPair.right_clip,
+      },
     },
   };
 }
