@@ -81,6 +81,11 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
+import type {
+  ConfidentMomentOwnerEdit,
+  ConfidentMomentSummary,
+} from "@/services/api/confidentMomentBundles";
+import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -176,6 +181,8 @@ export default function IdealTextOverlay({
     takeCount: number | null;
     journeyNextStepsSeen: boolean | null;
     learningExposures: LearningExposureHandle[];
+    confidentMomentSummary: ConfidentMomentSummary | null;
+    confidentMomentOwnerEdit: ConfidentMomentOwnerEdit | null;
   } | null>(null);
 
   useVisibleLearningExposure({
@@ -305,7 +312,9 @@ export default function IdealTextOverlay({
       return;
     }
     const gen = ++fetchGenRef.current;
-    const read = firstLoad ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    const read = confidentMomentBundleEnabled()
+      ? fetchIdealTextCore
+      : firstLoad ? fetchIdealTextForDisplay : fetchIdealTextCore;
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
       refreshDocumentVariants: boolean,
@@ -334,6 +343,8 @@ export default function IdealTextOverlay({
         takeCount: r.takeCount,
         journeyNextStepsSeen: r.journeyNextStepsSeen,
         learningExposures: r.learningExposures,
+        confidentMomentSummary: r.confidentMomentSummary ?? null,
+        confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
       });
       versionRef.current = r.version;
       versionArmedRef.current = true;
@@ -1031,6 +1042,10 @@ export default function IdealTextOverlay({
               reviewStatus: m.reviewStatus ?? null,
             }))}
             arcId={arcId}
+            takeSessionId={sd.latestTakeSessionId}
+            confidentMomentSummary={sd.confidentMomentSummary}
+            confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
+            onConfidentMomentChanged={() => setRefetchNonce((value) => value + 1)}
             styleChanges={sd.styleChanges}
             decisionHistory={sd.decisionHistory}
             onApplyStyle={applyStyle}

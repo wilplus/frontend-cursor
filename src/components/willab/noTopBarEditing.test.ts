@@ -86,7 +86,10 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     const usage = deck.match(/<DeckLockMark[\s\S]*?\/>/);
     expect(usage).not.toBeNull();
     expect(usage?.[0]).not.toMatch(/disabled/);
-    expect(usage?.[0]).toMatch(/onClick=\{\(\) => setOpenPartId/);
+    expect(usage?.[0]).toMatch(/onClick=\{\(\) => \{/);
+    expect(usage?.[0]).toMatch(/const markers = summaryByParagraph\.get\(c\.part\.id\) \?\? \[\]/);
+    expect(usage?.[0]).toMatch(/setOpenBundleId\(markers\[index % markers\.length\]\.bundleId\)/);
+    expect(usage?.[0]).toMatch(/else setOpenPartId\(c\.part\.id\)/);
     expect(deck).toContain("Edit the text");
   });
 });

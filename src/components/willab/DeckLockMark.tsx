@@ -8,8 +8,8 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
  *
  *   outline    resolved ordinary paragraph / feedback not loaded yet
  *   outline    a decision is waiting
- *   filled     an accepted flagship
- *   attention  an accepted flagship has a new decision waiting
+ *   filled     a rooting phrase is active
+ *   attention  an active rooting phrase has a new decision waiting
  *
  * Slide editing has its own explicit, slide-scoped control. That separation is
  * deliberate: feedback, accepted orange anchors, and rehearsal roots are three
@@ -31,17 +31,20 @@ export default function DeckLockMark({
   onClick,
   disabled = false,
   hasCoach = false,
+  hasUnreadCoachUpdate = false,
   hasStyle = false,
   reviewStatus = null,
 }: {
   status: ChunkStatus;
   /** Number selected for this chunk from the Take's immutable three. */
   pendingCount?: number;
-  /** True only when the paragraph contains user-accepted orange text. */
+  /** True when the paragraph contains an active orange rooting phrase.
+   * Its automatic/owner origin remains separate server provenance. */
   flagship?: boolean;
   onClick: () => void;
   disabled?: boolean;
   hasCoach?: boolean;
+  hasUnreadCoachUpdate?: boolean;
   hasStyle?: boolean;
   reviewStatus?:
     | "pending_coach_review"
@@ -52,18 +55,19 @@ export default function DeckLockMark({
   const styled = hasStyle && status === "locked";
   const reviewNeedsAttention =
     reviewStatus === "pending_coach_review" || reviewStatus === "not_confirmed";
-  const unresolved = status === "waiting" || styled || hasCoach || reviewNeedsAttention;
+  const unresolved = status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
   const attention = flagship && unresolved;
 
   return (
     <button
       type="button"
       aria-label={[
-        flagship ? "Flagship accepted" : ARIA[status],
+        flagship ? "Rooting phrase active" : ARIA[status],
         status === "waiting" && pendingCount > 0
           ? `${pendingCount} feedback item${pendingCount === 1 ? "" : "s"}`
           : null,
         hasCoach ? COACH_LABEL : null,
+        hasUnreadCoachUpdate ? "New coach update" : null,
         reviewStatus === "pending_coach_review" ? "Pending coach review" : null,
         reviewStatus === "coach_reviewed" ? "Coach reviewed" : null,
         reviewStatus === "not_confirmed" ? "Coach did not confirm this moment" : null,
@@ -73,6 +77,7 @@ export default function DeckLockMark({
         .join(" — ")}
       data-status={attention ? "attention" : flagship ? "filled" : "outline"}
       data-coach={hasCoach ? "true" : undefined}
+      data-coach-unread={hasUnreadCoachUpdate ? "true" : undefined}
       data-style={styled ? "true" : undefined}
       onClick={onClick}
       disabled={disabled}
@@ -100,7 +105,7 @@ export default function DeckLockMark({
       ) : null}
       {hasCoach ? (
         <span
-          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background"
+          className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${hasUnreadCoachUpdate ? "bg-primary motion-safe:animate-pulse" : "bg-muted-foreground"}`}
           aria-hidden
         />
       ) : null}

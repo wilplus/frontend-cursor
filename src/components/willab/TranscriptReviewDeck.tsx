@@ -37,10 +37,17 @@ import {
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
 import { partRootTint, type Part } from "@/lib/willab/documentParts";
+import { bundleRootTint } from "@/lib/willab/rootPhraseLayer";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
 } from "@/services/api/idealText";
+import type {
+  ConfidentMomentOwnerEdit,
+  ConfidentMomentSummary,
+} from "@/services/api/confidentMomentBundles";
+import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
+import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -91,6 +98,10 @@ export default function TranscriptReviewDeck({
   decisionHistory = null,
   coachMoments = null,
   arcId = null,
+  takeSessionId = null,
+  confidentMomentSummary = null,
+  confidentMomentOwnerEdit = null,
+  onConfidentMomentChanged,
 }: {
   title?: string;
   /** Optional right-of-title chip (e.g. "Verified"). Qualitative only. */
@@ -153,7 +164,28 @@ export default function TranscriptReviewDeck({
    *  words. The message itself loads on demand (that read is metered). */
   coachMoments?: readonly CoachMomentLite[] | null;
   arcId?: string | null;
+  takeSessionId?: string | null;
+  confidentMomentSummary?: ConfidentMomentSummary | null;
+  confidentMomentOwnerEdit?: ConfidentMomentOwnerEdit | null;
+  onConfidentMomentChanged?: () => void;
 }) {
+  const confidentMoments = useConfidentMomentBundle({
+    projectId: arcId,
+    takeId: takeSessionId,
+    summary: confidentMomentSummary,
+  });
+  const [openBundleId, setOpenBundleId] = useState<string | null>(null);
+  const summaryByParagraph = useMemo(() => {
+    const grouped = new Map<string, ConfidentMomentSummary["items"]>();
+    for (const item of confidentMomentSummary?.items ?? []) {
+      grouped.set(item.paragraphId, [...(grouped.get(item.paragraphId) ?? []), item]);
+    }
+    return grouped;
+  }, [confidentMomentSummary]);
+  const [paragraphBundleCursor, setParagraphBundleCursor] = useState<Record<string, number>>({});
+  const openBundle = openBundleId
+    ? confidentMoments.projection?.bundles.find((item) => item.bundleId === openBundleId) ?? null
+    : null;
   /* §11.7.1 — INSTANT LOCK FEEDBACK (founder 2026-08-14). The modal
    * already closes on a successful lock; what lagged was the PAGE — the
    * lock icon waited for the host's refetch. A confirmed lock is marked
@@ -648,15 +680,43 @@ export default function TranscriptReviewDeck({
                     >
                       <RichText
                         text={c.part.text}
-                        tint={partRootTint(c.part)}
+                        tint={
+                          partRootTint(c.part) ?? (() => {
+                            const marker = summaryByParagraph.get(c.part.id)?.[0];
+                            const bundle = marker
+                              ? confidentMoments.projection?.bundles.find(
+                                  (candidate) => candidate.bundleId === marker.bundleId,
+                                )
+                              : null;
+                            return bundle
+                              ? bundleRootTint(
+                                  c.part.text,
+                                  bundle.root,
+                                  bundle.feedbackLanguageItems
+                                    .filter((item) => item.attachedCandidateId === bundle.bundleId)
+                                    .map((item) => item.sourcePassage.text),
+                                )
+                              : undefined;
+                          })()
+                        }
                       />
                       <DeckLockMark
                         status={c.status}
                         pendingCount={c.pendingIds.length}
-                        flagship={Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
+                        flagship={summaryByParagraph.get(c.part.id)?.some((item) => item.isOrange) === true || Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
-                        onClick={() => setOpenPartId(c.part.id)}
+                        onClick={() => {
+                          const markers = summaryByParagraph.get(c.part.id) ?? [];
+                          if (markers.length > 0) {
+                            const index = paragraphBundleCursor[c.part.id] ?? 0;
+                            setOpenBundleId(markers[index % markers.length].bundleId);
+                            setParagraphBundleCursor((current) => ({
+                              ...current,
+                              [c.part.id]: (index + 1) % markers.length,
+                            }));
+                          } else setOpenPartId(c.part.id);
+                        }}
                         // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
                         // 2026-08-11). The same join the modal already runs,
                         // now run per chunk so the page can say WHICH chunk
@@ -665,8 +725,13 @@ export default function TranscriptReviewDeck({
                         // metered feedback read still fires only on the tap
                         // inside the modal.
                         hasCoach={
+                          summaryByParagraph.get(c.part.id)?.some((item) => item.hasCoachUpdate) === true ||
                           coachMomentForChunk(coachMoments, doc, c)
                             ?.hasExplanation === true
+                        }
+                        hasUnreadCoachUpdate={
+                          summaryByParagraph.get(c.part.id)
+                            ?.some((item) => item.hasUnreadCoachUpdate) === true
                         }
                         reviewStatus={
                           coachMomentForChunk(coachMoments, doc, c)
@@ -850,6 +915,18 @@ export default function TranscriptReviewDeck({
             if (saved) setEditingSlideIndex(undefined);
             return saved;
           }}
+        />
+      ) : null}
+      {openBundle ? (
+        <ConfidentMomentCoachingBundle
+          bundle={openBundle}
+          documentSnapshotId={confidentMoments.projection!.documentSnapshotId}
+          ownerEdit={confidentMomentOwnerEdit}
+          onChanged={() => {
+            confidentMoments.refresh();
+            onConfidentMomentChanged?.();
+          }}
+          onClose={() => setOpenBundleId(null)}
         />
       ) : null}
     </div>
