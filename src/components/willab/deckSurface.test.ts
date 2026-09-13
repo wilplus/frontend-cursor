@@ -46,9 +46,10 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
 
   it("the chunk renders its words directly, with the mark beside them", () => {
     // Not merely "no classes today" — no wrapper to hang classes ON.
-    expect(DECK).toMatch(
-      /<RichText\s+text=\{c\.part\.text\}\s+tint=\{partRootTint\(c\.part\)\}\s+\/>\s*<DeckLockMark/,
-    );
+    expect(DECK).toMatch(/<RichText\s+text=\{c\.part\.text\}/);
+    expect(DECK).toMatch(/partRootTint\(c\.part\) \?\?/);
+    expect(DECK).toMatch(/bundleRootTint\(/);
+    expect(DECK).toMatch(/<RichText[\s\S]*?\/>\s*<DeckLockMark/);
   });
 
   it("reveals the frozen feedback inventory before any decision", () => {
@@ -91,6 +92,8 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
       expect(MARK).toContain(state);
     }
     expect(MARK).not.toMatch(/accepted:/);
+    expect(MARK).toContain('flagship ? "Rooting phrase active"');
+    expect(MARK).not.toContain('flagship ? "Flagship accepted"');
   });
 
   it("keeps one stable bookmark beside every paragraph from first paint", () => {
@@ -303,8 +306,12 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // LOCKED chunk that is the whole problem: the lock is the final state, so
     // nothing else would make the student open it again.
     const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).toMatch(/hasCoach=\{/);
     expect(DECK_SRC).toMatch(
-      /hasCoach=\{\s*coachMomentForChunk\(coachMoments, doc, c\)\s*\?\.hasExplanation === true\s*\}/
+      /summaryByParagraph\.get\(c\.part\.id\)\?\.some\(\(item\) => item\.hasCoachUpdate\) === true/
+    );
+    expect(DECK_SRC).toMatch(
+      /coachMomentForChunk\(coachMoments, doc, c\)\s*\?\.hasExplanation === true/
     );
     expect(DECK_SRC).toMatch(/reviewStatus=\{/);
     expect(MARK).toMatch(/hasCoach/);

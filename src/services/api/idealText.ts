@@ -7,6 +7,11 @@ import type {
   LearningSurface,
 } from "@/services/api/learningExposures";
 import { mapLearningExposureHandles } from "@/services/api/learningExposures";
+import {
+  mapConfidentMomentSummary,
+  type ConfidentMomentOwnerEdit,
+  type ConfidentMomentSummary,
+} from "@/services/api/confidentMomentBundles";
 
 /* -------------------------------------------------------------------------- */
 /*  idealText — the Project's one canonical presentation document              */
@@ -1136,6 +1141,10 @@ export type IdealTextResult =
       documentSnapshotSha256?: string | null;
       /** Optional section state; it never owns document availability. */
       enrichmentSections?: Record<string, IdealTextEnrichmentSectionStatus>;
+      /** Database-owned stable first-paint marker inventory. */
+      confidentMomentSummary?: ConfidentMomentSummary | null;
+      /** Exact owner CAS state used only for accepted Bundle Rephrase writes. */
+      confidentMomentOwnerEdit?: ConfidentMomentOwnerEdit | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -1533,11 +1542,26 @@ function mapIdealTextCorePayload(
   }
   const ideal = mapIdealText(body);
   if (!ideal) return null;
+  const ownerEdit = mapConfidentMomentOwnerEdit(body.owner_edit);
+  const confidentMomentSummary = mapConfidentMomentSummary(
+    body.confident_moment_summary,
+  );
+  const summaryStatus = body.confident_moment_summary_status;
+  if (
+    summaryStatus &&
+    typeof summaryStatus === "object" &&
+    !Array.isArray(summaryStatus) &&
+    (summaryStatus as Record<string, unknown>).state === "available" &&
+    !confidentMomentSummary
+  ) {
+    return null;
+  }
+  const servedIdeal = ownerEdit?.text ? { ...ideal, text: ownerEdit.text } : ideal;
   const numberOrNull = (value: unknown): number | null =>
     typeof value === "number" && Number.isFinite(value) ? value : null;
   return {
     kind: "single",
-    ideal,
+    ideal: servedIdeal,
     status: body.status,
     version: numberOrNull(body.version),
     momentsUnlocked: false,
@@ -1557,7 +1581,13 @@ function mapIdealTextCorePayload(
     decisionHistory: null,
     saved: null,
     keyPoints: null,
-    parts: mapParts(body.parts),
+    parts: ownerEdit
+      ? ownerEdit.parts.map((part) => ({
+          id: part.id,
+          text: part.text,
+          locked: part.locked,
+        }))
+      : mapParts(body.parts),
     additions: [],
     presentationRef: str(body.presentation_ref) || null,
     slideTitles: Array.isArray(body.slide_titles)
@@ -1569,6 +1599,97 @@ function mapIdealTextCorePayload(
     documentSnapshotId: str(body.document_snapshot_id) || null,
     documentSnapshotSha256: str(body.document_snapshot_sha256) || null,
     enrichmentSections: {},
+    confidentMomentSummary,
+    confidentMomentOwnerEdit: ownerEdit,
+  };
+}
+
+function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const value = raw as Record<string, unknown>;
+  const keys = [
+    "text", "source_document_version", "user_text_revision",
+    "user_text_sha256", "parts", "current_bundle_text_update_binding",
+  ];
+  if (Object.keys(value).sort().join("|") !== keys.sort().join("|")) return null;
+  if (value.text === null) {
+    if (
+      value.source_document_version !== null ||
+      value.user_text_revision !== null ||
+      value.user_text_sha256 !== null ||
+      !Array.isArray(value.parts) || value.parts.length !== 0 ||
+      value.current_bundle_text_update_binding !== null
+    ) return null;
+    return {
+      text: null,
+      sourceDocumentVersion: null,
+      userTextRevision: null,
+      userTextSha256: null,
+      parts: [],
+      currentBundleTextUpdateBinding: null,
+    };
+  }
+  if (
+    typeof value.text !== "string" || !value.text.trim() ||
+    !Number.isInteger(value.source_document_version) ||
+    Number(value.source_document_version) < 1 ||
+    typeof value.user_text_revision !== "string" ||
+    !/^[1-9][0-9]*$/.test(value.user_text_revision) ||
+    typeof value.user_text_sha256 !== "string" ||
+    !/^[0-9a-f]{64}$/.test(value.user_text_sha256) ||
+    !Array.isArray(value.parts)
+  ) return null;
+  const parts: ConfidentMomentOwnerEdit["parts"] = [];
+  for (let position = 0; position < value.parts.length; position += 1) {
+    const rawPart = value.parts[position];
+    if (!rawPart || typeof rawPart !== "object" || Array.isArray(rawPart)) return null;
+    const part = rawPart as Record<string, unknown>;
+    if (Object.keys(part).sort().join("|") !== ["id", "ord", "text", "locked", "current_part_revision_id"].sort().join("|")) return null;
+    if (
+      typeof part.id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(part.id) ||
+      part.ord !== position || typeof part.text !== "string" ||
+      typeof part.locked !== "boolean" ||
+      (part.current_part_revision_id !== null &&
+        (typeof part.current_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(part.current_part_revision_id)))
+    ) return null;
+    parts.push({ id: part.id, position, text: part.text, locked: part.locked, currentPartRevisionId: part.current_part_revision_id as string | null });
+  }
+  const bindingRaw = value.current_bundle_text_update_binding;
+  let currentBundleTextUpdateBinding: ConfidentMomentOwnerEdit["currentBundleTextUpdateBinding"] = null;
+  if (bindingRaw !== null) {
+    if (!bindingRaw || typeof bindingRaw !== "object" || Array.isArray(bindingRaw)) return null;
+    const binding = bindingRaw as Record<string, unknown>;
+    const bindingKeys = ["binding_id", "bundle_id", "attachment_id", "source_document_version", "result_user_text_revision", "result_user_text_sha256", "result_part_revision_id"];
+    if (Object.keys(binding).sort().join("|") !== bindingKeys.sort().join("|")) return null;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    if (
+      typeof binding.binding_id !== "string" || !uuidPattern.test(binding.binding_id) ||
+      typeof binding.bundle_id !== "string" || !uuidPattern.test(binding.bundle_id) ||
+      typeof binding.attachment_id !== "string" || !uuidPattern.test(binding.attachment_id) ||
+      binding.source_document_version !== value.source_document_version ||
+      binding.result_user_text_revision !== value.user_text_revision ||
+      binding.result_user_text_sha256 !== value.user_text_sha256 ||
+      typeof binding.result_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(binding.result_part_revision_id) ||
+      !parts.some((part) => part.currentPartRevisionId === binding.result_part_revision_id)
+    ) return null;
+    currentBundleTextUpdateBinding = {
+      bindingId: binding.binding_id,
+      bundleId: binding.bundle_id,
+      attachmentId: binding.attachment_id,
+      sourceDocumentVersion: binding.source_document_version as number,
+      resultUserTextRevision: binding.result_user_text_revision as string,
+      resultUserTextSha256: binding.result_user_text_sha256 as string,
+      resultPartRevisionId: binding.result_part_revision_id,
+    };
+  }
+  return {
+    text: value.text,
+    sourceDocumentVersion: value.source_document_version as number,
+    userTextRevision: value.user_text_revision,
+    userTextSha256: value.user_text_sha256,
+    parts,
+    currentBundleTextUpdateBinding,
   };
 }
 
