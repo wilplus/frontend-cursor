@@ -31,6 +31,27 @@ export interface CommittedSlideRoot {
   type: "flagship";
 }
 
+/** Exact display-only orange span for a database-projected Bundle root.
+ * Automatic selection is intentionally not promoted into the committed
+ * next-Take roadmap; this helper only paints an exact phrase already present
+ * in the paragraph. */
+export function bundleRootTint(
+  paragraph: string,
+  root: { isOrange: boolean },
+  sourcePassages: readonly string[],
+): Array<[number, number]> | undefined {
+  if (!root.isOrange) return undefined;
+  const matches = sourcePassages.flatMap((value) => {
+    const phrase = value.trim();
+    if (!phrase) return [];
+    const start = paragraph.indexOf(phrase);
+    return start >= 0 && paragraph.indexOf(phrase, start + 1) < 0
+      ? [[start, start + phrase.length] as [number, number]]
+      : [];
+  });
+  return matches.length === 1 ? matches : undefined;
+}
+
 /** The recording roadmap projection. Only a user-approved orange flagship is
  * authoritative enough to prompt the next Take; generated neutral text and
  * unassigned phrases are deliberately absent. */
