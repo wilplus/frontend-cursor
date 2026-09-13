@@ -1,0 +1,400 @@
+{
+ "src/components/life/useDragReorder.ts": [
+  "src/components/life/useDragReorder.test.ts"
+ ],
+ "src/components/tokens/copy.ts": [
+  "src/components/tokens/copy.test.ts"
+ ],
+ "src/components/tokens/planControls.ts": [
+  "src/components/tokens/planControls.test.ts"
+ ],
+ "src/services/api/tokens.ts": [
+  "src/components/tokens/planControls.test.ts",
+  "src/services/api/tokens.test.ts"
+ ],
+ "src/components/willab/CoachInlineBlindExposureBoundary.tsx": [
+  "src/components/willab/CoachInlineBlindExposureBoundary.test.tsx"
+ ],
+ "src/services/api/stateRatings.ts": [
+  "src/components/willab/CoachInlineBlindExposureBoundary.test.tsx",
+  "src/components/willab/blindLabelingIsBlind.test.ts",
+  "src/lib/willab/praiseLane.test.ts",
+  "src/services/api/stateRatings.inline.test.ts",
+  "src/services/api/stateRatings.test.ts"
+ ],
+ "src/components/willab/processingTipCycle.ts": [
+  "src/components/willab/ProcessingWait.test.ts"
+ ],
+ "src/components/willab/audioUploadValidation.ts": [
+  "src/components/willab/audioUploadValidation.test.ts",
+  "src/services/api/trainingCorpus.test.ts"
+ ],
+ "src/components/willab/displayKind.ts": [
+  "src/components/willab/displayKind.test.ts"
+ ],
+ "src/services/api/idealText.ts": [
+  "src/components/willab/displayKind.test.ts",
+  "src/lib/willab/additionsAndLock.test.ts",
+  "src/lib/willab/presentationDocument.test.ts",
+  "src/lib/willab/trackedChangeWhy.test.ts",
+  "src/lib/willab/trackedChanges.test.ts",
+  "src/services/api/idealText.changes.test.ts",
+  "src/services/api/idealText.coreEnrichment.test.ts",
+  "src/services/api/idealText.exposure.test.ts",
+  "src/services/api/idealText.pieces.test.ts",
+  "src/services/api/idealText.recordingRoots.test.ts",
+  "src/services/api/idealText.test.ts",
+  "src/services/api/idealText.userEdit.test.ts"
+ ],
+ "src/components/willab/flowCopy.ts": [
+  "src/components/willab/flowCopy.test.ts"
+ ],
+ "src/components/willab/loungeOffers.ts": [
+  "src/components/willab/loungeOffers.test.ts"
+ ],
+ "src/components/willab/loungePrompts.ts": [
+  "src/components/willab/loungePrompts.test.ts"
+ ],
+ "src/components/willab/loungeReports.ts": [
+  "src/components/willab/loungeReports.test.ts"
+ ],
+ "src/app/api/_lib/backend.ts": [
+  "src/components/willab/mlc2ConsentContract.test.ts"
+ ],
+ "src/components/willab/presentation.ts": [
+  "src/components/willab/presentation.test.ts"
+ ],
+ "src/components/willab/processingWaitingTips.ts": [
+  "src/components/willab/processingWaitingTips.test.ts"
+ ],
+ "src/components/willab/readout.ts": [
+  "src/components/willab/readout.back.test.ts",
+  "src/components/willab/readout.groupSnippets.test.ts",
+  "src/components/willab/readout.instantChunk.test.ts",
+  "src/components/willab/readout.sayItStronger.test.ts",
+  "src/components/willab/readout.test.ts"
+ ],
+ "src/components/willab/restoredSetup.ts": [
+  "src/components/willab/restoredSetup.test.ts"
+ ],
+ "src/lib/willab/exploreArc.ts": [
+  "src/components/willab/restoredSetup.test.ts",
+  "src/lib/willab/exploreArc.test.ts"
+ ],
+ "src/components/willab/sendStatus.ts": [
+  "src/components/willab/sendStatus.test.ts"
+ ],
+ "src/components/willab/speakerSexAskGate.ts": [
+  "src/components/willab/speakerSexAskGate.test.ts"
+ ],
+ "src/components/willab/useWillabFlow.ts": [
+  "src/components/willab/speakerSexAskGate.test.ts",
+  "src/components/willab/topUpCardGate.test.ts",
+  "src/components/willab/useWillabFlow.test.ts"
+ ],
+ "src/lib/willab/deckChunks.ts": [
+  "src/components/willab/styleLaneHasAHandle.test.ts",
+  "src/lib/willab/deckChunks.test.ts"
+ ],
+ "src/components/willab/takeReviewOrder.ts": [
+  "src/components/willab/takeReviewOrder.test.ts"
+ ],
+ "src/services/api/coachReviewState.ts": [
+  "src/components/willab/takeReviewOrder.test.ts",
+  "src/services/api/willabMappers.test.ts"
+ ],
+ "src/components/willab/topUpCardGate.ts": [
+  "src/components/willab/topUpCardGate.test.ts"
+ ],
+ "src/components/willab/waitingTips.ts": [
+  "src/components/willab/waitingTips.test.ts"
+ ],
+ "src/components/willab/willabHelpers.ts": [
+  "src/components/willab/willabHelpers.test.ts"
+ ],
+ "src/services/api/loungeMessages.ts": [
+  "src/components/willab/willabHelpers.test.ts",
+  "src/lib/funnel/loungeLocalThread.test.ts",
+  "src/services/api/loungeMessages.test.ts"
+ ],
+ "src/components/willab/willabParked.ts": [
+  "src/components/willab/willabParked.test.ts"
+ ],
+ "src/hooks/publishLiveTransition.ts": [
+  "src/hooks/usePublishLiveSubscription.test.ts"
+ ],
+ "src/hooks/usePwaInstall.ts": [
+  "src/hooks/usePwaInstall.test.ts"
+ ],
+ "src/lib/ceo/domain.ts": [
+  "src/lib/ceo/domain.test.ts"
+ ],
+ "src/lib/ceo/hostRouting.ts": [
+  "src/lib/ceo/hostRouting.test.ts"
+ ],
+ "src/lib/ceo/overview.ts": [
+  "src/lib/ceo/overview.test.ts"
+ ],
+ "src/lib/ceo/workItems.ts": [
+  "src/lib/ceo/workItems.test.ts"
+ ],
+ "src/lib/funnel/loungeLocalThread.ts": [
+  "src/lib/funnel/loungeLocalThread.test.ts"
+ ],
+ "src/lib/life/copy.ts": [
+  "src/lib/life/copy.test.ts"
+ ],
+ "src/lib/life/documentFold.ts": [
+  "src/lib/life/documentFold.test.ts"
+ ],
+ "src/lib/life/setupSteps.ts": [
+  "src/lib/life/documentFold.test.ts",
+  "src/lib/life/duePresets.test.ts",
+  "src/lib/life/setupSteps.test.ts"
+ ],
+ "src/services/api/life.ts": [
+  "src/lib/life/documentFold.test.ts",
+  "src/services/api/lifeDraft.test.ts",
+  "src/services/api/lifeStrategyDownload.test.ts",
+  "src/services/api/winsDerive.test.ts"
+ ],
+ "src/lib/life/draftGroups.ts": [
+  "src/lib/life/draftGroups.test.ts"
+ ],
+ "src/lib/life/duePresets.ts": [
+  "src/lib/life/duePresets.test.ts"
+ ],
+ "src/lib/life/goalOrder.ts": [
+  "src/lib/life/goalOrder.test.ts"
+ ],
+ "src/lib/life/hashtags.ts": [
+  "src/lib/life/hashtags.test.ts",
+  "src/lib/life/isolation.test.ts"
+ ],
+ "src/lib/life/mappers.ts": [
+  "src/lib/life/isolation.test.ts",
+  "src/lib/life/mappers.test.ts"
+ ],
+ "src/lib/life/types.ts": [
+  "src/lib/life/mappers.test.ts",
+  "src/lib/life/menu.test.ts"
+ ],
+ "src/lib/life/menu.ts": [
+  "src/lib/life/menu.test.ts",
+  "src/lib/life/prefetch.test.ts",
+  "src/lib/life/uploadKind.test.ts"
+ ],
+ "src/lib/life/panelCache.ts": [
+  "src/lib/life/panelCache.test.ts"
+ ],
+ "src/lib/life/prefetch.ts": [
+  "src/lib/life/prefetch.test.ts"
+ ],
+ "src/lib/life/timelineScale.ts": [
+  "src/lib/life/timelineScale.test.ts"
+ ],
+ "src/lib/life/uploadKind.ts": [
+  "src/lib/life/uploadKind.test.ts"
+ ],
+ "src/lib/productDiscovery.ts": [
+  "src/lib/productDiscovery.test.ts"
+ ],
+ "src/middleware.ts": [
+  "src/lib/security/csp.test.ts"
+ ],
+ "src/lib/sse.ts": [
+  "src/lib/sse.test.ts"
+ ],
+ "src/lib/supabase/client.ts": [
+  "src/lib/supabase/client.test.ts"
+ ],
+ "src/components/willab/idealEditCopy.ts": [
+  "src/lib/willab/additionsAndLock.test.ts",
+  "src/lib/willab/documentParts.test.ts"
+ ],
+ "src/lib/willab/documentParts.ts": [
+  "src/lib/willab/additionsAndLock.test.ts",
+  "src/lib/willab/deckChunks.test.ts",
+  "src/lib/willab/documentParts.test.ts"
+ ],
+ "src/lib/willab/autosaveDrafts.ts": [
+  "src/lib/willab/autosaveDrafts.test.ts"
+ ],
+ "src/lib/willab/deckScroll.ts": [
+  "src/lib/willab/deckScroll.test.ts"
+ ],
+ "src/lib/willab/defaultDeck.ts": [
+  "src/lib/willab/defaultDeck.test.ts",
+  "src/lib/willab/presentationDocument.test.ts"
+ ],
+ "src/lib/willab/documentSegments.ts": [
+  "src/lib/willab/documentParts.test.ts",
+  "src/lib/willab/documentSegments.test.ts"
+ ],
+ "src/lib/willab/documentSettle.ts": [
+  "src/lib/willab/documentSettle.test.ts"
+ ],
+ "src/lib/willab/emphasizeQuote.ts": [
+  "src/lib/willab/emphasizeQuote.test.ts"
+ ],
+ "src/lib/willab/idealTitleCache.ts": [
+  "src/lib/willab/idealTitleCache.test.ts"
+ ],
+ "src/lib/willab/linkify.ts": [
+  "src/lib/willab/linkify.test.ts"
+ ],
+ "src/lib/willab/markedEditorSerialize.ts": [
+  "src/lib/willab/markedEditorSerialize.test.ts"
+ ],
+ "src/lib/willab/richMarkers.ts": [
+  "src/lib/willab/markedEditorSerialize.test.ts",
+  "src/lib/willab/richMarkers.test.ts"
+ ],
+ "src/lib/willab/trackedChangeWhy.ts": [
+  "src/lib/willab/praiseLane.test.ts",
+  "src/lib/willab/trackedChangeWhy.test.ts"
+ ],
+ "src/lib/willab/presentationDocument.ts": [
+  "src/lib/willab/presentationDocument.test.ts"
+ ],
+ "src/lib/willab/processingTake.ts": [
+  "src/lib/willab/processingTake.test.ts"
+ ],
+ "src/lib/willab/readingBlocks.ts": [
+  "src/lib/willab/readingBlocks.test.ts"
+ ],
+ "src/lib/willab/rootPhraseLayer.ts": [
+  "src/lib/willab/rootPhraseLayer.test.ts"
+ ],
+ "src/lib/willab/rootingPhraseQualification.ts": [
+  "src/lib/willab/rootingPhraseQualification.test.ts"
+ ],
+ "src/lib/willab/trackedChanges.ts": [
+  "src/lib/willab/trackedChanges.test.ts"
+ ],
+ "src/lib/api/auth-client.ts": [
+  "src/services/api/arcFeedback.tokens.test.ts",
+  "src/services/api/bestPresentation.test.ts",
+  "src/services/api/blockVariants.test.ts",
+  "src/services/api/confidenceReview.test.ts",
+  "src/services/api/idealText.coreEnrichment.test.ts",
+  "src/services/api/idealText.exposure.test.ts",
+  "src/services/api/idealText.userEdit.test.ts",
+  "src/services/api/labRecording.test.ts",
+  "src/services/api/learningExposures.test.ts",
+  "src/services/api/mlc3FirstClient.test.ts",
+  "src/services/api/partLock.test.ts",
+  "src/services/api/projects.test.ts",
+  "src/services/api/sendTakeToCoach.test.ts",
+  "src/services/api/stateRatings.inline.test.ts",
+  "src/services/api/strengths.test.ts",
+  "src/services/api/suggestionFeedback.test.ts",
+  "src/services/api/takeFeedback.test.ts",
+  "src/services/api/trainingCorpus.languageRouting.test.ts",
+  "src/services/api/transcriptEdits.test.ts",
+  "src/services/api/userProfile.languages.test.ts",
+  "src/services/api/userProfile.sex.test.ts"
+ ],
+ "src/lib/willabWindowEvents.ts": [
+  "src/services/api/arcFeedback.tokens.test.ts"
+ ],
+ "src/services/api/arcFeedback.ts": [
+  "src/services/api/arcFeedback.tokens.test.ts"
+ ],
+ "src/services/api/bestPresentation.ts": [
+  "src/services/api/bestPresentation.test.ts"
+ ],
+ "src/services/api/blockVariants.ts": [
+  "src/services/api/blockVariants.test.ts"
+ ],
+ "src/services/api/chatQuery.ts": [
+  "src/services/api/chatQuery.test.ts"
+ ],
+ "src/services/api/coachGuidanceDelivery.ts": [
+  "src/services/api/coachGuidanceDelivery.test.ts"
+ ],
+ "src/services/api/coachStudents.ts": [
+  "src/services/api/coachStudents.test.ts",
+  "src/services/api/willabMappers.test.ts"
+ ],
+ "src/services/api/confidenceReview.ts": [
+  "src/services/api/confidenceReview.test.ts"
+ ],
+ "src/services/api/coachConfidencePractice.ts": [
+  "src/services/api/confidentVoicePractice.test.ts"
+ ],
+ "src/services/api/confidentVoicePractice.ts": [
+  "src/services/api/confidentVoicePractice.test.ts"
+ ],
+ "src/services/api/founderConfidenceComparison.ts": [
+  "src/services/api/founderConfidenceComparison.test.ts"
+ ],
+ "src/lib/willab/pieceBadges.ts": [
+  "src/services/api/idealText.pieces.test.ts"
+ ],
+ "src/services/api/journal.ts": [
+  "src/services/api/journal.test.ts"
+ ],
+ "src/services/api/journalAdmin.ts": [
+  "src/services/api/journal.test.ts"
+ ],
+ "src/services/api/labRecording.ts": [
+  "src/services/api/labRecording.test.ts"
+ ],
+ "src/services/api/learningExposures.ts": [
+  "src/services/api/learningExposures.test.ts"
+ ],
+ "src/services/api/mlc2Consent.ts": [
+  "src/services/api/mlc2Consent.test.ts"
+ ],
+ "src/services/api/mlc3FirstClient.ts": [
+  "src/services/api/mlc3FirstClient.test.ts"
+ ],
+ "src/services/api/partLock.ts": [
+  "src/services/api/partLock.test.ts"
+ ],
+ "src/services/api/projects.ts": [
+  "src/services/api/projects.test.ts"
+ ],
+ "src/services/api/recordingConfig.ts": [
+  "src/services/api/recordingConfig.test.ts"
+ ],
+ "src/services/api/recordingProgress.ts": [
+  "src/services/api/recordingProgress.test.ts"
+ ],
+ "src/services/api/sendTakeToCoach.ts": [
+  "src/services/api/sendTakeToCoach.test.ts"
+ ],
+ "src/services/api/starVerdicts.ts": [
+  "src/services/api/starVerdicts.test.ts"
+ ],
+ "src/services/api/strengths.ts": [
+  "src/services/api/strengths.test.ts"
+ ],
+ "src/services/api/suggestionFeedback.ts": [
+  "src/services/api/suggestionFeedback.test.ts"
+ ],
+ "src/services/api/takeFeedback.ts": [
+  "src/services/api/takeFeedback.test.ts"
+ ],
+ "src/services/api/trainingCorpus.ts": [
+  "src/services/api/trainingCorpus.languageRouting.test.ts",
+  "src/services/api/trainingCorpus.test.ts"
+ ],
+ "src/services/api/transcriptEdits.ts": [
+  "src/services/api/transcriptEdits.test.ts"
+ ],
+ "src/services/api/userProfile.ts": [
+  "src/services/api/userProfile.languages.test.ts",
+  "src/services/api/userProfile.sex.test.ts"
+ ],
+ "src/services/api/coachReview.ts": [
+  "src/services/api/willabMappers.test.ts"
+ ],
+ "src/services/api/coachStudentDetail.ts": [
+  "src/services/api/willabMappers.test.ts"
+ ],
+ "src/services/api/reviewQueue.ts": [
+  "src/services/api/willabMappers.test.ts"
+ ]
+}
