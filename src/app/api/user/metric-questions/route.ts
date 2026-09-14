@@ -1,5 +1,6 @@
-import type { NextRequest } from "next/server";
-import { proxyJson } from "@/lib/api/bff";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, LEGACY_FAILURES, relayLegacy } from "@/app/api/_lib/backend";
 
 export interface UserMetricQuestionsResponse {
   metric_question_1?: string;
@@ -7,11 +8,40 @@ export interface UserMetricQuestionsResponse {
   metric_question_3?: string;
 }
 
-export async function GET(req: NextRequest) {
-  return proxyJson<UserMetricQuestionsResponse>("/user/metric-questions", undefined, req);
+// proxyJson (src/lib/api/bff.ts, deleted in Q-A8) answered with its own
+// envelope and a 30 s budget; both are kept verbatim via LEGACY_FAILURES and
+// relayLegacy until the copy is unified.
+export async function GET(_req: NextRequest) {
+  const path = "/user/metric-questions";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    return await callBackend(path, {
+      method: "GET",
+      signal: controller.signal,
+      failures: LEGACY_FAILURES,
+      relay: relayLegacy(path),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  return proxyJson<unknown, UserMetricQuestionsResponse>("/user/metric-questions", { method: "PATCH", body }, req);
+  const path = "/user/metric-questions";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    return await callBackend(path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+      failures: LEGACY_FAILURES,
+      relay: relayLegacy(path),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }

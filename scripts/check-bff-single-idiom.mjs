@@ -7,12 +7,14 @@
  * it directly. Fragmentation is what produced the token-refresh inconsistency;
  * a single helper only stays single if something enforces it.
  *
- * This is a RATCHET, not a big bang: the files below predate the rule and are
- * grandfathered until their batch migrates. The gate fails only on
- *   - a NEW file under src/app/api that fetches the backend directly, or
- *   - a grandfathered file that was touched into a new path (renames count).
- * When you migrate a file to callBackend/backendFetch, delete its baseline
- * entry — the script tells you which entries are stale.
+ * The migration finished in audit Q-A8 (Phase 4): the grandfathered baseline
+ * is empty and must stay empty. The gate fails on any file under src/app/api
+ * that
+ *   - both calls `fetch(` and names the backend base (getBackendUrl,
+ *     BACKEND_URL*, NEXT_PUBLIC_API_URL), or
+ *   - mentions getBackendUrl at all — a route never needs the base URL.
+ * The one exception is getAuth.ts, which re-exports getBackendUrl for the
+ * server-side ISR readers under src/services/api (not BFF routes).
  */
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -20,10 +22,11 @@ import { join, relative } from "node:path";
 const API_ROOT = "src/app/api";
 /** The one file allowed to construct backend URLs + Authorization headers. */
 const ALLOWED = new Set([`${API_ROOT}/_lib/backend.ts`]);
+/** May mention getBackendUrl (a re-export), but must not fetch. */
+const MAY_NAME_BASE = new Set([`${API_ROOT}/getAuth.ts`]);
 
-/** Grandfathered direct-fetch files (pre-rule). Shrink me, never grow me. */
-const BASELINE = new Set([
-]);
+/** Grandfathered direct-fetch files (pre-rule). Emptied in Q-A8; never grow me. */
+const BASELINE = new Set([]);
 
 function walk(dir) {
   const out = [];
@@ -35,9 +38,18 @@ function walk(dir) {
   return out;
 }
 
-/** A direct backend fetch: the file both fetches AND names the backend base. */
+/** A direct backend fetch: the file both fetches AND names the backend base.
+ *  `\bfetch(` so that `backendFetch(` — the sanctioned raw call — is not a
+ *  fetch of its own. */
 function isDirectBackendFetch(content) {
-  return /fetch\s*\(/.test(content) && /getBackendUrl|BACKEND_URL/.test(content);
+  return (
+    /\bfetch\s*\(/.test(content) &&
+    /getBackendUrl|BACKEND_URL|NEXT_PUBLIC_API_URL/.test(content)
+  );
+}
+
+function namesBase(content) {
+  return /\bgetBackendUrl\b/.test(content);
 }
 
 const violations = [];
@@ -45,7 +57,10 @@ const grandfathered = [];
 for (const file of walk(API_ROOT)) {
   const rel = relative(".", file).replace(/\\/g, "/");
   if (ALLOWED.has(rel)) continue;
-  if (!isDirectBackendFetch(readFileSync(file, "utf8"))) continue;
+  const content = readFileSync(file, "utf8");
+  const offends =
+    isDirectBackendFetch(content) || (!MAY_NAME_BASE.has(rel) && namesBase(content));
+  if (!offends) continue;
   (BASELINE.has(rel) ? grandfathered : violations).push(rel);
 }
 
@@ -60,12 +75,12 @@ if (stale.length > 0) {
   for (const rel of stale) console.log(`  - ${rel}`);
 }
 console.log(
-  `check-bff-single-idiom: ${grandfathered.length} grandfathered direct-fetch file(s) remain (migrate in batches, handoff §C3).`
+  `check-bff-single-idiom: ${grandfathered.length} grandfathered direct-fetch file(s) remain.`
 );
 
 if (violations.length > 0) {
   console.error(
-    "\ncheck-bff-single-idiom: FAIL — new direct backend fetch outside src/app/api/_lib/backend.ts:"
+    "\ncheck-bff-single-idiom: FAIL — a backend fetch or base URL outside src/app/api/_lib/backend.ts:"
   );
   for (const rel of violations) console.error(`  - ${rel}`);
   console.error(
