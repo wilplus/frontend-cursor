@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -8,57 +9,20 @@ export const runtime = "nodejs";
  *
  * BFF proxy — deletes a single take from a presentation.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHORIZED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Presentations service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { presentationId: string; takeNumber: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ code: "UNAUTHORIZED", error: "Not authenticated" }, { status: 401 });
-  }
-
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(
-      `${backend}/v2/user/presentations/${params.presentationId}/takes/${params.takeNumber}`,
-      {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-  } catch (err) {
-    console.error(
-      "DELETE /api/v2/user/presentations/[presentationId]/takes/[takeNumber] — fetch failed:",
-      err
-    );
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Presentations service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_NON_JSON",
-          error: `Unexpected backend response (HTTP ${upstream.status}).`,
-        },
-        { status: upstream.status >= 400 ? upstream.status : 502 }
-      );
-    }
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(
+    `/v2/user/presentations/${params.presentationId}/takes/${params.takeNumber}`,
+    { method: "DELETE", failures: FAILURES, relay: RELAY }
+  );
 }

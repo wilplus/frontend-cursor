@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, getAccessToken, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
@@ -15,43 +16,28 @@ const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
  * PUBLIC / guest: a signed-out user may see the progress of the Project owned
  * by their signed Guest ID. The Project UUID alone is never authorization.
  */
+
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Progress service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req); // optional — guest-allowed
+  const token = await getAccessToken(); // optional — guest-allowed
   const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
-  }
-
   const id = encodeURIComponent(params.arcId);
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {};
   if (!token && guestOwner) headers[GUEST_OWNER_HEADER] = guestOwner;
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/explore/arc/${id}/progress`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/v2/explore/arc/[arcId]/progress — fetch failed:", err);
-    return NextResponse.json({ error: "Progress service unavailable." }, { status: 502 });
-  }
-
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/explore/arc/${id}/progress`, {
+    method: "GET",
+    headers,
+    token,
+    requireAuth: false,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

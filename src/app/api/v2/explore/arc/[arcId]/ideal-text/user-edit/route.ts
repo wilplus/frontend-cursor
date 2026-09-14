@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -12,57 +13,25 @@ export const runtime = "nodejs";
  * against it — the student's edit always wins, locked founder rule). Status +
  * body relay verbatim.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Edit service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
   const id = encodeURIComponent(params.arcId);
-  let upstream: Response;
-  try {
-    upstream = await fetch(
-      `${backend}/v2/explore/arc/${id}/ideal-text/user-edit`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: (await req.text()) || "{}",
-        cache: "no-store",
-      }
-    );
-  } catch (err) {
-    console.error(
-      "PUT /api/v2/explore/arc/[arcId]/ideal-text/user-edit — fetch failed:",
-      err
-    );
-    return NextResponse.json(
-      { error: "Edit service unavailable." },
-      { status: 502 }
-    );
-  }
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  const body = (await req.text()) || "{}";
+  return callBackend(`/v2/explore/arc/${id}/ideal-text/user-edit`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
