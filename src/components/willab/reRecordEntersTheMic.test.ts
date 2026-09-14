@@ -38,9 +38,9 @@ describe("re-record enters the MICROPHONE, never the waiting screen", () => {
     expect(EFFECT).toMatch(/s\.audioBlob !== consumedBlobRef\.current/);
     expect(EFFECT).toMatch(/consumedBlobRef\.current = s\.audioBlob;/);
     // The ref is CLAIMED before the transition, not after it — the effect can
-    // re-run before goTo lands.
+    // re-run before the dispatch lands.
     expect(EFFECT.indexOf("consumedBlobRef.current = s.audioBlob"))
-      .toBeLessThan(EFFECT.indexOf('goTo("lab_processing")'));
+      .toBeLessThan(EFFECT.indexOf('dispatch("recording_stopped")'));
   });
 
   it("it is a ref, not state — claiming the blob must not re-run the effect", () => {
@@ -49,11 +49,11 @@ describe("re-record enters the MICROPHONE, never the waiting screen", () => {
 
   it("EVERY entry into lab_recording resets the mic first", () => {
     // A stale "stopped" is the input the branch above trips on, so the entries
-    // must not hand it one. Each `goTo("lab_recording")` that then starts the
+    // must not hand it one. Each `dispatch("take_started")` that then starts the
     // mic has to cancel it first — cancel() puts the mic back to "idle", which
     // is the state RecordingPhase's "Getting your mic ready…" covers while
     // getUserMedia resolves.
-    const entries = [...LAB.matchAll(/goTo\("lab_recording"\);\n\s*void mic\.start\(\);/g)];
+    const entries = [...LAB.matchAll(/dispatch\("take_started"\);\n\s*void mic\.start\(\);/g)];
     expect(entries.length).toBeGreaterThanOrEqual(2);
     for (const m of entries) {
       const before = LAB.slice(Math.max(0, m.index! - 700), m.index!);

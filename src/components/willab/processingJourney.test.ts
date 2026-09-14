@@ -25,7 +25,7 @@ const EVENTS = code(
 describe("the processing-to-Ideal-Text journey", () => {
   it("opens Ideal Text automatically when processing finishes", () => {
     expect(LAB).toMatch(
-      /state === "lab_processing" && processingReady && !uploadError[\s\S]*goTo\("readout"\)/,
+      /state === "lab_processing" && processingReady && !uploadError[\s\S]*dispatch\("processing_ready"\)/,
     );
     expect(LAB).not.toContain("View Ideal Text and feedback");
     expect(LAB).not.toContain("Your feedback is ready");
