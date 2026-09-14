@@ -331,4 +331,4 @@ leave open.
   it: `apply` stamps `origin_document_id` so a principle read out of a file is
   distinguishable from one the engine derived, and the review row renders a
   long line in full instead of the first 500 characters of it. The ANSWERED box
-  at the top of `backend-handoff-life-panel-document-dock.md` has the mapping.
+  at the top of `docs/handoffs/backend-handoff-life-panel-document-dock.md` has the mapping.

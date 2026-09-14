@@ -75,3 +75,6 @@ backend/instance/
 # one would nest a checkout inside its own history. Ignored, not deleted: the
 # work in it is pushed from its own branch like any other.
 .claude/worktrees/
+
+# task-master local telemetry state (per-machine, never shared)
+/cache/
