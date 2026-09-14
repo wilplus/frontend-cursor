@@ -58,6 +58,11 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { ReadoutPayload } from "./readout";
+import type {
+  ConfidentMomentOwnerEdit,
+  ConfidentMomentSummary,
+} from "@/services/api/confidentMomentBundles";
+import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextReadout — the post-recording screen IS the ideal text (SD)        */
@@ -187,6 +192,8 @@ export default function IdealTextReadout({
     canRecordTake: boolean | null;
     takeCount: number | null;
     journeyNextStepsSeen: boolean | null;
+    confidentMomentSummary: ConfidentMomentSummary | null;
+    confidentMomentOwnerEdit: ConfidentMomentOwnerEdit | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -292,7 +299,9 @@ export default function IdealTextReadout({
     if (analysisPending) return;
     let active = true;
     const gen = ++sdGenRef.current;
-    const read = sdNonce === 0 ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    const read = confidentMomentBundleEnabled()
+      ? fetchIdealTextCore
+      : sdNonce === 0 ? fetchIdealTextForDisplay : fetchIdealTextCore;
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
       refreshDocumentVariants: boolean,
@@ -323,6 +332,8 @@ export default function IdealTextReadout({
         canRecordTake: r.canRecordTake,
         takeCount: r.takeCount,
         journeyNextStepsSeen: r.journeyNextStepsSeen,
+        confidentMomentSummary: r.confidentMomentSummary ?? null,
+        confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
       });
       if (!dirtyRef.current && r.ideal.text.trim()) {
         savedTextRef.current = r.ideal.text;
@@ -1129,6 +1140,10 @@ export default function IdealTextReadout({
               reviewStatus: m.reviewStatus ?? null,
             }))}
             arcId={arcId}
+            takeSessionId={sd.latestTakeSessionId}
+            confidentMomentSummary={sd.confidentMomentSummary}
+            confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
+            onConfidentMomentChanged={() => setSdNonce((value) => value + 1)}
             styleChanges={dirty ? [] : sd.styleChanges}
             decisionHistory={sd.decisionHistory}
             onApplyStyle={applyStyle}
