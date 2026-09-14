@@ -394,6 +394,23 @@ export async function createServicePracticeSession(
   });
 }
 
+/** Opens the already-correlated canonical offer without reconstructing a
+ * feedback identity in the browser. The correlation resolver is authoritative
+ * for the source acquisition receipt. */
+export async function createCorrelatedServicePracticeSession(
+  offerId: string,
+  sourceAcquisitionReceiptId: string,
+  idempotencyKey: string,
+): Promise<ApiResult<{ practice_session_id: string }>> {
+  const auth = await headers(idempotencyKey);
+  if (!auth) return { ok: false, error: null };
+  return request(`exercise-offers/${encodeURIComponent(offerId)}/practice-sessions`, {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({ source_acquisition_receipt_id: sourceAcquisitionReceiptId }),
+  });
+}
+
 export async function fetchServicePracticeSession(
   sessionId: string,
   idempotencyKey: string,

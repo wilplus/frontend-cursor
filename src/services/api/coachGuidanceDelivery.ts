@@ -7,6 +7,47 @@ export const COACH_GUIDANCE_D3_UI_ENABLED =
   process.env.NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED === "true";
 export const COACH_INLINE_AUTHORING_UI_ENABLED =
   process.env.NEXT_PUBLIC_MLC3_COACH_INLINE_AUTHORING_ENABLED === "true";
+export const CONFIDENT_MOMENT_BUNDLE_UI_ENABLED =
+  process.env.NEXT_PUBLIC_CONFIDENT_MOMENT_BUNDLE_V1_ENABLED === "true";
+
+/** The coach Bundle editor is presentation-only and deliberately requires all
+ * three independently reviewed switches. A broad MLC-3 flag, an email in the
+ * browser, or either feature switch by itself cannot mount the surface. */
+export const COACH_CONFIDENT_MOMENT_AUTHORING_UI_ENABLED =
+  COACH_GUIDANCE_D3_UI_ENABLED &&
+  COACH_INLINE_AUTHORING_UI_ENABLED &&
+  CONFIDENT_MOMENT_BUNDLE_UI_ENABLED;
+
+export type FeedbackLanguageFamily =
+  | "confident_voice"
+  | "rewrite_clarity"
+  | "great_formulation";
+
+export interface CoachFeedbackLanguageTarget {
+  bundleAttachmentId: string;
+  reviewAssignmentId: string;
+  revealAccessId: string;
+  feedbackFamily: FeedbackLanguageFamily;
+  allowedOutputKind: "comment" | "rephrase";
+  allowedCommentPurpose:
+    | "confidence_explanation"
+    | "actionable_observation"
+    | "positive_praise"
+    | null;
+  sourcePassage: {
+    evidenceSpanId: string;
+    text: string;
+    textSha256: string;
+  };
+  expectedCurrentRevisionId: string | null;
+  expectedCurrentDeliveryId: string | null;
+}
+
+export interface CoachBundleAuthoringContext {
+  bundleId: string;
+  sourceReviewAttachmentId: string;
+  authorizedTargets: CoachFeedbackLanguageTarget[];
+}
 
 export interface CoachGuidanceIdentity {
   reviewBatchId: string;
@@ -38,6 +79,8 @@ export interface CoachGuidanceItem extends CoachGuidanceIdentity {
     | null;
   sourcePatternPolicyVersion: string | null;
   ordinalPolicyVersion: string | null;
+  /** Present only after the exact reviewer-specific complete-batch reveal. */
+  bundleAuthoringContext: CoachBundleAuthoringContext | null;
 }
 
 export interface CoachGuidanceBatch {
@@ -106,6 +149,116 @@ function optionalText(value: unknown): string | null {
   return valueText ? valueText : null;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;
+
+function exactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  return actual.length === wanted.length &&
+    actual.every((key, index) => key === wanted[index]);
+}
+
+function canonicalUuid(value: unknown): string | null {
+  return typeof value === "string" && UUID_RE.test(value) ? value : null;
+}
+
+function mapBundleAuthoringContext(
+  raw: unknown,
+): CoachBundleAuthoringContext | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  if (!exactKeys(row, [
+    "bundle_id", "source_review_attachment_id", "authorized_targets",
+  ])) return null;
+  const bundleId = canonicalUuid(row.bundle_id);
+  const sourceReviewAttachmentId = canonicalUuid(
+    row.source_review_attachment_id,
+  );
+  if (!bundleId || !sourceReviewAttachmentId ||
+      !Array.isArray(row.authorized_targets)) return null;
+
+  const targets: CoachFeedbackLanguageTarget[] = [];
+  const seen = new Set<string>();
+  for (const rawTarget of row.authorized_targets) {
+    if (!rawTarget || typeof rawTarget !== "object") return null;
+    const target = rawTarget as Record<string, unknown>;
+    if (!exactKeys(target, [
+      "bundle_attachment_id", "review_assignment_id", "reveal_access_id",
+      "feedback_family", "allowed_output_kind", "allowed_comment_purpose",
+      "source_passage", "expected_current_revision_id",
+      "expected_current_delivery_id",
+    ])) return null;
+    const bundleAttachmentId = canonicalUuid(target.bundle_attachment_id);
+    const reviewAssignmentId = canonicalUuid(target.review_assignment_id);
+    const revealAccessId = canonicalUuid(target.reveal_access_id);
+    const expectedCurrentRevisionId = target.expected_current_revision_id === null
+      ? null
+      : canonicalUuid(target.expected_current_revision_id);
+    const expectedCurrentDeliveryId = target.expected_current_delivery_id === null
+      ? null
+      : canonicalUuid(target.expected_current_delivery_id);
+    if (
+      !bundleAttachmentId || !reviewAssignmentId || !revealAccessId ||
+      (target.expected_current_revision_id !== null &&
+        !expectedCurrentRevisionId) ||
+      (target.expected_current_delivery_id !== null &&
+        !expectedCurrentDeliveryId) ||
+      seen.has(bundleAttachmentId)
+    ) return null;
+    seen.add(bundleAttachmentId);
+
+    const family = target.feedback_family;
+    const outputKind = target.allowed_output_kind;
+    const purpose = target.allowed_comment_purpose;
+    const allowed =
+      (family === "confident_voice" && outputKind === "comment" &&
+        purpose === "confidence_explanation") ||
+      (family === "great_formulation" && outputKind === "comment" &&
+        purpose === "positive_praise") ||
+      (family === "rewrite_clarity" && outputKind === "rephrase" &&
+        purpose === null) ||
+      (family === "rewrite_clarity" && outputKind === "comment" &&
+        purpose === "actionable_observation");
+    if (!allowed) return null;
+
+    if (!target.source_passage || typeof target.source_passage !== "object") {
+      return null;
+    }
+    const passage = target.source_passage as Record<string, unknown>;
+    if (!exactKeys(passage, ["evidence_span_id", "text", "text_sha256"])) {
+      return null;
+    }
+    const evidenceSpanId = canonicalUuid(passage.evidence_span_id);
+    if (
+      !evidenceSpanId || typeof passage.text !== "string" ||
+      !passage.text.trim() || typeof passage.text_sha256 !== "string" ||
+      !SHA256_RE.test(passage.text_sha256)
+    ) return null;
+
+    targets.push({
+      bundleAttachmentId,
+      reviewAssignmentId,
+      revealAccessId,
+      feedbackFamily: family,
+      allowedOutputKind: outputKind,
+      allowedCommentPurpose: purpose,
+      sourcePassage: {
+        evidenceSpanId,
+        text: passage.text,
+        textSha256: passage.text_sha256,
+      },
+      expectedCurrentRevisionId,
+      expectedCurrentDeliveryId,
+    });
+  }
+  return { bundleId, sourceReviewAttachmentId, authorizedTargets: targets };
+}
+
 function mapItem(raw: unknown): CoachGuidanceItem | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
@@ -132,6 +285,13 @@ function mapItem(raw: unknown): CoachGuidanceItem | null {
   if (exerciseEligible && (!feedbackMembershipId || !feedbackCandidateId)) {
     return null;
   }
+  const hasBundleContext = Object.prototype.hasOwnProperty.call(
+    row, "bundle_authoring_context",
+  );
+  const bundleAuthoringContext = hasBundleContext
+    ? mapBundleAuthoringContext(row.bundle_authoring_context)
+    : null;
+  if (hasBundleContext && !bundleAuthoringContext) return null;
   return {
     ...mapped,
     feedbackMembershipId,
@@ -157,6 +317,7 @@ function mapItem(raw: unknown): CoachGuidanceItem | null {
       row.source_pattern_policy_version,
     ),
     ordinalPolicyVersion: optionalText(row.ordinal_policy_version),
+    bundleAuthoringContext,
   };
 }
 
@@ -169,8 +330,10 @@ export function mapCoachGuidanceBatch(raw: unknown): CoachGuidanceBatch | null {
     row.dataset_eligible !== false ||
     !Array.isArray(row.items)
   ) return null;
-  const operationMode = row.operation_mode === "allowlisted_service"
-    ? "allowlisted_service"
+  const operationMode = [
+    "allowlisted_service", "cohort_service", "general_service",
+  ].includes(text(row.operation_mode))
+    ? text(row.operation_mode) as CoachGuidanceBatch["operationMode"]
     : row.synthetic_only === true
       ? "synthetic_dark"
       : null;
@@ -198,6 +361,132 @@ export async function fetchCoachGuidanceBatch(
   );
   if (!response.ok) return null;
   return mapCoachGuidanceBatch(await response.json().catch(() => null));
+}
+
+export interface CoachFeedbackLanguageResult {
+  revisionId: string;
+  revisionSha256: string;
+  deliveryId: string | null;
+  deliveryState: "scheduled_current_take" | "scheduled_next_take" | null;
+  targetTakeId: string | null;
+}
+
+export function mapCoachFeedbackLanguageResult(
+  raw: unknown,
+  expected: { bundleId: string; bundleAttachmentId: string },
+): CoachFeedbackLanguageResult | null {
+  if (!raw || typeof raw !== "object") return null;
+  const payload = raw as Record<string, unknown>;
+  const deliveryId = payload.delivery_id === null
+    ? null
+    : canonicalUuid(payload.delivery_id);
+  const targetTakeId = payload.target_take_id === null
+    ? null
+    : canonicalUuid(payload.target_take_id);
+  const deliveryState = payload.delivery_state;
+  const scheduled =
+    deliveryState === "scheduled_current_take" ||
+    deliveryState === "scheduled_next_take";
+  const validDeliveryTriple =
+    (deliveryId === null && deliveryState === null && targetTakeId === null) ||
+    (deliveryId !== null && scheduled && targetTakeId !== null);
+  const revisionId = canonicalUuid(payload.revision_id);
+  if (
+    !exactKeys(payload, [
+      "coach_feedback_language_contract_version", "bundle_id",
+      "bundle_attachment_id", "revision_id", "revision_sha256",
+      "delivery_id", "delivery_state", "target_take_id", "dataset_eligible",
+    ]) ||
+    payload.coach_feedback_language_contract_version !==
+      "confident-moment-coach-feedback-language-v1" ||
+    payload.bundle_id !== expected.bundleId ||
+    payload.bundle_attachment_id !== expected.bundleAttachmentId ||
+    !revisionId || typeof payload.revision_sha256 !== "string" ||
+    !SHA256_RE.test(payload.revision_sha256) || !validDeliveryTriple ||
+    payload.dataset_eligible !== false
+  ) return null;
+  return {
+    revisionId,
+    revisionSha256: payload.revision_sha256,
+    deliveryId,
+    deliveryState: deliveryState as CoachFeedbackLanguageResult["deliveryState"],
+    targetTakeId,
+  };
+}
+
+export async function publishCoachFeedbackLanguage(input: {
+  item: CoachGuidanceItem;
+  target: CoachFeedbackLanguageTarget;
+  revisionText: string;
+  idempotencyKey: string;
+}): Promise<
+  | { ok: true; value: CoachFeedbackLanguageResult }
+  | { ok: false; error: string }
+> {
+  if (!COACH_CONFIDENT_MOMENT_AUTHORING_UI_ENABLED) {
+    return { ok: false, error: "This feedback editor is not available." };
+  }
+  const context = input.item.bundleAuthoringContext;
+  const target = input.target;
+  const authorizedTarget = context?.authorizedTargets.find(
+    (candidate) => candidate.bundleAttachmentId === target.bundleAttachmentId,
+  );
+  if (
+    !context || !authorizedTarget || !input.revisionText.trim() ||
+    target.reviewAssignmentId !== input.item.reviewAssignmentId ||
+    target.revealAccessId !== input.item.revealAccessId ||
+    target.reviewAssignmentId !== authorizedTarget.reviewAssignmentId ||
+    target.revealAccessId !== authorizedTarget.revealAccessId ||
+    target.feedbackFamily !== authorizedTarget.feedbackFamily ||
+    target.allowedOutputKind !== authorizedTarget.allowedOutputKind ||
+    target.allowedCommentPurpose !== authorizedTarget.allowedCommentPurpose
+  ) {
+    return { ok: false, error: "This feedback target is no longer available." };
+  }
+
+  const response = await fetch(
+    `/api/v2/coach/confident-moment-bundles/${encodeURIComponent(
+      context.bundleId,
+    )}/attachments/${encodeURIComponent(target.bundleAttachmentId)}/feedback-language`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        review_batch_id: input.item.reviewBatchId,
+        reveal_grant_id: input.item.revealGrantId,
+        reveal_access_id: target.revealAccessId,
+        review_assignment_id: target.reviewAssignmentId,
+        output_kind: target.allowedOutputKind,
+        comment_purpose: target.allowedCommentPurpose,
+        revision_text: input.revisionText,
+        expected_current_revision_id: target.expectedCurrentRevisionId,
+        expected_current_delivery_id: target.expectedCurrentDeliveryId,
+        idempotency_key: input.idempotencyKey,
+      }),
+    },
+  ).catch(() => null);
+  if (!response) {
+    return { ok: false, error: "We couldn't save this feedback. Try again." };
+  }
+  const payload = await response.json().catch(() => null) as
+    Record<string, unknown> | null;
+  if (!response.ok || !payload) {
+    return {
+      ok: false,
+      error: typeof payload?.code === "string"
+        ? payload.code
+        : "We couldn't save this feedback. Try again.",
+    };
+  }
+  const mapped = mapCoachFeedbackLanguageResult(payload, {
+    bundleId: context.bundleId,
+    bundleAttachmentId: target.bundleAttachmentId,
+  });
+  if (!mapped) {
+    return { ok: false, error: "The saved feedback receipt was invalid." };
+  }
+  return { ok: true, value: mapped };
 }
 
 export async function submitCoachGuidance(input: {

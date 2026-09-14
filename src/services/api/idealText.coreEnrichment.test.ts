@@ -57,6 +57,66 @@ describe("Ideal Text core-first transport", () => {
     expect(result.learningExposures).toEqual([]);
   });
 
+  it("preserves the canonical valid-empty owner edit state", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => response({
+      status: "unverified",
+      text: "Machine document.",
+      pieces: [],
+      parts: null,
+      owner_edit: {
+        text: null,
+        source_document_version: null,
+        user_text_revision: null,
+        user_text_sha256: null,
+        parts: [],
+        current_bundle_text_update_binding: null,
+      },
+    })));
+    const result = await fetchIdealTextCore("arc-empty-owner");
+    expect(result.kind).toBe("single");
+    if (result.kind !== "single") return;
+    expect(result.ideal.text).toBe("Machine document.");
+    expect(result.confidentMomentOwnerEdit).toEqual({
+      text: null,
+      sourceDocumentVersion: null,
+      userTextRevision: null,
+      userTextSha256: null,
+      parts: [],
+      currentBundleTextUpdateBinding: null,
+    });
+  });
+
+  it("retains only an exact current Bundle text-update binding", async () => {
+    const partId = "00000000-0000-4000-8000-000000000031";
+    const binding = {
+      binding_id: "00000000-0000-4000-8000-000000000032",
+      bundle_id: "00000000-0000-4000-8000-000000000033",
+      attachment_id: "00000000-0000-4000-8000-000000000034",
+      source_document_version: 4,
+      result_user_text_revision: "8",
+      result_user_text_sha256: "b".repeat(64),
+      result_part_revision_id: "9",
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => response({
+      status: "verified", text: "Owner text.", pieces: [], parts: null,
+      owner_edit: {
+        text: "Owner text.", source_document_version: 4,
+        user_text_revision: "8", user_text_sha256: "b".repeat(64),
+        parts: [{ id: partId, ord: 0, text: "Owner text.", locked: false, current_part_revision_id: "9" }],
+        current_bundle_text_update_binding: binding,
+      },
+    })));
+    const result = await fetchIdealTextCore("arc-owner-binding");
+    expect(result.kind).toBe("single");
+    if (result.kind !== "single") return;
+    expect(result.confidentMomentOwnerEdit?.currentBundleTextUpdateBinding).toMatchObject({
+      bindingId: binding.binding_id,
+      bundleId: binding.bundle_id,
+      attachmentId: binding.attachment_id,
+      resultPartRevisionId: "9",
+    });
+  });
+
   it("merges only ready enrichment bound to the exact snapshot", async () => {
     vi.stubGlobal(
       "fetch",
