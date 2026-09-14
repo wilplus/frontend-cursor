@@ -112,7 +112,7 @@ function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walk(p));
-    else if (entry.isFile() && p.endsWith(".ts")) out.push(p);
+    else if (entry.isFile() && p.endsWith(".ts") && !p.endsWith(".test.ts")) out.push(p);
   }
   return out;
 }

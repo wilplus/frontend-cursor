@@ -2,7 +2,27 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
-import { proxyResponse } from "@/app/api/proxyResponse";
+import {
+  DEFAULT_FAILURES,
+  failure,
+  relayVerbatim,
+  type Failures,
+  type Relay,
+} from "@/app/api/_lib/envelopes";
+
+// Routes import everything from this one module.
+export {
+  DEFAULT_FAILURES,
+  LEGACY_FAILURES,
+  failure,
+  relayLegacy,
+  relayLenient,
+  relayStrict,
+  relayVerbatim,
+  type FailureEnvelope,
+  type Failures,
+  type Relay,
+} from "@/app/api/_lib/envelopes";
 
 /* -------------------------------------------------------------------------- */
 /*  The ONE place the BFF talks to the backend (FE handoff 2026-08-03 §C).      */
@@ -143,25 +163,38 @@ export async function backendFetch(
  *
  * Auth is required by default; `requireAuth: false` is for the guest-capable
  * routes (Lab upload/readout), where the token is forwarded when present but
- * never demanded. Upstream status + body pass through verbatim (proxyResponse)
- * so the client keeps ownership of the envelope — including the backend's new
- * generic error copy + `ref` join key (handoff §A1).
+ * never demanded. Pass `token` when the route already resolved it (or `null`
+ * to send none — the password-gated internal routes). Upstream status + body
+ * pass through verbatim (proxyResponse) so the client keeps ownership of the
+ * envelope — including the backend's new generic error copy + `ref` join key
+ * (handoff §A1).
+ *
+ * `failures` and `relay` (envelopes.ts) let a route keep the exact envelopes
+ * it shipped with — copy is founder-held — while the URL, the token and the
+ * fetch live here. Omit both and the behaviour is the pre-Q-A8 one.
  */
 export async function callBackend(
   path: string,
   init: Omit<RequestInit, "headers"> & {
     headers?: Record<string, string>;
     requireAuth?: boolean;
+    token?: string | null;
+    failures?: Failures;
+    relay?: Relay;
   } = {}
 ): Promise<NextResponse> {
-  const { requireAuth = true, ...rest } = init;
-  const token = await getAccessToken();
+  const {
+    requireAuth = true,
+    token: tokenOverride,
+    failures = {},
+    relay = relayVerbatim,
+    ...rest
+  } = init;
+  const token =
+    tokenOverride !== undefined ? tokenOverride : await getAccessToken();
 
   if (requireAuth && !token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Authentication required." },
-      { status: 401 }
-    );
+    return failure(failures.unauthenticated ?? DEFAULT_FAILURES.unauthenticated);
   }
 
   let upstream: Response;
@@ -169,19 +202,18 @@ export async function callBackend(
     upstream = await backendFetch(path, { ...rest, token });
   } catch (err) {
     if (err instanceof BackendNotConfiguredError) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
+      return failure(failures.notConfigured ?? DEFAULT_FAILURES.notConfigured);
     }
+    if (failures.timeout && err instanceof Error && err.name === "AbortError") {
+      return failure(failures.timeout);
+    }
+    const unreachable = failures.unreachable ?? DEFAULT_FAILURES.unreachable;
+    if (unreachable === "rethrow") throw err;
     console.error(`BFF ${path} — fetch failed:`, err);
-    // Same generic copy the backend's own error envelope uses (§A1) — no new
-    // user-facing text minted here.
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Something went wrong on our end." },
-      { status: 502 }
+    return failure(
+      typeof unreachable === "function" ? unreachable(err) : unreachable
     );
   }
 
-  return proxyResponse(upstream);
+  return relay(upstream);
 }
