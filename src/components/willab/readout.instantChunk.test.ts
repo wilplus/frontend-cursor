@@ -43,7 +43,7 @@ describe("mapInstantChunk", () => {
   });
 });
 
-describe("mapInstantChunk — applied_upgrade_indexes (#199)", () => {
+describe("mapInstantChunk — applied_upgrade_indexes", () => {
   it("keeps the approval set, INCLUDING an authoritative empty array", () => {
     // [] means "nothing approved" (authoritative) — distinct from null
     // ("older payload, no set known"), which is what gates the revert model.
