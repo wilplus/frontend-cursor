@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, failure, getAccessToken, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * POST /api/v2/coach/sessions/<session_id>/video
@@ -30,26 +31,22 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: "rethrow",
+  timeout: { status: 504, body: { code: "UPSTREAM_TIMEOUT", error: "Upload took too long. Try again in a moment." } },
+};
+const RELAY = relayLenient();
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
+    // Sign-in is checked before the body is read, as it always was.
+    const token = await getAccessToken();
+    if (!token) return failure(FAILURES.unauthenticated!);
 
     let inbound: FormData;
     try {
@@ -74,37 +71,21 @@ export async function POST(
     const sid = encodeURIComponent(params.sessionId);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25_000);
-
-    let upstream: Response;
     try {
-      upstream = await fetch(`${backend}/v2/coach/sessions/${sid}/video`, {
+      return await callBackend(`/v2/coach/sessions/${sid}/video`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
         body: out,
         signal: controller.signal,
-        cache: "no-store",
+        token,
+        failures: FAILURES,
+        relay: RELAY,
       });
     } finally {
       clearTimeout(timeoutId);
     }
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_TIMEOUT",
-          error: "Upload took too long. Try again in a moment.",
-        },
-        { status: 504 }
-      );
-    }
-    const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
+    const message = err instanceof Error ? err.message : String(err);
     console.error(
       `coach_video.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
       err

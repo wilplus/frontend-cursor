@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,15 @@ export const runtime = "nodejs";
 
 /** Path segments are single URL path components. Anything that could climb out
  *  of the `/v2/life` prefix (dots, slashes, empties) is refused outright. */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Panel service unavailable." } },
+};
+
+/** Path segments are single URL path components. Anything that could climb out
+ *  of the `/v2/life` prefix (dots, slashes, empties) is refused outright. */
 function safePath(segments: string[] | undefined): string | null {
   if (!segments || segments.length === 0) return null;
   const clean: string[] = [];
@@ -42,84 +52,7 @@ function safePath(segments: string[] | undefined): string | null {
   return clean.join("/");
 }
 
-async function forward(
-  req: NextRequest,
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-  params: { path: string[] }
-): Promise<NextResponse> {
-  const path = safePath(params.path);
-  if (!path) {
-    return NextResponse.json(
-      { code: "NOT_FOUND", error: "Not found" },
-      { status: 404 }
-    );
-  }
-
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
-
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
-  const qs = req.nextUrl.search || "";
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/json",
-  };
-
-  let body: string | ArrayBuffer | undefined;
-  if (method !== "GET") {
-    const requestType = req.headers.get("Content-Type") || "";
-    if (requestType.toLowerCase().includes("multipart/form-data")) {
-      // The setup document upload (item 9). Multipart is BINARY — a PDF or
-      // docx read as text is corrupted before it leaves this process — so
-      // the bytes are forwarded untouched, boundary header and all. Still
-      // never parsed, inspected or logged.
-      const raw = await req.arrayBuffer();
-      if (raw.byteLength > 0) {
-        body = raw;
-        headers["Content-Type"] = requestType;
-      }
-    } else {
-      // Read as text and forward verbatim. We never parse, inspect or log it.
-      const raw = await req.text();
-      if (raw) {
-        body = raw;
-        headers["Content-Type"] = requestType || "application/json";
-      }
-    }
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/life/${path}${qs}`, {
-      method,
-      headers,
-      body,
-      cache: "no-store",
-    });
-  } catch (err) {
-    // Message only. `err` can carry the request body on some fetch failures.
-    console.error(
-      `${method} /api/v2/life/${path} — upstream unreachable:`,
-      err instanceof Error ? err.message : "unknown error"
-    );
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Panel service unavailable." },
-      { status: 502 }
-    );
-  }
-
+const RELAY: Relay = async (upstream) => {
   const contentType = upstream.headers.get("Content-Type") || "";
 
   // The export endpoint hands back a file. Stream it through untouched so a
@@ -153,6 +86,55 @@ async function forward(
   const out = NextResponse.json(data, { status: upstream.status });
   out.headers.set("Cache-Control", "no-store");
   return out;
+};
+
+async function forward(
+  req: NextRequest,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  params: { path: string[] }
+): Promise<NextResponse> {
+  const path = safePath(params.path);
+  if (!path) {
+    return NextResponse.json(
+      { code: "NOT_FOUND", error: "Not found" },
+      { status: 404 }
+    );
+  }
+
+  const qs = req.nextUrl.search || "";
+  const headers: Record<string, string> = {};
+
+  let body: string | ArrayBuffer | undefined;
+  if (method !== "GET") {
+    const requestType = req.headers.get("Content-Type") || "";
+    if (requestType.toLowerCase().includes("multipart/form-data")) {
+      // The setup document upload (item 9). Multipart is BINARY — a PDF or
+      // docx read as text is corrupted before it leaves this process — so
+      // the bytes are forwarded untouched, boundary header and all. Still
+      // never parsed, inspected or logged.
+      const raw = await req.arrayBuffer();
+      if (raw.byteLength > 0) {
+        body = raw;
+        headers["Content-Type"] = requestType;
+      }
+    } else {
+      // Read as text and forward verbatim. We never parse, inspect or log it.
+      const raw = await req.text();
+      if (raw) {
+        body = raw;
+        headers["Content-Type"] = requestType || "application/json";
+      }
+    }
+  }
+
+  // callBackend logs only the path on a transport failure — never a body.
+  return callBackend(`/v2/life/${path}${qs}`, {
+    method,
+    headers,
+    body,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
 
 export async function GET(req: NextRequest, ctx: { params: { path: string[] } }) {

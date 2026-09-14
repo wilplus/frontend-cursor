@@ -1,6 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
-import { backendFetch, BackendNotConfiguredError } from "@/app/api/_lib/backend";
+import { callBackend, failure, getAccessToken, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  /api/v2/coach/training-imports  →  BE /v2/coach/training-imports           */
@@ -25,15 +25,24 @@ export const maxDuration = 300;
 // client abort < BFF abort < maxDuration).
 const BFF_ABORT_MS = 280_000;
 
+const POST_FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Import service unavailable." } },
+  timeout: { status: 504, body: { code: "PROCESSING_TIMEOUT", error: "That recording is taking longer than expected — it's still processing, check back shortly." } },
+};
+const GET_FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Corpus index unavailable." } },
+};
+const RELAY = relayLenient();
+
 export async function POST(req: NextRequest) {
   try {
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
+    // Sign-in is checked before the body is read, as it always was.
+    const token = await getAccessToken();
+    if (!token) return failure(POST_FAILURES.unauthenticated!);
 
     let inbound: FormData;
     try {
@@ -56,44 +65,21 @@ export async function POST(req: NextRequest) {
     // A closed tab means nobody is waiting — stop the backend work too.
     req.signal.addEventListener("abort", () => controller.abort());
 
-    let upstream: Response;
     try {
-      upstream = await backendFetch("/v2/coach/training-imports", {
+      // The import (Whisper + cutting pass) keeps running server-side past
+      // the abort; the corpus index picks it up when it lands. Same envelope
+      // as the lab upload's timeout (§A2) — a timeout is not a failure.
+      return await callBackend("/v2/coach/training-imports", {
         method: "POST",
         body: out,
         signal: controller.signal,
         token,
+        failures: POST_FAILURES,
+        relay: RELAY,
       });
-    } catch (err) {
-      if (err instanceof BackendNotConfiguredError) {
-        return NextResponse.json(
-          { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-          { status: 502 }
-        );
-      }
-      if (err instanceof Error && err.name === "AbortError") {
-        // The import (Whisper + cutting pass) keeps running server-side; the
-        // corpus index picks it up when it lands. Same envelope as the lab
-        // upload's timeout (§A2) — a timeout is not a failure.
-        return NextResponse.json(
-          {
-            code: "PROCESSING_TIMEOUT",
-            error:
-              "That recording is taking longer than expected — it's still processing, check back shortly.",
-          },
-          { status: 504 }
-        );
-      }
-      console.error("coach_training_import.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Import service unavailable." },
-        { status: 502 }
-      );
     } finally {
       clearTimeout(timer);
     }
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
   } catch (err) {
     const name = err instanceof Error ? err.name : "Unknown";
     const message = err instanceof Error ? err.message : String(err);
@@ -114,40 +100,14 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
     // Forwarded explicitly — nothing is passed through wholesale.
     const userId = req.nextUrl.searchParams.get("user_id");
     const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
-
-    let upstream: Response;
-    try {
-      upstream = await fetch(`${backend}/v2/coach/training-imports${qs}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-        cache: "no-store",
-      });
-    } catch (err) {
-      console.error("coach_training_imports.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Corpus index unavailable." },
-        { status: 502 }
-      );
-    }
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend(`/v2/coach/training-imports${qs}`, {
+      method: "GET",
+      failures: GET_FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
     const name = err instanceof Error ? err.name : "Unknown";
     const message = err instanceof Error ? err.message : String(err);

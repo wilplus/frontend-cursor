@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, failure, getAccessToken, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  /api/v2/coach/training-imports/<sessionId>                                 */
@@ -22,25 +23,21 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Import status unavailable." } },
+};
+const RELAY = relayLenient();
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
+    // Sign-in is checked before the id, as it always was.
+    const token = await getAccessToken();
+    if (!token) return failure(FAILURES.unauthenticated!);
     const sessionId = params.sessionId;
     if (!sessionId) {
       return NextResponse.json(
@@ -49,25 +46,10 @@ export async function GET(
       );
     }
 
-    let upstream: Response;
-    try {
-      upstream = await fetch(
-        `${backend}/v2/coach/training-imports/${encodeURIComponent(sessionId)}`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-          cache: "no-store",
-        }
-      );
-    } catch (err) {
-      console.error("coach_training_import_status.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Import status unavailable." },
-        { status: 502 }
-      );
-    }
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend(
+      `/v2/coach/training-imports/${encodeURIComponent(sessionId)}`,
+      { method: "GET", token, failures: FAILURES, relay: RELAY }
+    );
   } catch (err) {
     const name = err instanceof Error ? err.name : "Unknown";
     const message = err instanceof Error ? err.message : String(err);

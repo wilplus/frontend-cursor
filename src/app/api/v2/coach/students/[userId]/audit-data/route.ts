@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -11,52 +12,22 @@ export const runtime = "nodejs";
  * interactive audit view. Coach/admin-gated server-side; 403 soft-fails
  * to null on the FE.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Audit data service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
   const uid = encodeURIComponent(params.userId);
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/coach/students/${uid}/audit-data`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/v2/coach/students/[userId]/audit-data — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Audit data service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        { code: "UPSTREAM_NON_JSON", error: `Unexpected backend response (HTTP ${upstream.status}).` },
-        { status: upstream.status >= 400 ? upstream.status : 502 }
-      );
-    }
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/coach/students/${uid}/audit-data`, {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

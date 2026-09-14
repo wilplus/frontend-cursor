@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,48 +15,25 @@ export const maxDuration = 60;
  * TAKES_NOT_SAVED / IDEAL_TEXT_NOT_APPROVED otherwise; status + body relay
  * verbatim so the FE surfaces the server's own message.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Publish service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
-  }
-
   const id = encodeURIComponent(params.arcId);
   const body = await req.text();
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/coach/arc/${id}/publish-analysis`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body,
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("POST /api/v2/coach/arc/[arcId]/publish — fetch failed:", err);
-    return NextResponse.json({ error: "Publish service unavailable." }, { status: 502 });
-  }
-
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/coach/arc/${id}/publish-analysis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

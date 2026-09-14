@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -22,25 +23,19 @@ export const maxDuration = 60;
  * and passes the upstream status + body through unchanged, so the FE can read
  * the counts, confirm, and re-call with ?force=true to discard + proceed.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Re-cut service unavailable." } },
+  timeout: { status: 504, body: { code: "UPSTREAM_TIMEOUT", error: "Re-cut took too long. Try again in a moment." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
   const sid = encodeURIComponent(params.sessionId);
   // BE-6 — forward ?force=true so a coach-confirmed re-cut can discard the
   // orphaned labels/drafts the BE would otherwise 409 on.
@@ -48,45 +43,14 @@ export async function POST(
     req.nextUrl.searchParams.get("force") === "true" ? "?force=true" : "";
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 55_000);
-
-  let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/coach/sessions/${sid}/recut${force}`, {
+    return await callBackend(`/v2/coach/sessions/${sid}/recut${force}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       signal: controller.signal,
-      cache: "no-store",
+      failures: FAILURES,
+      relay: RELAY,
     });
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        { code: "UPSTREAM_TIMEOUT", error: "Re-cut took too long. Try again in a moment." },
-        { status: 504 }
-      );
-    }
-    console.error("POST /api/v2/coach/sessions/[sessionId]/recut — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Re-cut service unavailable." },
-      { status: 502 }
-    );
   } finally {
     clearTimeout(timeoutId);
   }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_NON_JSON",
-          error: `Unexpected backend response (HTTP ${upstream.status}).`,
-        },
-        { status: upstream.status >= 400 ? upstream.status : 502 }
-      );
-    }
-  }
-  return NextResponse.json(data, { status: upstream.status });
 }

@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  GET /api/v2/coach/sessions/[sessionId]/confidence-queue                    */
@@ -18,48 +19,29 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Labelling queue unavailable." } },
+};
+const LANGUAGE_FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: "rethrow",
+};
+const RELAY = relayLenient();
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
     const sid = encodeURIComponent(params.sessionId);
-    let upstream: Response;
-    try {
-      upstream = await fetch(
-        `${backend}/v2/coach/sessions/${sid}/confidence-queue`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-          cache: "no-store",
-        }
-      );
-    } catch (err) {
-      console.error("coach_confidence_queue.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Labelling queue unavailable." },
-        { status: 502 }
-      );
-    }
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend(`/v2/coach/sessions/${sid}/confidence-queue`, {
+      method: "GET",
+      failures: FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
     const name = err instanceof Error ? err.name : "Unknown";
     const message = err instanceof Error ? err.message : String(err);
@@ -83,37 +65,15 @@ export async function PUT(
   { params }: { params: { sessionId: string } }
 ) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
     const sid = encodeURIComponent(params.sessionId);
     const body = await req.text();
-    const upstream = await fetch(
-      `${backend}/v2/coach/sessions/${sid}/language`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body,
-        cache: "no-store",
-      }
-    );
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend(`/v2/coach/sessions/${sid}/language`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body,
+      failures: LANGUAGE_FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
     console.error("coach_session_language.bff_thrown surface=fe-bff", err);
     return NextResponse.json(

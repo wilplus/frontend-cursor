@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -16,51 +17,18 @@ export const runtime = "nodejs";
  * with BE-4 (the upstream endpoint + the coach-gate actually returning rows for
  * the signed-in admin).
  */
-export async function GET(req: NextRequest) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/coach/students`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/v2/coach/students — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Students service unavailable." },
-      { status: 502 }
-    );
-  }
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Students service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-  const text = await upstream.text();
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_NON_JSON",
-          error: `Unexpected backend response (HTTP ${upstream.status}).`,
-        },
-        { status: upstream.status >= 400 ? upstream.status : 502 }
-      );
-    }
-  }
-  return NextResponse.json(data, { status: upstream.status });
+export async function GET(_req: NextRequest) {
+  return callBackend("/v2/coach/students", {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

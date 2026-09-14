@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * GET /api/coaching/[coachingId]
@@ -10,58 +11,21 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Sign-in required." } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Coaching service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { coachingId: string } }
 ) {
-  const accessToken = await getV2AccessToken(req);
-  if (!accessToken) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Sign-in required." },
-      { status: 401 }
-    );
-  }
-
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
-      { status: 502 }
-    );
-  }
-
   const id = encodeURIComponent(params.coachingId);
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backendUrl}/v2/coaching/${id}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/coaching/[id] — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Coaching service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return NextResponse.json(
-      {
-        code: "UPSTREAM_NON_JSON",
-        error: `Unexpected backend response (HTTP ${upstream.status}).`,
-      },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/coaching/${id}`, {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
