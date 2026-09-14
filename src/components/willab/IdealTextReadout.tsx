@@ -19,8 +19,14 @@ import {
   type KeyPoint,
   type IdealTextResult,
 } from "@/services/api/idealText";
-import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
-import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
+import { decideBlock } from "@/services/api/documentDecide";
+import {
+  postStyleApply,
+  postTrackedDecision,
+  postTrackedUndo,
+  withStyleApproved,
+  withSuggestionStatus,
+} from "@/lib/willab/idealTextDecisions";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
@@ -546,43 +552,11 @@ export default function IdealTextReadout({
   const decideTracked = useCallback(
     async (s: DocumentSuggestion, d: "accept" | "keep"): Promise<boolean> => {
       const accept = d === "accept";
-      // Route by SOURCE — each lane has its own decision endpoint doing a
-      // different server operation (§2/§3): a block upgrade must flip the
-      // block's incumbent, which suggestion-feedback never does, so posting it
-      // there would silently no-op the accept.
-      let outcome: "ok" | "stale" | "error";
-      if (s.source === "new_take") {
-        if (!arcId || s.blockKey === null || !s.takeSessionId) return false;
-        outcome = (
-          await decideBlock(
-            arcId,
-            s.blockKey,
-            accept ? "accept" : "keep",
-            s.takeSessionId,
-            { quote: s.quote, proposedText: s.proposedText, whyKey: s.why },
-          )
-        ).kind;
-      } else if (s.source === "prior_take") {
-        if (!arcId) return false;
-        outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep"))
-          .kind;
-      } else {
-        if (!s.snippetId || !s.takeSessionId) return false;
-        const r = await sendSuggestionFeedback({
-          snippetId: s.snippetId,
-          sessionId: s.takeSessionId,
-          target: s.kind === "bold" ? "document_bold" : "document_replace",
-          action: accept ? "applied" : "dismissed",
-          suggestionId: s.id,
-          // PROPOSAL HISTORY (slice 2) — the ledger keeps the texts.
-          quote: s.quote,
-          proposedText: s.proposedText,
-          whyKey: s.why,
-          source: s.source === "coach_revision" ? "coach_revision" : undefined,
-        });
-        outcome = r.saved ? "ok" : "error";
-      }
-      if (outcome === "error") return false;
+      // Routed by SOURCE in lib/willab/idealTextDecisions (§2/§3, audit
+      // Q-C6): a block upgrade must flip the block's incumbent, which
+      // suggestion-feedback never does.
+      const outcome = await postTrackedDecision(arcId, s, d);
+      if (outcome === "error" || outcome === "undecidable") return false;
       // 409 STALE_OFFER / NOT_PENDING — a newer take moved the offer. Silently
       // refetch (the served suggestions refresh regardless of the edit lane)
       // and treat the decision as handled.
@@ -593,16 +567,7 @@ export default function IdealTextReadout({
       // Remember the decision on the served list so a remount never re-offers
       // it (the server agrees).
       setSd((prev) =>
-        prev
-          ? {
-              ...prev,
-              suggestions: (prev.suggestions ?? []).map((x) =>
-                x.id === s.id
-                  ? { ...x, status: accept ? "approved" : "dismissed" }
-                  : x,
-              ),
-            }
-          : prev,
+        withSuggestionStatus(prev, s.id, accept ? "approved" : "dismissed"),
       );
       if (accept) {
         // The accepted words must become the DOCUMENT, not just a painted
@@ -628,20 +593,7 @@ export default function IdealTextReadout({
 
   const undoTracked = useCallback(
     async (s: DocumentSuggestion): Promise<boolean> => {
-      if (s.source === "new_take" || s.source === "prior_take") return false;
-      if (!s.snippetId || !s.takeSessionId) return false;
-      const result = await sendSuggestionFeedback({
-        snippetId: s.snippetId,
-        sessionId: s.takeSessionId,
-        target: s.kind === "bold" ? "document_bold" : "document_replace",
-        action: "reverted",
-        suggestionId: s.id,
-        quote: s.quote,
-        proposedText: s.proposedText,
-        whyKey: s.why,
-        source: s.source === "coach_revision" ? "coach_revision" : undefined,
-      });
-      if (!result.saved) return false;
+      if ((await postTrackedUndo(s)) !== "ok") return false;
       sdGenRef.current++;
       setSdNonce((n) => n + 1);
       return true;
@@ -775,28 +727,8 @@ export default function IdealTextReadout({
   // records. New root styling uses the explicit exact-span root endpoint.
   const applyStyle = useCallback(
     async (s: DocumentSuggestion): Promise<boolean> => {
-      if (!s.snippetId || !s.takeSessionId) return false;
-      const r = await sendSuggestionFeedback({
-        snippetId: s.snippetId,
-        sessionId: s.takeSessionId,
-        target: "document_bold",
-        action: "applied",
-        suggestionId: s.id,
-        quote: s.quote,
-        whyKey: s.why,
-        styleLane: true,
-      });
-      if (!r.saved) return false;
-      setSd((prev) =>
-        prev
-          ? {
-              ...prev,
-              styleChanges: (prev.styleChanges ?? []).map((x) =>
-                x.id === s.id ? { ...x, status: "approved" as const } : x,
-              ),
-            }
-          : prev,
-      );
+      if ((await postStyleApply(s)) !== "ok") return false;
+      setSd((prev) => withStyleApproved(prev, s.id));
       markDirty(false);
       savedTextRef.current = null;
       sdGenRef.current++;
