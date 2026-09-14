@@ -23,27 +23,6 @@ const ALLOWED = new Set([`${API_ROOT}/_lib/backend.ts`]);
 
 /** Grandfathered direct-fetch files (pre-rule). Shrink me, never grow me. */
 const BASELINE = new Set([
-  "src/app/api/auth/signup/route.ts",
-  "src/app/api/public/unsubscribe/route.ts",
-  "src/app/api/v2/internal/journal/community/delete/route.ts",
-  "src/app/api/v2/internal/journal/community/generate/route.ts",
-  "src/app/api/v2/internal/journal/community/list/route.ts",
-  "src/app/api/v2/internal/journal/community/update/route.ts",
-  "src/app/api/v2/internal/journal/image/delete/route.ts",
-  "src/app/api/v2/internal/journal/image/generate/route.ts",
-  "src/app/api/v2/internal/journal/image/list/route.ts",
-  "src/app/api/v2/internal/journal/image/select/route.ts",
-  "src/app/api/v2/internal/journal/media/presign/route.ts",
-  "src/app/api/v2/internal/journal/posts/create/route.ts",
-  "src/app/api/v2/internal/journal/posts/delete/route.ts",
-  "src/app/api/v2/internal/journal/posts/get/route.ts",
-  "src/app/api/v2/internal/journal/posts/list/route.ts",
-  "src/app/api/v2/internal/journal/posts/publish/route.ts",
-  "src/app/api/v2/internal/journal/posts/unpublish/route.ts",
-  "src/app/api/v2/internal/journal/posts/update/route.ts",
-  "src/app/api/v2/internal/journal/reorder/route.ts",
-  "src/app/api/v2/internal/journal/revalidate/route.ts",
-  "src/app/api/v2/journal/posts/route.ts",
 ]);
 
 function walk(dir) {

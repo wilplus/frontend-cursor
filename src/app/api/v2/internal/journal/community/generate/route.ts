@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * POST /api/v2/internal/journal/community/generate
@@ -25,57 +26,30 @@ import { getBackendUrl } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Journal service unavailable." } },
+  timeout: { status: 504, body: { code: "UPSTREAM_TIMEOUT", error: "Writing took too long. Try again." } },
+};
+const RELAY = relayLenient({ bareStatuses: [204, 205, 304] });
 
+export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 55_000);
-
-  let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/internal/journal/community/generate`, {
+    return await callBackend("/v2/internal/journal/community/generate", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,
-      cache: "no-store",
+      token: null,
+      requireAuth: false,
+      failures: FAILURES,
+      relay: RELAY,
     });
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_TIMEOUT",
-          error: "Writing took too long. Try again.",
-        },
-        { status: 504 }
-      );
-    }
-    console.error(
-      "POST /api/v2/internal/journal/community/generate — fetch failed:",
-      err
-    );
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Journal service unavailable." },
-      { status: 502 }
-    );
   } finally {
     clearTimeout(timeoutId);
   }
-
-  if ([204, 205, 304].includes(upstream.status)) {
-    return new NextResponse(null, { status: upstream.status });
-  }
-  const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
 }

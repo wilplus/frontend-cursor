@@ -1,6 +1,7 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getBackendUrl } from "@/app/api/getAuth";
+import { callBackend, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -19,15 +20,13 @@ export const runtime = "nodejs";
  * (posts/list) and only revalidates on 200. Cache-busting is not destructive,
  * but an open endpoint would still let anyone force regeneration at will.
  */
-export async function POST(req: NextRequest) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
 
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Could not verify the password." } },
+};
+
+export async function POST(req: NextRequest) {
   let body: { password?: unknown; paths?: unknown };
   try {
     body = await req.json();
@@ -49,27 +48,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No valid paths." }, { status: 400 });
   }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/internal/journal/posts/list`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ password }),
-      cache: "no-store",
-    });
-  } catch {
-    return NextResponse.json(
-      { error: "Could not verify the password." },
-      { status: 502 }
-    );
-  }
-  if (!upstream.ok) {
-    return NextResponse.json(
-      { error: "Not authorized to revalidate." },
-      { status: upstream.status === 401 ? 401 : 403 }
-    );
-  }
-
-  for (const path of paths) revalidatePath(path);
-  return NextResponse.json({ revalidated: paths });
+  // The password check IS the upstream call: revalidate only on a 200.
+  const relay: Relay = async (upstream) => {
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { error: "Not authorized to revalidate." },
+        { status: upstream.status === 401 ? 401 : 403 }
+      );
+    }
+    for (const path of paths) revalidatePath(path);
+    return NextResponse.json({ revalidated: paths });
+  };
+  return callBackend("/v2/internal/journal/posts/list", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+    token: null,
+    requireAuth: false,
+    failures: FAILURES,
+    relay,
+  });
 }

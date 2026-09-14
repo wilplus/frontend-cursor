@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/app/api/getAuth";
+import { callBackend, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 /**
  * GET /api/v2/journal/posts
@@ -11,26 +12,28 @@ import { getBackendUrl } from "@/app/api/getAuth";
  *
  * Public by contract: no auth added here, and none required upstream.
  */
-export async function GET(req: NextRequest) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json({ posts: [] }, { status: 200 });
-  }
-  const qs = req.nextUrl.searchParams.toString();
-  let upstream: Response;
-  try {
-    upstream = await fetch(
-      `${backend}/v2/journal/posts${qs ? `?${qs}` : ""}`,
-      { headers: { Accept: "application/json" }, cache: "no-store" }
-    );
-  } catch {
-    // A picker with no list is recoverable; a 500 here is not worth breaking
-    // the surface that embeds it.
-    return NextResponse.json({ posts: [] }, { status: 200 });
-  }
+
+// A picker with no list is recoverable; a 500 here is not worth breaking
+// the surface that embeds it — every failure is an empty list.
+const FALLBACK: Failures = {
+  notConfigured: { status: 200, body: { posts: [] } },
+  unreachable: { status: 200, body: { posts: [] } },
+};
+const RELAY: Relay = async (upstream) => {
   if (!upstream.ok) {
     return NextResponse.json({ posts: [] }, { status: 200 });
   }
   const data = await upstream.json().catch(() => ({ posts: [] }));
   return NextResponse.json(data, { status: 200 });
+};
+
+export async function GET(req: NextRequest) {
+  const qs = req.nextUrl.searchParams.toString();
+  return callBackend(`/v2/journal/posts${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    token: null,
+    requireAuth: false,
+    failures: FALLBACK,
+    relay: RELAY,
+  });
 }
