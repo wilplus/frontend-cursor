@@ -42,8 +42,13 @@ export function useArcDeckRef(
   useEffect(() => {
     if (!need || !arcId) return;
     triedRef.current = arcId; // one shot per arc
+    // Retirement watch (founder, 2026-09-14): this fallback is scheduled for
+    // deletion once a day of logs shows it never fires. The `source` marker
+    // makes the BFF and the backend log the same event server-side, where the
+    // logs can actually be read.
+    console.warn(`[deck-ref-fallback] fired for arc ${arcId}`);
     let active = true;
-    void fetchBestPresentation(arcId).then((r) => {
+    void fetchBestPresentation(arcId, { source: "deck-ref-fallback" }).then((r) => {
       if (!active || !r || "preparing" in r) return;
       if (r.presentationRef) setFetched(r.presentationRef);
     });
