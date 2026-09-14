@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, Sparkles } from "lucide-react";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -58,6 +58,7 @@ import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
 import CoachInlineBlindExposureBoundary from "./CoachInlineBlindExposureBoundary";
 import CoachGuidanceComposer from "./CoachGuidanceComposer";
+import CoachConfidentMomentComposer from "./CoachConfidentMomentComposer";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
 import FirstClientCoachBlindReview from "./FirstClientCoachBlindReview";
 import {
@@ -335,6 +336,11 @@ export default function CoachStarVerdictOverlay({
     ) && serviceBlindComplete;
   const [guidanceBatch, setGuidanceBatch] =
     useState<CoachGuidanceBatch | null>(null);
+  const blindBundleAssignmentIds = useMemo(() => new Set(
+    cvRows.flatMap((row) => row.blindReview
+      ? [row.blindReview.reviewAssignmentId]
+      : []),
+  ), [cvRows]);
 
   // D3 is stricter than the legacy per-session queue: the browser requests
   // acoustics and authoring identities only after the server has granted a
@@ -831,14 +837,22 @@ export default function CoachStarVerdictOverlay({
                   })
                     .filter((item) => item.feedbackFamily === "confident_voice")
                     .map((item) => (
-                      <CoachGuidanceComposer
+                      <div
                         key={item.reviewAssignmentId}
-                        item={item}
-                        enabled={
-                          COACH_GUIDANCE_D3_UI_ENABLED ||
-                          COACH_INLINE_AUTHORING_UI_ENABLED
-                        }
-                      />
+                        className="grid gap-3"
+                      >
+                        <CoachConfidentMomentComposer
+                          item={item}
+                          revealed={guidanceBatch?.batchComplete === true}
+                        />
+                        <CoachGuidanceComposer
+                          item={item}
+                          enabled={
+                            COACH_GUIDANCE_D3_UI_ENABLED ||
+                            COACH_INLINE_AUTHORING_UI_ENABLED
+                          }
+                        />
+                      </div>
                     ))}
                 </CoachCard>
               ))}
@@ -1172,19 +1186,28 @@ export default function CoachStarVerdictOverlay({
                       {guidanceBatch?.items
                         .filter(
                           (item) =>
-                            item.legacyStarKey === key ||
-                            (item.legacyStarKey === null &&
-                              item.snippetId === s.snippetId),
+                            !blindBundleAssignmentIds.has(item.reviewAssignmentId) &&
+                            (item.legacyStarKey === key ||
+                              (item.legacyStarKey === null &&
+                                item.snippetId === s.snippetId)),
                         )
                         .map((item) => (
-                          <CoachGuidanceComposer
+                          <div
                             key={item.reviewAssignmentId}
-                            item={item}
-                            enabled={
-                              COACH_GUIDANCE_D3_UI_ENABLED ||
-                              COACH_INLINE_AUTHORING_UI_ENABLED
-                            }
-                          />
+                            className="grid gap-3"
+                          >
+                            <CoachConfidentMomentComposer
+                              item={item}
+                              revealed={guidanceBatch?.batchComplete === true}
+                            />
+                            <CoachGuidanceComposer
+                              item={item}
+                              enabled={
+                                COACH_GUIDANCE_D3_UI_ENABLED ||
+                                COACH_INLINE_AUTHORING_UI_ENABLED
+                              }
+                            />
+                          </div>
                         ))}
                     </CoachCard>
                   );

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCommittedSlideRoots,
   buildRootPhraseLayer,
+  bundleRootTint,
 } from "./rootPhraseLayer";
 
 describe("buildRootPhraseLayer", () => {
@@ -40,5 +41,12 @@ describe("buildRootPhraseLayer", () => {
     ])).toEqual([
       { slideIndex: 0, text: "Accepted phrase", type: "flagship" },
     ]);
+  });
+
+  it("paints one exact automatic root without committing or guessing", () => {
+    expect(bundleRootTint("Start with the decision. Then explain it.", { isOrange: true }, ["Start with the decision."])).toEqual([[0, 24]]);
+    expect(bundleRootTint("repeat it, then repeat it", { isOrange: true }, ["repeat it"])).toBeUndefined();
+    expect(bundleRootTint("No match", { isOrange: true }, ["Different words"])).toBeUndefined();
+    expect(bundleRootTint("Exact", { isOrange: false }, ["Exact"])).toBeUndefined();
   });
 });

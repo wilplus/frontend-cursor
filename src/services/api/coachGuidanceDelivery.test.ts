@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  COACH_CONFIDENT_MOMENT_AUTHORING_UI_ENABLED,
+  CONFIDENT_MOMENT_BUNDLE_UI_ENABLED,
   COACH_INLINE_AUTHORING_UI_ENABLED,
   COACH_GUIDANCE_D3_UI_ENABLED,
   coachGuidanceItemsForReviewAct,
+  mapCoachFeedbackLanguageResult,
   mapCoachGuidanceBatch,
   mapFirstClientCoachReviews,
   submitCoachGuidance,
@@ -40,6 +43,8 @@ describe("Coach Guidance D3 disabled boundary", () => {
   it("has no runtime environment override", () => {
     expect(COACH_GUIDANCE_D3_UI_ENABLED).toBe(false);
     expect(COACH_INLINE_AUTHORING_UI_ENABLED).toBe(false);
+    expect(CONFIDENT_MOMENT_BUNDLE_UI_ENABLED).toBe(false);
+    expect(COACH_CONFIDENT_MOMENT_AUTHORING_UI_ENABLED).toBe(false);
     const firstClientApi = readFileSync(
       resolve(process.cwd(), "src/services/api/mlc3FirstClient.ts"),
       "utf8",
@@ -49,6 +54,132 @@ describe("Coach Guidance D3 disabled boundary", () => {
     expect(firstClientApi).not.toContain(
       'process.env.NEXT_PUBLIC_MLC3_PILOT_ENABLED === "true"',
     );
+  });
+
+  it("maps an exact post-reveal Bundle authoring target without blind identity", () => {
+    const ids = Array.from({ length: 7 }, (_, index) =>
+      `10000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+    );
+    const batch = mapCoachGuidanceBatch({
+      review_batch_id: "batch-1",
+      reveal_grant_id: "grant-1",
+      batch_complete: true,
+      operation_mode: "general_service",
+      synthetic_only: false,
+      serves_user: false,
+      dataset_eligible: false,
+      items: [wireItem({
+        review_assignment_id: ids[3],
+        reveal_access_id: ids[4],
+        bundle_authoring_context: {
+          bundle_id: ids[0],
+          source_review_attachment_id: ids[1],
+          authorized_targets: [{
+            bundle_attachment_id: ids[2],
+            review_assignment_id: ids[3],
+            reveal_access_id: ids[4],
+            feedback_family: "rewrite_clarity",
+            allowed_output_kind: "rephrase",
+            allowed_comment_purpose: null,
+            source_passage: {
+              evidence_span_id: ids[5],
+              text: "Use one clear next step.",
+              text_sha256: "a".repeat(64),
+            },
+            expected_current_revision_id: null,
+            expected_current_delivery_id: null,
+          }],
+        },
+      })],
+    });
+    expect(batch?.operationMode).toBe("general_service");
+    expect(batch?.items[0].bundleAuthoringContext).toMatchObject({
+      bundleId: ids[0],
+      sourceReviewAttachmentId: ids[1],
+      authorizedTargets: [{
+        bundleAttachmentId: ids[2],
+        allowedOutputKind: "rephrase",
+        allowedCommentPurpose: null,
+      }],
+    });
+    expect(JSON.stringify(batch)).not.toContain("blind_judgment");
+  });
+
+  it("rejects malformed, duplicate, or family-incompatible Bundle targets", () => {
+    const id = (n: number) =>
+      `10000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    const target = {
+      bundle_attachment_id: id(3),
+      review_assignment_id: id(4),
+      reveal_access_id: id(5),
+      feedback_family: "confident_voice",
+      allowed_output_kind: "comment",
+      allowed_comment_purpose: "confidence_explanation",
+      source_passage: {
+        evidence_span_id: id(6),
+        text: "A passage.",
+        text_sha256: "b".repeat(64),
+      },
+      expected_current_revision_id: null,
+      expected_current_delivery_id: null,
+    };
+    const outer = (targets: unknown[]) => ({
+      review_batch_id: "batch-1",
+      reveal_grant_id: "grant-1",
+      batch_complete: true,
+      synthetic_only: true,
+      serves_user: false,
+      dataset_eligible: false,
+      items: [wireItem({
+        review_assignment_id: id(4),
+        reveal_access_id: id(5),
+        bundle_authoring_context: {
+          bundle_id: id(1),
+          source_review_attachment_id: id(2),
+          authorized_targets: targets,
+        },
+      })],
+    });
+    expect(mapCoachGuidanceBatch(outer([
+      { ...target, blind_judgment_id: id(7) },
+    ]))).toBeNull();
+    expect(mapCoachGuidanceBatch(outer([target, target]))).toBeNull();
+    expect(mapCoachGuidanceBatch(outer([{
+      ...target,
+      allowed_comment_purpose: "positive_praise",
+    }]))).toBeNull();
+  });
+
+  it("validates the closed coach Feedback Language receipt", () => {
+    const bundleId = "10000000-0000-4000-8000-000000000001";
+    const attachmentId = "10000000-0000-4000-8000-000000000002";
+    const result = mapCoachFeedbackLanguageResult({
+      coach_feedback_language_contract_version:
+        "confident-moment-coach-feedback-language-v1",
+      bundle_id: bundleId,
+      bundle_attachment_id: attachmentId,
+      revision_id: "10000000-0000-4000-8000-000000000003",
+      revision_sha256: "c".repeat(64),
+      delivery_id: null,
+      delivery_state: null,
+      target_take_id: null,
+      dataset_eligible: false,
+    }, { bundleId, bundleAttachmentId: attachmentId });
+    expect(result?.deliveryId).toBeNull();
+    expect(mapCoachFeedbackLanguageResult({
+      ...({
+        coach_feedback_language_contract_version:
+          "confident-moment-coach-feedback-language-v1",
+        bundle_id: bundleId,
+        bundle_attachment_id: attachmentId,
+        revision_id: "10000000-0000-4000-8000-000000000003",
+        revision_sha256: "c".repeat(64),
+        delivery_id: null,
+        delivery_state: "scheduled_next_take",
+        target_take_id: null,
+        dataset_eligible: false,
+      }),
+    }, { bundleId, bundleAttachmentId: attachmentId })).toBeNull();
   });
 
   it("accepts only a complete non-serving batch", () => {
