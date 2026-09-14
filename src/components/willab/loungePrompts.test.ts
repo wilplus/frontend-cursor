@@ -5,7 +5,7 @@ import {
   CHIP_LABEL,
 } from "./loungePrompts";
 
-describe("coerceSuggestedAction (B-1 / S1)", () => {
+describe("coerceSuggestedAction", () => {
   it("passes through the known actions", () => {
     expect(coerceSuggestedAction("trainings")).toBe("trainings");
     expect(coerceSuggestedAction("audit")).toBe("audit");

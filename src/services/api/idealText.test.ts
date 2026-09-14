@@ -3,11 +3,12 @@ import {
   mapIdealText,
   mapInstantIdealText,
   mapKeyPoints,
+  mapRecordingRootsPayload,
   segmentIdealText,
   keyPointTintRanges,
 } from "./idealText";
 
-describe("mapKeyPoints (E-2 presentation cues)", () => {
+describe("mapKeyPoints (presentation cues)", () => {
   it("maps rows; absent block → null; drops textless rows", () => {
     const out = mapKeyPoints([
       { block_key: 3, block_label: "Opening", text: "Land the hook", start: 0, end: 13 },
@@ -499,7 +500,7 @@ describe("mapInstantIdealText (instant lane, free)", () => {
   });
 });
 
-describe("coach reference (FE-5)", () => {
+describe("coach reference", () => {
   // A key moment is keyed on `anchor`; a row without one is dropped.
   const withCoach = (coach: unknown) => ({
     text: "hello world",
@@ -616,5 +617,48 @@ describe("keyPointTintRanges", () => {
       [0, 3],
       [8, 13],
     ]);
+  });
+});
+
+describe("recording roots payload", () => {
+  it("maps exact flagship roots", () => {
+    expect(
+      mapRecordingRootsPayload({
+        document_snapshot_id: "snapshot-1",
+        document_snapshot_sha256: "a".repeat(64),
+        roots: [
+          {
+            part_id: "part-1",
+            slide_index: 2,
+            text: "the memorable phrase",
+            type: "flagship",
+          },
+        ],
+      }),
+    ).toEqual({
+      kind: "ready",
+      documentSnapshotId: "snapshot-1",
+      documentSnapshotSha256: "a".repeat(64),
+      roots: [
+        {
+          partId: "part-1",
+          slideIndex: 2,
+          text: "the memorable phrase",
+          type: "flagship",
+        },
+      ],
+    });
+  });
+
+  it("rejects a root without exact Slide identity", () => {
+    expect(
+      mapRecordingRootsPayload({
+        document_snapshot_id: "snapshot-1",
+        document_snapshot_sha256: "a".repeat(64),
+        roots: [
+          { part_id: "part-1", slide_index: null, text: "phrase", type: "flagship" },
+        ],
+      }),
+    ).toBeNull();
   });
 });
