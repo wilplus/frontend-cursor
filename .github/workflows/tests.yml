@@ -60,6 +60,12 @@ jobs:
       - name: BFF single-idiom guard
         run: npm run check:bff
 
+      # Cyclomatic complexity ratchet (audit Q-C7, 2026-09-14): no function
+      # under src/ over CC 25 unless frozen in scripts/complexity-baseline.json,
+      # and a frozen one may only come down.
+      - name: Complexity ratchet
+        run: npm run check:complexity
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25

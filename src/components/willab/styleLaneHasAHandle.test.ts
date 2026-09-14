@@ -84,7 +84,10 @@ describe("the locked pill's amber pulse", () => {
   it("the deck actually hangs the handle, per chunk", () => {
     // Without this the flag exists and nothing ever sets it — which is the
     // exact failure the ruling was about.
-    expect(DECK).toMatch(/hasStyle=\{styleFor\(styleChanges, c\) !== null\}/);
+    // Audit Q-C5: `styleFor` runs once per chunk in deckChunks.ts; the page
+    // reads the chunk's state.
+    expect(DECK).toMatch(/hasStyle=\{st\.style !== null\}/);
+    expect(DECK).toMatch(/buildChunkStates</);
   });
 
   it("still paints nothing on the words themselves", () => {

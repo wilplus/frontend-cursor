@@ -257,6 +257,139 @@ export function coachMomentForChunk<T extends CoachMomentLite>(
   return null;
 }
 
+/* ---------------------- audit Q-C5: one state per chunk ------------------- */
+
+/** What has happened to these words — the modal's kicker fact, NOT a fourth
+ *  page status. ChunkStatus stays three-valued (2026-08-15: green means
+ *  LOCKED IN, and only the server's own flag says that); the approved-not-
+ *  locked distinction lives here, read from the approved rider. */
+export type ChunkDecision = "locked" | "approved" | "none";
+
+export type CoachReviewStatus = NonNullable<CoachMomentLite["reviewStatus"]>;
+
+/** The coach's own feedback on this chunk's words (slice 4), joined once. */
+export interface ChunkCoach<M extends CoachMomentLite = CoachMomentLite> {
+  moment: M | null;
+  /** The snippet the coach left a note or a video on — only when the BE's
+   *  existence flag says there is one to fetch. */
+  snippetId: string | null;
+  /** Visible async workflow state; present even before an explanation. */
+  reviewStatus: CoachReviewStatus | null;
+  /** A coach explanation exists on these words. */
+  hasFeedback: boolean;
+}
+
+export interface ChunkHistoryLite {
+  quote: string | null;
+  proposedText: string | null;
+}
+
+/** ONE STATE PER CHUNK (audit Q-C5, founder decision 2026-09-14, option a).
+ *
+ *  Everything the deck page and the chunk modal branch on, computed once per
+ *  chunk from the served document: identity and spans (`chunk`), the page
+ *  status, the lock, the decision kicker, the pending inventory (≤ 3 — the
+ *  backend caps the complete Take inventory), the style-lane proposal, the
+ *  decided-proposal history that belongs to these words, and the coach's
+ *  join. The surfaces read it; they never re-derive it. Pure — no React. */
+export interface ChunkState<
+  S extends DeckSuggestionLite = DeckSuggestionLite,
+  H extends ChunkHistoryLite = ChunkHistoryLite,
+  M extends CoachMomentLite = CoachMomentLite,
+> {
+  chunk: DeckChunk;
+  status: ChunkStatus;
+  /** The server-owned lock (the same flag the page's green mark reads). */
+  locked: boolean;
+  decision: ChunkDecision;
+  /** Undecided proposals on these words, in inventory order. */
+  pending: S[];
+  /** The pending post-lock style proposal, or null. */
+  style: S | null;
+  /** Decided proposals whose words belong to this chunk. */
+  history: H[];
+  coach: ChunkCoach<M>;
+}
+
+export interface ChunkStateInputs<
+  S extends DeckSuggestionLite,
+  H extends ChunkHistoryLite,
+  M extends CoachMomentLite,
+> {
+  document: string;
+  suggestions: readonly S[];
+  styleChanges?: readonly S[] | null;
+  decisionHistory?: readonly H[] | null;
+  coachMoments?: readonly M[] | null;
+}
+
+/** The backend caps a Take's complete feedback inventory at three. */
+export const PENDING_INVENTORY_CAP = 3;
+
+function stateFor<
+  S extends DeckSuggestionLite,
+  H extends ChunkHistoryLite,
+  M extends CoachMomentLite,
+>(
+  chunk: DeckChunk,
+  inputs: ChunkStateInputs<S, H, M>,
+  byId: ReadonlyMap<string, S>
+): ChunkState<S, H, M> {
+  const pending = chunk.pendingIds
+    .map((id) => byId.get(id) ?? null)
+    .filter((s): s is S => s !== null)
+    .slice(0, PENDING_INVENTORY_CAP);
+  const moment = coachMomentForChunk(inputs.coachMoments, inputs.document, chunk);
+  const hasFeedback = moment?.hasExplanation === true;
+  const locked = chunk.part.locked === true;
+  return {
+    chunk,
+    status: chunk.status,
+    locked,
+    // KEYED ON THE APPROVED RIDER, not on `chunk.status` (see ChunkDecision).
+    decision: locked ? "locked" : chunk.approvedIds.length > 0 ? "approved" : "none",
+    pending,
+    style: styleFor(inputs.styleChanges, chunk),
+    history: historyForChunk(inputs.decisionHistory, chunk.part.text),
+    coach: {
+      moment,
+      snippetId: hasFeedback ? (moment?.snippetId ?? null) : null,
+      reviewStatus: moment?.reviewStatus ?? null,
+      hasFeedback,
+    },
+  };
+}
+
+function suggestionsById<S extends DeckSuggestionLite>(
+  suggestions: readonly S[]
+): Map<string, S> {
+  const byId = new Map<string, S>();
+  for (const s of suggestions) if (!byId.has(s.id)) byId.set(s.id, s);
+  return byId;
+}
+
+/** The state of one chunk. */
+export function chunkStateFor<
+  S extends DeckSuggestionLite,
+  H extends ChunkHistoryLite,
+  M extends CoachMomentLite,
+>(chunk: DeckChunk, inputs: ChunkStateInputs<S, H, M>): ChunkState<S, H, M> {
+  return stateFor(chunk, inputs, suggestionsById(inputs.suggestions));
+}
+
+/** The state of every chunk of one served document, in chunk order. */
+export function buildChunkStates<
+  S extends DeckSuggestionLite,
+  H extends ChunkHistoryLite,
+  M extends CoachMomentLite,
+>(
+  chunks: readonly DeckChunk[],
+  inputs: ChunkStateInputs<S, H, M>
+): ChunkState<S, H, M>[] {
+  const byId = suggestionsById(inputs.suggestions);
+  return chunks.map((chunk) => stateFor(chunk, inputs, byId));
+}
+
 /** One slide section of the deck: a kicker index + its chunks, in order. */
 export interface DeckSlideGroup {
   /** 0-based slide the words were delivered on, or null when the document

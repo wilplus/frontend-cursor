@@ -47,7 +47,7 @@ import FeelingsCheckIn from "./FeelingsCheckIn";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
-import { type WillabState } from "./useWillabFlow";
+import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
@@ -113,13 +113,14 @@ export interface LabSessionContext {
 export default function LabOverlay({
   state,
   sessionId,
-  goTo,
+  dispatch,
   onClose,
   onRecordingProgress,
 }: {
   state: WillabState;
   sessionId: string | null;
-  goTo: (s: WillabState) => void;
+  /** What happened in the Lab; useWillabFlow's table decides the state. */
+  dispatch: (event: WillabEvent) => void;
   onClose: () => void;
   onRecordingProgress?: (
     p: import("@/services/api/recordingProgress").RecordingProgress | null,
@@ -465,7 +466,7 @@ export default function LabOverlay({
       readoutEnteredRef.current = false;
       // T8 — start the slide timeline: slide 0 is on screen at t=0. State was
       // already flipped to lab_recording on the Setup submit (optimistic), so
-      // there's no goTo here — this only pins t=0 to the real recording start.
+      // there is no dispatch here — this only pins t=0 to the real recording start.
       recordStartRef.current = performance.now();
       setCurrentSlide(0);
       slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
@@ -490,9 +491,9 @@ export default function LabOverlay({
       consumedBlobRef.current = s.audioBlob;
       durationRef.current = s.durationSec;
       setBlob(s.audioBlob);
-      goTo("lab_processing");
+      dispatch("recording_stopped");
     }
-  }, [mic.state, state, goTo]);
+  }, [mic.state, state, dispatch]);
 
   // FE-2 GUARD (founder 2026-07-22) — the recording screen owns the foreground:
   // the mic must NEVER keep running once the screen has moved off it. The mic
@@ -747,7 +748,7 @@ export default function LabOverlay({
         // the message rather than a connecting spinner.
         cancelMic();
         setRejectedMsg(result.message);
-        goTo("lab_recording");
+        dispatch("upload_rejected");
       } else {
         setUploadError(result.message);
         // Branch on `code`, never on the copy (§A1/C4). A timeout is not a
@@ -758,7 +759,7 @@ export default function LabOverlay({
     return () => {
       active = false;
     };
-  }, [state, blob, context, goTo, cancelMic, retryNonce, userId]);
+  }, [state, blob, context, dispatch, cancelMic, retryNonce, userId]);
 
   // Async analysis (delivery layer): push-first via the readout SSE bridge —
   // one streaming connection instead of a 2s fetch loop — with the original
@@ -893,9 +894,9 @@ export default function LabOverlay({
   // prevents stale words from appearing while assembly finishes.
   useEffect(() => {
     if (state === "lab_processing" && processingReady && !uploadError) {
-      goTo("readout");
+      dispatch("processing_ready");
     }
-  }, [state, processingReady, uploadError, goTo]);
+  }, [state, processingReady, uploadError, dispatch]);
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -973,7 +974,7 @@ export default function LabOverlay({
         readout,
       });
     }
-    goTo("parked");
+    dispatch("park");
   }
 
   // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate to
@@ -1041,7 +1042,7 @@ export default function LabOverlay({
       stagedUploadRef.current !== null,
     );
     if (!restored) {
-      goTo("lab_session_context");
+      dispatch("setup_needed");
       return;
     }
     lastWasUploadRef.current = false;
@@ -1054,7 +1055,7 @@ export default function LabOverlay({
     // check-in that follows a take in the same overlay session would otherwise
     // be bounced into the waiting screen on the previous take's blob.
     cancelMic();
-    goTo("lab_recording");
+    dispatch("take_started");
     void mic.start();
   }
 
@@ -1064,7 +1065,7 @@ export default function LabOverlay({
   function startContinuedTake() {
     const restored = restoredSetupFor(preloadDeck, false);
     if (!restored) {
-      goTo("lab_session_context");
+      dispatch("setup_needed");
       return;
     }
     lastWasUploadRef.current = false;
@@ -1074,7 +1075,7 @@ export default function LabOverlay({
     uploadSeqRef.current += 1;
     startPendingRef.current = true;
     cancelMic();
-    goTo("lab_recording");
+    dispatch("take_started");
     void mic.start();
   }
 
@@ -1202,7 +1203,7 @@ export default function LabOverlay({
                 slideAdvancesRef.current = [];
                 durationRef.current = 0; // the BE backfills duration from the file
                 setBlob(staged);
-                goTo("lab_processing");
+                dispatch("upload_submitted");
                 return;
               }
               lastWasUploadRef.current = false;
@@ -1222,7 +1223,7 @@ export default function LabOverlay({
               // getUserMedia resolves. The 422-rejected path already did this;
               // this entry and onReRecord did not.
               cancelMic();
-              goTo("lab_recording");
+              dispatch("take_started");
               void mic.start();
             }}
           />
@@ -1274,7 +1275,7 @@ export default function LabOverlay({
                     slideAdvancesRef.current = [];
                     durationRef.current = 0; // the BE backfills duration
                     setBlob(file);
-                    goTo("lab_processing");
+                    dispatch("upload_submitted");
                   }
                 : null
             }
@@ -1352,7 +1353,7 @@ export default function LabOverlay({
               startPendingRef.current = true;
               // Same stale-"stopped" hazard as onReRead — reset before entering.
               cancelMic();
-              goTo("lab_recording");
+              dispatch("take_started");
               void mic.start();
             }}
             onClose={onClose}
@@ -1399,7 +1400,7 @@ export default function LabOverlay({
               clearParked();
               if (labSessionId) setReviewPending(labSessionId);
             }}
-            onSignUp={() => goTo("sendgate_unsigned")}
+            onSignUp={() => dispatch("sign_up_to_send")}
             onReRead={() => {
               // A re-read is just the next take on THIS presentation: keep the
               // deck (context) and arc (arcTakeIndex was already advanced on the
@@ -1427,7 +1428,7 @@ export default function LabOverlay({
               // "Getting your mic ready…" covers idle while getUserMedia
               // resolves, which is the screen he was asking for.
               cancelMic();
-              goTo("lab_recording");
+              dispatch("take_started");
               void mic.start();
             }}
           />
@@ -1441,7 +1442,7 @@ export default function LabOverlay({
             onSent={() => {
               clearParked();
               setReviewPending(labSessionId);
-              goTo("review_pending");
+              dispatch("sent");
             }}
             onPark={parkReadout}
             onSignIn={startUnsignedSend}

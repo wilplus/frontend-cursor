@@ -15,7 +15,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeckChunkModal from "./DeckChunkModal";
-import type { DeckChunk } from "@/lib/willab/deckChunks";
+import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -144,9 +144,15 @@ async function render(initial: DocumentSuggestion) {
     root.render(
       createElement(DeckChunkModal, {
         ...props,
-        chunk: chunk(),
-        suggestion: initial,
-        pendingSuggestions: inventory,
+        // The deck opens on the first of the chunk's pending ids; a test that
+        // opens on another item puts that id first.
+        state: chunkStateFor(
+          {
+            ...chunk(),
+            pendingIds: [initial.id, ...inventory.filter((s) => s.id !== initial.id).map((s) => s.id)],
+          },
+          { document: TEXT, suggestions: inventory },
+        ),
       }),
     );
   });
@@ -212,9 +218,14 @@ describe("DeckChunkModal — F1 net", () => {
       root.render(
         createElement(DeckChunkModal, {
           ...props,
-          chunk: { ...chunk(), pendingIds: [...inventory, extra].map((s) => s.id) } as DeckChunk,
-          suggestion: confidentVoice,
-          pendingSuggestions: [...inventory, extra],
+          state: {
+            ...chunkStateFor(
+              { ...chunk(), pendingIds: [...inventory, extra].map((s) => s.id) } as DeckChunk,
+              { document: TEXT, suggestions: [...inventory, extra] },
+            ),
+            // Past the model's own cap on purpose: the modal must cap too.
+            pending: [...inventory, extra],
+          },
         }),
       );
     });

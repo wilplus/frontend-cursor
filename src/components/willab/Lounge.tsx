@@ -62,7 +62,7 @@ import {
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
 import { clearInsightsReady } from "./sendStatus";
-import { isLabOverlay, type WillabState } from "./useWillabFlow";
+import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
@@ -137,7 +137,7 @@ export default function Lounge({
   onStart,
   onStartNewProject,
   onStartInProject,
-  goTo,
+  dispatch,
   initialReviewSessionId = null,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
@@ -151,7 +151,8 @@ export default function Lounge({
    *  project is already known, so the picker is skipped entirely and the Lab
    *  opens straight onto the prefilled setup. */
   onStartInProject?: () => void;
-  goTo: (s: WillabState) => void;
+  /** What happened; useWillabFlow's table decides the state. */
+  dispatch: (event: WillabEvent) => void;
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
   initialReviewSessionId?: string | null;
@@ -372,7 +373,7 @@ export default function Lounge({
       // a stale, persisted button cannot reopen deck mutation after a take.
       if (project && Math.max(0, project.nextTakeIndex - 1) === 0) {
         postAnswerBubble(CHIP_LABEL[action]);
-        goTo("lab_session_context");
+        dispatch("setup_requested");
       }
       return;
     }
@@ -396,7 +397,7 @@ export default function Lounge({
   ): void {
     if (state === "insights_ready") {
       clearInsightsReady();
-      goTo("lounge_idle");
+      dispatch("insights_opened");
     }
     setIdealTextLaunchMode(mode);
     setIdealTextArcId(arcId);

@@ -36,8 +36,14 @@ import {
   type MomentSuggestion,
   type IdealTextResult,
 } from "@/services/api/idealText";
-import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
-import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
+import { decideBlock } from "@/services/api/documentDecide";
+import {
+  postStyleApply,
+  postTrackedDecision,
+  postTrackedUndo,
+  withStyleApproved,
+  withSuggestionStatus,
+} from "@/lib/willab/idealTextDecisions";
 import { swapPiece } from "@/services/api/pieceSwap";
 import {
   fetchBlockVariants,
@@ -803,39 +809,9 @@ export default function IdealTextOverlay({
     d: "accept" | "keep",
   ): Promise<boolean> => {
     const accept = d === "accept";
-    // Route by SOURCE — each lane has its own decision endpoint (§2/§3); a
-    // block upgrade posted to suggestion-feedback would never flip the block.
-    let outcome: "ok" | "stale" | "error";
-    if (s.source === "new_take") {
-      if (s.blockKey === null || !s.takeSessionId) return false;
-      outcome = (
-        await decideBlock(
-          arcId,
-          s.blockKey,
-          accept ? "accept" : "keep",
-          s.takeSessionId,
-          { quote: s.quote, proposedText: s.proposedText, whyKey: s.why },
-        )
-      ).kind;
-    } else if (s.source === "prior_take") {
-      outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep"))
-        .kind;
-    } else {
-      if (!s.snippetId || !s.takeSessionId) return false;
-      const r = await sendSuggestionFeedback({
-        snippetId: s.snippetId,
-        sessionId: s.takeSessionId,
-        target: s.kind === "bold" ? "document_bold" : "document_replace",
-        action: accept ? "applied" : "dismissed",
-        suggestionId: s.id,
-        // PROPOSAL HISTORY (slice 2) — the ledger keeps the texts.
-        quote: s.quote,
-        proposedText: s.proposedText,
-        whyKey: s.why,
-      });
-      outcome = r.saved ? "ok" : "error";
-    }
-    if (outcome === "error") return false;
+    // Routed by SOURCE in lib/willab/idealTextDecisions (§2/§3, audit Q-C6).
+    const outcome = await postTrackedDecision(arcId, s, d);
+    if (outcome === "error" || outcome === "undecidable") return false;
     // 409 STALE_OFFER / NOT_PENDING — silently refetch, treat as handled.
     if (outcome === "stale") {
       fetchGenRef.current++;
@@ -843,16 +819,7 @@ export default function IdealTextOverlay({
       return true;
     }
     setSd((prev) =>
-      prev
-        ? {
-            ...prev,
-            suggestions: (prev.suggestions ?? []).map((x) =>
-              x.id === s.id
-                ? { ...x, status: accept ? "approved" : "dismissed" }
-                : x,
-            ),
-          }
-        : prev,
+      withSuggestionStatus(prev, s.id, accept ? "approved" : "dismissed"),
     );
     // An accept reassembles the document BE-side (version bump) — pull it.
     if (accept) {
@@ -863,20 +830,7 @@ export default function IdealTextOverlay({
   };
 
   const undoTracked = async (s: DocumentSuggestion): Promise<boolean> => {
-    if (s.source === "new_take" || s.source === "prior_take") return false;
-    if (!s.snippetId || !s.takeSessionId) return false;
-    const result = await sendSuggestionFeedback({
-      snippetId: s.snippetId,
-      sessionId: s.takeSessionId,
-      target: s.kind === "bold" ? "document_bold" : "document_replace",
-      action: "reverted",
-      suggestionId: s.id,
-      quote: s.quote,
-      proposedText: s.proposedText,
-      whyKey: s.why,
-      source: s.source === "coach_revision" ? "coach_revision" : undefined,
-    });
-    if (!result.saved) return false;
+    if ((await postTrackedUndo(s)) !== "ok") return false;
     fetchGenRef.current++;
     setRefetchNonce((n) => n + 1);
     return true;
@@ -885,28 +839,8 @@ export default function IdealTextOverlay({
   // Legacy post-lock emphasis rows remain reversible for already-created
   // records. New root styling uses the explicit exact-span root endpoint.
   const applyStyle = async (s: DocumentSuggestion): Promise<boolean> => {
-    if (!s.snippetId || !s.takeSessionId) return false;
-    const r = await sendSuggestionFeedback({
-      snippetId: s.snippetId,
-      sessionId: s.takeSessionId,
-      target: "document_bold",
-      action: "applied",
-      suggestionId: s.id,
-      quote: s.quote,
-      whyKey: s.why,
-      styleLane: true,
-    });
-    if (!r.saved) return false;
-    setSd((prev) =>
-      prev
-        ? {
-            ...prev,
-            styleChanges: (prev.styleChanges ?? []).map((x) =>
-              x.id === s.id ? { ...x, status: "approved" as const } : x,
-            ),
-          }
-        : prev,
-    );
+    if ((await postStyleApply(s)) !== "ok") return false;
+    setSd((prev) => withStyleApproved(prev, s.id));
     fetchGenRef.current++;
     setRefetchNonce((n) => n + 1);
     return true;

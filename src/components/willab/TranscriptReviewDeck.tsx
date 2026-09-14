@@ -15,10 +15,11 @@ import { RichText } from "@/components/willab/RichText";
 import { PdfPage } from "@/components/willab/pdfSlides";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
+  buildChunkStates,
   buildDeckChunks,
-  coachMomentForChunk,
+  chunkStateFor,
   groupChunksBySlide,
-  styleFor,
+  type ChunkState,
   type CoachMomentLite,
   type DeckChunk,
 } from "@/lib/willab/deckChunks";
@@ -229,6 +230,27 @@ export default function TranscriptReviewDeck({
       return c;
     });
   }, [doc, parts, suggestions, optimisticLocked, optimisticUnlocked]);
+  // ONE STATE PER CHUNK (audit Q-C5): the joins the page and the modal both
+  // read — the pending inventory, the style-lane proposal, the decided
+  // history, the coach's own feedback — computed once per chunk here, never
+  // per render per chunk. The modal receives one of these, not seven props.
+  const stateInputs = useMemo(
+    () => ({ document: doc, suggestions, styleChanges, decisionHistory, coachMoments }),
+    [doc, suggestions, styleChanges, decisionHistory, coachMoments],
+  );
+  const stateByPartId = useMemo(() => {
+    const states = buildChunkStates<
+      DocumentSuggestion,
+      DecisionHistoryEntry,
+      CoachMomentLite
+    >(chunks, stateInputs);
+    return new Map(states.map((st) => [st.chunk.part.id, st]));
+  }, [chunks, stateInputs]);
+  const stateOf = useCallback(
+    (c: DeckChunk): ChunkState<DocumentSuggestion, DecisionHistoryEntry, CoachMomentLite> =>
+      stateByPartId.get(c.part.id) ?? chunkStateFor(c, stateInputs),
+    [stateByPartId, stateInputs],
+  );
   const slideCount = slideTitles?.length ?? null;
   const grouping = useMemo(
     () =>
@@ -283,16 +305,7 @@ export default function TranscriptReviewDeck({
   const openChunk = openPartId
     ? (chunks.find((c) => c.part.id === openPartId) ?? null)
     : null;
-  const openSuggestion =
-    openChunk && openChunk.pendingIds.length > 0
-      ? (suggestions.find((s) => s.id === openChunk.pendingIds[0]) ?? null)
-      : null;
-  const openSuggestions = openChunk
-    ? openChunk.pendingIds
-        .map((id) => suggestions.find((s) => s.id === id) ?? null)
-        .filter((item): item is DocumentSuggestion => item !== null)
-        .slice(0, 3)
-    : [];
+  const openState = openChunk ? stateOf(openChunk) : null;
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -672,7 +685,9 @@ export default function TranscriptReviewDeck({
                 className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
               >
                 <div className="my-auto flex min-h-full flex-col justify-center gap-4">
-                  {g.chunks.map((c) => (
+                  {g.chunks.map((c) => {
+                    const st = stateOf(c);
+                    return (
                     <p
                       key={c.part.id}
                       data-chunk
@@ -726,17 +741,13 @@ export default function TranscriptReviewDeck({
                         // inside the modal.
                         hasCoach={
                           summaryByParagraph.get(c.part.id)?.some((item) => item.hasCoachUpdate) === true ||
-                          coachMomentForChunk(coachMoments, doc, c)
-                            ?.hasExplanation === true
+                          st.coach.hasFeedback
                         }
                         hasUnreadCoachUpdate={
                           summaryByParagraph.get(c.part.id)
                             ?.some((item) => item.hasUnreadCoachUpdate) === true
                         }
-                        reviewStatus={
-                          coachMomentForChunk(coachMoments, doc, c)
-                            ?.reviewStatus ?? null
-                        }
+                        reviewStatus={st.coach.reviewStatus}
                         // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
                         // shape as the coach dot, and for the same reason: the
                         // proposal lives only inside the modal, so without a
@@ -744,10 +755,11 @@ export default function TranscriptReviewDeck({
                         // every locked chunk in turn. `styleFor` is the pure
                         // overlap the modal already runs on the open chunk —
                         // run per chunk here, it costs one span comparison.
-                        hasStyle={styleFor(styleChanges, c) !== null}
+                        hasStyle={st.style !== null}
                       />
                     </p>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </section>
@@ -838,12 +850,10 @@ export default function TranscriptReviewDeck({
           says where you are, and a running word count is a number about
           your speech sitting under your speech. */}
 
-      {deckReady && openChunk ? (
+      {deckReady && openChunk && openState ? (
         <DeckChunkModal
           key={openChunk.part.id}
-          chunk={openChunk}
-          suggestion={openSuggestion}
-          pendingSuggestions={openSuggestions}
+          state={openState}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
           onKeepMine={onKeepMine}
@@ -884,18 +894,7 @@ export default function TranscriptReviewDeck({
               : null
           }
           onClose={() => setOpenPartId(null)}
-          styleSuggestion={styleFor(styleChanges, openChunk)}
           onApplyStyle={onApplyStyle}
-          history={decisionHistory}
-          coachSnippetId={
-            coachMomentForChunk(coachMoments, doc, openChunk)
-              ?.hasExplanation === true
-              ? coachMomentForChunk(coachMoments, doc, openChunk)?.snippetId ?? null
-              : null
-          }
-          coachReviewStatus={
-            coachMomentForChunk(coachMoments, doc, openChunk)?.reviewStatus ?? null
-          }
           arcId={arcId}
         />
       ) : null}

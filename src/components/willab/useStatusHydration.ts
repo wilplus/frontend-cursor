@@ -8,7 +8,7 @@ import {
   setInsightsReady,
   setReviewPending,
 } from "./sendStatus";
-import type { WillabState } from "./useWillabFlow";
+import type { HomeStatus, WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
 /*  useStatusHydration — reconcile the at-home status with server truth (§6a) */
@@ -32,27 +32,27 @@ import type { WillabState } from "./useWillabFlow";
  *   - otherwise → lounge_idle
  */
 export async function reconcileWillabStatus(
-  goTo: (s: WillabState) => void
+  settle: (status: HomeStatus) => void
 ): Promise<void> {
   const rows = await fetchReadouts();
   const latest = rows[0];
   if (latest?.state === "review_pending") {
     setReviewPending(latest.sessionId);
-    goTo("review_pending");
+    settle("review_pending");
   } else if (getReviewPending() != null) {
     setInsightsReady(latest?.sessionId ?? getReviewPending()!);
     clearReviewPending();
-    goTo("insights_ready");
+    settle("insights_ready");
   } else {
     clearReviewPending();
-    goTo("lounge_idle");
+    settle("lounge_idle");
   }
 }
 
 export function useStatusHydration(
   signedIn: boolean | null,
   state: WillabState | null,
-  goTo: (s: WillabState) => void
+  settle: (status: HomeStatus) => void
 ): void {
   const ranRef = useRef(false);
 
@@ -61,6 +61,6 @@ export function useStatusHydration(
     ranRef.current = true; // once, on the first resolved signed-in load
     if (state !== "lounge_idle" && state !== "review_pending") return;
 
-    void reconcileWillabStatus(goTo);
-  }, [signedIn, state, goTo]);
+    void reconcileWillabStatus(settle);
+  }, [signedIn, state, settle]);
 }

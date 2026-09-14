@@ -77,11 +77,11 @@ export default function WillabSurface({
       : signedIn === true && userEmail === MLC2_FOUNDER_CANARY_EMAIL;
   // Reconcile the at-home status (review_pending / insights) with server truth
   // once on load…
-  useStatusHydration(signedIn, flow.state, flow.goTo);
+  useStatusHydration(signedIn, flow.state, flow.settleHomeStatus);
   // …and live: while awaiting a coach, flip review_pending → insights_ready the
   // instant the coach publishes (realtime sub + 20s poll fallback), reusing the
   // same reconcile so the publish event is the single source of truth (no 2nd write).
-  const { goTo } = flow;
+  const { settleHomeStatus } = flow;
   // FE-2 (bug 1a) — the publish signal must NEVER navigate the user out of the
   // Lab. When a signed-in take auto-delivers, the exact Project Take send sets review_pending;
   // the very next publish tick (realtime or the 20s poll) then reconciled to
@@ -96,8 +96,8 @@ export default function WillabSurface({
     if (getReviewPending() == null) return; // only relevant while awaiting a coach
     const st = stateRef.current;
     if (st !== null && isLabOverlay(st)) return; // never interrupt the readout
-    void reconcileWillabStatus(goTo);
-  }, [goTo]);
+    void reconcileWillabStatus(settleHomeStatus);
+  }, [settleHomeStatus]);
   usePublishLiveSubscription(userId, onPublish);
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
@@ -149,7 +149,7 @@ export default function WillabSurface({
           flow.startNewTopicSetup();
         }}
         onStartInProject={flow.startRecordingSetup}
-        goTo={flow.goTo}
+        dispatch={flow.dispatch}
         initialReviewSessionId={reviewSessionId}
         initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
@@ -237,7 +237,7 @@ export default function WillabSurface({
         <LabOverlay
           state={flow.state}
           sessionId={sessionId}
-          goTo={flow.goTo}
+          dispatch={flow.dispatch}
           onClose={flow.closeLab}
           onRecordingProgress={setRecordingProgress}
         />
