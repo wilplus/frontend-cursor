@@ -175,15 +175,19 @@ export interface BestPresentationPreparing {
 }
 
 export async function fetchBestPresentation(
-  arcId: string
+  arcId: string,
+  /** `source` names the caller for the server-side retirement watch on the
+   *  deck-ref fallback (useArcDeckRef). Omitted by the overlay. */
+  opts: { source?: "deck-ref-fallback" } = {}
 ): Promise<BestPresentationResult | BestPresentationPreparing | null> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
+  const query = opts.source ? `?source=${encodeURIComponent(opts.source)}` : "";
   let res: Response;
   try {
     res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation`,
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation${query}`,
       {
         method: "GET",
         headers,

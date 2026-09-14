@@ -100,7 +100,6 @@ const PARAM_VALUES: Record<string, string> = {
   sessionId: "sess-1",
   snippetId: "snip-1",
   userId: "user-1",
-  coachingId: "coach-1",
   presentationId: "pres-1",
   takeNumber: "2",
   id: "rec-1",
