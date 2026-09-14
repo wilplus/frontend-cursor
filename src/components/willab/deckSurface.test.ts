@@ -57,7 +57,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // the page shows their count and the modal lists every identity up front;
     // resolving #1 may navigate to #2, but can never make a hidden #2 appear.
     expect(DECK).toMatch(/pendingCount=\{c\.pendingIds\.length\}/);
-    expect(DECK).toMatch(/pendingSuggestions=\{openSuggestions\}/);
+    // Audit Q-C5: the inventory rides the chunk's one state (`pending`).
+    expect(DECK).toMatch(/state=\{openState\}/);
+    expect(DECK).toMatch(/buildChunkStates</);
     expect(MODAL).toMatch(/Feedback ready · \{feedbackInventory\.length\}/);
     expect(MODAL).toMatch(/feedbackInventory\.map/);
     expect(MODAL).toMatch(/\.slice\(0, 3\)/);
@@ -310,9 +312,10 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK_SRC).toMatch(
       /summaryByParagraph\.get\(c\.part\.id\)\?\.some\(\(item\) => item\.hasCoachUpdate\) === true/
     );
-    expect(DECK_SRC).toMatch(
-      /coachMomentForChunk\(coachMoments, doc, c\)\s*\?\.hasExplanation === true/
-    );
+    // Audit Q-C5: the join runs once per chunk in deckChunks.ts (the BE's
+    // existence flag, exactly as before); the page reads the chunk's state.
+    expect(CHUNKS).toMatch(/hasFeedback = moment\?\.hasExplanation === true/);
+    expect(DECK_SRC).toMatch(/st\.coach\.hasFeedback/);
     expect(DECK_SRC).toMatch(/reviewStatus=\{/);
     expect(MARK).toMatch(/hasCoach/);
     // AC-9: an existence flag, never a count or a band.

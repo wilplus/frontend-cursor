@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildChunkStates,
+  chunkStateFor,
   buildDeckChunks,
   coachMomentForChunk,
   groupChunksBySlide,
@@ -358,5 +360,93 @@ describe("groupChunksBySlide — canonical deck identity", () => {
       ok: true,
       groups: [],
     });
+  });
+});
+
+/* ---------------------- audit Q-C5: one state per chunk ------------------- */
+
+describe("chunkStateFor / buildChunkStates", () => {
+  const DOC = "First we listened.\n\nThen we shipped it fast.\n\nAnd it worked.";
+  const parts = [
+    { id: "p1", text: "First we listened.", locked: false },
+    { id: "p2", text: "Then we shipped it fast.", locked: true },
+    { id: "p3", text: "And it worked.", locked: false },
+  ];
+  const at = (needle: string) => DOC.indexOf(needle);
+  const sug = (id: string, needle: string, status: "pending" | "approved" | "dismissed" | null) => ({
+    id, start: at(needle), end: at(needle) + needle.length, status,
+  });
+  const suggestions = [
+    sug("a", "we listened", null),
+    sug("b", "First", "pending"),
+    sug("c", "shipped", "approved"),
+    sug("d", "worked", "dismissed"),
+  ];
+  const styleChanges = [sug("st1", "shipped it", null), sug("st2", "listened", "approved")];
+  const history = [
+    { quote: "shipped it fast", proposedText: null },
+    { quote: "nowhere", proposedText: "not here either" },
+  ];
+  const coachMoments = [
+    { snippetId: "sn-p2", anchor: "shipped it", hasExplanation: true, reviewStatus: "coach_reviewed" as const },
+    { snippetId: "sn-p3", anchor: "worked", hasExplanation: false, reviewStatus: "pending_coach_review" as const },
+  ];
+  const inputs = { document: DOC, suggestions, styleChanges, decisionHistory: history, coachMoments };
+  const chunks = buildDeckChunks(DOC, parts, suggestions);
+
+  it("resolves the pending inventory in chunk order, undecided and pending alike", () => {
+    const [s1, s2, s3] = buildChunkStates(chunks, inputs);
+    expect(s1.pending.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(s1.status).toBe("waiting");
+    expect(s2.pending).toEqual([]);
+    expect(s3.pending).toEqual([]);
+  });
+
+  it("caps the inventory at three, the backend's own cap", () => {
+    const many = ["m1", "m2", "m3", "m4"].map((id) => sug(id, "we listened", null));
+    const [s1] = buildChunkStates(buildDeckChunks(DOC, parts, many), { document: DOC, suggestions: many });
+    expect(s1.chunk.pendingIds).toHaveLength(4);
+    expect(s1.pending.map((s) => s.id)).toEqual(["m1", "m2", "m3"]);
+  });
+
+  it("reads the lock and the decision from the work, not the page status", () => {
+    const [s1, s2, s3] = buildChunkStates(chunks, inputs);
+    expect([s1.locked, s2.locked, s3.locked]).toEqual([false, true, false]);
+    expect(s1.decision).toBe("none");
+    // Locked wins the kicker even with an approved rider on the words.
+    expect(s2.decision).toBe("locked");
+    expect(s2.chunk.approvedIds).toEqual(["c"]);
+    // Approved, not locked in yet.
+    const accepted = chunkStateFor(
+      buildDeckChunks(DOC, parts, [sug("x", "worked", "approved")])[2],
+      { document: DOC, suggestions: [sug("x", "worked", "approved")] },
+    );
+    expect(accepted.decision).toBe("approved");
+    expect(accepted.status).toBe("clean");
+    expect(s3.decision).toBe("none");
+  });
+
+  it("joins the style-lane proposal, the history and the coach once per chunk", () => {
+    const [s1, s2, s3] = buildChunkStates(chunks, inputs);
+    expect(s1.style).toBeNull();          // st2 is approved → not pending
+    expect(s2.style?.id).toBe("st1");
+    expect(s3.style).toBeNull();
+    expect(s2.history).toEqual([history[0]]);
+    expect(s1.history).toEqual([]);
+    expect(s2.coach).toEqual({
+      moment: coachMoments[0], snippetId: "sn-p2",
+      reviewStatus: "coach_reviewed", hasFeedback: true,
+    });
+    // A visible review state without an explanation: actionable, nothing to fetch.
+    expect(s3.coach).toEqual({
+      moment: coachMoments[1], snippetId: null,
+      reviewStatus: "pending_coach_review", hasFeedback: false,
+    });
+    expect(s1.coach).toEqual({ moment: null, snippetId: null, reviewStatus: null, hasFeedback: false });
+  });
+
+  it("is the same state whether built alone or with the deck", () => {
+    const all = buildChunkStates(chunks, inputs);
+    chunks.forEach((c, i) => expect(chunkStateFor(c, inputs)).toEqual(all[i]));
   });
 });

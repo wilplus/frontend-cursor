@@ -23,7 +23,11 @@ import {
 } from "@/lib/willab/trackedChangeWhy";
 import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
-import { type DeckChunk } from "@/lib/willab/deckChunks";
+import {
+  type ChunkHistoryLite,
+  type ChunkState,
+  type CoachMomentLite,
+} from "@/lib/willab/deckChunks";
 import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import ConfidentVoicePractice from "@/components/willab/ConfidentVoicePractice";
 import Mlc3FirstClientPractice from "@/components/willab/Mlc3FirstClientPractice";
@@ -75,14 +79,13 @@ function isConfidentVoiceFeedback(item: DocumentSuggestion): boolean {
 }
 
 interface DeckChunkModalProps {
-  chunk: DeckChunk;
-  /** The pending proposal to review, when the chunk is waiting. Null routes
-   *  straight to the EDITOR face. */
-  suggestion: DocumentSuggestion | null;
-  /** The immutable pending inventory for this chunk. It is shown up front so
-   *  resolving item one never makes item two appear as a surprise. The
-   *  backend caps the complete Take inventory at three. */
-  pendingSuggestions?: readonly DocumentSuggestion[];
+  /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
+   *  decision kicker, the pending inventory (shown up front so resolving item
+   *  one never makes item two appear as a surprise; the backend caps the
+   *  complete Take inventory at three — an empty inventory routes straight to
+   *  the EDITOR face), the style-lane proposal and the coach's join, computed
+   *  once in lib/willab/deckChunks.ts. */
+  state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   /** Decide approve. Resolves true when saved; the host refetches and the
    *  updated chunk text flows back down. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
@@ -102,34 +105,19 @@ interface DeckChunkModalProps {
    *  behaviour rather than a Discard that does nothing. */
   onUnlockPart?: (() => Promise<LockOutcome>) | null;
   onClose: () => void;
-  /** THE STYLE LANE (slice 2) — a pending post-lock bold for this chunk,
-   *  surfaced ONLY here. Null = none. */
-  styleSuggestion?: DocumentSuggestion | null;
-  /** Apply a legacy style proposal; new roots use onSetRootPhrase. */
+  /** Apply a legacy style proposal (`state.style`); new roots use
+   *  onSetRootPhrase. */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
-  /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals; the modal
-   *  lists the ones whose words belong to this chunk. */
-  history?: readonly DecisionHistoryEntry[] | null;
-  /** THE COACH'S OWN FEEDBACK (slice 4) — the snippet the coach left a note
-   *  or a video on for THIS chunk's words, or null. Shown on both faces,
-   *  locked chunks included (founder: "even on a locked screen you can
-   *  still see that feedback"). */
-  coachSnippetId?: string | null;
-  coachReviewStatus?:
-    | "pending_coach_review"
-    | "coach_reviewed"
-    | "not_confirmed"
-    | null;
-  /** The arc the coach's message is fetched from, on demand. */
+  /** The arc the coach's message (`state.coach`) is fetched from, on demand.
+   *  Shown on both faces, locked chunks included (founder: "even on a locked
+   *  screen you can still see that feedback"). */
   arcId?: string | null;
   /** Disabled RPQ-V1 enrichment. It never changes the existing V3 inventory. */
   rootingPhraseRoutingState?: RootingPhraseRoutingState | null;
 }
 
 export default function DeckChunkModal({
-  chunk,
-  suggestion: initialSuggestion,
-  pendingSuggestions = [],
+  state,
   onAccept,
   onUndoAccept,
   onKeepMine,
@@ -138,24 +126,22 @@ export default function DeckChunkModal({
   onSetRootPhrase,
   onUnlockPart = null,
   onClose,
-  styleSuggestion = null,
   onApplyStyle,
-  history = null,
-  coachSnippetId = null,
-  coachReviewStatus = null,
   arcId = null,
   rootingPhraseRoutingState = null,
 }: DeckChunkModalProps) {
+  // The chunk's state, named as the faces below have always read it. The
+  // proposal to open on is the first of the pending inventory; an empty
+  // inventory routes to the EDITOR face.
+  const { chunk, pending: pendingSuggestions, style: styleSuggestion, coach } = state;
+  const coachSnippetId = coach.snippetId;
+  const coachReviewStatus = coach.reviewStatus;
   // Freeze the inventory for this modal opening. A refetch removes a decided
   // payload row, but it must not rewrite the student's memory of which items
   // were present when review began. Resolved rows are marked locally; no new
   // identity can enter this list.
   const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() => {
-    const source = pendingSuggestions.length > 0
-      ? pendingSuggestions
-      : initialSuggestion
-        ? [initialSuggestion]
-        : [];
+    const source = pendingSuggestions;
     const seen = new Set<string>();
     return source.filter((item) => {
       if (seen.has(item.id)) return false;
@@ -167,7 +153,7 @@ export default function DeckChunkModal({
     ReadonlySet<string>
   >(new Set());
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(
-    initialSuggestion?.id ?? feedbackInventory[0]?.id ?? null,
+    feedbackInventory[0]?.id ?? null,
   );
   const unresolvedFeedback = feedbackInventory.filter(
     (item) => !resolvedFeedbackIds.has(item.id),
@@ -1119,7 +1105,7 @@ export default function DeckChunkModal({
                   different thing and belongs on the page as a fresh proposal,
                   not in a history drawer.
 
-                  `history` / `decisionHistory` stay on the props and keep
+                  `state.history` (the chunk's decided proposals) keeps
                   flowing from the host — the data is not the problem and a
                   future surface may want it. Nothing renders it here. */}
             </>
