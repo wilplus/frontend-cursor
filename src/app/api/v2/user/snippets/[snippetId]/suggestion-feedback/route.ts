@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, getAccessToken, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
@@ -14,19 +15,18 @@ const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
  * ID is forwarded. A bare session UUID is never authorization. Status + body
  * are relayed verbatim so the client reads { saved: bool }.
  */
+
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Feedback service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { snippetId: string } }
 ) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
-  const token = await getV2AccessToken(req); // optional — guest-allowed
+  const token = await getAccessToken(); // optional — guest-allowed
   const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
   let body: string;
   try {
@@ -35,41 +35,17 @@ export async function POST(
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (!token && guestOwner) headers[GUEST_OWNER_HEADER] = guestOwner;
 
   const id = encodeURIComponent(params.snippetId);
-  let upstream: Response;
-  try {
-    upstream = await fetch(
-      `${backend}/v2/user/snippets/${id}/suggestion-feedback`,
-      { method: "POST", headers, body: body || "{}", cache: "no-store" }
-    );
-  } catch (err) {
-    console.error(
-      "POST /api/v2/user/snippets/[snippetId]/suggestion-feedback — fetch failed:",
-      err
-    );
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Feedback service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/user/snippets/${id}/suggestion-feedback`, {
+    method: "POST",
+    headers,
+    body: body || "{}",
+    token,
+    requireAuth: false,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

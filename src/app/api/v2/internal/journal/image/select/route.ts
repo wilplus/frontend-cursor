@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * POST /api/v2/internal/journal/image/select
@@ -15,36 +16,21 @@ import { getBackendUrl } from "@/app/api/getAuth";
  */
 export const runtime = "nodejs";
 
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Journal service unavailable." } },
+};
+const RELAY = relayLenient({ bareStatuses: [204, 205, 304] });
+
 export async function POST(req: NextRequest) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
-
   const body = await req.json().catch(() => ({}));
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backend}/v2/internal/journal/image/select`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("POST /api/v2/internal/journal/image/select — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Journal service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  if ([204, 205, 304].includes(upstream.status)) {
-    return new NextResponse(null, { status: upstream.status });
-  }
-  const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend("/v2/internal/journal/image/select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    token: null,
+    requireAuth: false,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

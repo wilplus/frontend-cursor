@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/app/api/getAuth";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 const BFF_REVISION = "public-unsubscribe-v1";
 
@@ -27,38 +28,33 @@ const BFF_REVISION = "public-unsubscribe-v1";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: "rethrow",
+};
+const RELAY = relayLenient();
+
 export async function POST(req: NextRequest) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
     const body = (await req.json().catch(() => ({}))) as { token?: string };
-    const token = typeof body.token === "string" ? body.token.trim() : "";
-    if (!token) {
+    const unsubscribeToken = typeof body.token === "string" ? body.token.trim() : "";
+    if (!unsubscribeToken) {
       return NextResponse.json(
         { code: "INVALID_INPUT", error: "`token` is required" },
         { status: 400 }
       );
     }
 
-    const upstream = await fetch(`${backend}/v2/public/unsubscribe`, {
+    // No bearer — the unsubscribe token IS the auth.
+    return await callBackend("/v2/public/unsubscribe", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        bff_revision: BFF_REVISION,
-      },
-      body: JSON.stringify({ token }),
-      cache: "no-store",
+      headers: { "Content-Type": "application/json", bff_revision: BFF_REVISION },
+      body: JSON.stringify({ token: unsubscribeToken }),
+      token: null,
+      requireAuth: false,
+      failures: FAILURES,
+      relay: RELAY,
     });
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";

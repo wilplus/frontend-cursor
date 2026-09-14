@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * GET /api/user/sessions/current
@@ -31,57 +32,17 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-export async function GET(req: NextRequest) {
-  const accessToken = await getV2AccessToken(req);
-  if (!accessToken) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Sign-in required." },
-      { status: 401 }
-    );
-  }
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Sign-in required." } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Session-status service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    console.error("GET /api/user/sessions/current — backend URL is not configured");
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
-      { status: 502 }
-    );
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backendUrl}/v2/user/sessions/current`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      // Server-side fetch; never cache so the post-auth routing always
-      // reflects the latest DB state.
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/user/sessions/current — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Session-status service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return NextResponse.json(
-      {
-        code: "UPSTREAM_NON_JSON",
-        error: `Unexpected backend response (HTTP ${upstream.status}).`,
-      },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-
-  return NextResponse.json(data, { status: upstream.status });
+export async function GET(_req: NextRequest) {
+  return callBackend("/v2/user/sessions/current", {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -25,119 +26,48 @@ export const runtime = "nodejs";
  */
 const UPSTREAM = "/v2/user/lounge/messages";
 
-async function authed(req: NextRequest) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return {
-      error: NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      ),
-    };
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return {
-      error: NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      ),
-    };
-  }
-  return { token, backend };
-}
-
-function passthrough(upstream: Response, text: string) {
-  let data: unknown = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_NON_JSON",
-          error: `Unexpected backend response (HTTP ${upstream.status}).`,
-        },
-        { status: upstream.status >= 400 ? upstream.status : 502 }
-      );
-    }
-  }
-  return NextResponse.json(data, { status: upstream.status });
-}
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Lounge service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+// A 204 (the thread is cleared) must not carry a body.
+const DELETE_RELAY = relayStrict({
+  code: "UPSTREAM_NON_JSON",
+  empty: "object",
+  bareStatuses: [204],
+});
 
 export async function GET(req: NextRequest) {
-  const a = await authed(req);
-  if ("error" in a) return a.error;
-
   const search = new URLSearchParams();
   const limit = req.nextUrl.searchParams.get("limit");
   const before = req.nextUrl.searchParams.get("before");
   if (limit) search.set("limit", limit);
   if (before) search.set("before", before);
   const qs = search.toString();
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${a.backend}${UPSTREAM}${qs ? `?${qs}` : ""}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${a.token}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/v2/user/lounge/messages — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Lounge service unavailable." },
-      { status: 502 }
-    );
-  }
-  return passthrough(upstream, await upstream.text());
+  return callBackend(`${UPSTREAM}${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
 
 export async function POST(req: NextRequest) {
-  const a = await authed(req);
-  if ("error" in a) return a.error;
-
   const body = await req.text();
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${a.backend}${UPSTREAM}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${a.token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: body || "{}",
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("POST /api/v2/user/lounge/messages — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Lounge service unavailable." },
-      { status: 502 }
-    );
-  }
-  return passthrough(upstream, await upstream.text());
+  return callBackend(UPSTREAM, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body || "{}",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
 
-export async function DELETE(req: NextRequest) {
-  const a = await authed(req);
-  if ("error" in a) return a.error;
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${a.backend}${UPSTREAM}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${a.token}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("DELETE /api/v2/user/lounge/messages — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Lounge service unavailable." },
-      { status: 502 }
-    );
-  }
-  if (upstream.status === 204) return new NextResponse(null, { status: 204 });
-  return passthrough(upstream, await upstream.text());
+export async function DELETE(_req: NextRequest) {
+  return callBackend(UPSTREAM, {
+    method: "DELETE",
+    failures: FAILURES,
+    relay: DELETE_RELAY,
+  });
 }

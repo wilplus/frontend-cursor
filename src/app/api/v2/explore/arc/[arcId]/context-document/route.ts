@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, failure, getAccessToken, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 // PDF text extraction can be slow on a cold worker; abort below the cap.
@@ -16,21 +17,27 @@ export const maxDuration = 60;
  * GET returns { has_document, pages?, chars?, truncated?, filename? } — the
  * text is background-only and never sent to the client.
  */
+
+const POST_FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Upload service unavailable." } },
+  timeout: { status: 504, body: { code: "UPSTREAM_TIMEOUT", error: "Reading the document took too long. Try again." } },
+};
+const GET_FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Upload service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
+  // Sign-in is checked before the body is read, as it always was.
+  const token = await getAccessToken();
+  if (!token) return failure(POST_FAILURES.unauthenticated!);
   let form: FormData;
   try {
     form = await req.formData();
@@ -43,90 +50,28 @@ export async function POST(
   const arc = encodeURIComponent(params.arcId);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 55_000);
-  let upstream: Response;
   try {
-    upstream = await fetch(
-      `${backend}/v2/explore/arc/${arc}/context-document`,
-      {
-        method: "POST",
-        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-        body: form,
-        signal: controller.signal,
-        cache: "no-store",
-      }
-    );
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        { code: "UPSTREAM_TIMEOUT", error: "Reading the document took too long. Try again." },
-        { status: 504 }
-      );
-    }
-    console.error("POST context-document — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Upload service unavailable." },
-      { status: 502 }
-    );
+    return await callBackend(`/v2/explore/arc/${arc}/context-document`, {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+      token,
+      failures: POST_FAILURES,
+      relay: RELAY,
+    });
   } finally {
     clearTimeout(timeoutId);
   }
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
 }
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { error: "Backend URL not configured" },
-      { status: 502 }
-    );
-  }
   const arc = encodeURIComponent(params.arcId);
-  let upstream: Response;
-  try {
-    upstream = await fetch(
-      `${backend}/v2/explore/arc/${arc}/context-document`,
-      {
-        method: "GET",
-        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }
-    );
-  } catch (err) {
-    console.error("GET context-document — fetch failed:", err);
-    return NextResponse.json(
-      { error: "Upload service unavailable." },
-      { status: 502 }
-    );
-  }
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/explore/arc/${arc}/context-document`, {
+    method: "GET",
+    failures: GET_FAILURES,
+    relay: RELAY,
+  });
 }

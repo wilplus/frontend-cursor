@@ -166,9 +166,13 @@ describe("life panel isolation", () => {
       join(SRC, "app", "api", "v2", "life", "[...path]", "route.ts"),
       "utf8"
     );
-    const targets = route.match(/\$\{backend\}[^`]*/g) ?? [];
+    // The route reaches the backend only through the one helper (audit Q-A8),
+    // and hands it exactly one path, under the prefix.
+    const targets =
+      route.match(/(?:callBackend|backendFetch)\(\s*`([^`]*)`/g) ?? [];
     expect(targets).toHaveLength(1);
-    expect(targets[0]).toContain("/v2/life/");
+    expect(targets[0]).toMatch(/`\/v2\/life\//);
+    expect(route).not.toMatch(/\$\{backend\}|getBackendUrl|\bfetch\s*\(/);
     // Path traversal out of the prefix is refused, not sanitised away quietly.
     expect(route).toContain('seg === ".."');
     // The corpus is confession-shaped. Nothing on this path may log a body.

@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  tokens BFF — one relay for all four wallet reads                          */
@@ -20,45 +21,22 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { error: "Token service unavailable." } },
+};
+const RELAY = relayStrict({ empty: "bare" });
+
 export async function relayTokensGet(
-  req: NextRequest,
+  _req: NextRequest,
   path: string,
   search?: URLSearchParams
 ): Promise<NextResponse> {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
-  }
-
   const qs = search?.toString();
-  const url = `${backend}/v2/tokens/${path}${qs ? `?${qs}` : ""}`;
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(url, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error(`GET /api/v2/tokens/${path} — fetch failed:`, err);
-    return NextResponse.json({ error: "Token service unavailable." }, { status: 502 });
-  }
-
-  const text = await upstream.text();
-  if (!text) return new NextResponse(null, { status: upstream.status });
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return NextResponse.json(
-      { error: `Unexpected backend response (HTTP ${upstream.status}).` },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend(`/v2/tokens/${path}${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

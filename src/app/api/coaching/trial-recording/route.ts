@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, failure, getAccessToken, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const maxDuration = 30;
 
@@ -19,22 +20,19 @@ export const runtime = "nodejs";
  *
  * 201: { status: "ok", coaching_id, trial_session_id, recording_id }
  */
-export async function POST(req: NextRequest) {
-  const accessToken = await getV2AccessToken(req);
-  if (!accessToken) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Sign-in required." },
-      { status: 401 }
-    );
-  }
 
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
-      { status: 502 }
-    );
-  }
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Sign-in required." } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Trial upload service unavailable." } },
+  timeout: { status: 504, body: { code: "TIMEOUT", error: "Upload timed out after 60 seconds." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
+export async function POST(req: NextRequest) {
+  // Sign-in is checked before the body is read, as it always was.
+  const token = await getAccessToken();
+  if (!token) return failure(FAILURES.unauthenticated!);
 
   let formData: FormData;
   try {
@@ -46,47 +44,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let upstream: Response;
+  // 60s timeout — same budget as the cold-start funnel upload.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
   try {
-    // 60s timeout — same budget as the cold-start funnel upload.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60_000);
-    upstream = await fetch(`${backendUrl}/v2/coaching/trial-recording`, {
+    // No Content-Type here — fetch sets the multipart boundary.
+    return await callBackend("/v2/coaching/trial-recording", {
       method: "POST",
-      headers: {
-        // DO NOT set Content-Type — fetch sets the multipart boundary.
-        Authorization: `Bearer ${accessToken}`,
-      },
       body: formData,
       signal: controller.signal,
+      token,
+      failures: FAILURES,
+      relay: RELAY,
     });
+  } finally {
     clearTimeout(timeoutId);
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        { code: "TIMEOUT", error: "Upload timed out after 60 seconds." },
-        { status: 504 }
-      );
-    }
-    console.error("POST /api/coaching/trial-recording — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Trial upload service unavailable." },
-      { status: 502 }
-    );
   }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return NextResponse.json(
-      {
-        code: "UPSTREAM_NON_JSON",
-        error: `Unexpected backend response (HTTP ${upstream.status}).`,
-      },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
 }

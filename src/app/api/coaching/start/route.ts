@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, failure, getAccessToken, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * POST /api/coaching/start
@@ -19,22 +20,17 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-export async function POST(req: NextRequest) {
-  const accessToken = await getV2AccessToken(req);
-  if (!accessToken) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Sign-in required." },
-      { status: 401 }
-    );
-  }
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Sign-in required." } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Coaching service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
-      { status: 502 }
-    );
-  }
+export async function POST(req: NextRequest) {
+  // Sign-in is checked before the body is read, as it always was.
+  const token = await getAccessToken();
+  if (!token) return failure(FAILURES.unauthenticated!);
 
   let body: unknown;
   try {
@@ -46,37 +42,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backendUrl}/v2/coaching/start`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body ?? {}),
-    });
-  } catch (err) {
-    console.error("POST /api/coaching/start — fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Coaching service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  const text = await upstream.text();
-  let data: unknown = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return NextResponse.json(
-      {
-        code: "UPSTREAM_NON_JSON",
-        error: `Unexpected backend response (HTTP ${upstream.status}).`,
-      },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-  return NextResponse.json(data, { status: upstream.status });
+  return callBackend("/v2/coaching/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+    token,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

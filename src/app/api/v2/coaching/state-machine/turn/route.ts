@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 export const maxDuration = 30;
 
@@ -32,56 +33,24 @@ export const runtime = "nodejs";
  *     NOT retry.
  *   - 401 UNAUTHENTICATED → route through the login redirect.
  */
+
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: "rethrow",
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function POST(req: NextRequest) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
     const bodyText = await req.text();
-
-    const upstream = await fetch(
-      `${backend}/v2/coaching/state-machine/turn`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: bodyText,
-        cache: "no-store",
-      }
-    );
-
-    const text = await upstream.text();
-    let data: unknown = {};
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        return NextResponse.json(
-          {
-            code: "UPSTREAM_NON_JSON",
-            error: `Unexpected backend response (HTTP ${upstream.status}).`,
-          },
-          { status: upstream.status >= 400 ? upstream.status : 502 }
-        );
-      }
-    }
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend("/v2/coaching/state-machine/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: bodyText,
+      failures: FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";

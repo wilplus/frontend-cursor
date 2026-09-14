@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import "server-only";
+import { NextRequest } from "next/server";
+import { backendFetch, BackendNotConfiguredError, failure, getAccessToken } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,32 +62,29 @@ const SSE_HEADERS = {
  *   readout_ready / failed / failed_ideal_text_unconfirmed) or the duration
  *   cap; clients reconnect until THEY decide the job is done.
  */
+
+const NOT_CONFIGURED = {
+  status: 502,
+  body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } },
 ) {
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-      { status: 502 },
-    );
-  }
-
   // Optional auth — same contract as the readout proxy.
-  const token = await getV2AccessToken(req);
+  const token = await getAccessToken();
   const guestOwner = req.headers.get("X-Willab-Guest-Owner");
   const id = encodeURIComponent(params.sessionId);
+  const identity: Record<string, string> =
+    !token && guestOwner ? { "X-Willab-Guest-Owner": guestOwner } : {};
 
   // Mode 1 — PASSTHROUGH when the backend speaks SSE natively.
   try {
-    const headers: Record<string, string> = { Accept: "text/event-stream" };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    else if (guestOwner) headers["X-Willab-Guest-Owner"] = guestOwner;
-    const upstream = await fetch(`${backend}/v2/lab/recordings/${id}/events`, {
+    const upstream = await backendFetch(`/v2/lab/recordings/${id}/events`, {
       method: "GET",
-      headers,
-      cache: "no-store",
+      headers: { Accept: "text/event-stream", ...identity },
+      token,
       signal: req.signal,
     });
     if (
@@ -100,9 +98,11 @@ export async function GET(
     }
     // Not implemented upstream (404 today) — discard and bridge instead.
     void upstream.body?.cancel().catch(() => undefined);
-  } catch {
-    // Unreachable backend falls through to the bridge, whose per-tick fetches
-    // keep retrying — the same behavior the client's own poll had.
+  } catch (err) {
+    // No backend URL is the one failure this route reports; anything else
+    // falls through to the bridge, whose per-tick fetches keep retrying — the
+    // same behavior the client's own poll had.
+    if (err instanceof BackendNotConfiguredError) return failure(NOT_CONFIGURED);
   }
 
   // Mode 2 — BRIDGE.
@@ -133,14 +133,9 @@ export async function GET(
         ) {
           let state: string | null = null;
           try {
-            const headers: Record<string, string> = {
-              Accept: "application/json",
-            };
-            if (token) headers.Authorization = `Bearer ${token}`;
-            else if (guestOwner) headers["X-Willab-Guest-Owner"] = guestOwner;
-            const upstream = await fetch(
-              `${backend}/v2/lab/recordings/${id}/readout`,
-              { method: "GET", headers, cache: "no-store", signal: req.signal },
+            const upstream = await backendFetch(
+              `/v2/lab/recordings/${id}/readout`,
+              { method: "GET", headers: identity, token, signal: req.signal },
             );
             if (upstream.ok) {
               const parsed: unknown = await upstream.json().catch(() => null);

@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * GET /api/v2/coach/queue
@@ -21,44 +22,22 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  */
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Coach queue service unavailable." } },
+};
+const RELAY = relayLenient();
+
+export async function GET(
+  _req: NextRequest
+) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    let upstream: Response;
-    try {
-      upstream = await fetch(`${backend}/v2/coach/queue`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      });
-    } catch (err) {
-      console.error("coach_queue.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Coach queue service unavailable." },
-        { status: 502 }
-      );
-    }
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend("/v2/coach/queue", {
+      method: "GET",
+      failures: FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
     const name = err instanceof Error ? err.name : "Unknown";
     const message = err instanceof Error ? err.message : String(err);

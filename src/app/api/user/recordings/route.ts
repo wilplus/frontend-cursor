@@ -1,13 +1,30 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { proxyJson, copyCookies } from "@/lib/api/bff";
+import "server-only";
+import { NextRequest, NextResponse } from "next/server";
 import type { ListRecordingsResponse } from "@/lib/api/types";
+import { callBackend, LEGACY_FAILURES, relayLegacy } from "@/app/api/_lib/backend";
 
+
+
+// proxyJson (src/lib/api/bff.ts, deleted in Q-A8) answered with its own
+// envelope and a 30 s budget; both are kept verbatim via LEGACY_FAILURES and
+// relayLegacy until the copy is unified.
 export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.toString();
   const path = `/user/recordings${search ? `?${search}` : ""}`;
 
-  const response = await proxyJson(path, undefined, req);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  let response: NextResponse;
+  try {
+    response = await callBackend(path, {
+      method: "GET",
+      signal: controller.signal,
+      failures: LEGACY_FAILURES,
+      relay: relayLegacy(path),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     return response;
@@ -27,12 +44,9 @@ export async function GET(req: NextRequest) {
       total: backendData.total,
     };
 
-    const out = NextResponse.json(transformedData);
-    copyCookies(response, out);
-    return out;
+    return NextResponse.json(transformedData);
   } catch (error) {
     console.error("[API /user/recordings] Error transforming response:", error);
     return response;
   }
 }
-

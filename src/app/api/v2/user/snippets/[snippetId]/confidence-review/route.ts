@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /* -------------------------------------------------------------------------- */
 /*  POST /api/v2/user/snippets/[snippetId]/confidence-review                   */
@@ -31,58 +32,30 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Review service unavailable." } },
+};
+const RELAY = relayLenient();
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { snippetId: string } }
 ) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
     const id = encodeURIComponent(params.snippetId);
     const body = await req.text();
-
-    let upstream: Response;
-    try {
-      upstream = await fetch(
-        `${backend}/v2/user/snippets/${id}/confidence-review`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: body || "{}",
-          cache: "no-store",
-        }
-      );
-    } catch (err) {
-      console.error("confidence_review.bff_thrown surface=fe-bff", err);
-      return NextResponse.json(
-        { code: "PROXY_ERROR", error: "Review service unavailable." },
-        { status: 502 }
-      );
-    }
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
+    return await callBackend(`/v2/user/snippets/${id}/confidence-review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body || "{}",
+      failures: FAILURES,
+      relay: RELAY,
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
+    const message = err instanceof Error ? err.message : String(err);
     console.error(
       `confidence_review.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
       err

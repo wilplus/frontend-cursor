@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl } from "@/app/api/getAuth";
+import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * POST /api/auth/signup
@@ -32,6 +33,12 @@ import { getBackendUrl } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Registration service unavailable." } },
+};
+const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -43,70 +50,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Resolve via the shared helper that checks BACKEND_URL_INTERNAL,
-  // NEXT_PUBLIC_API_URL, NEXT_PUBLIC_BACKEND_URL, and BACKEND_URL in that
-  // order. The previous `process.env.NEXT_PUBLIC_BACKEND_URL ?? localhost`
-  // pattern fell through to localhost in production (Vercel doesn't have
-  // that var by default — only BACKEND_URL_INTERNAL / BACKEND_URL are
-  // typically set), making fetch ECONNREFUSE and surface as the generic
-  // "Registration service unavailable" 502.
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    console.error("POST /api/auth/signup — backend URL is not configured");
-    return NextResponse.json(
-      {
-        code: "BACKEND_UNAVAILABLE",
-        error: "Backend URL is not configured.",
-      },
-      { status: 502 }
-    );
-  }
-
-  // The Python backend's auth endpoints live under /v2/auth/*. Earlier this route incorrectly
-  // posted to `/signup` at the root, which 404'd / threw and surfaced as
-  // a generic "Registration service unavailable" 502 to the user.
-  const upstreamUrl = `${backendUrl}/v2/auth/signup`;
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(upstreamUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    // Network-level failure (DNS, ECONNREFUSED, etc.) — we couldn't even
-    // reach the backend. This is genuinely "service unavailable" territory.
-    console.error("POST /api/auth/signup — upstream fetch failed:", err);
-    return NextResponse.json(
-      { code: "PROXY_ERROR", error: "Registration service unavailable." },
-      { status: 502 }
-    );
-  }
-
-  // Try to parse JSON. Non-JSON responses (e.g. raw HTML 404 from a wrong
-  // path) get a clearer error than the generic 502 catch.
-  const text = await upstream.text();
-  let data: unknown = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    console.error(
-      "POST /api/auth/signup — non-JSON upstream response",
-      upstream.status,
-      text.slice(0, 200)
-    );
-    return NextResponse.json(
-      {
-        code: "UPSTREAM_NON_JSON",
-        error: `Unexpected backend response (HTTP ${upstream.status}).`,
-      },
-      { status: upstream.status >= 400 ? upstream.status : 502 }
-    );
-  }
-
-  return NextResponse.json(data, { status: upstream.status });
+  // The Python backend's auth endpoints live under /v2/auth/*. No session:
+  // this is where one gets created.
+  return callBackend("/v2/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    token: null,
+    requireAuth: false,
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }

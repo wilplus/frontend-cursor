@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
 
 /**
  * Same risk class as /v2/public/interview/next-question — single
@@ -47,29 +48,20 @@ export const maxDuration = 30;
  * expected and acceptable per the user's deployment plan. The JSON
  * path (today's traffic) is unaffected.
  */
+
+const FAILURES: Failures = {
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
+  unreachable: "rethrow",
+  timeout: { status: 504, body: { code: "UPSTREAM_TIMEOUT", error: "The coach took too long to think. Try again in a moment." } },
+};
+const RELAY = relayLenient();
+
 export async function POST(req: NextRequest) {
   try {
-    const backend = getBackendUrl();
-    if (!backend) {
-      return NextResponse.json(
-        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
-        { status: 502 }
-      );
-    }
-
     // Anonymous access is allowed (§3 — signed-out Lounge is the
     // unsigned-home surface). Backend's `@optional_auth` accepts both:
-    // present-and-valid → personalized; absent → anonymous 200. So we
-    // attach `Authorization: Bearer <token>` ONLY when a real token is
-    // available. Never `Bearer null` / `Bearer undefined` — that would
-    // be sent to the backend as a malformed credential and might trip
-    // its auth-error path even when we meant "no auth at all."
-    const token = await getV2AccessToken(req);
-    const authHeaders: Record<string, string> = token
-      ? { Authorization: `Bearer ${token}` }
-      : {};
-
-    const url = `${backend}/v2/chat/query`;
+    // present-and-valid → personalized; absent → anonymous 200. The token
+    // is attached ONLY when a real one is available (requireAuth: false).
     const contentType = req.headers.get("content-type") ?? "";
 
     // Hard 25s upstream-fetch budget — see route docstring re:
@@ -79,7 +71,6 @@ export async function POST(req: NextRequest) {
     const timeoutId = setTimeout(() => controller.abort(), 25_000);
 
     try {
-      let upstream: Response;
       if (contentType.includes("multipart/form-data")) {
         // Re-emit the FormData against the upstream URL. We re-build
         // the form instead of streaming the raw body because Node's
@@ -91,50 +82,30 @@ export async function POST(req: NextRequest) {
         for (const [key, value] of inbound.entries()) {
           out.append(key, value);
         }
-        upstream = await fetch(url, {
+        return await callBackend("/v2/chat/query", {
           method: "POST",
-          headers: {
-            ...authHeaders,
-            Accept: "application/json",
-          },
           body: out,
-          cache: "no-store",
           signal: controller.signal,
-        });
-      } else {
-        // Default — JSON path. Unchanged from today (C1).
-        const body = await req.json().catch(() => ({}));
-        upstream = await fetch(url, {
-          method: "POST",
-          headers: {
-            ...authHeaders,
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body ?? {}),
-          cache: "no-store",
-          signal: controller.signal,
+          requireAuth: false,
+          failures: FAILURES,
+          relay: RELAY,
         });
       }
-
-      const data = await upstream.json().catch(() => ({}));
-      return NextResponse.json(data, { status: upstream.status });
+      // Default — JSON path. Unchanged from today (C1).
+      const body = await req.json().catch(() => ({}));
+      return await callBackend("/v2/chat/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+        signal: controller.signal,
+        requireAuth: false,
+        failures: FAILURES,
+        relay: RELAY,
+      });
     } finally {
       clearTimeout(timeoutId);
     }
   } catch (err) {
-    // AbortError = our 25s budget tripped. Emit a proper JSON
-    // envelope so the FE knows this was a TIMEOUT (vs. a real
-    // backend 5xx) and can show retry copy.
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json(
-        {
-          code: "UPSTREAM_TIMEOUT",
-          error: "The coach took too long to think. Try again in a moment.",
-        },
-        { status: 504 }
-      );
-    }
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
     console.error(

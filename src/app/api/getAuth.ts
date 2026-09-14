@@ -2,12 +2,13 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { getAccessToken, getSupabase } from "@/app/api/_lib/backend";
+import { getSupabase } from "@/app/api/_lib/backend";
 
 // The backend base URL + the request-bound Supabase client both live in
-// _lib/backend.ts now (FE handoff 2026-08-03 §C) — one idiom, one file.
-// Re-exported so the 80 existing `from "@/app/api/getAuth"` imports keep
-// working while routes migrate to callBackend in batches.
+// _lib/backend.ts (FE handoff 2026-08-03 §C) — one idiom, one file. Every BFF
+// route talks to the backend through callBackend since audit Q-A8 (Phase 4);
+// this re-export remains for the server-side ISR readers under
+// src/services/api (journalServer.ts), which are not BFF routes.
 export { getBackendUrl } from "@/app/api/_lib/backend";
 
 function toTrimmedString(value: unknown): string | null {
@@ -87,18 +88,6 @@ export async function getCurrentUserIdentity(_req: NextRequest): Promise<{
     displayName,
     initials: deriveInitials(displayName, email),
   };
-}
-
-/**
- * Get the current user's Supabase access token for BFF requests.
- * Authorization header first, then cookie session — now via the shared
- * _lib/backend.ts helper, which VALIDATES the session (getUser) and
- * PERSISTS a refreshed token instead of silently dropping it. Kept as a
- * shim so unmigrated routes get the refresh fix without touching them;
- * new/converted routes should use callBackend directly.
- */
-export async function getV2AccessToken(_req: NextRequest): Promise<string | null> {
-  return getAccessToken();
 }
 
 /**

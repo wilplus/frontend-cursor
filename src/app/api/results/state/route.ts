@@ -1,5 +1,6 @@
+import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { callBackend, type Failures, type Relay } from "@/app/api/_lib/backend";
 
 export const maxDuration = 30;
 
@@ -26,41 +27,18 @@ export const runtime = "nodejs";
  * SELECTs to the authenticated role on v2_sessions (see
  * migrations/enable_rls_public_tables.sql).
  */
-export async function GET(req: NextRequest) {
-  const accessToken = await getV2AccessToken(req);
-  if (!accessToken) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
 
-  const backendUrl = getBackendUrl();
-  if (!backendUrl) {
-    return NextResponse.json(
-      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
-      { status: 502 }
-    );
-  }
+const FAILURES: Failures = {
+  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
+  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." } },
+  unreachable: { status: 502, body: { code: "ERROR", error: "Failed to read session state" } },
+};
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${backendUrl}/v2/user/sessions/current`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("GET /api/results/state — fetch failed:", err);
-    return NextResponse.json(
-      { code: "ERROR", error: "Failed to read session state" },
-      { status: 502 }
-    );
-  }
-
+// Map the backend's richer status enum down to the three branches the
+// routing callers care about. Anything in flight (processing,
+// pending_review, error) becomes the "processing" branch — they all
+// land on /results, which renders the founder-video waiting screen.
+const RELAY: Relay = async (upstream) => {
   const text = await upstream.text();
   let data: Record<string, unknown> = {};
   try {
@@ -79,10 +57,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Map the backend's richer status enum down to the three branches the
-  // routing callers care about. Anything in flight (processing,
-  // pending_review, error) becomes the "processing" branch — they all
-  // land on /results, which renders the founder-video waiting screen.
   const hasSession = Boolean(data.has_session);
   const sessionId = (data.session_id as string) || null;
   const status = (data.status as string) || "no_session";
@@ -103,4 +77,12 @@ export async function GET(req: NextRequest) {
     { kind: "processing", session_id: sessionId ?? "" },
     { status: 200 }
   );
+};
+
+export async function GET(_req: NextRequest) {
+  return callBackend("/v2/user/sessions/current", {
+    method: "GET",
+    failures: FAILURES,
+    relay: RELAY,
+  });
 }
