@@ -7,7 +7,6 @@ import { Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { homeworkApi } from "@/lib/api/homework-client";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import {
   groupReviewQueueByStudent,

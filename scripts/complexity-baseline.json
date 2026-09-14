@@ -24,8 +24,6 @@
   "src/components/willab/ReportCard.tsx:Function 'ReportCard'": 68,
   "src/components/willab/TranscriptReviewDeck.tsx:Function 'TranscriptReviewDeck'": 29,
   "src/components/willab/readout.ts:Function 'mapFeedbackItem'": 29,
-  "src/lib/api/types-homework.ts:Function 'deriveHomeworkStep'": 42,
-  "src/lib/api/types-homework.ts:Function 'getStatusToHomeworkResponse'": 39,
   "src/lib/willab/deckChunks.ts:Function 'groupChunksBySlide'": 28,
   "src/middleware.ts:Async function 'middleware'": 31,
   "src/services/api/coachGuidanceDelivery.ts:Function 'mapBundleAuthoringContext'": 41,
