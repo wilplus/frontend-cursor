@@ -6,15 +6,15 @@ name: tests
 #          at the commit that introduced this gate; a red here is a NEW
 #          defect, not environmental noise. BLOCKING.
 #
-#   e2e  — the five self-contained real-browser specs against `next dev`
-#          (see e2e/README.md; record-flow needs a live backend and is not
-#          run here). BLOCKING (founder decision 2026-08-14: the policy is
+#   e2e  — the six self-contained real-browser specs against `next dev`
+#          (see e2e/README.md). BLOCKING (founder decision 2026-08-14: the policy is
 #          enforced at the configuration level immediately, without waiting
 #          for the Actions minutes outage to clear — the observation-period
 #          continue-on-error is retired).
 #
 #   csp  — one real-browser spec against a PRODUCTION build, asserting the
-#          Content-Security-Policy blocks nothing the app actually loads.
+#          Content-Security-Policy blocks nothing the app actually loads,
+#          then the record-flow spec on the same build (Phase 2, Q-T7).
 #          BLOCKING from the start, unlike e2e: this tier exists because #242
 #          shipped a policy that broke every route, and it passed a green
 #          build, a green unit tier and a hand audit of the rendered HTML.
@@ -103,6 +103,7 @@ jobs:
           node e2e/corpus.spec.mjs
           node e2e/star-verdicts.spec.mjs
           node e2e/ideal-text-canonical.spec.mjs
+          DECK_URL=http://localhost:3111/dev/deck node e2e/deck.spec.mjs
           MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
 
       - name: Dev-server log on failure
@@ -133,13 +134,18 @@ jobs:
       # report violations users never meet. Env values are placeholders in the
       # same shape the e2e tier uses; nothing connects to them, and the build
       # only needs them to be present.
+      # The BFF forwards to e2e/_fixture-backend.mjs (Phase 2, audit Q-T7): a
+      # stand-in that answers every backend read with a fixture, so the
+      # record-flow spec below runs against a production build with NO real
+      # backend and nothing waits on a 502.
       - name: Build and start the production server
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
-          NEXT_PUBLIC_API_URL: https://api.example.invalid
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3999
           OPENAI_API_KEY: sk-dummy-never-called
         run: |
+          node e2e/_fixture-backend.mjs > /tmp/fixture-backend.log 2>&1 &
           npx next build
           npx next start -p 3140 > /tmp/nextstart.log 2>&1 &
           for i in $(seq 1 60); do
@@ -149,6 +155,17 @@ jobs:
 
       - name: CSP violations in a real browser
         run: BASE_URL=http://localhost:3140 node e2e/csp-violations.spec.mjs
+
+      # The core record flow, end to end, on the same production build. Was
+      # the one F1 spec that only ever ran by hand (audit Q-T7).
+      - name: The record flow in a real browser
+        run: BASE_URL=http://localhost:3140 node e2e/record-flow.spec.mjs
+
+      - name: Server logs on failure
+        if: failure()
+        run: |
+          tail -50 /tmp/nextstart.log
+          tail -50 /tmp/fixture-backend.log
 
       - name: Server log on failure
         if: failure()

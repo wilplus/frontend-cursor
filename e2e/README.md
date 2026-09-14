@@ -1,6 +1,6 @@
 # e2e specs — real-browser checks for what jsdom can't answer
 
-Seven standalone Playwright scripts (not a test-runner suite): each boots
+Eight standalone Playwright scripts (not a test-runner suite): each boots
 Chromium, drives a page, prints PASS/FAIL lines, and exits non-zero on any
 failure.
 
@@ -9,16 +9,23 @@ failure.
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
+| `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
 | `star-verdicts.spec.mjs` | `/dev/star-verdicts` | `STARS_URL` → `:3111` |
 
 The five `/dev/*` harness pages stub their own network, so no backend is
-needed for them. **record-flow is the exception**: it drives the real
-record flow at `/chat`, which calls the backend through the BFF — it needs
-the full local stack (backend up + real env) and is therefore not part of
-the CI e2e job.
+needed for them. **record-flow drives the real record flow at `/chat`** on a
+PRODUCTION build; every read it makes is answered at the browser
+(`ctx.route`) or by `e2e/_fixture-backend.mjs` behind the BFF, so it needs no
+real backend either. Since Phase 2 (2026-09-14) it runs in the CI `csp` job on
+the same production server, right after the CSP spec. The auth seed is keyed
+on the build's Supabase project ref (`dummy` in CI; `SUPABASE_REF=<ref>`
+for a local build).
+
+The six `/dev/*` harness pages ship in the production route tree and each
+returns `null` under `NODE_ENV=production` (audit Q-A12: acceptable).
 
 **csp-violations is the other exception, in the opposite direction.** It
 needs no backend, but it must run against a PRODUCTION build (`next build`

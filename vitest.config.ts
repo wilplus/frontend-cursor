@@ -8,6 +8,11 @@ import { defineConfig } from "vitest/config";
  * already erased, which is why earlier tests passed without this).
  */
 export default defineConfig({
+  // tsconfig says jsx: "preserve" (Next.js compiles JSX itself). Vite's
+  // transform honours that and leaves JSX in place, so any component test
+  // that imports a file WITH JSX failed at import analysis — which is why,
+  // until Phase 2, no test rendered an F1 surface. Compile JSX here.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
     // e2e/ drives a real browser against a running dev server (see the header
