@@ -9,7 +9,7 @@ failure.
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
-| `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
+| `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` — **stale, not in CI** (see below) |
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
@@ -23,6 +23,13 @@ real backend either. Since Phase 2 (2026-09-14) it runs in the CI `csp` job on
 the same production server, right after the CSP spec. The auth seed is keyed
 on the build's Supabase project ref (`dummy` in CI; `SUPABASE_REF=<ref>`
 for a local build).
+
+**deck.spec.mjs is stale.** It pins the 2026-08-11 deck DOM (`data-status`
+chunk states, a success tick, a two-grain rail); the surface moved on
+2026-08-13/15 and five of its first nine checks fail on structure, not copy.
+It is deliberately not in CI (audit Q-T6): the deck surface is pinned by the
+rendered unit test `src/components/willab/TranscriptReviewDeck.f1.test.tsx`
+until this spec is rewritten against the current harness or deleted.
 
 The six `/dev/*` harness pages ship in the production route tree and each
 returns `null` under `NODE_ENV=production` (audit Q-A12: acceptable).

@@ -1,4 +1,10 @@
 /* -------------------------------------------------------------------------- */
+/*  STALE (2026-09-14, audit Q-T6): pins the 2026-08-11 DOM. The lock-mark      */
+/*  selectors below were moved to the aria-label contract, but the rail grain, */
+/*  the tick classes and the modal copy ("Accept" → "Apply suggestion") have   */
+/*  all changed since. Not run in CI; see e2e/README.md. The deck surface is    */
+/*  covered by src/components/willab/TranscriptReviewDeck.f1.test.tsx.          */
+/* -------------------------------------------------------------------------- */
 /*  Transcript review deck — chunk states, lock routing, decide + lock wiring, */
 /*  in a real browser through the REAL host (founder 2026-08-11 spec).         */
 /*                                                                            */
@@ -50,7 +56,16 @@ await page.waitForSelector("text=Garage pitch");
 // NOTHING marks the text any more. The fixture still serves an approved
 // suggestion on one chunk and a server lock on another — both must land on the
 // SAME state, which is why the locked count is 2.
-const mark = (status) => page.locator(`button[data-status="${status}"]`);
+// The lock mark states its chunk status in its aria-label (DeckLockMark);
+// data-status carries the visual emphasis, not the status.
+const MARK_LABEL = {
+  clean: "No feedback pending",
+  waiting: "Feedback waiting",
+  locked: "Paragraph protected",
+  accepted: "Accepted",
+};
+const markSelector = (status) => `button[aria-label^="${MARK_LABEL[status]}"]`;
+const mark = (status) => page.locator(markSelector(status));
 check(
   "three states on the page — accepted and locked are one",
   (await mark("clean").count()) === 1 &&
@@ -80,7 +95,7 @@ check(
   "a mark breathes ONLY when something is waiting on the student — the open " +
     "chunk, or a locked one with a style proposal inside",
   await page.evaluate(() => {
-    const marks = [...document.querySelectorAll("button[data-status]")];
+    const marks = [...document.querySelectorAll('button[aria-label^="No feedback pending"], button[aria-label^="Feedback waiting"], button[aria-label^="Paragraph protected"]')];
     const breathing = marks.filter((m) =>
       m.className.includes("animate-lock-breathe")
     );
@@ -113,7 +128,7 @@ check(
 check(
   "the locked mark carries the closed lock + success tick; locked text is plain",
   await page.evaluate(() => {
-    const locked = document.querySelector('button[data-status="locked"]');
+    const locked = document.querySelector('button[aria-label^="Paragraph protected"]');
     const tick = locked?.querySelector(".bg-success");
     const para = locked?.closest("p");
     const chunkSpan = para?.querySelector("span");
@@ -234,7 +249,7 @@ await page.evaluate(() => {
   const para = [...document.querySelectorAll("section p")].find((p) =>
     p.textContent?.includes("So we moved the launch")
   );
-  para?.querySelector('button[data-status="locked"]')?.click();
+  para?.querySelector('button[aria-label^="Paragraph protected"]')?.click();
 });
 await page.waitForSelector("text=Locked chunk");
 check(
@@ -376,7 +391,7 @@ await page.evaluate(() => {
   const para = [...document.querySelectorAll("section p")].find((p) =>
     p.textContent?.includes("So we moved the launch")
   );
-  para?.querySelector('button[data-status="locked"]')?.click();
+  para?.querySelector('button[aria-label^="Paragraph protected"]')?.click();
 });
 await page.waitForSelector("text=Locked chunk");
 check(
