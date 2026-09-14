@@ -82,15 +82,6 @@ check(
     return opts[0].value === "__unset" && opts[1].value === "" && opts[2].value === "pl";
   })
 );
-check(
-  "the speaker-sex picker is present, optional, and says it is about the analysis rather than the person",
-  await page.evaluate(() => {
-    const sel = [...document.querySelectorAll("select")].find((x) =>
-      [...x.options].some((o) => o.value === "prefer_not_to_say")
-    );
-    return sel?.value === "" && [...sel.options][0].textContent.trim() === "Not stated";
-  }) && (await page.locator("text=about the analysis rather than about the person").count()) === 1
-);
 
 await page.locator("input").first().fill("Board pitch");
 await page.locator("input").nth(1).fill("Jane Doe");

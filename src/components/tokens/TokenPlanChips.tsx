@@ -8,8 +8,8 @@ import { TOKENS_COPY, formatTokens } from "./copy";
 /* -------------------------------------------------------------------------- */
 /*  TokenPlanChips — the paid plans as one tappable row                       */
 /*                                                                            */
-/*  The chip row from SpeakerSexQuestion.tsx (the pattern the founder named:   */
-/*  "like with sex to choose"), with one difference that matters: these are    */
+/*  A chip row (the pattern the founder named: "like with sex to choose", the  */
+/*  retired speaker-sex question), with one difference that matters: these are */
 /*  BUTTONS, not radios. A radio selects and waits for a submit; here one tap  */
 /*  IS the action, and it goes straight to Stripe.                            */
 /*                                                                            */

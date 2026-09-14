@@ -13,7 +13,6 @@ import {
   exceedsProxyLimit,
   IMPORT_LANGUAGES,
   languageLabel,
-  SPEAKER_SEXES,
   importTrainingAudio,
   OPTIONAL_STAGES,
   STAGE_COST,
@@ -209,7 +208,6 @@ function ImportPanel({
   // said so. A silent failure mode is exactly the thing a default should not
   // sit in front of, so the choice is now recorded rather than assumed.
   const [language, setLanguage] = useState<string | null>(null);
-  const [speakerSex, setSpeakerSex] = useState("");
   const [stages, setStages] = useState<OptionalStage[]>([]);
   const [files, setFiles] = useState<FileState[]>([]);
   const [running, setRunning] = useState(false);
@@ -290,7 +288,6 @@ function ImportPanel({
         speakerLabel: speaker.trim() || null,
         note: note.trim() || null,
         language,
-        speakerSex,
         optionalStages: stages,
         // The POST returns as soon as the upload lands; the analysis runs on.
         // Saying so beats a row that reads "Analysing…" identically whether
@@ -403,31 +400,6 @@ function ImportPanel({
           with an English prompt, so a talk left on auto-detect can come back
           <em> translated</em> into English rather than transcribed: the audio is
           right, the words are not, and nothing says so.
-        </span>
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span className="text-[12px] text-muted-foreground">
-          Speaker&apos;s sex
-        </span>
-        <select
-          value={speakerSex}
-          onChange={(e) => setSpeakerSex(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-        >
-          {SPEAKER_SEXES.map((x) => (
-            <option key={x.value || "unset"} value={x.value}>
-              {x.label}
-            </option>
-          ))}
-        </select>
-        {/* Not a demographic tag on the corpus: one confidence cue's DIRECTION
-            is routed on it. An import is someone else's voice filed under the
-            coach's account, so leaving it blank is safe (the server falls back
-            to an acoustic route) but stating it is better. */}
-        <span className="text-[11px] text-muted-foreground">
-          Optional. One voice cue reads differently by sex, so this is about
-          the analysis rather than about the person.
         </span>
       </label>
 

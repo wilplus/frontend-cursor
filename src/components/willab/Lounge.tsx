@@ -65,7 +65,6 @@ import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlo
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
-import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
 import LoungeTopUpCard from "./LoungeTopUpCard";
 import ConfidencePracticeOverlay from "./ConfidencePracticeOverlay";
 import {
@@ -1196,11 +1195,6 @@ export default function Lounge({
           )
         )}
 
-        {/* The speaker-sex ask, as the last item IN the thread — not a layer.
-            /chat is where both signup routes land (OAuth users never see the
-            signup field at all), so this is the only mount that reaches them.
-            In-thread means it scrolls with the conversation and cannot cover a
-            running take; the wrapper holds the stay-out-of-the-Lab rule. */}
         {/* Out of tokens — the paid plans as tappable chips, one tap to
             Stripe. FIRST of the in-thread cards on purpose: being unable to
             continue outranks an optional profile question. Stacking is
@@ -1208,8 +1202,6 @@ export default function Lounge({
             for two cards they render as two bubbles, each with its own gate,
             neither knowing the other exists. */}
         <LoungeTopUpCard state={state} threadLoading={thread.loading} />
-
-        <LoungeSpeakerSexPrompt state={state} threadLoading={thread.loading} />
 
         {botThinking && <TypingDots />}
       </div>

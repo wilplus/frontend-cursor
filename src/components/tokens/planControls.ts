@@ -4,8 +4,8 @@ import type { TokenPlan } from "@/services/api/tokens";
 /*  planControls — buy, manage, or neither                                     */
 /*                                                                            */
 /*  A PLAIN .ts ON PURPOSE. vitest here runs with no JSX transform, so a rule  */
-/*  kept inside a .tsx cannot be tested at all (speakerSexAskGate.ts:5-11      */
-/*  records the same reasoning). This decides money-shaped questions, so it is */
+/*  kept inside a .tsx cannot be tested at all (topUpCardGate.ts records the   */
+/*  same reasoning). This decides money-shaped questions, so it is             */
 /*  exactly the kind of rule that must be testable.                           */
 /*                                                                            */
 /*  THE TRAP THIS FILE EXISTS TO CLOSE: `managed` and `manageAvailable` are    */

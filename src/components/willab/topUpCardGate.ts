@@ -3,7 +3,8 @@ import { isLabOverlay, type WillabState } from "./useWillabFlow";
 /* -------------------------------------------------------------------------- */
 /*  When the Lounge may mount the top-up card.                                */
 /*                                                                            */
-/*  A plain .ts on purpose, mirroring speakerSexAskGate.ts: vitest here runs   */
+/*  A plain .ts on purpose (the pattern the retired speaker-sex gate set):     */
+/*  vitest here runs                                                          */
 /*  with no JSX transform, so a rule kept inside a .tsx cannot be tested at    */
 /*  all. This one decides when a PAYMENT offer may appear, which is exactly    */
 /*  the kind of rule that has to be testable.                                  */
@@ -23,7 +24,7 @@ import { isLabOverlay, type WillabState } from "./useWillabFlow";
  * This answers "may we mount at all", never "should this person be offered a
  * plan". That second question lives in one place, LoungeTopUpCard, alongside
  * the balance, tier and snooze checks — splitting it across two owners is how
- * the speaker-sex card's four states nearly drifted apart.
+ * the (since retired) speaker-sex card's four states nearly drifted apart.
  */
 export function canMountTopUpCard(
   state: WillabState,

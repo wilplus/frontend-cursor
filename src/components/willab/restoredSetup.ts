@@ -23,7 +23,7 @@ import {
 /*  simply has not come back yet.                                             */
 /*                                                                            */
 /*  A plain .ts, and the rule lives here rather than in LabOverlay, for the    */
-/*  reason speakerSexAskGate.ts gives: vitest runs with no JSX transform, so a */
+/*  reason topUpCardGate.ts gives: vitest runs with no JSX transform, so a     */
 /*  test cannot import a .tsx at all. The decision that matters is testable;   */
 /*  the wiring around it is not, and does not need to be.                     */
 /* -------------------------------------------------------------------------- */

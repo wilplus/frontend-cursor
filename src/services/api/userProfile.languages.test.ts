@@ -17,7 +17,6 @@ describe("rater language profile contract", () => {
         domain: null,
         goal: null,
         is_coach: true,
-        sex: null,
         proficient_languages: [" PL ", "en", "pl", "invalid"],
       }),
     }));
@@ -31,7 +30,6 @@ describe("rater language profile contract", () => {
       goal: "",
       domain_vocabulary_default: [],
       is_coach: true,
-      sex: null,
       proficient_languages: null,
     };
     expect(shouldAskRaterLanguages(profile)).toBe(true);
@@ -47,7 +45,6 @@ describe("rater language profile contract", () => {
       goal: "",
       domain_vocabulary_default: [],
       is_coach: true,
-      sex: null,
       proficient_languages: undefined,
     };
     expect(shouldAskRaterLanguages(profile)).toBe(false);

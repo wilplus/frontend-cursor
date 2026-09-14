@@ -4,8 +4,6 @@ import {
   exceedsProxyLimit,
   IMPORT_LANGUAGES,
   languageLabel,
-  normalizeSpeakerSex,
-  SPEAKER_SEXES,
   importIdempotencyKey,
   normalizeLanguage,
   mapConfidenceQueue,
@@ -473,36 +471,6 @@ describe("exceedsProxyLimit — the 413 that killed the first real import", () =
   it("uses the SAME constant as every other upload picker in the app, so the number cannot drift in one place", () => {
     expect(exceedsProxyLimit(MAX_UPLOAD_BYTES)).toBe(false);
     expect(exceedsProxyLimit(MAX_UPLOAD_BYTES + 1)).toBe(true);
-  });
-});
-
-describe("speaker sex — the analysis routes on it, so it is validated like the language code", () => {
-  it("accepts only the three values the BE knows", () => {
-    expect(normalizeSpeakerSex("female")).toBe("female");
-    expect(normalizeSpeakerSex("MALE")).toBe("male");
-    expect(normalizeSpeakerSex("prefer_not_to_say")).toBe("prefer_not_to_say");
-  });
-
-  it("refuses anything else rather than forwarding it — a value the BE does not know either 400s or routes the cue the wrong way", () => {
-    for (const bad of ["", "f", "m", "woman", "other", null, 1, undefined]) {
-      expect(normalizeSpeakerSex(bad)).toBeNull();
-    }
-  });
-
-  it("offers 'not stated' first and as the empty value, so the field is omitted unless the coach says something", () => {
-    expect(SPEAKER_SEXES[0].value).toBe("");
-    expect(normalizeSpeakerSex(SPEAKER_SEXES[0].value)).toBeNull();
-  });
-
-  it("CHANGES the idempotency key — it changes the analysis, so correcting it must re-run rather than dedupe into the wrong route", async () => {
-    const f = { name: "t.mp3", size: 10, lastModified: 1 };
-    const base = { file: f, topic: "T" };
-    const none = await importIdempotencyKey(base);
-    const female = await importIdempotencyKey({ ...base, speakerSex: "female" });
-    expect(female).not.toBe(none);
-    expect(await importIdempotencyKey({ ...base, speakerSex: "male" })).not.toBe(female);
-    // An unknown value is not sent, so it cannot be what distinguishes a run.
-    expect(await importIdempotencyKey({ ...base, speakerSex: "woman" })).toBe(none);
   });
 });
 
