@@ -21,7 +21,7 @@ import { type WillabState } from "./useWillabFlow";
 /*                                                                            */
 /*  IN-THREAD, NEVER AN OVERLAY. No modal, dialog, sheet, portal or z-index   */
 /*  layer. It renders as an ordinary item in the thread's scroll container,   */
-/*  exactly like LoungeSpeakerSexPrompt — it scrolls with the conversation,   */
+/*  as an in-thread card — it scrolls with the conversation,                  */
 /*  cannot cover anything, and steals no focus. This is the LIVE LOOP fence,  */
 /*  not a style preference: a card that can appear over a running             */
 /*  record→transcribe→coach loop is what that fence forbids.                  */

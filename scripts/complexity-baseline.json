@@ -1,6 +1,6 @@
 {
   "src/app/cms/page.tsx:Function 'JournalAdminPage'": 32,
-  "src/app/coach/corpus/page.client.tsx:Arrow function#19": 30,
+  "src/app/coach/corpus/page.client.tsx:Arrow function#18": 30,
   "src/app/dev/corpus/page.tsx:Async arrow function#1": 28,
   "src/app/dev/deck/page.tsx:Async arrow function#1": 29,
   "src/components/auth/UpdatePasswordForm.tsx:Async arrow function#1": 33,
@@ -24,8 +24,6 @@
   "src/components/willab/ReportCard.tsx:Function 'ReportCard'": 68,
   "src/components/willab/TranscriptReviewDeck.tsx:Function 'TranscriptReviewDeck'": 29,
   "src/components/willab/readout.ts:Function 'mapFeedbackItem'": 29,
-  "src/lib/api/types-homework.ts:Function 'deriveHomeworkStep'": 42,
-  "src/lib/api/types-homework.ts:Function 'getStatusToHomeworkResponse'": 39,
   "src/lib/willab/deckChunks.ts:Function 'groupChunksBySlide'": 28,
   "src/middleware.ts:Async function 'middleware'": 31,
   "src/services/api/coachGuidanceDelivery.ts:Function 'mapBundleAuthoringContext'": 41,
