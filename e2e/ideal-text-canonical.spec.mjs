@@ -74,22 +74,32 @@ check(
 await page.locator('button[aria-label^="Feedback waiting — review it"]').click();
 await page.waitForSelector("text=Suggested change");
 check(
-  "rewrite feedback shows exact source, replacement, and rationale",
+  "rewrite feedback shows the exact source words and the replacement",
   await (async () => {
     const text = await dialog(page).innerText();
     return (
       text.includes("WHAT YOU SAID") &&
       text.includes("believed the numbers") &&
       text.includes("CLEARER VERSION") &&
-      text.includes("trusted the figures") &&
-      /clearer|smoother|flow better|easier to understand|cleaner finish/.test(text)
+      text.includes("trusted the figures")
     );
   })()
 );
 check(
+  // The machine's whyLine() reason was removed from this sheet on 2026-09-15
+  // (founder: delete the text "this makes your point easier to understand").
+  // The two cards above already show what was said and what is proposed.
+  "the sheet no longer explains the suggestion back to the speaker",
+  !/easier to understand|flow better|cleaner finish|smoother/.test(
+    await dialog(page).innerText()
+  )
+);
+check(
+  // Still three decisions; "Edit myself" is now the pencil in the top-right of
+  // the Clearer version card, named for assistive tech by its aria-label.
   "improvement offers the three canonical decisions",
   (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 1 &&
-    (await page.locator("button", { hasText: /^Edit myself$/ }).count()) === 1 &&
+    (await page.locator('button[aria-label="Edit myself"]').count()) === 1 &&
     (await page.locator("button", { hasText: /^Keep wording$/ }).count()) === 1
 );
 await page.locator("button", { hasText: /^Apply suggestion$/ }).click();

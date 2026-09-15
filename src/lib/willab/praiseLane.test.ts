@@ -137,8 +137,18 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     expect(MODAL).toMatch(/\{isPraise \|\| isConfidentVoice \? null : \(/);
   });
 
-  it("does not stack the generic reason line on top of the praise", () => {
-    expect(MODAL).toMatch(/rationale && !isPraise && !isConfidentVoice/);
+  it("does not stack a generic reason line on top of the praise", () => {
+    // This used to be guarded — `rationale && !isPraise && !isConfidentVoice`
+    // kept the machine's whyLine() away from praise. On 2026-09-15 the founder
+    // removed that line from the sheet outright ("delete the text 'this makes
+    // your point easier to understand'"), so praise is safe by construction:
+    // there is no generic reason line left anywhere to stack.
+    expect(MODAL).not.toMatch(/\{rationale\b/);
+    expect(MODAL).not.toMatch(/whyLine\(suggestion\)/);
+    // What remains in that slot is a human coach's own note, which is prose
+    // about these exact words and never the generic line.
+    expect(MODAL).toMatch(/\{coachNote \? \(/);
+    expect(MODAL).toMatch(/source === "coach_revision"/);
   });
 });
 

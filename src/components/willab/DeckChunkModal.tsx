@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Lock, Sparkles, Undo2 } from "lucide-react";
+import { Check, Loader2, Lock, Pencil, Sparkles, Undo2 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -459,11 +459,19 @@ export default function DeckChunkModal({
     setError("Couldn't unlock this. Try again.");
   }
 
-  const rationale = suggestion
-    ? suggestion.source === "coach_revision"
-      ? suggestion.coachNote ?? null
-      : whyLine(suggestion)
-    : null;
+  /* THE COACH'S OWN NOTE, AND NOTHING ELSE (founder 2026-09-15: delete the
+   * text "this makes your point easier to understand").
+   *
+   * That line was whyLine() — the machine's signed-off reason for proposing
+   * the rewrite. It is gone from this sheet: the two cards above already show
+   * what was said and what is proposed, and a sentence explaining the obvious
+   * was the last thing between the speaker and the decision.
+   *
+   * A coach_revision's note is NOT that line. It is prose a human coach wrote
+   * about these exact words, so it keeps its place; whyLine() still serves the
+   * style lane lower down. */
+  const coachNote =
+    suggestion?.source === "coach_revision" ? suggestion.coachNote ?? null : null;
   const rewriteOverlapsFlagship = Boolean(
     suggestion?.kind === "replace" &&
       suggestion.quote?.trim() &&
@@ -779,9 +787,28 @@ export default function DeckChunkModal({
               ) : null}
               {isPraise || isConfidentVoice ? null : (
                 <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
+                    </p>
+                    {/* THE PENCIL IS "EDIT MYSELF" (founder 2026-09-15: "the
+                        pencil replaces Edit myself; and the pencil is in the
+                        top right corner of the orange box").
+                        Same handler, same third decision — it just stops
+                        competing with the accept for attention at the bottom
+                        of the sheet, and now sits on the words it edits. The
+                        aria-label keeps the decision named for assistive tech
+                        and for the e2e tier, which asserts all three. */}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void editImprovementMyself()}
+                      aria-label="Edit myself"
+                      className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
                     {suggestion.kind === "bold"
                       ? suggestion.quote || chunk.part.text
@@ -892,9 +919,9 @@ export default function DeckChunkModal({
                   ) : null}
                 </div>
               ) : null}
-              {rationale && !isPraise && !isConfidentVoice ? (
+              {coachNote ? (
                 <p className="px-1 text-[13px] leading-snug text-muted-foreground">
-                  {rationale}
+                  {coachNote}
                 </p>
               ) : null}
               {rewriteOverlapsFlagship && rewriteCollisionConfirmed ? (
@@ -1196,24 +1223,16 @@ export default function DeckChunkModal({
                   )}
                   Apply suggestion
                 </button>
-                {/* ONE CTA, THE REST QUIET AND STACKED (founder 2026-09-15):
+                {/* ONE CTA, ONE QUIET ACTION UNDER IT (founder 2026-09-15):
                     "apply as a black CTA and small not CTA keep wording … keep
                     the keep wording without the stroke on the button and
                     stacked below the CTA; not next to each other."
 
-                    These two were bordered pills sharing a row, which read as
+                    This footer used to be three bordered pills, which read as
                     three competing buttons and made declining a suggestion look
-                    as weighty as accepting one. Borderless and stacked, the
-                    accept is the only thing shaped like an action and the other
-                    two stay plainly available underneath. */}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void editImprovementMyself()}
-                  className="flex items-center justify-center rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                >
-                  Edit myself
-                </button>
+                    as weighty as taking it. Edit myself has moved to the pencil
+                    on the card above, so only the accept is shaped like an
+                    action and the decline sits plainly beneath it. */}
                 <button
                   type="button"
                   disabled={busy}

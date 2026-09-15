@@ -137,9 +137,13 @@ afterEach(async () => {
 });
 
 function buttonLabels(): string[] {
-  return Array.from(container.querySelectorAll("button")).map(
-    (b) => (b.textContent ?? b.getAttribute("aria-label") ?? "").trim(),
-  );
+  // Text first, then aria-label — an icon-only button (the Edit myself pencil)
+  // has an EMPTY textContent, not a null one, so `??` would never reach the
+  // label and the decision would read as unnamed.
+  return Array.from(container.querySelectorAll("button")).map((b) => {
+    const text = (b.textContent ?? "").trim();
+    return text || (b.getAttribute("aria-label") ?? "").trim();
+  });
 }
 
 /** Click the button carrying exactly this label, and flush what it starts. */
