@@ -11,10 +11,16 @@ const coach = read("src/components/willab/CoachConfidencePracticeReview.tsx");
 const firstClient = read("src/components/willab/Mlc3FirstClientPractice.tsx");
 const practiceFlow = read("src/components/willab/usePracticeFlow.ts");
 const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
+const heading = read("src/components/willab/sheetHeading.ts");
 
 describe("Confident Voice micro-practice journey fences", () => {
   it("stays hidden until the owner answers, then supports either answer", () => {
-    expect(modal).toContain('suggestion?.feedbackFamily === "confident_voice"');
+    // The lane predicate moved into sheetHeading.ts on 2026-09-15 so the modal
+    // and the bare Confident Voice header read the SAME definition of which
+    // lane an item belongs to. Still one definition, just not here any more.
+    expect(heading).toContain('item.feedbackFamily === "confident_voice"');
+    expect(heading).toContain('item.source === "confident_voice"');
+    expect(modal).toContain("isConfidentVoiceFeedback(suggestion)");
     expect(modal).toContain('!agreeSaved ?');
     expect(modal).toContain('agreeValue === "no" ?');
     expect(modal).toContain('<ConfidentVoicePractice');

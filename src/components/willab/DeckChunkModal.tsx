@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Lock, Sparkles, Undo2 } from "lucide-react";
+import { Check, Loader2, Lock, Pencil, Sparkles, Undo2 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -71,20 +71,18 @@ export type LockResult = {
   rootPhraseProposal: RootPhraseSpan | null;
 };
 
-function isConfidentVoiceFeedback(item: DocumentSuggestion): boolean {
-  return (
-    item.feedbackFamily === "confident_voice" ||
-    item.source === "confident_voice"
-  );
-}
+// One definition of "is this the Confident Voice lane", shared with the
+// heading module so the bare-header rule and the card's own render can never
+// disagree about which item they are looking at.
+import { isConfidentVoiceFeedback, sheetHeading } from "./sheetHeading";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
-   *  decision kicker, the pending inventory (shown up front so resolving item
-   *  one never makes item two appear as a surprise; the backend caps the
-   *  complete Take inventory at three — an empty inventory routes straight to
-   *  the EDITOR face), the style-lane proposal and the coach's join, computed
-   *  once in lib/willab/deckChunks.ts. */
+   *  decision kicker, the pending inventory (the backend caps the complete
+   *  Take inventory at three — an empty inventory routes straight to the
+   *  EDITOR face; since 2026-09-15 the inventory is a QUEUE, presented one
+   *  item at a time, not a list shown up front), the style-lane proposal and
+   *  the coach's join, computed once in lib/willab/deckChunks.ts. */
   state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   /** Decide approve. Resolves true when saved; the host refetches and the
    *  updated chunk text flows back down. */
@@ -198,6 +196,23 @@ export default function DeckChunkModal({
     setActiveFeedbackId(remaining[0].id);
     setRewriteCollisionConfirmed(false);
     setError(null);
+    // The next item gets a CLEAN instrument, and this is an L3 fix, not a
+    // cosmetic one. The Confident Voice answer state is per ITEM, but it lived
+    // per MODAL: without this reset a second confident-voice item on the same
+    // chunk opened already answered — thank-you copy over a clip nobody rated
+    // — and because the Done button posts `agreeValue ?? "not_sure"`, tapping
+    // it wrote the PREVIOUS clip's owner answer as this clip's response. One
+    // recording's routing signal recorded against another recording is exactly
+    // what the provenance wall forbids, and the speaker was never even asked.
+    //
+    // It matters more now that this auto-advance is the ONLY route to item
+    // two; the inventory chips that used to offer a way back are gone.
+    // Reachable today across Takes, and ordinary under the V3 policy, which
+    // returns one Confident Voice item per 75-word block rather than one per
+    // Take.
+    setAgreeValue(null);
+    setAgreeSaved(false);
+    setAgreeError(null);
     return true;
   }
 
@@ -210,42 +225,18 @@ export default function DeckChunkModal({
     if (!dirtyRef.current) setDraft(chunk.part.text);
   }, [chunk.part.text]);
 
-  // The chunk's maturity — lock-in cycles survived (slice 2). A process
-  // count in the kicker, exactly the founder's spec vocabulary.
-  const iteration = chunk.part.iteration ?? 0;
-  const iterTail =
-    iteration > 0
-      ? ` · ${iteration} iteration${iteration === 1 ? "" : "s"}`
-      : "";
-  const kicker =
-    face === "review" && suggestion
-      ? `${displayKind(suggestion)}${iterTail}`
-      : face === "root"
-        ? `Locked for the next Take${iterTail}`
-      : // THE PAGE no longer distinguishes accepted from clean — since
-        // 2026-08-15 only a server lock turns the mark green, because the
-        // merged state flashed green on its way to grey on every accept. In
-        // HERE the difference is still real and still worth saying, because
-        // this is where the lock action lives.
-        //
-        // KEYED ON THE APPROVED RIDER, not on `chunk.status`. The status can
-        // no longer say "accepted" — that is the whole point of the change —
-        // so reading it here would have silently retired this kicker and left
-        // an accepted chunk claiming "No feedback pending". Same lesson as
-        // the face selector above: read the work, not the page's summary of it.
-        chunk.part.locked
-        ? `Locked in${iterTail}`
-        : chunk.approvedIds.length > 0
-          ? "Accepted · not locked in yet"
-          : "No feedback pending";
-  const title =
-    face === "review"
-      ? "Suggested change"
-      : face === "root"
-        ? "Choose a rooting phrase"
-      : chunk.part.locked
-        ? "Locked chunk"
-        : "Edit this chunk";
+  // Both heading lines, and the 2026-09-15 rule that the Confident Voice face
+  // carries no kicker at all, live in the pure module next door — see its
+  // header for why founder copy does not stay in this .tsx.
+  const { kicker, title } = sheetHeading({
+    face,
+    suggestion,
+    // `=== true` because the served field is optional — the same idiom
+    // deckChunks.ts uses when it reads the lock.
+    locked: chunk.part.locked === true,
+    hasApproved: chunk.approvedIds.length > 0,
+    iteration: chunk.part.iteration ?? 0,
+  });
 
   async function undoAcceptedRewrite() {
     if (!acceptedRewrite || !onUndoAccept || busy) return;
@@ -468,11 +459,19 @@ export default function DeckChunkModal({
     setError("Couldn't unlock this. Try again.");
   }
 
-  const rationale = suggestion
-    ? suggestion.source === "coach_revision"
-      ? suggestion.coachNote ?? null
-      : whyLine(suggestion)
-    : null;
+  /* THE COACH'S OWN NOTE, AND NOTHING ELSE (founder 2026-09-15: delete the
+   * text "this makes your point easier to understand").
+   *
+   * That line was whyLine() — the machine's signed-off reason for proposing
+   * the rewrite. It is gone from this sheet: the two cards above already show
+   * what was said and what is proposed, and a sentence explaining the obvious
+   * was the last thing between the speaker and the decision.
+   *
+   * A coach_revision's note is NOT that line. It is prose a human coach wrote
+   * about these exact words, so it keeps its place; whyLine() still serves the
+   * style lane lower down. */
+  const coachNote =
+    suggestion?.source === "coach_revision" ? suggestion.coachNote ?? null : null;
   const rewriteOverlapsFlagship = Boolean(
     suggestion?.kind === "replace" &&
       suggestion.quote?.trim() &&
@@ -532,8 +531,7 @@ export default function DeckChunkModal({
    * whoever scrolls, which biases which moments reach the album rather than
    * merely creating a layout problem. */
   const isConfidentVoice =
-    suggestion?.feedbackFamily === "confident_voice" ||
-    suggestion?.source === "confident_voice";
+    suggestion !== null && isConfidentVoiceFeedback(suggestion);
   const [agreeValue, setAgreeValue] = useState<ConfidenceRatingValue | null>(null);
   const [agreeSaving, setAgreeSaving] = useState(false);
   const [agreeError, setAgreeError] = useState<string | null>(null);
@@ -558,6 +556,31 @@ export default function DeckChunkModal({
     setAgreeSaving(false);
     if (r.ok) {
       setAgreeSaved(true);
+      /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
+       *
+       * Answering WAS the decision; the screen that followed held a thank-you
+       * and a button whose only job was to admit it. The answer is already
+       * saved by the call above, so the tap bought nothing and cost a screen.
+       * Now the answer advances straight to the next feedback, or closes the
+       * review when it was the last one.
+       *
+       * The ONE case that still stops here is a waiting practice exercise —
+       * that offer lives on this post-answer screen and is the only thing on
+       * it worth a tap. Auto-advancing past it would delete the micro-practice
+       * journey rather than tidy it, which is not what "drop the Done step"
+       * asked for. Keep this guard until practice has somewhere else to live.
+       *
+       * No second write: `saveTakeFeedbackResponse` above already recorded
+       * this answer, and the retired Done button called it AGAIN through
+       * resolveObservedFeedback with the same id and value. */
+      const practiceWaiting = Boolean(
+        suggestion.practiceExercise &&
+          suggestion.snippetId &&
+          suggestion.evidence,
+      );
+      if (!practiceWaiting) {
+        if (!advanceAfterDecision(suggestion.id)) setFace("editor");
+      }
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
@@ -713,10 +736,12 @@ export default function DeckChunkModal({
             onClick={toggleExpanded}
             className="min-w-0 cursor-grab touch-none text-left active:cursor-grabbing"
           >
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              {kicker}
-            </p>
-            <h2 className="mt-1 text-[17px] font-semibold text-foreground">
+            {kicker === null ? null : (
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                {kicker}
+              </p>
+            )}
+            <h2 className="text-[17px] font-semibold text-foreground">
               {title}
             </h2>
           </button>
@@ -724,43 +749,21 @@ export default function DeckChunkModal({
         </div>
 
         <div data-sheet-scroll className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
-          {face === "review" && feedbackInventory.length > 1 ? (
-            <div
-              className="rounded-2xl border border-border bg-card p-3"
-              aria-label="Feedback available in this part of your Take"
-            >
-              <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Feedback ready · {feedbackInventory.length}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {feedbackInventory.map((item, index) => {
-                  const resolved = resolvedFeedbackIds.has(item.id);
-                  const active = suggestion?.id === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      disabled={resolved}
-                      aria-current={active ? "true" : undefined}
-                      onClick={() => {
-                        setActiveFeedbackId(item.id);
-                        setRewriteCollisionConfirmed(false);
-                        setError(null);
-                      }}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-60 ${
-                        active
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {resolved ? <Check className="h-3 w-3" aria-hidden /> : null}
-                      {index + 1}. {displayKind(item)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+          {/* NO INVENTORY LIST (founder 2026-09-15): "only one feedback at a
+              time. If there is remaining verbal feedback, it should come up
+              later on after the judgment so that the screen is clean."
+
+              This deliberately REVERSES the earlier rule that the inventory be
+              "shown up front so resolving item one never makes item two appear
+              as a surprise" — the founder saw the three-chip list on the
+              Confident Voice card and ruled the clean screen worth more than
+              the forewarning. Do not restore it without asking.
+
+              No sequencing is lost. `advanceAfterDecision` already moves to
+              the next unresolved item the moment one is decided, so the items
+              still arrive one after another in the same sheet; the list was
+              only ever a preview of that queue, plus a way to jump around it
+              out of order. */}
           {coachReviewStatus ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
               {coachReviewStatus === "pending_coach_review"
@@ -784,9 +787,28 @@ export default function DeckChunkModal({
               ) : null}
               {isPraise || isConfidentVoice ? null : (
                 <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
+                    </p>
+                    {/* THE PENCIL IS "EDIT MYSELF" (founder 2026-09-15: "the
+                        pencil replaces Edit myself; and the pencil is in the
+                        top right corner of the orange box").
+                        Same handler, same third decision — it just stops
+                        competing with the accept for attention at the bottom
+                        of the sheet, and now sits on the words it edits. The
+                        aria-label keeps the decision named for assistive tech
+                        and for the e2e tier, which asserts all three. */}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void editImprovementMyself()}
+                      aria-label="Edit myself"
+                      className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
                     {suggestion.kind === "bold"
                       ? suggestion.quote || chunk.part.text
@@ -897,9 +919,9 @@ export default function DeckChunkModal({
                   ) : null}
                 </div>
               ) : null}
-              {rationale && !isPraise && !isConfidentVoice ? (
+              {coachNote ? (
                 <p className="px-1 text-[13px] leading-snug text-muted-foreground">
-                  {rationale}
+                  {coachNote}
                 </p>
               ) : null}
               {rewriteOverlapsFlagship && rewriteCollisionConfirmed ? (
@@ -1022,7 +1044,21 @@ export default function DeckChunkModal({
                  * only this override dipped below. Do not take it back under
                  * 16px without also solving the zoom. */
                 textSizeClass="text-[16px] leading-relaxed"
-                frameClass="border border-pending/40 bg-pending/[0.06] focus:border-pending"
+                /* NEUTRAL, NOT AMBER (founder 2026-09-15): "this should not be
+                 * there cause it is not the confidence feedback."
+                 *
+                 * This field was wearing `--pending`, and globals.css defines
+                 * that token as "the ONE signal that feedback is waiting on a
+                 * chunk". So the editor was painting "feedback is waiting"
+                 * across the speaker's own words on a sheet whose kicker reads
+                 * NO FEEDBACK PENDING — the amber said the exact opposite of
+                 * the text above it, and after a Confident Voice card it read
+                 * as another feedback card holding a machine's words rather
+                 * than an editor holding theirs.
+                 *
+                 * Amber stays on the review face, where feedback really is
+                 * pending. Here the field is just a field. */
+                frameClass="border border-border bg-background focus:border-foreground"
               />
 
               {/* THE COACH (slice 4) — on the locked face too: a locked
@@ -1187,24 +1223,24 @@ export default function DeckChunkModal({
                   )}
                   Apply suggestion
                 </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void editImprovementMyself()}
-                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Edit myself
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void keepImprovementWording()}
-                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Keep wording
-                  </button>
-                </div>
+                {/* ONE CTA, ONE QUIET ACTION UNDER IT (founder 2026-09-15):
+                    "apply as a black CTA and small not CTA keep wording … keep
+                    the keep wording without the stroke on the button and
+                    stacked below the CTA; not next to each other."
+
+                    This footer used to be three bordered pills, which read as
+                    three competing buttons and made declining a suggestion look
+                    as weighty as taking it. Edit myself has moved to the pencil
+                    on the card above, so only the accept is shaped like an
+                    action and the decline sits plainly beneath it. */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void keepImprovementWording()}
+                  className="flex items-center justify-center rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                >
+                  Keep wording
+                </button>
               </div>
             ) : face === "root" ? (
               <div className="col-span-2 grid gap-2">

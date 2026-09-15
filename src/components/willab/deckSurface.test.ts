@@ -29,6 +29,7 @@ function code(path: string): string {
 
 const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+const HEADING = code("src/components/willab/sheetHeading.ts");
 const MARK = code("src/components/willab/DeckLockMark.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
 const READOUT = code("src/components/willab/IdealTextReadout.tsx");
@@ -52,16 +53,53 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/<RichText[\s\S]*?\/>\s*<DeckLockMark/);
   });
 
-  it("reveals the frozen feedback inventory before any decision", () => {
-    // Up to three belong to the whole Take. If several route to one chunk,
-    // the page shows their count and the modal lists every identity up front;
-    // resolving #1 may navigate to #2, but can never make a hidden #2 appear.
-    expect(DECK).toMatch(/pendingCount=\{c\.pendingIds\.length\}/);
+  it("spends the pending amber only where feedback is actually pending", () => {
+    // globals.css: `--pending` is "the ONE signal that feedback is waiting on
+    // a chunk". Until 2026-09-15 the chunk EDITOR wore it too, so the sheet
+    // washed the speaker's own words in the waiting-for-feedback colour under
+    // a kicker that read "No feedback pending" — the amber contradicting the
+    // line above it. Founder: "this should not be there cause it is not the
+    // confidence feedback."
+    const editorFrame = MODAL.slice(
+      MODAL.indexOf("<MarkedEditor"),
+      MODAL.indexOf("/>", MODAL.indexOf("<MarkedEditor")),
+    );
+    expect(editorFrame).toMatch(/frameClass="[^"]*"/);
+    expect(editorFrame).not.toMatch(/pending/);
+    // ...and the one place it IS the truth keeps it: the review face's
+    // suggested-wording card, which only renders with a live suggestion.
+    expect(MODAL).toMatch(/border-pending\/40 bg-pending/);
+  });
+
+  it("freezes the feedback inventory and serves it one item at a time", () => {
+    // Up to three belong to the whole Take. If several route to one chunk, the
+    // PAGE still shows their count — that is where a speaker chooses what to
+    // open — but since 2026-09-15 the MODAL no longer lists their identities
+    // up front: "only one feedback at a time … so that the screen is clean"
+    // (founder). Resolving #1 advances to #2; nothing hidden can be added.
+    // NO COUNT ON THE MARK (founder 2026-09-15). It hid below two and clamped
+    // above three, so it never was a count — and a column reading 3 / 1 / 2
+    // scans as a ranking of how bad each paragraph is, which is the reading
+    // AC-9 exists to prevent. `pendingIds` itself stays: it drives ChunkStatus
+    // and the modal's step list.
+    expect(DECK).not.toMatch(/pendingCount/);
+    expect(MARK).not.toMatch(/pendingCount/);
+    expect(MARK).not.toMatch(/Math\.min\(3,/);
+    expect(MARK).not.toMatch(/tabular-nums/);
+    // The signal the number was carrying moves to the ring: any paragraph with
+    // something waiting gets it, rooting phrase or not.
+    expect(MARK).toMatch(/const attention =\s*\n?\s*status === "waiting"/);
+    expect(MARK).not.toMatch(/flagship && unresolved/);
+    // Screen readers keep the same information without the digit.
+    expect(MARK).toMatch(/waiting: "Feedback waiting — review it"/);
     // Audit Q-C5: the inventory rides the chunk's one state (`pending`).
     expect(DECK).toMatch(/state=\{openState\}/);
     expect(DECK).toMatch(/buildChunkStates</);
-    expect(MODAL).toMatch(/Feedback ready · \{feedbackInventory\.length\}/);
-    expect(MODAL).toMatch(/feedbackInventory\.map/);
+    // The list widget is gone, and must stay gone.
+    expect(MODAL).not.toMatch(/Feedback ready/);
+    expect(MODAL).not.toMatch(/feedbackInventory\.map/);
+    // What the list was standing in for survives: the frozen cap, and the
+    // advance that walks the queue without it.
     expect(MODAL).toMatch(/\.slice\(0, 3\)/);
     expect(MODAL).toMatch(/advanceAfterDecision\(suggestion\.id\)/);
   });
@@ -229,7 +267,11 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
       applyBody.indexOf("advanceAfterDecision(suggestion.id)"),
     );
     expect(MODAL).toMatch(/onClick=\{\(\) => void keepEvolving\(\)\}/);
-    expect(MODAL).toMatch(/Choose a rooting phrase/);
+    // The root face's heading copy lives in sheetHeading.ts since 2026-09-15
+    // (and is asserted by value in sheetHeading.test.ts); what the modal still
+    // owns is reaching that face at all.
+    expect(HEADING).toMatch(/Choose a rooting phrase/);
+    expect(MODAL).toMatch(/setFace\("root"\)/);
     expect(MODAL).toMatch(/Make this phrase orange/);
     // Legacy unlock remains available for an already-settled paragraph.
     expect(MODAL).toMatch(/onClick=\{\(\) => void unlock\(\)\}/);

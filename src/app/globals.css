@@ -132,6 +132,44 @@ body {
   }
 }
 
+/* TOUCH FEEDBACK — the press must land before the network does
+   (founder 2026-09-15: "each button, like emphasise, lock, discard … works on
+   the touch instantly without the loading time").
+
+   It was not the network that felt slow. Every button in the app styles its
+   feedback with `hover:`, and a touch screen has no hover — so a tap produced
+   NO visual change at all until the request came back and the screen moved.
+   The button looked broken, so people tapped again.
+
+   This is CSS only, on purpose: a pressed state driven by React state cannot
+   beat the finger, because it waits for a render. `:active` paints on the same
+   frame as the touch, whatever the handler is doing.
+
+   `touch-action: manipulation` drops the legacy 300ms double-tap-zoom wait,
+   and the transparent tap highlight removes the grey flash that otherwise
+   fights the state below. */
+button,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: none) {
+  button:not(:disabled):not([data-sheet-grabber]):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    opacity: 0.72;
+  }
+}
+
+/* The scale is the part that reads as "pressed" rather than "dimmed", so it
+   is motion and it asks first. */
+@media (hover: none) and (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):not([data-sheet-grabber]):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.97);
+  }
+}
+
 /* Logo voice-dot — three-dot speaking/EQ rhythm. Each dot in the
    WillpowerLab logo scales gently on a staggered cycle so the mark
    reads as "active voice" rather than a static icon. Applied via the
