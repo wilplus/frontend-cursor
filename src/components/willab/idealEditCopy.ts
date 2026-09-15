@@ -80,3 +80,66 @@ export const IDEAL_EDIT_COPY = {
      refreshing IS the message. A seventh line here would be un-signed-off copy
      saying what the screen already says. */
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/*  THE CHUNK SHEET LADDER (founder-signed-off 2026-09-15, with designs)       */
+/*                                                                            */
+/*  One decision per screen. Every string the sheet shows is here rather than  */
+/*  in JSX, for the reason the file header gives: a sign-off is one file to    */
+/*  read, and no string can quietly ship from a component edit.                */
+/*                                                                            */
+/*  Each PILL is the verb of its own screen — Apply on Suggestion, Emphasise   */
+/*  on Emphasis, Lock on Lock. A pill that said "Continue" everywhere would    */
+/*  make the screens interchangeable, which is the opposite of what splitting  */
+/*  them was for. "Continue" survives in exactly one place, Good job, because  */
+/*  there genuinely is nothing to decide there.                                */
+/* -------------------------------------------------------------------------- */
+
+export const CHUNK_SHEET_COPY = {
+  /* --- screen titles ------------------------------------------------------ */
+  titleFeedback: "Feedback",
+  titleSuggestion: "Suggestion",
+  titlePraise: "Good job",
+  titleEmphasis: "Emphasis",
+  titleLock: "Lock",
+  /* Reopening a clean paragraph is an edit, not the end of a review. */
+  titleEditChunk: "Edit this chunk",
+
+  /* --- pills (one per screen, black) -------------------------------------- */
+  pillDone: "Done",
+  pillContinue: "Continue",
+  pillApply: "Apply",
+  pillEmphasise: "Emphasise",
+  pillChooseWords: "Choose different words",
+  pillLock: "Lock",
+  pillDiscard: "Discard",
+
+  /* --- links (grey, stacked under the pill, never beside it) -------------- */
+  linkKeepWording: "Keep wording",
+  linkChooseWords: "Choose different words",
+  linkSkip: "Skip",
+  linkKeepEvolving: "Keep evolving",
+
+  /* --- card eyebrows ------------------------------------------------------ */
+  cardWhatYouSaid: "What you said",
+  cardClearerVersion: "Clearer version",
+  cardWithEmphasis: "With emphasis",
+  /* An INSTRUCTION for the interaction rather than a label for the content,
+     which is why it does not read "With emphasis" like its sibling. Founder
+     left it deliberately (handoff, "one note"). */
+  cardTapWords: "Tap the words",
+
+  /* --- the one qualitative question --------------------------------------- */
+  confidenceQuestion: "Does this sound confident to you?",
+
+  /* --- failures (red text, same plain box as every other message) ---------- */
+  failApply: "Your choice is safe, but the text update needs another try.",
+  failKeep: "Your choice is safe. Refresh to continue.",
+  failLockBlocked: "Decide every suggestion on this chunk first.",
+  failLock: "Couldn't lock this in. Try again.",
+  failEvolve: "Couldn't keep this paragraph evolving. Try again.",
+  failEmphasis: "Couldn't apply that. Try again.",
+  failUnlock: "Couldn't unlock this. Try again.",
+  failRoot: "Couldn't save those words. Try again.",
+  failResponse: "Couldn't save that response. Try again.",
+} as const;

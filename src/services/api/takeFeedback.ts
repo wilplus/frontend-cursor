@@ -8,6 +8,12 @@ export type FeedbackFamily =
 export type FeedbackResponse =
   | "yes" | "in_between" | "no" | "not_sure" | "audio_unclear"
   | "apply_suggestion" | "edit_myself" | "keep_wording"
+  // `acknowledged` is the praise screen's Continue (BE migration 0333). The
+  // rating is what marks an item decided — drop the write with the rating and
+  // praise is re-offered every time the paragraph opens — so Continue still
+  // writes, it just writes "read" instead of a verdict. `useful` /
+  // `not_useful` stay for historical rows and any surface that still rates.
+  | "acknowledged"
   | "useful" | "not_useful";
 
 export async function saveTakeFeedbackResponse(input: {

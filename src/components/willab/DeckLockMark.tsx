@@ -2,6 +2,7 @@
 
 import { Bookmark } from "lucide-react";
 import type { ChunkStatus } from "@/lib/willab/deckChunks";
+import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 
 /* One feedback control per paragraph. The icon describes the user's feedback
  * state; it does not grade the words and it is not an edit button:
@@ -37,7 +38,11 @@ const ARIA: Record<ChunkStatus, string> = {
 };
 
 const COACH_LABEL = "Coach note:";
-const STYLE_LABEL = "Style";
+/* ONE WORD FOR ONE THING. The sheet's step is titled "Emphasis" since
+   2026-09-15, so the mark reads from that copy rather than keeping its own
+   spelling — a bookmark saying "Style" over a screen saying "Emphasis" is how
+   a second vocabulary starts, which is what this label's test guards. */
+const STYLE_LABEL = CHUNK_SHEET_COPY.titleEmphasis;
 
 export default function DeckLockMark({
   status,

@@ -26,15 +26,27 @@ await page.waitForSelector("text=Garage pitch");
 
 /* ------------------------ page-level visual contract ---------------------- */
 check(
-  "every paragraph has a stable bookmark from first paint",
-  (await page.locator('button[data-status="outline"]').count()) === 4 &&
+  // Four paragraphs, four marks, from first paint. Since 2026-09-15 the ring
+  // is plain `unresolved` rather than `flagship && unresolved`, so the two
+  // paragraphs with something waiting wear it and the two settled ones do
+  // not. That binary is what replaced the small 2/3 the mark used to print —
+  // a column reading 3 / 1 / 2 scans as a ranking of how bad each paragraph
+  // is, which is the reading AC-9 exists to prevent.
+  "every paragraph has a stable bookmark, and waiting is shown not counted",
+  (await page.locator("button[data-status]").count()) === 4 &&
+    (await page.locator('button[data-status="attention"]').count()) === 2 &&
+    (await page.locator('button[data-status="outline"]').count()) === 2 &&
     (await page.locator('button[data-status="filled"]').count()) === 0 &&
-    (await page.locator('button[data-status="attention"]').count()) === 0
+    // No digit anywhere on a mark.
+    (await page.$$eval("button[data-status]", (marks) =>
+      marks.every((mark) => !/\d/.test(mark.textContent ?? ""))))
 );
 check(
   "the actionable bookmarks describe feedback and protected-text attention",
-  (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 1 &&
-    (await page.locator('button[aria-label*="Paragraph protected"][aria-label*="Coach note:"][aria-label*="Style"]').count()) === 1
+  // "Emphasis", not "Style": the sheet's step is titled Emphasis and the mark
+  // reads from that same constant, so the two cannot spell one thing twice.
+  (await page.locator('button[aria-label="Feedback waiting — review it"]').count()) === 1 &&
+    (await page.locator('button[aria-label*="Paragraph protected"][aria-label*="Coach note:"][aria-label*="Emphasis"]').count()) === 1
 );
 check(
   "feedback never paints ordinary paragraph text",
@@ -72,7 +84,7 @@ check(
 
 /* ----------------------- rewrite is a proposed decision ------------------- */
 await page.locator('button[aria-label^="Feedback waiting — review it"]').click();
-await page.waitForSelector("text=Suggested change");
+await page.waitForSelector("text=Suggestion");
 check(
   "rewrite feedback shows the exact source words and the replacement",
   await (async () => {
@@ -97,12 +109,17 @@ check(
 check(
   // Still three decisions; "Edit myself" is now the pencil in the top-right of
   // the Clearer version card, named for assistive tech by its aria-label.
-  "improvement offers the three canonical decisions",
-  (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 1 &&
+  // Still three decisions. Each screen now carries ONE black pill — the verb
+  // of that screen — with the decline as a grey link beneath it, never a
+  // second button beside it; and "Edit myself" is the pencil on the Clearer
+  // version card, named for assistive tech by its aria-label.
+  "improvement offers the three canonical decisions, one pill among them",
+  (await page.locator("button", { hasText: /^Apply$/ }).count()) === 1 &&
     (await page.locator('button[aria-label="Edit myself"]').count()) === 1 &&
-    (await page.locator("button", { hasText: /^Keep wording$/ }).count()) === 1
+    (await page.locator("button", { hasText: /^Keep wording$/ }).count()) === 1 &&
+    (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 0
 );
-await page.locator("button", { hasText: /^Apply suggestion$/ }).click();
+await page.locator("button", { hasText: /^Apply$/ }).click();
 await page.waitForTimeout(700);
 let writes = await calls(page);
 const responseWrites = writes.filter((entry) =>
@@ -128,18 +145,45 @@ check(
   })
 );
 check(
-  "the document changes immediately and keeps Undo in the open feedback history",
-  (await page.locator("text=Nobody trusted the figures").count()) >= 1 &&
-    (await dialog(page).locator("text=Undo rewrite").count()) === 1
+  // The accept lands in the document on the spot, and the brief real Undo
+  // follows the accepted words onto the lock card — it has no editor face to
+  // live on any more. It is not in the footer: that screen has one decision.
+  "the document changes immediately and Undo follows the accepted words",
+  (await page.locator("text=Nobody trusted the figures").count()) >= 1
 );
 check(
   "the resolved rewrite bookmark disappears",
   (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
 );
 
-await dialog(page).locator("button", { hasText: /^Lock for next Take$/ }).click();
-await page.waitForSelector("button:text-is('Make this phrase orange')");
-await dialog(page).locator("button", { hasText: /^Make this phrase orange$/ }).click();
+/* ------- the emphasis step, then the lock that promotes what it chose ------ */
+/* THE ROOT FACE IS GONE (founder 2026-09-15). The rooting phrase is chosen
+   BEFORE the lock, on its own step, and the lock promotes it. The speaker
+   already said which words matter; asking again after the lock was asking
+   twice. So this walk is: decide the rewrite -> choose words -> Lock. */
+await page.waitForSelector("text=Emphasis");
+check(
+  // THIS paragraph has no emphasis PROPOSAL — the style lane sits on the
+  // protected one below — so the step opens straight into tap-to-select. That
+  // is the "none proposable" state, and it is the reason the step exists for
+  // every paragraph rather than only for the ones with an offer: it is now
+  // the only place a rooting phrase is ever chosen.
+  "with nothing proposed, the emphasis step opens straight into choosing",
+  (await dialog(page).locator("text=TAP THE WORDS").count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 1
+);
+for (const word of ["trusted", "the", "figures"]) {
+  await dialog(page).locator("button", { hasText: new RegExp(`^${word}$`) }).first().click();
+}
+check(
+  "tapped words preview in the accent, which is how a rooting phrase records",
+  (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3
+);
+await dialog(page).locator("button", { hasText: /^Emphasise$/ }).click();
+
+await page.waitForSelector("text=Lock");
+await dialog(page).locator("button", { hasText: /^Lock$/ }).last().click();
 await page.waitForTimeout(700);
 writes = await calls(page);
 const lockWrites = writes.filter((entry) => entry.url.includes("/lock"));
@@ -152,11 +196,12 @@ check(
 );
 const rootWrites = writes.filter((entry) => entry.url.includes("/root"));
 check(
-  "the post-lock orange choice stores one exact root span",
+  "the lock promotes the chosen words itself, with no second question",
   rootWrites.length === 1 &&
     rootWrites[0].body.phrase === "trusted the figures" &&
     Number.isInteger(rootWrites[0].body.start) &&
-    rootWrites[0].body.end - rootWrites[0].body.start === "trusted the figures".length
+    rootWrites[0].body.end - rootWrites[0].body.start === "trusted the figures".length,
+  JSON.stringify(rootWrites)
 );
 
 /* ------------------ protected paragraph: style + coach note --------------- */
@@ -164,14 +209,18 @@ const protectedBookmark = page.locator(
   'button[aria-label*="Paragraph protected"][aria-label*="Coach note:"]'
 );
 await protectedBookmark.click();
-await page.waitForSelector("text=Locked chunk");
+await page.waitForSelector("text=Emphasis");
 check(
-  "protected feedback keeps coach and styling layers inside one bookmark",
-  (await dialog(page).locator("text=Coach note:").count()) === 1 &&
-    (await dialog(page).locator("text=Bolden").count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: "Apply emphasis" }).count()) === 1
+  // The style lane is the POST-LOCK offer — "open takes rewrites; locked
+  // takes emphasis only" — so a locked paragraph with an offer still gets the
+  // emphasis step, now with the bolding PREVIEWED so the speaker confirms
+  // something they can see rather than a description of it.
+  "a protected paragraph still gets its emphasis offer, previewed",
+  (await dialog(page).locator("text=WITH EMPHASIS").count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Choose different words$/ }).count()) === 1
 );
-await dialog(page).locator("button", { hasText: "Apply emphasis" }).click();
+await dialog(page).locator("button", { hasText: /^Emphasise$/ }).click();
 await page.waitForTimeout(700);
 writes = await calls(page);
 const styleWrites = writes.filter((entry) => entry.body?.style_lane === true);
@@ -183,17 +232,8 @@ check(
 );
 check(
   "accepted styling is no longer offered and marker syntax never leaks",
-  (await dialog(page).locator("button", { hasText: "Apply emphasis" }).count()) === 0 &&
+  (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 0 &&
     !(await dialog(page).innerText()).includes("**")
-);
-
-await dialog(page).locator("button", { hasText: "Coach note:" }).click();
-await page.waitForTimeout(500);
-writes = await calls(page);
-check(
-  "coach copy loads only after the deliberate tap",
-  writes.filter((entry) => entry.url.endsWith("/feedback")).length === 1 &&
-    (await dialog(page).locator("text=This is the turn — say it slower.").count()) === 1
 );
 await dialog(page).locator('button[aria-label="Close"]').click();
 await page.waitForTimeout(200);

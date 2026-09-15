@@ -35,6 +35,7 @@ const MARK = code("src/components/willab/DeckLockMark.tsx");
 const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
+const STEPS = code("src/lib/willab/chunkSteps.ts");
 
 describe("the locked pill's amber pulse", () => {
   it("is a MODIFIER, not a fourth chunk status", () => {
@@ -77,8 +78,15 @@ describe("the locked pill's amber pulse", () => {
     // the state line plus the two cards' OWN kickers. The style label must
     // be the modal's, verbatim — two spellings of one thing is how a second
     // vocabulary starts.
-    expect(MARK).toMatch(/const STYLE_LABEL = "Style";/);
-    expect(MODAL).toMatch(/\n\s*Style\n/);
+    // Both now read the SAME constant, so they cannot drift apart at all —
+    // stronger than comparing two spellings and hoping. The sheet's step is
+    // titled Emphasis, so the mark says Emphasis.
+    expect(MARK).toMatch(/const STYLE_LABEL = CHUNK_SHEET_COPY\.titleEmphasis;/);
+    // The sheet gets its title through stepTitle(), which reads the very same
+    // constant — so the whole chain is one string with no second spelling in
+    // it anywhere.
+    expect(MODAL).toMatch(/stepTitle\(/);
+    expect(STEPS).toMatch(/copy\.titleEmphasis/);
   });
 
   it("the deck actually hangs the handle, per chunk", () => {
