@@ -139,6 +139,30 @@ describe("the recording screen", () => {
     expect(LIBRARY).not.toContain("<TextSlide");
   });
 
+  it("draws the slide's OWN words when there is no PDF and no artwork", () => {
+    // Only the built-in deck carries artworkSrc, so a speaker's real slides —
+    // extracted from their deck or typed in setup — used to fall through every
+    // branch into "Slide preview unavailable" while their title and body sat
+    // unused in props. Per-slide transcription buckets words against the slide
+    // ON SCREEN, so a speaker who cannot see their slide cannot drive that
+    // boundary; this is an F1 surface, not decoration.
+    expect(SLIDE_RENDER).toContain("function SlideTextCard");
+    expect(SLIDE_RENDER).toMatch(
+      /!presentationRef && \(title\.trim\(\) \|\| body\.trim\(\)\)/
+    );
+    expect(SLIDE_RENDER).toContain("<SlideTextCard title={title} body={body} />");
+  });
+
+  it("keeps the text card structurally unable to render a transcript", () => {
+    // The rule above ("never substitute transcribed text") is enforced by
+    // CONSTRUCTION rather than by comment: the card's whole prop surface is the
+    // slide's own two fields, so there is no channel through which spoken words
+    // could reach it. Widening this signature is what would need arguing for.
+    expect(SLIDE_RENDER).toMatch(
+      /function SlideTextCard\(\{ title, body \}: \{ title: string; body: string \}\)/
+    );
+  });
+
   it("uses native-feeling scroll rather than the prototype's delayed clamp", () => {
     expect(ROADMAP).not.toMatch(
       /clampingRef|setTimeout|320|snap-y|snap-proximity/

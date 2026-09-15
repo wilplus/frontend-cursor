@@ -201,6 +201,50 @@ export function MockPresentationSlide({
   );
 }
 
+/** The speaker's OWN slide text, drawn as a slide, when there is no PDF page
+ *  and no canonical artwork to sit behind it.
+ *
+ *  This is not the transcript substitution the note below forbids. These are
+ *  the slide's own `title` and `body` — the words the speaker WROTE on the
+ *  slide, carried from the deck extract or typed into the setup wizard — not
+ *  the words they happened to say while it was on screen. Showing them is
+ *  showing the slide; showing a transcript would be inventing one.
+ *
+ *  Before this existed, a speaker with real slides and no PDF fell through
+ *  every branch of SlideRender into "Slide preview unavailable": their own
+ *  slides disqualified them from the default artwork (which only the built-in
+ *  deck carries), and the missing PDF disqualified them from the page
+ *  renderer. The recording stage held their five slides and drew a grey box.
+ *  That matters beyond tidiness — per-slide transcription buckets words
+ *  against the slide ON SCREEN, so a speaker who cannot see which slide they
+ *  are on cannot drive that boundary. */
+export function SlideTextCard({ title, body }: { title: string; body: string }) {
+  const bullets = bulletLines(body);
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-[#061a3a]">
+      <div className="absolute inset-0 flex flex-col justify-center px-[6%] py-[5%] text-white">
+        <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
+        <h3 className="text-[clamp(1rem,3vw,2.2rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
+          {title}
+        </h3>
+        {bullets.length > 0 ? (
+          <ul className="mt-[6%] flex flex-col gap-[0.45em] text-[clamp(0.58rem,1.25vw,1rem)] leading-[1.35] text-white/90">
+            {bullets.map((line) => (
+              <li key={line} className="flex gap-[0.6em]">
+                <span
+                  aria-hidden="true"
+                  className="mt-[0.55em] size-1 shrink-0 rounded-full bg-primary"
+                />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** What a viewer shows for one slide: the rendered PDF page when a deck PDF is
  *  present, or the canonical artwork for a deckless presentation.
  *
@@ -250,6 +294,17 @@ export function SlideRender({
           title={title}
           body={body}
         />
+      </div>
+    );
+  }
+  // No PDF and no artwork, but the slide HAS its own words: draw them. Only the
+  // built-in deck carries artwork, so without this a speaker's real slides —
+  // extracted from their deck or typed in setup — landed in the unavailable
+  // box below, which is the one case where we know exactly what the slide says.
+  if (!presentationRef && (title.trim() || body.trim())) {
+    return (
+      <div className={className}>
+        <SlideTextCard title={title} body={body} />
       </div>
     );
   }
