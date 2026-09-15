@@ -57,10 +57,12 @@ export const THREE_TAKE_NUDGE =
 const SETUP_INPUT_CLS =
   "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
 
+// "goal" ("What should this presentation achieve?") was removed 2026-09-15 on
+// founder instruction: it and "What should the audience do next?" were asking
+// the same question twice, one step apart, and people answered it twice.
 type StepKey =
   | "topic"
   | "audience"
-  | "goal"
   | "call_to_action"
   | "length"
   | "slides"
@@ -88,7 +90,6 @@ export default function RecordingSetup({
 }) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
-  const [presentationGoal, setPresentationGoal] = useState("");
   const [desiredCallToAction, setDesiredCallToAction] = useState("");
   const [lengthSec, setLengthSec] = useState<number | null>(null);
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
@@ -115,11 +116,10 @@ export default function RecordingSetup({
   }, []);
 
   const steps: StepKey[] = hideDeck
-    ? ["topic", "audience", "goal", "call_to_action", "length", "context"]
+    ? ["topic", "audience", "call_to_action", "length", "context"]
     : [
         "topic",
         "audience",
-        "goal",
         "call_to_action",
         "length",
         "slides",
@@ -202,9 +202,6 @@ export default function RecordingSetup({
       return;
     }
     const intentContext = [
-      presentationGoal.trim()
-        ? `Presentation goal: ${presentationGoal.trim()}`
-        : null,
       desiredCallToAction.trim()
         ? `Desired call to action: ${desiredCallToAction.trim()}`
         : null,
@@ -319,31 +316,12 @@ export default function RecordingSetup({
           </div>
         )}
 
-        {current === "goal" && (
-          <div>
-            <StepHead
-              icon={Mic}
-              question="What should this presentation achieve?"
-              helper="Name the change you want in the audience by the end."
-            />
-            <input
-              value={presentationGoal}
-              onChange={(e) => setPresentationGoal(e.target.value)}
-              onKeyDown={onEnterAdvance}
-              placeholder="e.g. win approval for the proposal"
-              maxLength={400}
-              className={SETUP_INPUT_CLS}
-              autoFocus
-            />
-          </div>
-        )}
-
         {current === "call_to_action" && (
           <div>
             <StepHead
               icon={Mic}
               question="What should the audience do next?"
-              helper="A clear call to action gives the conclusion a real destination."
+              helper="Name the change you want in the audience by the end."
             />
             <input
               value={desiredCallToAction}
