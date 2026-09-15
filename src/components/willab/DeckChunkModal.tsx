@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Lock, Pencil, Sparkles, Undo2 } from "lucide-react";
+import { Check, Loader2, Lock, Pencil, Sparkles, ThumbsUp, Undo2 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
+import { RichText } from "./RichText";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
@@ -12,15 +13,12 @@ import {
   type FeedbackResponse,
 } from "@/services/api/takeFeedback";
 import type { RootPhraseSpan } from "@/services/api/partLock";
-import {
-  AGREE_THANKS,
-  CONFIDENT_VOICE_NO,
-  CONFIDENT_VOICE_WHY,
-  PRAISE_CUE_LEAD,
-  PRAISE_LEAD,
-  praiseLines,
-  whyLine,
-} from "@/lib/willab/trackedChangeWhy";
+/* The explanation copy is gone from this sheet (founder 2026-09-15, §6): the
+   Confident Voice block (CONFIDENT_VOICE_WHY / CONFIDENT_VOICE_NO /
+   AGREE_THANKS and its cue list), the praise cue list, and the machine's
+   whyLine() rationale. PRAISE_LEAD stays — it is the praise itself, not an
+   explanation of it. */
+import { PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
@@ -28,14 +26,10 @@ import {
   type ChunkState,
   type CoachMomentLite,
 } from "@/lib/willab/deckChunks";
-import DeckCoachFeedback from "@/components/willab/DeckCoachFeedback";
 import ConfidentVoicePractice from "@/components/willab/ConfidentVoicePractice";
 import Mlc3FirstClientPractice from "@/components/willab/Mlc3FirstClientPractice";
 import { mlc3FirstClientPresentationEnabled } from "@/services/api/mlc3FirstClient";
-import type {
-  DecisionHistoryEntry,
-  DocumentSuggestion,
-} from "@/services/api/idealText";
+import type { DocumentSuggestion } from "@/services/api/idealText";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import RootingPhraseQualificationActions from "@/components/willab/RootingPhraseQualificationActions";
 import type { RootingPhraseRoutingState } from "@/lib/willab/rootingPhraseQualification";
@@ -59,11 +53,12 @@ import type { RootingPhraseRoutingState } from "@/lib/willab/rootingPhraseQualif
 /*  render its explicitly coach-authored note.                                 */
 /* -------------------------------------------------------------------------- */
 
-// displayKind lives in its own pure .ts module so the founder's display
-// taxonomy is unit-testable (vitest cannot transform .tsx imports here);
-// re-exported so existing importers keep their path.
-import { displayKind } from "./displayKind";
-export { displayKind };
+/* displayKind is GONE (founder 2026-09-15). It existed to render the kind
+   eyebrow — "Possible clarity improvement" and its siblings — and §6 removes
+   that eyebrow from every screen. Its last consumer was this file's own
+   re-export, so keeping the module would have left a taxonomy nothing could
+   reach: dead code that still reads as product vocabulary. Deleted with its
+   test rather than left to look load-bearing. */
 
 export type LockOutcome = "ok" | "blocked" | "failed";
 export type LockResult = {
@@ -71,10 +66,24 @@ export type LockResult = {
   rootPhraseProposal: RootPhraseSpan | null;
 };
 
-// One definition of "is this the Confident Voice lane", shared with the
-// heading module so the bare-header rule and the card's own render can never
-// disagree about which item they are looking at.
-import { isConfidentVoiceFeedback, sheetHeading } from "./sheetHeading";
+// One definition of "is this the Confident Voice lane", beside the ladder that
+// orders it first, so the sort and the card's own render can never disagree
+// about which item they are looking at.
+import {
+  buildChunkSteps,
+  isConfidentVoiceFeedback,
+  stepProgress,
+  stepTitle,
+  type ChunkStep,
+} from "@/lib/willab/chunkSteps";
+import {
+  nextSelection,
+  phraseTokens,
+  quoteSpan,
+  selectionText,
+  type PhraseSelection,
+} from "@/lib/willab/phraseTokens";
+import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -106,9 +115,9 @@ interface DeckChunkModalProps {
   /** Apply a legacy style proposal (`state.style`); new roots use
    *  onSetRootPhrase. */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
-  /** The arc the coach's message (`state.coach`) is fetched from, on demand.
-   *  Shown on both faces, locked chunks included (founder: "even on a locked
-   *  screen you can still see that feedback"). */
+  /** Kept on the contract, unused by the sheet since 2026-09-15: the coach
+   *  note card it fed is gone from every screen (§6). Hosts still pass it and
+   *  the coach's own surfaces still render that card. */
   arcId?: string | null;
   /** Disabled RPQ-V1 enrichment. It never changes the existing V3 inventory. */
   rootingPhraseRoutingState?: RootingPhraseRoutingState | null;
@@ -132,7 +141,6 @@ export default function DeckChunkModal({
   // proposal to open on is the first of the pending inventory; an empty
   // inventory routes to the EDITOR face.
   const { chunk, pending: pendingSuggestions, style: styleSuggestion, coach } = state;
-  const coachSnippetId = coach.snippetId;
   const coachReviewStatus = coach.reviewStatus;
   // Freeze the inventory for this modal opening. A refetch removes a decided
   // payload row, but it must not rewrite the student's memory of which items
@@ -147,73 +155,86 @@ export default function DeckChunkModal({
       return true;
     }).slice(0, 3);
   });
-  const [resolvedFeedbackIds, setResolvedFeedbackIds] = useState<
-    ReadonlySet<string>
-  >(new Set());
-  const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(
-    feedbackInventory[0]?.id ?? null,
+  /* THE LADDER (founder 2026-09-15). One ordered list built when the sheet
+   * opens, walked one screen at a time, ending at the lock. It replaces the
+   * three faces ("review" | "editor" | "root") and the in-place iteration of
+   * the inventory — see lib/willab/chunkSteps.ts for why the order is enforced
+   * rather than inherited from the payload.
+   *
+   * Frozen with the inventory: a refetch must not lengthen or reorder the
+   * ladder under a speaker who is halfway down it. */
+  const [steps] = useState<ChunkStep[]>(() =>
+    buildChunkSteps({
+      inventory: feedbackInventory,
+      // Nothing to emphasise on an empty paragraph, and nothing to choose on
+      // one already locked and settled — that sheet is a single Discard.
+      //
+      // A LOCKED paragraph WITH a style offer still gets the step, and that is
+      // the point of the style lane rather than an exception to it: "open
+      // takes rewrites; locked takes emphasis only". Gating on the lock alone
+      // would delete the post-lock emphasis offer outright.
+      canEmphasise:
+        chunk.part.text.trim().length > 0 &&
+        (Boolean(styleSuggestion) || chunk.part.locked !== true),
+    }),
   );
-  const unresolvedFeedback = feedbackInventory.filter(
-    (item) => !resolvedFeedbackIds.has(item.id),
-  );
+  const [stepId, setStepId] = useState<string>(() => steps[0]?.id ?? "lock");
+  const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
-    unresolvedFeedback.find((item) => item.id === activeFeedbackId) ??
-    unresolvedFeedback[0] ??
-    null;
+    step && step.kind !== "emphasis" && step.kind !== "lock"
+      ? feedbackInventory.find((item) => item.id === step.id) ?? null
+      : null;
   useVisibleLearningExposure({
     handles: suggestion?.learningExposures ?? [],
     visibilityKey: suggestion?.id ?? "no-feedback",
     enabled: suggestion !== null,
   });
-  // Accept morphs the face; everything else derives from the chunk.
-  // KEYED ON THE WORK, NOT THE STATE. `chunk.status` folds "approved, not
-  // locked" into "locked", so reading it here meant a chunk with a real
-  // pending proposal could still open the editor. The proposal itself is the
-  // only thing that decides whether there is a review to run — and on a
-  // re-opened locked chunk (R1 gen-4) that is exactly the case that matters.
-  const [face, setFace] = useState<"review" | "editor" | "root">(
-    chunk.pendingIds.length > 0 && suggestion ? "review" : "editor",
-  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [acceptedRewrite, setAcceptedRewrite] =
-    useState<DocumentSuggestion | null>(null);
   const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
     useState(false);
+  /** THE BRIEF, REAL UNDO after an accepted rewrite. The ladder has no editor
+   *  face to host it any more, and the handoff never asked for it to go — so
+   *  it moves onto the lock card, where the accepted words now sit. Not in the
+   *  footer: that would be a second decision on a screen whose whole point is
+   *  having one. */
+  const [acceptedRewrite, setAcceptedRewrite] =
+    useState<DocumentSuggestion | null>(null);
   const hadFeedback = feedbackInventory.length > 0;
-  const [rootProposal, setRootProposal] = useState<RootPhraseSpan | null>(null);
-  const [customRoot, setCustomRoot] = useState("");
-  const [choosingRoot, setChoosingRoot] = useState(false);
-
-  function advanceAfterDecision(decidedId: string): boolean {
-    const remaining = feedbackInventory.filter(
-      (item) => item.id !== decidedId && !resolvedFeedbackIds.has(item.id),
-    );
-    setResolvedFeedbackIds((previous) => new Set(previous).add(decidedId));
-    if (remaining.length === 0) {
-      return false;
-    }
-    setActiveFeedbackId(remaining[0].id);
+  /* Tap-to-select for the rooting phrase. `emphasisTap` is the mode; the
+   * selection is a run of token indices, never typed text — see
+   * lib/willab/phraseTokens.ts on why the offsets must be raw-draft ones. */
+  const [emphasisTap, setEmphasisTap] = useState(false);
+  const [phraseRun, setPhraseRun] = useState<PhraseSelection | null>(null);
+  /** The words the speaker chose to emphasise, as a reader sees them. Resolved
+   *  against the locked draft at lock time — see lockIn. `null` is Skip, and
+   *  Skip is a real answer, not a deferral. */
+  const [promotedQuote, setPromotedQuote] = useState<string | null>(null);
+  /** Set by Discard. The served chunk still says locked until the host
+   *  refetches, so without this the sheet would keep offering Discard to a
+   *  paragraph it has just unlocked. */
+  const [unlocked, setUnlocked] = useState(false);
+  /** Move to the next screen. The lock step is always last, so this always
+   *  lands somewhere and there is no "no more items" branch to get wrong. */
+  function advanceStep(): void {
+    const at = steps.findIndex((entry) => entry.id === stepId);
+    const next = steps[at + 1];
+    if (next) setStepId(next.id);
     setRewriteCollisionConfirmed(false);
     setError(null);
     // The next item gets a CLEAN instrument, and this is an L3 fix, not a
     // cosmetic one. The Confident Voice answer state is per ITEM, but it lived
     // per MODAL: without this reset a second confident-voice item on the same
     // chunk opened already answered — thank-you copy over a clip nobody rated
-    // — and because the Done button posts `agreeValue ?? "not_sure"`, tapping
-    // it wrote the PREVIOUS clip's owner answer as this clip's response. One
+    // — and because Done posts `agreeValue ?? "not_sure"`, tapping it wrote
+    // the PREVIOUS clip's owner answer as this clip's response. One
     // recording's routing signal recorded against another recording is exactly
     // what the provenance wall forbids, and the speaker was never even asked.
-    //
-    // It matters more now that this auto-advance is the ONLY route to item
-    // two; the inventory chips that used to offer a way back are gone.
-    // Reachable today across Takes, and ordinary under the V3 policy, which
-    // returns one Confident Voice item per 75-word block rather than one per
-    // Take.
+    // Ordinary under the V3 policy, which returns one Confident Voice item per
+    // 75-word block rather than one per Take.
     setAgreeValue(null);
     setAgreeSaved(false);
     setAgreeError(null);
-    return true;
   }
 
   // The always-editable draft. Re-synced from the served text whenever the
@@ -225,32 +246,6 @@ export default function DeckChunkModal({
     if (!dirtyRef.current) setDraft(chunk.part.text);
   }, [chunk.part.text]);
 
-  // Both heading lines, and the 2026-09-15 rule that the Confident Voice face
-  // carries no kicker at all, live in the pure module next door — see its
-  // header for why founder copy does not stay in this .tsx.
-  const { kicker, title } = sheetHeading({
-    face,
-    suggestion,
-    // `=== true` because the served field is optional — the same idiom
-    // deckChunks.ts uses when it reads the lock.
-    locked: chunk.part.locked === true,
-    hasApproved: chunk.approvedIds.length > 0,
-    iteration: chunk.part.iteration ?? 0,
-  });
-
-  async function undoAcceptedRewrite() {
-    if (!acceptedRewrite || !onUndoAccept || busy) return;
-    setBusy(true);
-    setError(null);
-    const ok = await onUndoAccept(acceptedRewrite);
-    setBusy(false);
-    if (!ok) {
-      setError("Couldn't restore your original words. Try again.");
-      return;
-    }
-    setAcceptedRewrite(null);
-    onClose();
-  }
 
   async function recordFeedbackResponse(response: FeedbackResponse): Promise<boolean> {
     if (!suggestion?.takeSessionId || !suggestion.feedbackFamily) return false;
@@ -264,21 +259,44 @@ export default function DeckChunkModal({
       feedbackExposureId: suggestion.feedbackExposureId,
     });
     if (!result.ok) {
-      setError(result.error ?? "Couldn't save that response. Try again.");
+      setError(result.error ?? COPY.failResponse);
       return false;
     }
     return true;
   }
 
-  async function resolveObservedFeedback(response: FeedbackResponse) {
+  /* CONTINUE STILL WRITES (founder 2026-09-15, BE migration 0333).
+   *
+   * The praise screen stopped asking Useful / Not useful / Not sure — a black
+   * CTA on a question about your own praise makes disagreeing feel like
+   * refusing. But the RATING IS WHAT MARKED THE ITEM DECIDED: drop the write
+   * with the rating and praise is re-offered every time the paragraph opens,
+   * forever. So Continue writes an acknowledgement instead of a verdict, and
+   * `acknowledged` deliberately produces no canonical praise-helpfulness
+   * label — "I read this" is not a point on that scale. */
+  async function acknowledgePraise() {
     if (!suggestion || busy) return;
     setBusy(true);
     setError(null);
-    const ok = await recordFeedbackResponse(response);
+    const ok = await recordFeedbackResponse("acknowledged");
     setBusy(false);
     if (!ok) return;
-    if (advanceAfterDecision(suggestion.id)) return;
-    setFace("editor");
+    advanceStep();
+  }
+
+
+  async function undoAcceptedRewrite() {
+    if (!acceptedRewrite || !onUndoAccept || busy) return;
+    setBusy(true);
+    setError(null);
+    const ok = await onUndoAccept(acceptedRewrite);
+    setBusy(false);
+    if (!ok) {
+      setError(COPY.failApply);
+      return;
+    }
+    setAcceptedRewrite(null);
+    onClose();
   }
 
   async function applyImprovement() {
@@ -294,16 +312,12 @@ export default function DeckChunkModal({
     setBusy(false);
     if (!responseSaved || !applied) {
       if (responseSaved && !applied) {
-        setError("Your choice is safe, but the text update needs another try.");
+        setError(COPY.failApply);
       }
       return;
     }
-    // Remember the accepted wording before advancing through another item in
-    // this paragraph. Otherwise accepting a rewrite first and resolving praise
-    // or voice feedback second lands on the editor with no lock prompt.
     setAcceptedRewrite(suggestion.kind === "replace" ? suggestion : null);
-    if (advanceAfterDecision(suggestion.id)) return;
-    setFace("editor");
+    advanceStep();
   }
 
   async function editImprovementMyself() {
@@ -313,9 +327,7 @@ export default function DeckChunkModal({
     const ok = await recordFeedbackResponse("edit_myself");
     setBusy(false);
     if (!ok) return;
-    const decidedId = suggestion.id;
-    if (advanceAfterDecision(decidedId)) return;
-    setFace("editor");
+    advanceStep();
   }
 
   async function keepImprovementWording() {
@@ -326,11 +338,10 @@ export default function DeckChunkModal({
     const kept = responseSaved ? await onKeepMine(suggestion) : false;
     setBusy(false);
     if (!responseSaved || !kept) {
-      if (responseSaved && !kept) setError("Your choice is safe. Refresh to continue.");
+      if (responseSaved && !kept) setError(COPY.failKeep);
       return;
     }
-    if (advanceAfterDecision(suggestion.id)) return;
-    setFace("editor");
+    advanceStep();
   }
 
   async function lockIn() {
@@ -338,30 +349,41 @@ export default function DeckChunkModal({
     setBusy(true);
     setError(null);
     const result = await onLockIn(draft.trim());
-    setBusy(false);
-    if (result.outcome === "ok") {
-      // A confidence-only item may create an orange speaking anchor only when
-      // the user explicitly agreed that the exact clip sounded confident.
-      // Other answers still permit the wording lock; they simply end here.
-      // Text/formulation feedback and a manual paragraph lock retain the
-      // established root chooser because their meaning is independent of the
-      // confidence self-report.
-      const confidenceOnly =
-        feedbackInventory.length > 0 &&
-        feedbackInventory.every(isConfidentVoiceFeedback);
-      if (confidenceOnly && agreeValue !== "yes") {
-        onClose();
-        return;
-      }
-      setRootProposal(result.rootPhraseProposal);
-      setFace("root");
+    if (result.outcome !== "ok") {
+      setBusy(false);
+      setError(
+        result.outcome === "blocked" ? COPY.failLockBlocked : COPY.failLock,
+      );
       return;
     }
-    setError(
-      result.outcome === "blocked"
-        ? "Decide every suggestion on this chunk first."
-        : "Couldn't lock this in. Try again.",
-    );
+    /* EMPHASIS + LOCK PROMOTES THE PHRASE BY ITSELF (founder 2026-09-15).
+     *
+     * There is no rooting-phrase screen after a lock any more. The speaker
+     * already said which words matter, on the emphasis step, and asking again
+     * is asking twice. So the words they chose are resolved against the text
+     * that was actually locked and stored directly.
+     *
+     * Resolved here rather than carried as an offset on purpose: an accepted
+     * emphasis rewraps the words in `**`, which moves every raw index after
+     * it. The readable text is stable across that; an offset is not.
+     *
+     * A quote that no longer resolves — edited away, or now ambiguous — locks
+     * with no anchor rather than guessing at one. Skip does the same, and
+     * means it: nothing asks again later.
+     *
+     * The confidence-only gate is unchanged. A paragraph whose only feedback
+     * was the confidence question gets an orange anchor ONLY if the speaker
+     * said yes; any other answer locks the wording and ends there. */
+    const confidenceOnly =
+      feedbackInventory.length > 0 &&
+      feedbackInventory.every(isConfidentVoiceFeedback);
+    const anchor =
+      promotedQuote && !(confidenceOnly && agreeValue !== "yes")
+        ? quoteSpan(draft, promotedQuote)
+        : null;
+    if (anchor) await onSetRootPhrase(anchor);
+    setBusy(false);
+    onClose();
   }
 
   async function keepEvolving() {
@@ -374,28 +396,34 @@ export default function DeckChunkModal({
       onClose();
       return;
     }
-    setError("Couldn't keep this paragraph evolving. Try again.");
+    setError(COPY.failEvolve);
   }
 
-  async function saveRoot(phrase: RootPhraseSpan | null) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const ok = await onSetRootPhrase(phrase);
-    setBusy(false);
-    if (ok) {
-      onClose();
-      return;
-    }
-    setError("Choose exact words from this paragraph and try again.");
+  /* THE EMPHASIS STEP'S THREE MOVES.
+   *
+   * Emphasise (proposed)  — take the offered words: apply the bold, and carry
+   *                         them to the lock as the orange anchor.
+   * Emphasise (tap)       — take your own: no bold, just the anchor. Bold is
+   *                         the style lane's; the orange is the recording
+   *                         anchor, which is why the tapped words preview in
+   *                         --primary rather than in a selection colour.
+   * Skip                  — lock with no anchor at all.
+   */
+  async function emphasiseProposed() {
+    if (!styleSuggestion || busy) return;
+    setPromotedQuote(styleSuggestion.quote || null);
+    if (onApplyStyle) await applyStyle();
+    advanceStep();
   }
 
-  function customRootSpan(): RootPhraseSpan | null {
-    const phrase = customRoot.trim();
-    if (!phrase) return null;
-    const start = draft.indexOf(phrase);
-    if (start < 0 || draft.lastIndexOf(phrase) !== start) return null;
-    return { text: phrase, start, end: start + phrase.length };
+  function emphasiseChosen() {
+    setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
+    advanceStep();
+  }
+
+  function skipEmphasis() {
+    setPromotedQuote(null);
+    advanceStep();
   }
 
   /* APPLY THE EMPHASIS ON THE SPOT (founder 2026-08-15: "when I clicked to
@@ -413,7 +441,6 @@ export default function DeckChunkModal({
    * rides behind it. On failure the draft goes back to exactly what it was —
    * a local edit is trivially reversible, which is why doing it first is safe
    * here in a way an irreversible action would not be. */
-  const [styleUndo, setStyleUndo] = useState<string | null>(null);
 
   async function applyStyle() {
     if (!styleSuggestion || !onApplyStyle || busy) return;
@@ -422,7 +449,6 @@ export default function DeckChunkModal({
     if (next !== draft) {
       dirtyRef.current = true;
       setDraft(next);            // ← the point: visible on this frame
-      setStyleUndo(before);
     }
     setBusy(true);
     setError(null);
@@ -433,18 +459,11 @@ export default function DeckChunkModal({
       // not have — the screen must not claim a change that did not land.
       if (next !== draft) {
         setDraft(before);
-        setStyleUndo(null);
       }
-      setError("Couldn't apply that. Try again.");
+      setError(COPY.failEmphasis);
     }
   }
 
-  function undoStyle() {
-    if (styleUndo === null) return;
-    dirtyRef.current = true;
-    setDraft(styleUndo);
-    setStyleUndo(null);
-  }
 
   async function unlock() {
     if (busy || !onUnlockPart) return;
@@ -453,25 +472,18 @@ export default function DeckChunkModal({
     const outcome = await onUnlockPart();
     setBusy(false);
     if (outcome === "ok") {
-      onClose();
+      // DISCARD LANDS ON THE EDITOR, NOT ON THE PAGE (founder 2026-09-15,
+      // §5). It used to call onClose(), so undoing a lock also dismissed the
+      // sheet — the speaker asked to edit and was put back where they started,
+      // with the paragraph now unlocked and nothing on screen saying so. The
+      // lock step is the editor, so staying here IS the editor.
+      setUnlocked(true);
+      setStepId("lock");
       return;
     }
-    setError("Couldn't unlock this. Try again.");
+    setError(COPY.failUnlock);
   }
 
-  /* THE COACH'S OWN NOTE, AND NOTHING ELSE (founder 2026-09-15: delete the
-   * text "this makes your point easier to understand").
-   *
-   * That line was whyLine() — the machine's signed-off reason for proposing
-   * the rewrite. It is gone from this sheet: the two cards above already show
-   * what was said and what is proposed, and a sentence explaining the obvious
-   * was the last thing between the speaker and the decision.
-   *
-   * A coach_revision's note is NOT that line. It is prose a human coach wrote
-   * about these exact words, so it keeps its place; whyLine() still serves the
-   * style lane lower down. */
-  const coachNote =
-    suggestion?.source === "coach_revision" ? suggestion.coachNote ?? null : null;
   const rewriteOverlapsFlagship = Boolean(
     suggestion?.kind === "replace" &&
       suggestion.quote?.trim() &&
@@ -504,10 +516,6 @@ export default function DeckChunkModal({
    * The recording is the whole reason this reads as evidence rather than
    * flattery: the claim is about how it SOUNDED, and it is the only claim
    * this product makes that the student cannot check by reading. */
-  const isPraise =
-    suggestion?.feedbackFamily === "great_formulation" ||
-    suggestion?.device === "impeccable";
-  const praiseCues = isPraise ? praiseLines(suggestion?.cueKeys ?? []) : [];
 
   /* THE CONFIDENT VOICE CARD (founder 2026-08-15): "when it comes to
    * confident voice do the same but also display the voice game panel and ask
@@ -579,14 +587,14 @@ export default function DeckChunkModal({
           suggestion.evidence,
       );
       if (!practiceWaiting) {
-        if (!advanceAfterDecision(suggestion.id)) setFace("editor");
+        advanceStep();
       }
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
     // never took — the same rule the style apply follows.
       setAgreeValue(null);
-      setAgreeError(r.error ?? "Couldn't save that. Try again.");
+      setAgreeError(r.error ?? COPY.failResponse);
   }
 
   // Paragraph versioning boundary: after this Take's feedback is resolved,
@@ -596,7 +604,8 @@ export default function DeckChunkModal({
   // explicit commit boundary again even if it arrived already locked.
   const lockedAndSettled =
     chunk.part.locked === true && draft === chunk.part.text;
-  const showUnlock = lockedAndSettled && !hadFeedback && !!onUnlockPart;
+  const showUnlock =
+    lockedAndSettled && !hadFeedback && !!onUnlockPart && !unlocked;
 
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
   // follows the pointer continuously, then settles to one of two detents.
@@ -681,6 +690,98 @@ export default function DeckChunkModal({
     setDragHeight(null);
   }
 
+  /* ---- what each screen shows and what its one pill does ----------------- */
+  const progress = stepProgress(steps, step?.id ?? null);
+  const tokens = step?.kind === "emphasis" ? phraseTokens(draft) : [];
+  const emphasisPreview =
+    step?.kind === "emphasis" && styleSuggestion
+      ? emphasizeQuote(draft, styleSuggestion.quote)
+      : draft;
+  const reopenedClean = !hadFeedback && chunk.part.locked !== true;
+  const title = stepTitle(step?.kind ?? "lock", reopenedClean);
+
+  type FooterLink = { label: string; onClick: () => void };
+  const footer: {
+    pill: string | null;
+    icon: React.ReactNode;
+    pillDisabled?: boolean;
+    onPill?: () => void;
+    links: FooterLink[];
+  } = (() => {
+    const none = { pill: null, icon: null, links: [] as FooterLink[] };
+    if (!step) return none;
+    if (step.kind === "feedback") {
+      // Pre-answer there is no footer AT ALL: listen, then answer. A secondary
+      // action here would offer a way past the one question the screen exists
+      // to ask. Post-answer the sheet has already advanced unless a practice
+      // offer is waiting, and then Done is the way on.
+      if (!agreeSaved) return none;
+      return {
+        pill: COPY.pillDone,
+        icon: <Check className="h-4 w-4" aria-hidden />,
+        onPill: () => advanceStep(),
+        links: [],
+      };
+    }
+    if (step.kind === "praise") {
+      return {
+        pill: COPY.pillContinue,
+        icon: null,
+        onPill: () => void acknowledgePraise(),
+        links: [],
+      };
+    }
+    if (step.kind === "suggestion") {
+      return {
+        pill: COPY.pillApply,
+        icon: <Check className="h-4 w-4" aria-hidden />,
+        onPill: () => void applyImprovement(),
+        links: [
+          { label: COPY.linkKeepWording, onClick: () => void keepImprovementWording() },
+        ],
+      };
+    }
+    if (step.kind === "emphasis") {
+      const tapping = emphasisTap || !styleSuggestion;
+      return {
+        pill: COPY.pillEmphasise,
+        icon: <Sparkles className="h-4 w-4" aria-hidden />,
+        pillDisabled: tapping && phraseRun === null,
+        onPill: tapping
+          ? () => emphasiseChosen()
+          : () => void emphasiseProposed(),
+        links: tapping
+          ? [{ label: COPY.linkSkip, onClick: () => skipEmphasis() }]
+          : [
+              {
+                label: COPY.linkChooseWords,
+                onClick: () => setEmphasisTap(true),
+              },
+              { label: COPY.linkSkip, onClick: () => skipEmphasis() },
+            ],
+      };
+    }
+    // THE LOCK STEP. A settled locked paragraph reopened with nothing pending
+    // has exactly one move, and it is the inverse of the lock.
+    if (showUnlock) {
+      return {
+        pill: COPY.pillDiscard,
+        icon: <Undo2 className="h-4 w-4" aria-hidden />,
+        onPill: () => void unlock(),
+        links: [],
+      };
+    }
+    return {
+      pill: COPY.pillLock,
+      icon: <Lock className="h-4 w-4" aria-hidden />,
+      pillDisabled: draft.trim().length === 0,
+      onPill: () => void lockIn(),
+      links: [
+        { label: COPY.linkKeepEvolving, onClick: () => void keepEvolving() },
+      ],
+    };
+  })();
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
@@ -736,34 +837,48 @@ export default function DeckChunkModal({
             onClick={toggleExpanded}
             className="min-w-0 cursor-grab touch-none text-left active:cursor-grabbing"
           >
-            {kicker === null ? null : (
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                {kicker}
-              </p>
-            )}
-            <h2 className="text-[17px] font-semibold text-foreground">
+            {/* NO EYEBROW. The kind label is gone from every screen: it
+                announced the machine's read above words the speaker had not
+                yet judged. The title alone names the decision. */}
+            <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
               {title}
             </h2>
           </button>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
 
+
+        {/* THE STEP BAR. One segment per SCREEN — filled for done, dark for
+            current, light for upcoming.
+
+            AC-9: it may only ever count screens. It must never encode how many
+            problems were found or how confident the speaker sounded; a
+            four-segment bar on one paragraph beside a three-segment bar on
+            another would say exactly that, in a column, without a word. The
+            lock step is always present, so the total is "decisions in front of
+            you", never a verdict. Hidden on a one-step sheet, where a single
+            full-width segment would be decoration. */}
+        {steps.length > 1 ? (
+          <div
+            className="flex shrink-0 gap-1.5 px-5 pb-1 pt-1"
+            aria-hidden
+          >
+            {steps.map((entry, index) => (
+              <span
+                key={entry.id}
+                className={`h-1 flex-1 rounded-full ${
+                  index < progress.current
+                    ? "bg-foreground/25"
+                    : index === progress.current
+                      ? "bg-foreground"
+                      : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
+
         <div data-sheet-scroll className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
-          {/* NO INVENTORY LIST (founder 2026-09-15): "only one feedback at a
-              time. If there is remaining verbal feedback, it should come up
-              later on after the judgment so that the screen is clean."
-
-              This deliberately REVERSES the earlier rule that the inventory be
-              "shown up front so resolving item one never makes item two appear
-              as a surprise" — the founder saw the three-chip list on the
-              Confident Voice card and ruled the clean screen worth more than
-              the forewarning. Do not restore it without asking.
-
-              No sequencing is lost. `advanceAfterDecision` already moves to
-              the next unresolved item the moment one is decided, so the items
-              still arrive one after another in the same sheet; the list was
-              only ever a preview of that queue, plus a way to jump around it
-              out of order. */}
           {coachReviewStatus ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
               {coachReviewStatus === "pending_coach_review"
@@ -773,557 +888,264 @@ export default function DeckChunkModal({
                   : "Not confirmed"}
             </p>
           ) : null}
-          {face === "review" && suggestion ? (
-            <>
-              {!isConfidentVoice ? (
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {isPraise ? "Exact formulation" : "What you said"}
-                  </p>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
-                    {suggestion.quote || chunk.part.text}
-                  </p>
-                </div>
+
+          {/* ---- FEEDBACK · the one qualitative question ------------------ */}
+          {step.kind === "feedback" && suggestion ? (
+            <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+              {suggestion.snippetAudioRef ? (
+                <MediaPlayer
+                  src={suggestion.snippetAudioRef}
+                  startOffsetMs={suggestion.startOffsetMs ?? 0}
+                  durationMs={suggestion.durationMs ?? 0}
+                />
               ) : null}
-              {isPraise || isConfidentVoice ? null : (
-                <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      {suggestion.kind === "replace" ? "Clearer version" : "Suggested"}
-                    </p>
-                    {/* THE PENCIL IS "EDIT MYSELF" (founder 2026-09-15: "the
-                        pencil replaces Edit myself; and the pencil is in the
-                        top right corner of the orange box").
-                        Same handler, same third decision — it just stops
-                        competing with the accept for attention at the bottom
-                        of the sheet, and now sits on the words it edits. The
-                        aria-label keeps the decision named for assistive tech
-                        and for the e2e tier, which asserts all three. */}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void editImprovementMyself()}
-                      aria-label="Edit myself"
-                      className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                    >
-                      <Pencil className="h-4 w-4" aria-hidden />
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
-                    {suggestion.kind === "bold"
-                      ? suggestion.quote || chunk.part.text
-                      : (suggestion.proposedText ?? "")}
-                  </p>
-                </div>
-              )}
-              {isConfidentVoice ? (
-                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
-                  {suggestion.snippetAudioRef ? (
-                    <MediaPlayer
-                      src={suggestion.snippetAudioRef}
-                      startOffsetMs={suggestion.startOffsetMs ?? 0}
-                      durationMs={suggestion.durationMs ?? 0}
-                    />
-                  ) : null}
-                  {mlc3FirstClientPresentationEnabled &&
-                  suggestion.firstClientService ? (
-                    <Mlc3FirstClientPractice suggestion={suggestion} />
-                  ) : !agreeSaved ? (
-                    <ConfidenceLabelChips
-                      question="Does this sound confident to you?"
-                      value={agreeValue}
-                      disabled={agreeSaving}
-                      saving={agreeSaving}
-                      error={agreeError}
-                      ownerWording
-                      onPick={(value) => void sendAgreement(value)}
-                    />
-                  ) : agreeValue === "no" ? (
-                    <>
-                      <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                        {CONFIDENT_VOICE_NO}
-                      </p>
-                      {suggestion.practiceExercise &&
-                      suggestion.snippetId &&
-                      suggestion.evidence ? (
-                        <ConfidentVoicePractice
-                          snippetId={suggestion.snippetId}
-                          offer={suggestion.practiceExercise}
-                          evidence={suggestion.evidence}
-                          originalUserAnswer="no"
-                        />
-                      ) : null}
-                    </>
-                  ) : agreeValue === "yes" ? (
-                    <>
-                      <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                        {CONFIDENT_VOICE_WHY}
-                      </p>
-                      {praiseCues.length > 0 ? (
-                        <>
-                      <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                        {PRAISE_CUE_LEAD}
-                      </p>
-                      <ul className="flex flex-col gap-1.5">
-                        {praiseCues.map((line) => (
-                          <li
-                            key={line}
-                            className="text-[14px] leading-snug text-foreground"
-                          >
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
-                        </>
-                      ) : null}
-                      <p className="text-[13px] text-muted-foreground">
-                        {AGREE_THANKS}
-                      </p>
-                      {suggestion.practiceExercise &&
-                      suggestion.snippetId &&
-                      suggestion.evidence ? (
-                        <ConfidentVoicePractice
-                          snippetId={suggestion.snippetId}
-                          offer={suggestion.practiceExercise}
-                          evidence={suggestion.evidence}
-                          originalUserAnswer="yes"
-                        />
-                      ) : null}
-                    </>
-                  ) : (
-                    <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      {AGREE_THANKS} This stays a calibration note, not a styling decision.
-                    </p>
-                  )}
-                </div>
-              ) : isPraise ? (
-                <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/40 p-4">
-                  <p className="text-[15px] font-medium leading-relaxed text-foreground">
-                    {suggestion.tentative
-                      ? "This may be one of the strongest formulations in this Take."
-                      : PRAISE_LEAD}
-                  </p>
-                  <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5">
-                    <p className="text-[15px] font-semibold leading-relaxed text-primary">
-                      {suggestion.quote || chunk.part.text}
-                    </p>
-                  </div>
-                  {praiseCues.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {praiseCues.map((line) => (
-                        <li key={line} className="text-[14px] leading-snug text-foreground">
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-              {coachNote ? (
-                <p className="px-1 text-[13px] leading-snug text-muted-foreground">
-                  {coachNote}
-                </p>
-              ) : null}
-              {rewriteOverlapsFlagship && rewriteCollisionConfirmed ? (
-                <div
-                  role="alert"
-                  className="rounded-2xl border border-primary/35 bg-primary/[0.06] p-4"
-                >
-                  <p className="text-[14px] font-semibold text-foreground">
-                    This rewrite overlaps an anchor you accepted.
-                  </p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                    Applying it removes the outdated orange anchor. The clearer
-                    sentence will use a neutral root phrase until you choose a
-                    new flagship.
-                  </p>
-                </div>
-              ) : null}
-              {coachSnippetId && (!isConfidentVoice || agreeSaved) ? (
-                <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
-              ) : null}
-            </>
-          ) : face === "root" ? (
-            <div className="flex flex-col gap-4">
-              <p className="text-[15px] leading-relaxed text-foreground">
-                This paragraph is now locked: these exact words survive the next
-                Take. Do you also want one short phrase to appear in orange while
-                you record?
-              </p>
-              {rootProposal ? (
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Suggested exact phrase
-                  </p>
-                  <p className="mt-2 text-[17px] font-semibold leading-relaxed text-primary">
-                    {rootProposal.text}
-                  </p>
-                </div>
-              ) : (
-                <p className="rounded-2xl border border-border bg-muted/40 p-4 text-[14px] leading-relaxed text-muted-foreground">
-                  No unambiguous short phrase was found. Choose exact words from
-                  the paragraph or skip this step.
-                </p>
-              )}
-              {choosingRoot ? (
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <label
-                    className="text-[12px] font-medium text-foreground"
-                    htmlFor="custom-root-phrase"
-                  >
-                    Copy exact words from this paragraph
-                  </label>
-                  <input
-                    id="custom-root-phrase"
-                    value={customRoot}
-                    onChange={(event) => {
-                      setCustomRoot(event.target.value);
-                      setError(null);
-                    }}
-                    className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-primary"
-                  />
-                  <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                    It must occur exactly once. We never guess which repeated
-                    words you meant.
-                  </p>
-                </div>
+              {mlc3FirstClientPresentationEnabled &&
+              suggestion.firstClientService ? (
+                <Mlc3FirstClientPractice suggestion={suggestion} />
+              ) : !agreeSaved ? (
+                <ConfidenceLabelChips
+                  question={COPY.confidenceQuestion}
+                  value={agreeValue}
+                  disabled={agreeSaving}
+                  saving={agreeSaving}
+                  error={agreeError}
+                  ownerWording
+                  onPick={(value) => void sendAgreement(value)}
+                />
+              ) : suggestion.practiceExercise &&
+                suggestion.snippetId &&
+                suggestion.evidence ? (
+                /* The only thing left on this screen after an answer. The
+                   thank-you copy is gone (founder: drop the Done step), but a
+                   waiting practice offer still has to be reachable. */
+                <ConfidentVoicePractice
+                  snippetId={suggestion.snippetId}
+                  offer={suggestion.practiceExercise}
+                  evidence={suggestion.evidence}
+                  originalUserAnswer={agreeValue === "no" ? "no" : "yes"}
+                />
               ) : null}
             </div>
-          ) : (
+          ) : null}
+
+          {/* ---- GOOD JOB · read, not rated ------------------------------- */}
+          {step.kind === "praise" && suggestion ? (
             <>
-              {acceptedRewrite ? (
-                <div
-                  role="status"
-                  className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-4"
-                >
-                  <p className="text-[14px] font-semibold text-foreground">
-                    Keep this wording for your next Take?
+              <div className="rounded-2xl border border-border p-4">
+                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                  {COPY.cardWhatYouSaid}
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+                  {suggestion.quote || chunk.part.text}
+                </p>
+              </div>
+              <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+                <span className="absolute right-4 top-4 text-pending" aria-hidden>
+                  <ThumbsUp className="h-4 w-4" />
+                </span>
+                <p className="pr-8 text-[15px] leading-relaxed text-foreground">
+                  {suggestion.tentative
+                    ? "This may be one of the strongest formulations in this Take."
+                    : PRAISE_LEAD}
+                </p>
+              </div>
+            </>
+          ) : null}
+
+          {/* ---- SUGGESTION · what you said, and the clearer version ------ */}
+          {step.kind === "suggestion" && suggestion ? (
+            <>
+              <div className="rounded-2xl border border-border p-4">
+                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                  {COPY.cardWhatYouSaid}
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+                  {suggestion.quote || chunk.part.text}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                    {COPY.cardClearerVersion}
                   </p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                    Lock it below, then choose the short phrase that should
-                    appear in orange while you record.
-                  </p>
+                  {/* THE PENCIL IS "EDIT MYSELF" — same handler, same
+                      edit_myself response, sitting on the words it edits
+                      instead of competing with the accept at the bottom. */}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void editImprovementMyself()}
+                    aria-label="Edit myself"
+                    className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-pending transition-colors hover:text-foreground disabled:opacity-50"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden />
+                  </button>
                 </div>
-              ) : null}
+                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+                  {suggestion.kind === "bold"
+                    ? suggestion.quote || chunk.part.text
+                    : (suggestion.proposedText ?? "")}
+                </p>
+              </div>
+            </>
+          ) : null}
+
+          {/* ---- EMPHASIS · the only place the orange is decided ---------- */}
+          {step.kind === "emphasis" ? (
+            emphasisTap || !styleSuggestion ? (
+              /* TAP TO SELECT. Reached by "Choose different words", or opened
+                 into directly when nothing was proposed. The tapped words
+                 preview in --primary because that is how a rooting phrase
+                 renders while recording — a preview, not a selection colour. */
+              <div className="rounded-2xl border border-border px-3 py-4">
+                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                  {COPY.cardTapWords}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-0.5">
+                  {tokens.map((token, index) => {
+                    const picked =
+                      phraseRun !== null &&
+                      index >= phraseRun.from &&
+                      index <= phraseRun.to;
+                    return (
+                      <button
+                        key={`${token.start}-${token.text}`}
+                        type="button"
+                        aria-pressed={picked}
+                        onClick={() =>
+                          setPhraseRun(nextSelection(phraseRun, index))
+                        }
+                        className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${
+                          picked
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {token.text}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* PROPOSED. The paragraph with the emphasis already applied, so
+                 the speaker confirms something they can see rather than
+                 agreeing to a description of it. */
+              <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                    {COPY.cardWithEmphasis}
+                  </p>
+                  <span className="-mt-0.5 shrink-0 text-pending" aria-hidden>
+                    <Sparkles className="h-4 w-4" />
+                  </span>
+                </div>
+                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+                  <RichText text={emphasisPreview} />
+                </p>
+              </div>
+            )
+          ) : null}
+
+          {/* ---- LOCK · the same last question on every path -------------- */}
+          {step.kind === "lock" ? (
+            <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+              <span className="absolute right-4 top-4 text-pending" aria-hidden>
+                <Lock className="h-4 w-4" />
+              </span>
               {acceptedRewrite && onUndoAccept ? (
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void undoAcceptedRewrite()}
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="mb-2 flex items-center gap-1.5 text-[13px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                 >
                   <Undo2 className="h-3.5 w-3.5" aria-hidden />
                   Undo rewrite
                 </button>
               ) : null}
-              {/* THE CHUNK'S WORDS — a marker-AWARE field, never a raw one.
-                  This was a plain textarea, which printed the document's
-                  marker grammar at the reader: apply an emphasis, reopen the
-                  chunk, and the box said "**changed everything**". FE-1 is
-                  absolute — no character of that grammar ever reaches a
-                  reader — and this modal is the only way into the text now,
-                  so the leak sat on the one surface that cannot have it.
-                  MarkedEditor renders the SAME styled spans the deck does and
-                  serializes back byte-for-byte (a legacy ==x== the student
-                  never touched comes back as ==x==), so opening a chunk and
-                  closing it cannot rewrite the document — which is L1: their
-                  take, verbatim. No toolbar: see the prop's note. */}
-              <MarkedEditor
-                value={draft}
-                onChange={(next) => {
-                  dirtyRef.current = true;
-                  setDraft(next);
-                }}
-                toolbar={false}
-                /* 16px IS A FUNCTIONAL FLOOR ON iOS, NOT A TYPE CHOICE
-                 * (2026-08-15). This was 15px, and mobile Safari force-zooms
-                 * the viewport whenever a focusable editable is under 16px —
-                 * so tapping into the chunk to edit it zoomed the whole page,
-                 * and the deck behind the modal came back at the wrong scale.
-                 * MarkedEditor's own default (17px) was already clear of it;
-                 * only this override dipped below. Do not take it back under
-                 * 16px without also solving the zoom. */
-                textSizeClass="text-[16px] leading-relaxed"
-                /* NEUTRAL, NOT AMBER (founder 2026-09-15): "this should not be
-                 * there cause it is not the confidence feedback."
-                 *
-                 * This field was wearing `--pending`, and globals.css defines
-                 * that token as "the ONE signal that feedback is waiting on a
-                 * chunk". So the editor was painting "feedback is waiting"
-                 * across the speaker's own words on a sheet whose kicker reads
-                 * NO FEEDBACK PENDING — the amber said the exact opposite of
-                 * the text above it, and after a Confident Voice card it read
-                 * as another feedback card holding a machine's words rather
-                 * than an editor holding theirs.
-                 *
-                 * Amber stays on the review face, where feedback really is
-                 * pending. Here the field is just a field. */
-                frameClass="border border-border bg-background focus:border-foreground"
-              />
-
-              {/* THE COACH (slice 4) — on the locked face too: a locked
-                  chunk has no proposal left, and the coach's message is
-                  still about these words. */}
-              {coachSnippetId ? (
-                <DeckCoachFeedback arcId={arcId} snippetId={coachSnippetId} />
-              ) : null}
-
-              {/* Legacy post-lock emphasis remains reversible for records that
-                  already contain it. New orange roots use the explicit root
-                  choice immediately after Lock for next Take. */}
-              {styleSuggestion && onApplyStyle ? (
-                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-                  <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                    Style
-                  </p>
-                  <p className="text-[14px] leading-relaxed text-foreground">
-                    Bolden{" "}
-                    <span className="font-semibold">
-                      &ldquo;{styleSuggestion.quote}&rdquo;
-                    </span>
-                  </p>
-                  {whyLine(styleSuggestion) ? (
-                    <p className="text-[13px] leading-snug text-muted-foreground">
-                      {whyLine(styleSuggestion)}
-                    </p>
-                  ) : null}
-                  {styleUndo === null ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void applyStyle()}
-                      className="self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      Apply emphasis
-                    </button>
-                  ) : (
-                    /* Revertible, as asked. Offered only while the pre-apply
-                       words are still held — after a lock-in or a reopen there
-                       is nothing local to go back to, and a button that
-                       pretended otherwise would be the "nothing happens" bug
-                       in a new coat. */
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={undoStyle}
-                      className="inline-flex items-center gap-1.5 self-start rounded-full border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-                    >
-                      <Undo2 className="h-3.5 w-3.5" aria-hidden />
-                      Undo emphasis
-                    </button>
-                  )}
-                </div>
-              ) : null}
-
-              {/* NO PROPOSALS FROM EARLIER ITERATIONS (founder 2026-08-15:
-                  "I am not sure that showing the suggestions from the past
-                  iterations is a good idea … so in the modal itself there
-                  should be no proposal from earlier iteration at all —
-                  effectively delete that").
-
-                  It listed every decided proposal whose words matched this
-                  chunk, with a "Use this wording" link that loaded it into the
-                  draft. Two things were wrong with it in practice. The entries
-                  were routinely IDENTICAL to the text already on screen (a
-                  proposal the student accepted IS the current wording), so the
-                  section repeated the chunk back at them under a heading that
-                  promised alternatives. And the link only rendered when the
-                  row carried `proposedText`, so a history of quote-only rows
-                  showed text that could not be clicked at all — the founder
-                  hit exactly that.
-
-                  The deeper reason it is gone rather than fixed: a settled
-                  chunk is settled. Re-offering an old wording inside the SAME
-                  iteration invites re-litigating a decision the student
-                  already made, which is the opposite of what locking in is
-                  for. A better wording arriving from a LATER take is a
-                  different thing and belongs on the page as a fresh proposal,
-                  not in a history drawer.
-
-                  `state.history` (the chunk's decided proposals) keeps
-                  flowing from the host — the data is not the problem and a
-                  future surface may want it. Nothing renders it here. */}
-            </>
-          )}
-
-          {error ? (
-            <p className="text-[12px] text-destructive">{error}</p>
+              {chunk.part.locked === true && !hadFeedback ? (
+                <p className="pr-8 text-[15px] leading-relaxed text-foreground">
+                  <RichText text={draft} />
+                </p>
+              ) : (
+                /* Still the editor. The design draws this step as a card, but
+                   editing has to stay reachable somewhere and a separate
+                   screen for it would put two decisions back on one path. */
+                <MarkedEditor
+                  value={draft}
+                  onChange={(next) => {
+                    dirtyRef.current = true;
+                    setDraft(next);
+                  }}
+                  toolbar={false}
+                  /* 16px IS A FUNCTIONAL FLOOR ON iOS: mobile Safari
+                     force-zooms the viewport for a focusable editable under
+                     16px, so tapping in zoomed the page and the deck behind
+                     came back at the wrong scale. */
+                  textSizeClass="text-[16px] leading-relaxed"
+                  frameClass="border-0 bg-transparent pr-6"
+                />
+              )}
+            </div>
           ) : null}
+
+          {/* THE COACH NOTE CARD IS GONE (founder 2026-09-15, §6) — from
+              every screen, not just this one. The coach REVIEW STATUS pill
+              above stays: it says whether a human has looked, which is a
+              different thing from putting their prose on a decision screen.
+              DeckCoachFeedback itself is untouched and still mounted by the
+              coach's own surfaces. */}
+
           <RootingPhraseQualificationActions
             state={rootingPhraseRoutingState}
             busy={busy}
           />
+
+          {/* ONE MESSAGE STYLE. A plain bordered box, grey, normal weight, no
+              tint — the one exception being a failure, which keeps red text in
+              the same box because a missed save costs the speaker their
+              edit. */}
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-2xl border border-border px-4 py-3 text-[13px] leading-snug text-destructive"
+            >
+              {error}
+            </p>
+          ) : null}
         </div>
 
-        {face === "editor" && lockedAndSettled && !hadFeedback && !onUnlockPart ? (
-          // A host that cannot unlock (no callback wired) keeps the 08-12
-          // behaviour: a settled locked chunk shows no buttons rather than a
-          // Discard that would do nothing — the exact no-op this replaced.
-          <div className="shrink-0 pb-5" />
-        ) : (
-          <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-            {face === "review" && suggestion && isConfidentVoice && !agreeSaved ? (
-              // Step one intentionally has no secondary action: listen, then
-              // answer Yes or No. The explanation appears only afterwards.
-              <div className="col-span-2" />
-            ) : face === "review" && suggestion && isConfidentVoice ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void resolveObservedFeedback(agreeValue ?? "not_sure")}
-                className="col-span-2 flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Check className="h-4 w-4" aria-hidden />
-                )}
-                Done
-              </button>
-            ) : face === "review" && suggestion && isPraise ? (
-              <div className="col-span-2 grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void resolveObservedFeedback("useful")}
-                  className="flex items-center justify-center rounded-full bg-foreground px-3 py-3 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-                >
-                  Useful
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void resolveObservedFeedback("not_useful")}
-                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  Not useful
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void resolveObservedFeedback("not_sure")}
-                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  Not sure
-                </button>
-              </div>
-            ) : face === "review" && suggestion ? (
-              <div className="col-span-2 grid gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void applyImprovement()}
-                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Check className="h-4 w-4" aria-hidden />
-                  )}
-                  Apply suggestion
-                </button>
-                {/* ONE CTA, ONE QUIET ACTION UNDER IT (founder 2026-09-15):
-                    "apply as a black CTA and small not CTA keep wording … keep
-                    the keep wording without the stroke on the button and
-                    stacked below the CTA; not next to each other."
-
-                    This footer used to be three bordered pills, which read as
-                    three competing buttons and made declining a suggestion look
-                    as weighty as taking it. Edit myself has moved to the pencil
-                    on the card above, so only the accept is shaped like an
-                    action and the decline sits plainly beneath it. */}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void keepImprovementWording()}
-                  className="flex items-center justify-center rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                >
-                  Keep wording
-                </button>
-              </div>
-            ) : face === "root" ? (
-              <div className="col-span-2 grid gap-2">
-                {choosingRoot ? (
-                  <button
-                    type="button"
-                    disabled={busy || customRootSpan() === null}
-                    onClick={() => void saveRoot(customRootSpan())}
-                    className="rounded-full bg-foreground px-5 py-3 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-                  >
-                    Use these exact words
-                  </button>
-                ) : rootProposal ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void saveRoot(rootProposal)}
-                    className="rounded-full bg-primary px-5 py-3 text-[14px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                  >
-                    Make this phrase orange
-                  </button>
-                ) : null}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setChoosingRoot(true)}
-                    className="rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Choose different words
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void saveRoot(null)}
-                    className="rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Skip orange phrase
-                  </button>
-                </div>
-              </div>
-            ) : showUnlock ? (
-              // LOCKED AND UNTOUCHED → the only move is to undo the lock.
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void unlock()}
-                className="col-span-2 flex items-center justify-center gap-2 rounded-full border border-foreground/20 px-5 py-3 text-[14px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Undo2 className="h-4 w-4" aria-hidden />
-                )}
-                Discard
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={busy || draft.trim().length === 0}
-                  onClick={() => void lockIn()}
-                  className="flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-3 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Lock className="h-4 w-4" aria-hidden />
-                  )}
-                  Lock for next Take
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || draft.trim().length === 0}
-                  onClick={() => void keepEvolving()}
-                  className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  Keep evolving
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        {/* ---- ONE DECISION PER FOOTER ---------------------------------- */}
+        {/* One black pill, and zero or more stacked grey links beneath it.
+            Never two buttons side by side; every pill is the verb of its own
+            screen, so the screens cannot read as interchangeable. */}
+        <div className="flex shrink-0 flex-col gap-0.5 px-5 pb-5 pt-1">
+          {footer.pill ? (
+            <button
+              type="button"
+              disabled={footer.pillDisabled || busy}
+              onClick={footer.onPill}
+              className="flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : footer.icon }
+              {footer.pill}
+            </button>
+          ) : null}
+          {footer.links.map((link) => (
+            <button
+              key={link.label}
+              type="button"
+              disabled={busy}
+              onClick={link.onClick}
+              className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

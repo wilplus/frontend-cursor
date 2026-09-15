@@ -12,6 +12,7 @@ import {
   praiseLines,
 } from "./trackedChangeWhy";
 import { CONFIDENCE_QUESTION } from "@/services/api/stateRatings";
+import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PRAISE LANE (founder 2026-08-15)                                       */
@@ -123,18 +124,28 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
   it("plays the recording of the moment", () => {
     // The claim is about how it SOUNDED — the one claim this product makes
     // that a student cannot check by reading.
-    expect(MODAL).toMatch(/isConfidentVoice \? \([\s\S]{0,900}MediaPlayer/);
+    expect(MODAL).toMatch(
+      /step\.kind === "feedback" && suggestion \? \([\s\S]{0,600}MediaPlayer/,
+    );
   });
 
-  it("records praise usefulness without turning praise into styling", () => {
-    expect(MODAL).toMatch(/Useful/);
-    expect(MODAL).toMatch(/Not useful/);
-    expect(MODAL).toMatch(/Not sure/);
+  it("is read, not rated (founder 2026-09-15)", () => {
+    // The rating is gone: a black CTA on a question about your own praise
+    // makes disagreeing feel like refusing. But the WRITE stays, because the
+    // write is what marked the item decided — without it praise is re-offered
+    // every time the paragraph opens.
+    expect(MODAL).not.toMatch(/"Not useful"/);
+    expect(MODAL).not.toMatch(/resolveObservedFeedback/);
+    expect(MODAL).toMatch(/recordFeedbackResponse\("acknowledged"\)/);
+    expect(MODAL).toMatch(/pillContinue/);
     expect(MODAL).not.toMatch(/Use as flagship/);
   });
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
-    expect(MODAL).toMatch(/\{isPraise \|\| isConfidentVoice \? null : \(/);
+    // Praise has its own step now; the rewrite cards render only on theirs.
+    expect(MODAL).toMatch(/step\.kind === "praise" && suggestion \? \(/);
+    expect(MODAL).toMatch(/step\.kind === "suggestion" && suggestion \? \(/);
+    expect(MODAL).toMatch(/cardClearerVersion/);
   });
 
   it("does not stack a generic reason line on top of the praise", () => {
@@ -145,38 +156,46 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     // there is no generic reason line left anywhere to stack.
     expect(MODAL).not.toMatch(/\{rationale\b/);
     expect(MODAL).not.toMatch(/whyLine\(suggestion\)/);
-    // What remains in that slot is a human coach's own note, which is prose
-    // about these exact words and never the generic line.
-    expect(MODAL).toMatch(/\{coachNote \? \(/);
-    expect(MODAL).toMatch(/source === "coach_revision"/);
+    // The coach note card went with it (§6). The coach REVIEW STATUS pill
+    // stays — a different thing, and still on every screen.
+    expect(MODAL).not.toMatch(/coachNote/);
+    expect(MODAL).toMatch(/coachReviewStatus \? \(/);
   });
 });
 
 describe("the Confident Voice card asks, and asks honestly", () => {
   it("goes FULL SCREEN, without a gesture", () => {
-    // It carries a player, an explanation and a question now. A question
-    // arriving half below the fold gets answered by whoever scrolls, which is
-    // a bias in which moments reach the album rather than a layout nit.
+    // A question arriving half below the fold gets answered by whoever
+    // scrolls, which is a bias in which moments reach the album rather than a
+    // layout nit.
     expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
   });
 
   it("renders the five-choice immutable self-report", () => {
-    expect(MODAL).toContain("Does this sound confident to you?");
+    // The question moved into idealEditCopy with the rest of the sheet's
+    // strings (LIVE LOOP: a sign-off is one file to read), so the modal
+    // references it rather than spelling it.
+    expect(MODAL).toMatch(/question=\{COPY\.confidenceQuestion\}/);
+    expect(COPY.confidenceQuestion).toBe("Does this sound confident to you?");
     expect(MODAL).toMatch(/ConfidenceLabelChips/);
   });
 
-  it("asks immediately after playback and reveals reasons afterwards", () => {
+  it("asks immediately after playback, and nothing else is on the screen", () => {
+    // The explanation block is gone (founder 2026-09-15, §6): listen, then
+    // answer. Answering advances on its own — there is no thank-you screen
+    // and no Done step behind it.
     const player = MODAL.indexOf("MediaPlayer");
-    const question = MODAL.indexOf("Does this sound confident to you?");
-    const explanation = MODAL.indexOf("CONFIDENT_VOICE_WHY", question);
+    const question = MODAL.indexOf("confidenceQuestion");
     expect(player).toBeGreaterThan(-1);
     expect(question).toBeGreaterThan(player);
-    expect(explanation).toBeGreaterThan(question);
+    expect(MODAL).not.toMatch(/CONFIDENT_VOICE_WHY|AGREE_THANKS/);
   });
 
-  it("acknowledges No without contradicting the speaker", () => {
-    expect(MODAL).toMatch(/agreeValue === "no"/);
-    expect(MODAL).toContain("CONFIDENT_VOICE_NO");
+  it("keeps the No copy available, unshown, and still neutral", () => {
+    // The card no longer renders it, but the string is the founder's and the
+    // rule it encodes outlives this layout: an answer of "no" is never argued
+    // with.
+    expect(MODAL).not.toContain("CONFIDENT_VOICE_NO");
     expect(CONFIDENT_VOICE_NO).toBe("Thanks for letting us know.");
     expect(CONFIDENT_VOICE_NO).not.toMatch(/confident|learn|voice/i);
   });

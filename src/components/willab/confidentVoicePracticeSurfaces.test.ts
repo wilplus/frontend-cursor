@@ -11,21 +11,23 @@ const coach = read("src/components/willab/CoachConfidencePracticeReview.tsx");
 const firstClient = read("src/components/willab/Mlc3FirstClientPractice.tsx");
 const practiceFlow = read("src/components/willab/usePracticeFlow.ts");
 const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
-const heading = read("src/components/willab/sheetHeading.ts");
+const steps = read("src/lib/willab/chunkSteps.ts");
 
 describe("Confident Voice micro-practice journey fences", () => {
   it("stays hidden until the owner answers, then supports either answer", () => {
-    // The lane predicate moved into sheetHeading.ts on 2026-09-15 so the modal
-    // and the bare Confident Voice header read the SAME definition of which
-    // lane an item belongs to. Still one definition, just not here any more.
-    expect(heading).toContain('item.feedbackFamily === "confident_voice"');
-    expect(heading).toContain('item.source === "confident_voice"');
+    // The lane predicate lives beside the ladder that sorts it first
+    // (chunkSteps.ts, 2026-09-15), so the ordering rule and the card's own
+    // render read the SAME definition. Still one definition, not here.
+    expect(steps).toContain('item.feedbackFamily === "confident_voice"');
+    expect(steps).toContain('item.source === "confident_voice"');
     expect(modal).toContain("isConfidentVoiceFeedback(suggestion)");
     expect(modal).toContain('!agreeSaved ?');
-    expect(modal).toContain('agreeValue === "no" ?');
     expect(modal).toContain('<ConfidentVoicePractice');
-    expect(modal).toContain('originalUserAnswer="no"');
-    expect(modal).toContain('originalUserAnswer="yes"');
+    // Both answers still reach the offer. Since the ladder dropped the Done
+    // step (2026-09-15) the offer is the ONLY thing left on the post-answer
+    // screen, and it is one expression rather than two branches — but it must
+    // still carry the speaker's actual answer, not a default.
+    expect(modal).toContain('originalUserAnswer={agreeValue === "no" ? "no" : "yes"}');
     expect(practice).toContain("offer.yesIntroduction");
     expect(practice).toContain("offer.noIntroduction");
     expect(practice).toContain("originalUserAnswer,");

@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
+import type { RootPhraseSpan } from "@/services/api/partLock";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
@@ -108,7 +109,9 @@ const props = {
   onKeepMine: vi.fn(noop),
   onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
   onKeepEvolving: vi.fn(async () => "ok" as const),
-  onSetRootPhrase: vi.fn(noop),
+  // Typed so the mock records its argument: the promotion test needs to read
+  // the span that was stored, not merely that something was.
+  onSetRootPhrase: vi.fn(async (_phrase: RootPhraseSpan | null) => true),
   onClose: vi.fn(),
 };
 
@@ -146,10 +149,19 @@ function buttonLabels(): string[] {
   });
 }
 
-/** Click the button carrying exactly this label, and flush what it starts. */
+/** Click the button carrying exactly this label, and flush what it starts.
+ *
+ *  The sheet's TITLE is itself a button (it doubles as the drag grabber), so
+ *  on the lock step there are two elements reading "Lock" and the naive match
+ *  hits the grabber — which toggles the detent and decides nothing. Skipping
+ *  the grabber is the difference between testing the pill and testing the
+ *  sheet's height.
+ */
 async function click(label: string) {
   const button = Array.from(container.querySelectorAll("button")).find(
-    (b) => (b.textContent ?? "").trim() === label,
+    (b) =>
+      (b.textContent ?? "").trim() === label &&
+      !b.hasAttribute("data-sheet-grabber"),
   );
   if (!button) throw new Error(`no button labelled "${label}"`);
   await act(async () => {
@@ -157,19 +169,21 @@ async function click(label: string) {
   });
 }
 
+/** Open the sheet on ONE lane.
+ *
+ *  Since 2026-09-15 the ladder sorts confidence to the front whatever the
+ *  payload order, so seeding the whole inventory and expecting to land on the
+ *  rewrite screen no longer works — and should not. A per-lane test therefore
+ *  hands the sheet exactly the item it is about; ordering has its own test
+ *  below, with the whole inventory. */
 async function render(initial: DocumentSuggestion) {
   await act(async () => {
     root.render(
       createElement(DeckChunkModal, {
         ...props,
-        // The deck opens on the first of the chunk's pending ids; a test that
-        // opens on another item puts that id first.
         state: chunkStateFor(
-          {
-            ...chunk(),
-            pendingIds: [initial.id, ...inventory.filter((s) => s.id !== initial.id).map((s) => s.id)],
-          },
-          { document: TEXT, suggestions: inventory },
+          { ...chunk(), pendingIds: [initial.id] } as DeckChunk,
+          { document: TEXT, suggestions: [initial] },
         ),
       }),
     );
@@ -206,19 +220,45 @@ describe("DeckChunkModal — F1 net", () => {
     expect(text).toContain("Clearer version");
     expect(text).toContain(rewrite.proposedText!);
     const labels = buttonLabels();
-    expect(labels).toContain("Apply suggestion");
+    // One pill, the verb of this screen. "Edit myself" is the pencil on the
+    // Clearer version card, named for assistive tech by its aria-label.
+    expect(labels).toContain("Apply");
     expect(labels).toContain("Edit myself");
     expect(labels).toContain("Keep wording");
+    // Never two buttons side by side: the decline is a grey link under the
+    // pill, and there is no third competing action.
+    expect(labels).not.toContain("Apply suggestion");
   });
 
-  it("the praise lane has nothing to decide: no Apply, no Keep wording", async () => {
+  it("the praise lane is read, not rated: one Continue and nothing to weigh", async () => {
+    // Founder 2026-09-15. A black CTA on a question about your own praise
+    // does not merely bias the answer — it makes disagreeing feel like
+    // refusing. So the rating is gone and the screen is titled Good job.
     const text = await render(praise);
+    expect(text).toContain("Good job");
     expect(text).toContain(praise.quote);
     expect(text).toContain("You said this one really well.");
     const labels = buttonLabels();
-    expect(labels).not.toContain("Apply suggestion");
-    expect(labels).not.toContain("Keep wording");
-    expect(labels).toContain("Useful");
+    expect(labels).toContain("Continue");
+    for (const gone of ["Useful", "Not useful", "Apply", "Keep wording"]) {
+      expect(labels, gone).not.toContain(gone);
+    }
+  });
+
+  it("Continue still WRITES, or praise is offered again forever", async () => {
+    // The rating was what marked the item decided. Removing it without
+    // replacing the write would re-offer this praise every time the paragraph
+    // is opened — so Continue records an acknowledgement instead of a verdict.
+    const { saveTakeFeedbackResponse } = await import(
+      "@/services/api/takeFeedback"
+    );
+    const saved = vi.mocked(saveTakeFeedbackResponse);
+    saved.mockClear();
+    await render(praise);
+    await click("Continue");
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(saved.mock.calls[0][0].response).toBe("acknowledged");
+    expect(saved.mock.calls[0][0].feedbackId).toBe(praise.id);
   });
 
   /* ------------------------------------------------------------------ */
@@ -281,9 +321,9 @@ describe("DeckChunkModal — F1 net", () => {
       );
     });
 
-    // Walk the whole queue by deciding whatever is on screen. With the chips
-    // gone this auto-advance is the ONLY route to the next item, so the walk
-    // doubles as proof that the queue still advances without them.
+    // Walk the whole ladder by deciding whatever is on screen. The walk
+    // doubles as proof that the queue advances on its own, which is the only
+    // route between steps now.
     const decided: string[] = [];
     for (let step = 0; step < 6; step += 1) {
       const text = container.textContent ?? "";
@@ -296,7 +336,7 @@ describe("DeckChunkModal — F1 net", () => {
         await click("Keep wording");
       } else if (text.includes("You said this one really well.")) {
         decided.push("great_formulation");
-        await click("Useful");
+        await click("Continue");
       } else {
         break;
       }
@@ -426,5 +466,144 @@ describe("DeckChunkModal — F1 net", () => {
     const ratedIds = saved.mock.calls.map(([arg]) => arg.feedbackId);
     expect(ratedIds).not.toContain(second.id);
     expect(new Set(ratedIds)).toEqual(new Set([confidentVoice.id]));
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  THE LADDER (founder 2026-09-15)                                            */
+/*                                                                            */
+/*  One decision per screen, ending at the lock. These cover the four          */
+/*  behaviours the handoff named, each of which is a thing that would fail     */
+/*  silently: an order inherited from the payload, a phrase asked for twice, a */
+/*  Skip that quietly becomes an anchor, and a Discard that dismisses the      */
+/*  sheet instead of opening the editor.                                      */
+/* -------------------------------------------------------------------------- */
+
+const emphasis = suggestion({
+  id: "s-style",
+  feedbackFamily: "rewrite_clarity",
+  kind: "bold",
+  quote: "the team is ready",
+  takeSessionId: "take-1",
+});
+
+async function renderLadder(over: Record<string, unknown> = {}) {
+  await act(async () => {
+    root.render(
+      createElement(DeckChunkModal, {
+        ...props,
+        state: {
+          ...chunkStateFor(
+            { ...chunk(), pendingIds: inventory.map((s) => s.id) } as DeckChunk,
+            { document: TEXT, suggestions: inventory },
+          ),
+          ...over,
+        },
+      }),
+    );
+  });
+}
+
+describe("the ladder", () => {
+  it("asks the confidence question first, whatever order the payload used", async () => {
+    // The payload here lists the rewrite first. Confidence is a judgement
+    // about the speaker's own delivery; asking it after a rewrite proposal
+    // makes them judge a recording they have just been told to change.
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [rewrite.id, confidentVoice.id] } as DeckChunk,
+            { document: TEXT, suggestions: [rewrite, confidentVoice] },
+          ),
+        }),
+      );
+    });
+    expect(container.textContent).toContain("Does this sound confident to you?");
+    expect(container.textContent).not.toContain("Clearer version");
+  });
+
+  it("walks to the emphasis step and promotes the phrase on lock, with no root face", async () => {
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis });
+    await click("Yes — Confident");     // feedback
+    await click("Keep wording");        // suggestion
+    await click("Continue");            // good job
+    expect(container.textContent).toContain("With emphasis");
+    await click("Emphasise");
+    // The lock step, and it is the LAST one: no rooting-phrase screen behind
+    // it. They already said which words matter.
+    expect(container.textContent).not.toContain("Tap the words");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toContain("the team is ready");
+    expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it("Skip means it: the paragraph locks with no anchor at all", async () => {
+    // Skip is a real answer, not a deferral. Nothing asks again later, and
+    // nothing quietly stores a phrase the speaker declined.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis });
+    await click("Yes — Confident");
+    await click("Keep wording");
+    await click("Continue");
+    await click("Skip");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+  });
+
+  it("Choose different words opens tap-to-select, and a tap previews in the accent", async () => {
+    await renderLadder({ style: emphasis });
+    await click("Yes — Confident");
+    await click("Keep wording");
+    await click("Continue");
+    await click("Choose different words");
+    expect(container.textContent).toContain("Tap the words");
+    const word = Array.from(container.querySelectorAll("button")).find(
+      (b) => (b.textContent ?? "").trim() === "ready.",
+    )!;
+    expect(word).toBeTruthy();
+    await act(async () => {
+      word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(word.getAttribute("aria-pressed")).toBe("true");
+    // --primary, because that is how a rooting phrase renders while
+    // recording. A preview, not a selection colour.
+    expect(word.className).toContain("text-primary");
+  });
+
+  it("Discard lands on the editor rather than dismissing the sheet", async () => {
+    // It used to call onClose(), so undoing a lock also closed the sheet: the
+    // speaker asked to edit and was put back where they started, with the
+    // paragraph now unlocked and nothing on screen saying so.
+    const onUnlockPart = vi.fn(async () => "ok" as const);
+    vi.mocked(props.onClose).mockClear();
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          onUnlockPart,
+          state: chunkStateFor(
+            {
+              ...chunk(),
+              part: { id: "p1", text: TEXT, locked: true },
+              status: "locked",
+              pendingIds: [],
+            } as unknown as DeckChunk,
+            { document: TEXT, suggestions: [] },
+          ),
+        }),
+      );
+    });
+    expect(buttonLabels()).toContain("Discard");
+    await click("Discard");
+    expect(onUnlockPart).toHaveBeenCalled();
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(buttonLabels()).toContain("Lock");
   });
 });

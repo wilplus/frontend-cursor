@@ -29,7 +29,7 @@ function code(path: string): string {
 
 const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
-const HEADING = code("src/components/willab/sheetHeading.ts");
+const STEPS = code("src/lib/willab/chunkSteps.ts");
 const MARK = code("src/components/willab/DeckLockMark.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
 const READOUT = code("src/components/willab/IdealTextReadout.tsx");
@@ -101,7 +101,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // What the list was standing in for survives: the frozen cap, and the
     // advance that walks the queue without it.
     expect(MODAL).toMatch(/\.slice\(0, 3\)/);
-    expect(MODAL).toMatch(/advanceAfterDecision\(suggestion\.id\)/);
+    expect(MODAL).toMatch(/advanceStep\(\)/);
   });
 
   it("there are THREE chunk states", () => {
@@ -240,10 +240,16 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // it here sent a chunk with a live proposal to the editor. On a re-opened
     // locked chunk that is the whole feature: the page announces waiting and
     // the modal shows an edit box with no suggestion in it.
+    // The three faces became ONE ORDERED LADDER on 2026-09-15. The rule they
+    // encoded survives in the build: the step list is made from the frozen
+    // inventory, so a chunk with a live proposal opens on that proposal's
+    // screen and one without opens on the lock — read off the WORK, never off
+    // `chunk.status`, which folds "approved, not locked" into "locked".
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
-    expect(MODAL).toMatch(
-      /useState<"review" \| "editor" \| "root">\(\s*chunk\.pendingIds\.length > 0 && suggestion \? "review" : "editor"/
-    );
+    expect(MODAL).not.toMatch(/useState<"review" \| "editor" \| "root">/);
+    expect(MODAL).toMatch(/buildChunkSteps\(\{/);
+    expect(MODAL).toMatch(/inventory: feedbackInventory/);
+    expect(MODAL).not.toMatch(/chunk\.status/);
   });
 
   it("ends a reviewed paragraph with an explicit lock-or-evolve commit", () => {
@@ -252,42 +258,39 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
       /const lockedAndSettled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
     );
     expect(MODAL).toMatch(
-      /const showUnlock = lockedAndSettled && !hadFeedback && !!onUnlockPart;/
+      /const showUnlock =\s*lockedAndSettled && !hadFeedback && !!onUnlockPart && !unlocked;/
     );
-    expect(MODAL).toMatch(/Lock for next Take/);
-    expect(MODAL).toMatch(/Keep evolving/);
-    expect(MODAL).toMatch(/Keep this wording for your next Take\?/);
-    expect(MODAL).toMatch(/acceptedRewrite \?/);
-    const applyStart = MODAL.indexOf("async function applyImprovement");
-    const applyBody = MODAL.slice(
-      applyStart,
-      MODAL.indexOf("async function editImprovementMyself", applyStart),
-    );
-    expect(applyBody.indexOf("setAcceptedRewrite(")).toBeLessThan(
-      applyBody.indexOf("advanceAfterDecision(suggestion.id)"),
-    );
-    expect(MODAL).toMatch(/onClick=\{\(\) => void keepEvolving\(\)\}/);
-    // The root face's heading copy lives in sheetHeading.ts since 2026-09-15
-    // (and is asserted by value in sheetHeading.test.ts); what the modal still
-    // owns is reaching that face at all.
-    expect(HEADING).toMatch(/Choose a rooting phrase/);
-    expect(MODAL).toMatch(/setFace\("root"\)/);
-    expect(MODAL).toMatch(/Make this phrase orange/);
-    // Legacy unlock remains available for an already-settled paragraph.
-    expect(MODAL).toMatch(/onClick=\{\(\) => void unlock\(\)\}/);
+    // The pill is the verb of its own screen; the decline is a grey link under
+    // it, never a second button beside it.
+    expect(MODAL).toMatch(/COPY\.pillLock/);
+    expect(MODAL).toMatch(/COPY\.linkKeepEvolving/);
+    expect(MODAL).toMatch(/void keepEvolving\(\)/);
+    // THE ROOT FACE IS GONE (founder 2026-09-15). The rooting phrase is
+    // chosen on the emphasis step, before the lock, and promoted by the lock
+    // itself — they already said which words matter, and asking again after
+    // the lock was asking twice.
+    expect(STEPS).not.toMatch(/Choose a rooting phrase/);
+    expect(MODAL).not.toMatch(/setFace\(/);
+    expect(MODAL).toMatch(/quoteSpan\(draft, promotedQuote\)/);
+    expect(MODAL).not.toMatch(/Make this phrase orange/);
+    // Legacy unlock remains available for an already-settled paragraph — and
+    // since 2026-09-15 it lands on the editor rather than dismissing the
+    // sheet, which is what "Discard" always meant.
+    expect(MODAL).toMatch(/void unlock\(\)/);
+    expect(MODAL).toMatch(/setUnlocked\(true\);\s*\n\s*setStepId\("lock"\)/);
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
   it("offers an orange root after confidence feedback only for exact Yes", () => {
+    // The gate survives the ladder unchanged, only earlier: a paragraph whose
+    // only feedback was the confidence question gets an anchor ONLY if the
+    // speaker said yes. Any other answer locks the wording and ends there.
     expect(MODAL).toMatch(/feedbackInventory\.every\(isConfidentVoiceFeedback\)/);
-    expect(MODAL).toMatch(/if \(confidenceOnly && agreeValue !== "yes"\)/);
-    const gated = MODAL.indexOf(
-      'if (confidenceOnly && agreeValue !== "yes")',
+    expect(MODAL).toMatch(
+      /promotedQuote && !\(confidenceOnly && agreeValue !== "yes"\)/,
     );
-    const rootFace = MODAL.indexOf('setFace("root")', gated);
-    expect(gated).toBeGreaterThan(-1);
-    expect(rootFace).toBeGreaterThan(gated);
-    expect(MODAL.slice(gated, rootFace)).toMatch(/onClose\(\)/);
+    // ...and the anchor is only written when one actually resolved.
+    expect(MODAL).toMatch(/if \(anchor\) await onSetRootPhrase\(anchor\)/);
   });
 
   it("the modal has two detents and a continuous Pointer Events drag", () => {
