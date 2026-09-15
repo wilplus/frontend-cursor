@@ -14,13 +14,11 @@ export default function ChatPageClient({
   sessionId,
   reviewSessionId,
   insightSessionId,
-  bestPresentationArcId,
   idealTextArcId,
 }: {
   sessionId: string | null;
   reviewSessionId: string | null;
   insightSessionId: string | null;
-  bestPresentationArcId: string | null;
   idealTextArcId: string | null;
 }) {
   return (
@@ -28,7 +26,6 @@ export default function ChatPageClient({
       sessionId={sessionId}
       reviewSessionId={reviewSessionId}
       insightSessionId={insightSessionId}
-      bestPresentationArcId={bestPresentationArcId}
       idealTextArcId={idealTextArcId}
     />
   );

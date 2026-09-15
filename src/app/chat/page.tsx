@@ -36,15 +36,13 @@ export default function ChatPage({
   // InsightsOverlay for that session on mount. User-side (the ResultsReadyEmail
   // CTA); distinct from the coach `?review=`.
   const insightSessionId = firstQueryValue(searchParams.insight);
-  // C — best-presentation deep-link: `?arc=<arc_id>` opens the in-Lounge
-  // BestPresentationOverlay for that arc on mount (the "best presentation ready"
-  // card / email CTA).
-  const bestPresentationArcId = firstQueryValue(searchParams.arc);
   // The coach-feedback email CTA: `?idealArc=<arc_id>` opens THAT arc's ideal
   // text on mount (founder 2026-08-15). The email whose whole subject is "your
   // coach reviewed this talk" used to land on bare /chat and leave the student
-  // hunting the right bubble. Distinct from `?arc=` (best presentation).
-  const idealTextArcId = firstQueryValue(searchParams.idealArc);
+  // hunting the right bubble. `?arc=<arc_id>` was the retired best-presentation
+  // link (older emails still carry it); it opens the same canonical Ideal Text.
+  const idealTextArcId =
+    firstQueryValue(searchParams.idealArc) ?? firstQueryValue(searchParams.arc);
 
   return (
     <Suspense fallback={<LoadingState placement="viewport" />}>
@@ -52,7 +50,6 @@ export default function ChatPage({
         sessionId={sessionId}
         reviewSessionId={reviewSessionId}
         insightSessionId={insightSessionId}
-        bestPresentationArcId={bestPresentationArcId}
         idealTextArcId={idealTextArcId}
       />
     </Suspense>

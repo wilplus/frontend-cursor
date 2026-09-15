@@ -28,7 +28,6 @@ export interface TrainingArc {
   batchVerified: boolean;
   /** True once the coach finalized the ideal text (gates the ideal button). */
   idealReady: boolean;
-  bestPresentationArcId: string;
   /** Delivery layer — the arc's cover image ref (the served deck PDF); null =
    *  render the mock cover. */
   coverRef: string | null;
@@ -71,11 +70,6 @@ function mapArc(raw: unknown): TrainingArc | null {
     takes,
     batchVerified: r.batch_verified === true,
     idealReady: r.ideal_ready === true,
-    bestPresentationArcId:
-      typeof r.best_presentation_arc_id === "string" &&
-      r.best_presentation_arc_id.length > 0
-        ? r.best_presentation_arc_id
-        : r.arc_id,
     coverRef:
       typeof r.cover_ref === "string" && r.cover_ref.length > 0
         ? r.cover_ref

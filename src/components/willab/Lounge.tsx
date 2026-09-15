@@ -48,7 +48,7 @@ import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
-import BestPresentationOverlay from "./BestPresentationOverlay";
+import CoachIdealTextOverlay from "./CoachIdealTextOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
@@ -137,7 +137,6 @@ export default function Lounge({
   onStartInProject,
   dispatch,
   initialReviewSessionId = null,
-  initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
   recordingProgress = null,
 }: {
@@ -154,9 +153,6 @@ export default function Lounge({
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
   initialReviewSessionId?: string | null;
-  /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
-   *  for that arc once on mount. */
-  initialBestPresentationArcId?: string | null;
   /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
    *  that arc once on mount — the coach-feedback email's CTA. */
   initialIdealTextArcId?: string | null;
@@ -197,10 +193,8 @@ export default function Lounge({
   const lifeTags = useLifeTags(thread.signedIn);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // F2 — best-presentation overlay. arcId drives which arc to show.
-  const [bestPresentationArcId, setBestPresentationArcId] = useState<
-    string | null
-  >(null);
+  // The coach's Ideal Text review overlay. arcId drives which arc to show.
+  const [coachIdealArcId, setCoachIdealArcId] = useState<string | null>(null);
   // Star Verdict (2026-07-27) — the coach's star-review overlay for one arc.
   // A SIBLING of the review overlay on purpose (N1): the verdict surface
   // shows the machine's guesses, so it never mounts inside the blind
@@ -430,24 +424,15 @@ export default function Lounge({
   // overlay for that session once on mount. Not coach-gated (InsightsOverlay
   // fetches the owner-auth readout); fire-once so closing it doesn't reopen.
 
-  // C — best-presentation deep-link (/chat?arc=<arc_id>): open the
-  // BestPresentationOverlay for that arc once on mount; fire-once so closing it
-  // doesn't reopen.
-  const bestPresLinkOpenedRef = useRef(false);
-  useEffect(() => {
-    if (bestPresLinkOpenedRef.current || !initialBestPresentationArcId) return;
-    bestPresLinkOpenedRef.current = true;
-    setBestPresentationArcId(initialBestPresentationArcId);
-  }, [initialBestPresentationArcId]);
-
   // THE COACH-FEEDBACK EMAIL LANDS ON THE TEXT ITSELF (founder 2026-08-15:
   // "does the link from the email lead to this particular ideal text that
   // holds these reviews? if not make it a deep link").
   //
   // It did not — the CTA opened bare /chat, so the one email that is entirely
-  // about ONE talk handed the student a thread to search. Same fire-once shape
-  // as the best-presentation link above: closing the notebook must not reopen
-  // it, or the student cannot get back to the chat the link landed them in.
+  // about ONE talk handed the student a thread to search. Fire-once: closing
+  // the notebook must not reopen it, or the student cannot get back to the
+  // chat the link landed them in. (/chat?arc=, the retired best-presentation
+  // link, folds into this one in chat/page.tsx.)
   const idealLinkOpenedRef = useRef(false);
   useEffect(() => {
     if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
@@ -1167,9 +1152,6 @@ export default function Lounge({
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                onOpenBestPresentation={(arcId) =>
-                  setBestPresentationArcId(arcId)
-                }
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
@@ -1491,7 +1473,7 @@ export default function Lounge({
       {libraryOpen && (
         <LibraryOverlay
           onClose={() => setLibraryOpen(false)}
-          onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenIdealText={openIdealText}
           onRecordAnother={(arc) => {
             // Continue this deck's arc: seed the explore-arc (id + next index +
             // deck) so the Lab carries arc_id and pre-fills the deck, then open
@@ -1525,9 +1507,9 @@ export default function Lounge({
           onClose={() => setRosterOpen(false)}
           onOpenReview={openReview}
           // FE-B — the ideal-ready badge opens the arc's coach panel view
-          // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
-          // in every state, pre-3-takes included — never a dead end).
-          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          // (CoachIdealTextOverlay renders CoachIdealTextPanel in every state,
+          // pre-3-takes included — never a dead end).
+          onOpenArcIdeal={(arcId) => setCoachIdealArcId(arcId)}
           onOpenStarVerdicts={(arcId, sessionIds) =>
             setStarVerdictArcId({ arcId, sessionIds })
           }
@@ -1545,7 +1527,7 @@ export default function Lounge({
             void reviewQueue.refresh();
           }}
           onOpenReview={openReview}
-          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenArcIdeal={(arcId) => setCoachIdealArcId(arcId)}
           onOpenStarVerdicts={(arcId, sessionIds) =>
             setStarVerdictArcId({ arcId, sessionIds })
           }
@@ -1572,53 +1554,26 @@ export default function Lounge({
             onPublished={reviewQueue.markDone}
             // The wrap-up cue opens the ideal-text panel (mounted last, so it
             // paints above this review; LIFO back-dismiss returns here).
-            onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+            onOpenArcIdeal={(arcId) => setCoachIdealArcId(arcId)}
           />
         </RaterLanguageGate>
       )}
 
-      {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
-          panel lives here). Mounted AFTER every overlay that opens into it
-          (roster / student detail / review wrap-up all call
-          setBestPresentationArcId), and nothing this mount renders opens on top
-          of it. Equal z-40 → later in DOM wins, so it paints ABOVE the overlay
-          it was opened from (that was the P0 "nothing happens" bug — it used to
-          render first and hide behind an opaque z-40 sibling). Mount order also
-          puts it above those openers in the LIFO back-dismiss stack. (The star
-          verdict overlay below is a sibling, not an opener — neither ever opens
-          the other, so their relative order carries no weight.) */}
-      {bestPresentationArcId && (
-        <BestPresentationOverlay
-          arcId={bestPresentationArcId}
-          onClose={() => setBestPresentationArcId(null)}
-          onRecordNext={(takesDone) => {
-            // Seed the arc THIS progress bar belongs to, so the take lands in
-            // it (and "Take N of 3" + the interstitial parity read true) even
-            // when localStorage holds a different / no arc.
-            if (
-              bestPresentationArcId &&
-              readExploreArc(userId)?.arcId !== bestPresentationArcId
-            ) {
-              // FE-1 — carry the arc's session id so the Lab can restore its
-              // deck from the server (this seed omits the deck; localStorage was
-              // lost or holds a different arc).
-              writeExploreArc(
-                userId,
-                bestPresentationArcId,
-                takesDone + 1,
-                undefined,
-                latestArcSessionId(bestPresentationArcId),
-              );
-            }
-            setBestPresentationArcId(null);
-            // Seeded above — same rule as the library entry (review R-pp0).
-            (onStartInProject ?? onStart)();
-          }}
+      {/* The coach's Ideal Text review overlay. Mounted AFTER every overlay
+          that opens into it (roster / student detail / review wrap-up all call
+          setCoachIdealArcId), and nothing this mount renders opens on top of
+          it. Equal z-40 → later in DOM wins, so it paints ABOVE the overlay it
+          was opened from, and mount order puts it above those openers in the
+          LIFO back-dismiss stack. */}
+      {coachIdealArcId && (
+        <CoachIdealTextOverlay
+          arcId={coachIdealArcId}
+          onClose={() => setCoachIdealArcId(null)}
         />
       )}
 
       {/* Star Verdict — the coach judges the machine's fired stars for one
-          arc. Mounted last for the same reason BestPresentationOverlay is
+          arc. Mounted last for the same reason CoachIdealTextOverlay is
           (equal z-40 → last in DOM paints on top): it opens FROM the student
           detail overlay mounted above, so it must stack over it, and being
           the LIFO back-dismiss top means Back returns to the detail. Never
@@ -1777,7 +1732,6 @@ function SequentialBotBubbles({
 function Bubble({
   message,
   onViewInsights,
-  onOpenBestPresentation,
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
@@ -1791,8 +1745,6 @@ function Bubble({
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
-  /** C — open BestPresentationOverlay from the best_presentation_ready card. */
-  onOpenBestPresentation?: (arcId: string) => void;
   /** transcript_ready card — opens the Trainings library. */
   onOpenTranscripts?: () => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
@@ -1837,7 +1789,6 @@ function Bubble({
       <ReportCard
         message={message}
         onViewInsights={onViewInsights}
-        onOpenBestPresentation={onOpenBestPresentation}
         onOpenTranscripts={onOpenTranscripts}
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}

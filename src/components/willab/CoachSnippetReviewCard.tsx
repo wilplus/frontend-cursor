@@ -140,7 +140,7 @@ export default function CoachSnippetReviewCard({
     (initialState ?? snippet.coachState).note || "",
   );
   // R4-8 — auto-grow the note toward full screen as the coach types (same
-  // pattern as BestPresentationOverlay's MarkerEditor): re-fit on every edit,
+  // pattern as the retired BestPresentationOverlay's MarkerEditor): re-fit on every edit,
   // capped at ~70% of the viewport, scrolling past the cap.
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {

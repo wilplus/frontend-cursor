@@ -105,11 +105,12 @@ type NavLevel =
 
 export default function LibraryOverlay({
   onClose,
-  onOpenBestPresentation,
+  onOpenIdealText,
   onRecordAnother,
 }: {
   onClose: () => void;
-  onOpenBestPresentation: (arcId: string) => void;
+  /** Opens the canonical Ideal Text for an arc (L1). */
+  onOpenIdealText: (arcId: string) => void;
   /** Record another take INTO an existing deck's arc (continue-one-arc). The
    *  parent writes the arc + deck to localStorage, closes the library, and
    *  starts a recording. */
@@ -345,11 +346,11 @@ export default function LibraryOverlay({
           <PresentationDetail
             presentation={nav.presentation}
             onOpenBest={() => {
-              // The "ideal presentation" is the composed best-presentation
-              // (built from the takes, available BEFORE coach review). Opens
-              // the z-40 BestPresentationOverlay over this z-30 library.
+              // The "ideal presentation" IS the canonical Ideal Text (L1;
+              // Best Presentation is retired). Opens the z-40 IdealTextOverlay
+              // over this z-30 library.
               if (nav.presentation.arcId) {
-                onOpenBestPresentation(nav.presentation.arcId);
+                onOpenIdealText(nav.presentation.arcId);
               }
             }}
             onOpenTake={(t) =>
@@ -624,9 +625,9 @@ function PresentationDetail({
   onRecordAnother: () => void;
 }) {
   const coverSlide = presentation.slides[0];
-  // The composed best presentation needs ≥3 takes (built from the recordings,
-  // before any coach review). Below that, show how many more are needed
-  // instead of a button that opens an empty presentation.
+  // The library keeps its ≥3-takes gate on the "ideal presentation" button
+  // (unchanged copy; loosening it is a founder call). Below that, show how
+  // many more are needed instead of a button that opens an empty document.
   const takesRemaining = Math.max(0, 3 - presentation.takes.length);
   const canOpenBest = takesRemaining === 0 && !!presentation.arcId;
   return (

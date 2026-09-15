@@ -30,7 +30,7 @@ export function readoutSummaryDraft(input: {
    *  per-slide transcript) via ReportCard.onOpenReadout, even pre-coach. */
   sessionId?: string;
   /** The explore arc this take belongs to — persisted on the message so the
-   *  "View your best presentation" bubble stays clickable across logout/login
+   *  historical "ready" bubble stays clickable across logout/login
    *  (and any other device) without depending on localStorage. */
   arcId?: string;
   /** The take number for this recording (explore takes only) — shown on the
@@ -135,12 +135,13 @@ export function insightView(
 }
 
 export interface BestPresentationView {
-  /** The arc to open in BestPresentationOverlay; null → card not openable. */
+  /** The arc whose canonical Ideal Text the historical card opens; null → not openable. */
   arcId: string | null;
   topic: string | null;
 }
 
-/** Read the best_presentation_ready card metadata (BE-inserted at the 3rd take). */
+/** Read the historical best_presentation_ready card metadata (BE-inserted at
+ *  the 3rd take until Best Presentation was retired; rows stay readable). */
 export function bestPresentationView(
   md: Record<string, unknown> | null | undefined,
 ): BestPresentationView {

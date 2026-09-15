@@ -83,7 +83,6 @@ export interface IdealTextRetryTarget {
 export default function ReportCard({
   message,
   onViewInsights,
-  onOpenBestPresentation,
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
@@ -91,7 +90,6 @@ export default function ReportCard({
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
-  onOpenBestPresentation?: (arcId: string) => void;
   /** transcript_ready — opens the Trainings library (where transcripts live). */
   onOpenTranscripts?: () => void;
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
@@ -344,14 +342,15 @@ export default function ReportCard({
       </div>
     );
   }
-  // The historical ready message now opens the canonical Ideal Text artifact.
+  // The historical ready message opens the canonical Ideal Text artifact
+  // (L1; Best Presentation is retired — audit Q-T4).
   if (message.kind === "best_presentation_ready") {
     const v = bestPresentationView(message.metadata);
     return (
       <IdealTextHeroCard
         name={v.topic}
         arcId={v.arcId}
-        onOpenBestPresentation={onOpenBestPresentation}
+        onOpenIdealText={onOpenIdealText}
       />
     );
   }
@@ -453,13 +452,13 @@ export default function ReportCard({
 export function IdealTextHeroCard({
   name,
   arcId,
-  onOpenBestPresentation,
+  onOpenIdealText,
 }: {
   name: string | null;
   arcId: string | null;
-  onOpenBestPresentation?: (arcId: string) => void;
+  onOpenIdealText?: (arcId: string) => void;
 }) {
-  const canBest = !!(arcId && onOpenBestPresentation);
+  const canBest = !!(arcId && onOpenIdealText);
   return (
     <div className="my-1 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-4 py-4 text-white shadow-sm">
       <div className="flex items-center gap-2">
@@ -472,7 +471,7 @@ export function IdealTextHeroCard({
         <div className="mt-3 flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => onOpenBestPresentation!(arcId!)}
+            onClick={() => onOpenIdealText!(arcId!)}
             className="w-full rounded-full bg-purple-700 px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-purple-600"
           >
             View Ideal Text

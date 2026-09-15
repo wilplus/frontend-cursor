@@ -25,7 +25,8 @@ export type LoungeKind =
   | "cadence"
   /** BE-inserted when an arc's best presentation becomes ready (>=3 takes +
    *  coach-published + paid). A durable, tappable card → opens
-   *  BestPresentationOverlay(arc_id). Metadata carries { arc_id, topic }. */
+   *  the canonical Ideal Text for arc_id (Best Presentation is retired).
+   *  Metadata carries { arc_id, topic }. */
   | "best_presentation_ready"
   /** The unpaid/unreviewed >=3-takes counterpart: the full transcript is ready
    *  (transcript text + strong sides — never a premature "best presentation").
