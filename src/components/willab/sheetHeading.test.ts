@@ -61,10 +61,12 @@ describe("the chunk sheet heading", () => {
     expect(heading.title).toBe("Feedback");
   });
 
-  it("leaves the OTHER review faces exactly as they were", () => {
-    // The bare header is scoped to one lane on purpose. e2e/ideal-text-
-    // canonical.spec.mjs waits on "Suggested change" against a rewrite item,
-    // so widening this quietly would take the e2e tier down with it.
+  it("gives EVERY feedback face a bare header, keeping its own title", () => {
+    // Founder 2026-09-15: "make all feedback cards bare … delete the text
+    // POSSIBLE CLARITY IMPROVEMENT". The kind eyebrow is gone from all of
+    // them; the title is not — e2e/ideal-text-canonical.spec.mjs waits on
+    // "Suggested change" against a rewrite item, so dropping that too would
+    // take the blocking e2e tier down with it.
     for (const family of ["rewrite_clarity", "great_formulation"]) {
       const heading = sheetHeading({
         ...base,
@@ -72,8 +74,21 @@ describe("the chunk sheet heading", () => {
         suggestion: item({ feedbackFamily: family } as Partial<DocumentSuggestion>),
       });
       expect(heading.title).toBe("Suggested change");
-      expect(heading.kicker).not.toBeNull();
+      expect(heading.kicker).toBeNull();
     }
+  });
+
+  it("never names the lane on an opened sheet, whatever the iteration", () => {
+    // The iteration tail used to ride the kicker, so a chunk with history
+    // could reintroduce an eyebrow through the back door.
+    const heading = sheetHeading({
+      ...base,
+      face: "review",
+      iteration: 4,
+      suggestion: item({ feedbackFamily: "rewrite_clarity" } as Partial<DocumentSuggestion>),
+    });
+    expect(heading.kicker).toBeNull();
+    expect(heading.title).toBe("Suggested change");
   });
 
   /* ---------------------------------------------------------------------- */

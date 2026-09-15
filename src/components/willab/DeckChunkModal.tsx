@@ -548,6 +548,31 @@ export default function DeckChunkModal({
     setAgreeSaving(false);
     if (r.ok) {
       setAgreeSaved(true);
+      /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
+       *
+       * Answering WAS the decision; the screen that followed held a thank-you
+       * and a button whose only job was to admit it. The answer is already
+       * saved by the call above, so the tap bought nothing and cost a screen.
+       * Now the answer advances straight to the next feedback, or closes the
+       * review when it was the last one.
+       *
+       * The ONE case that still stops here is a waiting practice exercise —
+       * that offer lives on this post-answer screen and is the only thing on
+       * it worth a tap. Auto-advancing past it would delete the micro-practice
+       * journey rather than tidy it, which is not what "drop the Done step"
+       * asked for. Keep this guard until practice has somewhere else to live.
+       *
+       * No second write: `saveTakeFeedbackResponse` above already recorded
+       * this answer, and the retired Done button called it AGAIN through
+       * resolveObservedFeedback with the same id and value. */
+      const practiceWaiting = Boolean(
+        suggestion.practiceExercise &&
+          suggestion.snippetId &&
+          suggestion.evidence,
+      );
+      if (!practiceWaiting) {
+        if (!advanceAfterDecision(suggestion.id)) setFace("editor");
+      }
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
@@ -1171,24 +1196,32 @@ export default function DeckChunkModal({
                   )}
                   Apply suggestion
                 </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void editImprovementMyself()}
-                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Edit myself
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void keepImprovementWording()}
-                    className="flex items-center justify-center rounded-full border border-foreground/20 px-3 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    Keep wording
-                  </button>
-                </div>
+                {/* ONE CTA, THE REST QUIET AND STACKED (founder 2026-09-15):
+                    "apply as a black CTA and small not CTA keep wording … keep
+                    the keep wording without the stroke on the button and
+                    stacked below the CTA; not next to each other."
+
+                    These two were bordered pills sharing a row, which read as
+                    three competing buttons and made declining a suggestion look
+                    as weighty as accepting one. Borderless and stacked, the
+                    accept is the only thing shaped like an action and the other
+                    two stay plainly available underneath. */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void editImprovementMyself()}
+                  className="flex items-center justify-center rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                >
+                  Edit myself
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void keepImprovementWording()}
+                  className="flex items-center justify-center rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                >
+                  Keep wording
+                </button>
               </div>
             ) : face === "root" ? (
               <div className="col-span-2 grid gap-2">

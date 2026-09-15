@@ -10,7 +10,6 @@
  *  instead of by a source grep.
  */
 import type { DocumentSuggestion } from "@/services/api/idealText";
-import { displayKind } from "./displayKind";
 
 export type SheetFace = "review" | "editor" | "root";
 
@@ -45,27 +44,24 @@ export function sheetHeading(args: {
   const { face, suggestion, locked, hasApproved, iteration } = args;
   const tail = iterationTail(iteration);
 
-  /* THE CONFIDENT VOICE FACE IS BARE (founder 2026-09-15, from a mockup).
-   * "there should be no title above, just a small feedback. And then the
-   * playback, and that's it, a very minimalistic design."
+  /* EVERY FEEDBACK FACE IS BARE (founder 2026-09-15: "make all feedback cards
+   * bare … delete the text POSSIBLE CLARITY IMPROVEMENT").
    *
-   * So this one face drops BOTH the kind eyebrow ("Possible confident
-   * moment") and the "Suggested change" title, and stands one plain word in
-   * their place. Nothing the speaker needs is lost: the question under the
-   * player already states exactly what is being asked of them. Naming the
-   * machine's read ABOVE that question is what had to go — it announced a
-   * read the speaker had not yet formed their own view of, which is the wrong
-   * order for a question whose entire value is their independent answer.
+   * No kind eyebrow on any of them. It announced the machine's read above
+   * words the speaker had not yet judged for themselves — wrong order on the
+   * Confident Voice card, where the whole value is their independent answer,
+   * and merely noise on the others, where the card underneath already shows
+   * exactly what is being proposed. One title, then the content.
    *
-   * Scoped to this face on purpose. The clarity and praise faces keep their
-   * kicker and title; they were not what the founder mocked. */
-  if (face === "review" && suggestion && isConfidentVoiceFeedback(suggestion)) {
-    return { kicker: null, title: "Feedback" };
-  }
+   * The kind is NOT lost from the product: displayKind() still names the lane
+   * on the page's own bookmarks, which is where a speaker chooses what to open.
+   * It is only gone from the sheet they have already opened. */
   if (face === "review" && suggestion) {
     return {
-      kicker: `${displayKind(suggestion)}${tail}`,
-      title: "Suggested change",
+      kicker: null,
+      title: isConfidentVoiceFeedback(suggestion)
+        ? "Feedback"
+        : "Suggested change",
     };
   }
   if (face === "root") {
