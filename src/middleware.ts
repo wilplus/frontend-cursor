@@ -49,6 +49,28 @@ export function getCspDirectives(nonce: string): string {
     // upload (already covered above). Allowing both means uploads work
     // whichever host the backend hands back, in any environment.
     "https://*.r2.cloudflarestorage.com",
+    // Cloudflare R2 (PUBLIC read domain) — the other half of the same story,
+    // and it was missing. The line above is the S3 API host, which serves
+    // WRITES; files come BACK from `https://pub-<hash>.r2.dev`, the bucket's
+    // public domain, which matches neither `*.r2.cloudflarestorage.com` nor
+    // any origin listed here.
+    //
+    // The symptom was invisible in the obvious test: the deck PDF opens
+    // perfectly when pasted into a browser tab, because `connect-src` governs
+    // FETCHES and not navigation. Only the in-app load was refused — pdf.js
+    // calls `getDocument({ url })`, which fetches — so the recording stage
+    // showed "Slide preview unavailable" over a file that was stored, served
+    // and valid. Two of us checked the bucket, the object and the URL before
+    // anyone checked the policy.
+    //
+    // Named as the wildcard rather than the one bucket because the FE cannot
+    // see which bucket it is: R2_PUBLIC_BASE_URL is a backend variable and is
+    // never exposed to the browser bundle, so the host arrives inside data
+    // (a presentation_ref) rather than configuration. `*.r2.dev` is
+    // Cloudflare's public-development namespace, and a custom domain (which
+    // the bucket settings recommend for production) would be covered by the
+    // apiUrl/explicit-origin lines instead.
+    "https://*.r2.dev",
   ];
   
   // In development, allow localhost for Fast Refresh and HMR
