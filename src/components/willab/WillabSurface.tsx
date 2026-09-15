@@ -41,7 +41,6 @@ export default function WillabSurface({
   sessionId,
   reviewSessionId,
   insightSessionId,
-  bestPresentationArcId,
   idealTextArcId = null,
 }: {
   sessionId: string | null;
@@ -51,9 +50,6 @@ export default function WillabSurface({
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
    *  InsightsOverlay on mount. */
   insightSessionId: string | null;
-  /** C — best-presentation deep-link target from `/chat?arc=<arc_id>`; opens the
-   *  in-Lounge BestPresentationOverlay on mount. */
-  bestPresentationArcId: string | null;
   /** `/chat?idealArc=<id>` — the coach-feedback email CTA. */
   idealTextArcId?: string | null;
 }) {
@@ -151,7 +147,6 @@ export default function WillabSurface({
         onStartInProject={flow.startRecordingSetup}
         dispatch={flow.dispatch}
         initialReviewSessionId={reviewSessionId}
-        initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
         recordingProgress={recordingProgress}
       />
