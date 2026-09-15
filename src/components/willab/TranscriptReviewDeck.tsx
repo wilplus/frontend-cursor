@@ -717,7 +717,6 @@ export default function TranscriptReviewDeck({
                       />
                       <DeckLockMark
                         status={c.status}
-                        pendingCount={c.pendingIds.length}
                         flagship={summaryByParagraph.get(c.part.id)?.some((item) => item.isOrange) === true || Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
                           (span) => span.highlight && span.text.trim().length > 0
                         )}

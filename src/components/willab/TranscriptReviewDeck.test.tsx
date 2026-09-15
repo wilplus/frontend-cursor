@@ -101,10 +101,16 @@ describe("TranscriptReviewDeck — F1 net", () => {
     const labels = buttons();
     // one editor entry per slide
     expect(labels.filter((l) => l === "Edit the text")).toHaveLength(SLIDES.length);
-    // one mark per chunk: clean, waiting (with a count, not a score), protected
+    // One mark per chunk: clean, waiting, protected. No number anywhere —
+    // since 2026-09-15 the mark says WHETHER something is waiting, never how
+    // much, because a column of paragraphs reading 3 / 1 / 2 scans as a
+    // ranking of how bad each one is (AC-9).
     expect(labels).toContain("No feedback pending");
-    expect(labels).toContain("Feedback waiting — review it — 1 feedback item");
+    expect(labels).toContain("Feedback waiting — review it");
     expect(labels).toContain("Paragraph protected");
+    for (const label of labels) {
+      expect(label, label).not.toMatch(/\bfeedback items?\b/);
+    }
     // and a rail entry per slide
     expect(labels.filter((l) => /^Go to Slide \d$/.test(l))).toHaveLength(SLIDES.length);
   });

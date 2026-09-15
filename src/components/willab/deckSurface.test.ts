@@ -77,7 +77,21 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // open — but since 2026-09-15 the MODAL no longer lists their identities
     // up front: "only one feedback at a time … so that the screen is clean"
     // (founder). Resolving #1 advances to #2; nothing hidden can be added.
-    expect(DECK).toMatch(/pendingCount=\{c\.pendingIds\.length\}/);
+    // NO COUNT ON THE MARK (founder 2026-09-15). It hid below two and clamped
+    // above three, so it never was a count — and a column reading 3 / 1 / 2
+    // scans as a ranking of how bad each paragraph is, which is the reading
+    // AC-9 exists to prevent. `pendingIds` itself stays: it drives ChunkStatus
+    // and the modal's step list.
+    expect(DECK).not.toMatch(/pendingCount/);
+    expect(MARK).not.toMatch(/pendingCount/);
+    expect(MARK).not.toMatch(/Math\.min\(3,/);
+    expect(MARK).not.toMatch(/tabular-nums/);
+    // The signal the number was carrying moves to the ring: any paragraph with
+    // something waiting gets it, rooting phrase or not.
+    expect(MARK).toMatch(/const attention =\s*\n?\s*status === "waiting"/);
+    expect(MARK).not.toMatch(/flagship && unresolved/);
+    // Screen readers keep the same information without the digit.
+    expect(MARK).toMatch(/waiting: "Feedback waiting — review it"/);
     // Audit Q-C5: the inventory rides the chunk's one state (`pending`).
     expect(DECK).toMatch(/state=\{openState\}/);
     expect(DECK).toMatch(/buildChunkStates</);

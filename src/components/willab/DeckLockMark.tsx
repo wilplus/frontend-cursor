@@ -7,9 +7,24 @@ import type { ChunkStatus } from "@/lib/willab/deckChunks";
  * state; it does not grade the words and it is not an edit button:
  *
  *   outline    resolved ordinary paragraph / feedback not loaded yet
- *   outline    a decision is waiting
  *   filled     a rooting phrase is active
- *   attention  an active rooting phrase has a new decision waiting
+ *   attention  something is waiting on this paragraph
+ *
+ * NO COUNT (founder 2026-09-15). The mark used to print a small 2 or 3 beside
+ * the bookmark. It hid below two and clamped above three, so it was never a
+ * true count — and a column of paragraphs reading 3 / 1 / 2 scans as a ranking
+ * of how bad each paragraph is, which is the exact reading AC-9 exists to
+ * prevent. The state is binary now: something is waiting, or it is not.
+ *
+ * ATTENTION IS NOW PLAIN `unresolved`, not `flagship && unresolved`. While the
+ * number existed, a paragraph with feedback waiting but no rooting phrase drew
+ * an ordinary outline mark and the digit was the only thing distinguishing it.
+ * Removing the count without this change would have made those paragraphs
+ * indistinguishable from resolved ones — the ring and the breathe now carry
+ * the signal for every paragraph, with or without an orange anchor.
+ *
+ * Screen readers keep "Feedback waiting — review it" from ARIA below: the same
+ * information, minus the number.
  *
  * Slide editing has its own explicit, slide-scoped control. That separation is
  * deliberate: feedback, accepted orange anchors, and rehearsal roots are three
@@ -26,7 +41,6 @@ const STYLE_LABEL = "Style";
 
 export default function DeckLockMark({
   status,
-  pendingCount = 0,
   flagship = false,
   onClick,
   disabled = false,
@@ -36,8 +50,6 @@ export default function DeckLockMark({
   reviewStatus = null,
 }: {
   status: ChunkStatus;
-  /** Number selected for this chunk from the Take's immutable three. */
-  pendingCount?: number;
   /** True when the paragraph contains an active orange rooting phrase.
    * Its automatic/owner origin remains separate server provenance. */
   flagship?: boolean;
@@ -55,17 +67,17 @@ export default function DeckLockMark({
   const styled = hasStyle && status === "locked";
   const reviewNeedsAttention =
     reviewStatus === "pending_coach_review" || reviewStatus === "not_confirmed";
-  const unresolved = status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
-  const attention = flagship && unresolved;
+  // Anything waiting on this paragraph, from any layer. Since 2026-09-15 this
+  // alone drives the ring — see the note above on why it is no longer gated on
+  // `flagship`.
+  const attention =
+    status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
 
   return (
     <button
       type="button"
       aria-label={[
         flagship ? "Rooting phrase active" : ARIA[status],
-        status === "waiting" && pendingCount > 0
-          ? `${pendingCount} feedback item${pendingCount === 1 ? "" : "s"}`
-          : null,
         hasCoach ? COACH_LABEL : null,
         hasUnreadCoachUpdate ? "New coach update" : null,
         reviewStatus === "pending_coach_review" ? "Pending coach review" : null,
@@ -93,11 +105,6 @@ export default function DeckLockMark({
         fill={flagship ? "currentColor" : "none"}
         aria-hidden
       />
-      {status === "waiting" && pendingCount > 1 ? (
-        <span className="pr-1 text-[11px] font-semibold tabular-nums" aria-hidden>
-          {Math.min(3, pendingCount)}
-        </span>
-      ) : null}
       {reviewStatus === "pending_coach_review" ? (
         <span className="pr-1 text-[10px] font-semibold uppercase tracking-[0.08em]">
           Pending
