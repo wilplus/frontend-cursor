@@ -992,7 +992,21 @@ export default function DeckChunkModal({
                  * only this override dipped below. Do not take it back under
                  * 16px without also solving the zoom. */
                 textSizeClass="text-[16px] leading-relaxed"
-                frameClass="border border-pending/40 bg-pending/[0.06] focus:border-pending"
+                /* NEUTRAL, NOT AMBER (founder 2026-09-15): "this should not be
+                 * there cause it is not the confidence feedback."
+                 *
+                 * This field was wearing `--pending`, and globals.css defines
+                 * that token as "the ONE signal that feedback is waiting on a
+                 * chunk". So the editor was painting "feedback is waiting"
+                 * across the speaker's own words on a sheet whose kicker reads
+                 * NO FEEDBACK PENDING — the amber said the exact opposite of
+                 * the text above it, and after a Confident Voice card it read
+                 * as another feedback card holding a machine's words rather
+                 * than an editor holding theirs.
+                 *
+                 * Amber stays on the review face, where feedback really is
+                 * pending. Here the field is just a field. */
+                frameClass="border border-border bg-background focus:border-foreground"
               />
 
               {/* THE COACH (slice 4) — on the locked face too: a locked

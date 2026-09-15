@@ -53,6 +53,24 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/<RichText[\s\S]*?\/>\s*<DeckLockMark/);
   });
 
+  it("spends the pending amber only where feedback is actually pending", () => {
+    // globals.css: `--pending` is "the ONE signal that feedback is waiting on
+    // a chunk". Until 2026-09-15 the chunk EDITOR wore it too, so the sheet
+    // washed the speaker's own words in the waiting-for-feedback colour under
+    // a kicker that read "No feedback pending" — the amber contradicting the
+    // line above it. Founder: "this should not be there cause it is not the
+    // confidence feedback."
+    const editorFrame = MODAL.slice(
+      MODAL.indexOf("<MarkedEditor"),
+      MODAL.indexOf("/>", MODAL.indexOf("<MarkedEditor")),
+    );
+    expect(editorFrame).toMatch(/frameClass="[^"]*"/);
+    expect(editorFrame).not.toMatch(/pending/);
+    // ...and the one place it IS the truth keeps it: the review face's
+    // suggested-wording card, which only renders with a live suggestion.
+    expect(MODAL).toMatch(/border-pending\/40 bg-pending/);
+  });
+
   it("freezes the feedback inventory and serves it one item at a time", () => {
     // Up to three belong to the whole Take. If several route to one chunk, the
     // PAGE still shows their count — that is where a speaker chooses what to
