@@ -102,6 +102,7 @@ export async function acknowledgeVisibleLearningExposures(
             client_rendered_at: renderedAt,
           }),
         });
+        if (response.status === 404) warnProxyMissing();
         return response.ok;
       } catch {
         return false;
@@ -109,4 +110,19 @@ export async function acknowledgeVisibleLearningExposures(
     }),
   );
   return results.every(Boolean);
+}
+
+/* The BFF leg of this call (src/app/api/v2/learning-exposures/ack) is not
+ * deployed: the backend route exists, but the proxy file in between was never
+ * written, so every acknowledgement 404s here and no exposure receipt is
+ * recorded. Founder 2026-09-15: wiring it is the learning-layer activation
+ * decision, not a bug fix — until then, say so once per page load instead of
+ * failing silently. */
+let proxyMissingWarned = false;
+function warnProxyMissing(): void {
+  if (proxyMissingWarned) return;
+  proxyMissingWarned = true;
+  console.warn(
+    "[learning-exposures] the /api/v2/learning-exposures/ack proxy route is not deployed; exposure receipts are not being recorded",
+  );
 }

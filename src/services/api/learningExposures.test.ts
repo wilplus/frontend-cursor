@@ -62,6 +62,24 @@ describe("learning exposure acknowledgement", () => {
     expect(saved).toBe(false);
   });
 
+  it("says so once when the proxy leg is missing, and still reports false", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 404 })));
+    const first = await acknowledgeVisibleLearningExposures(
+      [{ presentationId: "p-1", acknowledgementToken: "t-1", learningSurface: "ideal_text_generation" }],
+      "render-1",
+    );
+    const second = await acknowledgeVisibleLearningExposures(
+      [{ presentationId: "p-2", acknowledgementToken: "t-2", learningSurface: "ideal_text_generation" }],
+      "render-2",
+    );
+    expect(first).toBe(false);
+    expect(second).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("learning-exposures/ack proxy route is not deployed");
+    warn.mockRestore();
+  });
+
   it("creates RFC-4122-shaped render identities", () => {
     expect(newRenderInstanceId()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
