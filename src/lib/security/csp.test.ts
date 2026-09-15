@@ -46,6 +46,23 @@ describe("the content security policy", () => {
   });
 
   /* ---------------------------------------------------------------------- */
+  /*  R2 — the read host, not just the write host                            */
+  /* ---------------------------------------------------------------------- */
+
+  it("authorises the R2 PUBLIC domain the deck PDF is fetched from", () => {
+    const connect = directive(csp, "connect-src")!;
+    // Writes go to the S3 API host via presigned PUT...
+    expect(connect).toContain("https://*.r2.cloudflarestorage.com");
+    // ...and reads come back from the bucket's public domain, which matches
+    // neither that host nor any other origin here. Listing only the write host
+    // left every in-app deck load refused while the SAME url opened fine in a
+    // browser tab — connect-src governs fetches, not navigation — so the
+    // recording stage showed "Slide preview unavailable" over a file that was
+    // stored, served and valid.
+    expect(connect).toContain("https://*.r2.dev");
+  });
+
+  /* ---------------------------------------------------------------------- */
   /*  style-src — the directive that caused the outage                       */
   /* ---------------------------------------------------------------------- */
 
