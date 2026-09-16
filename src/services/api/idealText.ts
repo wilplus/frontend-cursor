@@ -1380,6 +1380,99 @@ export function mapInstantIdealText(
  *  until the coach approves the perfected version. `version` (FE-3b) requests an
  *  OLD version's read-only snapshot; omit for the live document. N == current
  *  serves the live notebook unchanged. */
+/** The single-deliverable lane's own result shape (audit Q-C7 dedup):
+ *  every null-safe field extraction fetchIdealText's `single` branch used to
+ *  build inline. Verbatim relocation — same fields, same fallbacks. */
+function mapSingleIdealTextFetchResult(
+  body: Record<string, unknown> & { status: "unverified" | "verified" },
+  ideal: IdealText,
+): Extract<IdealTextResult, { kind: "single" }> {
+  // T1 · 1.2 — feature-detected: shape-checked, never assumed. A prior
+  // edit with no words is no offer at all.
+  const priorEdit = (() => {
+    const pe = body.prior_edit;
+    if (!pe || typeof pe !== "object") return null;
+    const r = pe as Record<string, unknown>;
+    const t = typeof r.text === "string" ? r.text : "";
+    if (!t.trim()) return null;
+    return {
+      text: t,
+      version:
+        typeof r.version === "number" && Number.isFinite(r.version)
+          ? r.version
+          : null,
+    };
+  })();
+  return {
+    kind: "single",
+    ideal,
+    status: body.status,
+    version:
+      typeof body.version === "number" && Number.isFinite(body.version)
+        ? body.version
+        : null,
+    momentsUnlocked: body.moments_unlocked === true,
+    explanationsAvailable: body.explanations_available === true,
+    userEdited: body.user_edited === true,
+    priorEdit,
+    canRecordTake:
+      typeof body.can_record_take === "boolean" ? body.can_record_take : null,
+    // Additive 2026-07-20 fields — null-safe until the BE deploy lands.
+    title:
+      typeof body.title === "string" && body.title.trim() ? body.title : null,
+    updatedAt:
+      typeof body.updated_at === "string" && body.updated_at
+        ? body.updated_at
+        : null,
+    takeCount:
+      typeof body.take_count === "number" && Number.isFinite(body.take_count)
+        ? body.take_count
+        : null,
+    journeyNextStepsSeen:
+      typeof body.journey_next_steps_seen === "boolean"
+        ? body.journey_next_steps_seen
+        : null,
+    latestTakeSessionId:
+      typeof body.latest_take_session_id === "string" &&
+      body.latest_take_session_id
+        ? body.latest_take_session_id
+        : null,
+    pieces: mapIdealPieces(body.pieces),
+    // `changes` ONLY — the gated lane's own key. The old `suggestions`
+    // alias was a live bypass socket: any payload carrying that key
+    // rendered ungated (founder 2026-08-10, sole-gatekeeper rip).
+    suggestions: mapDocumentSuggestions(body.changes),
+    styleChanges: mapDocumentSuggestions(body.style_changes),
+    decisionHistory: mapDecisionHistory(body.decision_history),
+    // `is_saved` is the BE's field; `saved` tolerated as an alias so a
+    // rename cannot silently strand the whole save lane.
+    saved:
+      typeof body.is_saved === "boolean"
+        ? body.is_saved
+        : typeof body.saved === "boolean"
+          ? body.saved
+          : null,
+    // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
+    // toggle stays hidden.
+    keyPoints: mapKeyPoints(body.key_points),
+    parts: mapParts(body.parts),
+    additions: mapAdditions(body.additions),
+    presentationRef:
+      typeof body.presentation_ref === "string" &&
+      body.presentation_ref.length > 0
+        ? body.presentation_ref
+        : null,
+    slideTitles: Array.isArray(body.slide_titles)
+      ? body.slide_titles.map((s) => (typeof s === "string" ? s : ""))
+      : null,
+    learningExposures: mapLearningExposures(
+      body.learning_exposure ? [body.learning_exposure] : [],
+    ),
+    documentSnapshotId: str(body.document_snapshot_id) || null,
+    documentSnapshotSha256: str(body.document_snapshot_sha256) || null,
+  };
+}
+
 export async function fetchIdealText(
   arcId: string,
   version?: number | null,
@@ -1436,89 +1529,10 @@ export async function fetchIdealText(
   if (body?.status === "unverified" || body?.status === "verified") {
     const ideal = mapIdealText(body);
     if (!ideal) return { kind: "pending" };
-    return {
-      kind: "single",
+    return mapSingleIdealTextFetchResult(
+      body as Record<string, unknown> & { status: "unverified" | "verified" },
       ideal,
-      status: body.status,
-      version:
-        typeof body.version === "number" && Number.isFinite(body.version)
-          ? body.version
-          : null,
-      momentsUnlocked: body.moments_unlocked === true,
-      explanationsAvailable: body.explanations_available === true,
-      userEdited: body.user_edited === true,
-      // T1 · 1.2 — feature-detected: shape-checked, never assumed. A prior
-      // edit with no words is no offer at all.
-      priorEdit: (() => {
-        const pe = body.prior_edit;
-        if (!pe || typeof pe !== "object") return null;
-        const r = pe as Record<string, unknown>;
-        const t = typeof r.text === "string" ? r.text : "";
-        if (!t.trim()) return null;
-        return {
-          text: t,
-          version:
-            typeof r.version === "number" && Number.isFinite(r.version)
-              ? r.version
-              : null,
-        };
-      })(),
-      canRecordTake:
-        typeof body.can_record_take === "boolean" ? body.can_record_take : null,
-      // Additive 2026-07-20 fields — null-safe until the BE deploy lands.
-      title:
-        typeof body.title === "string" && body.title.trim() ? body.title : null,
-      updatedAt:
-        typeof body.updated_at === "string" && body.updated_at
-          ? body.updated_at
-          : null,
-      takeCount:
-        typeof body.take_count === "number" && Number.isFinite(body.take_count)
-          ? body.take_count
-          : null,
-      journeyNextStepsSeen:
-        typeof body.journey_next_steps_seen === "boolean"
-          ? body.journey_next_steps_seen
-          : null,
-      latestTakeSessionId:
-        typeof body.latest_take_session_id === "string" &&
-        body.latest_take_session_id
-          ? body.latest_take_session_id
-          : null,
-      pieces: mapIdealPieces(body.pieces),
-      // `changes` ONLY — the gated lane's own key. The old `suggestions`
-      // alias was a live bypass socket: any payload carrying that key
-      // rendered ungated (founder 2026-08-10, sole-gatekeeper rip).
-      suggestions: mapDocumentSuggestions(body.changes),
-      styleChanges: mapDocumentSuggestions(body.style_changes),
-      decisionHistory: mapDecisionHistory(body.decision_history),
-      // `is_saved` is the BE's field; `saved` tolerated as an alias so a
-      // rename cannot silently strand the whole save lane.
-      saved:
-        typeof body.is_saved === "boolean"
-          ? body.is_saved
-          : typeof body.saved === "boolean"
-            ? body.saved
-            : null,
-      // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
-      // toggle stays hidden.
-      keyPoints: mapKeyPoints(body.key_points),
-      parts: mapParts(body.parts),
-      additions: mapAdditions(body.additions),
-      presentationRef:
-        typeof body.presentation_ref === "string" &&
-        body.presentation_ref.length > 0
-          ? body.presentation_ref
-          : null,
-      slideTitles: Array.isArray(body.slide_titles)
-        ? body.slide_titles.map((s) => (typeof s === "string" ? s : ""))
-        : null,
-      learningExposures: mapLearningExposures(
-        body.learning_exposure ? [body.learning_exposure] : [],
-      ),
-      documentSnapshotId: str(body.document_snapshot_id) || null,
-      documentSnapshotSha256: str(body.document_snapshot_sha256) || null,
-    };
+    );
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
   // before payment/approval. Checked BEFORE the locked/approved coercions —
