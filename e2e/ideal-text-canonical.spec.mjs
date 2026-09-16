@@ -83,7 +83,12 @@ check(
 );
 
 /* ----------------------- rewrite is a proposed decision ------------------- */
-await page.locator('button[aria-label^="Feedback waiting — review it"]').click();
+/* THE JUDGEMENT IS ALWAYS FIRST (§1), whatever order the payload used, and
+   since §4 a Yes is also what opens the emphasis step later in this walk. */
+await page.locator('button[aria-label="Feedback waiting — review it"]').click();
+await page.waitForSelector("text=Feedback");
+await dialog(page).locator("button", { hasText: /Yes — Confident/ }).click();
+await page.waitForTimeout(500);
 await page.waitForSelector("text=Suggestion");
 check(
   "rewrite feedback shows the exact source words and the replacement",
@@ -129,10 +134,18 @@ let suggestionWrites = writes.filter((entry) =>
   entry.url.includes("suggestion-feedback")
 );
 check(
+  // TWO family responses now, not one, and both are correct: the judgement
+  // wrote its own (confident_voice / yes) before this screen. So this asserts
+  // the REWRITE's write by family rather than by being the only one — a count
+  // of 1 was only ever true because the fixture had no confidence item.
   "accepting the rewrite stores one immutable family response and one exact document decision",
-    responseWrites.length === 1 &&
-    responseWrites[0].body.feedback_family === "rewrite_clarity" &&
-    responseWrites[0].body.response === "apply_suggestion" &&
+    responseWrites.filter((w) => w.body.feedback_family === "rewrite_clarity")
+      .length === 1 &&
+    responseWrites.some(
+      (w) => w.body.feedback_family === "confident_voice" && w.body.response === "yes"
+    ) &&
+    responseWrites.find((w) => w.body.feedback_family === "rewrite_clarity")
+      .body.response === "apply_suggestion" &&
     suggestionWrites.length === 1 &&
     suggestionWrites[0].body.action === "applied" &&
     suggestionWrites[0].body.target === "document_replace" &&
@@ -156,22 +169,23 @@ check(
   (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
 );
 
-/* ------- the emphasis step, then the lock that promotes what it chose ------ */
-/* THE ROOT FACE IS GONE (founder 2026-09-15). The rooting phrase is chosen
-   BEFORE the lock, on its own step, and the lock promotes it. The speaker
-   already said which words matter; asking again after the lock was asking
-   twice. So this walk is: decide the rewrite -> choose words -> Lock. */
+/* --------- the emphasis step, then the lock that promotes what it chose ---- */
+/* THE ROOT FACE IS GONE (founder 2026-09-15): the rooting phrase is chosen
+   BEFORE the lock, on its own step, and the lock promotes it.
+
+   Since §4 the step also requires a Yes — which this walk gave above. A
+   paragraph nobody judged skips step four entirely and locks with no anchor,
+   and THAT, not a Skip button, is how a paragraph ends up without an orange
+   phrase. The Skip this walk used to expect is gone with it (§5): the step has
+   no opt-out, because it only appears on a paragraph already judged Yes. */
 await page.waitForSelector("text=Emphasis");
 check(
-  // THIS paragraph has no emphasis PROPOSAL — the style lane sits on the
-  // protected one below — so the step opens straight into tap-to-select. That
-  // is the "none proposable" state, and it is the reason the step exists for
-  // every paragraph rather than only for the ones with an offer: it is now
-  // the only place a rooting phrase is ever chosen.
+  // This paragraph has no emphasis PROPOSAL — the style lane sits on the
+  // protected one below — so the step opens straight into tap-to-select.
   "with nothing proposed, the emphasis step opens straight into choosing",
   (await dialog(page).locator("text=TAP THE WORDS").count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 1
+    (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0
 );
 for (const word of ["trusted", "the", "figures"]) {
   await dialog(page).locator("button", { hasText: new RegExp(`^${word}$`) }).first().click();
@@ -194,6 +208,21 @@ check(
     typeof lockWrites[0].body.text_echo === "string" &&
     Array.isArray(lockWrites[0].body.parts)
 );
+check(
+  // THE LOCK DOES NOT INVENT A DOCUMENT EDIT. Tapping words previews them in
+  // the accent (asserted above) and promotes them through the anchor below —
+  // it does not fold a marker into the text. An earlier attempt did exactly
+  // that, and the slide-edit walk further down caught what it cost: with a
+  // marker in the paragraph, editing that slide silently discards the edit.
+  // The words the speaker picked survive as a SPAN, which is what §5 stores.
+  "the lock carries the speaker's words as an anchor, not as an invented edit",
+  lockWrites[0].body.parts.every(
+    (part) =>
+      typeof part.text !== "string" ||
+      (!part.text.includes("{{orange:") && !part.text.includes("**"))
+  ),
+  JSON.stringify(lockWrites[0]?.body?.parts ?? null)
+);
 const rootWrites = writes.filter((entry) => entry.url.includes("/root"));
 check(
   "the lock promotes the chosen words itself, with no second question",
@@ -204,36 +233,38 @@ check(
   JSON.stringify(rootWrites)
 );
 
-/* ------------------ protected paragraph: style + coach note --------------- */
+/* ------------------ protected paragraph: the gate's other edge ------------- */
+/* A REAL CONSEQUENCE OF §4, asserted rather than hidden. This paragraph is
+   locked and carries a style-lane offer — the post-lock "open takes rewrites;
+   locked takes emphasis only" proposal. It has no Confident Voice item, so it
+   is never judged, so under §4 it never reaches step four AND ITS STYLE OFFER
+   IS NEVER PRESENTED.
+
+   That follows from the handoff as written — "Appears when state.style exists
+   AND the paragraph's judgement came back Yes" — but it is worth stating out
+   loud: the gate does not only decide whether the SPEAKER may pick words, it
+   also decides whether the MANAGER's own emphasis proposal is ever shown. A
+   locked paragraph with a proposal and no judgement now goes straight to Lock.
+
+   Flagged for the founder. If the style lane was meant to survive without a
+   judgement, the gate needs to distinguish "may choose their own words" from
+   "may be shown a proposal", and this is the test that would change. */
 const protectedBookmark = page.locator(
   'button[aria-label*="Paragraph protected"][aria-label*="Coach note:"]'
 );
 await protectedBookmark.click();
-await page.waitForSelector("text=Emphasis");
+await page.waitForSelector("text=Lock");
 check(
-  // The style lane is the POST-LOCK offer — "open takes rewrites; locked
-  // takes emphasis only" — so a locked paragraph with an offer still gets the
-  // emphasis step, now with the bolding PREVIEWED so the speaker confirms
-  // something they can see rather than a description of it.
-  "a protected paragraph still gets its emphasis offer, previewed",
-  (await dialog(page).locator("text=WITH EMPHASIS").count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Choose different words$/ }).count()) === 1
-);
-await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).click();
-await page.waitForTimeout(700);
-writes = await calls(page);
-const styleWrites = writes.filter((entry) => entry.body?.style_lane === true);
-check(
-  "accepted styling is one explicit style-lane decision",
-  styleWrites.length === 1 &&
-    styleWrites[0].body.action === "applied" &&
-    styleWrites[0].body.target === "document_bold"
+  "an unjudged paragraph is not offered the emphasis step, proposal or not",
+  (await dialog(page).locator("text=WITH EMPHASIS").count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Choose different words$/ }).count()) === 0
 );
 check(
-  "accepted styling is no longer offered and marker syntax never leaks",
-  (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 0 &&
-    !(await dialog(page).innerText()).includes("**")
+  // ...and the sheet still does its job: marker syntax never reaches the reader.
+  "marker syntax never leaks into the sheet",
+  !(await dialog(page).innerText()).includes("**") &&
+    !(await dialog(page).innerText()).includes("{{orange:")
 );
 await dialog(page).locator('button[aria-label="Close"]').click();
 await page.waitForTimeout(200);
@@ -252,8 +283,19 @@ check(
     (await dialog(page).locator("text=So we moved the launch").count()) === 0
 );
 await editors.first().click();
+/* Settle before typing. The first slide's second paragraph now carries an
+   orange marker (the speaker chose those words above), and MarkedEditor seeds
+   marker-bearing text through its own parse — a remount between the click and
+   the keystrokes sends them nowhere. The assertion below is unchanged; this
+   only makes the typing land. */
+await page.waitForTimeout(300);
+await editors.first().click();
 await page.keyboard.press("Control+End");
 await page.keyboard.type(" And we never looked back.");
+check(
+  "the typed words are in the editor before Save is pressed",
+  (await editors.first().innerText()).includes("never looked back")
+);
 await dialog(page).locator("button", { hasText: /^Save$/ }).click();
 await page.waitForTimeout(800);
 writes = await calls(page);

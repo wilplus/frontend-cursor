@@ -585,14 +585,21 @@ describe("the ladder", () => {
     expect(calls[0][0]?.text).toContain("the team is ready");
   });
 
-  it("tapping your own words bolds them on the spot, and locks them bold", async () => {
-    // Founder 2026-09-16, closing the asymmetry: accepting the PROPOSED phrase
-    // bolded the words immediately, choosing your own left the text plain
-    // until a refetch — which reads as "it didn't take".
+  it("tapping your own words previews them at once WITHOUT editing the document", async () => {
+    // BOTH HALVES OF A REVERSAL, pinned together (founder 2026-09-16).
     //
-    // No server call: onApplyStyle applies the SERVER's proposal and has no
-    // row for words the speaker picked. The draft is what Lock commits, so the
-    // `**` rides the same write as any other edit.
+    // The ask was "tap to bold immediately", and the asymmetry behind it is
+    // real: accepting the PROPOSED phrase changes the words on screen, while
+    // choosing your own used to leave them plain. My first fix wrote
+    // `{{orange:…}}` into the draft so Lock would carry it — and that loses
+    // the speaker's work. A paragraph carrying a marker cannot be edited: the
+    // typed words are in the editor and absent from the save.
+    //
+    // So the preview is the answer, not the edit. The tapped word turns accent
+    // the instant it is tapped (first expectation) — the same colour a rooting
+    // phrase has while recording — and the words travel to the server as a
+    // SPAN through onSetRootPhrase, which is where §5 puts them. The locked
+    // text is byte-identical to what the speaker was reading (second).
     vi.mocked(props.onLockIn).mockClear();
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
@@ -604,15 +611,16 @@ describe("the ladder", () => {
     await act(async () => {
       word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
+    // Immediate, on the spot, before anything is committed.
+    expect(word.getAttribute("aria-pressed")).toBe("true");
+    expect(word.className).toContain("text-primary");
+
     await click("Use this phrase");
     await click("Lock");
-    // The locked text carries the emphasis the speaker chose — as the ORANGE
-    // marker, not `**`. That is the right one: it is how a root phrase renders
-    // while recording (RichText gives it text-primary), so the preview on the
-    // step and the words that land are the same thing.
     const lockedText = vi.mocked(props.onLockIn).mock.calls[0][0];
-    expect(lockedText).toContain("{{orange:ready.}}");
-    // ...and the anchor still resolves against it, through the `**` rewrap.
+    expect(lockedText).not.toContain("{{orange:");
+    expect(lockedText).not.toContain("**");
+    // ...and the words still land, as the anchor.
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
     expect(calls[0][0]?.text).toContain("ready.");

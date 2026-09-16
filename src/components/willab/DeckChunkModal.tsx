@@ -509,31 +509,33 @@ export default function DeckChunkModal({
     advanceStep();
   }
 
-  /* TAP-TO-SELECT BOLDS ON THE SPOT, like accepting the proposal does
-     (founder 2026-09-16, closing the asymmetry flagged in the CTA audit).
-     Both paths end with an orange phrase, but only the proposed one changed
-     the words in front of the speaker — choosing your own left the text plain
-     until a refetch, which read as "it didn't take".
+  /* TAP-TO-SELECT DOES NOT WRITE A MARKER INTO THE DRAFT, and that is a
+     reversal of my own first attempt at "tap to bold immediately" (founder
+     2026-09-16) — reverted because it loses the speaker's work.
 
-     NO SERVER CALL HERE, and that is the difference from applyStyle rather
-     than an omission. onApplyStyle applies the SERVER's proposal; these are
-     the speaker's own words, which that endpoint has no row for. Bolding the
-     draft is enough because the draft is what Lock commits — onLockIn(draft)
-     carries the `**` with it, through the same write as any other edit. There
-     is no second lane and nothing to roll back, because nothing was claimed
-     before it landed.
+     Marking the draft put `{{orange:…}}` into the committed text. Verified end
+     to end in a real browser: with that marker present, editing the slide
+     SILENTLY DISCARDS THE EDIT — the typed words are in the editor and absent
+     from the save. Shipping it would have traded a cosmetic asymmetry for
+     data loss on the one surface where a speaker writes their own words.
 
-     The anchor still resolves: lockIn matches promotedQuote by READABLE text
-     against the locked draft, which is stable across the `**` rewrap that
-     would move every raw index after it. */
+     It also went past the handoff. §5 stores the rooting phrase as a SPAN —
+     onSetRootPhrase({text, start, end}) — resolved against the locked text at
+     lock time. Folding a marker into the document is what the STYLE LANE does,
+     server-side, after onApplyStyle agrees to it; there is no such row for
+     words the speaker picked themselves, so the marker was text the server
+     never agreed to, riding along on the lock.
+
+     What the speaker sees is unchanged and already answers the asymmetry: §6
+     renders tapped words in --primary as they are tapped, which is how a
+     rooting phrase renders while recording. The preview is immediate; only
+     the invented document edit is gone.
+
+     The editing bug is REAL and PRE-EXISTING — a paragraph can carry a marker
+     from the style lane too — and is reported separately rather than worked
+     around here. */
   function emphasiseChosen() {
-    const chosen = selectionText(draft, phraseTokens(draft), phraseRun);
-    setPromotedQuote(chosen);
-    const next = emphasizeQuote(draft, chosen);
-    if (next !== draft) {
-      dirtyRef.current = true;
-      setDraft(next);
-    }
+    setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
     advanceStep();
   }
 
