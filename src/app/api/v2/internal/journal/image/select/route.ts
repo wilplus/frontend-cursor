@@ -1,6 +1,4 @@
-import "server-only";
-import { NextRequest } from "next/server";
-import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend";
+import { internalJournalPassthrough } from "@/app/api/v2/internal/journal/_shared";
 
 /**
  * POST /api/v2/internal/journal/image/select
@@ -9,28 +7,8 @@ import { callBackend, relayLenient, type Failures } from "@/app/api/_lib/backend
  * attempt onto the post's cover. This is the undo for Regenerate, and the
  * retry path when a draw stored its image but failed to attach it.
  *
- * Password-gated on the BACKEND (the admin password rides in the body), so this
- * proxy adds no auth of its own and relays the upstream status + body verbatim.
- *
- * The password is never logged.
+ * (see _shared.ts for the password-gating and error-relay behavior common
+ * to every internal tool.)
  */
 export const runtime = "nodejs";
-
-const FAILURES: Failures = {
-  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
-  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Journal service unavailable." } },
-};
-const RELAY = relayLenient({ bareStatuses: [204, 205, 304] });
-
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  return callBackend("/v2/internal/journal/image/select", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    token: null,
-    requireAuth: false,
-    failures: FAILURES,
-    relay: RELAY,
-  });
-}
+export const POST = internalJournalPassthrough("/v2/internal/journal/image/select");
