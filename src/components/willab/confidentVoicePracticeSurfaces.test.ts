@@ -62,8 +62,16 @@ describe("Confident Voice micro-practice journey fences", () => {
   });
 
   it("lets the professional coach select a reviewed exercise or draft a new one", () => {
-    expect(coach).toContain("Existing exercise");
-    expect(coach).toContain("Create new exercise");
+    // Relabelled 2026-09-16 (founder). The capabilities are unchanged; the
+    // WORDS changed because "Create new exercise" sounded like it added to the
+    // library and does not — it makes a one-off welded to this recording,
+    // which can never reach a second speaker. "Just for them" says so.
+    expect(coach).toContain("From the library");
+    expect(coach).toContain("Just for them");
+    // And the third door, which is the one that really does add to the
+    // catalogue: straight into the exercise lane, skipping the fork.
+    expect(coach).toContain("Add to the library");
+    expect(coach).toContain('href="/cms/new/exercise/1"');
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
     expect(coach).toContain("Does the practice recording sound better than the original?");
