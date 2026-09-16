@@ -89,7 +89,12 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     expect(usage?.[0]).toMatch(/onClick=\{\(\) => \{/);
     expect(usage?.[0]).toMatch(/const markers = summaryByParagraph\.get\(c\.part\.id\) \?\? \[\]/);
     expect(usage?.[0]).toMatch(/setOpenBundleId\(markers\[index % markers\.length\]\.bundleId\)/);
-    expect(usage?.[0]).toMatch(/else setOpenPartId\(c\.part\.id\)/);
+    // Opens the chunk sheet on THAT chunk. It goes through `openParagraph`
+    // since 2026-09-16 rather than setting a bare id: the sheet is remembered
+    // by id AND position + words, so a refetch that re-mints identities cannot
+    // unmount it under the speaker (see deckSheetSurvival.test.tsx). The rule
+    // asserted here is unchanged — the bookmark opens this chunk's sheet.
+    expect(usage?.[0]).toMatch(/else openParagraph\(c\)/);
     expect(deck).toContain("Edit the text");
   });
 });

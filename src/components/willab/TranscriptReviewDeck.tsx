@@ -19,9 +19,11 @@ import {
   buildDeckChunks,
   chunkStateFor,
   groupChunksBySlide,
+  resolveOpenChunk,
   type ChunkState,
   type CoachMomentLite,
   type DeckChunk,
+  type OpenChunkRef,
 } from "@/lib/willab/deckChunks";
 import {
   buildScreens,
@@ -294,18 +296,36 @@ export default function TranscriptReviewDeck({
   // The open modal is addressed by PART ID, not by object: an accept
   // reassembles the document underneath the modal, and re-deriving the chunk
   // on every render is what carries the fresh words in.
-  const [openPartId, setOpenPartId] = useState<string | null>(null);
+  /* THE OPEN SHEET, remembered by id AND by position + words.
+     The id alone is not stable — see resolveOpenChunk — and a sheet that
+     vanishes mid-decision is the bug this carries the extra two fields for. */
+  const [openPart, setOpenPart] = useState<OpenChunkRef | null>(null);
+  /* A STABLE KEY FOR ONE OPENING. Keying the sheet on the live part id meant
+     a re-mint remounted it, which throws away anything typed into the draft.
+     The sheet already re-syncs its draft when the served words change under
+     it ("never over something the student has typed"), so it does not need
+     the remount to show fresh words — only a fresh PARAGRAPH needs a fresh
+     instance, and that is exactly when this counter moves. */
+  const openSeqRef = useRef(0);
+  const [openSeq, setOpenSeq] = useState(0);
+  const openParagraph = useCallback((chunk: DeckChunk) => {
+    openSeqRef.current += 1;
+    setOpenSeq(openSeqRef.current);
+    setOpenPart({
+      id: chunk.part.id,
+      index: chunk.paragraphIndex,
+      text: chunk.part.text.trim(),
+    });
+  }, []);
   const [editingSlideIndex, setEditingSlideIndex] = useState<
     number | null | undefined
   >(undefined);
   useEffect(() => {
     if (deckReady) return;
-    setOpenPartId(null);
+    setOpenPart(null);
     setEditingSlideIndex(undefined);
   }, [deckReady]);
-  const openChunk = openPartId
-    ? (chunks.find((c) => c.part.id === openPartId) ?? null)
-    : null;
+  const openChunk = resolveOpenChunk(chunks, openPart);
   const openState = openChunk ? stateOf(openChunk) : null;
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
@@ -766,7 +786,7 @@ export default function TranscriptReviewDeck({
                               ...current,
                               [c.part.id]: (index + 1) % markers.length,
                             }));
-                          } else setOpenPartId(c.part.id);
+                          } else openParagraph(c);
                         }}
                         // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
                         // 2026-08-11). The same join the modal already runs,
@@ -888,7 +908,7 @@ export default function TranscriptReviewDeck({
 
       {deckReady && openChunk && openState ? (
         <DeckChunkModal
-          key={openChunk.part.id}
+          key={openSeq}
           state={openState}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
@@ -929,7 +949,7 @@ export default function TranscriptReviewDeck({
                 }
               : null
           }
-          onClose={() => setOpenPartId(null)}
+          onClose={() => setOpenPart(null)}
           onApplyStyle={onApplyStyle}
           arcId={arcId}
         />
