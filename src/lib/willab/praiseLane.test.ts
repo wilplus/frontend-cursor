@@ -123,9 +123,11 @@ describe("praiseLines", () => {
 describe("the modal renders praise as evidence, not as a verdict", () => {
   it("plays the recording of the moment", () => {
     // The claim is about how it SOUNDED — the one claim this product makes
-    // that a student cannot check by reading.
+    // that a student cannot check by reading. renderFeedbackStep (audit
+    // Q-C7 dedup) is the feedback step's own render function, gated on
+    // step.kind === "feedback" by its one caller.
     expect(MODAL).toMatch(
-      /step\.kind === "feedback" && suggestion \? \([\s\S]{0,600}MediaPlayer/,
+      /function renderFeedbackStep\(\)[\s\S]{0,600}MediaPlayer/,
     );
   });
 
@@ -143,8 +145,11 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
     // Praise has its own step now; the rewrite cards render only on theirs.
-    expect(MODAL).toMatch(/step\.kind === "praise" && suggestion \? \(/);
-    expect(MODAL).toMatch(/step\.kind === "suggestion" && suggestion \? \(/);
+    // renderPraiseStep and renderSuggestionStep (audit Q-C7 dedup) are
+    // separate render functions, so praise never falls through to the
+    // suggestion step's rewrite card.
+    expect(MODAL).toMatch(/function renderPraiseStep\(\)/);
+    expect(MODAL).toMatch(/function renderSuggestionStep\(\)/);
     expect(MODAL).toMatch(/cardClearerVersion/);
   });
 
