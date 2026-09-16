@@ -1016,6 +1016,7 @@ export default function IdealTextOverlay({
                 // document into this same view.
                 <div className="flex flex-1 flex-col items-center justify-start pt-1 sm:pt-3">
                   <ProcessingWait
+                    phase="document"
                     progress={{ stage: "document_assembly", percent: null }}
                   />
                 </div>

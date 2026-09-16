@@ -100,6 +100,12 @@ export type LabUploadResult =
       takeIndex: 1;
     }
   | { kind: "rejected"; message: string } // 422 — min-content gate
+  /** THE SPEAKER THREW THE TAKE AWAY while it was still going up. Its own
+   *  kind, not an `error`: the caller must not show a failure panel or offer
+   *  to retry — nothing went wrong, and retrying would re-send exactly the
+   *  recording that was just discarded. Only reachable when the caller passed
+   *  a signal and aborted it, so no existing call site can receive this. */
+  | { kind: "discarded" }
   /** `code` is the stable branch key (§A1 — never branch on `error` text);
    *  `ref` joins the generic copy to the real exception in backend logs and is
    *  already folded into `message` ("Reference: …") for display. */
@@ -289,6 +295,7 @@ function authHeaders(token: string | null): Record<string, string> {
 async function postLabUpload(
   form: FormData,
   headers: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<Response> {
   const post = (url: string) =>
     fetch(url, {
@@ -296,6 +303,7 @@ async function postLabUpload(
       headers,
       body: form,
       credentials: "include",
+      signal,
     });
 
   const proxyBase = uploadProxyBase();
@@ -303,8 +311,13 @@ async function postLabUpload(
 
   try {
     return await post(proxyBase + "/v2/lab/recordings");
-  } catch {
-    // CORS, DNS, or an offline Worker falls back to the existing BFF lane.
+  } catch (error) {
+    // AN ABORT IS NOT A TRANSPORT FAILURE, and the difference is load-bearing
+    // here: the catch below exists to retry a CORS / DNS / offline-Worker
+    // failure on the BFF lane, and retrying a deliberate discard would send
+    // the very take the speaker just threw away — through the second URL,
+    // where nothing is listening for the abort. Rethrow instead.
+    if (signal?.aborted) throw error;
     return post("/api/v2/lab/recordings");
   }
 }
@@ -530,9 +543,16 @@ function mapLabUploadResponse(
 
 export async function submitLabRecording(
   rawInput: LabUploadInput,
+  /** Abort the upload to DISCARD the take. See the `discarded` result: an
+   *  abort is reported as its own outcome, never as a transport error. */
+  opts?: { signal?: AbortSignal },
 ): Promise<LabUploadResult> {
   const guard = guardRecordingInput(rawInput);
   if (!guard.ok) return { kind: "rejected", message: guard.message };
+
+  const signal = opts?.signal;
+  // Already thrown away before the token round-trip even started.
+  if (signal?.aborted) return { kind: "discarded" };
 
   const input = guard.input;
   const form = buildLabUploadForm(input);
@@ -547,8 +567,14 @@ export async function submitLabRecording(
 
   let response: Response;
   try {
-    response = await postLabUpload(form, headers);
+    response = await postLabUpload(form, headers, signal);
   } catch {
+    // READ THE SIGNAL, not the exception. Browsers disagree about what an
+    // aborted fetch rejects with (AbortError vs a DOMException vs a plain
+    // TypeError on older WebKit), and getting it wrong here is the difference
+    // between "your take is gone, as you asked" and a connection-error panel
+    // offering to re-send it.
+    if (signal?.aborted) return { kind: "discarded" };
     return {
       kind: "error",
       status: 0,
@@ -556,6 +582,9 @@ export async function submitLabRecording(
     };
   }
 
+  // The server ANSWERED. Past this line the take exists server-side, so a
+  // late abort must not be reported as discarded — that would tell the
+  // speaker their recording is gone while it is being processed.
   const body = (await response.json().catch(() => null)) as LabResponseBody;
   return mapLabUploadResponse(input, response, body);
 }

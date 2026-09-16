@@ -551,3 +551,98 @@ describe("the upload key is one per recording, not one per attempt", () => {
     expect(HOST).toMatch(/key: `\$\{Date\.now\(\)\}-\$\{Math\.random\(\)/);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*  DISCARDING A TAKE THAT IS STILL GOING UP (founder 2026-09-16)              */
+/*                                                                            */
+/*  The only window in which a take can leave NO SERVER TRACE is while its     */
+/*  request is in flight. These pin the three ways that promise could quietly  */
+/*  break: reporting the abort as a network error (which offers a retry that   */
+/*  would re-send the discarded audio), re-posting it on the BFF lane through  */
+/*  the proxy fallback, and claiming a discard for a take the server already   */
+/*  answered for.                                                             */
+/* -------------------------------------------------------------------------- */
+describe("submitLabRecording — an aborted upload is a discard, not a failure", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("reports `discarded`, never the connection-error copy", async () => {
+    const abort = new AbortController();
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      // A real browser rejects an aborted fetch; the name differs by engine,
+      // which is exactly why the helper reads the SIGNAL and not the error.
+      init?.signal?.addEventListener("abort", () => undefined);
+      abort.abort();
+      return Promise.reject(new DOMException("Aborted", "AbortError"));
+    });
+    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
+    expect(res.kind).toBe("discarded");
+  });
+
+  it("survives an engine that rejects with something other than AbortError", async () => {
+    const abort = new AbortController();
+    vi.stubGlobal("fetch", () => {
+      abort.abort();
+      return Promise.reject(new TypeError("Load failed"));
+    });
+    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
+    expect(res.kind).toBe("discarded");
+  });
+
+  it("does NOT re-send the discarded take down the BFF lane", async () => {
+    // The proxy fallback exists for CORS/DNS/offline failures. Reusing it on a
+    // deliberate abort would upload the very recording just thrown away — and
+    // to a URL that never saw the abort.
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
+    const abort = new AbortController();
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      abort.abort();
+      return Promise.reject(new DOMException("Aborted", "AbortError"));
+    });
+    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
+    expect(res.kind).toBe("discarded");
+    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
+  });
+
+  it("does not claim a discard once the server has answered", async () => {
+    // A tap that lands after the response must not tell the speaker their
+    // recording is gone while it is being processed.
+    const abort = new AbortController();
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({
+        ok: true,
+        status: 201,
+        json: () =>
+          Promise.resolve({
+            session_id: "sess_1",
+            project_id: "arc_default",
+            arc_id: "arc_default",
+            state: "readout_ready",
+            readout: { snippets: [] },
+          }),
+      } as unknown as Response),
+    );
+    const pending = submitLabRecording(baseInput(), { signal: abort.signal });
+    abort.abort();
+    expect((await pending).kind).toBe("ok");
+  });
+
+  it("an already-aborted signal never reaches the network", async () => {
+    const abort = new AbortController();
+    abort.abort();
+    let calls = 0;
+    vi.stubGlobal("fetch", () => {
+      calls += 1;
+      return Promise.reject(new Error("should not be reached"));
+    });
+    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
+    expect(res.kind).toBe("discarded");
+    expect(calls).toBe(0);
+  });
+
+  it("every existing caller is unaffected — no signal, no discard path", async () => {
+    const res = await submitLabRecording(baseInput());
+    expect(res.kind).toBe("ok");
+  });
+});

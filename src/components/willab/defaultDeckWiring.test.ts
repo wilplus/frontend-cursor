@@ -29,10 +29,16 @@ describe("the deckless take records against the default deck", () => {
   it("the UPLOAD ships the deck as presented, never the uploaded-only list", () => {
     // Scoped to the upload call: the take's slides are what make its words
     // bucketable, and sending context.slides HERE is exactly the regression.
+    // The effect calls through `uploadForProcessing` since the discard lane
+    // landed (2026-09-16) — the same upload, wrapped so an aborted one never
+    // reaches the outcome branches. The anchor moved; the rule did not.
     const call = LAB.slice(
-      LAB.indexOf("await submitLabRecording({"),
-      LAB.indexOf("await submitLabRecording({") + 2000
+      LAB.indexOf("await uploadForProcessing({"),
+      LAB.indexOf("await uploadForProcessing({") + 2000
     );
+    // Guard the slice itself: indexOf returning -1 would silently make every
+    // assertion below run against the top of the file.
+    expect(LAB).toContain("await uploadForProcessing({");
     expect(call).toMatch(/slides: recordingSlides,/);
     expect(call).not.toMatch(/slides: context\.slides,/);
   });

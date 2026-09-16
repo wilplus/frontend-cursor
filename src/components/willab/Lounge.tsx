@@ -31,6 +31,7 @@ import {
   transitionProcessingTakeToDocument,
   updateProcessingTakeProgress,
   writeProcessingTake,
+  type ProcessingPhase,
 } from "@/lib/willab/processingTake";
 import {
   retryIdealTextGeneration,
@@ -531,6 +532,9 @@ export default function Lounge({
     status: "analyzing" | "failed";
     startedAt: number;
     progress: { stage: string; percent: number | null } | null;
+    /* Carried so the resumed view can say WHICH wait it is. The marker has
+       always known; this state used to drop it on the way to the screen. */
+    phase: ProcessingPhase;
   } | null>(null);
   // A presentation key, not a second lifecycle owner. The job observer below
   // stays mounted in the Lounge while this exact session is shown full-screen.
@@ -635,6 +639,11 @@ export default function Lounge({
           previous.takeIndex === marker.takeIndex &&
           previous.status === status &&
           previous.startedAt === marker.startedAt &&
+          // PHASE IS PART OF "unchanged". The analysis → document transition
+          // can happen with the stage and percent identical on both sides, and
+          // without this the screen would keep the old phase's label for the
+          // rest of the job — the exact mislabel this carries the phase to fix.
+          previous.phase === marker.phase &&
           previous.progress?.stage === marker.progress?.stage &&
           previous.progress?.percent === marker.progress?.percent;
         return unchanged
@@ -645,6 +654,7 @@ export default function Lounge({
               status,
               startedAt: marker.startedAt,
               progress: marker.progress,
+              phase: marker.phase,
             };
       });
       if (marker.status === "failed" || marker.phase === "document") {
@@ -735,6 +745,10 @@ export default function Lounge({
             failedMarker?.sessionId === resumeWatch.sessionId
               ? failedMarker.progress
               : null,
+          phase:
+            failedMarker?.sessionId === resumeWatch.sessionId
+              ? failedMarker.phase
+              : "analysis",
         });
         setResumeWatch(null);
         // W6 (founder 2026-08-10) — the failure note used to clear itself
@@ -861,6 +875,9 @@ export default function Lounge({
       status: "analyzing",
       startedAt: now,
       progress: { stage: "processing_recording", percent: 0 },
+      // Mirrors the marker written immediately above: this retry re-enters
+      // audio analysis, so the recording labels are the true ones here.
+      phase: "analysis",
     });
     setResumeWatch({
       sessionId: marker.sessionId,
@@ -893,6 +910,10 @@ export default function Lounge({
       status: "analyzing",
       startedAt: now,
       progress: { stage: "ideal_text", percent: null },
+      // Mirrors its marker. This job "never re-enters audio analysis", and the
+      // `ideal_text` stage already resolves above the audio labels — but the
+      // marker says analysis, so this says analysis. One source of truth.
+      phase: "analysis",
     });
     setResumeWatch({
       sessionId: target.takeSessionId,
@@ -1643,6 +1664,7 @@ export default function Lounge({
       processingResume.status === "analyzing" ? (
         <ProcessingResumeOverlay
           progress={processingResume.progress}
+          phase={processingResume.phase}
           cycleStartedAt={processingResume.startedAt}
           onClose={closeProcessingOverlay}
         />
