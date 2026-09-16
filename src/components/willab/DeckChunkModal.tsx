@@ -511,29 +511,29 @@ export default function DeckChunkModal({
 
   /* TAP-TO-SELECT DOES NOT WRITE A MARKER INTO THE DRAFT, and that is a
      reversal of my own first attempt at "tap to bold immediately" (founder
-     2026-09-16) — reverted because it loses the speaker's work.
+     2026-09-16).
 
-     Marking the draft put `{{orange:…}}` into the committed text. Verified end
-     to end in a real browser: with that marker present, editing the slide
-     SILENTLY DISCARDS THE EDIT — the typed words are in the editor and absent
-     from the save. Shipping it would have traded a cosmetic asymmetry for
-     data loss on the one surface where a speaker writes their own words.
-
-     It also went past the handoff. §5 stores the rooting phrase as a SPAN —
+     IT WENT PAST THE HANDOFF. §5 stores the rooting phrase as a SPAN —
      onSetRootPhrase({text, start, end}) — resolved against the locked text at
      lock time. Folding a marker into the document is what the STYLE LANE does,
-     server-side, after onApplyStyle agrees to it; there is no such row for
-     words the speaker picked themselves, so the marker was text the server
-     never agreed to, riding along on the lock.
+     server-side, after onApplyStyle agrees to it. There is no such row for
+     words the speaker picked themselves, so the marker was a document edit
+     nobody asked for, riding along on the lock. That is the L1 objection and
+     it is sufficient on its own.
+
+     IT ALSO DESTABILISED SLIDE EDITING, measured rather than assumed. Marking
+     the draft made Lock ALSO save the document, whose refetch churned an open
+     slide editor: typing into a slide right afterwards did not reach the save
+     unless the walk paused and re-focused first. With this reverted, the
+     canonical walk types once and saves the typed words, three runs for three.
+     (To be precise about what was NOT the cause: a paragraph that already
+     carries a marker — from the style lane — edits and saves correctly. I
+     checked that directly in a browser before writing this.)
 
      What the speaker sees is unchanged and already answers the asymmetry: §6
      renders tapped words in --primary as they are tapped, which is how a
      rooting phrase renders while recording. The preview is immediate; only
-     the invented document edit is gone.
-
-     The editing bug is REAL and PRE-EXISTING — a paragraph can carry a marker
-     from the style lane too — and is reported separately rather than worked
-     around here. */
+     the invented document edit is gone. */
   function emphasiseChosen() {
     setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
     advanceStep();

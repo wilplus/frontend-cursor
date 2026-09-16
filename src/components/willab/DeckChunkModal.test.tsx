@@ -590,10 +590,12 @@ describe("the ladder", () => {
     //
     // The ask was "tap to bold immediately", and the asymmetry behind it is
     // real: accepting the PROPOSED phrase changes the words on screen, while
-    // choosing your own used to leave them plain. My first fix wrote
-    // `{{orange:…}}` into the draft so Lock would carry it — and that loses
-    // the speaker's work. A paragraph carrying a marker cannot be edited: the
-    // typed words are in the editor and absent from the save.
+    // choosing your own used to leave them plain. The first fix wrote
+    // `{{orange:…}}` into the draft so Lock would carry it — an edit to the
+    // canonical document that nobody asked for. Only the style lane folds a
+    // marker in, server-side, after onApplyStyle agrees; words the speaker
+    // picked have no such row. It also made Lock save the document, and that
+    // refetch churned an open slide editor.
     //
     // So the preview is the answer, not the edit. The tapped word turns accent
     // the instant it is tapped (first expectation) — the same colour a rooting

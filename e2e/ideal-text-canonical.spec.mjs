@@ -212,9 +212,10 @@ check(
   // THE LOCK DOES NOT INVENT A DOCUMENT EDIT. Tapping words previews them in
   // the accent (asserted above) and promotes them through the anchor below —
   // it does not fold a marker into the text. An earlier attempt did exactly
-  // that, and the slide-edit walk further down caught what it cost: with a
-  // marker in the paragraph, editing that slide silently discards the edit.
-  // The words the speaker picked survive as a SPAN, which is what §5 stores.
+  // that, and the slide-edit walk further down caught the cost: Lock then also
+  // saved the document, and the refetch churned an open editor so the next
+  // slide edit did not reach its save. The words the speaker picked belong in
+  // the SPAN that §5 stores, not in the paragraph.
   "the lock carries the speaker's words as an anchor, not as an invented edit",
   lockWrites[0].body.parts.every(
     (part) =>
@@ -282,13 +283,6 @@ check(
   (await editors.count()) === 2 &&
     (await dialog(page).locator("text=So we moved the launch").count()) === 0
 );
-await editors.first().click();
-/* Settle before typing. The first slide's second paragraph now carries an
-   orange marker (the speaker chose those words above), and MarkedEditor seeds
-   marker-bearing text through its own parse — a remount between the click and
-   the keystrokes sends them nowhere. The assertion below is unchanged; this
-   only makes the typing land. */
-await page.waitForTimeout(300);
 await editors.first().click();
 await page.keyboard.press("Control+End");
 await page.keyboard.type(" And we never looked back.");
