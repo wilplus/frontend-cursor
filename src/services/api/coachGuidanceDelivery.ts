@@ -167,6 +167,100 @@ function canonicalUuid(value: unknown): string | null {
   return typeof value === "string" && UUID_RE.test(value) ? value : null;
 }
 
+function mapAuthoringTargetSourcePassage(
+  raw: unknown,
+): CoachFeedbackLanguageTarget["sourcePassage"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const passage = raw as Record<string, unknown>;
+  if (!exactKeys(passage, ["evidence_span_id", "text", "text_sha256"])) {
+    return null;
+  }
+  const evidenceSpanId = canonicalUuid(passage.evidence_span_id);
+  if (
+    !evidenceSpanId || typeof passage.text !== "string" ||
+    !passage.text.trim() || typeof passage.text_sha256 !== "string" ||
+    !SHA256_RE.test(passage.text_sha256)
+  ) return null;
+  return { evidenceSpanId, text: passage.text, textSha256: passage.text_sha256 };
+}
+
+/** Only a Manager-approved output shape may authorize coach authoring: the
+ * comment/rephrase kind and (for comments) the purpose must match the
+ * family exactly, so a coach can never author outside what was arbitrated. */
+function isAllowedAuthoringOutput(
+  family: unknown, outputKind: unknown, purpose: unknown,
+): boolean {
+  return (
+    (family === "confident_voice" && outputKind === "comment" &&
+      purpose === "confidence_explanation") ||
+    (family === "great_formulation" && outputKind === "comment" &&
+      purpose === "positive_praise") ||
+    (family === "rewrite_clarity" && outputKind === "rephrase" &&
+      purpose === null) ||
+    (family === "rewrite_clarity" && outputKind === "comment" &&
+      purpose === "actionable_observation")
+  );
+}
+
+function mapAuthoringTargetIdentity(
+  target: Record<string, unknown>, seen: Set<string>,
+): {
+  bundleAttachmentId: string; reviewAssignmentId: string; revealAccessId: string;
+  expectedCurrentRevisionId: string | null; expectedCurrentDeliveryId: string | null;
+} | null {
+  const bundleAttachmentId = canonicalUuid(target.bundle_attachment_id);
+  const reviewAssignmentId = canonicalUuid(target.review_assignment_id);
+  const revealAccessId = canonicalUuid(target.reveal_access_id);
+  const expectedCurrentRevisionId = target.expected_current_revision_id === null
+    ? null
+    : canonicalUuid(target.expected_current_revision_id);
+  const expectedCurrentDeliveryId = target.expected_current_delivery_id === null
+    ? null
+    : canonicalUuid(target.expected_current_delivery_id);
+  if (
+    !bundleAttachmentId || !reviewAssignmentId || !revealAccessId ||
+    (target.expected_current_revision_id !== null &&
+      !expectedCurrentRevisionId) ||
+    (target.expected_current_delivery_id !== null &&
+      !expectedCurrentDeliveryId) ||
+    seen.has(bundleAttachmentId)
+  ) return null;
+  seen.add(bundleAttachmentId);
+  return { bundleAttachmentId, reviewAssignmentId, revealAccessId, expectedCurrentRevisionId, expectedCurrentDeliveryId };
+}
+
+function mapAuthoringTarget(
+  rawTarget: unknown,
+  seen: Set<string>,
+): CoachFeedbackLanguageTarget | null {
+  if (!rawTarget || typeof rawTarget !== "object") return null;
+  const target = rawTarget as Record<string, unknown>;
+  if (!exactKeys(target, [
+    "bundle_attachment_id", "review_assignment_id", "reveal_access_id",
+    "feedback_family", "allowed_output_kind", "allowed_comment_purpose",
+    "source_passage", "expected_current_revision_id",
+    "expected_current_delivery_id",
+  ])) return null;
+  const identity = mapAuthoringTargetIdentity(target, seen);
+  if (!identity) return null;
+
+  const family = target.feedback_family;
+  const outputKind = target.allowed_output_kind;
+  const purpose = target.allowed_comment_purpose;
+  if (!isAllowedAuthoringOutput(family, outputKind, purpose)) return null;
+
+  const sourcePassage = mapAuthoringTargetSourcePassage(target.source_passage);
+  if (!sourcePassage) return null;
+
+  return {
+    ...identity,
+    feedbackFamily: family as FeedbackLanguageFamily,
+    allowedOutputKind: outputKind as CoachFeedbackLanguageTarget["allowedOutputKind"],
+    allowedCommentPurpose: purpose as CoachFeedbackLanguageTarget["allowedCommentPurpose"],
+    sourcePassage,
+  };
+}
+
 function mapBundleAuthoringContext(
   raw: unknown,
 ): CoachBundleAuthoringContext | null {
@@ -185,76 +279,9 @@ function mapBundleAuthoringContext(
   const targets: CoachFeedbackLanguageTarget[] = [];
   const seen = new Set<string>();
   for (const rawTarget of row.authorized_targets) {
-    if (!rawTarget || typeof rawTarget !== "object") return null;
-    const target = rawTarget as Record<string, unknown>;
-    if (!exactKeys(target, [
-      "bundle_attachment_id", "review_assignment_id", "reveal_access_id",
-      "feedback_family", "allowed_output_kind", "allowed_comment_purpose",
-      "source_passage", "expected_current_revision_id",
-      "expected_current_delivery_id",
-    ])) return null;
-    const bundleAttachmentId = canonicalUuid(target.bundle_attachment_id);
-    const reviewAssignmentId = canonicalUuid(target.review_assignment_id);
-    const revealAccessId = canonicalUuid(target.reveal_access_id);
-    const expectedCurrentRevisionId = target.expected_current_revision_id === null
-      ? null
-      : canonicalUuid(target.expected_current_revision_id);
-    const expectedCurrentDeliveryId = target.expected_current_delivery_id === null
-      ? null
-      : canonicalUuid(target.expected_current_delivery_id);
-    if (
-      !bundleAttachmentId || !reviewAssignmentId || !revealAccessId ||
-      (target.expected_current_revision_id !== null &&
-        !expectedCurrentRevisionId) ||
-      (target.expected_current_delivery_id !== null &&
-        !expectedCurrentDeliveryId) ||
-      seen.has(bundleAttachmentId)
-    ) return null;
-    seen.add(bundleAttachmentId);
-
-    const family = target.feedback_family;
-    const outputKind = target.allowed_output_kind;
-    const purpose = target.allowed_comment_purpose;
-    const allowed =
-      (family === "confident_voice" && outputKind === "comment" &&
-        purpose === "confidence_explanation") ||
-      (family === "great_formulation" && outputKind === "comment" &&
-        purpose === "positive_praise") ||
-      (family === "rewrite_clarity" && outputKind === "rephrase" &&
-        purpose === null) ||
-      (family === "rewrite_clarity" && outputKind === "comment" &&
-        purpose === "actionable_observation");
-    if (!allowed) return null;
-
-    if (!target.source_passage || typeof target.source_passage !== "object") {
-      return null;
-    }
-    const passage = target.source_passage as Record<string, unknown>;
-    if (!exactKeys(passage, ["evidence_span_id", "text", "text_sha256"])) {
-      return null;
-    }
-    const evidenceSpanId = canonicalUuid(passage.evidence_span_id);
-    if (
-      !evidenceSpanId || typeof passage.text !== "string" ||
-      !passage.text.trim() || typeof passage.text_sha256 !== "string" ||
-      !SHA256_RE.test(passage.text_sha256)
-    ) return null;
-
-    targets.push({
-      bundleAttachmentId,
-      reviewAssignmentId,
-      revealAccessId,
-      feedbackFamily: family,
-      allowedOutputKind: outputKind,
-      allowedCommentPurpose: purpose,
-      sourcePassage: {
-        evidenceSpanId,
-        text: passage.text,
-        textSha256: passage.text_sha256,
-      },
-      expectedCurrentRevisionId,
-      expectedCurrentDeliveryId,
-    });
+    const target = mapAuthoringTarget(rawTarget, seen);
+    if (!target) return null;
+    targets.push(target);
   }
   return { bundleId, sourceReviewAttachmentId, authorizedTargets: targets };
 }

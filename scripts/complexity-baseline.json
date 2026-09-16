@@ -13,7 +13,7 @@
   "src/components/willab/CoachStarVerdictOverlay.tsx:Arrow function#35": 30,
   "src/components/willab/CoachStarVerdictOverlay.tsx:Function 'CoachStarVerdictOverlay'": 38,
   "src/components/willab/ConfidentMomentExercisePanel.tsx:Function 'ConfidentMomentExercisePanel'": 35,
-  "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 109,
+  "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 72,
   "src/components/willab/IdealTextOverlay.tsx:Function 'IdealTextOverlay'": 52,
   "src/components/willab/IdealTextReadout.tsx:Function 'IdealTextReadout'": 32,
   "src/components/willab/LabOverlay.tsx:Async arrow function#3": 32,
@@ -25,12 +25,8 @@
   "src/components/willab/readout.ts:Function 'mapFeedbackItem'": 29,
   "src/lib/willab/deckChunks.ts:Function 'groupChunksBySlide'": 28,
   "src/middleware.ts:Async function 'middleware'": 31,
-  "src/services/api/coachGuidanceDelivery.ts:Function 'mapBundleAuthoringContext'": 41,
   "src/services/api/coachReview.ts:Function 'mapCoachReviewSession'": 26,
-  "src/services/api/confidentMomentBundles.ts:Function 'mapConfidentMomentProjection'": 63,
-  "src/services/api/confidentMomentBundles.ts:Function 'mapFeedbackItem'": 78,
   "src/services/api/confidentVoicePractice.ts:Function 'mapConfidencePractice'": 26,
   "src/services/api/idealText.ts:Async function 'fetchIdealText'": 39,
-  "src/services/api/idealText.ts:Function 'mapConfidentMomentOwnerEdit'": 51,
   "src/services/api/idealText.ts:Function 'mapKeyMoment'": 28
 }
