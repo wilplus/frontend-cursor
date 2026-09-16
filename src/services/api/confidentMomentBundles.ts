@@ -238,6 +238,78 @@ export function mapConfidentMomentSummary(raw: unknown): ConfidentMomentSummary 
   return { contractVersion: CONFIDENT_MOMENT_SUMMARY_CONTRACT, documentSnapshotId, items, summarySha256 };
 }
 
+function mapFeedbackSourcePassage(raw: unknown): FeedbackLanguageItem["sourcePassage"] | null {
+  const source = object(raw);
+  if (!source || !exactKeys(source, ["evidence_span_id", "text", "text_sha256"])) return null;
+  const evidenceSpanId = uuid(source.evidence_span_id);
+  const sourceText = text(source.text);
+  const textSha256 = sha(source.text_sha256);
+  return evidenceSpanId && sourceText && textSha256
+    ? { evidenceSpanId, text: sourceText, textSha256 }
+    : null;
+}
+
+function mapFeedbackOutput(
+  outputRaw: Record<string, unknown>, family: unknown,
+): FeedbackLanguageItem["output"] | null {
+  if (!exactKeys(outputRaw, ["output_kind", "comment_purpose", "text", "origin"])) return null;
+  if (!["comment", "rephrase"].includes(String(outputRaw.output_kind)) || !["machine", "coach"].includes(String(outputRaw.origin)) || !text(outputRaw.text)) return null;
+  const purpose = outputRaw.comment_purpose;
+  if (purpose !== null && !["confidence_explanation", "actionable_observation", "positive_praise"].includes(String(purpose))) return null;
+  const output = { outputKind: outputRaw.output_kind as "comment" | "rephrase", commentPurpose: purpose as "confidence_explanation" | "actionable_observation" | "positive_praise" | null, text: outputRaw.text as string, origin: outputRaw.origin as "machine" | "coach" };
+  if (
+    (output.outputKind === "rephrase" && output.commentPurpose !== null) ||
+    (output.outputKind === "comment" && output.commentPurpose === null) ||
+    (family === "confident_voice" && (output.outputKind !== "comment" || output.commentPurpose !== "confidence_explanation")) ||
+    (family === "great_formulation" && (output.outputKind !== "comment" || output.commentPurpose !== "positive_praise")) ||
+    (family === "rewrite_clarity" && !(
+      (output.outputKind === "rephrase" && output.commentPurpose === null) ||
+      (output.outputKind === "comment" && output.commentPurpose === "actionable_observation")
+    ))
+  ) return null;
+  return output;
+}
+
+function mapFeedbackCoachUpdate(coachRaw: Record<string, unknown>): FeedbackLanguageItem["coachUpdate"] | null {
+  if (!exactKeys(coachRaw, ["current_revision_id", "revision_sha256", "revision_delivery_id", "delivery_subject_sha256", "presentation_id", "rendered_exposure_id", "unread"])) return null;
+  const currentRevisionId = uuid(coachRaw.current_revision_id);
+  const revisionSha256 = sha(coachRaw.revision_sha256);
+  const revisionDeliveryId = uuid(coachRaw.revision_delivery_id);
+  const deliverySubjectSha256 = sha(coachRaw.delivery_subject_sha256);
+  const presentationId = uuid(coachRaw.presentation_id);
+  const renderedExposureId = coachRaw.rendered_exposure_id === null ? null : uuid(coachRaw.rendered_exposure_id);
+  if (!currentRevisionId || !revisionSha256 || !revisionDeliveryId || !deliverySubjectSha256 || !presentationId || (coachRaw.rendered_exposure_id !== null && !renderedExposureId) || typeof coachRaw.unread !== "boolean" || coachRaw.unread !== (renderedExposureId === null)) return null;
+  return { currentRevisionId, revisionSha256, revisionDeliveryId, deliverySubjectSha256, presentationId, renderedExposureId, unread: coachRaw.unread };
+}
+
+function mapFeedbackOwnerDecision(
+  decisionRaw: Record<string, unknown>, family: FeedbackFamily,
+): FeedbackLanguageItem["ownerDecision"] | null {
+  if (!exactKeys(decisionRaw, ["feedback_family", "response", "decision_id", "owner_response_id", "response_binding_id"]) || decisionRaw.feedback_family !== family) return null;
+  const decisionId = uuid(decisionRaw.decision_id);
+  const ownerResponseId = decisionRaw.owner_response_id === null ? null : uuid(decisionRaw.owner_response_id);
+  const responseBindingId = decisionRaw.response_binding_id === null ? null : uuid(decisionRaw.response_binding_id);
+  if (!isFamilyResponse(family, decisionRaw.response) || !decisionId || (decisionRaw.owner_response_id !== null && !ownerResponseId) || (decisionRaw.response_binding_id !== null && !responseBindingId)) return null;
+  if (family === "confident_voice" ? (!ownerResponseId || !responseBindingId) : (ownerResponseId !== null || responseBindingId !== null)) return null;
+  return { feedbackFamily: family, response: decisionRaw.response as string, decisionId, ownerResponseId, responseBindingId };
+}
+
+function mapFeedbackItemIdentity(value: Record<string, unknown>): {
+  bundleAttachmentId: string; attachedCandidateId: string; canonicalFeedbackExposureId: string;
+  canonicalPosition: number; family: unknown; resolution: unknown;
+  sourcePassage: FeedbackLanguageItem["sourcePassage"];
+} | null {
+  const bundleAttachmentId = uuid(value.bundle_attachment_id);
+  const attachedCandidateId = uuid(value.attached_candidate_id);
+  const canonicalFeedbackExposureId = uuid(value.canonical_feedback_exposure_id);
+  const canonicalPosition = integer(value.canonical_position, 1);
+  const family = value.feedback_family;
+  const resolution = value.resolution_state;
+  const sourcePassage = mapFeedbackSourcePassage(value.source_passage);
+  if (!bundleAttachmentId || !attachedCandidateId || !canonicalFeedbackExposureId || canonicalPosition === null || !["confident_voice", "rewrite_clarity", "great_formulation"].includes(String(family)) || !["coach_revision", "machine_fallback", "excluded"].includes(String(resolution)) || !sourcePassage || typeof value.update_text_available !== "boolean") return null;
+  return { bundleAttachmentId, attachedCandidateId, canonicalFeedbackExposureId, canonicalPosition, family, resolution, sourcePassage };
+}
+
 function mapFeedbackItem(raw: unknown): FeedbackLanguageItem | null {
   const value = object(raw);
   if (!value || !exactKeys(value, [
@@ -245,18 +317,9 @@ function mapFeedbackItem(raw: unknown): FeedbackLanguageItem | null {
     "canonical_position", "resolution_state", "exclusion_reason", "source_passage", "update_text_available",
     "coach_authoring_exclusion_reason", "output", "coach_update", "owner_decision",
   ])) return null;
-  const bundleAttachmentId = uuid(value.bundle_attachment_id);
-  const attachedCandidateId = uuid(value.attached_candidate_id);
-  const canonicalFeedbackExposureId = uuid(value.canonical_feedback_exposure_id);
-  const canonicalPosition = integer(value.canonical_position, 1);
-  const family = value.feedback_family;
-  const resolution = value.resolution_state;
-  const source = object(value.source_passage);
-  if (!bundleAttachmentId || !attachedCandidateId || !canonicalFeedbackExposureId || canonicalPosition === null || !["confident_voice", "rewrite_clarity", "great_formulation"].includes(String(family)) || !["coach_revision", "machine_fallback", "excluded"].includes(String(resolution)) || !source || !exactKeys(source, ["evidence_span_id", "text", "text_sha256"])) return null;
-  const evidenceSpanId = uuid(source.evidence_span_id);
-  const sourceText = text(source.text);
-  const textSha256 = sha(source.text_sha256);
-  if (!evidenceSpanId || !sourceText || !textSha256 || typeof value.update_text_available !== "boolean") return null;
+  const identity = mapFeedbackItemIdentity(value);
+  if (!identity) return null;
+  const { bundleAttachmentId, attachedCandidateId, canonicalFeedbackExposureId, canonicalPosition, family, resolution, sourcePassage } = identity;
   if (value.coach_authoring_exclusion_reason !== null && value.coach_authoring_exclusion_reason !== "source_audio_unavailable") return null;
   const outputRaw = value.output === null ? null : object(value.output);
   const coachRaw = value.coach_update === null ? null : object(value.coach_update);
@@ -271,51 +334,31 @@ function mapFeedbackItem(raw: unknown): FeedbackLanguageItem | null {
     // attachment; only output/coach-update payloads must disappear.
     if (outputRaw || coachRaw || !["delivery_explicitly_invalidated", "machine_output_invalid"].includes(String(value.exclusion_reason))) return null;
   } else {
-    if (value.exclusion_reason !== null || !outputRaw || !exactKeys(outputRaw, ["output_kind", "comment_purpose", "text", "origin"])) return null;
-    if (!["comment", "rephrase"].includes(String(outputRaw.output_kind)) || !["machine", "coach"].includes(String(outputRaw.origin)) || !text(outputRaw.text)) return null;
-    const purpose = outputRaw.comment_purpose;
-    if (purpose !== null && !["confidence_explanation", "actionable_observation", "positive_praise"].includes(String(purpose))) return null;
-    output = { outputKind: outputRaw.output_kind as "comment" | "rephrase", commentPurpose: purpose as "confidence_explanation" | "actionable_observation" | "positive_praise" | null, text: outputRaw.text as string, origin: outputRaw.origin as "machine" | "coach" };
-    if (
-      (output.outputKind === "rephrase" && output.commentPurpose !== null) ||
-      (output.outputKind === "comment" && output.commentPurpose === null) ||
-      (family === "confident_voice" && (output.outputKind !== "comment" || output.commentPurpose !== "confidence_explanation")) ||
-      (family === "great_formulation" && (output.outputKind !== "comment" || output.commentPurpose !== "positive_praise")) ||
-      (family === "rewrite_clarity" && !(
-        (output.outputKind === "rephrase" && output.commentPurpose === null) ||
-        (output.outputKind === "comment" && output.commentPurpose === "actionable_observation")
-      ))
-    ) return null;
+    if (value.exclusion_reason !== null || !outputRaw) return null;
+    const mappedOutput = mapFeedbackOutput(outputRaw, family);
+    if (!mappedOutput) return null;
+    output = mappedOutput;
     if (resolution === "machine_fallback") {
       if (coachRaw || output.origin !== "machine") return null;
     } else {
-      if (!coachRaw || output.origin !== "coach" || !exactKeys(coachRaw, ["current_revision_id", "revision_sha256", "revision_delivery_id", "delivery_subject_sha256", "presentation_id", "rendered_exposure_id", "unread"])) return null;
-      const currentRevisionId = uuid(coachRaw.current_revision_id);
-      const revisionSha256 = sha(coachRaw.revision_sha256);
-      const revisionDeliveryId = uuid(coachRaw.revision_delivery_id);
-      const deliverySubjectSha256 = sha(coachRaw.delivery_subject_sha256);
-      const presentationId = uuid(coachRaw.presentation_id);
-      const renderedExposureId = coachRaw.rendered_exposure_id === null ? null : uuid(coachRaw.rendered_exposure_id);
-      if (!currentRevisionId || !revisionSha256 || !revisionDeliveryId || !deliverySubjectSha256 || !presentationId || (coachRaw.rendered_exposure_id !== null && !renderedExposureId) || typeof coachRaw.unread !== "boolean" || coachRaw.unread !== (renderedExposureId === null)) return null;
-      coachUpdate = { currentRevisionId, revisionSha256, revisionDeliveryId, deliverySubjectSha256, presentationId, renderedExposureId, unread: coachRaw.unread };
+      if (!coachRaw || output.origin !== "coach") return null;
+      const mappedCoachUpdate = mapFeedbackCoachUpdate(coachRaw);
+      if (!mappedCoachUpdate) return null;
+      coachUpdate = mappedCoachUpdate;
     }
   }
   if (decisionRaw) {
-    if (!exactKeys(decisionRaw, ["feedback_family", "response", "decision_id", "owner_response_id", "response_binding_id"]) || decisionRaw.feedback_family !== family) return null;
-    const decisionId = uuid(decisionRaw.decision_id);
-    const ownerResponseId = decisionRaw.owner_response_id === null ? null : uuid(decisionRaw.owner_response_id);
-    const responseBindingId = decisionRaw.response_binding_id === null ? null : uuid(decisionRaw.response_binding_id);
-    if (!isFamilyResponse(family as FeedbackFamily, decisionRaw.response) || !decisionId || (decisionRaw.owner_response_id !== null && !ownerResponseId) || (decisionRaw.response_binding_id !== null && !responseBindingId)) return null;
-    if (family === "confident_voice" ? (!ownerResponseId || !responseBindingId) : (ownerResponseId !== null || responseBindingId !== null)) return null;
-    ownerDecision = { feedbackFamily: family as FeedbackFamily, response: decisionRaw.response as string, decisionId, ownerResponseId, responseBindingId };
+    const mappedDecision = mapFeedbackOwnerDecision(decisionRaw, family as FeedbackFamily);
+    if (!mappedDecision) return null;
+    ownerDecision = mappedDecision;
   }
   return {
     bundleAttachmentId, attachedCandidateId, feedbackFamily: family as FeedbackFamily,
     canonicalFeedbackExposureId, canonicalPosition,
     resolutionState: resolution as FeedbackLanguageItem["resolutionState"],
     exclusionReason: value.exclusion_reason as FeedbackLanguageItem["exclusionReason"],
-    sourcePassage: { evidenceSpanId, text: sourceText, textSha256 },
-    updateTextAvailable: value.update_text_available,
+    sourcePassage,
+    updateTextAvailable: value.update_text_available as boolean,
     coachAuthoringExclusionReason: value.coach_authoring_exclusion_reason as "source_audio_unavailable" | null,
     output, coachUpdate, ownerDecision,
   };
@@ -405,6 +448,66 @@ export async function fetchConfidentMomentExerciseCorrelation(bundleId: string, 
   return value ? { kind: "ok", value } : { kind: "error" };
 }
 
+function mapBundleConfidenceAnchor(
+  kind: unknown, anchorRaw: Record<string, unknown> | null, bundleId: string, evidenceSpanId: string,
+): { anchor: ConfidentMomentBundle["confidenceAnchor"] } | null {
+  if (kind === "confidence_anchor") {
+    if (!anchorRaw) return null;
+    const anchorCandidateId = uuid(anchorRaw.candidate_id), anchorEvidenceSpanId = uuid(anchorRaw.evidence_span_id), playbackReferenceId = text(anchorRaw.playback_reference_id);
+    if (anchorCandidateId !== bundleId || anchorEvidenceSpanId !== evidenceSpanId || !playbackReferenceId) return null;
+    return { anchor: { candidateId: anchorCandidateId, evidenceSpanId: anchorEvidenceSpanId, playbackReferenceId } };
+  }
+  if (kind !== "no_anchor_paragraph_trigger" || anchorRaw) return null;
+  return { anchor: null };
+}
+
+function mapBundleRoot(root: Record<string, unknown>, kind: unknown): ConfidentMomentBundle["root"] | null {
+  if (!bigint(root.interaction_state_revision) || typeof root.is_orange !== "boolean" || typeof root.is_locked !== "boolean" || typeof root.can_restore_previous !== "boolean") return null;
+  const activeRootActionId = root.active_root_action_id === null ? null : uuid(root.active_root_action_id);
+  const restoreProductActionId = root.restore_product_action_id === null ? null : uuid(root.restore_product_action_id);
+  if ((root.active_root_action_id !== null && !activeRootActionId) || (root.restore_product_action_id !== null && !restoreProductActionId) || root.can_restore_previous !== (restoreProductActionId !== null)) return null;
+  if (root.is_locked && !root.is_orange) return null;
+  if (kind === "no_anchor_paragraph_trigger" && (root.is_orange || root.is_locked || root.can_restore_previous)) return null;
+  return {
+    activeRootActionId,
+    interactionStateRevision: root.interaction_state_revision as string,
+    isOrange: root.is_orange, isLocked: root.is_locked,
+    canRestorePrevious: root.can_restore_previous,
+    restoreProductActionId,
+  };
+}
+
+function mapConfidentMomentBundle(
+  rawBundle: unknown, seenBundles: Set<string>, seenAttachments: Set<string>,
+): ConfidentMomentBundle | null {
+  const bundle = object(rawBundle);
+  if (!bundle || !exactKeys(bundle, ["bundle_id", "bundle_subject_kind", "slide_index", "block_key", "paragraph_id", "subject", "confidence_anchor", "feedback_language_items", "exercise", "root", "state_revision"]) || bundle.exercise !== null) return null;
+  const bundleId = uuid(bundle.bundle_id), paragraphId = uuid(bundle.paragraph_id), slideIndex = integer(bundle.slide_index), blockKey = integer(bundle.block_key), stateRevision = integer(bundle.state_revision, 1);
+  const subject = object(bundle.subject), root = object(bundle.root);
+  if (!bundleId || seenBundles.has(bundleId) || !paragraphId || slideIndex === null || blockKey === null || stateRevision === null || !subject || !root || !Array.isArray(bundle.feedback_language_items)) return null;
+  seenBundles.add(bundleId);
+  const candidateId = uuid(subject.candidate_id), evidenceSpanId = uuid(subject.evidence_span_id), presentationId = uuid(subject.canonical_feedback_presentation_id);
+  if (!candidateId || candidateId !== bundleId || !evidenceSpanId || !presentationId) return null;
+  const attachments = bundle.feedback_language_items.map(mapFeedbackItem);
+  if (attachments.some((item) => item === null)) return null;
+  for (const attachment of attachments as FeedbackLanguageItem[]) {
+    if (seenAttachments.has(attachment.bundleAttachmentId)) return null;
+    seenAttachments.add(attachment.bundleAttachmentId);
+  }
+  const kind = bundle.bundle_subject_kind;
+  const anchorRaw = bundle.confidence_anchor === null ? null : object(bundle.confidence_anchor);
+  const anchorResult = mapBundleConfidenceAnchor(kind, anchorRaw, bundleId, evidenceSpanId);
+  if (!anchorResult) return null;
+  const mappedRoot = mapBundleRoot(root, kind);
+  if (!mappedRoot) return null;
+  return {
+    bundleId, bundleSubjectKind: kind as ConfidentMomentBundle["bundleSubjectKind"], slideIndex, blockKey, paragraphId,
+    subject: { candidateId, evidenceSpanId, canonicalFeedbackPresentationId: presentationId },
+    confidenceAnchor: anchorResult.anchor, feedbackLanguageItems: attachments as FeedbackLanguageItem[], exercise: null,
+    root: mappedRoot, stateRevision,
+  };
+}
+
 export function mapConfidentMomentProjection(raw: unknown): ConfidentMomentProjection | null {
   const value = object(raw);
   if (!value || !exactKeys(value, ["contract_version", "feedback_language_shape_version", "project_id", "take_id", "document_snapshot_id", "feedback_membership_id", "bundles", "coverage", "response_sha256"]) || value.contract_version !== CONFIDENT_MOMENT_CONTRACT || value.feedback_language_shape_version !== "feedback-language-items-v2") return null;
@@ -413,50 +516,13 @@ export function mapConfidentMomentProjection(raw: unknown): ConfidentMomentProje
   if (!projectId || !takeId || !documentSnapshotId || !feedbackMembershipId || !responseSha256 || !Array.isArray(value.bundles) || !coverage || !exactKeys(coverage, ["target_slide_count", "achieved_slide_count", "target_met"])) return null;
   const targetSlideCount = integer(coverage.target_slide_count), achievedSlideCount = integer(coverage.achieved_slide_count);
   if (targetSlideCount === null || achievedSlideCount === null || typeof coverage.target_met !== "boolean" || coverage.target_met !== (targetSlideCount > 0 && achievedSlideCount >= targetSlideCount)) return null;
-  const bundles: ConfidentMomentBundle[] = [];
   const seenBundles = new Set<string>();
   const seenAttachments = new Set<string>();
+  const bundles: ConfidentMomentBundle[] = [];
   for (const rawBundle of value.bundles) {
-    const bundle = object(rawBundle);
-    if (!bundle || !exactKeys(bundle, ["bundle_id", "bundle_subject_kind", "slide_index", "block_key", "paragraph_id", "subject", "confidence_anchor", "feedback_language_items", "exercise", "root", "state_revision"]) || bundle.exercise !== null) return null;
-    const bundleId = uuid(bundle.bundle_id), paragraphId = uuid(bundle.paragraph_id), slideIndex = integer(bundle.slide_index), blockKey = integer(bundle.block_key), stateRevision = integer(bundle.state_revision, 1);
-    const subject = object(bundle.subject), root = object(bundle.root);
-    if (!bundleId || seenBundles.has(bundleId) || !paragraphId || slideIndex === null || blockKey === null || stateRevision === null || !subject || !root || !Array.isArray(bundle.feedback_language_items)) return null;
-    seenBundles.add(bundleId);
-    const candidateId = uuid(subject.candidate_id), evidenceSpanId = uuid(subject.evidence_span_id), presentationId = uuid(subject.canonical_feedback_presentation_id);
-    if (!candidateId || candidateId !== bundleId || !evidenceSpanId || !presentationId || !bigint(root.interaction_state_revision) || typeof root.is_orange !== "boolean" || typeof root.is_locked !== "boolean" || typeof root.can_restore_previous !== "boolean") return null;
-    const attachments = bundle.feedback_language_items.map(mapFeedbackItem);
-    if (attachments.some((item) => item === null)) return null;
-    for (const attachment of attachments as FeedbackLanguageItem[]) {
-      if (seenAttachments.has(attachment.bundleAttachmentId)) return null;
-      seenAttachments.add(attachment.bundleAttachmentId);
-    }
-    const anchorRaw = bundle.confidence_anchor === null ? null : object(bundle.confidence_anchor);
-    const kind = bundle.bundle_subject_kind;
-    let confidenceAnchor: ConfidentMomentBundle["confidenceAnchor"] = null;
-    if (kind === "confidence_anchor") {
-      if (!anchorRaw) return null;
-      const anchorCandidateId = uuid(anchorRaw.candidate_id), anchorEvidenceSpanId = uuid(anchorRaw.evidence_span_id), playbackReferenceId = text(anchorRaw.playback_reference_id);
-      if (anchorCandidateId !== bundleId || anchorEvidenceSpanId !== evidenceSpanId || !playbackReferenceId) return null;
-      confidenceAnchor = { candidateId: anchorCandidateId, evidenceSpanId: anchorEvidenceSpanId, playbackReferenceId };
-    } else if (kind !== "no_anchor_paragraph_trigger" || anchorRaw) return null;
-    const activeRootActionId = root.active_root_action_id === null ? null : uuid(root.active_root_action_id);
-    const restoreProductActionId = root.restore_product_action_id === null ? null : uuid(root.restore_product_action_id);
-    if ((root.active_root_action_id !== null && !activeRootActionId) || (root.restore_product_action_id !== null && !restoreProductActionId) || root.can_restore_previous !== (restoreProductActionId !== null)) return null;
-    if (root.is_locked && !root.is_orange) return null;
-    if (kind === "no_anchor_paragraph_trigger" && (root.is_orange || root.is_locked || root.can_restore_previous)) return null;
-    bundles.push({
-      bundleId, bundleSubjectKind: kind, slideIndex, blockKey, paragraphId,
-      subject: { candidateId, evidenceSpanId, canonicalFeedbackPresentationId: presentationId },
-      confidenceAnchor, feedbackLanguageItems: attachments as FeedbackLanguageItem[], exercise: null,
-      root: {
-        activeRootActionId,
-        interactionStateRevision: root.interaction_state_revision as string,
-        isOrange: root.is_orange, isLocked: root.is_locked,
-        canRestorePrevious: root.can_restore_previous,
-        restoreProductActionId,
-      }, stateRevision,
-    });
+    const bundle = mapConfidentMomentBundle(rawBundle, seenBundles, seenAttachments);
+    if (!bundle) return null;
+    bundles.push(bundle);
   }
   return { contractVersion: CONFIDENT_MOMENT_CONTRACT, feedbackLanguageShapeVersion: "feedback-language-items-v2", projectId, takeId, documentSnapshotId, feedbackMembershipId, bundles, coverage: { targetSlideCount, achievedSlideCount, targetMet: coverage.target_met }, responseSha256 };
 }

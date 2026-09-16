@@ -1604,6 +1604,54 @@ function mapIdealTextCorePayload(
   };
 }
 
+function mapConfidentMomentOwnerEditPart(
+  rawPart: unknown, position: number,
+): ConfidentMomentOwnerEdit["parts"][number] | null {
+  if (!rawPart || typeof rawPart !== "object" || Array.isArray(rawPart)) return null;
+  const part = rawPart as Record<string, unknown>;
+  if (Object.keys(part).sort().join("|") !== ["id", "ord", "text", "locked", "current_part_revision_id"].sort().join("|")) return null;
+  if (
+    typeof part.id !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(part.id) ||
+    part.ord !== position || typeof part.text !== "string" ||
+    typeof part.locked !== "boolean" ||
+    (part.current_part_revision_id !== null &&
+      (typeof part.current_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(part.current_part_revision_id)))
+  ) return null;
+  return { id: part.id, position, text: part.text, locked: part.locked, currentPartRevisionId: part.current_part_revision_id as string | null };
+}
+
+function mapConfidentMomentTextUpdateBinding(
+  bindingRaw: unknown,
+  value: Record<string, unknown>,
+  parts: ConfidentMomentOwnerEdit["parts"],
+): ConfidentMomentOwnerEdit["currentBundleTextUpdateBinding"] | null {
+  if (!bindingRaw || typeof bindingRaw !== "object" || Array.isArray(bindingRaw)) return null;
+  const binding = bindingRaw as Record<string, unknown>;
+  const bindingKeys = ["binding_id", "bundle_id", "attachment_id", "source_document_version", "result_user_text_revision", "result_user_text_sha256", "result_part_revision_id"];
+  if (Object.keys(binding).sort().join("|") !== bindingKeys.sort().join("|")) return null;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  if (
+    typeof binding.binding_id !== "string" || !uuidPattern.test(binding.binding_id) ||
+    typeof binding.bundle_id !== "string" || !uuidPattern.test(binding.bundle_id) ||
+    typeof binding.attachment_id !== "string" || !uuidPattern.test(binding.attachment_id) ||
+    binding.source_document_version !== value.source_document_version ||
+    binding.result_user_text_revision !== value.user_text_revision ||
+    binding.result_user_text_sha256 !== value.user_text_sha256 ||
+    typeof binding.result_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(binding.result_part_revision_id) ||
+    !parts.some((part) => part.currentPartRevisionId === binding.result_part_revision_id)
+  ) return null;
+  return {
+    bindingId: binding.binding_id,
+    bundleId: binding.bundle_id,
+    attachmentId: binding.attachment_id,
+    sourceDocumentVersion: binding.source_document_version as number,
+    resultUserTextRevision: binding.result_user_text_revision as string,
+    resultUserTextSha256: binding.result_user_text_sha256 as string,
+    resultPartRevisionId: binding.result_part_revision_id,
+  };
+}
+
 function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const value = raw as Record<string, unknown>;
@@ -1641,47 +1689,16 @@ function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | n
   ) return null;
   const parts: ConfidentMomentOwnerEdit["parts"] = [];
   for (let position = 0; position < value.parts.length; position += 1) {
-    const rawPart = value.parts[position];
-    if (!rawPart || typeof rawPart !== "object" || Array.isArray(rawPart)) return null;
-    const part = rawPart as Record<string, unknown>;
-    if (Object.keys(part).sort().join("|") !== ["id", "ord", "text", "locked", "current_part_revision_id"].sort().join("|")) return null;
-    if (
-      typeof part.id !== "string" ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(part.id) ||
-      part.ord !== position || typeof part.text !== "string" ||
-      typeof part.locked !== "boolean" ||
-      (part.current_part_revision_id !== null &&
-        (typeof part.current_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(part.current_part_revision_id)))
-    ) return null;
-    parts.push({ id: part.id, position, text: part.text, locked: part.locked, currentPartRevisionId: part.current_part_revision_id as string | null });
+    const part = mapConfidentMomentOwnerEditPart(value.parts[position], position);
+    if (!part) return null;
+    parts.push(part);
   }
-  const bindingRaw = value.current_bundle_text_update_binding;
   let currentBundleTextUpdateBinding: ConfidentMomentOwnerEdit["currentBundleTextUpdateBinding"] = null;
-  if (bindingRaw !== null) {
-    if (!bindingRaw || typeof bindingRaw !== "object" || Array.isArray(bindingRaw)) return null;
-    const binding = bindingRaw as Record<string, unknown>;
-    const bindingKeys = ["binding_id", "bundle_id", "attachment_id", "source_document_version", "result_user_text_revision", "result_user_text_sha256", "result_part_revision_id"];
-    if (Object.keys(binding).sort().join("|") !== bindingKeys.sort().join("|")) return null;
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-    if (
-      typeof binding.binding_id !== "string" || !uuidPattern.test(binding.binding_id) ||
-      typeof binding.bundle_id !== "string" || !uuidPattern.test(binding.bundle_id) ||
-      typeof binding.attachment_id !== "string" || !uuidPattern.test(binding.attachment_id) ||
-      binding.source_document_version !== value.source_document_version ||
-      binding.result_user_text_revision !== value.user_text_revision ||
-      binding.result_user_text_sha256 !== value.user_text_sha256 ||
-      typeof binding.result_part_revision_id !== "string" || !/^[1-9][0-9]*$/.test(binding.result_part_revision_id) ||
-      !parts.some((part) => part.currentPartRevisionId === binding.result_part_revision_id)
-    ) return null;
-    currentBundleTextUpdateBinding = {
-      bindingId: binding.binding_id,
-      bundleId: binding.bundle_id,
-      attachmentId: binding.attachment_id,
-      sourceDocumentVersion: binding.source_document_version as number,
-      resultUserTextRevision: binding.result_user_text_revision as string,
-      resultUserTextSha256: binding.result_user_text_sha256 as string,
-      resultPartRevisionId: binding.result_part_revision_id,
-    };
+  if (value.current_bundle_text_update_binding !== null) {
+    currentBundleTextUpdateBinding = mapConfidentMomentTextUpdateBinding(
+      value.current_bundle_text_update_binding, value, parts,
+    );
+    if (!currentBundleTextUpdateBinding) return null;
   }
   return {
     text: value.text,
