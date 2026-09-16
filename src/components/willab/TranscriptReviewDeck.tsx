@@ -12,7 +12,7 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
-import { PdfPage } from "@/components/willab/pdfSlides";
+import DeckSlidePreview from "@/components/willab/DeckSlidePreview";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   buildChunkStates,
@@ -693,14 +693,10 @@ export default function TranscriptReviewDeck({
                 {g.screenOfSlide === 0 &&
                 presentationRef &&
                 g.slideIndex !== null ? (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted">
-                    <PdfPage
-                      url={presentationRef}
-                      pageIndex={g.slideIndex}
-                      onError={() => undefined}
-                      className="w-full"
-                    />
-                  </div>
+                  <DeckSlidePreview
+                    presentationRef={presentationRef}
+                    pageIndex={g.slideIndex}
+                  />
                 ) : null}
                 <button
                   type="button"
@@ -1022,14 +1018,11 @@ function SlideEditor({
         </div>
         <div className="scrollbar-none flex flex-col gap-4 overflow-y-auto px-5 py-4">
           {presentationRef && slideIndex !== null ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-muted">
-              <PdfPage
-                url={presentationRef}
-                pageIndex={slideIndex}
-                onError={() => undefined}
-                className="w-full"
-              />
-            </div>
+            <DeckSlidePreview
+              presentationRef={presentationRef}
+              pageIndex={slideIndex}
+              className=""
+            />
           ) : null}
           {chunks.map((chunk, index) => (
             <MarkedEditor
