@@ -509,8 +509,31 @@ export default function DeckChunkModal({
     advanceStep();
   }
 
+  /* TAP-TO-SELECT BOLDS ON THE SPOT, like accepting the proposal does
+     (founder 2026-09-16, closing the asymmetry flagged in the CTA audit).
+     Both paths end with an orange phrase, but only the proposed one changed
+     the words in front of the speaker — choosing your own left the text plain
+     until a refetch, which read as "it didn't take".
+
+     NO SERVER CALL HERE, and that is the difference from applyStyle rather
+     than an omission. onApplyStyle applies the SERVER's proposal; these are
+     the speaker's own words, which that endpoint has no row for. Bolding the
+     draft is enough because the draft is what Lock commits — onLockIn(draft)
+     carries the `**` with it, through the same write as any other edit. There
+     is no second lane and nothing to roll back, because nothing was claimed
+     before it landed.
+
+     The anchor still resolves: lockIn matches promotedQuote by READABLE text
+     against the locked draft, which is stable across the `**` rewrap that
+     would move every raw index after it. */
   function emphasiseChosen() {
-    setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
+    const chosen = selectionText(draft, phraseTokens(draft), phraseRun);
+    setPromotedQuote(chosen);
+    const next = emphasizeQuote(draft, chosen);
+    if (next !== draft) {
+      dirtyRef.current = true;
+      setDraft(next);
+    }
     advanceStep();
   }
 

@@ -25,9 +25,9 @@ vi.mock("@/hooks/useVisibleLearningExposure", () => ({
 vi.mock("@/components/results/MediaPlayer", () => ({
   default: () => createElement("div", { "data-testid": "media-player" }),
 }));
-vi.mock("@/components/willab/ConfidentVoicePractice", () => ({
-  default: () => createElement("div", { "data-testid": "practice-offer" }),
-}));
+/* ConfidentVoicePractice is gone (§3) — the exercise is a STEP now, drawn by
+   the sheet, so there is nothing to mock. The real offer card carries the
+   data-testid the practice assertions look for. */
 vi.mock("@/services/api/mlc3FirstClient", async (load) => {
   const actual = await load<typeof import("@/services/api/mlc3FirstClient")>();
   return { ...actual, mlc3FirstClientPresentationEnabled: () => false };
@@ -107,7 +107,13 @@ const noop = async () => true;
 const props = {
   onAccept: vi.fn(noop),
   onKeepMine: vi.fn(noop),
-  onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
+  // Typed so the mock records its argument, for the same reason
+  // onSetRootPhrase is: the bold-on-tap test reads the TEXT that was locked,
+  // not merely that a lock happened.
+  onLockIn: vi.fn(async (_text: string) => ({
+    outcome: "ok" as const,
+    rootPhraseProposal: null,
+  })),
   onKeepEvolving: vi.fn(async () => "ok" as const),
   // Typed so the mock records its argument: the promotion test needs to read
   // the span that was stored, not merely that something was.
@@ -577,6 +583,39 @@ describe("the ladder", () => {
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
     expect(calls[0][0]?.text).toContain("the team is ready");
+  });
+
+  it("tapping your own words bolds them on the spot, and locks them bold", async () => {
+    // Founder 2026-09-16, closing the asymmetry: accepting the PROPOSED phrase
+    // bolded the words immediately, choosing your own left the text plain
+    // until a refetch — which reads as "it didn't take".
+    //
+    // No server call: onApplyStyle applies the SERVER's proposal and has no
+    // row for words the speaker picked. The draft is what Lock commits, so the
+    // `**` rides the same write as any other edit.
+    vi.mocked(props.onLockIn).mockClear();
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    await click("Choose different words");
+    const word = Array.from(container.querySelectorAll("button")).find(
+      (b) => (b.textContent ?? "").trim() === "ready.",
+    )!;
+    await act(async () => {
+      word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await click("Use this phrase");
+    await click("Lock");
+    // The locked text carries the emphasis the speaker chose — as the ORANGE
+    // marker, not `**`. That is the right one: it is how a root phrase renders
+    // while recording (RichText gives it text-primary), so the preview on the
+    // step and the words that land are the same thing.
+    const lockedText = vi.mocked(props.onLockIn).mock.calls[0][0];
+    expect(lockedText).toContain("{{orange:ready.}}");
+    // ...and the anchor still resolves against it, through the `**` rewrap.
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toContain("ready.");
   });
 
   it("a judgement that was not Yes skips step four entirely", async () => {
