@@ -206,8 +206,8 @@ export default function DeckChunkModal({
      at step one or step three — after the sheet opened. Recomputing on the
      speaker's own decision is what that freeze was protecting, not what it
      was preventing. */
-  const steps = useMemo<ChunkStep[]>(
-    () =>
+  const buildSteps = useCallback(
+    (judgementValue: "yes" | "other" | null): ChunkStep[] =>
       buildChunkSteps({
         inventory: feedbackInventory,
         canPractise: exerciseItem !== null,
@@ -223,20 +223,22 @@ export default function DeckChunkModal({
         // one the detector never flagged — reaches Lock with no orange, which
         // is the intended shape rather than a gap.
         canEmphasise:
-          judgement === "yes" &&
+          judgementValue === "yes" &&
           chunk.part.text.trim().length > 0 &&
           (Boolean(styleSuggestion) || chunk.part.locked !== true),
       }),
     [
       feedbackInventory,
       exerciseItem,
-      judgement,
       chunk.part.text,
       chunk.part.locked,
       styleSuggestion,
     ],
   );
-  const [stepId, setStepId] = useState<string>(() => steps[0]?.id ?? "lock");
+  const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
+  const [stepId, setStepId] = useState<string>(
+    () => buildSteps(null)[0]?.id ?? "lock",
+  );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
     step && step.kind !== "emphasis" && step.kind !== "lock"
@@ -274,9 +276,18 @@ export default function DeckChunkModal({
   const [unlocked, setUnlocked] = useState(false);
   /** Move to the next screen. The lock step is always last, so this always
    *  lands somewhere and there is no "no more items" branch to get wrong. */
-  function advanceStep(): void {
-    const at = steps.findIndex((entry) => entry.id === stepId);
-    const next = steps[at + 1];
+  /** @param withJudgement the answer being given RIGHT NOW, when this advance
+   *  is caused by one. React has not re-rendered yet, so `steps` in scope was
+   *  built from the PREVIOUS judgement — and on a confidence-only paragraph
+   *  that list has no emphasis step in it. Advancing by index through it walks
+   *  straight past the screen the answer just created, and the speaker never
+   *  gets asked which words to emphasise. Building the list from the new
+   *  answer is the difference between "the step appears" and "the step is
+   *  skipped forever". */
+  function advanceStep(withJudgement: "yes" | "other" | null = judgement): void {
+    const list = buildSteps(withJudgement);
+    const at = list.findIndex((entry) => entry.id === stepId);
+    const next = list[at + 1];
     if (next) setStepId(next.id);
     setRewriteCollisionConfirmed(false);
     setError(null);
@@ -434,14 +445,33 @@ export default function DeckChunkModal({
      * with no anchor rather than guessing at one. Skip does the same, and
      * means it: nothing asks again later.
      *
-     * The confidence-only gate is unchanged. A paragraph whose only feedback
-     * was the confidence question gets an orange anchor ONLY if the speaker
-     * said yes; any other answer locks the wording and ends there. */
+     * THE GATE READS `judgement`, NOT `agreeValue` — and that is a live bug
+     * fix, reported from real use 2026-09-16: "I tap to choose the emphasis
+     * words, I click lock, and it doesn't save".
+     *
+     * `agreeValue` is the CHIP's state and advanceStep clears it, deliberately,
+     * so a second confident-voice item on the same chunk opens unanswered (L3).
+     * By the time the speaker reached Lock it was always null, so
+     * `agreeValue !== "yes"` was always true — and on a paragraph whose only
+     * feedback was the confidence question, that nulled the anchor and
+     * onSetRootPhrase was never called. The speaker picked their words, locked,
+     * and nothing turned orange. `judgement` is the paragraph-level answer,
+     * which is what this check always meant and which survives the steps in
+     * between.
+     *
+     * Belt and braces now: the emphasis step only appears on a Yes (§4), so
+     * promotedQuote cannot be set without one. The check stays because the two
+     * guard different things — the step decides whether to ASK, this decides
+     * whether to STORE — and the cost of them disagreeing is silent data loss,
+     * which is precisely what just happened.
+     *
+     * A quote that no longer resolves — edited away, or now ambiguous — locks
+     * with no anchor rather than guessing at one. */
     const confidenceOnly =
       feedbackInventory.length > 0 &&
       feedbackInventory.every(isConfidentVoiceFeedback);
     const anchor =
-      promotedQuote && !(confidenceOnly && agreeValue !== "yes")
+      promotedQuote && !(confidenceOnly && judgement !== "yes")
         ? quoteSpan(draft, promotedQuote)
         : null;
     if (anchor) await onSetRootPhrase(anchor);
@@ -633,7 +663,8 @@ export default function DeckChunkModal({
       // The paragraph's judgement, kept where advanceStep's per-item reset
       // cannot reach it. Only a Yes opens the emphasis step (§4); every other
       // answer, including "not sure" and "audio unclear", is not a Yes.
-      setJudgement(value === "yes" ? "yes" : "other");
+      const answered = value === "yes" ? "yes" : "other";
+      setJudgement(answered);
       /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
        *
        * Answering WAS the decision; the screen that followed held a thank-you
@@ -650,7 +681,7 @@ export default function DeckChunkModal({
        * No second write: `saveTakeFeedbackResponse` above already recorded
        * this answer, and the retired Done button called it AGAIN through
        * resolveObservedFeedback with the same id and value. */
-      advanceStep();
+      advanceStep(answered);
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
@@ -665,8 +696,12 @@ export default function DeckChunkModal({
    *  judgement of the same delivery — so it supersedes step one's answer for
    *  the emphasis gate. */
   const onExerciseFinished = useCallback((answer: "yes" | "no" | null) => {
-    if (answer !== null) setJudgement(answer === "yes" ? "yes" : "other");
-    advanceStepRef.current();
+    const answered =
+      answer === null ? null : answer === "yes" ? "yes" : "other";
+    if (answered !== null) setJudgement(answered);
+    // Same reason as advanceStep's own note: the exercise's final judgement
+    // can open the emphasis step, and the list in scope predates it.
+    advanceStepRef.current(answered);
   }, []);
   const exercise = useConfidenceExercise({
     snippetId: exerciseItem?.snippetId ?? null,

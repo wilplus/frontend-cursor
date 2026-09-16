@@ -286,9 +286,23 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // only feedback was the confidence question gets an anchor ONLY if the
     // speaker said yes. Any other answer locks the wording and ends there.
     expect(MODAL).toMatch(/feedbackInventory\.every\(isConfidentVoiceFeedback\)/);
+    // IT READS `judgement`, NOT `agreeValue` — this fence used to pin
+    // `agreeValue` and was pinning a BUG, reported from real use 2026-09-16:
+    // "I tap to choose the emphasis words, I click lock, and it doesn't save."
+    //
+    // `agreeValue` is the CHIP's state, and advanceStep clears it on every
+    // step (deliberately, so a second confident-voice item opens unanswered —
+    // L3). By the time Lock ran it was always null, so on a confidence-only
+    // paragraph the anchor was nulled and onSetRootPhrase never fired. The
+    // speaker picked their words, locked, and nothing turned orange.
+    //
+    // `judgement` is the paragraph-level answer this check always meant, and
+    // it survives the steps in between. Pinned by name so the shape cannot
+    // quietly go back.
     expect(MODAL).toMatch(
-      /promotedQuote && !\(confidenceOnly && agreeValue !== "yes"\)/,
+      /promotedQuote && !\(confidenceOnly && judgement !== "yes"\)/,
     );
+    expect(MODAL).not.toMatch(/confidenceOnly && agreeValue !== "yes"/);
     // ...and the anchor is only written when one actually resolved.
     expect(MODAL).toMatch(/if \(anchor\) await onSetRootPhrase\(anchor\)/);
   });

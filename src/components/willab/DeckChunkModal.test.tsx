@@ -553,6 +553,32 @@ describe("the ladder", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
+  it("saves the emphasis on a CONFIDENCE-ONLY paragraph", async () => {
+    // REPORTED FROM REAL USE 2026-09-16: "I tap to choose the emphasis words,
+    // I click lock, and it doesn't save."
+    //
+    // The lock gate read `agreeValue`, which is the CHIP's state, and
+    // advanceStep clears it on every step (deliberately — a second
+    // confident-voice item must open unanswered, L3). So by Lock it was always
+    // null, `agreeValue !== "yes"` was always true, and on a paragraph whose
+    // ONLY feedback was the confidence question the anchor was nulled and
+    // onSetRootPhrase never fired.
+    //
+    // The test above did not catch it because its inventory also carries a
+    // rewrite and a praise item, so `confidenceOnly` is false and the broken
+    // branch is never reached. This one is the founder's actual case.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    expect(container.textContent).toContain("With emphasis");
+    await click("Use this phrase");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toContain("the team is ready");
+  });
+
   it("a judgement that was not Yes skips step four entirely", async () => {
     // THE GATE, replacing the Skip button that used to carry this (founder
     // 2026-09-16, §5: the step has no opt-out). Orange means "I confirmed I

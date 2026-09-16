@@ -12,6 +12,7 @@ import {
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
+import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import LoadingState from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
@@ -1022,10 +1023,7 @@ export default function IdealTextOverlay({
                 <LoadingState placement="surface" />
               )
             ) : status === "pending" ? (
-              <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
-                Your coach is still shaping your ideal text. It lands here the
-                moment it&apos;s approved.
-              </p>
+              <IdealTextPendingCoach onReadAloud={onReadAloud} />
             ) : status === "error" ? (
               <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
                 Couldn&apos;t load your ideal text. Try again in a moment.
