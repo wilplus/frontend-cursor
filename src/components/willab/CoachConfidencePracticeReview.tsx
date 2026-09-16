@@ -238,7 +238,7 @@ export default function CoachConfidencePracticeReview({
                     : "border-border bg-background text-foreground"
                 }`}
               >
-                Existing exercise
+                From the library
               </button>
               <button
                 type="button"
@@ -249,8 +249,21 @@ export default function CoachConfidencePracticeReview({
                     : "border-border bg-background text-foreground"
                 }`}
               >
-                Create new exercise
+                Just for them
               </button>
+              {/* The third door, added 2026-09-16. "Just for them" above makes
+                  a ONE-OFF welded to this recording — it never enters the
+                  catalogue, carries no tags, and can never reach a second
+                  speaker. That is a real need, so it stays; but it used to be
+                  the only way, and it read as "Create new exercise", which
+                  sounds like building something reusable. This is the one that
+                  actually does. */}
+              <a
+                href="/cms/new/exercise/1"
+                className="rounded-full border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground no-underline"
+              >
+                Add to the library
+              </a>
             </div>
           </div>
           {exerciseMode === "library" ? (
