@@ -3,8 +3,19 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
+/** Source with comments removed. A fence that asserts something is ABSENT must
+ *  read code, not prose: these modules explain what they deleted and why, so a
+ *  raw `not.toContain` fails on the sentence describing the removal. */
+const code = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 const modal = read("src/components/willab/DeckChunkModal.tsx");
-const practice = read("src/components/willab/ConfidentVoicePractice.tsx");
+/* ConfidentVoicePractice.tsx is GONE (founder 2026-09-16, §3). It drew its own
+   buttons, a passage screen and a per-attempt review — all three deleted by the
+   ladder, which gives every screen ONE footer owned by the sheet. Its state
+   machine is what was worth keeping and it moved to useConfidenceExercise.ts;
+   the rendering moved into the sheet as step three. These fences follow it
+   rather than lapse: what they pin is product rules, not a file. */
+const exercise = read("src/components/willab/useConfidenceExercise.ts");
 const lounge = read("src/components/willab/Lounge.tsx");
 const api = read("src/services/api/confidentVoicePractice.ts");
 const coach = read("src/components/willab/CoachConfidencePracticeReview.tsx");
@@ -14,38 +25,44 @@ const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
 const steps = read("src/lib/willab/chunkSteps.ts");
 
 describe("Confident Voice micro-practice journey fences", () => {
-  it("stays hidden until the owner answers, then supports either answer", () => {
+  it("is its own step, offered on either answer", () => {
     // The lane predicate lives beside the ladder that sorts it first
     // (chunkSteps.ts, 2026-09-15), so the ordering rule and the card's own
     // render read the SAME definition. Still one definition, not here.
     expect(steps).toContain('item.feedbackFamily === "confident_voice"');
     expect(steps).toContain('item.source === "confident_voice"');
     expect(modal).toContain("isConfidentVoiceFeedback(suggestion)");
-    expect(modal).toContain('!agreeSaved ?');
-    expect(modal).toContain('<ConfidentVoicePractice');
-    // Both answers still reach the offer. Since the ladder dropped the Done
-    // step (2026-09-15) the offer is the ONLY thing left on the post-answer
-    // screen, and it is one expression rather than two branches — but it must
-    // still carry the speaker's actual answer, not a default.
-    expect(modal).toContain('originalUserAnswer={agreeValue === "no" ? "no" : "yes"}');
-    expect(practice).toContain("offer.yesIntroduction");
-    expect(practice).toContain("offer.noIntroduction");
-    expect(practice).toContain("originalUserAnswer,");
+    // The exercise is a STEP now, not a card nested under the answered
+    // confidence screen — so the ladder has to be able to produce one.
+    expect(steps).toContain('steps.push({ kind: "exercise", id: "exercise" })');
+    expect(modal).toContain('step.kind === "exercise"');
+    // Offered on a Yes and on a No alike: the practice is matched to the clip,
+    // not awarded for a verdict. Only the introduction copy differs.
+    expect(modal).toContain('originalUserAnswer: judgement === "yes" ? "yes" : "no"');
   });
 
-  it("keeps the exact passage visible and caps the session at three", () => {
-    expect(practice).toContain("Read this exact passage");
-    expect(practice).toContain("practice?.passage ?? offer.passage");
-    expect(practice).toContain("of 3 attempts remaining");
-    expect(practice).not.toContain("textarea");
-    expect(practice).not.toContain("contentEditable");
+  it("never resumes a judged attempt — Practise again records a new one", () => {
+    // The defect this replaced: begin() did
+    //     setView(opened.finalReady ? "final" : "practice")
+    // so once an attempt was judged-ready, Practise took the speaker BACK to
+    // the judgement they had just walked away from, and offer.resume did the
+    // same on mount. Recording is now the only thing the pill does.
+    expect(exercise).toContain("setRecording(true)");
+    expect(exercise).toMatch(/const practise = useCallback\(\(\) => \{[\s\S]*?void mic\.start\(\)/);
+    expect(code(exercise)).not.toContain("finalReady ? \"judgement\" : \"offer\"");
+    expect(code(exercise)).not.toContain("offer.resume");
+    // Attempts stay capped, and Practise again is what spends one.
+    expect(exercise).toContain("attemptsRemaining");
   });
 
-  it("can close locally without resolving or blocking the parent modal", () => {
-    expect(practice).toMatch(/function closePractice\(\)[\s\S]*?mic\.cancel\(\);[\s\S]*?setView\("closed"\)/);
-    expect(practice).toContain("Close practice");
-    expect(practice).not.toContain("onLockIn");
-    expect(practice).not.toContain("onCloseIdealText");
+  it("closes the practice row so a declined exercise does not return", () => {
+    // "Not now" is a decision, not a deferral: it closes the row server-side.
+    expect(exercise).toContain('finishConfidencePractice(opened.id, { action: "dismiss" })');
+    // Done answers it with the attempt the SERVER chose, never a local pick.
+    expect(exercise).toContain("const strongest = practice?.strongestAttempt");
+    expect(exercise).toContain("attempt_id: strongest.id");
+    expect(exercise).not.toContain("onLockIn");
+    expect(exercise).not.toContain("onCloseIdealText");
   });
 
   it("keeps all writes inside isolated practice endpoints", () => {

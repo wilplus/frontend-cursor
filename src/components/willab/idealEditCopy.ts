@@ -100,6 +100,11 @@ export const CHUNK_SHEET_COPY = {
   titleFeedback: "Feedback",
   titleSuggestion: "Suggestion",
   titlePraise: "Good job",
+  /* Step three, the only place the asynchronous side of the product reaches
+     this sheet. The title carries the whole label: the offer card deliberately
+     has no eyebrow and no corner icon, because the screen has already said
+     what it is (founder 2026-09-16, §3). */
+  titleExercise: "Exercise",
   titleEmphasis: "Emphasis",
   titleLock: "Lock",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
@@ -119,17 +124,42 @@ export const CHUNK_SHEET_COPY = {
   pillChooseWords: "Choose different words",
   pillLock: "Lock",
   pillDiscard: "Discard",
+  /* The exercise step's two pills. They differ by one word on purpose:
+     "Practise again" appears only after Back off the judgement screen, and it
+     spends one of the capped attempts on a NEW run rather than resuming the
+     one already judged. A pill that still read "Practise" there would make a
+     fresh recording look like a return to the last one. */
+  pillPractise: "Practise",
+  pillPractiseAgain: "Practise again",
+  /* NOT a new string. §3 says "Practise records in place" and the screen table
+     has no stop state, but a recording still has to be endable — so this is
+     the label the retired practice view already used for that exact action,
+     carried over rather than invented. Flagged in the PR as the one place the
+     handoff's table is silent. */
+  pillStop: "Stop",
 
   /* --- links (grey, stacked under the pill, never beside it) -------------- */
   linkKeepWording: "Keep wording",
   linkChooseWords: "Choose different words",
-  linkSkip: "Skip",
+  /* linkSkip is GONE with the button that used it (founder 2026-09-16, §5):
+     the emphasis step has no opt-out, because it only appears on a paragraph
+     already judged Yes. */
   linkKeepEvolving: "Keep evolving",
+  /* "Not now" declines the exercise and closes the practice server-side, so it
+     does not return on the next Take. "Back" leaves the judgement without
+     answering it and lands on the offer — the same screen a rejected attempt
+     lands on, which is the known silence flagged in §3. */
+  linkNotNow: "Not now",
+  linkBack: "Back",
 
   /* --- card eyebrows ------------------------------------------------------ */
   cardWhatYouSaid: "What you said",
   cardClearerVersion: "Clearer version",
   cardWithEmphasis: "With emphasis",
+  /* The judgement screen shows the corrected take ALONE — the original
+     playback is gone from it, so this eyebrow is the only thing naming which
+     recording is in the orange card. */
+  cardCorrectedVersion: "Corrected version",
   /* An INSTRUCTION for the interaction rather than a label for the content,
      which is why it does not read "With emphasis" like its sibling. Founder
      left it deliberately (handoff, "one note"). */

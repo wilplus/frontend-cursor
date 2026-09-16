@@ -376,10 +376,12 @@ describe("DeckChunkModal — F1 net", () => {
     expect(forThisClip[0][0].response).toBe("yes");
   });
 
-  it("still stops on the answer when a practice exercise is waiting", async () => {
-    // The one thing on the post-answer screen worth a tap. Auto-advancing past
-    // it would delete the micro-practice journey rather than tidy the screen,
-    // which is not what dropping the Done step asked for.
+  it("answers into the exercise step, which is now its own screen", async () => {
+    // INVERTED on purpose (founder 2026-09-16, §3). The offer used to stop the
+    // advance, because a card nested under the answered confidence screen was
+    // the only place it could live. It has its own step now, so the answer
+    // advances INTO it — the journey is kept by giving it a screen rather than
+    // by refusing to leave the previous one.
     const withPractice = suggestion({
       id: "s-cv-practice",
       feedbackFamily: "confident_voice",
@@ -409,12 +411,20 @@ describe("DeckChunkModal — F1 net", () => {
       );
     });
 
+    // The order is enforced: judgement, then the remaining feedback, THEN the
+    // exercise (§1). So the answer lands on the rewrite, and the exercise is
+    // the screen after it — not a card riding on the confidence screen.
     await click("No — Not confident");
+    expect(container.textContent).toContain("Clearer version");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
+    await click("Keep wording");
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    expect(buttonLabels()).toContain("Done");
-    // And it has NOT skipped ahead to the rewrite.
-    expect(container.textContent).not.toContain("Clearer version");
+    // The exercise step's own footer: one verb, one stacked link.
+    expect(buttonLabels()).toContain("Practise");
+    expect(buttonLabels()).toContain("Not now");
+    // Offered on a No, because the practice is matched to the clip rather than
+    // awarded for a verdict.
   });
 
   it("never carries one clip's answer onto the next clip (L3)", async () => {
@@ -543,15 +553,33 @@ describe("the ladder", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("Skip means it: the paragraph locks with no anchor at all", async () => {
-    // Skip is a real answer, not a deferral. Nothing asks again later, and
-    // nothing quietly stores a phrase the speaker declined.
+  it("a judgement that was not Yes skips step four entirely", async () => {
+    // THE GATE, replacing the Skip button that used to carry this (founder
+    // 2026-09-16, §5: the step has no opt-out). Orange means "I confirmed I
+    // deliver this well", so anything other than a Yes must not reach the
+    // screen that offers it — and a paragraph without an orange phrase is one
+    // that never got there, not one that declined.
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis });
-    await click("Yes — Confident");
+    await click("No — Not confident");
     await click("Keep wording");
     await click("Continue");
-    await click("Skip");
+    // Straight to Lock: no emphasis screen, and therefore no Skip to press.
+    expect(container.textContent).not.toContain("With emphasis");
+    expect(buttonLabels()).not.toContain("Use this phrase");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+  });
+
+  it("a paragraph never judged at all also skips it", async () => {
+    // The common case, and the one the founder called out: a paragraph the
+    // detector never flagged is never judged, so MOST paragraphs reach Lock
+    // with no orange. That is the intended shape, not a gap.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [] });
+    expect(container.textContent).not.toContain("With emphasis");
+    expect(buttonLabels()).not.toContain("Use this phrase");
     await click("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();

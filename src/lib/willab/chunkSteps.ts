@@ -40,11 +40,13 @@ export type StepKind =
   | "feedback"
   | "suggestion"
   | "praise"
+  | "exercise"
   | "emphasis"
   | "lock";
 
 export type ChunkStep =
   | { kind: "feedback" | "suggestion" | "praise"; id: string }
+  | { kind: "exercise"; id: "exercise" }
   | { kind: "emphasis"; id: "emphasis" }
   | { kind: "lock"; id: "lock" };
 
@@ -81,16 +83,28 @@ export function orderedInventory(
 
 /** The whole ladder for one open sheet.
  *
- *  THE EMPHASIS STEP IS ALWAYS PRESENT when the paragraph has words to
- *  emphasise, whether or not a phrase was proposed. The handoff says both
- *  "the emphasis step if state.style exists" (§1) and "the emphasis step is
- *  now the only place a rooting phrase is ever chosen", with a third state for
- *  "none proposable" (§3). Those cannot both hold: the root face is deleted by
- *  this change, so gating the step on a proposal would leave a paragraph with
- *  no proposal unable to set a rooting phrase at all — a capability the old
- *  post-lock root face gave every paragraph. §3's "none proposable" state is
- *  only reachable under this reading, so this is the one taken. Flagged to the
- *  founder; one line to reverse if §1 was meant literally.
+ *  THE EMPHASIS GATE (founder 2026-09-16, §4 — reversing the reading this
+ *  module took on 09-15 and flagged for exactly this answer). The step now
+ *  requires BOTH a proposal to exist AND the paragraph's judgement to have
+ *  come back Yes — step one's, or the exercise's final judgement.
+ *
+ *  Yesterday's reading was the permissive one: gating on a proposal alone
+ *  would leave a paragraph unable to set a rooting phrase at all, so the step
+ *  was offered wherever there were words. The founder's answer is that this
+ *  was the wrong worry. Orange means "I confirmed I deliver this well", not
+ *  "a phrase was available" — so a paragraph nobody judged, or judged
+ *  anything other than Yes, must not carry one.
+ *
+ *  THE CONSEQUENCE IS THE POINT, not an oversight: a paragraph the detector
+ *  never flagged is never judged, so most paragraphs reach Lock with no
+ *  orange at all. Worth checking against live data once it ships — if the
+ *  detector flags two paragraphs a deck, that is two possible anchors out of
+ *  twenty.
+ *
+ *  THE EXERCISE STEP sits between the feedback items and emphasis. It is the
+ *  only place the asynchronous side of the product surfaces in this sheet,
+ *  and it is offered on a Yes and on a No alike: the practice is matched to
+ *  the clip, not awarded for a verdict.
  *
  *  The lock step is always last and always present: every path through the
  *  sheet ends at the same question, which is what keeps the step bar a count
@@ -98,15 +112,17 @@ export function orderedInventory(
  */
 export function buildChunkSteps(args: {
   inventory: readonly DocumentSuggestion[];
-  /** False only when there is nothing to emphasise — an empty paragraph, or a
-   *  confidence-only chunk the speaker did not call confident (see the gate in
-   *  the modal: no orange anchor is created on that path). */
+  /** An exercise matched to this exact clip, still open. */
+  canPractise?: boolean;
+  /** A phrase is proposable AND the paragraph was judged Yes. Both halves are
+   *  the caller's to establish — see the gate in the modal. */
   canEmphasise: boolean;
 }): ChunkStep[] {
   const steps: ChunkStep[] = orderedInventory(args.inventory).map((item) => ({
     kind: stepKindFor(item),
     id: item.id,
   }));
+  if (args.canPractise) steps.push({ kind: "exercise", id: "exercise" });
   if (args.canEmphasise) steps.push({ kind: "emphasis", id: "emphasis" });
   steps.push({ kind: "lock", id: "lock" });
   return steps;
@@ -120,6 +136,7 @@ export function stepTitle(kind: StepKind, reopenedClean: boolean): string {
   }
   if (kind === "feedback") return copy.titleFeedback;
   if (kind === "praise") return copy.titlePraise;
+  if (kind === "exercise") return copy.titleExercise;
   if (kind === "emphasis") return copy.titleEmphasis;
   return copy.titleSuggestion;
 }
