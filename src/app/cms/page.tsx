@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
 import DiagnosticExerciseSection from "./DiagnosticExerciseSection";
@@ -83,26 +84,6 @@ const COVER_KINDS: ReadonlyArray<{ key: JournalCoverKind; label: string }> = [
 /** The editor's working copy of a post. */
 type Editable = JournalPostDraft & { id: string | null };
 
-function blankDraft(): Editable {
-  return {
-    id: null,
-    // A new draft needs a unique placeholder slug so two unsaved drafts can't
-    // collide; the author renames it with "from title".
-    slug: `draft-${Math.random().toString(36).slice(2, 8)}`,
-    title: "",
-    excerpt: "",
-    category: "others",
-    read_time_min: null,
-    cover_kind: "image",
-    cover_image_url: null,
-    cover_alt: null,
-    media_url: null,
-    media_duration_sec: null,
-    body: "",
-    author_name: "Willpower Lab",
-    published_at: null,
-  };
-}
 
 function toEditable(p: AdminJournalPost): Editable {
   return {
@@ -261,6 +242,7 @@ function StatusPill({ status }: { status: "draft" | "published" }) {
 
 export default function JournalAdminPage() {
   const [password, setPassword] = useState("");
+  const router = useRouter();
   const [unlocked, setUnlocked] = useState(false);
   const [posts, setPosts] = useState<AdminJournalPost[]>([]);
   const [editing, setEditing] = useState<Editable | null>(null);
@@ -726,10 +708,10 @@ export default function JournalAdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => openEditor(blankDraft(), "draft")}
+              onClick={() => router.push("/cms/new")}
               className={BTN_PRIMARY}
             >
-              + New draft
+              + Add new
             </button>
           </div>
         </div>

@@ -174,7 +174,8 @@ export function adminReorder(password: string, ids: string[]) {
 /*  Diagnostic exercise mapping                                                */
 /*                                                                            */
 /*  A journal post remains ordinary content until this separate, password-    */
-/*  gated mapping is explicitly saved. The MVP permits only Hear every word.  */
+/*  gated mapping is explicitly saved. Since 2026-09-16 the catalogue is       */
+/*  dynamic: any number of exercises, each claiming its own problem tags.      */
 /* -------------------------------------------------------------------------- */
 
 export interface AdminDiagnosticExercise {
@@ -235,38 +236,45 @@ export function adminListDiagnosticExercises(password: string) {
   });
 }
 
+/** Create or update ONE catalogue entry.
+ *
+ *  `exerciseId` and `acousticProblemTags` used to be hardcoded here —
+ *  `hear-every-word-v1` and all three problem names, on every save. That made
+ *  a second exercise unrepresentable, and would have had every exercise claim
+ *  every problem, so tag overlap would score them identically and matching
+ *  would rank without choosing. Both now come from the caller.
+ *
+ *  `matchingCriteria`, `exclusions` and the confidence patterns are no longer
+ *  sent at all: the backend fills working defaults, so a CMS screen does not
+ *  have to know they exist to save an exercise. */
 export function adminSaveDiagnosticExercise(
   password: string,
   exercise: {
+    exerciseId: string;
     journalPostId: string;
     title: string;
     instruction: string;
     introductionCopy: string;
     confidentIntroductionCopy: string;
     explanationVideoUrl: string;
+    /** The speaking errors this exercise treats. Every one must be an error
+     *  the library calls `detected`; the backend refuses the rest, because an
+     *  exercise tagged with a merely-named problem matches nothing and says
+     *  nothing about it. */
+    acousticProblemTags: string[];
     active: boolean;
   },
 ) {
   return post("diagnostic-exercises/save", password, {
-    exercise_id: "hear-every-word-v1",
+    exercise_id: exercise.exerciseId,
     journal_post_id: exercise.journalPostId,
     title: exercise.title,
     instruction: exercise.instruction,
     introduction_copy: exercise.introductionCopy,
     confident_introduction_copy: exercise.confidentIntroductionCopy,
     explanation_video_url: exercise.explanationVideoUrl,
-    acoustic_problem_tags: ["rushing", "word_compression", "ending_compression"],
-    supported_confidence_patterns: [
-      "near_confident", "confident", "low_confidence_rushing_dominant",
-    ],
-    matching_criteria: { requires_multiple_acoustic_signals: true, max_per_take: 1 },
-    exclusions: {
-      exclude_noise: true,
-      exclude_semantic_or_structural_issue: true,
-      exclude_weak_evidence: true,
-    },
+    acoustic_problem_tags: exercise.acousticProblemTags,
     active: exercise.active,
-    version: 1,
   }, (data) => mapDiagnosticExercise(
     (data as Record<string, unknown> | null)?.exercise,
   ));
@@ -668,4 +676,49 @@ export async function uploadToStorage(
   } catch {
     return false;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  The speaking error library, read from the CMS                              */
+/*                                                                            */
+/*  The exercise panel offers a tag picker, and an exercise may only claim an  */
+/*  error the library calls `detected` — one code can actually find in audio.  */
+/*  Tagging a merely-named error would match no recording, raise nothing and   */
+/*  route nothing, so the picker has to show which is which, which means       */
+/*  reading the library.                                                      */
+/*                                                                            */
+/*  Deliberately not @/services/api/speakingErrors — that client talks to the  */
+/*  coach route and needs a signed-in coach. The CMS has a password, not a     */
+/*  session.                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminSpeakingError {
+  errorId: string;
+  label: string;
+  /** True only when code can find this in audio. Anything unreadable is
+   *  treated as false: showing a named-only error as detectable would invite
+   *  an author to tag something that silently routes nothing. */
+  detected: boolean;
+}
+
+export function adminListSpeakingErrors(password: string) {
+  return post("speaking-errors/list", password, {}, (data) => {
+    const d = data && typeof data === "object"
+      ? data as Record<string, unknown> : {};
+    return (Array.isArray(d.errors) ? d.errors : [])
+      .map((raw): AdminSpeakingError | null => {
+        if (!raw || typeof raw !== "object") return null;
+        const r = raw as Record<string, unknown>;
+        if (typeof r.error_id !== "string" || typeof r.label !== "string") {
+          return null;
+        }
+        if (r.active === false) return null;
+        return {
+          errorId: r.error_id,
+          label: r.label,
+          detected: r.status === "detected",
+        };
+      })
+      .filter((item): item is AdminSpeakingError => item !== null);
+  });
 }
