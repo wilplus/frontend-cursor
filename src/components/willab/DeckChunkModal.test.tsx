@@ -531,7 +531,7 @@ describe("the ladder", () => {
     await click("Keep wording");        // suggestion
     await click("Continue");            // good job
     expect(container.textContent).toContain("With emphasis");
-    await click("Emphasise");
+    await click("Use this phrase");
     // The lock step, and it is the LAST one: no rooting-phrase screen behind
     // it. They already said which words matter.
     expect(container.textContent).not.toContain("Tap the words");

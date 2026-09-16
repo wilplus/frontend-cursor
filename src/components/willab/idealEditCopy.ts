@@ -88,11 +88,11 @@ export const IDEAL_EDIT_COPY = {
 /*  in JSX, for the reason the file header gives: a sign-off is one file to    */
 /*  read, and no string can quietly ship from a component edit.                */
 /*                                                                            */
-/*  Each PILL is the verb of its own screen — Apply on Suggestion, Emphasise   */
-/*  on Emphasis, Lock on Lock. A pill that said "Continue" everywhere would    */
-/*  make the screens interchangeable, which is the opposite of what splitting  */
-/*  them was for. "Continue" survives in exactly one place, Good job, because  */
-/*  there genuinely is nothing to decide there.                                */
+/*  Each PILL is the verb of its own screen — Apply on Suggestion, Use this    */
+/*  phrase on Emphasis, Lock on Lock. A pill that said "Continue" everywhere   */
+/*  would make the screens interchangeable, which is the opposite of what      */
+/*  splitting them was for. "Continue" survives in exactly one place, Good     */
+/*  job, because there genuinely is nothing to decide there.                   */
 /* -------------------------------------------------------------------------- */
 
 export const CHUNK_SHEET_COPY = {
@@ -109,7 +109,13 @@ export const CHUNK_SHEET_COPY = {
   pillDone: "Done",
   pillContinue: "Continue",
   pillApply: "Apply",
-  pillEmphasise: "Emphasise",
+  /* The orange phrase, named by what it DOES rather than by the formatting it
+     applies. Founder 2026-09-16, resolving the one string the ladder left
+     homeless: "Use this phrase" was signed off while its only mount point was
+     the deleted root face's "Make this phrase orange" — and the founder's
+     answer was that the two were always the same action. So it lands here, on
+     the step that picks the phrase and hands it to the lock to promote. */
+  pillEmphasise: "Use this phrase",
   pillChooseWords: "Choose different words",
   pillLock: "Lock",
   pillDiscard: "Discard",

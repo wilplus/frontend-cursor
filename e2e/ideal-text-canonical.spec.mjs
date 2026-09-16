@@ -170,7 +170,7 @@ check(
   // the only place a rooting phrase is ever chosen.
   "with nothing proposed, the emphasis step opens straight into choosing",
   (await dialog(page).locator("text=TAP THE WORDS").count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 1
 );
 for (const word of ["trusted", "the", "figures"]) {
@@ -180,7 +180,7 @@ check(
   "tapped words preview in the accent, which is how a rooting phrase records",
   (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3
 );
-await dialog(page).locator("button", { hasText: /^Emphasise$/ }).click();
+await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).click();
 
 await page.waitForSelector("text=Lock");
 await dialog(page).locator("button", { hasText: /^Lock$/ }).last().click();
@@ -217,10 +217,10 @@ check(
   // something they can see rather than a description of it.
   "a protected paragraph still gets its emphasis offer, previewed",
   (await dialog(page).locator("text=WITH EMPHASIS").count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Choose different words$/ }).count()) === 1
 );
-await dialog(page).locator("button", { hasText: /^Emphasise$/ }).click();
+await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).click();
 await page.waitForTimeout(700);
 writes = await calls(page);
 const styleWrites = writes.filter((entry) => entry.body?.style_lane === true);
@@ -232,7 +232,7 @@ check(
 );
 check(
   "accepted styling is no longer offered and marker syntax never leaks",
-  (await dialog(page).locator("button", { hasText: /^Emphasise$/ }).count()) === 0 &&
+  (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 0 &&
     !(await dialog(page).innerText()).includes("**")
 );
 await dialog(page).locator('button[aria-label="Close"]').click();
