@@ -12,6 +12,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
 import type {
+  CoachReviewSession,
   CoachSnippetState,
   SessionFeeling,
 } from "@/services/api/coachReview";
@@ -59,6 +60,304 @@ function FeelingBadge({ feeling }: { feeling: SessionFeeling }) {
       {emoji} {label}
       {takeLabel}
     </span>
+  );
+}
+
+/** Open the ideal text — the primary action. Before take 3 (pending) or with
+ *  nothing to assemble (empty), it's a cue, not a button. */
+function renderIdealTextCue(options: {
+  reviewState: CoachReviewState | null;
+  onOpenArcIdeal?: (arcId: string) => void;
+  session: CoachReviewSession;
+}): React.ReactNode {
+  const { reviewState, onOpenArcIdeal, session } = options;
+  if (reviewState?.ideal.assemblyState === "pending") {
+    return (
+      <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
+        The ideal text assembles after take 3
+        {reviewState.ideal.takesDone !== null
+          ? `. ${reviewState.ideal.takesDone} of ${
+              reviewState.takesTarget ?? 3
+            } takes recorded so far.`
+          : "."}
+      </p>
+    );
+  }
+  if (reviewState?.ideal.assemblyState === "empty") {
+    return (
+      <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
+        Nothing to assemble yet. Mark some key moments in the takes first.
+      </p>
+    );
+  }
+  if (onOpenArcIdeal && session.arcId) {
+    return (
+      <>
+        <Button
+          type="button"
+          onClick={() => onOpenArcIdeal(session.arcId!)}
+          className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
+        >
+          Open the ideal text
+        </Button>
+        {/* FE-8 — the founder's "Save ≠ approve" confusion: make the
+            approval step explicit while PUBLISH is still hidden. */}
+        {reviewState && !reviewState.ideal.approved ? (
+          <p className="text-center text-[12px] text-muted-foreground">
+            Review and Verify it there to unlock publishing.
+          </p>
+        ) : null}
+      </>
+    );
+  }
+  return (
+    <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
+      Open the ideal text from the student&apos;s page to review and
+      approve it.
+    </p>
+  );
+}
+
+/** PUBLISH — the last button, only once the ideal text is approved. */
+function renderPublishSection(options: {
+  reviewState: CoachReviewState | null;
+  publishing: boolean;
+  onPublish: () => void;
+}): React.ReactNode {
+  const { reviewState, publishing, onPublish } = options;
+  if (!reviewState?.ideal.approved) return null;
+  if (reviewState.published) {
+    return (
+      <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
+        <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
+      </div>
+    );
+  }
+  return (
+    <>
+      <Button
+        type="button"
+        onClick={onPublish}
+        disabled={!reviewState.canPublish || publishing}
+        className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
+      >
+        {publishing ? (
+          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+        ) : null}
+        Publish the full analysis
+      </Button>
+      {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
+        <p className="text-center text-[12px] text-muted-foreground">
+          {reviewState.blockers.map(blockerReason).join(" · ")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** The wrap-up page's own render: Save this take, then Open the ideal text
+ *  (review + approve), then Publish the full analysis (FE-2). Extracted from
+ *  CoachReviewOverlay's own body (audit Q-C7) — it needs no hooks of its
+ *  own, only the state and handlers its one caller already computed. */
+function renderCoachReviewWrapupPage(options: {
+  isAtWrapup: boolean;
+  session: CoachReviewSession;
+  nothingSurfaced: boolean;
+  saving: boolean;
+  publishing: boolean;
+  savedFlash: boolean;
+  onSaveFeedback: () => void;
+  reviewState: CoachReviewState | null;
+  onOpenArcIdeal?: (arcId: string) => void;
+  onPublish: () => void;
+  publishError: string | null;
+  overallMessage: string;
+  setOverallMessage: (value: string) => void;
+  videoRef: string | null;
+  setVideoRef: (value: string | null) => void;
+  recutConfirm: { drafts: number } | null;
+  setRecutConfirm: (value: { drafts: number } | null) => void;
+  recutting: boolean;
+  recutError: string | null;
+  onRecut: (force: boolean) => void;
+}): React.ReactNode {
+  const {
+    isAtWrapup,
+    session,
+    nothingSurfaced,
+    saving,
+    publishing,
+    savedFlash,
+    onSaveFeedback,
+    reviewState,
+    onOpenArcIdeal,
+    onPublish,
+    publishError,
+    overallMessage,
+    setOverallMessage,
+    videoRef,
+    setVideoRef,
+    recutConfirm,
+    setRecutConfirm,
+    recutting,
+    recutError,
+    onRecut,
+  } = options;
+  return (
+    <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
+      <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
+
+      {/* FE-8 — a non-blocking nudge, not a gate: saving with nothing
+          surfaced is valid ("reviewed, nothing to surface"). */}
+      {nothingSurfaced ? (
+        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
+          Nothing surfaced yet. You can still save; the user just won&apos;t
+          get snippet feedback from this take.
+        </p>
+      ) : null}
+
+      {/* FE-2 — the forward path, its own screen: Save this take, then Open
+          the ideal text (review + approve), then Publish the full analysis.
+          Each button shows its real, server-gated state from review-state. */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-foreground">
+              Save this take
+            </p>
+            <p className="text-[12px] text-muted-foreground">
+              Keeps your notes and labels for this recording.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onSaveFeedback}
+            disabled={saving || publishing}
+            className="shrink-0 rounded-full disabled:opacity-50"
+          >
+            {saving ? "Saving…" : savedFlash ? "Saved" : "Save feedback"}
+          </Button>
+        </div>
+
+        {renderIdealTextCue({ reviewState, onOpenArcIdeal, session })}
+
+        {renderPublishSection({ reviewState, publishing, onPublish })}
+      </div>
+
+      {publishError ? (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
+          {publishError}
+        </p>
+      ) : null}
+
+      {session.feelings.length > 0 ? (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="mb-3 text-sm font-semibold text-foreground">
+            Pre-recording state
+            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+              Coach only
+            </span>
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {session.feelings.map((f, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[13px] text-foreground"
+              >
+                <FeelingBadge feeling={f} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="text-sm font-semibold text-foreground">
+          Overall message
+          <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+            Shown to user · optional
+          </span>
+        </p>
+        <textarea
+          value={overallMessage}
+          onChange={(e) => setOverallMessage(e.target.value)}
+          rows={3}
+          placeholder="A warm opener tying these snippets together…"
+          className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+        />
+      </div>
+
+      <CoachVideoSlot
+        sessionId={session.sessionId}
+        videoRef={videoRef}
+        onUploaded={(nextRef) => setVideoRef(nextRef)}
+      />
+
+      <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-foreground">
+              Re-cut snippets
+            </p>
+            <p className="text-[12px] text-muted-foreground">
+              Re-run segmentation on the stored audio.
+            </p>
+          </div>
+          {recutConfirm ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRecutConfirm(null)}
+                disabled={recutting}
+                className="rounded-full disabled:opacity-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => onRecut(true)}
+                disabled={recutting}
+                className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {recutting ? "Re-cutting…" : "Re-cut anyway"}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onRecut(false)}
+              disabled={recutting}
+              className="shrink-0 rounded-full disabled:opacity-50"
+            >
+              {recutting ? "Re-cutting…" : "Re-cut"}
+            </Button>
+          )}
+        </div>
+        {recutConfirm ? (
+          <p className="mt-2 text-[12px] text-red-600">
+            This re-cuts the audio into new snippets and discards{" "}
+            {recutConfirm.drafts > 0
+              ? `${recutConfirm.drafts} saved review item${recutConfirm.drafts === 1 ? "" : "s"}`
+              : "the coach notes you've added"}{" "}
+            on this session.
+          </p>
+        ) : null}
+        {recutError ? (
+          <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
+        ) : null}
+      </div>
+
+      {/* A Save is a per-take checkpoint: nothing reaches the user until you
+          Publish the full analysis above (which needs every take saved + the
+          ideal text approved). */}
+      <p className="text-center text-[12px] text-muted-foreground">
+        Saving keeps this as your draft. The user receives everything at once
+        when you publish the full analysis.
+      </p>
+    </div>
   );
 }
 
@@ -378,226 +677,28 @@ export default function CoachReviewOverlay({
       ))}
 
       {/* Wrap-up page */}
-      <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
-        <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
-
-        {/* FE-8 — a non-blocking nudge, not a gate: saving with nothing
-            surfaced is valid ("reviewed, nothing to surface"). */}
-        {nothingSurfaced ? (
-          <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-            Nothing surfaced yet. You can still save; the user just won&apos;t
-            get snippet feedback from this take.
-          </p>
-        ) : null}
-
-        {/* FE-2 — the forward path, its own screen: Save this take, then Open
-            the ideal text (review + approve), then Publish the full analysis.
-            Each button shows its real, server-gated state from review-state. */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium text-foreground">
-                Save this take
-              </p>
-              <p className="text-[12px] text-muted-foreground">
-                Keeps your notes and labels for this recording.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleSaveFeedback()}
-              disabled={saving || publishing}
-              className="shrink-0 rounded-full disabled:opacity-50"
-            >
-              {saving ? "Saving…" : savedFlash ? "Saved" : "Save feedback"}
-            </Button>
-          </div>
-
-          {/* Open the ideal text — the primary action. Before take 3 (pending)
-              or with nothing to assemble (empty), it's a cue, not a button. */}
-          {reviewState?.ideal.assemblyState === "pending" ? (
-            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
-              The ideal text assembles after take 3
-              {reviewState.ideal.takesDone !== null
-                ? `. ${reviewState.ideal.takesDone} of ${
-                    reviewState.takesTarget ?? 3
-                  } takes recorded so far.`
-                : "."}
-            </p>
-          ) : reviewState?.ideal.assemblyState === "empty" ? (
-            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
-              Nothing to assemble yet. Mark some key moments in the takes first.
-            </p>
-          ) : onOpenArcIdeal && session.arcId ? (
-            <>
-              <Button
-                type="button"
-                onClick={() => onOpenArcIdeal(session.arcId!)}
-                className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
-              >
-                Open the ideal text
-              </Button>
-              {/* FE-8 — the founder's "Save ≠ approve" confusion: make the
-                  approval step explicit while PUBLISH is still hidden. */}
-              {reviewState && !reviewState.ideal.approved ? (
-                <p className="text-center text-[12px] text-muted-foreground">
-                  Review and Verify it there to unlock publishing.
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-              Open the ideal text from the student&apos;s page to review and
-              approve it.
-            </p>
-          )}
-
-          {/* PUBLISH — the last button, only once the ideal text is approved. */}
-          {reviewState?.ideal.approved ? (
-            reviewState.published ? (
-              <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
-                <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
-              </div>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  onClick={() => void handlePublish()}
-                  disabled={!reviewState.canPublish || publishing}
-                  className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
-                >
-                  {publishing ? (
-                    <Loader2
-                      className="mr-1.5 h-4 w-4 animate-spin"
-                      aria-hidden
-                    />
-                  ) : null}
-                  Publish the full analysis
-                </Button>
-                {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
-                  <p className="text-center text-[12px] text-muted-foreground">
-                    {reviewState.blockers.map(blockerReason).join(" · ")}
-                  </p>
-                ) : null}
-              </>
-            )
-          ) : null}
-        </div>
-
-        {publishError ? (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
-            {publishError}
-          </p>
-        ) : null}
-
-        {session.feelings.length > 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="mb-3 text-sm font-semibold text-foreground">
-              Pre-recording state
-              <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-                Coach only
-              </span>
-            </p>
-            <ul className="flex flex-wrap gap-2">
-              {session.feelings.map((f, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[13px] text-foreground"
-                >
-                  <FeelingBadge feeling={f} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-sm font-semibold text-foreground">
-            Overall message
-            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-              Shown to user · optional
-            </span>
-          </p>
-          <textarea
-            value={overallMessage}
-            onChange={(e) => setOverallMessage(e.target.value)}
-            rows={3}
-            placeholder="A warm opener tying these snippets together…"
-            className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-          />
-        </div>
-
-        <CoachVideoSlot
-          sessionId={session.sessionId}
-          videoRef={videoRef}
-          onUploaded={(nextRef) => setVideoRef(nextRef)}
-        />
-
-        <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium text-foreground">
-                Re-cut snippets
-              </p>
-              <p className="text-[12px] text-muted-foreground">
-                Re-run segmentation on the stored audio.
-              </p>
-            </div>
-            {recutConfirm ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setRecutConfirm(null)}
-                  disabled={recutting}
-                  className="rounded-full disabled:opacity-50"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void handleRecut(true)}
-                  disabled={recutting}
-                  className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  {recutting ? "Re-cutting…" : "Re-cut anyway"}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleRecut(false)}
-                disabled={recutting}
-                className="shrink-0 rounded-full disabled:opacity-50"
-              >
-                {recutting ? "Re-cutting…" : "Re-cut"}
-              </Button>
-            )}
-          </div>
-          {recutConfirm ? (
-            <p className="mt-2 text-[12px] text-red-600">
-              This re-cuts the audio into new snippets and discards{" "}
-              {recutConfirm.drafts > 0
-                ? `${recutConfirm.drafts} saved review item${recutConfirm.drafts === 1 ? "" : "s"}`
-                : "the coach notes you've added"}{" "}
-              on this session.
-            </p>
-          ) : null}
-          {recutError ? (
-            <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
-          ) : null}
-        </div>
-
-        {/* A Save is a per-take checkpoint: nothing reaches the user until you
-            Publish the full analysis above (which needs every take saved + the
-            ideal text approved). */}
-        <p className="text-center text-[12px] text-muted-foreground">
-          Saving keeps this as your draft. The user receives everything at once
-          when you publish the full analysis.
-        </p>
-      </div>
+      {renderCoachReviewWrapupPage({
+        isAtWrapup,
+        session,
+        nothingSurfaced,
+        saving,
+        publishing,
+        savedFlash,
+        onSaveFeedback: () => void handleSaveFeedback(),
+        reviewState,
+        onOpenArcIdeal,
+        onPublish: () => void handlePublish(),
+        publishError,
+        overallMessage,
+        setOverallMessage,
+        videoRef,
+        setVideoRef,
+        recutConfirm,
+        setRecutConfirm,
+        recutting,
+        recutError,
+        onRecut: (force) => void handleRecut(force),
+      })}
     </SnippetScreenShell>
   );
 }
