@@ -28,6 +28,7 @@ import {
   canBubble,
   chunkCounts,
   clampPosition,
+  firstUnreadScreenIndex,
   IDLE_WHEEL_GESTURE,
   nearestChunkIndex,
   scrollEdge,
@@ -502,6 +503,42 @@ export default function TranscriptReviewDeck({
   // width is what re-seating keys on, and a height-only resize is ignored —
   // the track's own layout absorbs it, which is what it did before the
   // keyboard ever appeared.
+  /** The first screen carrying something the speaker has not seen, or null.
+   *
+   *  COMING BACK FROM THE EMAIL (founder 2026-09-16, §8). Until now the deck
+   *  opened wherever it was left and the only clue was a dot on the mark, so
+   *  someone following an email hunted slide by slide for the one paragraph
+   *  that had changed. The unread signal was already here, one screen at a
+   *  time; this reads the same map across all of them. */
+  const firstUnreadScreen = useMemo(
+    () =>
+      firstUnreadScreenIndex(
+        screens,
+        (c) =>
+          summaryByParagraph
+            .get(c.part.id)
+            ?.some((item) => item.hasUnreadCoachUpdate) === true,
+      ),
+    [screens, summaryByParagraph],
+  );
+  /* Once per mount, and only after the summary has actually arrived. It must
+     not re-seat later: the summary refetches, and a speaker who has scrolled
+     away would be yanked back to a paragraph they already dealt with. */
+  const seatedUnreadRef = useRef(false);
+  useEffect(() => {
+    if (seatedUnreadRef.current || firstUnreadScreen === null) return;
+    seatedUnreadRef.current = true;
+    const clamped = clampPosition(counts, {
+      ...posRef.current,
+      slide: firstUnreadScreen,
+      chunk: 0,
+    });
+    posRef.current = clamped;
+    setAtSlide(clamped.slide);
+    const outer = scrollerRef.current;
+    if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
+  }, [firstUnreadScreen, counts]);
+
   const seatWidthRef = useRef(-1);
   useEffect(() => {
     const seat = () => {
