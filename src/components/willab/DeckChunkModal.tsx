@@ -962,6 +962,297 @@ export default function DeckChunkModal({
     };
   })();
 
+  /* ---- what the scroll body shows for the current step -------------------
+   * One render function per screen, exactly mirroring the footer's own
+   * step.kind switch above. Each is its own named function (rather than one
+   * big switch) so it is measured as its own function for the complexity
+   * ratchet — the six screens are mutually exclusive by construction
+   * (`step.kind` selects exactly one), so this changes nothing about what
+   * renders, only where the branching is counted. Each restates the same
+   * narrowing its caller already did (`suggestion`/`exerciseItem` non-null)
+   * because that narrowing does not cross a function boundary. */
+  function renderFeedbackStep(): React.ReactNode {
+    if (!suggestion) return null;
+    return (
+      <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+        {suggestion.snippetAudioRef ? (
+          <MediaPlayer
+            src={suggestion.snippetAudioRef}
+            startOffsetMs={suggestion.startOffsetMs ?? 0}
+            durationMs={suggestion.durationMs ?? 0}
+          />
+        ) : null}
+        {mlc3FirstClientPresentationEnabled &&
+        suggestion.firstClientService ? (
+          <Mlc3FirstClientPractice suggestion={suggestion} />
+        ) : !agreeSaved ? (
+          <ConfidenceLabelChips
+            question={COPY.confidenceQuestion}
+            value={agreeValue}
+            disabled={agreeSaving}
+            saving={agreeSaving}
+            error={agreeError}
+            ownerWording
+            onPick={(value) => void sendAgreement(value)}
+          />
+        ) : null}
+      </div>
+    );
+  }
+
+  /* ---- EXERCISE · the offer, then the judgement ------------------
+      The one place the asynchronous side of the product reaches this
+      sheet. There is NO coach note anywhere here: what a review
+      produces is an exercise matched to this exact clip (§3). */
+  function renderExerciseStep(): React.ReactNode {
+    if (!exerciseItem?.practiceExercise) return null;
+    return exercise.screen === "judgement" ? (
+      <>
+        {/* The corrected take ALONE — the original playback is gone on
+            purpose, so the question is about what they just did rather
+            than a comparison. Orange, because this is the third and
+            last place orange is allowed (§9). */}
+        <div className="relative rounded-2xl border border-primary/30 bg-primary/[0.07] p-4">
+          <span className="absolute right-4 top-4 text-primary" aria-hidden>
+            <Mic className="h-4 w-4" />
+          </span>
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardCorrectedVersion}
+          </p>
+          {exercise.corrected?.audioRef ? (
+            <div className="mt-2.5">
+              <MediaPlayer
+                src={exercise.corrected.audioRef}
+                startOffsetMs={0}
+                durationMs={exercise.corrected.durationMs}
+              />
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+          <ConfidenceLabelChips
+            question={COPY.confidenceQuestion}
+            value={judgement === "yes" ? "yes" : null}
+            disabled={exercise.busy}
+            saving={exercise.busy}
+            error={exercise.error}
+            ownerWording
+            onPick={(value) =>
+              setJudgement(value === "yes" ? "yes" : "other")
+            }
+          />
+        </div>
+      </>
+    ) : (
+      /* THE OFFER. No "what you said" box, no eyebrow, no corner icon —
+         the sheet title already says Exercise. */
+      <div
+        data-testid="practice-offer"
+        className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+      >
+        <p className="text-[15px] leading-relaxed text-foreground">
+          {exerciseItem.practiceExercise.instruction}
+        </p>
+        {exerciseItem.practiceExercise.explanationVideoRef ? (
+          <div className="mt-3 overflow-hidden rounded-xl bg-black">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              src={exerciseItem.practiceExercise.explanationVideoRef}
+              controls
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full"
+            />
+          </div>
+        ) : null}
+        {exercise.error ? (
+          <p className="mt-3 rounded-xl border border-border p-3 text-[13px] text-destructive">
+            {exercise.error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  /* ---- GOOD JOB · read, not rated ------------------------------- */
+  function renderPraiseStep(): React.ReactNode {
+    if (!suggestion) return null;
+    return (
+      <>
+        <div className="rounded-2xl border border-border p-4">
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardWhatYouSaid}
+          </p>
+          <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+            {suggestion.quote || chunk.part.text}
+          </p>
+        </div>
+        <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+          <span className="absolute right-4 top-4 text-pending" aria-hidden>
+            <ThumbsUp className="h-4 w-4" />
+          </span>
+          <p className="pr-8 text-[15px] leading-relaxed text-foreground">
+            {suggestion.tentative
+              ? "This may be one of the strongest formulations in this Take."
+              : PRAISE_LEAD}
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  /* ---- SUGGESTION · what you said, and the clearer version ------ */
+  function renderSuggestionStep(): React.ReactNode {
+    if (!suggestion) return null;
+    return (
+      <>
+        <div className="rounded-2xl border border-border p-4">
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardWhatYouSaid}
+          </p>
+          <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+            {suggestion.quote || chunk.part.text}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+              {COPY.cardClearerVersion}
+            </p>
+            {/* THE PENCIL IS "EDIT MYSELF" — same handler, same
+                edit_myself response, sitting on the words it edits
+                instead of competing with the accept at the bottom. */}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void editImprovementMyself()}
+              aria-label="Edit myself"
+              className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-pending transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              <Pencil className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+            {suggestion.kind === "bold"
+              ? suggestion.quote || chunk.part.text
+              : (suggestion.proposedText ?? "")}
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  /* ---- EMPHASIS · the only place the orange is decided ---------- */
+  function renderEmphasisStep(): React.ReactNode {
+    return emphasisTap || !styleSuggestion ? (
+      /* TAP TO SELECT. Reached by "Choose different words", or opened
+         into directly when nothing was proposed. The tapped words
+         preview in --primary because that is how a rooting phrase
+         renders while recording — a preview, not a selection colour. */
+      <div className="rounded-2xl border border-border px-3 py-4">
+        <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+          {COPY.cardTapWords}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-0.5">
+          {tokens.map((token, index) => {
+            const picked =
+              phraseRun !== null &&
+              index >= phraseRun.from &&
+              index <= phraseRun.to;
+            return (
+              <button
+                key={`${token.start}-${token.text}`}
+                type="button"
+                aria-pressed={picked}
+                onClick={() =>
+                  setPhraseRun(nextSelection(phraseRun, index))
+                }
+                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${
+                  picked
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground"
+                }`}
+              >
+                {token.text}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    ) : (
+      /* PROPOSED. The paragraph with the emphasis already applied, so
+         the speaker confirms something they can see rather than
+         agreeing to a description of it. */
+      <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardWithEmphasis}
+          </p>
+          <span className="-mt-0.5 shrink-0 text-pending" aria-hidden>
+            <Sparkles className="h-4 w-4" />
+          </span>
+        </div>
+        <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+          <RichText text={emphasisPreview} />
+        </p>
+      </div>
+    );
+  }
+
+  /* ---- LOCK · the same last question on every path -------------- */
+  function renderLockStep(): React.ReactNode {
+    return (
+      <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+        <span className="absolute right-4 top-4 text-pending" aria-hidden>
+          <Lock className="h-4 w-4" />
+        </span>
+        {acceptedRewrite && onUndoAccept ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void undoAcceptedRewrite()}
+            className="mb-2 flex items-center gap-1.5 text-[13px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            Undo rewrite
+          </button>
+        ) : null}
+        {chunk.part.locked === true && !hadFeedback ? (
+          <p className="pr-8 text-[15px] leading-relaxed text-foreground">
+            <RichText text={draft} />
+          </p>
+        ) : (
+          /* Still the editor. The design draws this step as a card, but
+             editing has to stay reachable somewhere and a separate
+             screen for it would put two decisions back on one path. */
+          <MarkedEditor
+            value={draft}
+            onChange={(next) => {
+              dirtyRef.current = true;
+              setDraft(next);
+            }}
+            toolbar={false}
+            /* 16px IS A FUNCTIONAL FLOOR ON iOS: mobile Safari
+               force-zooms the viewport for a focusable editable under
+               16px, so tapping in zoomed the page and the deck behind
+               came back at the wrong scale. */
+            textSizeClass="text-[16px] leading-relaxed"
+            frameClass="border-0 bg-transparent pr-6"
+          />
+        )}
+      </div>
+    );
+  }
+
+  const stepContent: React.ReactNode =
+    step.kind === "feedback" ? renderFeedbackStep() :
+    step.kind === "exercise" ? renderExerciseStep() :
+    step.kind === "praise" ? renderPraiseStep() :
+    step.kind === "suggestion" ? renderSuggestionStep() :
+    step.kind === "emphasis" ? renderEmphasisStep() :
+    step.kind === "lock" ? renderLockStep() :
+    null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
@@ -1069,267 +1360,7 @@ export default function DeckChunkModal({
             </p>
           ) : null}
 
-          {/* ---- FEEDBACK · the one qualitative question ------------------ */}
-          {step.kind === "feedback" && suggestion ? (
-            <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
-              {suggestion.snippetAudioRef ? (
-                <MediaPlayer
-                  src={suggestion.snippetAudioRef}
-                  startOffsetMs={suggestion.startOffsetMs ?? 0}
-                  durationMs={suggestion.durationMs ?? 0}
-                />
-              ) : null}
-              {mlc3FirstClientPresentationEnabled &&
-              suggestion.firstClientService ? (
-                <Mlc3FirstClientPractice suggestion={suggestion} />
-              ) : !agreeSaved ? (
-                <ConfidenceLabelChips
-                  question={COPY.confidenceQuestion}
-                  value={agreeValue}
-                  disabled={agreeSaving}
-                  saving={agreeSaving}
-                  error={agreeError}
-                  ownerWording
-                  onPick={(value) => void sendAgreement(value)}
-                />
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* ---- EXERCISE · the offer, then the judgement ------------------
-              The one place the asynchronous side of the product reaches this
-              sheet. There is NO coach note anywhere here: what a review
-              produces is an exercise matched to this exact clip (§3). */}
-          {step.kind === "exercise" && exerciseItem?.practiceExercise ? (
-            exercise.screen === "judgement" ? (
-              <>
-                {/* The corrected take ALONE — the original playback is gone on
-                    purpose, so the question is about what they just did rather
-                    than a comparison. Orange, because this is the third and
-                    last place orange is allowed (§9). */}
-                <div className="relative rounded-2xl border border-primary/30 bg-primary/[0.07] p-4">
-                  <span className="absolute right-4 top-4 text-primary" aria-hidden>
-                    <Mic className="h-4 w-4" />
-                  </span>
-                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                    {COPY.cardCorrectedVersion}
-                  </p>
-                  {exercise.corrected?.audioRef ? (
-                    <div className="mt-2.5">
-                      <MediaPlayer
-                        src={exercise.corrected.audioRef}
-                        startOffsetMs={0}
-                        durationMs={exercise.corrected.durationMs}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
-                  <ConfidenceLabelChips
-                    question={COPY.confidenceQuestion}
-                    value={judgement === "yes" ? "yes" : null}
-                    disabled={exercise.busy}
-                    saving={exercise.busy}
-                    error={exercise.error}
-                    ownerWording
-                    onPick={(value) =>
-                      setJudgement(value === "yes" ? "yes" : "other")
-                    }
-                  />
-                </div>
-              </>
-            ) : (
-              /* THE OFFER. No "what you said" box, no eyebrow, no corner icon —
-                 the sheet title already says Exercise. */
-              <div
-                data-testid="practice-offer"
-                className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-              >
-                <p className="text-[15px] leading-relaxed text-foreground">
-                  {exerciseItem.practiceExercise.instruction}
-                </p>
-                {exerciseItem.practiceExercise.explanationVideoRef ? (
-                  <div className="mt-3 overflow-hidden rounded-xl bg-black">
-                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                    <video
-                      src={exerciseItem.practiceExercise.explanationVideoRef}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="aspect-video w-full"
-                    />
-                  </div>
-                ) : null}
-                {exercise.error ? (
-                  <p className="mt-3 rounded-xl border border-border p-3 text-[13px] text-destructive">
-                    {exercise.error}
-                  </p>
-                ) : null}
-              </div>
-            )
-          ) : null}
-
-          {/* ---- GOOD JOB · read, not rated ------------------------------- */}
-          {step.kind === "praise" && suggestion ? (
-            <>
-              <div className="rounded-2xl border border-border p-4">
-                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                  {COPY.cardWhatYouSaid}
-                </p>
-                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.quote || chunk.part.text}
-                </p>
-              </div>
-              <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                <span className="absolute right-4 top-4 text-pending" aria-hidden>
-                  <ThumbsUp className="h-4 w-4" />
-                </span>
-                <p className="pr-8 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.tentative
-                    ? "This may be one of the strongest formulations in this Take."
-                    : PRAISE_LEAD}
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          {/* ---- SUGGESTION · what you said, and the clearer version ------ */}
-          {step.kind === "suggestion" && suggestion ? (
-            <>
-              <div className="rounded-2xl border border-border p-4">
-                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                  {COPY.cardWhatYouSaid}
-                </p>
-                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.quote || chunk.part.text}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                    {COPY.cardClearerVersion}
-                  </p>
-                  {/* THE PENCIL IS "EDIT MYSELF" — same handler, same
-                      edit_myself response, sitting on the words it edits
-                      instead of competing with the accept at the bottom. */}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void editImprovementMyself()}
-                    aria-label="Edit myself"
-                    className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-pending transition-colors hover:text-foreground disabled:opacity-50"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                  {suggestion.kind === "bold"
-                    ? suggestion.quote || chunk.part.text
-                    : (suggestion.proposedText ?? "")}
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          {/* ---- EMPHASIS · the only place the orange is decided ---------- */}
-          {step.kind === "emphasis" ? (
-            emphasisTap || !styleSuggestion ? (
-              /* TAP TO SELECT. Reached by "Choose different words", or opened
-                 into directly when nothing was proposed. The tapped words
-                 preview in --primary because that is how a rooting phrase
-                 renders while recording — a preview, not a selection colour. */
-              <div className="rounded-2xl border border-border px-3 py-4">
-                <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                  {COPY.cardTapWords}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-0.5">
-                  {tokens.map((token, index) => {
-                    const picked =
-                      phraseRun !== null &&
-                      index >= phraseRun.from &&
-                      index <= phraseRun.to;
-                    return (
-                      <button
-                        key={`${token.start}-${token.text}`}
-                        type="button"
-                        aria-pressed={picked}
-                        onClick={() =>
-                          setPhraseRun(nextSelection(phraseRun, index))
-                        }
-                        className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${
-                          picked
-                            ? "bg-primary/10 text-primary"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {token.text}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              /* PROPOSED. The paragraph with the emphasis already applied, so
-                 the speaker confirms something they can see rather than
-                 agreeing to a description of it. */
-              <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-                    {COPY.cardWithEmphasis}
-                  </p>
-                  <span className="-mt-0.5 shrink-0 text-pending" aria-hidden>
-                    <Sparkles className="h-4 w-4" />
-                  </span>
-                </div>
-                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                  <RichText text={emphasisPreview} />
-                </p>
-              </div>
-            )
-          ) : null}
-
-          {/* ---- LOCK · the same last question on every path -------------- */}
-          {step.kind === "lock" ? (
-            <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-              <span className="absolute right-4 top-4 text-pending" aria-hidden>
-                <Lock className="h-4 w-4" />
-              </span>
-              {acceptedRewrite && onUndoAccept ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void undoAcceptedRewrite()}
-                  className="mb-2 flex items-center gap-1.5 text-[13px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                >
-                  <Undo2 className="h-3.5 w-3.5" aria-hidden />
-                  Undo rewrite
-                </button>
-              ) : null}
-              {chunk.part.locked === true && !hadFeedback ? (
-                <p className="pr-8 text-[15px] leading-relaxed text-foreground">
-                  <RichText text={draft} />
-                </p>
-              ) : (
-                /* Still the editor. The design draws this step as a card, but
-                   editing has to stay reachable somewhere and a separate
-                   screen for it would put two decisions back on one path. */
-                <MarkedEditor
-                  value={draft}
-                  onChange={(next) => {
-                    dirtyRef.current = true;
-                    setDraft(next);
-                  }}
-                  toolbar={false}
-                  /* 16px IS A FUNCTIONAL FLOOR ON iOS: mobile Safari
-                     force-zooms the viewport for a focusable editable under
-                     16px, so tapping in zoomed the page and the deck behind
-                     came back at the wrong scale. */
-                  textSizeClass="text-[16px] leading-relaxed"
-                  frameClass="border-0 bg-transparent pr-6"
-                />
-              )}
-            </div>
-          ) : null}
+          {stepContent}
 
           {/* THE COACH NOTE CARD IS GONE (founder 2026-09-15, §6) — from
               every screen, not just this one. The coach REVIEW STATUS pill
