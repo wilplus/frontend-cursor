@@ -25,9 +25,9 @@ vi.mock("@/hooks/useVisibleLearningExposure", () => ({
 vi.mock("@/components/results/MediaPlayer", () => ({
   default: () => createElement("div", { "data-testid": "media-player" }),
 }));
-vi.mock("@/components/willab/ConfidentVoicePractice", () => ({
-  default: () => createElement("div", { "data-testid": "practice-offer" }),
-}));
+/* ConfidentVoicePractice is gone (§3) — the exercise is a STEP now, drawn by
+   the sheet, so there is nothing to mock. The real offer card carries the
+   data-testid the practice assertions look for. */
 vi.mock("@/services/api/mlc3FirstClient", async (load) => {
   const actual = await load<typeof import("@/services/api/mlc3FirstClient")>();
   return { ...actual, mlc3FirstClientPresentationEnabled: () => false };
@@ -107,7 +107,13 @@ const noop = async () => true;
 const props = {
   onAccept: vi.fn(noop),
   onKeepMine: vi.fn(noop),
-  onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
+  // Typed so the mock records its argument, for the same reason
+  // onSetRootPhrase is: the bold-on-tap test reads the TEXT that was locked,
+  // not merely that a lock happened.
+  onLockIn: vi.fn(async (_text: string) => ({
+    outcome: "ok" as const,
+    rootPhraseProposal: null,
+  })),
   onKeepEvolving: vi.fn(async () => "ok" as const),
   // Typed so the mock records its argument: the promotion test needs to read
   // the span that was stored, not merely that something was.
@@ -376,10 +382,12 @@ describe("DeckChunkModal — F1 net", () => {
     expect(forThisClip[0][0].response).toBe("yes");
   });
 
-  it("still stops on the answer when a practice exercise is waiting", async () => {
-    // The one thing on the post-answer screen worth a tap. Auto-advancing past
-    // it would delete the micro-practice journey rather than tidy the screen,
-    // which is not what dropping the Done step asked for.
+  it("answers into the exercise step, which is now its own screen", async () => {
+    // INVERTED on purpose (founder 2026-09-16, §3). The offer used to stop the
+    // advance, because a card nested under the answered confidence screen was
+    // the only place it could live. It has its own step now, so the answer
+    // advances INTO it — the journey is kept by giving it a screen rather than
+    // by refusing to leave the previous one.
     const withPractice = suggestion({
       id: "s-cv-practice",
       feedbackFamily: "confident_voice",
@@ -409,12 +417,20 @@ describe("DeckChunkModal — F1 net", () => {
       );
     });
 
+    // The order is enforced: judgement, then the remaining feedback, THEN the
+    // exercise (§1). So the answer lands on the rewrite, and the exercise is
+    // the screen after it — not a card riding on the confidence screen.
     await click("No — Not confident");
+    expect(container.textContent).toContain("Clearer version");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
+    await click("Keep wording");
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    expect(buttonLabels()).toContain("Done");
-    // And it has NOT skipped ahead to the rewrite.
-    expect(container.textContent).not.toContain("Clearer version");
+    // The exercise step's own footer: one verb, one stacked link.
+    expect(buttonLabels()).toContain("Practise");
+    expect(buttonLabels()).toContain("Not now");
+    // Offered on a No, because the practice is matched to the clip rather than
+    // awarded for a verdict.
   });
 
   it("never carries one clip's answer onto the next clip (L3)", async () => {
@@ -543,15 +559,102 @@ describe("the ladder", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("Skip means it: the paragraph locks with no anchor at all", async () => {
-    // Skip is a real answer, not a deferral. Nothing asks again later, and
-    // nothing quietly stores a phrase the speaker declined.
+  it("saves the emphasis on a CONFIDENCE-ONLY paragraph", async () => {
+    // REPORTED FROM REAL USE 2026-09-16: "I tap to choose the emphasis words,
+    // I click lock, and it doesn't save."
+    //
+    // The lock gate read `agreeValue`, which is the CHIP's state, and
+    // advanceStep clears it on every step (deliberately — a second
+    // confident-voice item must open unanswered, L3). So by Lock it was always
+    // null, `agreeValue !== "yes"` was always true, and on a paragraph whose
+    // ONLY feedback was the confidence question the anchor was nulled and
+    // onSetRootPhrase never fired.
+    //
+    // The test above did not catch it because its inventory also carries a
+    // rewrite and a praise item, so `confidenceOnly` is false and the broken
+    // branch is never reached. This one is the founder's actual case.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    expect(container.textContent).toContain("With emphasis");
+    await click("Use this phrase");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toContain("the team is ready");
+  });
+
+  it("tapping your own words previews them at once WITHOUT editing the document", async () => {
+    // BOTH HALVES OF A REVERSAL, pinned together (founder 2026-09-16).
+    //
+    // The ask was "tap to bold immediately", and the asymmetry behind it is
+    // real: accepting the PROPOSED phrase changes the words on screen, while
+    // choosing your own used to leave them plain. The first fix wrote
+    // `{{orange:…}}` into the draft so Lock would carry it — an edit to the
+    // canonical document that nobody asked for. Only the style lane folds a
+    // marker in, server-side, after onApplyStyle agrees; words the speaker
+    // picked have no such row. It also made Lock save the document, and that
+    // refetch churned an open slide editor.
+    //
+    // So the preview is the answer, not the edit. The tapped word turns accent
+    // the instant it is tapped (first expectation) — the same colour a rooting
+    // phrase has while recording — and the words travel to the server as a
+    // SPAN through onSetRootPhrase, which is where §5 puts them. The locked
+    // text is byte-identical to what the speaker was reading (second).
+    vi.mocked(props.onLockIn).mockClear();
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    await click("Choose different words");
+    const word = Array.from(container.querySelectorAll("button")).find(
+      (b) => (b.textContent ?? "").trim() === "ready.",
+    )!;
+    await act(async () => {
+      word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    // Immediate, on the spot, before anything is committed.
+    expect(word.getAttribute("aria-pressed")).toBe("true");
+    expect(word.className).toContain("text-primary");
+
+    await click("Use this phrase");
+    await click("Lock");
+    const lockedText = vi.mocked(props.onLockIn).mock.calls[0][0];
+    expect(lockedText).not.toContain("{{orange:");
+    expect(lockedText).not.toContain("**");
+    // ...and the words still land, as the anchor.
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toContain("ready.");
+  });
+
+  it("a judgement that was not Yes skips step four entirely", async () => {
+    // THE GATE, replacing the Skip button that used to carry this (founder
+    // 2026-09-16, §5: the step has no opt-out). Orange means "I confirmed I
+    // deliver this well", so anything other than a Yes must not reach the
+    // screen that offers it — and a paragraph without an orange phrase is one
+    // that never got there, not one that declined.
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis });
-    await click("Yes — Confident");
+    await click("No — Not confident");
     await click("Keep wording");
     await click("Continue");
-    await click("Skip");
+    // Straight to Lock: no emphasis screen, and therefore no Skip to press.
+    expect(container.textContent).not.toContain("With emphasis");
+    expect(buttonLabels()).not.toContain("Use this phrase");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+  });
+
+  it("a paragraph never judged at all also skips it", async () => {
+    // The common case, and the one the founder called out: a paragraph the
+    // detector never flagged is never judged, so MOST paragraphs reach Lock
+    // with no orange. That is the intended shape, not a gap.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [] });
+    expect(container.textContent).not.toContain("With emphasis");
+    expect(buttonLabels()).not.toContain("Use this phrase");
     await click("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();

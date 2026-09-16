@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Lock, Pencil, Sparkles, ThumbsUp, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  Loader2,
+  Lock,
+  Mic,
+  Pencil,
+  Sparkles,
+  Square,
+  ThumbsUp,
+  Undo2,
+} from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
@@ -26,7 +36,7 @@ import {
   type ChunkState,
   type CoachMomentLite,
 } from "@/lib/willab/deckChunks";
-import ConfidentVoicePractice from "@/components/willab/ConfidentVoicePractice";
+import { useConfidenceExercise } from "@/components/willab/useConfidenceExercise";
 import Mlc3FirstClientPractice from "@/components/willab/Mlc3FirstClientPractice";
 import { mlc3FirstClientPresentationEnabled } from "@/services/api/mlc3FirstClient";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -163,22 +173,72 @@ export default function DeckChunkModal({
    *
    * Frozen with the inventory: a refetch must not lengthen or reorder the
    * ladder under a speaker who is halfway down it. */
-  const [steps] = useState<ChunkStep[]>(() =>
-    buildChunkSteps({
-      inventory: feedbackInventory,
-      // Nothing to emphasise on an empty paragraph, and nothing to choose on
-      // one already locked and settled — that sheet is a single Discard.
-      //
-      // A LOCKED paragraph WITH a style offer still gets the step, and that is
-      // the point of the style lane rather than an exception to it: "open
-      // takes rewrites; locked takes emphasis only". Gating on the lock alone
-      // would delete the post-lock emphasis offer outright.
-      canEmphasise:
-        chunk.part.text.trim().length > 0 &&
-        (Boolean(styleSuggestion) || chunk.part.locked !== true),
-    }),
+  /** THE PARAGRAPH'S JUDGEMENT, which outlives the chip that collected it.
+   *
+   *  `agreeValue` is per ITEM and advanceStep clears it — deliberately, so a
+   *  second confident-voice item on the same chunk opens unanswered (L3). But
+   *  the emphasis gate asks a question about the PARAGRAPH, and the answer has
+   *  to survive the steps in between. The exercise's final judgement
+   *  supersedes step one's when it happens: it is a judgement of the same
+   *  delivery, made later and better informed. */
+  const [judgement, setJudgement] = useState<"yes" | "other" | null>(null);
+
+  /** An exercise matched to this exact clip, from the confidence item that
+   *  carries it. Read off the frozen inventory rather than the current step,
+   *  because the exercise is now its own step and no longer rides inside the
+   *  confidence screen. */
+  const exerciseItem = useMemo(
+    () =>
+      feedbackInventory.find(
+        (item) =>
+          isConfidentVoiceFeedback(item) &&
+          item.practiceExercise &&
+          item.snippetId &&
+          item.evidence,
+      ) ?? null,
+    [feedbackInventory],
   );
-  const [stepId, setStepId] = useState<string>(() => steps[0]?.id ?? "lock");
+
+  /* NOT frozen, and the difference matters. The inventory above is frozen so a
+     REFETCH cannot lengthen the ladder under a speaker halfway down it. This
+     list still has to answer to the speaker's OWN answers: emphasis appears
+     only once the paragraph has been judged Yes (§4), and that answer arrives
+     at step one or step three — after the sheet opened. Recomputing on the
+     speaker's own decision is what that freeze was protecting, not what it
+     was preventing. */
+  const buildSteps = useCallback(
+    (judgementValue: "yes" | "other" | null): ChunkStep[] =>
+      buildChunkSteps({
+        inventory: feedbackInventory,
+        canPractise: exerciseItem !== null,
+        // Nothing to emphasise on an empty paragraph, and nothing to choose on
+        // one already locked and settled — that sheet is a single Discard.
+        //
+        // A LOCKED paragraph WITH a style offer still gets the step, and that
+        // is the point of the style lane rather than an exception to it: "open
+        // takes rewrites; locked takes emphasis only".
+        //
+        // AND the paragraph must have been judged Yes. Orange means "I
+        // confirmed I deliver this well" (§4), so a paragraph nobody judged —
+        // one the detector never flagged — reaches Lock with no orange, which
+        // is the intended shape rather than a gap.
+        canEmphasise:
+          judgementValue === "yes" &&
+          chunk.part.text.trim().length > 0 &&
+          (Boolean(styleSuggestion) || chunk.part.locked !== true),
+      }),
+    [
+      feedbackInventory,
+      exerciseItem,
+      chunk.part.text,
+      chunk.part.locked,
+      styleSuggestion,
+    ],
+  );
+  const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
+  const [stepId, setStepId] = useState<string>(
+    () => buildSteps(null)[0]?.id ?? "lock",
+  );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
     step && step.kind !== "emphasis" && step.kind !== "lock"
@@ -216,9 +276,18 @@ export default function DeckChunkModal({
   const [unlocked, setUnlocked] = useState(false);
   /** Move to the next screen. The lock step is always last, so this always
    *  lands somewhere and there is no "no more items" branch to get wrong. */
-  function advanceStep(): void {
-    const at = steps.findIndex((entry) => entry.id === stepId);
-    const next = steps[at + 1];
+  /** @param withJudgement the answer being given RIGHT NOW, when this advance
+   *  is caused by one. React has not re-rendered yet, so `steps` in scope was
+   *  built from the PREVIOUS judgement — and on a confidence-only paragraph
+   *  that list has no emphasis step in it. Advancing by index through it walks
+   *  straight past the screen the answer just created, and the speaker never
+   *  gets asked which words to emphasise. Building the list from the new
+   *  answer is the difference between "the step appears" and "the step is
+   *  skipped forever". */
+  function advanceStep(withJudgement: "yes" | "other" | null = judgement): void {
+    const list = buildSteps(withJudgement);
+    const at = list.findIndex((entry) => entry.id === stepId);
+    const next = list[at + 1];
     if (next) setStepId(next.id);
     setRewriteCollisionConfirmed(false);
     setError(null);
@@ -236,6 +305,11 @@ export default function DeckChunkModal({
     setAgreeSaved(false);
     setAgreeError(null);
   }
+  /* advanceStep closes over `steps` and `stepId`, so a callback handed to the
+     exercise hook must not capture it once. The ref is re-pointed every render
+     and read at call time. */
+  const advanceStepRef = useRef(advanceStep);
+  advanceStepRef.current = advanceStep;
 
   // The always-editable draft. Re-synced from the served text whenever the
   // part's words change UNDER the modal (an accept reassembles the document)
@@ -371,14 +445,33 @@ export default function DeckChunkModal({
      * with no anchor rather than guessing at one. Skip does the same, and
      * means it: nothing asks again later.
      *
-     * The confidence-only gate is unchanged. A paragraph whose only feedback
-     * was the confidence question gets an orange anchor ONLY if the speaker
-     * said yes; any other answer locks the wording and ends there. */
+     * THE GATE READS `judgement`, NOT `agreeValue` — and that is a live bug
+     * fix, reported from real use 2026-09-16: "I tap to choose the emphasis
+     * words, I click lock, and it doesn't save".
+     *
+     * `agreeValue` is the CHIP's state and advanceStep clears it, deliberately,
+     * so a second confident-voice item on the same chunk opens unanswered (L3).
+     * By the time the speaker reached Lock it was always null, so
+     * `agreeValue !== "yes"` was always true — and on a paragraph whose only
+     * feedback was the confidence question, that nulled the anchor and
+     * onSetRootPhrase was never called. The speaker picked their words, locked,
+     * and nothing turned orange. `judgement` is the paragraph-level answer,
+     * which is what this check always meant and which survives the steps in
+     * between.
+     *
+     * Belt and braces now: the emphasis step only appears on a Yes (§4), so
+     * promotedQuote cannot be set without one. The check stays because the two
+     * guard different things — the step decides whether to ASK, this decides
+     * whether to STORE — and the cost of them disagreeing is silent data loss,
+     * which is precisely what just happened.
+     *
+     * A quote that no longer resolves — edited away, or now ambiguous — locks
+     * with no anchor rather than guessing at one. */
     const confidenceOnly =
       feedbackInventory.length > 0 &&
       feedbackInventory.every(isConfidentVoiceFeedback);
     const anchor =
-      promotedQuote && !(confidenceOnly && agreeValue !== "yes")
+      promotedQuote && !(confidenceOnly && judgement !== "yes")
         ? quoteSpan(draft, promotedQuote)
         : null;
     if (anchor) await onSetRootPhrase(anchor);
@@ -416,15 +509,43 @@ export default function DeckChunkModal({
     advanceStep();
   }
 
+  /* TAP-TO-SELECT DOES NOT WRITE A MARKER INTO THE DRAFT, and that is a
+     reversal of my own first attempt at "tap to bold immediately" (founder
+     2026-09-16).
+
+     IT WENT PAST THE HANDOFF. §5 stores the rooting phrase as a SPAN —
+     onSetRootPhrase({text, start, end}) — resolved against the locked text at
+     lock time. Folding a marker into the document is what the STYLE LANE does,
+     server-side, after onApplyStyle agrees to it. There is no such row for
+     words the speaker picked themselves, so the marker was a document edit
+     nobody asked for, riding along on the lock. That is the L1 objection and
+     it is sufficient on its own.
+
+     IT ALSO DESTABILISED SLIDE EDITING, measured rather than assumed. Marking
+     the draft made Lock ALSO save the document, whose refetch churned an open
+     slide editor: typing into a slide right afterwards did not reach the save
+     unless the walk paused and re-focused first. With this reverted, the
+     canonical walk types once and saves the typed words, three runs for three.
+     (To be precise about what was NOT the cause: a paragraph that already
+     carries a marker — from the style lane — edits and saves correctly. I
+     checked that directly in a browser before writing this.)
+
+     What the speaker sees is unchanged and already answers the asymmetry: §6
+     renders tapped words in --primary as they are tapped, which is how a
+     rooting phrase renders while recording. The preview is immediate; only
+     the invented document edit is gone. */
   function emphasiseChosen() {
     setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
     advanceStep();
   }
 
-  function skipEmphasis() {
-    setPromotedQuote(null);
-    advanceStep();
-  }
+  /* skipEmphasis is GONE (founder 2026-09-16, §5). It set promotedQuote to
+     null and advanced — a deferral on a step that has nothing to defer. The
+     step only appears on a paragraph already judged Yes, and both of its
+     remaining actions commit a phrase. A paragraph without an orange phrase
+     is one that never reached this screen, which is the gate's job, not a
+     button's. promotedQuote still starts null, so the no-phrase path is
+     unchanged; only the way to ASK for it from here is gone. */
 
   /* APPLY THE EMPHASIS ON THE SPOT (founder 2026-08-15: "when I clicked to
    * apply styling it didn't apply … it did apply but after I have closed the
@@ -564,6 +685,11 @@ export default function DeckChunkModal({
     setAgreeSaving(false);
     if (r.ok) {
       setAgreeSaved(true);
+      // The paragraph's judgement, kept where advanceStep's per-item reset
+      // cannot reach it. Only a Yes opens the emphasis step (§4); every other
+      // answer, including "not sure" and "audio unclear", is not a Yes.
+      const answered = value === "yes" ? "yes" : "other";
+      setJudgement(answered);
       /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
        *
        * Answering WAS the decision; the screen that followed held a thank-you
@@ -572,23 +698,15 @@ export default function DeckChunkModal({
        * Now the answer advances straight to the next feedback, or closes the
        * review when it was the last one.
        *
-       * The ONE case that still stops here is a waiting practice exercise —
-       * that offer lives on this post-answer screen and is the only thing on
-       * it worth a tap. Auto-advancing past it would delete the micro-practice
-       * journey rather than tidy it, which is not what "drop the Done step"
-       * asked for. Keep this guard until practice has somewhere else to live.
+       * The practice offer used to stop the advance here, because this
+       * post-answer screen was the only place it could live. It has its own
+       * step now (§3), which is what that guard was waiting for — so the
+       * answer advances, and the next screen IS the exercise.
        *
        * No second write: `saveTakeFeedbackResponse` above already recorded
        * this answer, and the retired Done button called it AGAIN through
        * resolveObservedFeedback with the same id and value. */
-      const practiceWaiting = Boolean(
-        suggestion.practiceExercise &&
-          suggestion.snippetId &&
-          suggestion.evidence,
-      );
-      if (!practiceWaiting) {
-        advanceStep();
-      }
+      advanceStep(answered);
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
@@ -596,6 +714,30 @@ export default function DeckChunkModal({
       setAgreeValue(null);
       setAgreeError(r.error ?? COPY.failResponse);
   }
+
+  /** Step three. The hook owns the practice row, the mic and the two screens'
+   *  state; the sheet owns what is drawn and the one footer, as every other
+   *  step does. A closed practice advances the ladder, and a final Yes is a
+   *  judgement of the same delivery — so it supersedes step one's answer for
+   *  the emphasis gate. */
+  const onExerciseFinished = useCallback((answer: "yes" | "no" | null) => {
+    const answered =
+      answer === null ? null : answer === "yes" ? "yes" : "other";
+    if (answered !== null) setJudgement(answered);
+    // Same reason as advanceStep's own note: the exercise's final judgement
+    // can open the emphasis step, and the list in scope predates it.
+    advanceStepRef.current(answered);
+  }, []);
+  const exercise = useConfidenceExercise({
+    snippetId: exerciseItem?.snippetId ?? null,
+    offer: exerciseItem?.practiceExercise ?? null,
+    evidence: exerciseItem?.evidence ?? null,
+    // The introduction the offer shows depends on how the speaker judged the
+    // original; "other" answers read the same as a No here, which is what the
+    // pre-ladder card did.
+    originalUserAnswer: judgement === "yes" ? "yes" : "no",
+    onFinished: onExerciseFinished,
+  });
 
   // Paragraph versioning boundary: after this Take's feedback is resolved,
   // the student explicitly chooses Lock for next Take or Keep evolving.
@@ -741,6 +883,37 @@ export default function DeckChunkModal({
         ],
       };
     }
+    if (step.kind === "exercise") {
+      // THE JUDGEMENT SCREEN. Done answers it; Back leaves without answering
+      // and lands on the offer, where the pill will now read Practise again.
+      if (exercise.screen === "judgement") {
+        return {
+          pill: COPY.pillDone,
+          icon: <Check className="h-4 w-4" aria-hidden />,
+          pillDisabled: exercise.busy || exercise.corrected === null,
+          onPill: () => void exercise.finish(judgement === "yes" ? "yes" : "no"),
+          links: [{ label: COPY.linkBack, onClick: () => exercise.back() }],
+        };
+      }
+      // THE OFFER. While the mic is live the pill is the way to end the take;
+      // "Not now" would otherwise be the only way to stop it, and that closes
+      // the practice rather than keeping the recording.
+      if (exercise.recording) {
+        return {
+          pill: COPY.pillStop,
+          icon: <Square className="h-4 w-4" aria-hidden />,
+          onPill: () => exercise.stop(),
+          links: [],
+        };
+      }
+      return {
+        pill: exercise.returned ? COPY.pillPractiseAgain : COPY.pillPractise,
+        icon: <Mic className="h-4 w-4" aria-hidden />,
+        pillDisabled: exercise.busy,
+        onPill: () => exercise.practise(),
+        links: [{ label: COPY.linkNotNow, onClick: () => void exercise.notNow() }],
+      };
+    }
     if (step.kind === "emphasis") {
       const tapping = emphasisTap || !styleSuggestion;
       return {
@@ -750,14 +923,21 @@ export default function DeckChunkModal({
         onPill: tapping
           ? () => emphasiseChosen()
           : () => void emphasiseProposed(),
+        /* NO SKIP, on any of the three states (founder 2026-09-16, §5). The
+           step offers two choices and no opt-out — take the phrase it
+           proposes, or choose the words that fit better — because there is
+           nothing to defer: it only appears on a paragraph already judged
+           Yes. A paragraph that fails that gate never reaches this screen at
+           all, and THAT, not a Skip button, is how a paragraph ends up
+           without an orange phrase. The sheet's close button sits here as it
+           does on every other screen, so leaving is always available. */
         links: tapping
-          ? [{ label: COPY.linkSkip, onClick: () => skipEmphasis() }]
+          ? []
           : [
               {
                 label: COPY.linkChooseWords,
                 onClick: () => setEmphasisTap(true),
               },
-              { label: COPY.linkSkip, onClick: () => skipEmphasis() },
             ],
       };
     }
@@ -912,20 +1092,81 @@ export default function DeckChunkModal({
                   ownerWording
                   onPick={(value) => void sendAgreement(value)}
                 />
-              ) : suggestion.practiceExercise &&
-                suggestion.snippetId &&
-                suggestion.evidence ? (
-                /* The only thing left on this screen after an answer. The
-                   thank-you copy is gone (founder: drop the Done step), but a
-                   waiting practice offer still has to be reachable. */
-                <ConfidentVoicePractice
-                  snippetId={suggestion.snippetId}
-                  offer={suggestion.practiceExercise}
-                  evidence={suggestion.evidence}
-                  originalUserAnswer={agreeValue === "no" ? "no" : "yes"}
-                />
               ) : null}
             </div>
+          ) : null}
+
+          {/* ---- EXERCISE · the offer, then the judgement ------------------
+              The one place the asynchronous side of the product reaches this
+              sheet. There is NO coach note anywhere here: what a review
+              produces is an exercise matched to this exact clip (§3). */}
+          {step.kind === "exercise" && exerciseItem?.practiceExercise ? (
+            exercise.screen === "judgement" ? (
+              <>
+                {/* The corrected take ALONE — the original playback is gone on
+                    purpose, so the question is about what they just did rather
+                    than a comparison. Orange, because this is the third and
+                    last place orange is allowed (§9). */}
+                <div className="relative rounded-2xl border border-primary/30 bg-primary/[0.07] p-4">
+                  <span className="absolute right-4 top-4 text-primary" aria-hidden>
+                    <Mic className="h-4 w-4" />
+                  </span>
+                  <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+                    {COPY.cardCorrectedVersion}
+                  </p>
+                  {exercise.corrected?.audioRef ? (
+                    <div className="mt-2.5">
+                      <MediaPlayer
+                        src={exercise.corrected.audioRef}
+                        startOffsetMs={0}
+                        durationMs={exercise.corrected.durationMs}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+                  <ConfidenceLabelChips
+                    question={COPY.confidenceQuestion}
+                    value={judgement === "yes" ? "yes" : null}
+                    disabled={exercise.busy}
+                    saving={exercise.busy}
+                    error={exercise.error}
+                    ownerWording
+                    onPick={(value) =>
+                      setJudgement(value === "yes" ? "yes" : "other")
+                    }
+                  />
+                </div>
+              </>
+            ) : (
+              /* THE OFFER. No "what you said" box, no eyebrow, no corner icon —
+                 the sheet title already says Exercise. */
+              <div
+                data-testid="practice-offer"
+                className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+              >
+                <p className="text-[15px] leading-relaxed text-foreground">
+                  {exerciseItem.practiceExercise.instruction}
+                </p>
+                {exerciseItem.practiceExercise.explanationVideoRef ? (
+                  <div className="mt-3 overflow-hidden rounded-xl bg-black">
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <video
+                      src={exerciseItem.practiceExercise.explanationVideoRef}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="aspect-video w-full"
+                    />
+                  </div>
+                ) : null}
+                {exercise.error ? (
+                  <p className="mt-3 rounded-xl border border-border p-3 text-[13px] text-destructive">
+                    {exercise.error}
+                  </p>
+                ) : null}
+              </div>
+            )
           ) : null}
 
           {/* ---- GOOD JOB · read, not rated ------------------------------- */}

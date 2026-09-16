@@ -235,3 +235,27 @@ export function buildScreens<T>(
   }
   return out;
 }
+
+/** The first screen carrying something the speaker has not seen yet.
+ *
+ *  COMING BACK FROM THE EMAIL (founder 2026-09-16, §8). The deck used to open
+ *  wherever it was left, with a dot on the mark as the only clue, so someone
+ *  following an email hunted slide by slide for the one paragraph that had
+ *  changed. The unread signal already existed per paragraph; this is the rule
+ *  that turns it into a place to land.
+ *
+ *  Pure, and here rather than in the deck, for the reason chunkSteps.ts gives:
+ *  vitest cannot transform .tsx imports, so a rule left inside the component
+ *  is a rule no unit test can reach.
+ *
+ *  Returns null when nothing is unread — and null means "do not move", not
+ *  "go to the top". A speaker with nothing waiting keeps the position they
+ *  left, which is the behaviour that existed before this.
+ */
+export function firstUnreadScreenIndex<T>(
+  screens: readonly DeckScreenModel<T>[],
+  isUnread: (chunk: T) => boolean,
+): number | null {
+  const index = screens.findIndex((screen) => screen.chunks.some(isUnread));
+  return index < 0 ? null : index;
+}

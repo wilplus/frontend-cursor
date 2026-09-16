@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildScreens,
   canBubble,
+  firstUnreadScreenIndex,
   chunkCounts,
   clampPosition,
   IDLE_WHEEL_GESTURE,
@@ -262,5 +263,40 @@ describe("buildScreens — the §11.7.2 screen grain", () => {
 
   it("an empty group still yields a navigable screen", () => {
     expect(buildScreens([{ slideIndex: null, chunks: [] }])).toHaveLength(1);
+  });
+});
+
+describe("coming back from the email (§8)", () => {
+  const deck = (unread: readonly string[]) => ({
+    screens: buildScreens([
+      { slideIndex: 0, chunks: ["a", "b"] },
+      { slideIndex: 1, chunks: ["c"] },
+      { slideIndex: 2, chunks: ["d", "e"] },
+    ]),
+    isUnread: (chunk: string) => unread.includes(chunk),
+  });
+
+  it("lands on the first screen carrying something unread", () => {
+    const { screens, isUnread } = deck(["d"]);
+    expect(firstUnreadScreenIndex(screens, isUnread)).toBe(2);
+  });
+
+  it("takes the FIRST one when several are waiting, not the last", () => {
+    const { screens, isUnread } = deck(["c", "e"]);
+    expect(firstUnreadScreenIndex(screens, isUnread)).toBe(1);
+  });
+
+  it("finds it wherever it sits inside the screen", () => {
+    // "b" is the second chunk of the first screen. A rule that only looked at
+    // the chunk a screen opens on would miss it.
+    const { screens, isUnread } = deck(["b"]);
+    expect(firstUnreadScreenIndex(screens, isUnread)).toBe(0);
+  });
+
+  it("returns null when nothing is waiting, which means DO NOT MOVE", () => {
+    // Not 0. A speaker with nothing unread keeps the position they left —
+    // scrolling them to the top would be a regression dressed as a feature.
+    const { screens, isUnread } = deck([]);
+    expect(firstUnreadScreenIndex(screens, isUnread)).toBeNull();
   });
 });

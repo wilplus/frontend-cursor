@@ -85,6 +85,32 @@ function payload() {
       visual: "underline",
     });
   }
+  /* A CONFIDENT VOICE ITEM ON THE PARAGRAPH THAT ALREADY HAS FEEDBACK
+     (2026-09-16). The fixture carried none at all, which was never faithful —
+     L2 says every valid Take gets a Confident Voice candidate — and it became
+     load-bearing when §4 gated the emphasis step on a Yes: with no judgement,
+     no paragraph in this harness could reach step four.
+
+     It goes on P1, beside the rewrite, rather than on the locked paragraph.
+     Putting it there changed what P1 IS — a protected paragraph with a coach
+     note became one with feedback waiting — and the bookmark assertions above
+     are about exactly that distinction. P1 already reads "Feedback waiting",
+     so a second pending item on it changes no mark, and the ladder's own rule
+     (confidence first, then the rest in server order) gives the walk the shape
+     the sheet actually has. */
+  changes.push({
+    id: "chg-cv-1",
+    snippet_id: "snip-1",
+    take_session_id: "sess-1",
+    kind: "bold",
+    feedback_family: "confident_voice",
+    source: "confident_voice",
+    span: { start: text.indexOf(quote), end: text.indexOf(quote) + quote.length },
+    quote,
+    why_key: "confidence",
+    status: "pending",
+    visual: "underline",
+  });
   const bq = "finally came together";
   changes.push({
     // An already-approved accent: paints p3 accepted (wash, no underline).
