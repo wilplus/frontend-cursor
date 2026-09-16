@@ -80,52 +80,175 @@ export interface IdealTextRetryTarget {
   takeIndex: 1;
 }
 
-export default function ReportCard({
-  message,
-  onViewInsights,
-  onOpenBestPresentation,
-  onOpenTranscripts,
-  onOpenFeedback,
-  onOpenIdealText,
-  onRetryIdealText,
-}: {
-  message: LoungeMessage;
-  onViewInsights?: (sessionId: string) => void;
-  onOpenBestPresentation?: (arcId: string) => void;
-  /** transcript_ready — opens the Trainings library (where transcripts live). */
-  onOpenTranscripts?: () => void;
-  /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
-  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
-  /** Take 1 failure card — enqueue document-only work from stored artifacts. */
-  onRetryIdealText?: (
-    target: IdealTextRetryTarget,
-  ) => boolean | Promise<boolean>;
-  /** Delivery layer — the purple bubble opens the ideal-text notebook.
-   *  ALWAYS the live, editable document — version bubbles are history markers,
-   *  not frozen read-only destinations (founder 2026-07-29). */
-  onOpenIdealText?: (arcId: string) => void;
-}) {
-  const [retryingIdealText, setRetryingIdealText] = useState(false);
-  // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
-  // behind the tap: the feedback page itself renders the unlock panel).
-  if (message.kind === "feedback") {
-    const arcId =
-      typeof message.metadata?.arc_id === "string"
-        ? message.metadata.arc_id
+// Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
+// behind the tap: the feedback page itself renders the unlock panel).
+function renderFeedbackReportCard(
+  message: LoungeMessage,
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void,
+): React.ReactNode {
+  const arcId =
+    typeof message.metadata?.arc_id === "string"
+      ? message.metadata.arc_id
+      : null;
+  const takeSessionId =
+    typeof message.metadata?.take_session_id === "string"
+      ? message.metadata.take_session_id
+      : null;
+  const takeIndex =
+    typeof message.metadata?.take_index === "number"
+      ? message.metadata.take_index
+      : null;
+  const openable = !!(arcId && onOpenFeedback);
+  const open = () => {
+    if (arcId && onOpenFeedback)
+      onOpenFeedback({ arcId, takeSessionId, takeIndex });
+  };
+  return (
+    <div
+      role={openable ? "button" : undefined}
+      tabIndex={openable ? 0 : undefined}
+      onClick={openable ? open : undefined}
+      onKeyDown={
+        openable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                open();
+              }
+            }
+          : undefined
+      }
+      className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+    >
+      <p className="flex items-baseline justify-between gap-3 text-[15px] leading-relaxed text-foreground">
+        <span className="font-semibold">
+          Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
+        </span>
+        {/* Price BEFORE opening — this bubble is the trigger, and the overlay
+            it opens is what gets charged. Shown only while this arc still
+            owes the `insights` charge; once paid it is free forever and the
+            price disappears rather than lingering as a wrong label. */}
+        {arcId ? <ArcActionPrice arcId={arcId} action="insights" /> : null}
+      </p>
+      {message.body ? (
+        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+          {message.body}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+// Delivery layer — the ideal-text cards. Lifecycle variants share the kind:
+//   metadata.variant "instant" → the FREE machine draft at take 3: a plain
+//     grey card (deliberately NOT purple, so the later coach-perfected purple
+//     bubble still reads as the upgrade moment, never a duplicate).
+//   no variant / "perfected" → the publish-time PURPLE card (unchanged).
+function renderIdealTextReportCard(
+  message: LoungeMessage,
+  options: {
+    onOpenIdealText?: (arcId: string) => void;
+    onRetryIdealText?: (
+      target: IdealTextRetryTarget,
+    ) => boolean | Promise<boolean>;
+    onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+    retryingIdealText: boolean;
+    setRetryingIdealText: (value: boolean) => void;
+  },
+): React.ReactNode {
+  const {
+    onOpenIdealText,
+    onRetryIdealText,
+    onOpenFeedback,
+    retryingIdealText,
+    setRetryingIdealText,
+  } = options;
+  const arcId =
+    typeof message.metadata?.arc_id === "string"
+      ? message.metadata.arc_id
+      : null;
+  const openable = !!(arcId && onOpenIdealText);
+  const variant = message.metadata?.variant;
+  // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
+  // posts its own card, 1.0 unverified through N.0 verified. The version and
+  // the verification state both ride on the BE metadata.
+  const rawV = message.metadata?.version;
+  const version =
+    typeof rawV === "number" && Number.isFinite(rawV)
+      ? rawV
+      : typeof rawV === "string" &&
+          rawV.trim() &&
+          Number.isFinite(Number(rawV))
+        ? Number(rawV)
         : null;
+  // Every bubble opens the SAME live, editable notebook — the version on
+  // the card is a history marker, never a frozen destination.
+  const open = () => {
+    if (arcId && onOpenIdealText) onOpenIdealText(arcId);
+  };
+  if (variant === "ideal_text_unconfirmed") {
     const takeSessionId =
       typeof message.metadata?.take_session_id === "string"
         ? message.metadata.take_session_id
         : null;
-    const takeIndex =
-      typeof message.metadata?.take_index === "number"
-        ? message.metadata.take_index
-        : null;
-    const openable = !!(arcId && onOpenFeedback);
-    const open = () => {
-      if (arcId && onOpenFeedback)
-        onOpenFeedback({ arcId, takeSessionId, takeIndex });
-    };
+    const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
+    const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
+    return (
+      <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+        <div className="flex items-start gap-2">
+          <ShieldAlert
+            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+            aria-hidden
+          />
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {message.body}
+          </p>
+        </div>
+        <div className="mt-3 flex flex-col gap-2">
+          {canRetry ? (
+            <Button
+              type="button"
+              disabled={retryingIdealText}
+              onClick={async () => {
+                if (!arcId || !takeSessionId || !onRetryIdealText) return;
+                setRetryingIdealText(true);
+                try {
+                  await onRetryIdealText({
+                    arcId,
+                    takeSessionId,
+                    takeIndex: 1,
+                  });
+                } finally {
+                  setRetryingIdealText(false);
+                }
+              }}
+              className="h-10 w-full rounded-full"
+            >
+              Try creating it again
+            </Button>
+          ) : null}
+          {canOpenFeedback ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                onOpenFeedback!({
+                  arcId: arcId!,
+                  takeSessionId,
+                  takeIndex: 1,
+                })
+              }
+              className="h-10 w-full rounded-full"
+            >
+              View this take&apos;s feedback
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+  const verified = variant === "verified";
+  if (variant === "instant") {
     return (
       <div
         role={openable ? "button" : undefined}
@@ -141,231 +264,111 @@ export default function ReportCard({
               }
             : undefined
         }
-        className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+        className={`my-1 mr-auto max-w-[85%] rounded-2xl border border-primary/30 bg-chat-bot px-4 py-3 ${
+          openable ? "cursor-pointer" : ""
+        }`}
       >
-        <p className="flex items-baseline justify-between gap-3 text-[15px] leading-relaxed text-foreground">
-          <span className="font-semibold">
-            Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
-          </span>
-          {/* Price BEFORE opening — this bubble is the trigger, and the overlay
-              it opens is what gets charged. Shown only while this arc still
-              owes the `insights` charge; once paid it is free forever and the
-              price disappears rather than lingering as a wrong label. */}
-          {arcId ? <ArcActionPrice arcId={arcId} action="insights" /> : null}
-        </p>
-        {message.body ? (
-          <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-            {message.body}
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <p className="text-[15px] font-semibold leading-snug text-foreground">
+            Instant ideal text
+          </p>
+        </div>
+        {/* Title + date, same rule as the version cards (founder
+            2026-08-05): a bubble is read once on arrival and a hundred
+            times on scroll-back, so the BE's prose does not live here. */}
+        {reportDateLabel(message.client_created_at) ? (
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+            {reportDateLabel(message.client_created_at)}
           </p>
         ) : null}
       </div>
     );
   }
+  // FE-2 — EVERY version is its own bubble in the chat flow (nothing pinned),
+  // a FIXED history entry: the project's name as the title, its own version
+  // badge, the BE's sentence as the meta line. Only the STATUS pill may
+  // change after the fact (pending → reviewed once this version verifies).
+  return (
+    <LiveStatusIdealTextCard
+      arcId={arcId}
+      /* THE ROW CARRIES ITS OWN NAME (backend-cursor, 2026-08-15). The BE
+       * now stamps the project's topic when it writes the bubble, so a
+       * brand-new card is correct on its FIRST paint with no request at
+       * all. Absent on every row written before that change — those fall
+       * through to the remembered title, then the generic. */
+      stampedTitle={
+        typeof message.metadata?.topic === "string"
+          ? message.metadata.topic
+          : null
+      }
+      version={version}
+      frozenVerified={verified}
+      // The DATE, not message.body. The BE's sentence used to sit here;
+      // founder 2026-08-05 cut it to "just the title, date and the CTA".
+      date={reportDateLabel(message.client_created_at)}
+      onOpen={openable ? open : null}
+    />
+  );
+}
 
-  // Delivery layer — the ideal-text cards. Lifecycle variants share the kind:
-  //   metadata.variant "instant" → the FREE machine draft at take 3: a plain
-  //     grey card (deliberately NOT purple, so the later coach-perfected purple
-  //     bubble still reads as the upgrade moment, never a duplicate).
-  //   no variant / "perfected" → the publish-time PURPLE card (unchanged).
-  if (message.kind === "ideal_text") {
-    const arcId =
-      typeof message.metadata?.arc_id === "string"
-        ? message.metadata.arc_id
-        : null;
-    const openable = !!(arcId && onOpenIdealText);
-    const variant = message.metadata?.variant;
-    // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
-    // posts its own card, 1.0 unverified through N.0 verified. The version and
-    // the verification state both ride on the BE metadata.
-    const rawV = message.metadata?.version;
-    const version =
-      typeof rawV === "number" && Number.isFinite(rawV)
-        ? rawV
-        : typeof rawV === "string" &&
-            rawV.trim() &&
-            Number.isFinite(Number(rawV))
-          ? Number(rawV)
-          : null;
-    // Every bubble opens the SAME live, editable notebook — the version on
-    // the card is a history marker, never a frozen destination.
-    const open = () => {
-      if (arcId && onOpenIdealText) onOpenIdealText(arcId);
-    };
-    if (variant === "ideal_text_unconfirmed") {
-      const takeSessionId =
-        typeof message.metadata?.take_session_id === "string"
-          ? message.metadata.take_session_id
-          : null;
-      const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
-      const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
-      return (
-        <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
-          <div className="flex items-start gap-2">
-            <ShieldAlert
-              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-              aria-hidden
-            />
-            <p className="text-[15px] leading-relaxed text-foreground">
-              {message.body}
-            </p>
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            {canRetry ? (
-              <Button
-                type="button"
-                disabled={retryingIdealText}
-                onClick={async () => {
-                  if (!arcId || !takeSessionId || !onRetryIdealText) return;
-                  setRetryingIdealText(true);
-                  try {
-                    await onRetryIdealText({
-                      arcId,
-                      takeSessionId,
-                      takeIndex: 1,
-                    });
-                  } finally {
-                    setRetryingIdealText(false);
-                  }
-                }}
-                className="h-10 w-full rounded-full"
-              >
-                Try creating it again
-              </Button>
-            ) : null}
-            {canOpenFeedback ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  onOpenFeedback!({
-                    arcId: arcId!,
-                    takeSessionId,
-                    takeIndex: 1,
-                  })
-                }
-                className="h-10 w-full rounded-full"
-              >
-                View this take&apos;s feedback
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-    const verified = variant === "verified";
-    if (variant === "instant") {
-      return (
-        <div
-          role={openable ? "button" : undefined}
-          tabIndex={openable ? 0 : undefined}
-          onClick={openable ? open : undefined}
-          onKeyDown={
-            openable
-              ? (e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    open();
-                  }
-                }
-              : undefined
-          }
-          className={`my-1 mr-auto max-w-[85%] rounded-2xl border border-primary/30 bg-chat-bot px-4 py-3 ${
-            openable ? "cursor-pointer" : ""
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <p className="text-[15px] font-semibold leading-snug text-foreground">
-              Instant ideal text
-            </p>
-          </div>
-          {/* Title + date, same rule as the version cards (founder
-              2026-08-05): a bubble is read once on arrival and a hundred
-              times on scroll-back, so the BE's prose does not live here. */}
-          {reportDateLabel(message.client_created_at) ? (
-            <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-              {reportDateLabel(message.client_created_at)}
-            </p>
-          ) : null}
-        </div>
-      );
-    }
-    // FE-2 — EVERY version is its own bubble in the chat flow (nothing pinned),
-    // a FIXED history entry: the project's name as the title, its own version
-    // badge, the BE's sentence as the meta line. Only the STATUS pill may
-    // change after the fact (pending → reviewed once this version verifies).
-    return (
-      <LiveStatusIdealTextCard
-        arcId={arcId}
-        /* THE ROW CARRIES ITS OWN NAME (backend-cursor, 2026-08-15). The BE
-         * now stamps the project's topic when it writes the bubble, so a
-         * brand-new card is correct on its FIRST paint with no request at
-         * all. Absent on every row written before that change — those fall
-         * through to the remembered title, then the generic. */
-        stampedTitle={
-          typeof message.metadata?.topic === "string"
-            ? message.metadata.topic
-            : null
-        }
-        version={version}
-        frozenVerified={verified}
-        // The DATE, not message.body. The BE's sentence used to sit here;
-        // founder 2026-08-05 cut it to "just the title, date and the CTA".
-        date={reportDateLabel(message.client_created_at)}
-        onOpen={openable ? open : null}
-      />
-    );
-  }
-  // The unpaid/unreviewed >=3-takes card: the BE-written body ("Your full
-  // transcript for X is ready.") as a grey clickable card → the Trainings
-  // library. Never claims a "best presentation".
-  if (message.kind === "transcript_ready") {
-    const openable = !!onOpenTranscripts;
-    return (
-      <div
-        role={openable ? "button" : undefined}
-        tabIndex={openable ? 0 : undefined}
-        onClick={openable ? onOpenTranscripts : undefined}
-        onKeyDown={
-          openable
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpenTranscripts!();
-                }
+// The unpaid/unreviewed >=3-takes card: the BE-written body ("Your full
+// transcript for X is ready.") as a grey clickable card → the Trainings
+// library. Never claims a "best presentation".
+function renderTranscriptReadyReportCard(
+  message: LoungeMessage,
+  onOpenTranscripts?: () => void,
+): React.ReactNode {
+  const openable = !!onOpenTranscripts;
+  return (
+    <div
+      role={openable ? "button" : undefined}
+      tabIndex={openable ? 0 : undefined}
+      onClick={openable ? onOpenTranscripts : undefined}
+      onKeyDown={
+        openable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenTranscripts!();
               }
-            : undefined
-        }
-        className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
-      >
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {message.body}
-        </p>
-      </div>
-    );
-  }
-  // The historical ready message now opens the canonical Ideal Text artifact.
-  if (message.kind === "best_presentation_ready") {
-    const v = bestPresentationView(message.metadata);
-    return (
-      <IdealTextHeroCard
-        name={v.topic}
-        arcId={v.arcId}
-        onOpenBestPresentation={onOpenBestPresentation}
-      />
-    );
-  }
+            }
+          : undefined
+      }
+      className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+    >
+      <p className="text-[15px] leading-relaxed text-foreground">
+        {message.body}
+      </p>
+    </div>
+  );
+}
 
-  const sessionId =
-    typeof message.metadata?.session_id === "string"
-      ? message.metadata.session_id
-      : null;
+// The historical ready message now opens the canonical Ideal Text artifact.
+function renderBestPresentationReportCard(
+  message: LoungeMessage,
+  onOpenBestPresentation?: (arcId: string) => void,
+): React.ReactNode {
+  const v = bestPresentationView(message.metadata);
+  return (
+    <IdealTextHeroCard
+      name={v.topic}
+      arcId={v.arcId}
+      onOpenBestPresentation={onOpenBestPresentation}
+    />
+  );
+}
+
+// FE-5 — the legacy per-piece Approve walker (ReadoutCard, reached through
+// InsightsOverlay) is retired under the single-deliverable model. The coach
+// insight card stays a read-only note. FE-E — the recording bubble opens its
+// OWN take's feedback page (metadata carries arc_id + session_id since the
+// draft was extended); legacy rows without arc_id stay plain history.
+function renderInsightOrRecordingSummaryReportCard(
+  message: LoungeMessage,
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void,
+): React.ReactNode {
   const date = reportDateLabel(message.client_created_at);
-  // FE-5 — the legacy per-piece Approve walker (ReadoutCard, reached through
-  // InsightsOverlay) is retired under the single-deliverable model. The coach
-  // insight card stays a read-only note. FE-E — the recording bubble opens its
-  // OWN take's feedback page (metadata carries arc_id + session_id since the
-  // draft was extended); legacy rows without arc_id stay plain history.
   const rsArcId =
     typeof message.metadata?.arc_id === "string"
       ? message.metadata.arc_id
@@ -442,6 +445,53 @@ export default function ReportCard({
       </p>
     </div>
   );
+}
+
+export default function ReportCard({
+  message,
+  onViewInsights,
+  onOpenBestPresentation,
+  onOpenTranscripts,
+  onOpenFeedback,
+  onOpenIdealText,
+  onRetryIdealText,
+}: {
+  message: LoungeMessage;
+  onViewInsights?: (sessionId: string) => void;
+  onOpenBestPresentation?: (arcId: string) => void;
+  /** transcript_ready — opens the Trainings library (where transcripts live). */
+  onOpenTranscripts?: () => void;
+  /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  /** Take 1 failure card — enqueue document-only work from stored artifacts. */
+  onRetryIdealText?: (
+    target: IdealTextRetryTarget,
+  ) => boolean | Promise<boolean>;
+  /** Delivery layer — the purple bubble opens the ideal-text notebook.
+   *  ALWAYS the live, editable document — version bubbles are history markers,
+   *  not frozen read-only destinations (founder 2026-07-29). */
+  onOpenIdealText?: (arcId: string) => void;
+}) {
+  const [retryingIdealText, setRetryingIdealText] = useState(false);
+  if (message.kind === "feedback") {
+    return renderFeedbackReportCard(message, onOpenFeedback);
+  }
+  if (message.kind === "ideal_text") {
+    return renderIdealTextReportCard(message, {
+      onOpenIdealText,
+      onRetryIdealText,
+      onOpenFeedback,
+      retryingIdealText,
+      setRetryingIdealText,
+    });
+  }
+  if (message.kind === "transcript_ready") {
+    return renderTranscriptReadyReportCard(message, onOpenTranscripts);
+  }
+  if (message.kind === "best_presentation_ready") {
+    return renderBestPresentationReportCard(message, onOpenBestPresentation);
+  }
+  return renderInsightOrRecordingSummaryReportCard(message, onOpenFeedback);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -116,11 +116,25 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
       src.indexOf("const handlePublish"),
     );
     expect(fetchEffect).toContain("blindComplete");
-    const blindReturn = src.indexOf("if (!blindComplete)");
-    const contextualReturn = src.lastIndexOf("return (");
+    // The render branch is one call into its own function
+    // (renderBlindConfidencePass, audit Q-C7 dedup) rather than inline JSX at
+    // this source position, so the invariant is checked against that
+    // function's own body instead of a position slice: it renders the blind
+    // instrument and never the contextual star-verdict vocabulary or the
+    // PUBLISH action. `lastIndexOf` picks the render branch's own check, not
+    // the earlier one inside the fetch effect above.
+    const blindReturn = src.lastIndexOf("if (!blindComplete)");
     expect(blindReturn).toBeGreaterThan(-1);
-    expect(contextualReturn).toBeGreaterThan(blindReturn);
-    const blindTree = src.slice(blindReturn, contextualReturn);
+    expect(src.slice(blindReturn, blindReturn + 200)).toContain(
+      "return renderBlindConfidencePass(",
+    );
+    const blindFnStart = src.indexOf("function renderBlindConfidencePass");
+    const blindFnEnd = src.indexOf(
+      "function renderConfidentVoiceCarryoverSection",
+    );
+    expect(blindFnStart).toBeGreaterThan(-1);
+    expect(blindFnEnd).toBeGreaterThan(blindFnStart);
+    const blindTree = src.slice(blindFnStart, blindFnEnd);
     expect(blindTree).toContain("ConfidenceLabelChips");
     expect(blindTree).not.toContain("starChipLabel");
     expect(blindTree).not.toContain("Publish the full analysis");

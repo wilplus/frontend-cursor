@@ -66,6 +66,9 @@ describe("Confident Moment user media boundary", () => {
   it("deduplicates Bundle authoring by exact blind review assignment", () => {
     const coach = code("src/components/willab/CoachStarVerdictOverlay.tsx");
     expect(coach).toContain("blindBundleAssignmentIds");
-    expect(coach).toContain("!blindBundleAssignmentIds.has(item.reviewAssignmentId)");
+    // The dedup guard now lives in renderStarGuidanceItems (audit Q-C7
+    // dedup), reached via the row's StarRowContext rather than a bare
+    // closure variable — same check, one extra property access.
+    expect(coach).toContain("!ctx.blindBundleAssignmentIds.has(item.reviewAssignmentId)");
   });
 });
