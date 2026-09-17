@@ -34,6 +34,16 @@ const suggestions: DocumentSuggestion[] = [
     quote: "retention went up", kind: "replace", proposedText: "retention rose",
     feedbackFamily: "rewrite_clarity", device: null, tentative: true,
   } as DocumentSuggestion,
+  /* THE ENTRY POINT (founder 2026-09-17). The sheet opens on the Confident
+     Voice question and the rewrite follows INSIDE it — "first your voice" —
+     so the mark is painted for the Confident Voice item, and the rewrite above
+     rides the same paragraph rather than earning a mark of its own. */
+  {
+    id: "s-cv", start: offset, end: offset + "retention went up".length,
+    quote: "retention went up", kind: "replace", proposedText: "retention rose",
+    feedbackFamily: "confident_voice", source: "confident_voice",
+    device: null, tentative: true,
+  } as DocumentSuggestion,
 ];
 
 const SCORE_LIKE = [/\b\d+(\.\d+)?\s*%/, /\b\d+\s*\/\s*\d+\b/, /\b0\.\d{2}\b/, /\bscore\b/i, /\bverdict\b/i, /\bconfidence (level|index|rating)\b/i];
@@ -96,18 +106,23 @@ describe("TranscriptReviewDeck — F1 net", () => {
     for (const pattern of SCORE_LIKE) expect(text, `matched ${pattern}`).not.toMatch(pattern);
   });
 
-  it("every chunk wears exactly one lock mark, and each mark states its state in words", async () => {
+  it("a mark only where there is something to do, and each states itself in words", async () => {
     await render();
     const labels = buttons();
     // one editor entry per slide
     expect(labels.filter((l) => l === "Edit the text")).toHaveLength(SLIDES.length);
-    // One mark per chunk: clean, waiting, protected. No number anywhere —
-    // since 2026-09-15 the mark says WHETHER something is waiting, never how
-    // much, because a column of paragraphs reading 3 / 1 / 2 scans as a
-    // ranking of how bad each one is (AC-9).
-    expect(labels).toContain("No feedback pending");
+    // THE MARK IS THE CONFIDENT VOICE DOOR (founder 2026-09-17: "visibility
+    // and openability of the overlay is strictly for the confident voice").
+    // Paragraph 2 carries the Confident Voice item and wears the only mark.
+    // Paragraph 3 is LOCKED and has no Confident Voice item, so it wears none
+    // — the founder's explicit call, accepting that it is not openable from
+    // the deck. Paragraph 1 is clean and never had one.
     expect(labels).toContain("Feedback waiting — review it");
-    expect(labels).toContain("Paragraph protected");
+    expect(labels).not.toContain("Paragraph protected");
+    expect(labels).not.toContain("No feedback pending");
+    // Still no number anywhere — the mark says WHETHER something is waiting,
+    // never how much, because a column reading 3 / 1 / 2 scans as a ranking of
+    // how bad each paragraph is (AC-9).
     for (const label of labels) {
       expect(label, label).not.toMatch(/\bfeedback items?\b/);
     }

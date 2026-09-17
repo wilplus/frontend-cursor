@@ -19,6 +19,7 @@ import {
   buildDeckChunks,
   chunkStateFor,
   groupChunksBySlide,
+  markWorthShowing,
   resolveOpenChunk,
   type ChunkState,
   type CoachMomentLite,
@@ -768,6 +769,21 @@ export default function TranscriptReviewDeck({
                           })()
                         }
                       />
+                      {/* THE MARK IS FOR THE CONFIDENT VOICE QUESTION
+                          (founder 2026-09-17: "show it only when there is a
+                          confident voice judgement waiting under that
+                          bookmark").
+
+                          A mark at the end of every paragraph is a column of
+                          identical icons down the length of a talk, which
+                          reads as decoration and teaches the eye to skip the
+                          ones that mean something.
+
+                          VISIBILITY ONLY. Nothing behind the mark changes —
+                          the sheet, the ladder, the lock and the inventory are
+                          untouched, and every item the Manager approved is
+                          still there when it opens. */}
+                      {markWorthShowing(st.pending, summaryByParagraph.get(c.part.id)) ? (
                       <DeckLockMark
                         status={c.status}
                         flagship={summaryByParagraph.get(c.part.id)?.some((item) => item.isOrange) === true || Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
@@ -809,6 +825,7 @@ export default function TranscriptReviewDeck({
                         // run per chunk here, it costs one span comparison.
                         hasStyle={st.style !== null}
                       />
+                      ) : null}
                     </p>
                     );
                   })}
