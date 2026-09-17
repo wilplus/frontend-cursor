@@ -11,6 +11,8 @@ import {
   submitLabRecording,
   fetchGuestLabReadout,
   retryLabProcessing,
+  type LabUploadInput,
+  type LabUploadResult,
 } from "@/services/api/labRecording";
 import {
   createProject,
@@ -46,6 +48,7 @@ import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import ProcessingWait from "./ProcessingWait";
+import DiscardTakeDialog from "./DiscardTakeDialog";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
@@ -87,6 +90,29 @@ import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 /*                          async poll on 202, re-record on 422, error+retry     */
 /*    readout             → §5 ReadoutCard (live payload); send gate = §13      */
 /* -------------------------------------------------------------------------- */
+
+/** The upload as the processing effect consumes it.
+ *
+ *  A DISCARD IS NOT AN OUTCOME THIS LANE CAN ACT ON. `discardUploadingTake`
+ *  cancels the run before it aborts, so by the time the rejected fetch lands
+ *  the effect's guard has already returned — there is nothing to hand back.
+ *  This never resolves in that case rather than returning a value, for two
+ *  reasons: it keeps the invariant in the type system instead of a comment
+ *  (the effect's exhaustive branches never have to know the kind exists), and
+ *  it fails SAFE. If the cancel guarantee ever broke, the effect would quietly
+ *  do nothing instead of showing an error panel — with a retry button — for a
+ *  take the speaker deliberately threw away.
+ *
+ *  Module scope, not inside the effect, because that effect is grandfathered
+ *  at the complexity ceiling and may only come down. */
+async function uploadForProcessing(
+  input: LabUploadInput,
+  signal: AbortSignal,
+): Promise<Exclude<LabUploadResult, { kind: "discarded" }>> {
+  const result = await submitLabRecording(input, { signal });
+  if (result.kind !== "discarded") return result;
+  return new Promise(() => undefined);
+}
 
 /** Per-recording context (§4 step A). Shape matches the BE intake-context
  *  fields; HOW it's persisted (with-upload vs draft id) is BE confirm ②. */
@@ -399,7 +425,21 @@ export default function LabOverlay({
     number | null
   >(null);
   const [processingReady, setProcessingReady] = useState(false);
-  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  /* WHICH take is being thrown away — the one still being spoken, or the one
+     still going up. One dialog, two outcomes: the copy that is true while the
+     mic is live ("Keep recording") is false once it has stopped. */
+  const [discardConfirm, setDiscardConfirm] = useState<
+    "recording" | "upload" | null
+  >(null);
+  /* DISCARD DURING PROCESSING (founder 2026-09-16, dead-end 2 of 3).
+     Aborts the upload in flight, which is the only window where a take can
+     leave NO SERVER TRACE. Once the server has answered, the take exists and
+     removing it is a deletion, not a discard — so the affordance disappears
+     rather than lying about what it does. `uploadInFlight` is exactly that
+     window: set when the request goes out, cleared the moment it resolves. */
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const uploadCancelRef = useRef<(() => void) | null>(null);
+  const [uploadInFlight, setUploadInFlight] = useState(false);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -530,6 +570,13 @@ export default function LabOverlay({
       clearFeeling();
     }
     let active = true;
+    // THE DISCARD'S HANDLE ON THIS RUN. Calling it makes the guard after the
+    // await return, deterministically, without the effect needing a branch for
+    // a result it has nothing to do with. Cleared alongside `active` below so
+    // a stale run can never be cancelled twice or cancel its successor.
+    uploadCancelRef.current = () => {
+      active = false;
+    };
     void (async () => {
       // Shared arc bookkeeping for the sync (201) and async (202) accept paths:
       // write the returned arc + next take_index (+ deck) to localStorage so the
@@ -608,7 +655,10 @@ export default function LabOverlay({
         setArcId(projectId);
         setExploreEnabled(true);
       }
-      const result = await submitLabRecording({
+      const abort = new AbortController();
+      uploadAbortRef.current = abort;
+      setUploadInFlight(true);
+      const result = await uploadForProcessing({
         audioBlob: blob,
         projectId,
         guestOwnerToken: uploadGuestOwnerToken,
@@ -647,7 +697,19 @@ export default function LabOverlay({
           recordStartRef.current,
         ),
         feeling: recordedFeelingRef.current ?? undefined,
-      });
+      }, abort.signal);
+      // THE WINDOW IS SHUT, whatever the answer was. Clearing this before the
+      // guard below means a Discard tap that races the response cannot abort a
+      // request the server has already answered.
+      uploadAbortRef.current = null;
+      setUploadInFlight(false);
+      // A DISCARD NEEDS NO BRANCH OF ITS OWN HERE. discardUploadingTake calls
+      // the canceller above before it aborts, so this run is already inactive
+      // by the time the rejected fetch lands and the existing guard returns.
+      // Doing it that way rather than adding a `kind === "discarded"` arm is
+      // deliberate: it is deterministic (not "the dispatch probably re-ran the
+      // effect first"), and it keeps this already-grandfathered function from
+      // growing — the ratchet's own instruction.
       if (!active) return;
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
@@ -758,6 +820,11 @@ export default function LabOverlay({
     })();
     return () => {
       active = false;
+      // NOT an abort. An unmount or a dependency change must never throw a
+      // take away — the upload keeps going and the server keeps it; only this
+      // run's interest in the answer ends. Dropping the canceller with it
+      // keeps a stale handle from reaching into the next run.
+      uploadCancelRef.current = null;
     };
   }, [state, blob, context, dispatch, cancelMic, retryNonce, userId]);
 
@@ -1079,9 +1146,58 @@ export default function LabOverlay({
     void mic.start();
   }
 
+  /** Throw away the take that is still going up, and land on the mic.
+   *
+   *  ABORT FIRST, then unwind — in that order on purpose. The upload effect
+   *  clears `uploadAbortRef` the instant the request resolves, so aborting
+   *  first means this either catches a request still in flight or catches
+   *  nothing at all. It can never cancel a take the server already holds.
+   *
+   *  Everything reset here is the same set `onReRecord` clears when it
+   *  abandons a slow analysis, minus the parts that only exist after a 202 —
+   *  there is no session, no poll and no stashed carry to drop, because the
+   *  upload never returned one. `dispatch("upload_rejected")` is the existing
+   *  lab_processing → lab_recording transition (the 422 lane), reused rather
+   *  than a second door into the same room. */
+  function discardUploadingTake() {
+    // Cancel BEFORE aborting: the rejected fetch resolves in a microtask, and
+    // this run must already be inactive when it does.
+    uploadCancelRef.current?.();
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    setUploadInFlight(false);
+    uploadStartedRef.current = false;
+    pendingCarryRef.current = null;
+    setBlob(null);
+    setUploadError(null);
+    setUploadStillProcessing(false);
+    setProcessingReady(false);
+    setProcessingProgress(null);
+    setProcessingCycleStartedAt(null);
+    // No auto-start. The speaker discarded because the take was wrong; the
+    // mic opening by itself is the same "why am I already recording" the
+    // founder objected to on the way back from a readout.
+    cancelMic();
+    dispatch("upload_rejected");
+  }
+
+  /** The dialog's destructive answer, for whichever lane opened it. */
+  function confirmDiscard() {
+    const lane = discardConfirm;
+    setDiscardConfirm(null);
+    if (lane === "upload") {
+      discardUploadingTake();
+      return;
+    }
+    // The recording lane's original behaviour, unchanged: drop the capture and
+    // leave. There is no upload to abort — the take never started going up.
+    mic.cancel();
+    onClose();
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
-      setDiscardConfirmOpen(true);
+      setDiscardConfirm("recording");
       return;
     }
     // Post-recording: closing parks (hold, don't discard) per §4.
@@ -1289,6 +1405,11 @@ export default function LabOverlay({
             cycleStartedAt={processingCycleStartedAt}
             stillProcessing={uploadStillProcessing}
             slow={pollSlow}
+            /* Only while the request is actually in flight. Once the server
+               answers, `canDiscard` goes false and the control disappears —
+               see discardUploadingTake for why that boundary IS the feature. */
+            canDiscard={uploadInFlight}
+            onDiscard={() => setDiscardConfirm("upload")}
             onRetry={async () => {
               if (labSessionId) {
                 const restarted = await retryLabProcessing(labSessionId);
@@ -1449,46 +1570,12 @@ export default function LabOverlay({
           />
         )}
       </div>
-      {discardConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="discard-take-title"
-        >
-          <div className="w-full max-w-sm rounded-3xl bg-background p-5 shadow-xl">
-            <h2
-              id="discard-take-title"
-              className="text-[18px] font-semibold text-foreground"
-            >
-              Discard this take?
-            </h2>
-            <p className="mt-2 text-[14px] text-muted-foreground">
-              This recording has not been saved.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDiscardConfirmOpen(false)}
-                className="rounded-full"
-              >
-                Keep recording
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  setDiscardConfirmOpen(false);
-                  mic.cancel();
-                  onClose();
-                }}
-                className="rounded-full bg-record text-record-foreground hover:bg-record/90"
-              >
-                Discard take
-              </Button>
-            </div>
-          </div>
-        </div>
+      {discardConfirm ? (
+        <DiscardTakeDialog
+          lane={discardConfirm}
+          onKeep={() => setDiscardConfirm(null)}
+          onDiscard={confirmDiscard}
+        />
       ) : null}
     </div>
   );
@@ -1727,7 +1814,11 @@ export function RecordingPhase({
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
 
-function Processing({
+/** Exported for tests, on the same grounds as RecordingPhase above: this
+ *  screen is otherwise reachable only by driving a live mic through a real
+ *  upload, which is why its branches — and now its discard affordance — had
+ *  no cover at all. */
+export function Processing({
   error,
   progress,
   cycleStartedAt,
@@ -1735,6 +1826,8 @@ function Processing({
   slow = false,
   onRetry,
   onReRecord,
+  canDiscard = false,
+  onDiscard,
   onClose,
 }: {
   error: string | null;
@@ -1751,6 +1844,12 @@ function Processing({
   onRetry: () => void;
   /** Abandon a slow analysis and record a fresh take. */
   onReRecord?: () => void;
+  /** Whether the upload is still in flight. FALSE once the server has
+   *  answered: past that point the take exists, and a control promising to
+   *  leave no trace of it would be promising something it cannot do. */
+  canDiscard?: boolean;
+  /** Open the host's confirmation for throwing the uploading take away. */
+  onDiscard?: () => void;
   onClose: () => void;
 }) {
   // The rotating line and the tip moved into ProcessingWait, which the
@@ -1827,9 +1926,21 @@ function Processing({
   }
   // THE ONE WAITING SCREEN — shared with the readout's document phase, so
   // the wait never changes its subject halfway through (founder 2026-08-11).
+  // The discard link below is not a second waiting screen or a second subject:
+  // it is the way OUT, which that decision never removed (the same reasoning
+  // the document phase's OverlayCloseButton is held to).
   return (
     <div className="flex flex-1 flex-col items-center justify-start pt-1 text-center sm:pt-3">
       <ProcessingWait progress={progress} cycleStartedAt={cycleStartedAt} />
+      {canDiscard && onDiscard ? (
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="-mt-4 min-h-[44px] px-4 text-[13px] font-medium text-muted-foreground underline underline-offset-4"
+        >
+          Discard this take
+        </button>
+      ) : null}
     </div>
   );
 }

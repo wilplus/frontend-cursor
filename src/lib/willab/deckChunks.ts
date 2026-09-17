@@ -519,3 +519,51 @@ export function groupChunksBySlide(
   }
   return { ok: true, groups };
 }
+
+/** WHICH PARAGRAPH THE OPEN SHEET IS LOOKING AT. */
+export interface OpenChunkRef {
+  /** The part id the sheet was opened on. */
+  id: string;
+  /** Its position in the render/parts split at that moment. */
+  index: number;
+  /** Its words, trimmed — the proof carried at runtime. */
+  text: string;
+}
+
+/** Find the chunk an open sheet belongs to, surviving an identity re-mint.
+ *
+ *  REPORTED FROM REAL USE 2026-09-16: "the overlay disappears when it's open".
+ *
+ *  The sheet used to be found by part id alone. That id is not stable: the
+ *  deck's parts come from `partsForDocument`, which honours the SERVED ids
+ *  only while they join back to the served text and otherwise re-derives
+ *  through `reconcileParts` — and `reconcileParts` mints a fresh uuid for any
+ *  paragraph whose exact words it cannot match. A background refetch can
+ *  therefore hand the same paragraph back under a NEW id, the id lookup
+ *  returns nothing, and the open sheet unmounts under the speaker's hands.
+ *  A lock is followed by a refetch, so the window is wide open at exactly the
+ *  moment they have decided something.
+ *
+ *  POSITION + WORDS IS THE FALLBACK, and it is not a new idea here: it is the
+ *  claim `deckLockPart` and `lockTargetAt` already use, for the same reason —
+ *  "both splits are the same scanner over the same string", so the index is
+ *  provable, and the words are the proof carried at runtime.
+ *
+ *  It never guesses. Words that changed do not match, so a paragraph whose
+ *  text was rewritten under the sheet is NOT silently re-adopted; and a
+ *  paragraph that is genuinely gone resolves to null and the sheet closes,
+ *  which is the honest outcome. Pure. */
+export function resolveOpenChunk(
+  chunks: readonly DeckChunk[],
+  open: OpenChunkRef | null,
+): DeckChunk | null {
+  if (!open) return null;
+  const byId = chunks.find((c) => c.part.id === open.id);
+  if (byId) return byId;
+  return (
+    chunks.find(
+      (c) =>
+        c.paragraphIndex === open.index && c.part.text.trim() === open.text,
+    ) ?? null
+  );
+}

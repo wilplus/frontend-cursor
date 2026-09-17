@@ -30,6 +30,10 @@ export const PROCESSING_STAGES = [
   "Finding your anchors",
 ] as const;
 
+/** "Building your Ideal Text" — the first label in the list that is true of a
+ *  document phase, and the earliest one that does not describe audio work. */
+const DOCUMENT_FLOOR = 2;
+
 function stageIndex(stage?: string): number {
   if (stage === "transcribing" || stage === "analysis") return 1;
   if (
@@ -55,6 +59,19 @@ export interface ProcessingProgress {
 
 export interface ProcessingWaitProps {
   readonly progress?: ProcessingProgress | null;
+  /** WHICH WAIT THIS IS (founder 2026-09-16, dead-end 3 of 3). The job marker
+   *  has carried this all along; the screen just never read it, so a document
+   *  phase with no reported stage — a reopened overlay, a resumed job, any
+   *  stage this file does not recognise — fell to index 0 and announced
+   *  "Processing your recording" while nothing was touching the recording.
+   *
+   *  Not a second waiting screen: the one screen stays, and the label is
+   *  chosen from the SAME approved list. It only stops picking a label that
+   *  describes audio work during the phase that provably does none — the
+   *  reassembly "re-bakes an existing document and never touches audio".
+   *
+   *  Omitted = "analysis", matching how an older marker deserializes. */
+  readonly phase?: "analysis" | "document";
   /** Epoch shared by every view of one job. It keeps the same tip cycle when
    *  the presentation closes and reopens; omitting it starts a local cycle. */
   readonly cycleStartedAt?: number | null;
@@ -62,9 +79,14 @@ export interface ProcessingWaitProps {
 
 export default function ProcessingWait({
   progress = null,
+  phase = "analysis",
   cycleStartedAt = null,
 }: ProcessingWaitProps) {
-  const current = stageIndex(progress?.stage);
+  const reported = stageIndex(progress?.stage);
+  // FLOOR, not override: a document phase that genuinely reaches a LATER
+  // stage keeps it. Only the two audio labels below the floor are unreachable.
+  const current =
+    phase === "document" ? Math.max(reported, DOCUMENT_FLOOR) : reported;
   const measuredPercent = progress?.percent;
 
   return (

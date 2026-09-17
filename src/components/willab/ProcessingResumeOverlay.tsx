@@ -3,7 +3,10 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import OverlayCloseButton from "./OverlayCloseButton";
-import ProcessingWait, { type ProcessingProgress } from "./ProcessingWait";
+import ProcessingWait, {
+  PROCESSING_STAGES,
+  type ProcessingProgress,
+} from "./ProcessingWait";
 import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
@@ -16,10 +19,16 @@ import { useBackDismiss } from "./useBackDismiss";
 
 export default function ProcessingResumeOverlay({
   progress,
+  phase = "analysis",
   cycleStartedAt,
   onClose,
 }: {
   progress: ProcessingProgress | null;
+  /** The resumed job's phase, straight off its marker. This is the view most
+   *  exposed to the mislabel it fixes: a resumed job often has no reported
+   *  stage at all, and this screen used to answer that with "Processing your
+   *  recording" whatever was actually running. */
+  phase?: "analysis" | "document";
   cycleStartedAt: number;
   onClose: () => void;
 }) {
@@ -50,7 +59,14 @@ export default function ProcessingResumeOverlay({
       className="fixed inset-0 z-50 flex flex-col bg-background focus:outline-none"
       role="dialog"
       aria-modal="true"
-      aria-label="Processing your take"
+      /* The dialog's name is held to the same standard as the label inside it:
+         during the document phase no take is being processed, so it borrows
+         the approved stage label rather than naming work that is not running. */
+      aria-label={
+        phase === "document"
+          ? PROCESSING_STAGES[2]
+          : "Processing your take"
+      }
       onKeyDown={keepFocusInside}
     >
       <header className="flex h-12 shrink-0 items-center justify-end px-4">
@@ -59,7 +75,11 @@ export default function ProcessingResumeOverlay({
       <div
         className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col items-center overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
       >
-        <ProcessingWait progress={progress} cycleStartedAt={cycleStartedAt} />
+        <ProcessingWait
+          progress={progress}
+          phase={phase}
+          cycleStartedAt={cycleStartedAt}
+        />
       </div>
     </div>
   );
