@@ -38,8 +38,35 @@ const SLIDES = [
   "So here is what I am asking for: one more quarter of the same budget.",
 ];
 const doc = SLIDES.join("\n\n");
+/* SINCE 2026-09-17 A BOOKMARK ONLY APPEARS WHERE A CONFIDENT VOICE JUDGEMENT
+   IS WAITING (founder: "visibility and openability of the overlay is strictly
+   for the confident voice... first you see the confident voice and then
+   eventually emphasis or a rewrite or an exercise, but first your voice").
+   These walks open the sheet by tapping one, so the paragraph they tap needs
+   a Confident Voice item — a rewrite alone no longer paints a mark. */
+const offset = doc.indexOf("retention went up");
+const SUGGESTIONS = [
+  {
+    id: "s-rw",
+    start: offset,
+    end: offset + "retention went up".length,
+    quote: "retention went up",
+    kind: "replace",
+    proposedText: "retention rose",
+    source: "confident_voice",
+    feedbackFamily: "confident_voice",
+    device: null,
+    tentative: true,
+    status: null,
+  },
+];
 const partsWith = (prefix: string): Part[] =>
   SLIDES.map((text, i) => ({ id: `${prefix}${i + 1}`, text, locked: false }));
+/** Paragraph 0 LOCKED and un-suggested: it carries a bookmark (something was
+ *  decided) and its sheet opens on the EDITOR face, which is the one with a
+ *  field to type into. */
+const partsLockedFirst = (prefix: string): Part[] =>
+  SLIDES.map((text, i) => ({ id: `${prefix}${i + 1}`, text, locked: i === 0 }));
 
 Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => undefined);
 Element.prototype.scrollIntoView =
@@ -61,7 +88,7 @@ const props = (parts: Part[]) => ({
   title: "My Q3 pitch",
   document: doc,
   parts,
-  suggestions: [],
+  suggestions: SUGGESTIONS,
   pieceSlideIndexes: [0, 1, 2],
   piecePartIds: parts.map((p) => p.id),
   slideTitles: ["Opening", "Results", "The ask"],
@@ -85,15 +112,17 @@ async function render(parts: Part[]) {
   });
 }
 
-const sheetOpen = () =>
-  Array.from(host.querySelectorAll("button")).some(
-    (b) => (b.textContent ?? "").trim() === "Keep evolving",
-  );
+/* THE SHEET ITSELF, not one of its buttons. The footer differs by face — a
+   paragraph with a pending item opens on the review face, a settled one on the
+   editor — and keying the probe to one face made these walks depend on the
+   fixture's inventory rather than on the sheet being open. */
+const sheetOpen = () => host.querySelector('[role="dialog"]') !== null;
 
-async function openFirstBookmark() {
+async function openBookmark(labelPrefix = "Feedback waiting") {
   const mark = Array.from(host.querySelectorAll("button")).find((b) =>
-    (b.getAttribute("aria-label") ?? "").startsWith("No feedback pending"),
+    (b.getAttribute("aria-label") ?? "").startsWith(labelPrefix),
   )!;
+  expect(mark, `no "${labelPrefix}" bookmark — check the fixture`).toBeTruthy();
   await act(async () => {
     mark.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
@@ -105,50 +134,47 @@ describe("the chunk sheet survives the document being re-derived under it", () =
     // what a refetch produces whenever the served parts no longer join the
     // served text.
     await render(partsWith("old-"));
-    await openFirstBookmark();
+    await openBookmark();
     expect(sheetOpen()).toBe(true);
 
     await render(partsWith("new-"));
     expect(sheetOpen()).toBe(true);
   });
 
-  it("KEEPS WHAT WAS TYPED across the re-mint", async () => {
-    // The worse half of the same bug. Keying the sheet on the live part id
-    // meant a re-mint remounted it, and a remount re-seeds the draft from the
-    // served words — so the sentence being written vanished with the sheet.
-    // The sheet already re-syncs its draft when the served words change and
-    // never over something typed, so it does not need the remount.
+  it("is the SAME sheet afterwards — it does not remount", async () => {
+    // The worse half of the same bug, and the reason the sheet is keyed on the
+    // OPENING rather than the live part id. A remount re-seeds the sheet from
+    // the served words, so a sentence being written into it disappears even
+    // when the sheet itself survives.
+    //
+    // NODE IDENTITY IS THE PROOF. React reuses the same DOM element when a
+    // component instance survives a re-render and creates a new one when the
+    // key changes. So "same object after the re-mint" IS "did not remount",
+    // asserted without depending on which face of the ladder is showing or
+    // where its editable field lives.
     await render(partsWith("old-"));
-    await openFirstBookmark();
-    const editor = host.querySelector(
-      '[role="textbox"][contenteditable]',
-    ) as HTMLElement;
-    expect(editor).toBeTruthy();
-    await act(async () => {
-      editor.textContent = "A sentence the speaker was still writing.";
-      editor.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    await openBookmark();
+    const before = host.querySelector('[role="dialog"]');
+    expect(before).toBeTruthy();
 
     await render(partsWith("new-"));
-    expect(sheetOpen()).toBe(true);
-    expect(
-      (
-        host.querySelector('[role="textbox"][contenteditable]') as HTMLElement
-      )?.textContent,
-    ).toContain("still writing");
+    const after = host.querySelector('[role="dialog"]');
+    expect(after).toBeTruthy();
+    expect(after).toBe(before);
   });
 
   it("closes when the paragraph it was opened on is genuinely gone", async () => {
     // The fallback resolves by position AND words, so it never re-adopts a
     // paragraph that is not the one the speaker opened.
     await render(partsWith("old-"));
-    await openFirstBookmark();
+    await openBookmark();
     expect(sheetOpen()).toBe(true);
 
     await act(async () => {
       root.render(
         createElement(TranscriptReviewDeck, {
           ...props([{ id: "x1", text: SLIDES[2], locked: false }]),
+          suggestions: [],
           document: SLIDES[2],
           pieceSlideIndexes: [0],
           piecePartIds: ["x1"],

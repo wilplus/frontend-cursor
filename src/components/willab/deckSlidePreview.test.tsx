@@ -4,8 +4,12 @@
 /*  (reported from real use 2026-09-16: "slide preview is unavailable again")  */
 /*                                                                            */
 /*  The deck caught the failure and dropped it: `onError={() => undefined}`.   */
-/*  One unlucky fetch left a grey bar until the whole document was reloaded.   */
-/*  The recording stage has had the retry since #360; this surface had not.    */
+/*                                                                            */
+/*  A retry button was added here, then REMOVED the same day on the founder's  */
+/*  call — "it either works or it doesn't". What remains is the honest part:   */
+/*  the failure is NAMED rather than swallowed, the box is bounded so it never */
+/*  buries the speaker's words, and a new deck or page gets a fresh attempt on */
+/*  its own. What is gone is asking the speaker to do the app's job twice.     */
 /* -------------------------------------------------------------------------- */
 import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
@@ -60,24 +64,13 @@ describe("the deck's slide preview", () => {
     expect(host.textContent).not.toContain("Slide preview unavailable");
   });
 
-  it("says so when the load fails, and OFFERS A WAY BACK", async () => {
+  it("says so when the load fails, and offers NO retry", async () => {
+    // Founder 2026-09-17: "delete the reload button from the ideal text — it
+    // either works or it doesn't."
     await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
     expect(host.textContent).toContain("Slide preview unavailable");
-    expect(retryButton()).toBeTruthy();
-  });
-
-  it("really re-fetches on retry, and recovers when the fetch works", async () => {
-    // `loadPdf` evicts a failed promise from its cache, so remounting the page
-    // is a real second attempt rather than a re-read of the failure.
-    await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    const attemptsBeforeRetry = onErrorSpy.mock.calls.length;
-    failNextLoad = false;
-    await act(async () => {
-      retryButton()!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    expect(onErrorSpy.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
-    expect(host.querySelector('[data-testid="page"]')).toBeTruthy();
-    expect(host.textContent).not.toContain("Slide preview unavailable");
+    expect(retryButton()).toBeUndefined();
+    expect(host.querySelectorAll("button")).toHaveLength(0);
   });
 
   it("gives a NEW deck or page a fresh chance without a retry tap", async () => {
@@ -88,9 +81,26 @@ describe("the deck's slide preview", () => {
     expect(host.textContent).not.toContain("Slide preview unavailable");
   });
 
-  it("keeps the retry tappable on a phone", async () => {
+  it("BOUNDS the slide so it never buries the words below it", async () => {
+    // Founder 2026-09-17: "on the desktop it covers the whole screen and the
+    // text is not visible." PdfPage renders at its container's width, so an
+    // unbounded box reached 1518x2144 on a desktop column — two and a half
+    // viewports of picture above the speaker's own sentences.
+    failNextLoad = false;
     await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    expect(retryButton()!.className).toMatch(/min-h-\[44px\]/);
+    // The frame is the INNER box: host > spacing div > frame.
+    const frame = host.firstElementChild!.firstElementChild as HTMLElement;
+    expect(frame.className).toMatch(/aspect-video/);
+    expect(frame.className).toMatch(/max-h-\[38vh\]/);
+    // ...and the WIDTH is capped to 16:9 of that height, or a real slide
+    // letterboxes inside a column-wide letterbox instead of filling the frame.
+    expect(frame.className).toMatch(/max-w-\[67vh\]/);
+    // The same bound on the failure box, so the layout does not jump.
+    failNextLoad = true;
+    await render({ presentationRef: "https://cdn.example/other.pdf", pageIndex: 0 });
+    expect(
+      (host.firstElementChild!.firstElementChild as HTMLElement).className,
+    ).toMatch(/aspect-video/);
   });
 
   it("never substitutes the words for the picture", () => {
@@ -118,5 +128,11 @@ describe("the deck uses it instead of a raw page with a swallowed error", () => 
 
   it("no longer drops the failure on the floor", () => {
     expect(deck).not.toMatch(/onError=\{\(\) => undefined\}[\s\S]{0,80}className="w-full"/);
+  });
+
+  it("and neither surface renders a raw PdfPage any more", () => {
+    // Both the deck and the slide editor go through the bounded component, so
+    // a size or failure rule can only be written once.
+    expect(deck).not.toMatch(/<PdfPage\b/);
   });
 });

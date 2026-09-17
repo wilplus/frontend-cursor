@@ -50,7 +50,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(/<RichText\s+text=\{c\.part\.text\}/);
     expect(DECK).toMatch(/partRootTint\(c\.part\) \?\?/);
     expect(DECK).toMatch(/bundleRootTint\(/);
-    expect(DECK).toMatch(/<RichText[\s\S]*?\/>\s*<DeckLockMark/);
+    // The mark still sits BESIDE the words, inside the same <p> — but behind
+    // the `markWorthShowing` gate since 2026-09-17, so the two are no longer
+    // textually adjacent. What must hold is that nothing wraps the words
+    // themselves, and that the mark is the paragraph's own last child.
+    // The mark still sits inside the paragraph, after the words — but behind
+    // the `markWorthShowing` gate since 2026-09-17, with a tint callback
+    // between them, so the two are no longer textually adjacent. Asserting the
+    // DISTANCE would just re-break on the next edit between them; what matters
+    // is that nothing wraps the words, and that the mark is gated rather than
+    // unconditional.
+    expect(DECK).toMatch(/markWorthShowing\(st\.pending,[\s\S]{0,80}?<DeckLockMark/);
+    expect(DECK).not.toMatch(/\/>\s*<DeckLockMark/);
   });
 
   it("spends the pending amber only where feedback is actually pending", () => {

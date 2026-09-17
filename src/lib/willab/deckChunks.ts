@@ -567,3 +567,35 @@ export function resolveOpenChunk(
     ) ?? null
   );
 }
+
+/** Does this paragraph have a Confident Voice judgement waiting on it?
+ *
+ *  Founder 2026-09-17: "the bookmark should only be next to the confident
+ *  voice — not at every end of the paragraph... not every paragraph has the
+ *  confident voice, so show it only when there is a confident voice judgement
+ *  waiting under that bookmark."
+ *
+ *  A VISIBILITY RULE, NOT A STRUCTURAL ONE — the founder was explicit: "it's
+ *  about visibility to the user and keeping the user flow tight, not about
+ *  changing the structure of the app". So nothing about the sheet, the ladder,
+ *  the lock or the inventory moves. One predicate decides whether the mark is
+ *  painted; everything behind it is untouched and every item the Manager
+ *  approved is still in the sheet when it opens.
+ *
+ *  Two ways a judgement can be waiting, and both count because both are the
+ *  same question to the speaker: an undecided Confident Voice item in the
+ *  chunk's own inventory, and a Confident Moment marker from the overlay that
+ *  carries it.
+ *
+ *  Pure. */
+export function markWorthShowing(
+  pending: readonly { feedbackFamily?: string | null; source?: string | null }[],
+  moments?: readonly unknown[] | null,
+): boolean {
+  const waiting = pending.some(
+    (item) =>
+      item.feedbackFamily === "confident_voice" ||
+      item.source === "confident_voice",
+  );
+  return waiting || (moments ?? []).length > 0;
+}
