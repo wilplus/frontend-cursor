@@ -259,12 +259,15 @@ export default function PrivacyPage() {
               <strong>We do not</strong> provide your content to third parties to
               train their own general-purpose or foundation models. Your Voice
               Data and transcripts are sent to OpenAI&apos;s developer API for
-              analysis under a commercial API agreement providing for{" "}
-              <strong>zero data retention</strong>, under which{" "}
+              analysis under its commercial API terms, under which{" "}
               <strong>
                 API inputs and outputs are not used to train OpenAI&apos;s
                 foundation models.
-              </strong>
+              </strong>{" "}
+              OpenAI retains API inputs and outputs for up to{" "}
+              <strong>30 days</strong> for abuse monitoring and then deletes
+              them. We have disabled every optional data-sharing setting on our
+              OpenAI account.
             </li>
             <li>
               <strong>We do not</strong> publish your recordings or transcripts.
@@ -457,11 +460,12 @@ export default function PrivacyPage() {
                     <strong>OpenAI</strong> (developer API)
                   </td>
                   <td className="py-2 pr-4">
-                    AI speech analysis and transcription (zero data retention; no
-                    foundation-model training)
+                    AI speech analysis and transcription; not used for
+                    foundation-model training
                   </td>
                   <td className="py-2">
-                    United States; DPA and SCCs; zero-retention API terms
+                    United States; DPA and SCCs; API inputs and outputs retained
+                    up to 30 days for abuse monitoring, then deleted
                   </td>
                 </tr>
                 <tr className="border-b border-border/50 align-top">
@@ -637,8 +641,8 @@ export default function PrivacyPage() {
             We implement appropriate technical and organisational measures to
             protect your data, including encryption in transit, row-level access
             controls on our database, hosting within the EU region for our
-            primary datastore, and the zero-retention API arrangement described
-            above. No system is perfectly secure, but we work to protect your
+            primary datastore, and the limited-retention API arrangement with
+            our AI processor described above. No system is perfectly secure, but we work to protect your
             data commensurate with its sensitivity.
           </p>
         </section>
