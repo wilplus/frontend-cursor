@@ -28,7 +28,7 @@ export default function PrivacyPage() {
         Back home
       </Link>
 
-      <PublishedPolicyText which="privacy" staticVersion="1.2">
+      <PublishedPolicyText which="privacy">
       <article className="space-y-6 text-sm leading-relaxed text-foreground">
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
