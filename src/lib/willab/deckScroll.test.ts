@@ -336,6 +336,23 @@ describe("screenPositionOfPart — coming back to the paragraph you settled", ()
     expect(screenPositionOfPart([], "a")).toBeNull();
   });
 
+  it("lands on the FIRST screen of a paragraph that spans several", () => {
+    /* Founder 2026-09-17, locked: "scroll to paragraph means scroll to the
+       first screen of that paragraph — people will scroll to see it." Once an
+       over-tall paragraph is split across screens, every one of them holds it,
+       so which one you are put on is a real choice. The first: it is where the
+       paragraph begins and where reading it starts. */
+    const spanning = [
+      screen("a"),
+      { ...screen("long"), screenOfSlide: 0 },
+      { ...screen("long"), screenOfSlide: 1 },
+      { ...screen("long"), screenOfSlide: 2 },
+    ];
+    expect(screenPositionOfPart(spanning, "long")).toEqual({
+      slide: 1, chunk: 0,
+    });
+  });
+
   it("follows the paragraph when the reassembly MOVED it", () => {
     // The whole reason this is looked up by id rather than remembered as a
     // position: a lock recomposes the served text, so the paragraph can end
