@@ -83,10 +83,27 @@ export function measureScreenFit(
   return {
     budgetPx,
     lineHeightPx,
-    charsPerLine: Math.max(1, Math.floor(width / perChar)),
+    charsPerLine: Math.max(1, Math.floor((width / perChar) * WRAP_ALLOWANCE)),
     gapPx: Number.isFinite(gapPx) ? gapPx : 0,
   };
 }
+
+/** How much of a line real text actually uses.
+ *
+ *  MEASURED, NOT GUESSED (2026-09-17). Width over average character width is
+ *  how many characters would fit if text could break anywhere. It cannot: it
+ *  breaks between WORDS, so every line ends early by up to a word. On the
+ *  deck at 390px that was ~44 characters predicted against ~40 rendered, and
+ *  a paragraph split to "exactly one screen" came out a couple of lines too
+ *  tall and scrolled — the very thing the split exists to remove, caught in
+ *  Chromium rather than in a unit test, because no pure test can see a line
+ *  break.
+ *
+ *  Deliberately pessimistic. Being short by a line costs a little white
+ *  space at the bottom of a screen; being long by one puts words under the
+ *  fold, which is the defect.
+ */
+const WRAP_ALLOWANCE = 0.84;
 
 /** Has the fit changed enough to be worth repacking the deck?
  *

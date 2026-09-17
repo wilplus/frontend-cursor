@@ -300,7 +300,25 @@ export default function TranscriptReviewDeck({
       buildScreens(
         groups,
         SCREEN_MAX_CHUNKS,
-        fit ? { fit, textOf: (c: DeckChunk) => c.part.text } : null,
+        fit
+          ? {
+              fit,
+              textOf: (c: DeckChunk) => c.part.text,
+              /* A paragraph too tall for one screen is SHOWN across several
+                 (founder 2026-09-17, overruling the never-split rule shipped
+                 the same day): scrolling inside a screen is the thing that
+                 read as being stuck. Only the DISPLAY text differs per piece
+                 — identity, full text and therefore every control stay whole,
+                 so the bookmark and Lock repeat on each screen and each still
+                 acts on the entire paragraph. */
+              sliceOf: (c, text, index, count) => ({
+                ...c,
+                displayText: text,
+                sliceIndex: index,
+                sliceCount: count,
+              }),
+            }
+          : null,
       ),
     [groups, fit],
   );
@@ -847,12 +865,17 @@ export default function TranscriptReviewDeck({
                     const st = stateOf(c);
                     return (
                     <p
-                      key={c.part.id}
+                      key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
                       className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                     >
+                      {/* DISPLAY TEXT, which is the whole paragraph unless it
+                          was too tall for one screen and got split across
+                          several. Only the words on THIS screen are drawn;
+                          `c.part.text` — what every control acts on — is
+                          untouched. */}
                       <RichText
-                        text={c.part.text}
+                        text={c.displayText ?? c.part.text}
                         tint={
                           partRootTint(c.part) ?? (() => {
                             const marker = summaryByParagraph.get(c.part.id)?.[0];

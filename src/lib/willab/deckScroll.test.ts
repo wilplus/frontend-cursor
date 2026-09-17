@@ -9,6 +9,8 @@ import {
   firstUnreadScreenIndex,
   screenPositionOfPart,
   packByFit,
+  safeCutPoints,
+  splitTextToFit,
   estimatedChunkHeight,
   type ScreenFit,
   chunkCounts,
@@ -447,5 +449,87 @@ describe("buildScreens with a fit — the slide keeps its identity", () => {
   it("without a fit it is exactly what it always was", () => {
     const groups = [{ slideIndex: 0, chunks: [1, 2, 3, 4, 5] }];
     expect(buildScreens(groups, 3).map((s) => s.chunks.length)).toEqual([3, 2]);
+  });
+});
+
+
+describe("splitting a paragraph too tall for one screen", () => {
+  /* Founder 2026-09-17, overruling the never-split rule shipped hours
+     earlier: "it should be two screens, why is it worse?" They were right —
+     scrolling inside a screen is the thing that read as being stuck. The cost
+     is the CONTROLS, paid separately: the bookmark and Lock repeat on every
+     screen the paragraph touches and each acts on the whole paragraph. */
+  const FIT: ScreenFit = {
+    budgetPx: 120, lineHeightPx: 30, charsPerLine: 20, gapPx: 10,
+  };  // 4 lines x 20 chars = 80 chars a screen
+
+  it("cuts a long paragraph into screenfuls, losing no words", () => {
+    const text = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
+    const pieces = splitTextToFit(text, FIT);
+    expect(pieces.length).toBeGreaterThan(1);
+    expect(pieces.join(" ")).toBe(text);
+    for (const piece of pieces) expect(piece.length).toBeLessThanOrEqual(80);
+  });
+
+  it("leaves a paragraph that already fits completely alone", () => {
+    expect(splitTextToFit("short enough", FIT)).toEqual(["short enough"]);
+  });
+
+  it("NEVER cuts between a ** and its closing ** ", () => {
+    // Emphasis is stored as markers in the paragraph's own text. A cut
+    // between the pair renders literal asterisks at the reader — the defect
+    // the chunk editor was fixed for once already.
+    const text =
+      "aaa bbb ccc ddd eee **fff ggg hhh iii jjj** kkk lll mmm nnn ooo ppp qqq";
+    for (const piece of splitTextToFit(text, FIT)) {
+      const markers = (piece.match(/\*\*/g) ?? []).length;
+      expect(markers % 2).toBe(0);
+    }
+  });
+
+  it("safeCutPoints skips every space inside a marker pair", () => {
+    const text = "one **two three** four";
+    const cuts = safeCutPoints(text);
+    // The spaces inside **two three** are not offered.
+    expect(cuts.map((at) => text.slice(at - 3, at))).not.toContain("two");
+    expect(cuts.length).toBeGreaterThan(0);
+  });
+
+  it("one unbreakable word longer than a screen is left whole", () => {
+    // Nowhere safe to cut. It takes its screen and scrolls — the honest floor.
+    const wall = "x".repeat(400);
+    expect(splitTextToFit(wall, FIT)).toEqual([wall]);
+  });
+
+  it("packByFit gives each piece its OWN screen, through sliceOf", () => {
+    type Piece = { id: string; text: string; index?: number; count?: number };
+    const long: Piece = {
+      id: "big",
+      text: Array.from({ length: 40 }, (_, i) => `w${i}`).join(" "),
+    };
+    const packs = packByFit<Piece>(
+      [{ id: "before", text: "tiny" }, long, { id: "after", text: "tiny" }],
+      (c) => c.text,
+      FIT,
+      (chunk, text, index, count) => ({ ...chunk, text, index, count }),
+    );
+    const bigScreens = packs.filter((p) => p.some((c) => c.id === "big"));
+    expect(bigScreens.length).toBeGreaterThan(1);
+    // Every piece keeps the paragraph's IDENTITY — that is what makes the
+    // repeated controls one decision about one paragraph.
+    for (const screen of bigScreens) {
+      expect(screen).toHaveLength(1);
+      expect(screen[0].id).toBe("big");
+      expect(screen[0].count).toBe(bigScreens.length);
+    }
+    // ...and its neighbours are still their own screens, in order.
+    expect(packs.flat().map((c) => c.id)[0]).toBe("before");
+    expect(packs.flat().map((c) => c.id).at(-1)).toBe("after");
+  });
+
+  it("without sliceOf the over-tall chunk keeps its own scrolling screen", () => {
+    const long = { id: "big", text: "w ".repeat(200) };
+    const packs = packByFit([long], (c) => c.text, FIT);
+    expect(packs).toEqual([[long]]);
   });
 });

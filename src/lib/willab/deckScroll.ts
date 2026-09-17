@@ -247,30 +247,128 @@ export function estimatedChunkHeight(text: string, fit: ScreenFit): number {
   return lines * fit.lineHeightPx;
 }
 
+/** Cut points that never land inside a `**…**` pair.
+ *
+ *  Emphasis is stored as markers in the paragraph's own text, so a cut taken
+ *  on raw character count alone can separate an opening `**` from its close
+ *  — and each half then renders as literal asterisks on the page, which is
+ *  the defect the chunk editor was fixed for once already. A whitespace
+ *  position is safe only when an even number of `**` sit before it.
+ *
+ *  Pure. Returns raw indices into `text`, ascending.
+ */
+export function safeCutPoints(text: string): number[] {
+  const out: number[] = [];
+  let markers = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === "*" && text[i + 1] === "*") {
+      markers += 1;
+      i += 1;
+      continue;
+    }
+    if (/\s/.test(text[i]) && markers % 2 === 0) out.push(i);
+  }
+  return out;
+}
+
+/** Split one paragraph's text into pieces that each fit a screen. Pure.
+ *
+ *  FOUNDER 2026-09-17, locked, overruling the never-split rule shipped hours
+ *  earlier: a paragraph taller than one screen is SHOWN ACROSS TWO OR MORE
+ *  rather than given one screen it has to be scrolled inside. Their reasoning
+ *  and it is right: scrolling inside a screen is the thing that read as being
+ *  stuck, and reading a long paragraph in two screenfuls is how reading works
+ *  anyway.
+ *
+ *  The cost is the controls, not the reading, and it is paid separately: the
+ *  bookmark and Lock repeat on every screen the paragraph touches and each
+ *  acts on the WHOLE paragraph. That is why the pieces below carry only
+ *  display text — `part.text` stays the entire paragraph, so the lock echo,
+ *  the sheet and the identity are untouched by how the words were laid out.
+ *
+ *  Returns `[text]` unchanged when it already fits, or when there is nowhere
+ *  safe to cut (one unbroken word longer than a screen).
+ */
+export function splitTextToFit(text: string, fit: ScreenFit): string[] {
+  const perLine = Math.max(1, Math.floor(fit.charsPerLine));
+  // ONE LINE OF SLACK, and it is the difference between this working and
+  // nearly working. The height of a piece is ESTIMATED — nothing here can see
+  // where the browser will break a line — so aiming at the exact budget lands
+  // a line or two over about as often as under, and over means words below
+  // the fold, which is the entire defect. Measured in Chromium before this
+  // reserve: pieces cut to "exactly one screen" rendered 27px and 57px past
+  // it. Reserving a line costs a little white space and cannot overshoot.
+  const lines = Math.max(
+    1,
+    Math.floor(fit.budgetPx / Math.max(1, fit.lineHeightPx)) - 1,
+  );
+  const perScreen = Math.max(perLine, perLine * lines);
+  const body = text ?? "";
+  if (body.length <= perScreen) return [body];
+  const cuts = safeCutPoints(body);
+  if (cuts.length === 0) return [body];
+  const pieces: string[] = [];
+  let from = 0;
+  while (body.length - from > perScreen) {
+    // The last safe cut that still fits; if none does, the first one after
+    // `from`, because an over-long piece beats an infinite loop.
+    const fitting = cuts.filter((at) => at > from && at - from <= perScreen);
+    const at = fitting.length > 0
+      ? fitting[fitting.length - 1]
+      : cuts.find((c) => c > from);
+    if (at === undefined) break;
+    pieces.push(body.slice(from, at).trim());
+    from = at + 1;
+  }
+  const tail = body.slice(from).trim();
+  if (tail) pieces.push(tail);
+  return pieces.length > 0 ? pieces : [body];
+}
+
 /** Greedy pack: fill a screen, start another when the next chunk will not
  *  fit. Pure.
  *
- *  A chunk taller than the whole budget takes a screen OF ITS OWN rather
- *  than being split — a paragraph is the unit the speaker reads and decides
- *  on, and half of one on each of two screens is worse than one that
- *  scrolls. That is the single case where scrolling inside a screen remains,
- *  and it is the honest floor.
+ *  A chunk taller than the whole budget is SPLIT across screens when
+ *  `sliceOf` is given (founder 2026-09-17). Each piece carries display text
+ *  only; the caller keeps the paragraph's own identity and full text on every
+ *  piece, so the controls repeat and still act on the whole thing.
+ *
+ *  Without `sliceOf` the over-tall chunk takes a screen of its own and
+ *  scrolls, which is what pure callers and the older tests expect.
  */
 export function packByFit<T>(
   chunks: readonly T[],
   textOf: (chunk: T) => string,
   fit: ScreenFit,
+  sliceOf?: ((chunk: T, text: string, index: number, count: number) => T) | null,
 ): T[][] {
   if (chunks.length === 0) return [];
   if (!(fit.budgetPx > 0) || !(fit.lineHeightPx > 0)) return [[...chunks]];
   const packs: T[][] = [];
   let current: T[] = [];
   let used = 0;
+  const flush = () => {
+    if (current.length > 0) packs.push(current);
+    current = [];
+    used = 0;
+  };
   for (const chunk of chunks) {
     const height = estimatedChunkHeight(textOf(chunk), fit);
+    // TALLER THAN A WHOLE SCREEN: split it across screens rather than hand it
+    // one it has to be scrolled inside (founder 2026-09-17).
+    if (sliceOf && height > fit.budgetPx) {
+      const pieces = splitTextToFit(textOf(chunk), fit);
+      if (pieces.length > 1) {
+        flush();
+        pieces.forEach((piece, index) =>
+          packs.push([sliceOf(chunk, piece, index, pieces.length)]),
+        );
+        continue;
+      }
+    }
     const cost = current.length === 0 ? height : height + fit.gapPx;
     if (current.length > 0 && used + cost > fit.budgetPx) {
-      packs.push(current);
+      flush();
       current = [chunk];
       used = height;
       continue;
@@ -278,7 +376,7 @@ export function packByFit<T>(
     current.push(chunk);
     used += cost;
   }
-  if (current.length > 0) packs.push(current);
+  flush();
   return packs;
 }
 
@@ -294,14 +392,20 @@ export function packByFit<T>(
 export function buildScreens<T>(
   groups: readonly { slideIndex: number | null; chunks: readonly T[] }[],
   maxPerScreen: number = SCREEN_MAX_CHUNKS,
-  fit?: { fit: ScreenFit; textOf: (chunk: T) => string } | null,
+  fit?: {
+    fit: ScreenFit;
+    textOf: (chunk: T) => string;
+    /** Build a display-only piece of an over-tall chunk. Omit to keep the
+     *  old behaviour (one screen, scrolled inside). */
+    sliceOf?: (chunk: T, text: string, index: number, count: number) => T;
+  } | null,
 ): DeckScreenModel<T>[] {
   const per = Math.max(1, maxPerScreen);
   const out: DeckScreenModel<T>[] = [];
   for (const g of groups) {
     let packs: T[][] = [];
     if (fit) {
-      packs = packByFit(g.chunks, fit.textOf, fit.fit);
+      packs = packByFit(g.chunks, fit.textOf, fit.fit, fit.sliceOf ?? null);
     } else {
       for (let i = 0; i < g.chunks.length; i += per) {
         packs.push(g.chunks.slice(i, i + per));

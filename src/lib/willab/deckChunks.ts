@@ -73,6 +73,20 @@ export interface DeckChunk {
   pendingIds: string[];
   /** Approved suggestions on this chunk — the accepted wash until lock-in. */
   approvedIds: string[];
+  /** DISPLAY ONLY — the piece of this paragraph shown on THIS screen.
+   *
+   *  Set when a paragraph is too tall for one screen and is split across
+   *  several (founder 2026-09-17). Everything that ACTS on the paragraph —
+   *  the lock echo, the sheet, the identity, the suggestion spans — keeps
+   *  reading `part.text`, which stays the whole paragraph on every piece.
+   *  That is what lets the bookmark and Lock repeat on each screen the
+   *  paragraph touches and still mean one decision about one paragraph.
+   *
+   *  Absent on an unsplit paragraph, which is the overwhelming majority. */
+  displayText?: string;
+  /** Which piece this is, and how many there are. Both absent when unsplit. */
+  sliceIndex?: number;
+  sliceCount?: number;
 }
 
 /** Real overlap between a suggestion and a chunk span. Half-open on both
