@@ -259,12 +259,13 @@ export default function PrivacyPage() {
               <strong>We do not</strong> provide your content to third parties to
               train their own general-purpose or foundation models. Your Voice
               Data and transcripts are sent to OpenAI&apos;s developer API for
-              analysis under a commercial API agreement providing for{" "}
-              <strong>zero data retention</strong>, under which{" "}
+              analysis under a commercial API agreement, under which{" "}
               <strong>
                 API inputs and outputs are not used to train OpenAI&apos;s
                 foundation models.
-              </strong>
+              </strong>{" "}
+              OpenAI may hold them for a limited period for abuse monitoring
+              before deleting them.
             </li>
             <li>
               <strong>We do not</strong> publish your recordings or transcripts.
@@ -298,8 +299,12 @@ export default function PrivacyPage() {
           </h2>
           <p className="text-muted-foreground">
             The Service infers characteristics of <strong>speech delivery</strong>{" "}
-            from your recordings. This inference is{" "}
-            <strong>opt-in and off by default.</strong> What we measure:
+            from your recordings. This inference runs as part of the Service.{" "}
+            <strong>
+              It is never shown to you as a score, rating or grade, and it is
+              never shown to anyone else.
+            </strong>{" "}
+            What we measure:
           </p>
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
             <li>
@@ -457,11 +462,12 @@ export default function PrivacyPage() {
                     <strong>OpenAI</strong> (developer API)
                   </td>
                   <td className="py-2 pr-4">
-                    AI speech analysis and transcription (zero data retention; no
-                    foundation-model training)
+                    AI speech analysis and transcription (no foundation-model
+                    training)
                   </td>
                   <td className="py-2">
-                    United States; DPA and SCCs; zero-retention API terms
+                    United States; DPA and SCCs; limited abuse-monitoring
+                    retention
                   </td>
                 </tr>
                 <tr className="border-b border-border/50 align-top">
@@ -636,10 +642,9 @@ export default function PrivacyPage() {
           <p className="text-muted-foreground">
             We implement appropriate technical and organisational measures to
             protect your data, including encryption in transit, row-level access
-            controls on our database, hosting within the EU region for our
-            primary datastore, and the zero-retention API arrangement described
-            above. No system is perfectly secure, but we work to protect your
-            data commensurate with its sensitivity.
+            controls on our database, and hosting within the EU region for our
+            primary datastore. No system is perfectly secure, but we work to
+            protect your data commensurate with its sensitivity.
           </p>
         </section>
 
