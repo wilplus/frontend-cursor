@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { PublishedPolicyText } from "@/components/legal/PublishedPolicyText";
 
 export const metadata: Metadata = {
   title: "Terms of Service | WillpowerLab",
@@ -23,6 +24,7 @@ export default function TermsPage() {
         Back home
       </Link>
 
+      <PublishedPolicyText which="terms" staticVersion="1.2">
       <article className="space-y-6 text-sm leading-relaxed text-foreground">
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">
@@ -557,6 +559,7 @@ export default function TermsPage() {
           </p>
         </section>
       </article>
+      </PublishedPolicyText>
     </div>
   );
 }
