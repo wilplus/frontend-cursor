@@ -24,10 +24,10 @@ import {
 /*  because it looks like evidence.                                            */
 /*                                                                            */
 /*  THE FALLBACK IS FOR CRAWLERS, NOT FOR PEOPLE. The static JSX renders on    */
-/*  the server so the pages stay indexable and readable with JS off. The       */
-/*  moment the policy record answers, it is replaced — and if it cannot be     */
-/*  replaced, the page says plainly that it is showing the last published      */
-/*  version rather than letting a reader assume it is current.                 */
+/*  the server so the pages stay indexable and readable with JS off, and the   */
+/*  moment the policy record answers it is replaced. It carries its own        */
+/*  version and effective date in its header, so a reader who gets it is never */
+/*  told something untrue — see the note above the fallback return.            */
 /*                                                                            */
 /*  The stored copy is PLAIN TEXT on purpose (the pack: "their exact bytes are */
 /*  what gets hashed"), so it is rendered with preserved whitespace and never  */
@@ -41,13 +41,9 @@ type State = PolicyTextState | null;
 
 export function PublishedPolicyText({
   which,
-  staticVersion,
   children,
 }: {
   which: Which;
-  /** The version the hardcoded JSX below represents, so a reader who gets the
-   *  fallback is told exactly which document they are looking at. */
-  staticVersion: string;
   /** The server-rendered static document. SEO and no-JS only. */
   children: ReactNode;
 }) {
@@ -73,15 +69,17 @@ export function PublishedPolicyText({
     );
   }
 
-  return (
-    <>
-      {state?.kind === "fallback" ? (
-        <p className="mb-6 rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
-          Showing the last published version ({staticVersion}). The current
-          version could not be loaded just now.
-        </p>
-      ) : null}
-      {children}
-    </>
-  );
+  // NO FALLBACK BANNER (corrected 2026-09-17, same day it shipped).
+  //
+  // This rendered "Showing the last published version (N). The current version
+  // could not be loaded just now." on every fallback. With no policy registered
+  // yet — which is the state today and for as long as registration is blocked —
+  // that fired for every visitor on a public page, and it was false twice: the
+  // static document IS the current published version, nothing failed to load,
+  // and it was user-facing copy that never had sign-off (LIVE LOOP).
+  //
+  // The static document already carries its own version and effective date in
+  // its header, which is the honest statement and needs no help. When a policy
+  // is registered this branch stops being reached at all.
+  return <>{children}</>;
 }

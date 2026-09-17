@@ -24,7 +24,7 @@ export default function TermsPage() {
         Back home
       </Link>
 
-      <PublishedPolicyText which="terms" staticVersion="1.2">
+      <PublishedPolicyText which="terms">
       <article className="space-y-6 text-sm leading-relaxed text-foreground">
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">
