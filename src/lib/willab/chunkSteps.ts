@@ -36,6 +36,24 @@ export function isConfidentVoiceFeedback(item: DocumentSuggestion): boolean {
   );
 }
 
+/** The words the confidence question was actually put about.
+ *
+ *  The Confident Voice candidate's own quote, which is the surface the
+ *  rooting phrase may be tapped in (founder 2026-09-17). Null when the lane
+ *  is absent or carries no quote, and `tokensWithinFragment` then shows the
+ *  whole paragraph rather than dead-ending the step.
+ *
+ *  Here rather than in the sheet for two reasons: vitest cannot transform
+ *  .tsx, so a rule left in the component is a rule no unit test can reach —
+ *  and DeckChunkModal is grandfathered at the complexity ratchet, which a
+ *  find-plus-fallback inline would have pushed over.
+ */
+export function confidentFragmentOf(
+  items: readonly DocumentSuggestion[],
+): string | null {
+  return items.find(isConfidentVoiceFeedback)?.quote ?? null;
+}
+
 export type StepKind =
   | "feedback"
   | "suggestion"

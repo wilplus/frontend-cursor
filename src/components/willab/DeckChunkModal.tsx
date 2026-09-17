@@ -81,6 +81,7 @@ export type LockResult = {
 // about which item they are looking at.
 import {
   buildChunkSteps,
+  confidentFragmentOf,
   isConfidentVoiceFeedback,
   stepProgress,
   stepTitle,
@@ -843,11 +844,13 @@ export default function DeckChunkModal({
      well", and it should not be settable on a sentence nobody asked about.
      `tokensWithinFragment` falls back to the whole paragraph when the
      fragment cannot be located, so the step never dead-ends. */
-  const confidentFragment =
-    feedbackInventory.find(isConfidentVoiceFeedback)?.quote ?? null;
   const tokens =
     step?.kind === "emphasis"
-      ? tokensWithinFragment(phraseTokens(draft), draft, confidentFragment)
+      ? tokensWithinFragment(
+          phraseTokens(draft),
+          draft,
+          confidentFragmentOf(feedbackInventory),
+        )
       : [];
   const emphasisPreview =
     step?.kind === "emphasis" && styleSuggestion
