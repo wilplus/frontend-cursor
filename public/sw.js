@@ -234,12 +234,23 @@ self.addEventListener("fetch", (event) => {
   // the OAuth network path entirely.
   if (url.pathname.startsWith("/auth/")) return;
 
-  // (2) Never cache API: homework/admin state must always be fresh (PWA was
-  // serving stale JSON on phone).
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(fetch(request));
-    return;
-  }
+  // (2) API: never cached, and — since 2026-09-17 — never INTERCEPTED either.
+  //
+  // This used to `event.respondWith(fetch(request))`, which is not the same
+  // as standing aside. Once respondWith has been called the service worker
+  // owns the response, so a network failure stops being an ordinary failed
+  // request and becomes an SW error: Safari reports "Response served by
+  // service worker is an error", `response.ok` is false with no status to
+  // read, and callers that discriminate on status code (the lock route's two
+  // different 409s, for one) cannot tell what happened. The founder hit
+  // exactly that on a phone — two API GETs failing with that message beside
+  // them, on a request the server never refused.
+  //
+  // Returning without responding hands the request back to the browser
+  // untouched, which is the same reason (1) above gives for /auth/*. There is
+  // nothing for a service worker to add to an API call it is forbidden to
+  // cache; being in the path can only lose information.
+  if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(navigateNetworkFirst(event));

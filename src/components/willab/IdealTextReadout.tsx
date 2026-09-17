@@ -152,7 +152,6 @@ export default function IdealTextReadout({
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [copied, setCopied] = useState(false);
-  const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
   // #214 — edit persistence: armed once the SD GET confirms the contract and
   // hands us the current version. Until then (flag OFF / guest) edits are
@@ -284,8 +283,9 @@ export default function IdealTextReadout({
     if (!signedIn || !sessionId || !arcId || firedRef.current) return;
     firedRef.current = true;
     void sendTakeToCoach(arcId, sessionId).then((r) => {
+      // A failure is deliberately silent to the speaker (founder 2026-09-17).
+      // The delivery re-arms on the next open; nothing here is theirs to fix.
       if (r.kind === "sent") onAutoSent();
-      else if (r.kind !== "unauthenticated") setSendFailed(true);
     });
   }, [signedIn, sessionId, arcId, onAutoSent]);
 
@@ -1113,13 +1113,14 @@ export default function IdealTextReadout({
         </p>
       ) : null}
 
-      {sendFailed ? (
-        <p className="text-[12px] text-muted-foreground">
-          Couldn&apos;t reach your coach just now. Your text is safe; delivery
-          retries when you reopen it.
-        </p>
-      ) : null}
-
+      {/* NO COACH-DELIVERY BANNER (founder 2026-09-17: "delete that helper
+          text; it confuses the users"). Delivery to the coach is an F2
+          asynchronous lane: it retries by itself, the speaker's text is
+          durable either way, and there is nothing for them to do about it.
+          Telling them it failed put a coach-lane problem in front of a
+          speaker mid-F1-loop and read as though their words were at risk.
+          The failure is still handled — it is just not the speaker's to
+          carry. */}
       {/* FE-6 — a guest's edits are local-only (persistence arms on the SD
           fetch, which needs auth), so the CTA must not promise saving. */}
       {signedIn === false ? (
