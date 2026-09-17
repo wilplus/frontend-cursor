@@ -663,10 +663,32 @@ export default function IdealTextOverlay({
           if (result.kind === "stale") setRefetchNonce((n) => n + 1);
           return { outcome: "failed", rootPhraseProposal: null };
         }
-        partsRef.current = next.map((part) =>
+        const lockedParts = next.map((part) =>
           part.id === target.id ? { ...part, locked: true } : part,
         );
-        setRefetchNonce((n) => n + 1);
+        partsRef.current = lockedParts;
+      /* A DECISION CHANGES ITS OWN PARAGRAPH AND NOTHING ELSE (founder
+         2026-09-17, locked): "you open the feedback clicking on the bookmark,
+         then you edit that chunk of the text the bookmark was referring to,
+         and then you simply close the overlay and come back to the SAME ideal
+         text, with the slide, the only change being that this bookmarked
+         chunk is updated as per what was agreed. That's it!"
+
+         This used to bump `refetchNonce`, which re-reads the WHOLE document.
+         The server recomposes on that read, so the deck came back rebuilt:
+         a different paragraph shape, and — when the recomposition could not
+         re-prove the paragraphs' slides — the unlinked "YOUR TALK" view with
+         no slide at all. The speaker settled one chunk and the page they were
+         reading was replaced.
+
+         The confirmed change is projected into the rendered document instead,
+         which is the same thing the server would have sent back for this
+         paragraph and nothing it would have sent for any other. A genuine
+         desync still refetches: `result.kind === "stale"` above is exactly
+         that case and is untouched. */
+        setSd((prev) =>
+          prev ? { ...prev, text: nextText, parts: lockedParts } : prev,
+        );
         return {
           outcome: "ok",
           rootPhraseProposal: result.rootPhraseProposal,
@@ -700,7 +722,7 @@ export default function IdealTextOverlay({
         if (result.kind === "stale") setRefetchNonce((n) => n + 1);
         return "failed";
       }
-      partsRef.current = next.map((part) =>
+      const evolvingParts = next.map((part) =>
         part.id === target.id
           ? {
               ...part,
@@ -711,7 +733,11 @@ export default function IdealTextOverlay({
             }
           : part,
       );
-      setRefetchNonce((n) => n + 1);
+      partsRef.current = evolvingParts;
+      // Same rule as the lock above: this paragraph, not the document.
+      setSd((prev) =>
+        prev ? { ...prev, text: textEcho, parts: evolvingParts } : prev,
+      );
       return "ok";
     },
     [arcId, displayText, saveDocument],
@@ -729,10 +755,11 @@ export default function IdealTextOverlay({
       if (!ok) return false;
       const nextParts = withPartRootPhrase(parts, target.id, phrase);
       partsRef.current = nextParts;
-      // Refetch remains the reconciliation path, but the server-confirmed
-      // choice is projected into the rendered state in the same interaction.
+      // The server-confirmed choice is projected into the rendered state in
+      // the same interaction — and that is now the WHOLE update. Re-reading
+      // the document would rebuild the deck around a paragraph-sized change
+      // (see the lock handler above for what that did to the founder).
       setSd((prev) => (prev ? { ...prev, parts: nextParts } : prev));
-      setRefetchNonce((n) => n + 1);
       return true;
     },
     [arcId, displayText],

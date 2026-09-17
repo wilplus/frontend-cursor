@@ -6,6 +6,7 @@ import {
   stepKindFor,
   stepProgress,
   stepTitle,
+  locksAsPreview,
 } from "./chunkSteps";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
@@ -160,5 +161,43 @@ describe("the step bar counts screens and nothing else (AC-9)", () => {
     expect(stepProgress(buildChunkSteps({
       inventory: [praise], canEmphasise: false,
     }), "lock").total).toBe(2);
+  });
+});
+
+
+describe("locksAsPreview — you see what you are committing", () => {
+  /* Founder 2026-09-17: "on the lock-in screen show the whole text that is
+     being locked in WITH the boldening and orange that was tapped in the step
+     earlier." The step drew a plain editor, so the phrase just chosen was
+     invisible at the exact moment it was being committed. */
+  it("shows, rather than offers an editor, once a phrase has been chosen", () => {
+    expect(locksAsPreview({
+      locked: false, hadFeedback: true, chosenPhrase: "these words",
+    })).toBe(true);
+  });
+
+  it("still shows a settled paragraph that had nothing waiting", () => {
+    expect(locksAsPreview({
+      locked: true, hadFeedback: false, chosenPhrase: null,
+    })).toBe(true);
+  });
+
+  it("still OFFERS THE EDITOR everywhere else — editing stays reachable", () => {
+    expect(locksAsPreview({
+      locked: false, hadFeedback: true, chosenPhrase: null,
+    })).toBe(false);
+    expect(locksAsPreview({
+      locked: false, hadFeedback: false, chosenPhrase: null,
+    })).toBe(false);
+    // A locked paragraph that DID have feedback keeps its editor, unchanged.
+    expect(locksAsPreview({
+      locked: true, hadFeedback: true, chosenPhrase: null,
+    })).toBe(false);
+  });
+
+  it("an empty phrase is no phrase", () => {
+    expect(locksAsPreview({
+      locked: false, hadFeedback: true, chosenPhrase: "",
+    })).toBe(false);
   });
 });

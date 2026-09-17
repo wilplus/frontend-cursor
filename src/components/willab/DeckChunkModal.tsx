@@ -13,6 +13,7 @@ import {
   Undo2,
 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
+import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -82,6 +83,7 @@ export type LockResult = {
 import {
   buildChunkSteps,
   confidentFragmentOf,
+  locksAsPreview,
   isConfidentVoiceFeedback,
   stepProgress,
   stepTitle,
@@ -1234,10 +1236,12 @@ export default function DeckChunkModal({
             Undo rewrite
           </button>
         ) : null}
-        {chunk.part.locked === true && !hadFeedback ? (
-          <p className="pr-8 text-[15px] leading-relaxed text-foreground">
-            <RichText text={draft} />
-          </p>
+        {locksAsPreview({
+          locked: chunk.part.locked === true,
+          hadFeedback,
+          chosenPhrase: promotedQuote,
+        }) ? (
+          <LockPreviewText text={draft} phrase={promotedQuote} />
         ) : (
           /* Still the editor. The design draws this step as a card, but
              editing has to stay reachable somewhere and a separate
