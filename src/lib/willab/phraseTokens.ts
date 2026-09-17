@@ -70,6 +70,61 @@ export function phraseTokens(raw: string): PhraseToken[] {
   return tokens;
 }
 
+/** Narrow the tappable words to the fragment the confidence question asked
+ *  about.
+ *
+ *  FOUNDER 2026-09-17, locked: the rooting phrase is chosen inside "the whole
+ *  fragment suggested for confidence judgement" — not the whole paragraph,
+ *  and not only the words the speaker personally marked. Orange means "I
+ *  confirmed I deliver these words well" (§4), so the words it can land on
+ *  are the words the question was actually put about. A paragraph is often
+ *  several sentences and the Confident Voice item is about one of them;
+ *  offering all of them let a root be set on delivery nobody evaluated.
+ *
+ *  `fragment` is the Confident Voice candidate's own quote. It is located in
+ *  the draft rather than trusted as an offset, for the reason the lock path
+ *  already gives: an accepted emphasis rewraps words in `**` and moves every
+ *  raw index after it, while the readable text stays stable.
+ *
+ *  FALLS BACK TO THE WHOLE PARAGRAPH when the fragment is missing or can no
+ *  longer be found — edited away, or reworded since. That is deliberate and
+ *  it is the lesser evil: the alternative is a step with nothing tappable on
+ *  it, which dead-ends the lock and costs the speaker the orange phrase
+ *  entirely. Narrowing is an improvement on the choice, never a gate on it.
+ *
+ *  Pure.
+ */
+export function tokensWithinFragment(
+  tokens: readonly PhraseToken[],
+  raw: string,
+  fragment: string | null | undefined,
+): PhraseToken[] {
+  const needle = (fragment ?? "").trim();
+  if (!needle || !raw) return [...tokens];
+  const displayed = parseRichSpans(raw)
+    .map((span) => span.text)
+    .join("");
+  const at = displayed.indexOf(needle);
+  if (at < 0) return [...tokens];
+  const rawIndex = rawIndexByDisplayedChar(raw);
+  const lo = rawIndex[at];
+  const hi = rawIndex[at + needle.length - 1];
+  if (lo === undefined || hi === undefined) return [...tokens];
+  // OVERLAP, NOT CONTAINMENT. A token is a whole word — "numbers." carries
+  // its full stop — while a quote routinely stops short of it. Requiring the
+  // token to sit wholly inside the fragment silently dropped the last word of
+  // every fragment that ended on punctuation, which is most of them. The
+  // speaker taps words, so a word the fragment reaches into is a word the
+  // fragment is about.
+  const within = tokens.filter(
+    (token) => token.end > lo && token.start <= hi,
+  );
+  // A fragment that lands between the words — punctuation only, or a partial
+  // token — leaves nothing to tap. Same reason as above: show it all rather
+  // than show nothing.
+  return within.length > 0 ? within : [...tokens];
+}
+
 /** What a tap does to the current run.
  *
  *  `null` means nothing is selected. Tapping the only selected word clears it,

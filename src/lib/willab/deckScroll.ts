@@ -259,3 +259,34 @@ export function firstUnreadScreenIndex<T>(
   const index = screens.findIndex((screen) => screen.chunks.some(isUnread));
   return index < 0 ? null : index;
 }
+
+/** Where ONE paragraph sits — `{slide, chunk}` — or null if it is not here.
+ *
+ *  COMING BACK FROM A DECISION (founder 2026-09-17). Their rule for what a
+ *  lock does to the screen: "return to the slide, scrolled to that
+ *  paragraph". The sheet closes onto the deck, and the deck has to put the
+ *  paragraph just settled back under the reader's eye rather than leaving
+ *  them wherever the scroller happened to be.
+ *
+ *  It is addressed by PART ID and looked up fresh, because a lock
+ *  REASSEMBLES the document underneath: the served text is recomposed, the
+ *  screens are rebuilt, and the paragraph can land on a different screen
+ *  than the one it was opened from. A remembered index would point at
+ *  whatever moved into that slot. Null means "not in this deck any more",
+ *  which is a reason to stay put, never to jump to the top.
+ *
+ *  Pure — no React, no DOM, like everything else in this file.
+ */
+export function screenPositionOfPart<T extends { part: { id: string } }>(
+  screens: readonly DeckScreenModel<T>[],
+  partId: string | null | undefined,
+): DeckPosition | null {
+  if (!partId) return null;
+  for (let slide = 0; slide < screens.length; slide += 1) {
+    const chunk = screens[slide].chunks.findIndex(
+      (entry) => entry.part.id === partId,
+    );
+    if (chunk >= 0) return { slide, chunk };
+  }
+  return null;
+}

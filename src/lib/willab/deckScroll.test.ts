@@ -7,6 +7,7 @@ import {
   buildScreens,
   canBubble,
   firstUnreadScreenIndex,
+  screenPositionOfPart,
   chunkCounts,
   clampPosition,
   IDLE_WHEEL_GESTURE,
@@ -298,5 +299,47 @@ describe("coming back from the email (§8)", () => {
     // scrolling them to the top would be a regression dressed as a feature.
     const { screens, isUnread } = deck([]);
     expect(firstUnreadScreenIndex(screens, isUnread)).toBeNull();
+  });
+});
+
+
+describe("screenPositionOfPart — coming back to the paragraph you settled", () => {
+  /* Founder 2026-09-17, locked: after a lock, "return to the slide, scrolled
+     to that paragraph". The sheet closed onto wherever the deck happened to
+     be standing, which after a reassembly could be a different paragraph. */
+  const chunk = (id: string) => ({ part: { id } });
+  const screen = (...ids: string[]) => ({
+    slideIndex: 0,
+    screenOfSlide: 0,
+    screensInSlide: 1,
+    chunks: ids.map(chunk),
+  });
+
+  it("finds the paragraph on its own screen, at its own place in it", () => {
+    const screens = [screen("a", "b", "c"), screen("d", "e")];
+    expect(screenPositionOfPart(screens, "a")).toEqual({ slide: 0, chunk: 0 });
+    expect(screenPositionOfPart(screens, "c")).toEqual({ slide: 0, chunk: 2 });
+    expect(screenPositionOfPart(screens, "e")).toEqual({ slide: 1, chunk: 1 });
+  });
+
+  it("says NOT HERE rather than guessing at the top", () => {
+    // A lock reassembles the document. While the screens are being rebuilt
+    // the id is simply absent, and the caller must WAIT rather than jump —
+    // landing on slide 0 would be worse than not moving at all.
+    const screens = [screen("a", "b")];
+    expect(screenPositionOfPart(screens, "gone")).toBeNull();
+    expect(screenPositionOfPart(screens, null)).toBeNull();
+    expect(screenPositionOfPart(screens, "")).toBeNull();
+    expect(screenPositionOfPart([], "a")).toBeNull();
+  });
+
+  it("follows the paragraph when the reassembly MOVED it", () => {
+    // The whole reason this is looked up by id rather than remembered as a
+    // position: a lock recomposes the served text, so the paragraph can end
+    // up on a different screen than the one it was opened from.
+    const before = [screen("a", "b", "c"), screen("d")];
+    const after = [screen("a"), screen("b", "c", "d")];
+    expect(screenPositionOfPart(before, "d")).toEqual({ slide: 1, chunk: 0 });
+    expect(screenPositionOfPart(after, "d")).toEqual({ slide: 1, chunk: 3 - 1 });
   });
 });

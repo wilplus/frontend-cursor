@@ -34,6 +34,7 @@ import {
   firstUnreadScreenIndex,
   IDLE_WHEEL_GESTURE,
   nearestChunkIndex,
+  screenPositionOfPart,
   scrollEdge,
   stepPosition,
   wheelGestureStep,
@@ -560,6 +561,34 @@ export default function TranscriptReviewDeck({
     if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
   }, [firstUnreadScreen, counts]);
 
+  /* RETURN TO THE SLIDE AFTER A DECISION (founder 2026-09-17, locked).
+   *
+   * "After you lock: return to the slide, scrolled to that paragraph." The
+   * sheet used to close onto wherever the deck happened to be standing,
+   * which after a reassembly could be a different paragraph entirely — the
+   * speaker settled one thing and was put down somewhere else.
+   *
+   * Held as a PART ID and resolved against the CURRENT screens, not as a
+   * position captured at lock time. A lock recomposes the served text and
+   * rebuilds the screens, so the paragraph can move; an index captured
+   * beforehand would point at whatever slid into that slot.
+   *
+   * It waits, rather than firing once: the landing runs on every screens
+   * change until the paragraph is actually found, then clears itself. That
+   * is what makes it survive the refetch the lock triggers — the id is
+   * simply not in the deck for the frames in between. If it never appears
+   * (deleted, merged away) the request is dropped at unmount and the reader
+   * is left where they are, which is the honest answer to "that paragraph
+   * is gone" and better than a jump to the top. */
+  const [landOnPart, setLandOnPart] = useState<string | null>(null);
+  useEffect(() => {
+    if (!landOnPart) return;
+    const at = screenPositionOfPart(screens, landOnPart);
+    if (!at) return;      // not rebuilt yet — try again when screens change
+    setLandOnPart(null);
+    goTo(at);
+  }, [landOnPart, screens, goTo]);
+
   const seatWidthRef = useRef(-1);
   useEffect(() => {
     const seat = () => {
@@ -952,6 +981,11 @@ export default function TranscriptReviewDeck({
           onLockIn={async (text: string): Promise<LockResult> => {
             const result = await onLockPart(openChunk, text);
             if (result.outcome === "ok") {
+              // Founder 2026-09-17: after a lock, return to the slide,
+              // scrolled to that paragraph. Requested by id — the lock
+              // reassembles the document, so where it lands is only known
+              // once the screens have been rebuilt.
+              setLandOnPart(openChunk.part.id);
               // §11.7.1: the page shows the lock the instant the server
               // confirms it — the modal closes itself on "ok".
               setOptimisticLocked((prev) =>

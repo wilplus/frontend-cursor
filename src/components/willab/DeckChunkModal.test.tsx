@@ -607,8 +607,20 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
     await click("Yes — Confident");
     await click("Choose different words");
+    /* THE TAPPABLE WORDS ARE THE CONFIDENT FRAGMENT (founder 2026-09-17).
+       This used to tap "ready.", which sits in the paragraph but OUTSIDE the
+       stretch the confidence question was put about ("We should ship it
+       now"). Orange means "I confirmed I deliver these words well", so it
+       cannot be set on a sentence nobody evaluated — the word is not offered
+       any more, and that is asserted rather than assumed. */
+    const offered = () =>
+      Array.from(container.querySelectorAll("button")).map(
+        (b) => (b.textContent ?? "").trim(),
+      );
+    expect(offered()).not.toContain("ready.");
+    expect(offered()).toContain("now");
     const word = Array.from(container.querySelectorAll("button")).find(
-      (b) => (b.textContent ?? "").trim() === "ready.",
+      (b) => (b.textContent ?? "").trim() === "now",
     )!;
     await act(async () => {
       word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -625,7 +637,10 @@ describe("the ladder", () => {
     // ...and the words still land, as the anchor.
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
-    expect(calls[0][0]?.text).toContain("ready.");
+    expect(calls[0][0]?.text).toContain("now");
+    // The anchor points at the word INSIDE the confident fragment, and its
+    // offsets still address the real draft.
+    expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe("now");
   });
 
   it("a judgement that was not Yes skips step four entirely", async () => {
@@ -667,8 +682,11 @@ describe("the ladder", () => {
     await click("Continue");
     await click("Choose different words");
     expect(container.textContent).toContain("Tap the words");
+    // Inside the confident fragment ("We should ship it now"), which is the
+    // whole tappable surface since 2026-09-17 — "ready." is in the paragraph
+    // but outside what the confidence question asked about.
     const word = Array.from(container.querySelectorAll("button")).find(
-      (b) => (b.textContent ?? "").trim() === "ready.",
+      (b) => (b.textContent ?? "").trim() === "now",
     )!;
     expect(word).toBeTruthy();
     await act(async () => {
