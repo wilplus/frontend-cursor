@@ -26,27 +26,29 @@ await page.waitForSelector("text=Garage pitch");
 
 /* ------------------------ page-level visual contract ---------------------- */
 check(
-  // Four paragraphs, four marks, from first paint. Since 2026-09-15 the ring
-  // is plain `unresolved` rather than `flagship && unresolved`, so the two
-  // paragraphs with something waiting wear it and the two settled ones do
-  // not. That binary is what replaced the small 2/3 the mark used to print —
-  // a column reading 3 / 1 / 2 scans as a ranking of how bad each paragraph
-  // is, which is the reading AC-9 exists to prevent.
-  "every paragraph has a stable bookmark, and waiting is shown not counted",
-  (await page.locator("button[data-status]").count()) === 4 &&
-    (await page.locator('button[data-status="attention"]').count()) === 2 &&
-    (await page.locator('button[data-status="outline"]').count()) === 2 &&
+  // ONE MARK, ON THE ONE PARAGRAPH WITH A CONFIDENT VOICE JUDGEMENT WAITING
+  // (founder 2026-09-17: "visibility and openability of the overlay is
+  // strictly for the confident voice"). The fixture's four paragraphs used to
+  // wear four marks; three of them opened a sheet whose first question did
+  // not exist, and a column of identical icons down a talk reads as
+  // decoration.
+  //
+  // The protected paragraph is the founder's explicit trade: it carries a
+  // style offer and a coach note but NO Confident Voice item, so it wears no
+  // mark and cannot be opened from the deck. Asserted here rather than
+  // hidden, because it is the cost of the rule.
+  "one bookmark, on the paragraph whose voice is still in question",
+  (await page.locator("button[data-status]").count()) === 1 &&
+    (await page.locator('button[data-status="attention"]').count()) === 1 &&
     (await page.locator('button[data-status="filled"]').count()) === 0 &&
-    // No digit anywhere on a mark.
+    // No digit anywhere on a mark — a count would scan as a ranking (AC-9).
     (await page.$$eval("button[data-status]", (marks) =>
       marks.every((mark) => !/\d/.test(mark.textContent ?? ""))))
 );
 check(
-  "the actionable bookmarks describe feedback and protected-text attention",
-  // "Emphasis", not "Style": the sheet's step is titled Emphasis and the mark
-  // reads from that same constant, so the two cannot spell one thing twice.
+  "and it describes the feedback waiting there, in words",
   (await page.locator('button[aria-label="Feedback waiting — review it"]').count()) === 1 &&
-    (await page.locator('button[aria-label*="Paragraph protected"][aria-label*="Coach note:"][aria-label*="Emphasis"]').count()) === 1
+    (await page.locator('button[aria-label*="Paragraph protected"]').count()) === 0
 );
 check(
   "feedback never paints ordinary paragraph text",
@@ -234,40 +236,38 @@ check(
   JSON.stringify(rootWrites)
 );
 
-/* ------------------ protected paragraph: the gate's other edge ------------- */
-/* A REAL CONSEQUENCE OF §4, asserted rather than hidden. This paragraph is
-   locked and carries a style-lane offer — the post-lock "open takes rewrites;
-   locked takes emphasis only" proposal. It has no Confident Voice item, so it
-   is never judged, so under §4 it never reaches step four AND ITS STYLE OFFER
-   IS NEVER PRESENTED.
+/* ------------- protected paragraph: the cost of the new rule --------------- */
+/* THE FOUNDER'S EXPLICIT TRADE (2026-09-17), asserted rather than hidden.
 
-   That follows from the handoff as written — "Appears when state.style exists
-   AND the paragraph's judgement came back Yes" — but it is worth stating out
-   loud: the gate does not only decide whether the SPEAKER may pick words, it
-   also decides whether the MANAGER's own emphasis proposal is ever shown. A
-   locked paragraph with a proposal and no judgement now goes straight to Lock.
+   This paragraph is locked and carries a style-lane offer and a coach note,
+   but NO Confident Voice item. Since the bookmark is strictly the Confident
+   Voice door — "first you see the confident voice and then eventually emphasis
+   or a rewrite or an exercise, but first your voice" — it wears no mark, and
+   there is no way into its sheet from the deck at all.
 
-   Flagged for the founder. If the style lane was meant to survive without a
-   judgement, the gate needs to distinguish "may choose their own words" from
-   "may be shown a proposal", and this is the test that would change. */
-const protectedBookmark = page.locator(
-  'button[aria-label*="Paragraph protected"][aria-label*="Coach note:"]'
-);
-await protectedBookmark.click();
-await page.waitForSelector("text=Lock");
+   WHAT THIS WALK LOST, said plainly rather than quietly dropped: it used to
+   open this paragraph and prove the §4 gate from the inside — that an unjudged
+   paragraph is offered no emphasis step even when the Manager has a proposal
+   for it. That assertion is now unreachable through the UI, because the door
+   it used is gone. The gate itself is unchanged and still covered by
+   DeckChunkModal's unit tests ("a judgement that was not Yes skips step four
+   entirely"); what is no longer covered end to end is the style lane's
+   behaviour on a paragraph nobody can open. If the style offer was meant to
+   survive without a judgement, this is the test that says so. */
 check(
-  "an unjudged paragraph is not offered the emphasis step, proposal or not",
-  (await dialog(page).locator("text=WITH EMPHASIS").count()) === 0 &&
-    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 0 &&
-    (await dialog(page).locator("button", { hasText: /^Choose different words$/ }).count()) === 0
+  "a locked paragraph with no Confident Voice item offers no door",
+  (await page.locator('button[aria-label*="Paragraph protected"]').count()) === 0 &&
+    (await page.locator("button[data-status]").count()) === 0
 );
 check(
-  // ...and the sheet still does its job: marker syntax never reaches the reader.
-  "marker syntax never leaks into the sheet",
-  !(await dialog(page).innerText()).includes("**") &&
-    !(await dialog(page).innerText()).includes("{{orange:")
+  // ...and the page still does its job: marker syntax never reaches the reader,
+  // on a paragraph that carries a style offer it can no longer be shown.
+  "marker syntax never leaks onto the page",
+  await page.evaluate(() => {
+    const text = document.body.innerText;
+    return !text.includes("**") && !text.includes("{{orange:");
+  })
 );
-await dialog(page).locator('button[aria-label="Close"]').click();
 await page.waitForTimeout(200);
 
 /* -------------------------- slide-scoped editing -------------------------- */
