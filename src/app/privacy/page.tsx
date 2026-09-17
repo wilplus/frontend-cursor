@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { PublishedPolicyText } from "@/components/legal/PublishedPolicyText";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | WillpowerLab",
@@ -27,6 +28,7 @@ export default function PrivacyPage() {
         Back home
       </Link>
 
+      <PublishedPolicyText which="privacy" staticVersion="1.2">
       <article className="space-y-6 text-sm leading-relaxed text-foreground">
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
@@ -688,6 +690,7 @@ export default function PrivacyPage() {
           </p>
         </section>
       </article>
+      </PublishedPolicyText>
     </div>
   );
 }
