@@ -686,11 +686,21 @@ export default function TranscriptReviewDeck({
                 <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   {kickerFor(g.slideIndex, gi)}
                 </p>
-                {g.screenOfSlide === 0 && titleFor(g.slideIndex) ? (
-                  <h2 className="mt-2 font-heading text-[clamp(1.5rem,4vw,2.1rem)] leading-tight tracking-[-0.035em] text-foreground">
-                    {titleFor(g.slideIndex)}
-                  </h2>
-                ) : null}
+                {/* NO SLIDE TITLE HEADING (founder 2026-09-17: "delete the
+                    header marked on the photo from each slide display; too
+                    much is going on this screen when we have the slide and
+                    the title"). The picture of the slide IS the title — it
+                    is printed on it, usually in the deck's own type — so the
+                    heading restated it directly above, in a second typeface,
+                    at display size. Two of the four things on screen said the
+                    same word, and the speaker's own sentences were the ones
+                    pushed down for it.
+
+                    The kicker above ("Slide 1") stays: it says WHERE you are,
+                    which the picture cannot. The title is still carried
+                    everywhere it is not redundant — the slide editor's
+                    header, and the deck's copy output, where there is no
+                    picture to read it from. */}
                 {g.screenOfSlide === 0 &&
                 presentationRef &&
                 g.slideIndex !== null ? (

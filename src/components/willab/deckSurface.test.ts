@@ -405,6 +405,25 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(COACH).toMatch(/onClick=\{\(\) => void open\(\)\}/);
   });
 
+  it("a slide screen does NOT restate the title that is printed on the slide", () => {
+    // Founder 2026-09-17: "delete the header marked on the photo from each
+    // slide display; too much is going on this screen when we have the slide
+    // and the title." The picture of the slide already carries its title, in
+    // the deck's own type — the heading repeated it directly above at display
+    // size, so two of the four things on screen said the same word and the
+    // speaker's sentences were what moved down for it.
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).not.toMatch(/<h2[^>]*>[\s\S]{0,80}titleFor\(g\.slideIndex\)/);
+
+    // The kicker STAYS. It says where you are, which the picture cannot.
+    expect(DECK_SRC).toMatch(/kickerFor\(g\.slideIndex, gi\)/);
+
+    // And the title is still carried everywhere it is NOT redundant: the
+    // slide editor's header, and the copy output, which has no picture in it.
+    expect(DECK_SRC).toMatch(/title=\{titleFor\(editingSlideIndex\)/);
+    expect(DECK_SRC).toMatch(/kickerFor\(g\.slideIndex, i\), titleFor\(g\.slideIndex\)/);
+  });
+
   it("the deck mount has no frame and no height cap", () => {
     const mount = READOUT.slice(
       READOUT.indexOf("<TranscriptReviewDeck") - 400,
