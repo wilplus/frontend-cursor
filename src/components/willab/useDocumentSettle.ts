@@ -9,6 +9,7 @@ import {
   type ProcessingTake,
 } from "@/lib/willab/processingTake";
 import {
+  ANALYSIS_SETTLE_CAP_MS,
   documentSettled,
   probeOf,
   type DocumentProbe,
@@ -32,10 +33,12 @@ import { useUserId } from "./useUserId";
 /*  Text every second and clears it only on evidence the Take's review version */
 /*  landed. The cap is Take 1's explicit unconfirmed terminal state; a later  */
 /*  Take becomes an ordinary failed job rather than silently succeeding.       */
-/*  The "analysis" phase is NOT probed here: the readout watches (LabOverlay   */
-/*  live,                                                                        */
-/*  Lounge resume) own that phase and transition it to "document" at their     */
-/*  terminal states.                                                          */
+/*  The "analysis" phase is NOT probed here — the readout watches (LabOverlay  */
+/*  live, Lounge resume) own it and transition it to "document" at their       */
+/*  terminal states — but since 2026-09-17 it IS capped here. Not probing and  */
+/*  not bounding are different things, and only the first was intended: with   */
+/*  the owning surface off screen nothing advanced the marker and the screen   */
+/*  blocked until the 30-minute staleness rule.                                */
 /*                                                                            */
 /*  Multiple mounts may run concurrently (Lounge + Lab readout + picker        */
 /*  overlay). That is safe by construction: probes are reads, and the clear    */
@@ -159,6 +162,40 @@ export function useDocumentSettle({
     },
     [userId],
   );
+
+  /* THE ANALYSIS PHASE HAS A CAP TOO (founder 2026-09-17: "it still
+   * processes, something is wrong").
+   *
+   * It had none. This phase is owned by whichever readout is mounted, which
+   * advances the marker to "document" at its terminal states — so with that
+   * surface off screen (app reopened, view switched, tab reloaded) nothing
+   * advanced it, nothing probed, and the 2-minute cap that would have
+   * released the screen belongs to a phase the take never reached. The only
+   * thing that ever cleared it was the 30-minute staleness rule, and half an
+   * hour of a blocking screen is indistinguishable from the app being broken.
+   *
+   * This does not probe and does not judge the backend: it is a deadline on
+   * the SCREEN. `expire` is the same terminal the document phase uses, so
+   * Take 1 lands on "we processed your take, but couldn't create your Ideal
+   * Text" with its retry, and a later take on an ordinary failed job —
+   * whatever was already persisted stays persisted. */
+  useEffect(() => {
+    if (
+      !enabled ||
+      !marker ||
+      marker.phase !== "analysis" ||
+      marker.status !== "processing"
+    ) {
+      return;
+    }
+    const left = marker.phaseStartedAt + ANALYSIS_SETTLE_CAP_MS - Date.now();
+    if (left <= 0) {
+      expire(marker);
+      return;
+    }
+    const id = setTimeout(() => expire(marker), left);
+    return () => clearTimeout(id);
+  }, [enabled, marker, expire]);
 
   // The analysis-phase baseline read: ONE fetch per session, while the take
   // is still transcribing — before assembly can have moved the version.

@@ -35,6 +35,32 @@ export interface DocumentProbe {
  *  unobservable" look identical, and only time separates them. */
 export const DOCUMENT_SETTLE_CAP_MS = 120_000;
 
+/** How long the ANALYSIS phase may block before the screen gives up.
+ *
+ *  FOUNDER 2026-09-17: "it still processes, something is wrong." The document
+ *  phase has had a cap since it was written; the analysis phase had NONE. It
+ *  was owned by whichever readout happened to be mounted, which transitions it
+ *  to "document" at its terminal states — so if that surface was not on screen
+ *  (the app reopened, the view switched, the tab reloaded) nothing advanced
+ *  the marker, nothing probed, and the cap that would have released the screen
+ *  belonged to a phase the take never reached. The only thing that ever
+ *  cleared it was the 30-minute staleness rule. Half an hour of a blocking
+ *  screen is indistinguishable from the app being broken, because for that
+ *  speaker it is.
+ *
+ *  LONGER THAN THE DOCUMENT CAP, and deliberately so: this phase is doing real
+ *  work — upload, transcription, segmentation — on audio whose length nobody
+ *  here knows, over a connection nobody here controls. Two minutes would cut
+ *  off honest long takes. Eight is past anything observed and still bounded.
+ *
+ *  A cap is not a verdict on the backend. It releases the SCREEN, and the take
+ *  keeps whatever it already persisted — transcription and analysis are
+ *  written as they complete, which is why the terminal state for Take 1 is
+ *  "we processed your take, but couldn't create your Ideal Text" and offers a
+ *  retry rather than asking anyone to record again.
+ */
+export const ANALYSIS_SETTLE_CAP_MS = 480_000;
+
 export function documentSettled(
   awaitTakeIndex: number | null,
   first: DocumentProbe | null,

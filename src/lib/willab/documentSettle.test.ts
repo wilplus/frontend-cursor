@@ -4,6 +4,7 @@ import {
   DOCUMENT_SETTLE_CAP_MS,
   documentSettled,
   probeOf,
+  ANALYSIS_SETTLE_CAP_MS,
 } from "./documentSettle";
 
 /* -------------------------------------------------------------------------- */
@@ -152,5 +153,24 @@ describe("probeOf", () => {
       version: null,
       maxTakeIndex: null,
     });
+  });
+});
+
+
+describe("the analysis phase is bounded too", () => {
+  /* Founder 2026-09-17: "it still processes, something is wrong." The document
+     phase has been capped since it was written; analysis had NO bound at all,
+     so with its owning surface off screen the blocking screen stood for the
+     full 30-minute staleness rule. */
+  it("is longer than the document cap, because it is doing real work", () => {
+    // Upload, transcription and segmentation, on audio of unknown length over
+    // a connection nobody here controls. Two minutes would cut off honest
+    // long takes.
+    expect(ANALYSIS_SETTLE_CAP_MS).toBeGreaterThan(DOCUMENT_SETTLE_CAP_MS);
+  });
+
+  it("is far shorter than the staleness rule that used to be the only release", () => {
+    // 30 minutes of a blocking screen is indistinguishable from a broken app.
+    expect(ANALYSIS_SETTLE_CAP_MS).toBeLessThan(30 * 60_000 / 2);
   });
 });
