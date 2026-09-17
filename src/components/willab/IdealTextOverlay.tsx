@@ -494,12 +494,25 @@ export default function IdealTextOverlay({
       if (r.kind === "error") {
         return { outcome: "failed", rootPhraseProposal: null };
       }
-      partsRef.current = (partsRef.current ?? []).map((p) =>
+      const lockedParts = (partsRef.current ?? []).map((p) =>
         p.id === target.id ? { ...p, locked: true } : p,
       );
-      // Refetch so the layer filter sees the lock — open offers on this
-      // paragraph stop being served, which the student just asked for.
-      setRefetchNonce((n) => n + 1);
+      partsRef.current = lockedParts;
+      /* THIS PARAGRAPH, NOT THE DOCUMENT — the same rule as `deckLockPart`
+         (founder 2026-09-17), and this is the path a lock WITHOUT an edit
+         takes, which is the ordinary one. It was missed when the rule landed:
+         the edited branch stopped re-reading and this one did not, so locking
+         a paragraph you had not typed in still replaced the page you were
+         reading. Reported immediately: "after a lock it all changed again!!!"
+         — the deck came back as the unlinked "YOUR TALK" view with no slides.
+
+         The comment that stood here said the refetch was so the layer filter
+         would stop serving open offers on this paragraph. That is true and it
+         is served by the projection below: `locked: true` on this part is
+         exactly what the filter reads, and it is what the server would have
+         returned for it. Re-reading the whole document to learn one boolean
+         is what cost the slides. A genuine `stale` still refetches above. */
+      setSd((prev) => (prev ? { ...prev, parts: lockedParts } : prev));
       return { outcome: "ok", rootPhraseProposal: r.rootPhraseProposal };
     },
     [arcId, displayText],
@@ -529,10 +542,14 @@ export default function IdealTextOverlay({
         return "failed";
       }
       if (r.kind === "error" || r.kind === "undecided") return "failed";
-      partsRef.current = (partsRef.current ?? []).map((p) =>
+      const unlockedParts = (partsRef.current ?? []).map((p) =>
         p.id === target.id ? { ...p, locked: false } : p,
       );
-      setRefetchNonce((n) => n + 1);
+      partsRef.current = unlockedParts;
+      // The inverse of the lock, and it keeps the inverse's rule: this
+      // paragraph, not the document. Undoing a lock must not rebuild the deck
+      // any more than making one does.
+      setSd((prev) => (prev ? { ...prev, parts: unlockedParts } : prev));
       return "ok";
     },
     [arcId, displayText],

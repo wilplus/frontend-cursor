@@ -74,3 +74,69 @@ describe("the loop never waits for a coach", () => {
     expect(screen).toMatch(/\}: \{\s*onReadAloud\?: \(version: number \| null\) => void;\s*\}/);
   });
 });
+
+describe("a chunk decision changes its own paragraph, never the document", () => {
+  /* FOUNDER 2026-09-17, locked: "you open the feedback clicking on the
+     bookmark, then you edit that chunk of the text the bookmark was referring
+     to, and then you simply close the overlay and come back to the SAME ideal
+     text, with the slide — the only change being that this bookmarked chunk is
+     updated as per what was agreed. That's it!"
+
+     Re-reading the whole document is what breaks that: the server recomposes
+     on the read, and when it cannot re-prove the paragraphs' slides the deck
+     comes back as the unlinked "YOUR TALK" view with no slides at all.
+
+     THIS TEST EXISTS BECAUSE THE RULE WAS LANDED ONCE AND MISSED TWO OF ITS
+     FOUR PATHS. `deckLockPart`'s edited branch and `deckSetRootPhrase` were
+     fixed; `lockParagraph` (a lock with NO edit — the ordinary case) and
+     `unlockParagraph` were not, so the very next lock replaced the page again.
+     A per-handler assertion is the only shape that catches the one that was
+     forgotten. */
+  const handlers = [
+    // name of the handler, and the success projection that replaces its refetch
+    ["lockParagraph", "lockedParts"],
+    ["unlockParagraph", "unlockedParts"],
+    ["deckLockPart", "lockedParts"],
+    ["deckKeepEvolving", "evolvingParts"],
+    ["deckSetRootPhrase", "nextParts"],
+  ] as const;
+
+  const code = source("IdealTextOverlay.tsx");
+  /** The body of one handler, up to the start of the next `const x = useCallback`. */
+  function body(name: string): string {
+    const head = `const ${name} = useCallback`;
+    const at = code.indexOf(head);
+    expect(at, `${name} not found`).toBeGreaterThan(-1);
+    // Search for the NEXT handler strictly after this one's own declaration —
+    // `at + 20` lands inside it for a short name and returned an empty body,
+    // which passed nothing and proved nothing.
+    const next = code.indexOf("= useCallback", at + head.length);
+    return code.slice(at, next < 0 ? code.length : next);
+  }
+
+  for (const [name, projection] of handlers) {
+    it(`${name} projects the confirmed change instead of re-reading`, () => {
+      const src = body(name);
+      // It projects into the rendered document...
+      expect(src).toMatch(new RegExp(`setSd\\([\\s\\S]*${projection}`));
+      // ...and every refetch left in it is guarded on a genuine desync.
+      for (const line of src.split("\n")) {
+        if (!line.includes("setRefetchNonce")) continue;
+        expect(
+          line.includes('"stale"') || src.includes('kind === "stale"'),
+          `${name}: an unguarded refetch on success — ${line.trim()}`,
+        ).toBe(true);
+      }
+    });
+  }
+
+  it("the success path of a lock carries NO refetch at all", () => {
+    // The precise regression: `setRefetchNonce` sitting after the parts
+    // projection, on the ok path, with nothing stale about it.
+    for (const name of ["lockParagraph", "unlockParagraph"]) {
+      const src = body(name);
+      const afterProjection = src.slice(src.indexOf("setSd("));
+      expect(afterProjection, name).not.toContain("setRefetchNonce");
+    }
+  });
+});
