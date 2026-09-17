@@ -28,12 +28,15 @@ import {
 } from "@/lib/willab/deckChunks";
 import {
   buildScreens,
+  SCREEN_MAX_CHUNKS,
+  type ScreenFit,
   canBubble,
   chunkCounts,
   clampPosition,
   firstUnreadScreenIndex,
   IDLE_WHEEL_GESTURE,
   nearestChunkIndex,
+  screenPositionOfPart,
   scrollEdge,
   stepPosition,
   wheelGestureStep,
@@ -41,6 +44,10 @@ import {
   type DeckScreenModel,
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
+import {
+  fitChangedMeaningfully,
+  measureScreenFit,
+} from "@/lib/willab/measureScreenFit";
 import { partRootTint, type Part } from "@/lib/willab/documentParts";
 import { bundleRootTint } from "@/lib/willab/rootPhraseLayer";
 import type {
@@ -282,7 +289,39 @@ export default function TranscriptReviewDeck({
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
    * next screen. The nested scroll steps between screens; the rail shows
    * slide → screen (the chunk grain was cut 2026-08-15 — see the rail). */
-  const screens = useMemo(() => buildScreens(groups), [groups]);
+  /* THE SPLIT FOLLOWS WHAT FITS (founder 2026-09-17): "if it exceeds then
+     you make more screens with the text below, so it all fits". `fit` is
+     null until the deck has rendered once and measured itself, and on that
+     first pass the old fixed count of three is used — so the deck is never
+     blank waiting for a measurement. */
+  const [fit, setFit] = useState<ScreenFit | null>(null);
+  const screens = useMemo(
+    () =>
+      buildScreens(
+        groups,
+        SCREEN_MAX_CHUNKS,
+        fit
+          ? {
+              fit,
+              textOf: (c: DeckChunk) => c.part.text,
+              /* A paragraph too tall for one screen is SHOWN across several
+                 (founder 2026-09-17, overruling the never-split rule shipped
+                 the same day): scrolling inside a screen is the thing that
+                 read as being stuck. Only the DISPLAY text differs per piece
+                 — identity, full text and therefore every control stay whole,
+                 so the bookmark and Lock repeat on each screen and each still
+                 acts on the entire paragraph. */
+              sliceOf: (c, text, index, count) => ({
+                ...c,
+                displayText: text,
+                sliceIndex: index,
+                sliceCount: count,
+              }),
+            }
+          : null,
+      ),
+    [groups, fit],
+  );
   const railSlides = useMemo(() => {
     const out: { slideIndex: number | null; first: number; count: number }[] =
       [];
@@ -560,6 +599,66 @@ export default function TranscriptReviewDeck({
     if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
   }, [firstUnreadScreen, counts]);
 
+  /* RETURN TO THE SLIDE AFTER A DECISION (founder 2026-09-17, locked).
+   *
+   * "After you lock: return to the slide, scrolled to that paragraph." The
+   * sheet used to close onto wherever the deck happened to be standing,
+   * which after a reassembly could be a different paragraph entirely — the
+   * speaker settled one thing and was put down somewhere else.
+   *
+   * Held as a PART ID and resolved against the CURRENT screens, not as a
+   * position captured at lock time. A lock recomposes the served text and
+   * rebuilds the screens, so the paragraph can move; an index captured
+   * beforehand would point at whatever slid into that slot.
+   *
+   * It waits, rather than firing once: the landing runs on every screens
+   * change until the paragraph is actually found, then clears itself. That
+   * is what makes it survive the refetch the lock triggers — the id is
+   * simply not in the deck for the frames in between. If it never appears
+   * (deleted, merged away) the request is dropped at unmount and the reader
+   * is left where they are, which is the honest answer to "that paragraph
+   * is gone" and better than a jump to the top. */
+  const [landOnPart, setLandOnPart] = useState<string | null>(null);
+  useEffect(() => {
+    if (!landOnPart) return;
+    const at = screenPositionOfPart(screens, landOnPart);
+    if (!at) return;      // not rebuilt yet — try again when screens change
+    setLandOnPart(null);
+    goTo(at);
+  }, [landOnPart, screens, goTo]);
+
+  /* MEASURE THE SCREEN, THEN REPACK (founder 2026-09-17).
+   *
+   * The packing rule is pure and lives in deckScroll; this is the only part
+   * that has to touch the DOM, because every number it needs is variable: the
+   * chunk type is clamp()d to the viewport, the line height is a ratio of it,
+   * the column width moves with the breakpoint, and the height left for words
+   * depends on whether the slide above them rendered at all.
+   *
+   * It runs after layout (useEffect, on the ACTIVE screen's own scroller) and
+   * only adopts a fit that `fitChangedMeaningfully` accepts. That guard is
+   * load-bearing rather than tidy: repacking changes the screens, which
+   * re-renders, which measures again — so a fit jittering by a fraction of a
+   * pixel (a scrollbar appearing, sub-pixel line height, iOS rounding the
+   * viewport as the URL bar slides) would repack forever. A change too small
+   * to move a paragraph onto a different screen is not a change.
+   *
+   * A failed measurement leaves `fit` null and the deck keeps the fixed count
+   * of three it always had — never a blank screen waiting on a number. */
+  useEffect(() => {
+    if (!deckReady) return;
+    const remeasure = () => {
+      const scroller = innerRefs.current[posRef.current.slide];
+      const sample = scroller?.querySelector<HTMLElement>("[data-chunk]");
+      const next = measureScreenFit(scroller ?? null, sample ?? null);
+      if (!next) return;
+      setFit((prev) => (fitChangedMeaningfully(prev, next) ? next : prev));
+    };
+    remeasure();
+    window.addEventListener("resize", remeasure);
+    return () => window.removeEventListener("resize", remeasure);
+  }, [deckReady, screens]);
+
   const seatWidthRef = useRef(-1);
   useEffect(() => {
     const seat = () => {
@@ -766,12 +865,17 @@ export default function TranscriptReviewDeck({
                     const st = stateOf(c);
                     return (
                     <p
-                      key={c.part.id}
+                      key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
                       className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                     >
+                      {/* DISPLAY TEXT, which is the whole paragraph unless it
+                          was too tall for one screen and got split across
+                          several. Only the words on THIS screen are drawn;
+                          `c.part.text` — what every control acts on — is
+                          untouched. */}
                       <RichText
-                        text={c.part.text}
+                        text={c.displayText ?? c.part.text}
                         tint={
                           partRootTint(c.part) ?? (() => {
                             const marker = summaryByParagraph.get(c.part.id)?.[0];
@@ -952,6 +1056,11 @@ export default function TranscriptReviewDeck({
           onLockIn={async (text: string): Promise<LockResult> => {
             const result = await onLockPart(openChunk, text);
             if (result.outcome === "ok") {
+              // Founder 2026-09-17: after a lock, return to the slide,
+              // scrolled to that paragraph. Requested by id — the lock
+              // reassembles the document, so where it lands is only known
+              // once the screens have been rebuilt.
+              setLandOnPart(openChunk.part.id);
               // §11.7.1: the page shows the lock the instant the server
               // confirms it — the modal closes itself on "ok".
               setOptimisticLocked((prev) =>

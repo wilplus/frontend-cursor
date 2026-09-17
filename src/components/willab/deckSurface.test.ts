@@ -47,7 +47,11 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
 
   it("the chunk renders its words directly, with the mark beside them", () => {
     // Not merely "no classes today" — no wrapper to hang classes ON.
-    expect(DECK).toMatch(/<RichText\s+text=\{c\.part\.text\}/);
+    // `displayText ?? part.text` since 2026-09-17: a paragraph too tall for
+    // one screen is shown across several, and only the words on THIS screen
+    // are drawn. Still no wrapper — the text goes straight into RichText, and
+    // `part.text` remains what every control acts on.
+    expect(DECK).toMatch(/<RichText\s+text=\{c\.displayText \?\? c\.part\.text\}/);
     expect(DECK).toMatch(/partRootTint\(c\.part\) \?\?/);
     expect(DECK).toMatch(/bundleRootTint\(/);
     // The mark still sits BESIDE the words, inside the same <p> — but behind

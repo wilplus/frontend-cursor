@@ -81,6 +81,7 @@ export type LockResult = {
 // about which item they are looking at.
 import {
   buildChunkSteps,
+  confidentFragmentOf,
   isConfidentVoiceFeedback,
   stepProgress,
   stepTitle,
@@ -89,6 +90,7 @@ import {
 import {
   nextSelection,
   phraseTokens,
+  tokensWithinFragment,
   quoteSpan,
   selectionText,
   type PhraseSelection,
@@ -834,7 +836,22 @@ export default function DeckChunkModal({
 
   /* ---- what each screen shows and what its one pill does ----------------- */
   const progress = stepProgress(steps, step?.id ?? null);
-  const tokens = step?.kind === "emphasis" ? phraseTokens(draft) : [];
+  /* THE TAPPABLE WORDS ARE THE CONFIDENT FRAGMENT (founder 2026-09-17,
+     locked): "confident words only — but not only those the user judged as
+     confident: the whole fragment suggested for the confidence judgement."
+     So the surface is the Confident Voice candidate's own quote, not the
+     paragraph around it. Orange means "I confirmed I deliver these words
+     well", and it should not be settable on a sentence nobody asked about.
+     `tokensWithinFragment` falls back to the whole paragraph when the
+     fragment cannot be located, so the step never dead-ends. */
+  const tokens =
+    step?.kind === "emphasis"
+      ? tokensWithinFragment(
+          phraseTokens(draft),
+          draft,
+          confidentFragmentOf(feedbackInventory),
+        )
+      : [];
   const emphasisPreview =
     step?.kind === "emphasis" && styleSuggestion
       ? emphasizeQuote(draft, styleSuggestion.quote)

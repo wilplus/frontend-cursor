@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import {
   nextSelection,
   phraseTokens,
+  tokensWithinFragment,
   quoteSpan,
   selectionSpan,
 } from "./phraseTokens";
@@ -151,5 +152,58 @@ describe("quoteSpan — the emphasis → lock promotion", () => {
     expect(quoteSpan(PLAIN, "never said this")).toBeNull();
     expect(quoteSpan(PLAIN, "")).toBeNull();
     expect(quoteSpan("", "anything")).toBeNull();
+  });
+});
+
+
+describe("tokensWithinFragment — orange lands inside what was asked about", () => {
+  /* Founder 2026-09-17, locked: the rooting phrase is chosen inside "the
+     whole fragment suggested for confidence judgement" — not the whole
+     paragraph, and not only the words the speaker marked. */
+  const DRAFT =
+    "We started in a garage. Nobody believed the numbers. Then it changed.";
+  const all = () => phraseTokens(DRAFT);
+
+  it("offers only the words of the confident fragment", () => {
+    const out = tokensWithinFragment(
+      all(), DRAFT, "Nobody believed the numbers.",
+    );
+    expect(out.map((t) => t.text)).toEqual([
+      "Nobody", "believed", "the", "numbers.",
+    ]);
+  });
+
+  it("keeps each word pointing at where it really lives in the draft", () => {
+    const out = tokensWithinFragment(all(), DRAFT, "believed the numbers");
+    // OVERLAP, not containment: "numbers." is one token and the quote stops
+    // before its full stop. Requiring the whole token to sit inside the
+    // fragment would drop the last word of every fragment ending on
+    // punctuation — which is most of them. The speaker taps WORDS.
+    expect(DRAFT.slice(out[0].start, out[out.length - 1].end)).toBe(
+      "believed the numbers.",
+    );
+  });
+
+  it("shows the WHOLE paragraph rather than nothing when it cannot locate it", () => {
+    // A fragment reworded since it was suggested must not dead-end the step:
+    // the speaker would lose the orange phrase entirely. Narrowing improves
+    // the choice; it is never a gate on it.
+    expect(tokensWithinFragment(all(), DRAFT, "words never said").length)
+      .toBe(all().length);
+    expect(tokensWithinFragment(all(), DRAFT, null).length).toBe(all().length);
+    expect(tokensWithinFragment(all(), DRAFT, "   ").length).toBe(all().length);
+  });
+
+  it("survives an applied emphasis having rewrapped the words", () => {
+    // `**` moves every raw index after it; the readable text does not. The
+    // fragment is located in the DISPLAYED text for exactly that reason.
+    const bolded =
+      "We started in a garage. Nobody **believed the numbers**. Then it changed.";
+    const out = tokensWithinFragment(
+      phraseTokens(bolded), bolded, "Nobody believed the numbers",
+    );
+    expect(out.map((t) => t.text)).toEqual([
+      "Nobody", "believed", "the", "numbers.",
+    ]);
   });
 });
