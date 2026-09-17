@@ -748,7 +748,20 @@ export default function TranscriptReviewDeck({
                 }}
                 className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
               >
-                <div className="my-auto flex min-h-full flex-col justify-center gap-4">
+                {/* THE WORDS START AT THE TOP (founder 2026-09-17: "this
+                    screen misalignment, it is impossible to work that way").
+                    They used to be vertically CENTRED in the scroller, which
+                    looked deliberate only when a slide happened to fill it.
+                    On a short screen — or any screen whose slide preview is
+                    missing — the header sat at the top, the paragraphs floated
+                    in the middle, and a band of empty page opened above and
+                    below them. Nothing was broken; it read as broken, and it
+                    moved every time the content changed height.
+
+                    Top alignment makes the position of the first line a
+                    constant: it is always directly under the header, on every
+                    screen, whatever is or is not above it. */}
+                <div className="flex flex-col gap-4">
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
                     return (
