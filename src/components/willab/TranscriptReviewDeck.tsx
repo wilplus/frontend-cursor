@@ -114,6 +114,7 @@ export default function TranscriptReviewDeck({
   confidentMomentSummary = null,
   confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
+  feedbackPending = false,
 }: {
   title?: string;
   /** Optional right-of-title chip (e.g. "Verified"). Qualitative only. */
@@ -179,6 +180,10 @@ export default function TranscriptReviewDeck({
   takeSessionId?: string | null;
   confidentMomentSummary?: ConfidentMomentSummary | null;
   confidentMomentOwnerEdit?: ConfidentMomentOwnerEdit | null;
+  /** The feedback request has not answered yet, so no paragraph can be said
+   *  to have nothing waiting. Reserves each mark's footprint rather than
+   *  letting the marks arrive late and move the words. */
+  feedbackPending?: boolean;
   onConfidentMomentChanged?: () => void;
 }) {
   const confidentMoments = useConfidentMomentBundle({
@@ -952,6 +957,33 @@ export default function TranscriptReviewDeck({
                         // run per chunk here, it costs one span comparison.
                         hasStyle={st.style !== null}
                       />
+                      ) : feedbackPending ? (
+                        /* THE SLOT IS RESERVED WHILE FEEDBACK IS STILL COMING
+                           (founder 2026-09-17: "when it comes to delayed
+                           appearance, please fix it too, it's very
+                           important").
+
+                           The page paints from the core read, then asks for
+                           feedback in a SECOND request — and a third while the
+                           server settles it. So a finished-looking talk stood
+                           with no marks on it, and the marks then appeared and
+                           shoved the words sideways. Two separate problems in
+                           one: the page looked complete when it was not, and
+                           the layout moved under the reader's eye.
+
+                           This fixes the second and is honest about the first:
+                           an empty box of exactly the mark's footprint holds
+                           the place, so the real mark fades into a space
+                           already made for it and no text moves. It is not a
+                           mark — it carries no state, no ring and no tap, and
+                           it cannot say whether this paragraph will get one,
+                           because at this moment nothing knows. It says only
+                           "not finished here yet", which is true. */
+                        <span
+                          aria-hidden
+                          data-feedback-slot
+                          className="ml-1.5 inline-block h-7 w-7 shrink-0 rounded-full bg-muted/40 align-middle motion-safe:animate-pulse"
+                        />
                       ) : null}
                     </p>
                     );

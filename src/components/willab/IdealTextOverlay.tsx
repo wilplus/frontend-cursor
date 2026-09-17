@@ -145,6 +145,13 @@ export default function IdealTextOverlay({
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   const [refetchNonce, setRefetchNonce] = useState(0);
+  /* FEEDBACK ARRIVES AFTER THE WORDS, and the deck must be told so (founder
+     2026-09-17). The core read paints the document; feedback comes in a
+     SECOND request, and a third while the server settles it. Until those
+     answer, "this paragraph has nothing waiting" is not a fact the page
+     knows — so the deck reserves each mark's place instead of drawing a
+     finished-looking talk and then shoving the words when the marks land. */
+  const [feedbackPending, setFeedbackPending] = useState(true);
   // Staleness fence for the GET (same rule as the readout, review R-db4).
   const fetchGenRef = useRef(0);
   /** The arc we are currently HOLDING a document for. Distinguishes a first
@@ -387,6 +394,7 @@ export default function IdealTextOverlay({
         // Paint the immutable core first. Optional feedback and controls are
         // attached only when they return for this exact snapshot.
         applySingle(r, true);
+        setFeedbackPending(Boolean(r.documentSnapshotId));
         if (r.documentSnapshotId) {
           const enrichment = await fetchIdealTextEnrichment(
             arcId,
@@ -405,14 +413,22 @@ export default function IdealTextOverlay({
             if (settled.kind === "ready") {
               merged = mergeIdealTextEnrichment(merged, settled);
               applySingle(merged, false);
+              setFeedbackPending(false);
             } else if (settled.kind === "stale") {
               setRefetchNonce((value) => value + 1);
             }
-          } else if (enrichment.kind === "stale") {
-            // Never mix revisions. Pull the new core while keeping the
-            // already-painted document visible until it arrives.
-            setRefetchNonce((value) => value + 1);
-            return;
+          } else {
+            // It answered without anything to add. The marks the page holds
+            // are all the marks there are, so stop reserving room for more:
+            // a slot kept open forever is the same lie as a late mark, told
+            // more slowly.
+            setFeedbackPending(false);
+            if (enrichment.kind === "stale") {
+              // Never mix revisions. Pull the new core while keeping the
+              // already-painted document visible until it arrives.
+              setRefetchNonce((value) => value + 1);
+              return;
+            }
           }
         }
       } else if (r.kind === "ready") {
@@ -1024,6 +1040,7 @@ export default function IdealTextOverlay({
             takeSessionId={sd.latestTakeSessionId}
             confidentMomentSummary={sd.confidentMomentSummary}
             confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
+            feedbackPending={feedbackPending}
             onConfidentMomentChanged={() => setRefetchNonce((value) => value + 1)}
             styleChanges={sd.styleChanges}
             decisionHistory={sd.decisionHistory}
