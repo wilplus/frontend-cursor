@@ -8,6 +8,9 @@ import {
   canBubble,
   firstUnreadScreenIndex,
   screenPositionOfPart,
+  packByFit,
+  estimatedChunkHeight,
+  type ScreenFit,
   chunkCounts,
   clampPosition,
   IDLE_WHEEL_GESTURE,
@@ -341,5 +344,91 @@ describe("screenPositionOfPart — coming back to the paragraph you settled", ()
     const after = [screen("a"), screen("b", "c", "d")];
     expect(screenPositionOfPart(before, "d")).toEqual({ slide: 1, chunk: 0 });
     expect(screenPositionOfPart(after, "d")).toEqual({ slide: 1, chunk: 3 - 1 });
+  });
+});
+
+
+describe("packByFit — a long slide continues onto as many screens as it needs", () => {
+  /* Founder 2026-09-17: "make it one screen view for the text, and if it
+     exceeds then you make more screens with the text below, so it all fits."
+     Reported as being stuck on the third slide — it was not stuck; the text
+     ran past the bottom and had to be scrolled inside, which reads the same. */
+  const FIT: ScreenFit = {
+    budgetPx: 300,
+    lineHeightPx: 30,      // 10 lines fit
+    charsPerLine: 40,
+    gapPx: 16,
+  };
+  const chunk = (id: string, chars: number) => ({ id, text: "x".repeat(chars) });
+  const textOf = (c: { text: string }) => c.text;
+
+  it("puts as many paragraphs on a screen as actually fit", () => {
+    // 80 chars = 2 lines = 60px each. 300px budget, 16px gaps:
+    // 60 + 76 + 76 + 76 = 288 fits; a fifth would be 364.
+    const chunks = Array.from({ length: 5 }, (_, i) => chunk(`c${i}`, 80));
+    const packs = packByFit(chunks, textOf, FIT);
+    expect(packs.map((p) => p.length)).toEqual([4, 1]);
+  });
+
+  it("is NOT a fixed count — short paragraphs get more per screen", () => {
+    // The old rule was always three. One line each (30px) + 16px gaps fits
+    // six, not three.
+    const chunks = Array.from({ length: 6 }, (_, i) => chunk(`c${i}`, 20));
+    expect(packByFit(chunks, textOf, FIT)[0].length).toBeGreaterThan(3);
+  });
+
+  it("gives a paragraph taller than the whole screen one of its own", () => {
+    // Never split a paragraph: it is the unit the speaker reads and decides
+    // on. This is the one place scrolling inside a screen remains.
+    const packs = packByFit(
+      [chunk("small", 20), chunk("huge", 4000), chunk("after", 20)],
+      textOf, FIT,
+    );
+    expect(packs.map((p) => p.map((c) => c.id))).toEqual([
+      ["small"], ["huge"], ["after"],
+    ]);
+  });
+
+  it("never loses or reorders a paragraph", () => {
+    const chunks = Array.from({ length: 11 }, (_, i) => chunk(`c${i}`, 50 * i + 10));
+    const flat = packByFit(chunks, textOf, FIT).flat();
+    expect(flat.map((c) => c.id)).toEqual(chunks.map((c) => c.id));
+  });
+
+  it("degrades to one screen rather than dividing by zero", () => {
+    const chunks = [chunk("a", 20), chunk("b", 20)];
+    const broken = { ...FIT, budgetPx: 0 };
+    expect(packByFit(chunks, textOf, broken)).toEqual([chunks]);
+    expect(packByFit(chunks, textOf, { ...FIT, lineHeightPx: 0 })).toEqual([chunks]);
+    expect(packByFit([], textOf, FIT)).toEqual([]);
+  });
+
+  it("estimates at least one line, even for an empty paragraph", () => {
+    expect(estimatedChunkHeight("", FIT)).toBe(30);
+    expect(estimatedChunkHeight("x".repeat(41), FIT)).toBe(60);
+  });
+});
+
+describe("buildScreens with a fit — the slide keeps its identity", () => {
+  const FIT: ScreenFit = {
+    budgetPx: 100, lineHeightPx: 30, charsPerLine: 40, gapPx: 16,
+  };
+  const textOf = (c: { text: string }) => c.text;
+
+  it("continues ONE slide across screens and says so", () => {
+    const groups = [{
+      slideIndex: 2,
+      chunks: Array.from({ length: 4 }, (_, i) => ({ text: "x".repeat(80) })),
+    }];
+    const screens = buildScreens(groups, 3, { fit: FIT, textOf });
+    expect(screens).toHaveLength(4);       // 60px each, only one fits in 100
+    expect(screens.every((s) => s.slideIndex === 2)).toBe(true);
+    expect(screens.map((s) => s.screenOfSlide)).toEqual([0, 1, 2, 3]);
+    expect(screens.every((s) => s.screensInSlide === 4)).toBe(true);
+  });
+
+  it("without a fit it is exactly what it always was", () => {
+    const groups = [{ slideIndex: 0, chunks: [1, 2, 3, 4, 5] }];
+    expect(buildScreens(groups, 3).map((s) => s.chunks.length)).toEqual([3, 2]);
   });
 });

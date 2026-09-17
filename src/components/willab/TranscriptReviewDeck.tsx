@@ -28,6 +28,8 @@ import {
 } from "@/lib/willab/deckChunks";
 import {
   buildScreens,
+  SCREEN_MAX_CHUNKS,
+  type ScreenFit,
   canBubble,
   chunkCounts,
   clampPosition,
@@ -42,6 +44,10 @@ import {
   type DeckScreenModel,
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
+import {
+  fitChangedMeaningfully,
+  measureScreenFit,
+} from "@/lib/willab/measureScreenFit";
 import { partRootTint, type Part } from "@/lib/willab/documentParts";
 import { bundleRootTint } from "@/lib/willab/rootPhraseLayer";
 import type {
@@ -283,7 +289,21 @@ export default function TranscriptReviewDeck({
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
    * next screen. The nested scroll steps between screens; the rail shows
    * slide → screen (the chunk grain was cut 2026-08-15 — see the rail). */
-  const screens = useMemo(() => buildScreens(groups), [groups]);
+  /* THE SPLIT FOLLOWS WHAT FITS (founder 2026-09-17): "if it exceeds then
+     you make more screens with the text below, so it all fits". `fit` is
+     null until the deck has rendered once and measured itself, and on that
+     first pass the old fixed count of three is used — so the deck is never
+     blank waiting for a measurement. */
+  const [fit, setFit] = useState<ScreenFit | null>(null);
+  const screens = useMemo(
+    () =>
+      buildScreens(
+        groups,
+        SCREEN_MAX_CHUNKS,
+        fit ? { fit, textOf: (c: DeckChunk) => c.part.text } : null,
+      ),
+    [groups, fit],
+  );
   const railSlides = useMemo(() => {
     const out: { slideIndex: number | null; first: number; count: number }[] =
       [];
@@ -588,6 +608,38 @@ export default function TranscriptReviewDeck({
     setLandOnPart(null);
     goTo(at);
   }, [landOnPart, screens, goTo]);
+
+  /* MEASURE THE SCREEN, THEN REPACK (founder 2026-09-17).
+   *
+   * The packing rule is pure and lives in deckScroll; this is the only part
+   * that has to touch the DOM, because every number it needs is variable: the
+   * chunk type is clamp()d to the viewport, the line height is a ratio of it,
+   * the column width moves with the breakpoint, and the height left for words
+   * depends on whether the slide above them rendered at all.
+   *
+   * It runs after layout (useEffect, on the ACTIVE screen's own scroller) and
+   * only adopts a fit that `fitChangedMeaningfully` accepts. That guard is
+   * load-bearing rather than tidy: repacking changes the screens, which
+   * re-renders, which measures again — so a fit jittering by a fraction of a
+   * pixel (a scrollbar appearing, sub-pixel line height, iOS rounding the
+   * viewport as the URL bar slides) would repack forever. A change too small
+   * to move a paragraph onto a different screen is not a change.
+   *
+   * A failed measurement leaves `fit` null and the deck keeps the fixed count
+   * of three it always had — never a blank screen waiting on a number. */
+  useEffect(() => {
+    if (!deckReady) return;
+    const remeasure = () => {
+      const scroller = innerRefs.current[posRef.current.slide];
+      const sample = scroller?.querySelector<HTMLElement>("[data-chunk]");
+      const next = measureScreenFit(scroller ?? null, sample ?? null);
+      if (!next) return;
+      setFit((prev) => (fitChangedMeaningfully(prev, next) ? next : prev));
+    };
+    remeasure();
+    window.addEventListener("resize", remeasure);
+    return () => window.removeEventListener("resize", remeasure);
+  }, [deckReady, screens]);
 
   const seatWidthRef = useRef(-1);
   useEffect(() => {

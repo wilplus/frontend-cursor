@@ -209,19 +209,103 @@ export interface DeckScreenModel<T> {
   chunks: T[];
 }
 
-/** Split slide groups into screens of at most `maxPerScreen` chunks, in
- *  order. Pure; a group with no chunks still yields one (empty) screen so
- *  every slide remains navigable. */
+/** What one screen can actually hold, measured from the rendered deck.
+ *
+ *  FOUNDER 2026-09-17: "divide the text into two or more screens when the
+ *  text for the slide is longer — make it one screen view for the text, and
+ *  if it exceeds then you make more screens with the text below, so it all
+ *  fits." Reported as being stuck on the third slide, which it was not: the
+ *  slide's text simply ran past the bottom of the screen and had to be
+ *  scrolled inside, which reads as the deck refusing to move.
+ *
+ *  All in CSS pixels, read from the live deck rather than assumed — the type
+ *  is `clamp()`d to the viewport and the frame around it changes with the
+ *  slide preview, so a constant here would be wrong on most screens.
+ */
+export interface ScreenFit {
+  /** Usable height of one screen's chunk area. */
+  budgetPx: number;
+  /** Rendered height of one line of chunk text. */
+  lineHeightPx: number;
+  /** Characters that fit on one line at this width and type. */
+  charsPerLine: number;
+  /** Vertical gap between two chunks on the same screen. */
+  gapPx: number;
+}
+
+/** How tall a chunk will render, near enough to pack by. Pure.
+ *
+ *  Character count over characters-per-line is a deliberate approximation:
+ *  it cannot know where the words break, so it is within a line either way.
+ *  Packing tolerates that — one line of slack costs a little white space,
+ *  never a lost paragraph — and the alternative is laying the text out twice
+ *  on every render.
+ */
+export function estimatedChunkHeight(text: string, fit: ScreenFit): number {
+  const perLine = Math.max(1, Math.floor(fit.charsPerLine));
+  const lines = Math.max(1, Math.ceil((text ?? "").trim().length / perLine));
+  return lines * fit.lineHeightPx;
+}
+
+/** Greedy pack: fill a screen, start another when the next chunk will not
+ *  fit. Pure.
+ *
+ *  A chunk taller than the whole budget takes a screen OF ITS OWN rather
+ *  than being split — a paragraph is the unit the speaker reads and decides
+ *  on, and half of one on each of two screens is worse than one that
+ *  scrolls. That is the single case where scrolling inside a screen remains,
+ *  and it is the honest floor.
+ */
+export function packByFit<T>(
+  chunks: readonly T[],
+  textOf: (chunk: T) => string,
+  fit: ScreenFit,
+): T[][] {
+  if (chunks.length === 0) return [];
+  if (!(fit.budgetPx > 0) || !(fit.lineHeightPx > 0)) return [[...chunks]];
+  const packs: T[][] = [];
+  let current: T[] = [];
+  let used = 0;
+  for (const chunk of chunks) {
+    const height = estimatedChunkHeight(textOf(chunk), fit);
+    const cost = current.length === 0 ? height : height + fit.gapPx;
+    if (current.length > 0 && used + cost > fit.budgetPx) {
+      packs.push(current);
+      current = [chunk];
+      used = height;
+      continue;
+    }
+    current.push(chunk);
+    used += cost;
+  }
+  if (current.length > 0) packs.push(current);
+  return packs;
+}
+
+/** Split slide groups into screens, in order. Pure; a group with no chunks
+ *  still yields one (empty) screen so every slide remains navigable.
+ *
+ *  With a `fit` the split follows what actually FITS (founder 2026-09-17), so
+ *  a long slide continues onto as many screens as its text needs and nothing
+ *  has to be scrolled inside one. Without it — before the deck has measured
+ *  itself, and in every pure test that does not care — it falls back to the
+ *  fixed `maxPerScreen` count this always used.
+ */
 export function buildScreens<T>(
   groups: readonly { slideIndex: number | null; chunks: readonly T[] }[],
-  maxPerScreen: number = SCREEN_MAX_CHUNKS
+  maxPerScreen: number = SCREEN_MAX_CHUNKS,
+  fit?: { fit: ScreenFit; textOf: (chunk: T) => string } | null,
 ): DeckScreenModel<T>[] {
   const per = Math.max(1, maxPerScreen);
   const out: DeckScreenModel<T>[] = [];
   for (const g of groups) {
-    const packs: T[][] = [];
-    for (let i = 0; i < g.chunks.length; i += per) {
-      packs.push(g.chunks.slice(i, i + per));
+    let packs: T[][] = [];
+    if (fit) {
+      packs = packByFit(g.chunks, fit.textOf, fit.fit);
+    } else {
+      for (let i = 0; i < g.chunks.length; i += per) {
+        packs.push(g.chunks.slice(i, i + per));
+      }
     }
     if (packs.length === 0) packs.push([]);
     packs.forEach((chunks, i) => {
