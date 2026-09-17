@@ -252,14 +252,37 @@ describe("the service worker caching policy", () => {
     expect(sw.networkCalls).toHaveLength(0);
   });
 
-  it("never serves the API from a cache", async () => {
-    await request(sw, "https://willpowerlab.com/api/v2/life/state");
-    await request(sw, "https://willpowerlab.com/api/v2/life/state");
-    // Twice asked, twice fetched, nothing stored. User state is never replayed.
-    expect(sw.networkCalls).toHaveLength(2);
+  it("never intercepts the API AT ALL — it stands aside, like /auth/*", async () => {
+    // STRONGER THAN "never cached" (2026-09-17). The worker used to answer an
+    // API GET with `respondWith(fetch(request))`. Nothing was cached, so the
+    // old name was true — but calling respondWith means the worker OWNS the
+    // response, and a network failure then reaches the page as an SW error
+    // ("Response served by service worker is an error") instead of an
+    // ordinary failed request: no status code to read, and callers that
+    // discriminate on status — the part-lock route returns two different 409s
+    // that mean opposite things — cannot tell them apart. Seen on a phone,
+    // on two GETs the server never refused.
+    //
+    // So the rule is now the same one /auth/* gets: do not touch it. The
+    // browser performs the request itself and its failures stay legible.
+    expect(
+      await request(sw, "https://willpowerlab.com/api/v2/life/state")
+    ).toBeNull();
+    expect(sw.networkCalls).toHaveLength(0);
     expect([...sw.store.keys()]).not.toContain(
       "https://willpowerlab.com/api/v2/life/state"
     );
+  });
+
+  it("stands aside for a WRITE to the API too", async () => {
+    // Non-GET already fell through the method guard above; pinned here so the
+    // two halves of "the worker is not in the API path" cannot drift apart.
+    expect(
+      await request(sw, "https://willpowerlab.com/api/v2/explore/arc/a/parts/p/lock", {
+        method: "PUT",
+      })
+    ).toBeNull();
+    expect(sw.networkCalls).toHaveLength(0);
   });
 
   /* ---------------------------------------------------------------------- */
