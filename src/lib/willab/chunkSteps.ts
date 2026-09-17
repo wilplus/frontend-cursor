@@ -54,6 +54,32 @@ export function confidentFragmentOf(
   return items.find(isConfidentVoiceFeedback)?.quote ?? null;
 }
 
+/** Does the lock step SHOW the paragraph rather than offer it for editing?
+ *
+ *  FOUNDER 2026-09-17: "on the lock-in screen show the whole text that is
+ *  being locked in WITH the boldening and orange that was tapped in the step
+ *  earlier." Confirming a decision means seeing what you are confirming — the
+ *  step drew a plain editor, so the phrase just chosen was invisible at the
+ *  exact moment it was being committed.
+ *
+ *  So: a paragraph already settled shows (it always did), and one carrying a
+ *  chosen phrase now shows too, with that phrase in the accent. Everything
+ *  else still opens the editor, because editing has to stay reachable and a
+ *  separate screen for it would put two decisions on one path.
+ *
+ *  Here rather than inline because DeckChunkModal is grandfathered at the
+ *  complexity ratchet and may only come down — and because a rule in a .tsx
+ *  is a rule vitest cannot reach.
+ */
+export function locksAsPreview(state: {
+  locked: boolean;
+  hadFeedback: boolean;
+  chosenPhrase: string | null;
+}): boolean {
+  if (state.chosenPhrase) return true;
+  return state.locked && !state.hadFeedback;
+}
+
 export type StepKind =
   | "feedback"
   | "suggestion"
