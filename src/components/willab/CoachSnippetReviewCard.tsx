@@ -66,6 +66,7 @@ export default function CoachSnippetReviewCard({
   initialState = null,
   onStateChange,
   onBlindRatingCommitted,
+  onBuildExercise,
   contextUnlocked,
   presentationRef,
   slides = [],
@@ -90,7 +91,13 @@ export default function CoachSnippetReviewCard({
   contextUnlocked: boolean;
   /** Refetches the session after an immutable blind answer so the server can
    *  unlock the contextual pass as soon as the final piece is labelled. */
-  onBlindRatingCommitted?: () => void;
+  /** Fires once the server has the answer, carrying it so a paged queue can
+   *  decide whether to advance: In-between and the abstentions have nothing
+   *  more to show, but a Yes or a No reveals the words and the exercise link,
+   *  and jumping on would hide both. */
+  onBlindRatingCommitted?: (value: ConfidenceRatingValue | null) => void;
+  /** Blind pass only: hand off to the exercise CMS for this snippet. */
+  onBuildExercise?: (snippetId: string) => void;
 }) {
   // R4-8 — save-on-publish: note/direction/tag/surfaced edits live in LOCAL
   // state only (mirrored to the overlay via onStateChange, which also feeds a
@@ -184,7 +191,7 @@ export default function CoachSnippetReviewCard({
         setRatingError(result.error ?? "Couldn't save that. Try again.");
       } else {
         setRevealedTranscript(result.transcript ?? "");
-        onBlindRatingCommitted?.();
+        onBlindRatingCommitted?.(nextValue);
       }
     },
     [snippet.id, onBlindRatingCommitted],
@@ -221,11 +228,11 @@ export default function CoachSnippetReviewCard({
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
   if (!contextUnlocked) {
+    // Progress lives in CoachJudgementQueue's strip now, so the card carries
+    // none of its own: the piece, the question, and — on a Yes or a No — the
+    // one thing that answer unlocks.
     return (
       <CoachCard gap="lg">
-        <span className="text-[12px] text-muted-foreground">
-          Piece {index + 1} of {total}
-        </span>
         <ConfidenceEvidenceReadout
           audioRef={snippet.audioRef}
           startOffsetMs={snippet.startOffsetMs}
@@ -234,6 +241,20 @@ export default function CoachSnippetReviewCard({
           transcriptRevealed={revealedTranscript.length > 0}
         />
         <div className="border-t border-border pt-4">{blindInstrument}</div>
+        {onBuildExercise && (rating === "yes" || rating === "no") ? (
+          <button
+            type="button"
+            onClick={() => onBuildExercise(snippet.id)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:border-primary/50"
+          >
+            <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">
+              Build an exercise for this moment
+            </span>
+            <span className="shrink-0 text-[12px] text-primary" aria-hidden>
+              →
+            </span>
+          </button>
+        ) : null}
       </CoachCard>
     );
   }

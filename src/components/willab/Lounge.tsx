@@ -139,6 +139,7 @@ export default function Lounge({
   onStartInProject,
   dispatch,
   initialReviewSessionId = null,
+  initialReviewPiece = null,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
   recordingProgress = null,
@@ -156,6 +157,9 @@ export default function Lounge({
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
   initialReviewSessionId?: string | null;
+  /** U12b — 1-based piece to resume the judgement queue on, from
+   *  /chat?review=<id>&piece=<n>. The exercise CMS returns the coach this way. */
+  initialReviewPiece?: string | null;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
    *  for that arc once on mount. */
   initialBestPresentationArcId?: string | null;
@@ -243,6 +247,16 @@ export default function Lounge({
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   // FP-9 — the arc-level delivery flow (wrap up → ideal text → message → send).
   const [deliveryArcId, setDeliveryArcId] = useState<string | null>(null);
+  // FP-9 — the judgement walk. Opening a student's review now leads with the
+  // blind pass, take by take, and only then with the machine's guesses. The
+  // hub holds the walk because it is the one place allowed to know both lanes
+  // (N1): the review overlay imports nothing from the star lane, and vice
+  // versa.
+  const [judgeWalk, setJudgeWalk] = useState<{
+    arcId: string;
+    sessionIds: string[];
+    at: number;
+  } | null>(null);
   // Bumped after a delivery so StudentDetailOverlay refetches: the coach lands
   // back on the student expecting the take to read Done, and the detail is a
   // separate read from the queue.
@@ -323,7 +337,37 @@ export default function Lounge({
     setReviewSessionId(sessionId);
   }
 
+  /** The student's one door. Judgement first: open the first take's blind
+   *  pass, and remember the rest so finishing one carries on to the next. */
+  function startJudgeWalk(arcId: string, sessionIds: string[]): void {
+    if (sessionIds.length === 0) return;
+    setJudgeWalk({ arcId, sessionIds, at: 0 });
+    openReview(sessionIds[0]);
+  }
+
+  /** A take's queue is fully answered: on to the next take, or — once every
+   *  take is judged — to the Feedbacks review, which is where the machine's
+   *  guesses are finally allowed on screen. */
+  function advanceJudgeWalk(): void {
+    if (!judgeWalk) {
+      setReviewSessionId(null);
+      return;
+    }
+    const next = judgeWalk.at + 1;
+    if (next < judgeWalk.sessionIds.length) {
+      setJudgeWalk({ ...judgeWalk, at: next });
+      setReviewSessionId(judgeWalk.sessionIds[next]);
+      return;
+    }
+    const { arcId, sessionIds } = judgeWalk;
+    setJudgeWalk(null);
+    setReviewSessionId(null);
+    void reviewQueue.refresh();
+    setStarVerdictArcId({ arcId, sessionIds });
+  }
+
   function closeReview(): void {
+    setJudgeWalk(null);
     setReviewSessionId(null);
     // Refresh the queue so the bubble's state badge (pending → in_progress)
     // reflects any per-snippet saves the coach made inside the overlay.
@@ -1575,9 +1619,8 @@ export default function Lounge({
           }}
           onOpenReview={openReview}
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          onOpenStarVerdicts={(arcId, sessionIds) =>
-            setStarVerdictArcId({ arcId, sessionIds })
-          }
+          // The one door leads with judgement; the star lane comes after it.
+          onOpenStarVerdicts={startJudgeWalk}
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1651,6 +1694,17 @@ export default function Lounge({
           <CoachReviewOverlay
             sessionId={reviewSessionId}
             onClose={closeReview}
+            initialPiece={
+              initialReviewPiece ? Number(initialReviewPiece) || null : null
+            }
+            completeLabel={
+              judgeWalk && judgeWalk.at + 1 < judgeWalk.sessionIds.length
+                ? `Judge take ${judgeWalk.at + 2}`
+                : judgeWalk
+                  ? "On to the feedback"
+                  : undefined
+            }
+            onQueueComplete={judgeWalk ? advanceJudgeWalk : undefined}
           />
         </RaterLanguageGate>
       )}

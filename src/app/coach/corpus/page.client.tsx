@@ -27,6 +27,7 @@ import {
   buildRatingBody,
   saveStateRating,
   type ConfidenceRatingValue,
+  CONFIDENCE_QUESTION,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import CoachInlineBlindExposureBoundary from "@/components/willab/CoachInlineBlindExposureBoundary";
@@ -1128,7 +1129,7 @@ function LabelScreen({
                 component the snippet card, the Feedbacks review and the
                 game render — three answers + the abstention. */}
             <ConfidenceLabelChips
-              question="Was this voice confident?"
+              question={CONFIDENCE_QUESTION}
               value={abstained ? null : answered}
               unrateable={abstained}
               disabled={

@@ -53,6 +53,7 @@ import {
   buildRatingBody,
   saveStateRating,
   type ConfidenceRatingValue,
+  CONFIDENCE_QUESTION,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import ConfidenceEvidenceReadout from "./ConfidenceEvidenceReadout";
@@ -499,6 +500,8 @@ function renderBlindConfidencePass(options: {
   ) => void;
   serviceReviewSets: FirstClientCoachReviewSet[];
   onServiceReviewComplete: (reviewSetId: string) => void;
+  cvAt: number;
+  onCvAt: (index: number) => void;
 }): React.ReactNode {
   const {
     onClose,
@@ -516,7 +519,16 @@ function renderBlindConfidencePass(options: {
     onLabelVoice,
     serviceReviewSets,
     onServiceReviewComplete,
+    cvAt,
+    onCvAt,
   } = options;
+  const cvAnswered = cvRows.filter(
+    (r) => r.label?.value != null || r.label?.unrateable === true,
+  ).length;
+  const cvCurrent = cvRows[cvAt];
+  const cvCurrentAnswered =
+    cvCurrent?.label?.value != null || cvCurrent?.label?.unrateable === true;
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -531,6 +543,43 @@ function renderBlindConfidencePass(options: {
           ariaLabel="Close blind confidence pass"
         />
       </div>
+      {cvStatus === "ready" && cvRows.length > 0 ? (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
+          <div className="flex flex-1 flex-wrap gap-1.5">
+            {cvRows.map((row, i) => {
+              const answered =
+                row.label?.value != null || row.label?.unrateable === true;
+              return (
+                <button
+                  key={row.reviewActId}
+                  type="button"
+                  aria-label={`Piece ${i + 1}${answered ? ", answered" : ""}`}
+                  aria-current={i === cvAt ? "true" : undefined}
+                  onClick={() => onCvAt(i)}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                    i === cvAt
+                      ? "ring-2 ring-foreground ring-offset-1 ring-offset-background"
+                      : ""
+                  }`}
+                >
+                  <span
+                    className={`block h-2.5 w-2.5 rounded-full border transition-colors ${
+                      cvSaving === row.reviewActId
+                        ? "animate-pulse border-amber-500 bg-amber-400"
+                        : answered
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground/50 bg-transparent"
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            {cvAnswered} / {cvRows.length} labelled
+          </span>
+        </div>
+      ) : null}
       <div className="scrollbar-none flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-3 px-4 py-6">
           {cvStatus === "loading" ? (
@@ -586,15 +635,21 @@ function renderBlindConfidencePass(options: {
             </p>
           ) : (
             <>
+            {/* ONE PIECE PER SCREEN (founder 2026-09-18). This pass used to
+                stack every row on a single scroll with no progress and no
+                paging, while the corpus queue asking the identical question
+                was paged with dots. Same instrument, same question, so: same
+                screen. The unanswered rows stay MOUNTED and hidden rather than
+                unmounted, so a half-finished exposure boundary is not torn
+                down and rebuilt as the coach moves. */}
             {cvRows.map((row, index) => (
               <CoachInlineBlindExposureBoundary
                 key={row.reviewActId}
                 blindReview={row.blindReview}
               >
-                {({ exposureId, error: renderError }) => <CoachCard>
-                <CoachMetaPill tone="muted">
-                  Piece {index + 1} of {cvRows.length}
-                </CoachMetaPill>
+                {({ exposureId, error: renderError }) => <CoachCard
+                  className={index === cvAt ? "" : "hidden"}
+                >
                 <ConfidenceEvidenceReadout
                   audioRef={row.audioRef}
                   startOffsetMs={row.startOffsetMs}
@@ -603,7 +658,7 @@ function renderBlindConfidencePass(options: {
                   transcriptRevealed={false}
                 />
                 <ConfidenceLabelChips
-                  question="Was this voice confident?"
+                  question={CONFIDENCE_QUESTION}
                   value={row.label?.value ?? null}
                   unrateable={row.label?.unrateable === true}
                   disabled={
@@ -632,6 +687,32 @@ function renderBlindConfidencePass(options: {
           )}
         </div>
       </div>
+      {cvStatus === "ready" && cvRows.length > 0 ? (
+        <div className="shrink-0 border-t border-border px-4 py-3">
+          <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onCvAt(Math.max(0, cvAt - 1))}
+              disabled={cvAt === 0}
+              className="h-11 flex-1 rounded-full border border-border text-[15px] text-foreground disabled:opacity-40"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => onCvAt(Math.min(cvRows.length - 1, cvAt + 1))}
+              disabled={cvAt >= cvRows.length - 1}
+              className={`h-11 flex-1 rounded-full text-[15px] disabled:opacity-40 ${
+                cvCurrentAnswered
+                  ? "bg-foreground font-semibold text-background"
+                  : "border border-border text-foreground"
+              }`}
+            >
+              {cvCurrentAnswered ? "Next" : "Skip"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -669,7 +750,7 @@ function renderConfidentVoiceCarryoverSection(options: {
               abstention, no per-surface drift. The question keeps this
               row's shipped copy. */}
           <ConfidenceLabelChips
-            question="Was this voice confident?"
+            question={CONFIDENCE_QUESTION}
             value={row.label?.value ?? null}
             unrateable={row.label?.unrateable === true}
             disabled={cvSaving === row.reviewActId || row.blindReview !== null}
@@ -851,6 +932,9 @@ export default function CoachStarVerdictOverlay({
   const [cvLanguageSaving, setCvLanguageSaving] = useState(false);
   const [cvLanguageError, setCvLanguageError] = useState("");
   const [cvReload, setCvReload] = useState(0);
+  // Where the coach is in the blind queue. One piece per screen since
+  // 2026-09-18; the rows themselves stay in payload order (N2).
+  const [cvAt, setCvAt] = useState(0);
   const { profile } = useUserProfile();
   const sessionsKey = (sessionIds ?? []).join(",");
   useEffect(() => {
@@ -1271,6 +1355,8 @@ export default function CoachStarVerdictOverlay({
         labelVoice(row, value, unrateable, blindExposureId),
       serviceReviewSets,
       onServiceReviewComplete: markServiceReviewComplete,
+      cvAt,
+      onCvAt: setCvAt,
     });
   }
 
