@@ -14,6 +14,7 @@ import { useStatusHydration, reconcileWillabStatus } from "./useStatusHydration"
 import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
 import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
+import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
 import ProjectPicker from "./ProjectPicker";
@@ -40,6 +41,7 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 export default function WillabSurface({
   sessionId,
   reviewSessionId,
+  reviewPiece,
   insightSessionId,
   bestPresentationArcId,
   idealTextArcId = null,
@@ -48,6 +50,7 @@ export default function WillabSurface({
   /** U12 — coach deep-link target from `/chat?review=<id>`; opens the in-Lounge
    *  CoachReviewOverlay on mount (coach-gated inside the Lounge). */
   reviewSessionId: string | null;
+  reviewPiece?: string | null;
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
    *  InsightsOverlay on mount. */
   insightSessionId: string | null;
@@ -126,6 +129,17 @@ export default function WillabSurface({
       flush,
     );
 
+  // Phase-1 processing authorization sits BETWEEN Welcome and the Lounge, not
+  // in front of everything: the landing hero is marketing, the acceptance is
+  // the processing boundary, and the Lounge is what a receipt unlocks. Wrapping
+  // `welcome_consent` too would mean the first thing a visitor ever saw was a
+  // legal screen for a product they had not been shown yet.
+  const authorizedShell = (children: React.ReactNode, flush = false) =>
+    consentedShell(
+      <Phase1AcceptanceGate>{children}</Phase1AcceptanceGate>,
+      flush,
+    );
+
   // Resolving the initial state post-mount (hydration-safe).
   if (flow.state === null) {
     return consentedShell(<LoadingState placement="surface" />);
@@ -139,7 +153,7 @@ export default function WillabSurface({
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
   // Both share one thread (LoungeThreadProvider) so the Lab can persist a
   // recording's Readout into the same scrollable history.
-  return consentedShell(
+  return authorizedShell(
     <LoungeThreadProvider>
       <Lounge
         state={flow.state}
@@ -151,6 +165,7 @@ export default function WillabSurface({
         onStartInProject={flow.startRecordingSetup}
         dispatch={flow.dispatch}
         initialReviewSessionId={reviewSessionId}
+        initialReviewPiece={reviewPiece ?? null}
         initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
         recordingProgress={recordingProgress}

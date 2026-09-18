@@ -55,6 +55,7 @@ import {
 import {
   lockTargetAt,
   withPartRootPhrase,
+  partsFromCorePieces,
   partsToText,
   reconcileParts,
   updatePart,
@@ -313,7 +314,21 @@ export default function IdealTextReadout({
       refreshDocumentVariants: boolean,
     ) => {
       versionRef.current = r.version;
-      partsRef.current = r.parts;
+      // A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18).
+      //
+      // With no stored parts, every `reconcileParts` below starts from an
+      // empty list and mints a fresh id per paragraph; seed-on-lock then makes
+      // the server adopt that list, and from the next read on not one id
+      // appears in `piecePartIds` — so every slide join fails at once and the
+      // document renders as one block. Starting from the core's own Paragraph
+      // identity keeps the ids the slide mapping is keyed on.
+      //
+      // Here rather than at the three call sites: this is the one place a
+      // server read lands, so a fourth caller cannot forget it.
+      partsRef.current =
+        r.parts && r.parts.length > 0
+          ? r.parts
+          : (partsFromCorePieces(r.pieces) ?? r.parts);
       persistArmedRef.current = true;
       setCanPersist(true);
       setSd({

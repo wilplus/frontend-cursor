@@ -73,15 +73,31 @@ describe("the blind labeling surface shows no machine read", () => {
     expect(code(CARD)).toContain("CONFIDENCE_QUESTION");
   });
 
+  /** The blind tree moved out of the card's own body into renderBlindPiece
+   *  (2026-09-18, to keep the card under the complexity ratchet). The fence is
+   *  unchanged, so it follows the markup rather than relaxing: the gate must
+   *  still RETURN before any contextual control is constructed, and the thing
+   *  it returns must still be blind. */
+  const blindPieceBody = () => {
+    const src = code(CARD);
+    const start = src.indexOf("function renderBlindPiece(");
+    expect(start).toBeGreaterThan(-1);
+    return src.slice(start, src.indexOf("\nexport default function", start));
+  };
+
   it("returns a blind-only tree before constructing contextual controls", () => {
     const src = code(CARD);
     const gateStart = src.indexOf("if (!contextUnlocked)");
     const fullPassStart = src.indexOf("const rated =", gateStart);
     expect(gateStart).toBeGreaterThan(-1);
     expect(fullPassStart).toBeGreaterThan(gateStart);
-    const blindPass = src.slice(gateStart, fullPassStart);
+    // Nothing contextual between the gate and the early return.
+    const gate = src.slice(gateStart, fullPassStart);
+    expect(gate).toContain("return renderBlindPiece(");
+
+    const blindPass = gate + blindPieceBody();
     expect(blindPass).toContain("ConfidenceEvidenceReadout");
-    expect(blindPass).toContain("blindInstrument");
+    expect(blindPass).toContain("instrument");
     for (const contextual of [
       "SlideRender",
       "SnippetSlideCorrection",
@@ -95,9 +111,7 @@ describe("the blind labeling surface shows no machine read", () => {
 
   it("withholds exact words until the server confirms the answer", () => {
     const card = code(CARD);
-    const blindStart = card.indexOf("if (!contextUnlocked)");
-    const blindEnd = card.indexOf("const rated =", blindStart);
-    const blindPass = card.slice(blindStart, blindEnd);
+    const blindPass = blindPieceBody();
     expect(blindPass).toContain("transcript={revealedTranscript}");
     expect(blindPass).not.toContain("transcript={snippet.transcript}");
     expect(card).toContain("setRevealedTranscript(result.transcript");

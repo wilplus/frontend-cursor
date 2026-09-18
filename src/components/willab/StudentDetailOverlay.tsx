@@ -215,14 +215,16 @@ export default function StudentDetailOverlay({
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground">
-                      {/* Founder 2026-08-10: "it should be called feedbacks
-                          review" — his word, verbatim-cased. */}
-                      Feedbacks review
-                      {starArcs.length > 1 ? (
-                        <span className="ml-2 font-normal text-muted-foreground">
-                          · {topic}
-                        </span>
-                      ) : null}
+                      {/* ONE door per student (2026-08-10: "we just need the
+                          feedbacks review list"), and since 2026-09-18 it leads
+                          with JUDGEMENT rather than with the machine's guesses:
+                          the blind pass is supposed to come first, and the only
+                          way in used to be through the star panel and a
+                          dismissed overlay. */}
+                      Review
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        · {topic}
+                      </span>
                     </span>
                     <span className="text-[12px] text-primary">Open</span>
                   </button>

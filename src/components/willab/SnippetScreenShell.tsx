@@ -21,10 +21,16 @@ export default function SnippetScreenShell({
   /** When false the parent overlay's useBackDismiss handles back — avoids
    *  double history-entry registration. Pass managed={false} when embedded. */
   managed = true,
-  /** C5 — this page is a coach text message, not a slide. Hide the slide-count
-   *  indicator + close X + the dark gradient (there's no slide to dim, and the
-   *  gradient overshadows the coach's text). Closing is via the bottom nav. */
-  isCoachMessage = false,
+  /** Is there a SLIDE behind the floating chrome? The indicator, the close X
+   *  and the dark gradient under them exist to stay legible over a slide
+   *  image. With no slide there is nothing to dim, and the gradient renders as
+   *  a grey smear across the top of a white card — so the whole block is
+   *  dropped and closing happens via the bottom nav.
+   *
+   *  Was `isCoachMessage` (C5, the coach wrap-up). Renamed 2026-09-18 when the
+   *  blind judgement pass hit the same problem for the same reason: the flag
+   *  was never about coach messages, it was about whether a slide is behind. */
+  hasSlideBehind = true,
   children,
 }: {
   onClose: () => void;
@@ -38,16 +44,17 @@ export default function SnippetScreenShell({
   nextDisabled?: boolean;
   hideNext?: boolean;
   managed?: boolean;
-  isCoachMessage?: boolean;
+  hasSlideBehind?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       {managed ? <BackDismissManager onClose={onClose} /> : null}
 
-      {/* ── slide overlay: X + indicator floated over the slide (hidden for a
-          coach message — no slide, and the gradient would overshadow the text) ── */}
-      {!isCoachMessage ? (
+      {/* ── slide overlay: X + indicator floated over the slide. Rendered only
+          when a slide is actually behind them — otherwise the gradient dims
+          nothing and smears the top of the page (see hasSlideBehind). ── */}
+      {hasSlideBehind ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
           <div className="mx-auto w-full max-w-2xl">
             <div className="pointer-events-auto flex items-start justify-between bg-gradient-to-b from-black/40 to-transparent px-3 pb-8 pt-2">

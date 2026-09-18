@@ -327,3 +327,48 @@ export function removePart(parts: Part[], at: number): Part[] {
   next.splice(at, 1);
   return next;
 }
+
+/** The core's own Paragraph identity, as parts, for a document that has
+ *  stored none yet.
+ *
+ *  A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18, reported
+ *  as "when I click lock the whole presentation drops the division into slides
+ *  and concatenates into one text"). The third path to miss this rule, after
+ *  #379 and #380, and the one where there was nothing to preserve FROM.
+ *
+ *  The deck groups paragraphs into slides by joining `pieces[].slideIndex` to
+ *  `pieces[].partId` — "Slide mapping is accepted only for this exact rendered
+ *  Paragraph". A never-edited document has stored no parts, so
+ *  `reconcileParts(text, [])` matches nothing and mints a fresh id for every
+ *  paragraph. Seed-on-lock then makes the server adopt that list wholesale, and
+ *  from the next read on, not one part id appears in `piecePartIds`. Every
+ *  slide join fails at once and the document renders as one block.
+ *
+ *  The core already knows the answer: `partId` IS the immutable Paragraph
+ *  identity the slide mapping is keyed on. Starting reconciliation from it
+ *  keeps the ids the mapping needs, so the lock changes a lock and nothing
+ *  else.
+ *
+ *  ALL OR NOTHING, and UUIDs only. The server's seed validator refuses a list
+ *  with a non-UUID id, and a partial adoption would keep some paragraphs' slides
+ *  while silently dropping others — which is harder to see than losing all of
+ *  them. Anything short of a complete, usable set returns null and the caller
+ *  keeps today's behaviour. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function partsFromCorePieces(
+  pieces: ReadonlyArray<{ partId?: string | null; text: string }> | null,
+): Part[] | null {
+  if (!Array.isArray(pieces) || pieces.length === 0) return null;
+  const out: Part[] = [];
+  for (const piece of pieces) {
+    const id = (piece?.partId ?? "").trim();
+    const text = (piece?.text ?? "").trim();
+    if (!UUID_RE.test(id) || !text) return null;
+    out.push({ id, text });
+  }
+  // A repeated id is not identity, and the slot index would collide on write.
+  if (new Set(out.map((p) => p.id)).size !== out.length) return null;
+  return out;
+}

@@ -1,0 +1,644 @@
+<title>CMS Cover Step</title>
+<style>
+  :root {
+    /* Page surround — theme aware, deliberately quiet so the mock reads as the subject. */
+    --ground: #f2f1ee;
+    --ground-2: #e8e6e1;
+    --ink: #1b1a18;
+    --ink-soft: #6d6a64;
+    --rule: #d9d6cf;
+    --accent: #3d5a4c;
+    --accent-soft: #e4ece7;
+    --warn: #8a5a12;
+    --warn-soft: #f6ecd9;
+    --bad: #8d3a33;
+
+    /* Device tokens — pinned to the app's own light palette (globals.css).
+       The admin screen is light-only in the product, so the mock stays light
+       on either host ground and every value is explicit. */
+    --app-bg: #ffffff;
+    --app-fg: #121212;
+    --app-muted: #f5f5f5;
+    --app-muted-fg: #737373;
+    --app-border: #ebebeb;
+    --app-destructive: #a8352c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #17181a;
+      --ground-2: #1f2124;
+      --ink: #eceae6;
+      --ink-soft: #9a978f;
+      --rule: #32343a;
+      --accent: #8fbfa6;
+      --accent-soft: #23302a;
+      --warn: #d9a75a;
+      --warn-soft: #302719;
+      --bad: #d98b81;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #17181a;
+    --ground-2: #1f2124;
+    --ink: #eceae6;
+    --ink-soft: #9a978f;
+    --rule: #32343a;
+    --accent: #8fbfa6;
+    --accent-soft: #23302a;
+    --warn: #d9a75a;
+    --warn-soft: #302719;
+    --bad: #d98b81;
+  }
+
+  /* Tailwind's preflight does this in the app; the artifact skeleton does not,
+     and without it a padded field is wider than its column. */
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .page { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 56px; }
+
+  .intro { max-width: 62ch; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 0 0 8px;
+  }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -.02em; text-wrap: balance; }
+  .intro p { margin: 0 0 6px; color: var(--ink-soft); font-size: 14px; }
+  .intro strong { color: var(--ink); font-weight: 600; }
+
+  .stage {
+    display: grid; gap: 22px; margin-top: 26px;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (max-width: 800px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------------- the device: a faithful mock of /cms/new/post/2 -------- */
+  .device {
+    position: relative; background: var(--app-bg); color: var(--app-fg);
+    border: 1px solid var(--rule); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 18px 40px -28px rgba(0,0,0,.45);
+    min-height: 660px; display: flex; flex-direction: column;
+  }
+  .screen { display: flex; flex-direction: column; flex: 1; padding: 0 20px 22px; min-height: 0; }
+  .screen[hidden] { display: none !important; }
+
+  .chrome { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; }
+  .icon-btn {
+    border: 0; background: none; color: inherit; padding: 4px; cursor: pointer;
+    opacity: .7; border-radius: 8px; display: inline-flex; line-height: 0;
+  }
+  .icon-btn:hover { opacity: 1; }
+  .icon-btn:focus-visible { outline: 2px solid var(--app-fg); outline-offset: 2px; opacity: 1; }
+  .dashes { display: flex; align-items: center; gap: 4px; }
+  .dash { display: block; height: 3px; width: 16px; border-radius: 999px; background: var(--app-border); }
+  .dash.on { background: var(--app-fg); }
+
+  .h { font-size: 24px; font-weight: 600; letter-spacing: -.02em; line-height: 1.25; margin: 8px 0 20px; }
+  .body-col { display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0; }
+
+  .tabs { display: flex; gap: 8px; }
+  .tab {
+    flex: 1; border: 1px solid var(--app-border); background: var(--app-bg); color: var(--app-muted-fg);
+    border-radius: 10px; padding: 10px 8px; font-size: 14px; text-transform: capitalize; cursor: pointer;
+  }
+  .tab[aria-selected="true"] { border-color: var(--app-fg); background: var(--app-fg); color: var(--app-bg); font-weight: 500; }
+  .tab:focus-visible { outline: 2px solid var(--app-fg); outline-offset: 2px; }
+
+  .dropzone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    border: 1px dashed var(--app-border); border-radius: 12px; background: rgba(245,245,245,.5);
+    min-height: 186px; color: var(--app-muted-fg); font-size: 13px; cursor: pointer; text-align: center;
+    padding: 16px;
+  }
+  .preview { position: relative; border: 1px solid var(--app-border); border-radius: 12px; overflow: hidden; min-height: 186px; }
+  .preview img { display: block; width: 100%; height: 186px; object-fit: cover; }
+  .preview-tag {
+    position: absolute; left: 8px; bottom: 8px; background: rgba(18,18,18,.78); color: #fff;
+    font-size: 11px; padding: 3px 8px; border-radius: 999px; letter-spacing: .01em;
+  }
+
+  /* the new block */
+  .draw { border: 1px solid var(--app-border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .draw-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .draw-title { font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+  .count { font-size: 11px; color: var(--app-muted-fg); font-variant-numeric: tabular-nums; }
+  .field { width: 100%; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-bg);
+           color: var(--app-fg); padding: 11px 13px; font: inherit; font-size: 15px; outline: none; }
+  .field:focus { border-color: rgba(18,18,18,.3); }
+  textarea.field { resize: none; line-height: 1.45; }
+  .draw-row { display: flex; align-items: center; gap: 10px; }
+  .draw-btn {
+    display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px;
+    background: var(--app-fg); color: var(--app-bg); padding: 9px 15px; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .draw-btn[disabled] { opacity: .35; cursor: not-allowed; }
+  .draw-btn.ghost { background: var(--app-bg); color: var(--app-muted-fg); border: 1px solid var(--app-border); }
+  .draw-status { font-size: 13px; color: var(--app-muted-fg); display: inline-flex; align-items: center; gap: 7px; }
+  .spinner { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--app-border); border-top-color: var(--app-fg); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+  .msg { font-size: 12.5px; border-radius: 9px; padding: 8px 10px; }
+  .msg.bad { color: var(--app-destructive); background: rgba(168,53,44,.07); }
+  .msg.warn { color: #7a5410; background: #fdf4e3; }
+
+  .label { font-size: 13px; font-weight: 500; display: block; margin-bottom: 7px; }
+  .footer-col { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+  .cta {
+    width: 100%; border: 0; border-radius: 999px; background: var(--app-fg); color: var(--app-bg);
+    padding: 15px; font-size: 15px; font-weight: 500; cursor: pointer;
+  }
+  .cta[disabled] { opacity: .3; cursor: not-allowed; }
+  .quiet { border: 0; background: none; color: var(--app-muted-fg); font-size: 14px; text-decoration: underline;
+           text-underline-offset: 4px; cursor: pointer; padding: 6px; }
+  .said { text-align: center; font-size: 13px; color: var(--app-destructive); }
+
+  .closed {
+    position: absolute; inset: 0; background: var(--app-bg); color: var(--app-fg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center;
+  }
+  .closed p { margin: 0; color: var(--app-muted-fg); font-size: 14px; }
+
+  /* ---------------- the bench ------------------------------------------- */
+  .bench { display: flex; flex-direction: column; gap: 16px; }
+  .panel { background: var(--ground-2); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; }
+  .panel h2 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 12px; font-weight: 600; }
+  .ctl { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .ctl:last-of-type { margin-bottom: 0; }
+  .ctl > span { font-size: 12.5px; color: var(--ink-soft); }
+  select, .bench button.small {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--ground);
+    border: 1px solid var(--rule); border-radius: 9px; padding: 8px 10px; width: 100%;
+  }
+  .bench button.small { cursor: pointer; width: auto; }
+  .log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; max-height: 260px; overflow-y: auto; }
+  .log li { font-size: 12.5px; color: var(--ink); display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 8px; }
+  .log time { color: var(--ink-soft); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  .log .tagk { color: var(--accent); font-weight: 600; }
+  .log li.empty { color: var(--ink-soft); grid-template-columns: 1fr; }
+
+  .notes { margin-top: 30px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .note { border-top: 2px solid var(--rule); padding-top: 12px; }
+  .note.is-new { border-top-color: var(--accent); }
+  .note h3 { font-size: 13px; margin: 0 0 6px; }
+  .note p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+  .note code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--ground-2); padding: 1px 4px; border-radius: 4px; }
+  .pill { display: inline-block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+          background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: 2px; }
+</style>
+
+<div class="page">
+  <header class="intro">
+    <p class="eyebrow">willab · /cms/new/post/2 · prototype</p>
+    <h1>Cover step, with the drawing box</h1>
+    <p>The real screen, three changes in: <strong>describe a cover and the model draws it</strong>, <strong>Enter moves the lane on</strong>, and the close X (which already shipped). Nothing here calls the live API — the drawing is simulated locally so every outcome, including the ugly ones, is testable.</p>
+    <p>Use the bench on the right to pick what the draw does, then work the screen with the keyboard.</p>
+  </header>
+
+  <div class="stage">
+    <div class="device" id="device">
+
+      <!-- step 1 · Title -->
+      <section class="screen" id="screen-title" hidden>
+        <div class="chrome">
+          <button class="icon-btn" type="button" data-act="back" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div class="dashes" aria-label="Step 1 of 6"><span class="dash on"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span></div>
+          <button class="icon-btn" type="button" data-act="close" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <h2 class="h">Title</h2>
+        <div class="body-col">
+          <input class="field" id="post-title" value="What a voice does when it stops apologising" aria-label="Title">
+        </div>
+        <div class="footer-col">
+          <button class="cta" type="button" data-act="next">Next</button>
+        </div>
+      </section>
+
+      <!-- step 2 · Cover -->
+      <section class="screen" id="screen-cover">
+        <div class="chrome">
+          <button class="icon-btn" type="button" data-act="back" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div class="dashes" aria-label="Step 2 of 6"><span class="dash on"></span><span class="dash on"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span></div>
+          <button class="icon-btn" type="button" data-act="close" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <h2 class="h">Cover</h2>
+
+        <div class="body-col">
+          <div class="tabs" role="tablist" aria-label="Cover kind">
+            <button class="tab" role="tab" type="button" data-kind="image" aria-selected="true">image</button>
+            <button class="tab" role="tab" type="button" data-kind="video" aria-selected="false">video</button>
+            <button class="tab" role="tab" type="button" data-kind="audio" aria-selected="false">audio</button>
+          </div>
+
+          <div class="dropzone" id="dropzone" tabindex="0" role="button">
+            <span id="dropzone-text">Choose a file</span>
+          </div>
+
+          <figure class="preview" id="preview" hidden style="margin:0">
+            <img id="preview-img" alt="">
+            <figcaption class="preview-tag" id="preview-tag">Drawn cover</figcaption>
+          </figure>
+
+          <!-- NEW: the drawing box -->
+          <div class="draw" id="draw-block">
+            <div class="draw-head">
+              <span class="draw-title">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z"/><path d="M19 15.5 19.8 17.4 21.7 18.2 19.8 19 19 20.9 18.2 19 16.3 18.2 18.2 17.4 19 15.5Z"/></svg>
+                Or describe the cover
+              </span>
+              <span class="count" id="draw-count" hidden>0/500</span>
+            </div>
+            <textarea class="field" id="draw-notes" rows="2" maxlength="500"
+              placeholder="A woman alone on an empty stage at dawn, seen from the last row, warm low light"></textarea>
+            <div class="draw-row">
+              <button class="draw-btn" id="draw-go" type="button" disabled>Draw it</button>
+              <span class="draw-status" id="draw-status" hidden><span class="spinner" aria-hidden="true"></span><span id="draw-status-text">Writing the brief…</span></span>
+            </div>
+            <div class="msg bad" id="draw-error" hidden></div>
+            <div class="msg warn" id="draw-flag" hidden>Alt text uses retired score vocabulary — reword it before publishing.</div>
+          </div>
+
+          <label class="label" for="cover-url">Or paste a URL
+            <input class="field" id="cover-url" placeholder="https://…" style="margin-top:7px">
+          </label>
+          <label class="label" for="cover-alt">Alt text
+            <input class="field" id="cover-alt" style="margin-top:7px">
+          </label>
+        </div>
+
+        <div class="footer-col">
+          <button class="cta" id="cover-next" type="button" data-act="next">Next</button>
+          <button class="quiet" type="button" data-act="skip">Skip</button>
+          <p class="said" id="cover-said" hidden></p>
+        </div>
+      </section>
+
+      <!-- step 3 · Excerpt -->
+      <section class="screen" id="screen-excerpt" hidden>
+        <div class="chrome">
+          <button class="icon-btn" type="button" data-act="back" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div class="dashes" aria-label="Step 3 of 6"><span class="dash on"></span><span class="dash on"></span><span class="dash on"></span><span class="dash"></span><span class="dash"></span><span class="dash"></span></div>
+          <button class="icon-btn" type="button" data-act="close" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <h2 class="h">Excerpt</h2>
+        <div class="body-col">
+          <textarea class="field" id="post-excerpt" rows="4" aria-label="Excerpt" placeholder="Two sentences for the card."></textarea>
+        </div>
+        <div class="footer-col">
+          <button class="cta" type="button" data-act="next">Next</button>
+          <button class="quiet" type="button" data-act="skip">Skip</button>
+        </div>
+      </section>
+
+      <div class="closed" id="closed" hidden>
+        <strong>Back at /cms</strong>
+        <p>The X closed the lane. The draft is still in sessionStorage, so reopening lands on the same step with everything typed.</p>
+        <button class="small" type="button" id="reopen" style="cursor:pointer;font:inherit;font-size:13px;padding:9px 14px;border-radius:999px;border:1px solid var(--app-border);background:var(--app-bg);color:var(--app-fg)">Reopen the lane</button>
+      </div>
+    </div>
+
+    <aside class="bench">
+      <div class="panel">
+        <h2>Draw bench</h2>
+        <label class="ctl">
+          <span>What the draw does</span>
+          <select id="mode">
+            <option value="ok">Draws and attaches</option>
+            <option value="flag">Draws, alt text trips the construct guard</option>
+            <option value="refused">Refused — brief needs rewording (400)</option>
+            <option value="dropped">Connection dies, image recovered from the strip</option>
+            <option value="lost">Never finishes (the give-up path)</option>
+          </select>
+        </label>
+        <label class="ctl">
+          <span>How long it takes</span>
+          <select id="speed">
+            <option value="4000">Quick, like a first draw (~4s here)</option>
+            <option value="11000">Slow, like a steered one (~11s here)</option>
+          </select>
+        </label>
+        <button class="small" type="button" id="reset">Reset the screen</button>
+      </div>
+
+      <div class="panel">
+        <h2>What just happened</h2>
+        <ul class="log" id="log"><li class="empty">Nothing yet. Press Enter somewhere.</li></ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="notes">
+    <div class="note is-new">
+      <h3>The drawing box <span class="pill">new</span></h3>
+      <p>Sends the founder's words as <code>notes</code> to the cover generator that already exists, with <code>fresh: true</code> so the description drives the brief instead of steering an earlier one.</p>
+    </div>
+    <div class="note is-new">
+      <h3>Enter <span class="pill">new</span></h3>
+      <p>Handled once, in <code>LaneShell</code>, so every step of both lanes gets it. Textareas keep their newline, the camera step keeps its silence, and an IME composition is never eaten.</p>
+    </div>
+    <div class="note">
+      <h3>The close X <span class="pill">shipped</span></h3>
+      <p>Already in <code>LaneShell.tsx</code> since the lane landed (PR #366), on every step of both lanes. Nothing to add — this mock just shows it where it is.</p>
+    </div>
+    <div class="note">
+      <h3>The image is fake here</h3>
+      <p>Drawn on a canvas from your words so the flow is testable offline. In the app it is the real generated cover, stored in R2 and already attached to the post.</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { step: 2, drawing: false, timers: [], hasCover: false };
+
+  /* ---------------------------------------------------------------- log -- */
+  var logEl = $("log");
+  function log(tag, text) {
+    var empty = logEl.querySelector(".empty");
+    if (empty) empty.remove();
+    var li = document.createElement("li");
+    var t = document.createElement("time");
+    var d = new Date();
+    t.textContent = String(d.getHours()).padStart(2, "0") + ":" +
+                    String(d.getMinutes()).padStart(2, "0") + ":" +
+                    String(d.getSeconds()).padStart(2, "0");
+    var span = document.createElement("span");
+    var b = document.createElement("span");
+    b.className = "tagk"; b.textContent = tag + " ";
+    span.appendChild(b);
+    span.appendChild(document.createTextNode(text));
+    li.appendChild(t); li.appendChild(span);
+    logEl.insertBefore(li, logEl.firstChild);
+    while (logEl.children.length > 12) logEl.removeChild(logEl.lastChild);
+  }
+
+  /* ------------------------------------------------------------ screens -- */
+  var screens = { 1: $("screen-title"), 2: $("screen-cover"), 3: $("screen-excerpt") };
+  function show(step) {
+    state.step = step;
+    for (var k in screens) screens[k].hidden = (Number(k) !== step);
+    $("closed").hidden = true;
+  }
+  function stepName(n) { return n === 1 ? "Title" : n === 2 ? "Cover" : "Excerpt"; }
+
+  function next(how) {
+    if (state.drawing) { log("blocked", "a draw is running, Next is disabled until it lands"); return; }
+    if (state.step >= 3) { log("next", "end of the mock — the real lane carries on to Body"); return; }
+    show(state.step + 1);
+    log("next", how + " → step " + state.step + ", " + stepName(state.step));
+  }
+  function back() {
+    if (state.step <= 1) { log("back", "step 1 — the real lane goes back to the fork"); return; }
+    show(state.step - 1);
+    log("back", "step " + state.step + ", " + stepName(state.step));
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-act]");
+    if (!el) return;
+    var act = el.getAttribute("data-act");
+    if (act === "next") next("Next tapped");
+    if (act === "back") back();
+    if (act === "skip") { if (state.step < 3) { show(state.step + 1); log("skip", "left the cover empty"); } }
+    if (act === "close") {
+      $("closed").hidden = false;
+      log("close", "X — back to /cms, draft kept");
+    }
+  });
+  $("reopen").addEventListener("click", function () { $("closed").hidden = true; log("reopen", "same step, nothing lost"); });
+
+  /* --------------------------------------------------------------- tabs -- */
+  var kind = "image";
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (tab) {
+    tab.addEventListener("click", function () {
+      kind = tab.getAttribute("data-kind");
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) {
+        t.setAttribute("aria-selected", String(t === tab));
+      });
+      // Drawing is image-only: the generator makes an image, and a video post
+      // would lose its media the moment one was attached.
+      $("draw-block").hidden = (kind !== "image");
+      $("dropzone-text").textContent = kind === "image" ? "Choose a file" : "Choose a " + kind + " file";
+      log("cover kind", kind + (kind === "image" ? "" : " — the drawing box is image-only, so it is gone"));
+    });
+  });
+
+  /* ------------------------------------------------------- the simulator - */
+  // A local stand-in for the real draw. Seeded by the words so two different
+  // descriptions give two different pictures — enough to tell them apart while
+  // clicking, and never passed off as the real generator's work.
+  function drawImage(text) {
+    var c = document.createElement("canvas");
+    c.width = 960; c.height = 540;
+    var x = c.getContext("2d");
+    var seed = 0;
+    for (var i = 0; i < text.length; i++) seed = (seed * 31 + text.charCodeAt(i)) % 100000;
+    var rnd = function () { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    var hue = Math.floor(rnd() * 360);
+    var g = x.createLinearGradient(0, 0, 960, 540);
+    g.addColorStop(0, "hsl(" + hue + ", 28%, 22%)");
+    g.addColorStop(1, "hsl(" + ((hue + 42) % 360) + ", 34%, 58%)");
+    x.fillStyle = g; x.fillRect(0, 0, 960, 540);
+    for (var j = 0; j < 7; j++) {
+      var r = 60 + rnd() * 240;
+      var rg = x.createRadialGradient(rnd() * 960, rnd() * 540, 0, rnd() * 960, rnd() * 540, r);
+      rg.addColorStop(0, "hsla(" + ((hue + j * 26) % 360) + ", 62%, 72%, .30)");
+      rg.addColorStop(1, "hsla(" + ((hue + j * 26) % 360) + ", 62%, 72%, 0)");
+      x.fillStyle = rg; x.fillRect(0, 0, 960, 540);
+    }
+    x.globalAlpha = .06;
+    for (var k = 0; k < 2600; k++) {
+      x.fillStyle = rnd() > .5 ? "#fff" : "#000";
+      x.fillRect(rnd() * 960, rnd() * 540, 2, 2);
+    }
+    x.globalAlpha = 1;
+    return c.toDataURL("image/png");
+  }
+
+  function altFrom(text) {
+    var s = text.trim().replace(/\s+/g, " ");
+    if (!s) return "Journal cover image";
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+    if (s.length > 120) s = s.slice(0, 117).replace(/[,;: ]+$/, "") + "…";
+    return /[.!?…]$/.test(s) ? s : s + ".";
+  }
+
+  var STAGES = [
+    { at: 0.00, label: "Writing the brief…" },
+    { at: 0.18, label: "Drawing…" },
+    { at: 0.62, label: "Still drawing…" },
+    { at: 0.88, label: "Taking a while, hold on…" }
+  ];
+
+  var notes = $("draw-notes"), go = $("draw-go"), status = $("draw-status"),
+      statusText = $("draw-status-text"), errBox = $("draw-error"), flagBox = $("draw-flag"),
+      count = $("draw-count");
+
+  function syncGo() {
+    var n = notes.value.trim().length;
+    go.disabled = state.drawing || n === 0;
+    count.hidden = notes.value.length < 380;
+    count.textContent = notes.value.length + "/500";
+  }
+  notes.addEventListener("input", syncGo);
+
+  function clearTimers() { state.timers.forEach(clearTimeout); state.timers = []; }
+  function later(ms, fn) { state.timers.push(setTimeout(fn, ms)); }
+
+  function landImage(text, flagged, via) {
+    state.hasCover = true;
+    $("preview-img").src = drawImage(text);
+    $("preview-img").alt = altFrom(text);
+    $("preview").hidden = false;
+    $("dropzone").hidden = true;
+    $("preview-tag").textContent = "Drawn · on the post";
+    $("cover-url").value = "https://media.willpowerlab.com/journal/cover-" + Math.floor(Math.random() * 1e6) + ".png";
+    $("cover-alt").value = altFrom(text);
+    flagBox.hidden = !flagged;
+    go.textContent = "Draw again";
+    log("drawn", via + " — cover, URL and alt text all filled" + (flagged ? ", construct guard raised" : ""));
+  }
+
+  function endDraw() {
+    state.drawing = false;
+    $("cover-next").disabled = false;
+    status.hidden = true;
+    clearTimers();
+    syncGo();
+  }
+
+  function startDraw() {
+    var text = notes.value.trim();
+    if (!text || state.drawing) return;
+    var mode = $("mode").value;
+    var span = Number($("speed").value);
+
+    state.drawing = true;
+    // Moving on mid-draw would leave the founder on another screen when the
+    // cover lands, so the step's CTA is held until it does.
+    $("cover-next").disabled = true;
+    errBox.hidden = true; flagBox.hidden = true;
+    status.hidden = false;
+    statusText.textContent = STAGES[0].label;
+    syncGo();
+    log("draw", "post saved as a draft first, then the brief goes out with the description as the steer");
+
+    STAGES.slice(1).forEach(function (s) {
+      later(span * s.at, function () { statusText.textContent = s.label; });
+    });
+
+    if (mode === "refused") {
+      later(Math.min(span, 2600), function () {
+        endDraw();
+        errBox.textContent = "The safety system would not draw that brief. Reword it and draw again.";
+        errBox.hidden = false;
+        log("refused", "400 IMAGE_REJECTED — no retry button, the same words fail the same way");
+      });
+      return;
+    }
+    if (mode === "dropped") {
+      later(span * 0.55, function () {
+        statusText.textContent = "Still drawing…";
+        log("connection", "the request died (504). The backend is still drawing, so the screen keeps watching the strip");
+      });
+      later(span * 1.25, function () {
+        endDraw();
+        landImage(text, false, "recovered from the strip after the request died");
+      });
+      return;
+    }
+    if (mode === "lost") {
+      later(span * 1.5, function () {
+        endDraw();
+        errBox.textContent = "The drawing never finished. If it turns up it will be on the post in the editor — check there before paying for another.";
+        errBox.hidden = false;
+        log("gave up", "nothing new in the strip — honest message, nothing invented");
+      });
+      return;
+    }
+    later(span, function () {
+      endDraw();
+      landImage(text, mode === "flag", "the response came back and the backend had already attached it");
+    });
+  }
+
+  go.addEventListener("click", startDraw);
+
+  $("dropzone").addEventListener("click", function () {
+    log("upload", "the file picker — untouched, still the primary way in");
+  });
+
+  /* ------------------------------------------------------------- Enter --- */
+  // One handler for the whole lane, exactly where LaneShell would put it.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || e.altKey) return;
+    if (e.isComposing || e.keyCode === 229) { log("Enter", "ignored — an input method was mid-composition"); return; }
+    if (!$("closed").hidden) return;
+
+    var el = document.activeElement;
+    var tag = el && el.tagName;
+    var mod = e.metaKey || e.ctrlKey;
+
+    if (tag === "BUTTON" || tag === "A") { log("Enter", "left alone — the focused button handles it natively"); return; }
+
+    if (el === notes) {
+      if (e.shiftKey) { log("Enter", "new line in the description"); return; }
+      e.preventDefault();
+      if (mod) { next("⌘Enter in the description"); return; }
+      if (!notes.value.trim()) { log("Enter", "nothing to draw yet"); return; }
+      log("Enter", "Draw it");
+      startDraw();
+      return;
+    }
+
+    if (tag === "TEXTAREA") {
+      if (mod) { e.preventDefault(); next("⌘Enter in a long text box"); return; }
+      if (e.shiftKey) { log("Enter", "new line"); return; }
+      log("Enter", "new line — a textarea keeps its Enter");
+      return;
+    }
+
+    if (e.shiftKey) return;
+    e.preventDefault();
+    next(tag === "INPUT" ? "Enter in a one-line field" : "Enter with nothing focused");
+  });
+
+  /* -------------------------------------------------------------- reset -- */
+  $("reset").addEventListener("click", function () {
+    clearTimers();
+    state = { step: 2, drawing: false, timers: [], hasCover: false };
+    notes.value = "";
+    $("cover-url").value = ""; $("cover-alt").value = "";
+    $("preview").hidden = true; $("dropzone").hidden = false;
+    errBox.hidden = true; flagBox.hidden = true; status.hidden = true;
+    $("cover-next").disabled = false;
+    go.textContent = "Draw it";
+    show(2);
+    syncGo();
+    log("reset", "back to an empty cover step");
+  });
+
+  syncGo();
+  show(2);
+})();
+</script>

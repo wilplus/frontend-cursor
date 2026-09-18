@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0;font:14px system-ui,sans-serif;background:#E8EAED}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Coach Judgement Flow</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --chrome-bg:#E8EAED; --chrome-panel:#FFFFFF; --chrome-ink:#14181F; --chrome-mute:#5C6472;
+    --chrome-line:#D2D7DE; --chrome-soft:#F2F4F7; --rail:#0F172A;
+    --accent:#EA580C; --accent-soft:#FDEDE3;
+    --app-bg:#FFFFFF; --app-ink:#0A0A0A; --app-mute:#737373; --app-line:#E5E5E5;
+    --app-soft:#F5F5F5; --app-primary:#F97316; --app-ok:#16A34A;
+    --shadow:0 18px 40px -22px rgba(16,24,40,.45);
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --app-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --pw:430px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --chrome-bg:#12151A; --chrome-panel:#1A1F27; --chrome-ink:#E9EDF3; --chrome-mute:#98A2B3;
+      --chrome-line:#2A313B; --chrome-soft:#222831; --rail:#E9EDF3;
+      --accent:#FB8C4B; --accent-soft:#2A1C12;
+      --app-bg:#111417; --app-ink:#F2F4F7; --app-mute:#9AA3AF; --app-line:#272C33;
+      --app-soft:#1A1E23; --app-primary:#F97316; --app-ok:#3BAE63;
+      --shadow:0 18px 40px -22px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --chrome-bg:#12151A; --chrome-panel:#1A1F27; --chrome-ink:#E9EDF3; --chrome-mute:#98A2B3;
+    --chrome-line:#2A313B; --chrome-soft:#222831; --rail:#E9EDF3;
+    --accent:#FB8C4B; --accent-soft:#2A1C12;
+    --app-bg:#111417; --app-ink:#F2F4F7; --app-mute:#9AA3AF; --app-line:#272C33;
+    --app-soft:#1A1E23; --app-primary:#F97316; --app-ok:#3BAE63;
+    --shadow:0 18px 40px -22px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--chrome-bg);color:var(--chrome-ink);font-family:var(--sans);
+       padding-inline:20px;padding-block:28px 40px}
+  .wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+  h1{margin:0;font-size:clamp(24px,3.4vw,34px);line-height:1.08;font-weight:600;text-wrap:balance;letter-spacing:-.015em}
+  .lede{margin:0;max-width:72ch;font-size:14px;line-height:1.65;color:var(--chrome-mute)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--chrome-mute)}
+  .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--chrome-line);border-radius:999px;
+         padding:5px 12px;font-family:var(--mono);font-size:11px;color:var(--chrome-mute);background:var(--chrome-panel)}
+  .stage{display:grid;grid-template-columns:minmax(200px,238px) minmax(0,auto) minmax(260px,1fr);gap:22px;align-items:start}
+  @media (max-width:980px){.stage{grid-template-columns:1fr;justify-items:stretch}}
+  .card{background:var(--chrome-panel);border:1px solid var(--chrome-line);border-radius:16px}
+  /* ---- step rail ---- */
+  .rail{padding:16px;display:flex;flex-direction:column;gap:2px}
+  .rail h2{margin:0 0 10px;font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--chrome-mute);font-weight:500}
+  .step{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;border:0;background:none;
+        text-align:left;font:inherit;color:var(--chrome-mute);cursor:pointer;width:100%}
+  .step:hover{background:var(--chrome-soft)}
+  .step .dot{flex:0 0 auto;width:9px;height:9px;margin-top:5px;border-radius:999px;border:1.5px solid currentColor;background:transparent}
+  .step.done{color:var(--chrome-ink)}
+  .step.done .dot{background:currentColor}
+  .step.now{color:var(--chrome-ink);background:var(--accent-soft);font-weight:500}
+  .step.now .dot{background:var(--accent);border-color:var(--accent)}
+  .step small{display:block;font-size:11px;line-height:1.4;opacity:.75;font-weight:400}
+  .step.changed .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+  /* ---- phone ---- */
+  .phonewrap{display:flex;flex-direction:column;gap:12px;align-items:center}
+  .phone{width:var(--pw,430px);max-width:100%;height:760px;background:var(--app-bg);border:1px solid var(--chrome-line);
+         border-radius:26px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
+         font-family:var(--app-sans);color:var(--app-ink)}
+  .phead{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--app-line)}
+  .ptitle{font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .psub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--app-mute)}
+  .pbody{flex:1 1 auto;overflow-y:auto;padding:18px 18px;display:flex;flex-direction:column;gap:14px}
+  .pfoot{flex:0 0 auto;display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--app-line)}
+  .x{margin-left:auto;flex:0 0 auto;width:30px;height:30px;border-radius:999px;border:1px solid var(--app-line);
+     background:var(--app-bg);color:var(--app-mute);font-size:15px;line-height:1;cursor:pointer}
+  .btn{flex:1;height:44px;border-radius:999px;border:1px solid var(--app-line);background:var(--app-bg);color:var(--app-ink);
+       font:inherit;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+  .pbody > .btn, .pbody > a.btn{flex:0 0 auto}
+  .btn[disabled]{opacity:.4;cursor:default}
+  .btn.primary{background:var(--app-ink);border-color:var(--app-ink);color:var(--app-bg);
+               height:52px;font-size:15px;font-weight:600}
+  .btn.ink{background:var(--app-ink);border-color:var(--app-ink);color:var(--app-bg);font-weight:500}
+  .btn.send{height:56px;font-size:16px;font-weight:600;letter-spacing:-.005em}
+  .btn.tall{height:52px;font-size:15px;font-weight:500}
+  .row{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:1px solid var(--app-line);
+       border-radius:16px;background:var(--app-bg);font:inherit;color:var(--app-ink);text-align:left;cursor:pointer}
+  .row:hover{border-color:var(--app-primary)}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-size:14px;font-weight:500}
+  .row .meta{font-size:12px;color:var(--app-mute);margin-top:3px}
+  .row .open{font-size:12px;color:var(--app-primary);flex:0 0 auto}
+  .row.lit{border-color:var(--app-primary);background:color-mix(in srgb,var(--app-primary) 6%,transparent)}
+  .row[disabled]{opacity:.45;cursor:default}
+  .row[disabled]:hover{border-color:var(--app-line)}
+  .player{display:flex;align-items:center;gap:10px;background:var(--app-soft);border-radius:14px;padding:11px 13px}
+  .play{width:36px;height:36px;border-radius:999px;border:0;background:var(--app-ink);color:var(--app-bg);cursor:pointer;font-size:12px}
+  .bar{flex:1;height:4px;border-radius:999px;background:var(--app-line);position:relative;overflow:hidden}
+  .bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--app-primary);border-radius:999px;transition:width .2s linear}
+  .time{font-size:11px;color:var(--app-mute);font-variant-numeric:tabular-nums}
+  .q{font-size:15px;font-weight:600;line-height:1.35;margin:0}
+  .lane{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--app-mute);margin:4px 0 0}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .ans{border:1px solid var(--app-line);border-radius:14px;background:var(--app-bg);padding:16px 6px 13px;
+       display:flex;flex-direction:column;align-items:center;gap:8px;font:inherit;font-size:13px;font-weight:600;
+       color:var(--app-ink);cursor:pointer;line-height:1.2;text-align:center}
+  .ans span.g{font-size:17px;font-weight:400;line-height:1}
+  .ans:hover{border-color:var(--app-primary)}
+  .ans[aria-pressed="true"]{background:var(--app-ink);border-color:var(--app-ink);color:var(--app-bg)}
+  .other{display:flex;align-items:center;gap:10px;margin:2px 0}
+  .other::before,.other::after{content:"";height:1px;flex:1;background:var(--app-line)}
+  .other span{font-size:10.5px;letter-spacing:.11em;color:var(--app-mute)}
+  .alt{display:flex;align-items:center;gap:9px;width:100%;padding:11px 13px;border:1px solid var(--app-line);
+       border-radius:12px;background:var(--app-bg);font:inherit;font-size:13px;color:var(--app-ink);cursor:pointer;text-align:left}
+  .alt:hover{border-color:var(--app-primary)}
+  .alt[aria-pressed="true"]{background:var(--app-ink);border-color:var(--app-ink);color:var(--app-bg)}
+  .dots{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+  .pip{width:22px;height:22px;border:0;background:none;padding:0;display:grid;place-items:center;cursor:pointer;border-radius:999px}
+  .pip i{width:9px;height:9px;border-radius:999px;border:1px solid var(--app-mute);display:block}
+  .pip.on i{background:var(--app-primary);border-color:var(--app-primary)}
+  .pip.cur{outline:2px solid var(--app-ink);outline-offset:-1px}
+  .count{font-size:11px;color:var(--app-mute);font-variant-numeric:tabular-nums;flex:0 0 auto}
+  .strip{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:1px solid var(--app-line)}
+  .pill{display:inline-block;border-radius:999px;background:var(--app-soft);color:var(--app-mute);
+        padding:3px 10px;font-size:11px;font-weight:500}
+  .pill.warm{background:var(--accent-soft);color:var(--accent)}
+  .quote{border:1px solid color-mix(in srgb,var(--app-primary) 28%,transparent);
+         background:color-mix(in srgb,var(--app-primary) 7%,transparent);border-radius:13px;padding:11px 13px;
+         font-size:14px;line-height:1.55;margin:0}
+  .hint{border:1px dashed var(--app-line);border-radius:13px;background:var(--app-soft);padding:11px 13px;
+        font-size:12px;line-height:1.55;color:var(--app-mute);margin:0}
+  .note-in,.ta{width:100%;border:1px solid var(--app-line);border-radius:12px;background:var(--app-bg);color:var(--app-ink);
+       padding:10px 12px;font:inherit;font-size:14px}
+  .ta{min-height:96px;resize:vertical;line-height:1.55}
+  .lab{font-size:13px;color:var(--app-mute);display:block;margin-bottom:5px}
+  .sec{font-size:14px;font-weight:600;display:flex;align-items:baseline;gap:8px;margin:0}
+  .sec em{font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--app-mute);font-weight:400}
+  .box{border:1px solid var(--app-line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:11px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--app-line);border-radius:999px;background:var(--app-bg);color:var(--app-ink);
+        padding:7px 13px;font:inherit;font-size:13px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--app-ink);border-color:var(--app-ink);color:var(--app-bg)}
+  .link{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--app-mute);
+        text-decoration:underline;text-underline-offset:2px;cursor:pointer;align-self:flex-start}
+  .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px}
+  .tick{width:60px;height:60px;border-radius:999px;display:grid;place-items:center;font-size:27px;
+        background:color-mix(in srgb,var(--app-ok) 14%,transparent);color:var(--app-ok)}
+  /* ---- side panel ---- */
+  .side{display:flex;flex-direction:column;gap:14px}
+  .pane{padding:16px;display:flex;flex-direction:column;gap:10px}
+  .pane h3{margin:0;font-size:14px;font-weight:600}
+  .pane p{margin:0;font-size:12.5px;line-height:1.6;color:var(--chrome-mute)}
+  .pane code{font-family:var(--mono);font-size:11.5px;background:var(--chrome-soft);padding:1px 5px;border-radius:5px}
+  .switch{display:flex;flex-direction:column;gap:7px}
+  .switch>span{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--chrome-mute)}
+  .seg{display:flex;border:1px solid var(--chrome-line);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;border:0;background:var(--chrome-panel);color:var(--chrome-mute);font:inherit;font-size:12px;
+              padding:8px 6px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--rail);color:var(--chrome-panel);font-weight:500}
+  .seg button+button{border-left:1px solid var(--chrome-line)}
+  .why{border-left:2px solid var(--accent);padding-left:11px;font-size:12.5px;line-height:1.6}
+  .why b{font-weight:600;color:var(--chrome-ink)}
+  .restart{align-self:flex-start;border:1px solid var(--chrome-line);border-radius:999px;background:var(--chrome-panel);
+           color:var(--chrome-ink);font:inherit;font-size:12px;padding:7px 15px;cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <span class="eyebrow">Proposal · coach panel</span>
+      <h1>Judgement first, then the feedback</h1>
+      <p class="lede">A working walkthrough of the flow the prompt asks for. Click through it as a coach would: the student list, the rebuilt judgement queue, then everything that unlocks behind it. Every decision is settled and built in: one door per student, one queue per take, one delivery per arc, one action per screen.</p>
+    </div>
+    <span class="badge">not yet built · prototype</span>
+  </header>
+
+  <div class="stage">
+    <nav class="card rail" aria-label="Flow steps"><h2>The flow</h2><div id="rail"></div>
+      <button class="restart" id="restart" type="button" style="margin-top:12px">Start over</button>
+    </nav>
+
+    <div class="phonewrap">
+      <div class="phone" id="phone"></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center">
+        <span class="seg" role="group" aria-label="Frame width" style="width:auto">
+          <button type="button" data-pw="390" aria-pressed="false">390</button>
+          <button type="button" data-pw="430" aria-pressed="true">430</button>
+          <button type="button" data-pw="520" aria-pressed="false">520</button>
+        </span>
+        <p style="margin:0;font-size:11.5px;color:var(--chrome-mute);font-family:var(--mono)" id="pw-note">430 × 760 · the app's own chrome</p>
+      </div>
+    </div>
+
+    <aside class="side">
+      <section class="card pane" id="why-pane">
+        <h3 id="why-title">What changes here</h3>
+        <div class="why" id="why-body"></div>
+      </section>
+
+      <section class="card pane">
+        <h3>Settled</h3>
+        <p>Every fork in this flow is now decided; the prototype is built to those calls.</p>
+        <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px">
+          <li style="font-size:12.5px;line-height:1.55"><b>One door</b> per student, routed into judgement.</li>
+          <li style="font-size:12.5px;line-height:1.55"><b>One queue per take</b> — take 1, then take 2, then the feedback.</li>
+          <li style="font-size:12.5px;line-height:1.55"><b>One delivery per arc</b> — both takes go to the student together.</li>
+          <li style="font-size:12.5px;line-height:1.55"><b>Exercises live in the CMS.</b> A Yes or a No offers a link out that comes back to the same piece.</li>
+          <li style="font-size:12.5px;line-height:1.55"><b>One action per screen</b>, ending on Review and send.</li>
+        </ul>
+      </section>
+
+      <section class="card pane">
+        <h3>Held fixed</h3>
+        <p>No machine read, band or score reaches the judgement screen. The transcript stays hidden until that piece is answered. Pieces render in payload order — the queue is band-shuffled server-side so position is not a tell. An answer is required before the note field appears.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  var PIECES=[
+    {id:"p1",take:1,dur:"0:11",text:"we set out to cut onboarding from nine days to two, and we got to four"},
+    {id:"p2",take:1,dur:"0:19",text:"the honest answer is we lost about six weeks in procurement, and I don't want to skate past that"},
+    {id:"p3",take:1,dur:"0:09",text:"so the number I would stake the quarter on is four days, not two"},
+    {id:"p4",take:2,dur:"0:14",text:"we are not where I wanted to be on margin, and I would rather say that now than in January"},
+    {id:"p5",take:2,dur:"0:08",text:"the team shipped it in a week, which nobody believed was possible"},
+    {id:"p6",take:2,dur:"0:12",text:"which brings me to the part I am actually proud of"}
+  ];
+  var STARS=[
+    {id:"s1",fam:"Emphasize",take:1,dur:"0:01",text:"and my name is Arthur.",why:"You sounded incredibly confident and natural here.",editable:true},
+    {id:"s2",fam:"Delivery · pause",take:1,dur:"0:09",text:"And if you are talking many times the same speech, you already know that certain parts are good.",why:null,editable:false},
+    {id:"s3",fam:"Replace",take:2,dur:"0:10",text:"so it sort of, kind of, more or less landed where we wanted",why:"Three hedges inside one clause pulled the claim apart.",suggest:"It landed where we wanted.",editable:true}
+  ];
+  var S={door:"one",scope:"take",screen:"roster",at:0,answers:{},notes:{},verdicts:{},takeQ:1,surfaced:false,verified:false,saved:false,msg:"",cmsFrom:null,video:false,published:false};
+  var phone=document.getElementById("phone"), rail=document.getElementById("rail");
+  var whyT=document.getElementById("why-title"), whyB=document.getElementById("why-body");
+
+  function queue(){ return S.scope==="arc" ? PIECES : PIECES.filter(function(p){return p.take===S.takeQ;}); }
+  function answered(list){ return list.filter(function(p){return S.answers[p.id];}).length; }
+  function allDone(){ return PIECES.every(function(p){return S.answers[p.id];}); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function el(html){ var d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstElementChild; }
+
+  var STEPS=[
+    {k:"roster",  n:"Your students",     s:"unchanged"},
+    {k:"detail",  n:"Student",           s:"the door changes", ch:1},
+    {k:"judge",   n:"Judgement queue",   s:"rebuilt \u00b7 take 1, then take 2", ch:1},
+    {k:"cms",     n:"Exercise CMS",       s:"detour \u00b7 returns to the piece", ch:1},
+    {k:"feedbacks",n:"Feedbacks review", s:"unlocks after judgement", ch:1},
+    {k:"context", n:"Contextual pass",   s:"detour from a take row · opens on top", ch:1},
+    {k:"wrapup",  n:"Wrap up",           s:"unchanged"},
+    {k:"ideal",   n:"Ideal text",        s:"optional · approve it here"},
+    {k:"message", n:"Message to the user",s:"only after approval", ch:1},
+    {k:"send",    n:"Review and send",   s:"one action: publish", ch:1},
+    {k:"delivered",n:"Delivered",        s:"unchanged"}
+  ];
+  var ORDER=STEPS.map(function(s){return s.k;});
+
+  var WHY={
+    roster:["Unchanged.","The roster is untouched. Tap <b>Heron 04</b> — the student with recordings waiting."],
+    detail:["The door changes",
+      "Today this screen offers only <b>Ideal text ready to review</b> and <b>Feedbacks review</b>; the judgement pass has no entry at all, so the coach reaches it through the star panel and a dismiss. Here, judgement is what opening a student's review gets you."],
+    judge:["The rebuilt screen",
+      "One piece per screen, the corpus label queue's chrome: progress dots and <code>n / 3 labelled</code> in the strip, the shared instrument, <b>Back / Skip</b> below. One queue per take \u2014 finish take 1 and it rolls straight into take 2. The dark scrim from <code>SnippetScreenShell</code> is gone — it existed to dim a slide, and there is no slide here. Answer a piece and its words appear; that order never reverses. A Yes or a No also offers a link out to the exercise CMS, which returns to this exact piece \u2014 which is why a Yes or a No holds the screen. Every other answer carries the queue forward on its own, no <b>Next</b> needed."],
+    feedbacks:["Unlocked, not first",
+      "The machine's guesses only become reachable once every piece is judged. Same screen as today — <b>Keep / Wrong kind… / Shouldn't fire</b> — but the coach now arrives having already given their own read."],
+    context:["Opens on top",
+      "Tapping a take here opens the contextual pass <b>over</b> this panel. Today it opens underneath: both overlays are <code>z-40</code> and the star panel is mounted later in <code>Lounge.tsx</code>, so DOM order wins and the coach has to dismiss it with the ✕ to see what they opened."],
+    send:["One action",
+      "The last screen does one thing: it lists what the student is about to receive, and sends it. Reachable from the message screen, or straight from the wrap up when the coach skips the ideal text \u2014 so publishing still never waits on an optional step."],
+    wrapup:["Where the feedback lands",
+      "One action, nothing else: open the ideal text. The skip sits at the foot for a coach who wants to send without it. The take saves itself on the way out of the feedbacks review \u2014 there is no Save button left to forget.<br><br>The backend already treats the ideal text as optional: <code>NO_TAKES</code> is its only blocker, while <code>IDEAL_TEXT_NOT_APPROVED</code> arrives as an <b>advisory</b>. The star lane honours that; only today\u2019s wrap-up hides publish until Verify."],
+    ideal:["Unchanged",
+      "Optional, and Verify still waits until the end of the text has been scrolled into view. What changes is where it leads: approving opens the message screen, the last step before publishing."],
+    message:["Only behind approval",
+      "The message to the student is no longer a textarea buried in the wrap up. It is its own screen, reached by approving the ideal text \u2014 the one place the coach speaks in their own voice, in writing or on camera.<br><br>Skip the ideal text and you never see this screen: you can still publish from the wrap up, the student simply gets no message with it."],
+    cms:["Out and back",
+      "<b>The CMS owns these screens.</b> Defining an exercise and recording a video are its lanes already (<code>LaneShell</code>, <code>LaneSteps</code>, <code>RecordStep</code>) \u2014 this proposal designs none of it. Two errands leave the review for the CMS, both carrying a <code>returnTo</code>, and both come back where they started \u2014 so it is one tab, not two. Two things make that safe, and both already exist: the CMS lives in <b>this same Next app</b> (its own comment says the step is in the URL so the review panel can link straight to <code>/cms/new/exercise/1</code>), and the overlay already mirrors unsaved notes to <code>localStorage</code> as crash insurance, which is exactly what a navigation away and back needs.<br><br><b>The open risk:</b> the CMS is gated on a shared admin password, held per tab, separate from coach sign-in. A coach who does not have it lands on <code>/cms</code> and the round trip breaks."],
+    delivered:["Straight back to the student",
+      "The confirmation holds for a moment, then hands the coach back to the student screen where the take now reads <b>Done</b> \u2014 so the delivery is visible where the work started, not on a dead end. Tapping the tick goes back at once."]
+  };
+
+  function drawRail(){
+    rail.innerHTML="";
+    var here=ORDER.indexOf(S.screen);
+    STEPS.forEach(function(st,i){
+      var b=document.createElement("button");
+      b.type="button";
+      b.className="step"+(i===here?" now":(i<here?" done":""))+(st.ch?" changed":"");
+      b.innerHTML='<span class="dot"></span><span><span>'+esc(st.n)+'</span><small>'+
+        (st.ch?'<span class="tag">changes · </span>':'')+esc(st.s)+'</small></span>';
+      b.addEventListener("click",function(){ jump(st.k); });
+      rail.appendChild(b);
+    });
+  }
+  function drawWhy(){
+    var w=WHY[S.screen]||["",""];
+    whyT.textContent=w[0]; whyB.innerHTML=w[1];
+  }
+  function jump(k){
+    if(k==="judge"){ S.at=0; }
+    if(k==="feedbacks"&&!allDone()){ S.screen="judge"; S.at=0; render(); return; }
+    S.screen=k; render();
+  }
+  function go(k){ S.screen=k; render(); }
+
+  function head(title,sub,onX){
+    var h=el('<div class="phead"><span style="min-width:0"><span class="ptitle">'+esc(title)+'</span>'+
+      (sub?'<span class="psub" style="display:block">'+esc(sub)+'</span>':'')+'</span></div>');
+    if(onX){ var x=el('<button class="x" type="button" aria-label="Close">&#10005;</button>'); x.addEventListener("click",onX); h.appendChild(x); }
+    return h;
+  }
+  function body(){ return el('<div class="pbody"></div>'); }
+  function foot(){ return el('<div class="pfoot"></div>'); }
+  function player(dur){
+    var p=el('<div class="player"><button class="play" type="button" aria-label="Play clip">&#9654;</button>'+
+      '<span class="bar"><i></i></span><span class="time">'+esc(dur)+'</span></div>');
+    var bar=p.querySelector("i"), on=false, t=null;
+    p.querySelector(".play").addEventListener("click",function(){
+      on=!on; if(t) clearInterval(t);
+      if(!on){ return; }
+      var w=0; t=setInterval(function(){ w+=4; bar.style.width=Math.min(w,100)+"%"; if(w>=100){clearInterval(t);on=false;bar.style.width="0";} },90);
+    });
+    return p;
+  }
+
+  /* ---------------- screens ---------------- */
+  function field(label, node){
+    var w=el('<div style="display:flex;flex-direction:column;gap:7px"></div>');
+    w.appendChild(el('<span style="font-size:13.5px;font-weight:600;color:var(--app-ink)">'+label+'</span>'));
+    w.appendChild(node);
+    return w;
+  }
+  function sectionLabel(t, aud){
+    return el('<div style="display:flex;align-items:baseline;gap:8px">'+
+      '<span style="font-size:13.5px;font-weight:600;color:var(--app-ink)">'+t+'</span>'+
+      (aud?'<span class="psub">'+aud+'</span>':'')+'</div>');
+  }
+
+  function scrRoster(){
+    phone.appendChild(head("Your students",null,null));
+    var b=body();
+    [["Heron 04", S.published?"Public speaking · all reviewed":"Public speaking · 6 pieces waiting",true],
+     ["Alder 11","Sales · nothing waiting",false],
+     ["Ash 02","Executive presence · all reviewed",false],
+     ["Wren 27","Interview prep · nothing waiting",false]].forEach(function(r){
+      var row=el('<button class="row'+(r[2]?" lit":"")+'" type="button"><span class="grow"><span class="name">'+r[0]+
+        '</span><span class="meta">'+r[1]+'</span></span>'+(r[2]?'<span class="open">Open</span>':'')+'</button>');
+      if(r[2]) row.addEventListener("click",function(){ go("detail"); }); else row.disabled=true;
+      b.appendChild(row);
+    });
+    phone.appendChild(b);
+  }
+
+  function scrDetail(){
+    phone.appendChild(head("Heron 04","Public speaking",function(){ go("roster"); }));
+    var b=body();
+    b.appendChild(field("Goal", el('<p style="margin:0;font-size:15px;line-height:1.5">Stop hedging when the number is bad. Say it once, plainly, then move.</p>')));
+    var left=PIECES.length-answered(PIECES);
+    if(S.published){
+      b.appendChild(el('<div class="row" style="cursor:default;border-color:color-mix(in srgb,var(--app-ok) 45%,transparent)">'+
+        '<span class="grow"><span class="name">Q3 board update</span>'+
+        '<span class="meta">Take 1 · Take 2</span></span>'+
+        '<span style="font-size:13px;font-weight:600;color:var(--app-ok)">&#10003; Done</span></div>'));
+    } else {
+      var one=el('<button class="row lit" type="button"><span class="grow"><span class="name">Review Q3 board update</span>'+
+        '<span class="meta">'+(left?(left+" pieces to judge"):"Judged")+'</span></span><span class="open">Open</span></button>');
+      one.addEventListener("click",function(){ go(allDone()?"feedbacks":"judge"); });
+      b.appendChild(one);
+    }
+    b.appendChild(el('<button class="row" type="button" disabled><span class="grow"><span class="name">Ideal text ready to review</span></span></button>'));
+    if(S.published){
+      var again=el('<button class="link" type="button" style="align-self:center;margin-top:auto">Walk it again</button>');
+      again.addEventListener("click",reset);
+      b.appendChild(again);
+    }
+    phone.appendChild(b);
+  }
+
+  function scrJudge(){
+    var list=queue();
+    if(S.at>=list.length) S.at=Math.max(0,list.length-1);
+    var p=list[S.at], done=answered(list), val=S.answers[p.id];
+    phone.appendChild(head("Heron 04 · Take "+S.takeQ,"Coach only · training",function(){ go("detail"); }));
+
+    var strip=el('<div class="strip"></div>');
+    var dots=el('<div class="dots"></div>');
+    list.forEach(function(q,i){
+      var d=el('<button class="pip'+(S.answers[q.id]?" on":"")+(i===S.at?" cur":"")+'" type="button" aria-label="Piece '+(i+1)+
+        (S.answers[q.id]?", answered":"")+'"><i></i></button>');
+      d.addEventListener("click",function(){ S.at=i; render(); });
+      dots.appendChild(d);
+    });
+    strip.appendChild(dots);
+    strip.appendChild(el('<span class="count">'+done+' / '+list.length+' labelled</span>'));
+    phone.appendChild(strip);
+
+    var b=body();
+    b.appendChild(player(p.dur));
+    if(val) b.appendChild(el('<p class="quote">'+p.text+'</p>'));
+    b.appendChild(el('<div><p class="q">Does the speaker sound confident here?</p><p class="lane">Private · training</p></div>'));
+    var cards=el('<div class="cards"></div>');
+    [["yes","&#10003;","Yes"],["in_between","&#8212;","In-between"],["no","&#10005;","No"]].forEach(function(o){
+      var c=el('<button class="ans" type="button" aria-pressed="'+(val===o[0])+'"><span class="g">'+o[1]+'</span>'+o[2]+'</button>');
+      c.addEventListener("click",function(){ answer(p,o[0]); });
+      cards.appendChild(c);
+    });
+    b.appendChild(cards);
+    b.appendChild(el('<div class="other"><span>OTHER</span></div>'));
+    [["not_sure","?","Not sure"],["audio_unclear","&#128264;","Audio unclear"]].forEach(function(o){
+      var a=el('<button class="alt" type="button" aria-pressed="'+(val===o[0])+'"><span>'+o[1]+'</span>'+o[2]+'</button>');
+      a.addEventListener("click",function(){ answer(p,o[0]); });
+      b.appendChild(a);
+    });
+    if(val==="yes"||val==="no"){
+      var ex=el('<button class="row" type="button"><span class="grow">'+
+        '<span class="name">Build an exercise for this moment</span></span><span class="open">&#8594;</span></button>');
+      ex.addEventListener("click",function(){
+        S.cmsFrom={ from:"judge", kind:"exercise", takeQ:S.takeQ, at:S.at, pieceId:p.id };
+        go("cms");
+      });
+      b.appendChild(ex);
+    }
+    if(val){
+      var inp=el('<input class="note-in" type="text" placeholder="hard to call · background noise">');
+      inp.id="note-"+p.id; inp.value=S.notes[p.id]||"";
+      inp.addEventListener("input",function(){ S.notes[p.id]=inp.value; });
+      b.appendChild(field("Note", inp));
+    }
+    phone.appendChild(b);
+
+    var f=foot();
+    var back=el('<button class="btn" type="button">Back</button>');
+    back.disabled=S.at===0;
+    back.addEventListener("click",function(){ S.at=Math.max(0,S.at-1); render(); });
+    f.appendChild(back);
+    if(done===list.length){
+      var next=el('<button class="btn primary" type="button">'+(S.takeQ===1?"Judge take 2":"On to the feedback")+'</button>');
+      next.addEventListener("click",function(){
+        if(S.takeQ===1&&!allDone()){ S.takeQ=2; S.at=0; render(); } else go("feedbacks");
+      });
+      f.appendChild(next);
+    } else if(val){
+      var nx=el('<button class="btn primary" type="button">Next</button>');
+      nx.disabled=S.at>=list.length-1;
+      nx.addEventListener("click",function(){ S.at=Math.min(list.length-1,S.at+1); render(); });
+      f.appendChild(nx);
+    } else {
+      var skip=el('<button class="btn" type="button">Skip</button>');
+      skip.disabled=S.at>=list.length-1;
+      skip.addEventListener("click",function(){ S.at=Math.min(list.length-1,S.at+1); render(); });
+      f.appendChild(skip);
+    }
+    phone.appendChild(f);
+  }
+
+  function answer(p,v){
+    S.answers[p.id]=v;
+    if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+    if(v!=="yes"&&v!=="no"){
+      var list=queue(), i=list.indexOf(p);
+      setTimeout(function(){ if(S.screen==="judge"&&i<list.length-1){ S.at=i+1; } render(); },420);
+    }
+    render();
+  }
+
+  function scrFeedbacks(){
+    phone.appendChild(head("Feedbacks review","Coach only · training",function(){ go("detail"); }));
+    var judged=Object.keys(S.verdicts).length;
+    phone.appendChild(el('<div class="strip"><span class="count" style="flex:1">'+judged+' of '+STARS.length+' reviewed</span></div>'));
+    var b=body();
+    STARS.forEach(function(st){
+      var box=el('<div class="box"></div>');
+      box.appendChild(el('<div style="display:flex;gap:7px;align-items:center"><span class="pill">'+st.fam+
+        '</span><span class="pill">Take '+st.take+'</span></div>'));
+      box.appendChild(player(st.dur));
+      box.appendChild(el('<p class="quote">'+st.text+'</p>'));
+      if(st.why) box.appendChild(el('<p style="margin:0;font-size:14px;line-height:1.55">'+st.why+'</p>'));
+      if(st.suggest) box.appendChild(el('<p style="margin:0;font-size:13px;line-height:1.5;color:var(--app-mute)">'+st.suggest+'</p>'));
+      var ch=el('<div class="chips"></div>');
+      [["keep","Keep"],["wrong","Wrong kind&hellip;"],["no","Shouldn&rsquo;t fire"]].forEach(function(v){
+        var c=el('<button class="chip" type="button" aria-pressed="'+(S.verdicts[st.id]===v[0])+'">'+v[1]+'</button>');
+        c.addEventListener("click",function(){ S.verdicts[st.id]=v[0]; render(); });
+        ch.appendChild(c);
+      });
+      box.appendChild(ch);
+      if(st.editable) box.appendChild(el('<button class="link" type="button">Edit what it says</button>'));
+      box.appendChild(el('<button class="link" type="button">Add note</button>'));
+      b.appendChild(box);
+    });
+    b.appendChild(sectionLabel("Takes"));
+    [1,2].forEach(function(t){
+      var r=el('<button class="row" type="button"><span class="grow"><span class="name">Take '+t+'</span></span>'+
+        '<span class="open">Open</span></button>');
+      r.addEventListener("click",function(){ go("context"); });
+      b.appendChild(r);
+    });
+    phone.appendChild(b);
+    var f=foot();
+    var close=el('<button class="btn" type="button">Back</button>');
+    close.addEventListener("click",function(){ go("detail"); });
+    f.appendChild(close);
+    var on=el('<button class="btn primary" type="button">Wrap up</button>');
+    on.addEventListener("click",function(){ S.saved=true; go("wrapup"); });
+    f.appendChild(on);
+    phone.appendChild(f);
+  }
+
+  function scrContext(){
+    phone.appendChild(head("Snippet 2 of 3","Take 1 · contextual pass",function(){ go("feedbacks"); }));
+    var b=body();
+    b.appendChild(el('<div style="border:1px solid var(--app-line);border-radius:13px;background:var(--app-soft);padding:14px;min-height:104px">'+
+      '<p style="margin:0;font-size:13px;font-weight:600">Slide 2 · Why the pilot stalled</p>'+
+      '<p style="margin:6px 0 0;font-size:11.5px;line-height:1.5;color:var(--app-mute)">Procurement · the data handover · one missing approval</p></div>'));
+    b.appendChild(player("0:19"));
+    b.appendChild(el('<p style="margin:0;font-size:14px;line-height:1.6">&ldquo;the honest answer is we lost about six weeks in procurement&rdquo;</p>'));
+    var ta=el('<textarea class="ta" id="coach-note" placeholder="What to take away from this snippet&hellip;"></textarea>');
+    b.appendChild(field("Coach note", ta));
+    var t=el('<button class="row" type="button"><span class="grow"><span class="name">Send this snippet to the user</span></span>'+
+      '<span class="open" style="color:var(--app-mute)">'+(S.surfaced?"Yes":"No")+'</span></button>');
+    t.addEventListener("click",function(){ S.surfaced=!S.surfaced; render(); });
+    b.appendChild(t);
+    phone.appendChild(b);
+    var f=foot();
+    var back=el('<button class="btn" type="button">Back</button>');
+    back.addEventListener("click",function(){ go("feedbacks"); });
+    var next=el('<button class="btn primary" type="button">Next</button>');
+    next.addEventListener("click",function(){ go("wrapup"); });
+    f.appendChild(back); f.appendChild(next); phone.appendChild(f);
+  }
+
+  function scrWrapup(){
+    phone.appendChild(head("Wrap up","Q3 board update",function(){ go("feedbacks"); }));
+    var b=body();
+    var mid=el('<div style="margin:auto 0;display:flex;justify-content:center"></div>');
+    var ob=el('<button class="btn ink" type="button" style="flex:0 0 auto;min-width:220px;padding:0 24px">'+
+      (S.verified?"Ideal text · approved":"Open the ideal text")+'</button>');
+    ob.addEventListener("click",function(){ go(S.verified?"message":"ideal"); });
+    mid.appendChild(ob);
+    b.appendChild(mid);
+    phone.appendChild(b);
+    var f=foot();
+    var skip=el('<button class="btn" type="button" style="flex:1">Skip it and send what you have</button>');
+    skip.addEventListener("click",function(){ go("send"); });
+    f.appendChild(skip);
+    phone.appendChild(f);
+  }
+
+  function scrIdeal(){
+    phone.appendChild(head("Ideal text","Q3 board update",function(){ go("wrapup"); }));
+    var b=body();
+    var ta=el('<textarea class="ta" id="ideal-text" style="min-height:240px">We set out to cut onboarding from nine days to two. We got to four.\n\nThe honest answer is that we lost about six weeks in procurement, and I do not want to skate past that.</textarea>');
+    b.appendChild(field("The text", ta));
+    b.appendChild(field("The student&rsquo;s own edit · v3",
+      el('<p style="margin:0;font-size:13px;line-height:1.55;color:var(--app-mute)">We wanted nine days down to two. We got four, and I want to be straight about why.</p>')));
+    phone.appendChild(b);
+    var f=foot();
+    var v=el('<button class="btn primary" type="button" style="flex:1">'+(S.verified?"Approved":"Approve the ideal text")+'</button>');
+    v.addEventListener("click",function(){ S.verified=true; go("message"); });
+    f.appendChild(v); phone.appendChild(f);
+  }
+
+  function scrMessage(){
+    phone.appendChild(head("Message to the user","Q3 board update",function(){ go("wrapup"); }));
+    var b=body();
+    var ta=el('<textarea class="ta" id="overall" style="min-height:150px" placeholder="A warm opener tying this take together&hellip;"></textarea>');
+    ta.value=S.msg;
+    ta.addEventListener("input",function(){ S.msg=ta.value; });
+    b.appendChild(field("Your message", ta));
+    var cams=el('<div style="display:flex;justify-content:center;gap:10px"></div>');
+    ["Upload a file","Record"].forEach(function(t){
+      var c=el('<button class="chip" type="button">'+t+(S.video&&t==="Record"?" · done":"")+'</button>');
+      c.addEventListener("click",function(){ S.cmsFrom={ from:"message", kind:"video" }; go("cms"); });
+      cams.appendChild(c);
+    });
+    b.appendChild(cams);
+    var nx=el('<button class="btn ink send" type="button" style="width:100%;margin-top:auto">Review and send</button>');
+    nx.addEventListener("click",function(){ go("send"); });
+    b.appendChild(nx);
+    phone.appendChild(b);
+  }
+
+  function scrCms(){
+    var from=S.cmsFrom||{from:"judge",kind:"exercise",takeQ:1,at:0};
+    var vid=from.kind==="video";
+    phone.appendChild(head(vid?"Record a message":"New exercise","Exercise CMS",back));
+    var b=body();
+    /* NOT OURS TO DESIGN. The CMS already owns the exercise definition and the
+       record lane (LaneShell / LaneSteps / RecordStep). The review only hands
+       off with a returnTo and takes the coach back afterwards. */
+    b.appendChild(el('<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;'+
+      'gap:14px;border:1px dashed var(--app-line);border-radius:18px;background:var(--app-soft);padding:28px 22px;text-align:center">'+
+      '<span style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--app-mute)">Existing CMS screen</span>'+
+      '<p style="margin:0;font-size:15px;line-height:1.5;color:var(--app-ink)">'+
+      (vid?"The record lane, as the CMS already builds it.":"The exercise lane, as the CMS already builds it.")+'</p>'+
+      '<p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--app-mute)">Nothing here is designed by this proposal. '+
+      'The review hands off and takes you back.</p></div>'));
+    var save=el('<button class="btn ink send" type="button" style="width:100%;margin-top:18px">Save and return to the review</button>');
+    save.addEventListener("click",function(){ if(vid) S.video=true; back(); });
+    b.appendChild(save);
+    phone.appendChild(b);
+    function back(){
+      if(from.from==="message"){ S.cmsFrom=null; go("message"); return; }
+      S.takeQ=from.takeQ; S.at=from.at; S.cmsFrom=null; go("judge");
+    }
+  }
+
+  function scrSend(){
+    phone.appendChild(head("Review and send","Heron 04 · Q3 board update",function(){ go(S.verified?"message":"wrapup"); }));
+    var b=body();
+    var list=el('<div style="display:flex;flex-direction:column;gap:12px"></div>');
+    [["Snippets you surfaced", S.surfaced?"1 snippet":"None", S.surfaced],
+     ["Notes and labels", S.saved?"Saved":"Not saved", S.saved],
+     ["Ideal text", S.verified?"Approved":"Not approved", S.verified],
+     ["Message from you", S.msg.trim()?"Written":"None", !!S.msg.trim()],
+     ["Coach video", S.video?"Recorded":"None", S.video]].forEach(function(r){
+      list.appendChild(el('<div style="display:flex;align-items:baseline;gap:10px">'+
+        '<span style="flex:1;font-size:14px">'+r[0]+'</span>'+
+        '<span style="font-size:12.5px;color:'+(r[2]?"var(--app-ok)":"var(--app-mute)")+'">'+r[1]+'</span></div>'));
+    });
+    b.appendChild(list);
+    var pb=el('<button class="btn ink send" type="button" style="width:100%;margin-top:auto">Publish the full analysis</button>');
+    pb.addEventListener("click",function(){ S.published=true; go("delivered"); });
+    b.appendChild(pb);
+    phone.appendChild(b);
+  }
+
+  function scrDelivered(){
+    var m=el('<div class="mid"><span class="tick">&#10003;</span>'+
+      '<p style="margin:0;font-size:20px;font-weight:600">Delivered</p></div>');
+    m.addEventListener("click",function(){ go("detail"); });
+    phone.appendChild(m);
+    /* Hands the coach back to the student, where the take now reads Done. */
+    if(deliverTimer) clearTimeout(deliverTimer);
+    deliverTimer=setTimeout(function(){ if(S.screen==="delivered") go("detail"); },1500);
+  }
+  var deliverTimer=null;
+
+  var SCREENS={roster:scrRoster,detail:scrDetail,judge:scrJudge,feedbacks:scrFeedbacks,
+               context:scrContext,wrapup:scrWrapup,ideal:scrIdeal,message:scrMessage,send:scrSend,cms:scrCms,delivered:scrDelivered};
+
+  function render(){
+    var active=document.activeElement, id=active&&active.id;
+    var pos=(active&&active.selectionStart!=null)?active.selectionStart:null;
+    phone.innerHTML="";
+    (SCREENS[S.screen]||scrRoster)();
+    drawRail(); drawWhy();
+    if(id){ var again=document.getElementById(id); if(again&&again.focus){ again.focus();
+      if(pos!=null&&again.setSelectionRange){ try{ again.setSelectionRange(pos,pos); }catch(e){} } } }
+  }
+  function reset(){ S.screen="roster"; S.at=0; S.scope="take"; S.door="one"; S.answers={}; S.notes={}; S.verdicts={}; S.takeQ=1; S.surfaced=false; S.verified=false; S.saved=false; S.msg=""; S.cmsFrom=null; S.video=false; S.published=false; render(); }
+
+  document.querySelectorAll("[data-pw]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.documentElement.style.setProperty("--pw",b.dataset.pw+"px");
+      document.querySelectorAll("[data-pw]").forEach(function(o){ o.setAttribute("aria-pressed",String(o===b)); });
+      document.getElementById("pw-note").textContent=b.dataset.pw+" \u00d7 760 \u00b7 the app's own chrome";
+    });
+  });
+  document.getElementById("restart").addEventListener("click",reset);
+  render();
+})();
+</script>
+
+</body>
+</html>
