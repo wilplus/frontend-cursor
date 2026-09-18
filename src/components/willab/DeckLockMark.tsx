@@ -44,6 +44,33 @@ const COACH_LABEL = "Coach note:";
    a second vocabulary starts, which is what this label's test guards. */
 const STYLE_LABEL = CHUNK_SHEET_COPY.titleEmphasis;
 
+type BookmarkTier = "exercise" | "most_confident" | "standard" | null;
+
+/** How one bookmark is painted (contract 24g), as a pure function of its tier.
+ *
+ *  Module level rather than inline: the mark already carries the lock, the
+ *  coach dot, the style flag and the review status, and the ratchet holds this
+ *  component at its ceiling. Pure also makes the rule readable on its own —
+ *  which colour, which ring, and what moves.
+ *
+ *  GREEN NEVER PULSES. The exercise is the one item the speaker is asked to go
+ *  and do, so it is the only tier that moves; a moment that congratulates
+ *  itself in motion is asking for attention it does not need. Both animations
+ *  are motion-safe, the restraint the attention ring already keeps. */
+function tierClasses(tier: BookmarkTier, attention: boolean): string {
+  const affirmed = tier === "most_confident";
+  const colour = affirmed
+    ? "text-affirm focus-visible:outline-affirm"
+    : "text-primary focus-visible:outline-primary";
+  const ring = attention
+    ? `ring-2 ring-offset-2 ring-offset-background motion-safe:animate-lock-breathe ${
+        affirmed ? "ring-affirm" : "ring-primary"
+      }`
+    : "";
+  const pulse = tier === "exercise" ? "motion-safe:animate-pulse" : "";
+  return `${colour} ${ring} ${pulse}`;
+}
+
 export default function DeckLockMark({
   status,
   flagship = false,
@@ -53,8 +80,22 @@ export default function DeckLockMark({
   hasUnreadCoachUpdate = false,
   hasStyle = false,
   reviewStatus = null,
+  tier = null,
 }: {
   status: ChunkStatus;
+  /** WHICH BOOKMARK THIS IS (contract 24g). The exercise item renders orange
+   *  and pulsing; the Take's two most Confident Voice items render green,
+   *  IDENTICALLY — first and second are never distinguished, because a visible
+   *  ordering is a surfaced ranking (24i). Everything else renders orange, as
+   *  it always has.
+   *
+   *  COLOUR IS NEVER THE SOLE DIFFERENTIATOR (24g): each tier also names
+   *  itself in the accessible label, so the distinction survives a screen
+   *  reader and a colour-blind reader alike. The pulse is motion-safe, which
+   *  is the same restraint the attention ring already keeps.
+   *
+   *  Safe-ahead: null renders exactly today's mark. */
+  tier?: BookmarkTier;
   /** True when the paragraph contains an active orange rooting phrase.
    * Its automatic/owner origin remains separate server provenance. */
   flagship?: boolean;
@@ -77,12 +118,23 @@ export default function DeckLockMark({
   // `flagship`.
   const attention =
     status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
+  // The exercise is the ONE thing on the screen the speaker is asked to go and
+  // do, so it is the only tier that moves. Green never pulses — it marks work
+  // already done well, and a moment that congratulates itself in motion is
+  // asking for attention it does not need.
+  const isExercise = tier === "exercise";
+  const isAffirmed = tier === "most_confident";
 
   return (
     <button
       type="button"
       aria-label={[
         flagship ? "Rooting phrase active" : ARIA[status],
+        // 24g's "never the sole differentiator", and 24i's no-ranking rule:
+        // the label names the tier and says nothing about position, band or
+        // score. "One of" is load-bearing — it must not read as "the best".
+        isExercise ? "Practice this one" : null,
+        isAffirmed ? "One of your most confident moments" : null,
         hasCoach ? COACH_LABEL : null,
         hasUnreadCoachUpdate ? "New coach update" : null,
         reviewStatus === "pending_coach_review" ? "Pending coach review" : null,
@@ -96,13 +148,10 @@ export default function DeckLockMark({
       data-coach={hasCoach ? "true" : undefined}
       data-coach-unread={hasUnreadCoachUpdate ? "true" : undefined}
       data-style={styled ? "true" : undefined}
+      data-tier={tier ?? undefined}
       onClick={onClick}
       disabled={disabled}
-      className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] text-primary transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 ${
-        attention
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-background motion-safe:animate-lock-breathe"
-          : ""
-      }`}
+      className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier, attention)}`}
     >
       <Bookmark
         className="h-5 w-5"

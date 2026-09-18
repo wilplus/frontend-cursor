@@ -236,6 +236,24 @@ export interface DocumentSuggestion {
     | null;
   /** Weak evidence is shown with tentative language, never hidden or inflated. */
   tentative?: boolean;
+  /** WHICH BOOKMARK TO DRAW (contract 24g). The exercise item renders orange
+   *  and pulsing; the Take's two most Confident Voice items render green,
+   *  IDENTICALLY — first and second are never distinguished, because a visible
+   *  ordering is a surfaced ranking (24i). Everything else renders orange.
+   *
+   *  A tier NAME, never a band, a score or a position: the BE decides which
+   *  bookmark this is and sends only that word. Safe-ahead — absent/null on an
+   *  older backend renders exactly today's single colour. */
+  bookmarkTier?: "exercise" | "most_confident" | "standard" | null;
+  /** "Let's practice" with no exercise attached (24f). Every item below the
+   *  neutral read offers practice; only the weakest carries the drill, because
+   *  an exercise is work the user must go and do and a list of them is a list
+   *  nobody starts. Carries no number and no band name (24i). */
+  practicePrompt?: boolean;
+  /** The ~75-word block this item was selected within. Blocks tile a Slide
+   *  contiguously, so this is what lets the document grey a whole BLOCK while
+   *  a judgement is unsettled (24g-1) without ever colouring part of a word. */
+  blockId?: string | null;
   /** advice only — which coaching observation this is. The FE renders the
    *  SAME founder-approved copy it already uses for delivery/structural
    *  stars (BE-C: "popover copy from device as today"). null → no copy, so
@@ -409,6 +427,14 @@ const SUGGESTION_VISUALS: readonly SuggestionVisual[] = [
   "star",
   "underline",
   "bold",
+];
+/** The bookmark tiers of contract 24g. A CLOSED list: an unknown word from a
+ *  newer backend maps to null and renders as an ordinary bookmark, rather than
+ *  inventing a fourth appearance the design never approved. */
+const BOOKMARK_TIERS: readonly ("exercise" | "most_confident" | "standard")[] = [
+  "exercise",
+  "most_confident",
+  "standard",
 ];
 const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
@@ -640,6 +666,9 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     proposedText,
     feedbackFamily: readEnum(record.feedback_family, FEEDBACK_FAMILIES),
     tentative: record.tentative === true,
+    bookmarkTier: readEnum(record.bookmark_tier, BOOKMARK_TIERS),
+    practicePrompt: record.practice_prompt === true,
+    blockId: readNonEmptyString(record.block_id),
     device,
     why,
     source,

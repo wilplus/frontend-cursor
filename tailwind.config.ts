@@ -70,6 +70,13 @@ const config: Config = {
         // Success-emerald valence colour, distinct from the generic
         // destructive so the valence is meaningful at a glance.
         success: "hsl(var(--success))",
+        // The green bookmark of contract 24g — its own token, not a reuse of
+        // success, so a change to toasts never repaints a speaker's best
+        // moment (see globals.css).
+        affirm: {
+          DEFAULT: "hsl(var(--affirm))",
+          foreground: "hsl(var(--affirm-foreground))",
+        },
         // Transcript review deck — pending-feedback amber + applied
         // colour-emphasis (see globals.css for the restraint rationale).
         pending: "hsl(var(--pending))",

@@ -918,6 +918,7 @@ export default function TranscriptReviewDeck({
                       {markWorthShowing(st.pending, summaryByParagraph.get(c.part.id)) ? (
                       <DeckLockMark
                         status={c.status}
+                        tier={c.tier}
                         flagship={summaryByParagraph.get(c.part.id)?.some((item) => item.isOrange) === true || Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
