@@ -55,6 +55,7 @@ import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
 import CoachDeliveryOverlay from "./CoachDeliveryOverlay";
+import { useJudgeWalk } from "./useJudgeWalk";
 import RaterLanguageGate from "./RaterLanguageGate";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import {
@@ -131,6 +132,38 @@ type ThreadItem =
       // FP-4 — one item per student (grouped), not per session.
       group: ReviewStudentGroup;
     };
+
+/** ?piece=<n> from the exercise CMS's returnTo. Anything that is not a real
+ *  1-based position is simply no resume position. */
+function parseReviewPiece(raw: string | null | undefined): number | null {
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** The delivery flow's mount, with its own presence check, so the hub renders
+ *  it unconditionally. Its POSITION here is load-bearing: above the star panel
+ *  it opens from, below the ideal-text panel that opens over it. */
+function CoachDeliveryMount({
+  arcId,
+  onOpenArcIdeal,
+  onPublished,
+  onClose,
+}: {
+  arcId: string | null;
+  onOpenArcIdeal: (arcId: string) => void;
+  onPublished: (sessionIds: string[]) => void;
+  onClose: () => void;
+}) {
+  if (!arcId) return null;
+  return (
+    <CoachDeliveryOverlay
+      arcId={arcId}
+      onOpenArcIdeal={onOpenArcIdeal}
+      onPublished={onPublished}
+      onClose={onClose}
+    />
+  );
+}
 
 export default function Lounge({
   state,
@@ -245,18 +278,19 @@ export default function Lounge({
   // the CoachReviewOverlay over the Lounge; closing it returns to the chat
   // thread underneath with no remount of the queue.
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  // FP-9 — the student's one door leads with judgement: take by take, then the
+  // Feedbacks review. The hub holds the walk because it is the one place
+  // allowed to know both lanes (N1).
+  const judge = useJudgeWalk({
+    onOpenTake: setReviewSessionId,
+    onComplete: (arcId, sessionIds) => {
+      setReviewSessionId(null);
+      void reviewQueue.refresh();
+      setStarVerdictArcId({ arcId, sessionIds });
+    },
+  });
   // FP-9 — the arc-level delivery flow (wrap up → ideal text → message → send).
   const [deliveryArcId, setDeliveryArcId] = useState<string | null>(null);
-  // FP-9 — the judgement walk. Opening a student's review now leads with the
-  // blind pass, take by take, and only then with the machine's guesses. The
-  // hub holds the walk because it is the one place allowed to know both lanes
-  // (N1): the review overlay imports nothing from the star lane, and vice
-  // versa.
-  const [judgeWalk, setJudgeWalk] = useState<{
-    arcId: string;
-    sessionIds: string[];
-    at: number;
-  } | null>(null);
   // Bumped after a delivery so StudentDetailOverlay refetches: the coach lands
   // back on the student expecting the take to read Done, and the detail is a
   // separate read from the queue.
@@ -337,37 +371,8 @@ export default function Lounge({
     setReviewSessionId(sessionId);
   }
 
-  /** The student's one door. Judgement first: open the first take's blind
-   *  pass, and remember the rest so finishing one carries on to the next. */
-  function startJudgeWalk(arcId: string, sessionIds: string[]): void {
-    if (sessionIds.length === 0) return;
-    setJudgeWalk({ arcId, sessionIds, at: 0 });
-    openReview(sessionIds[0]);
-  }
-
-  /** A take's queue is fully answered: on to the next take, or — once every
-   *  take is judged — to the Feedbacks review, which is where the machine's
-   *  guesses are finally allowed on screen. */
-  function advanceJudgeWalk(): void {
-    if (!judgeWalk) {
-      setReviewSessionId(null);
-      return;
-    }
-    const next = judgeWalk.at + 1;
-    if (next < judgeWalk.sessionIds.length) {
-      setJudgeWalk({ ...judgeWalk, at: next });
-      setReviewSessionId(judgeWalk.sessionIds[next]);
-      return;
-    }
-    const { arcId, sessionIds } = judgeWalk;
-    setJudgeWalk(null);
-    setReviewSessionId(null);
-    void reviewQueue.refresh();
-    setStarVerdictArcId({ arcId, sessionIds });
-  }
-
   function closeReview(): void {
-    setJudgeWalk(null);
+    judge.stop();
     setReviewSessionId(null);
     // Refresh the queue so the bubble's state badge (pending → in_progress)
     // reflects any per-snippet saves the coach made inside the overlay.
@@ -1600,9 +1605,10 @@ export default function Lounge({
           // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
           // in every state, pre-3-takes included — never a dead end).
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          onOpenStarVerdicts={(arcId, sessionIds) =>
-            setStarVerdictArcId({ arcId, sessionIds })
-          }
+          // Same one door as the detail overlay below: judgement first, the
+          // machine's guesses after (the roster renders its own detail and
+          // passes this straight through).
+          onOpenStarVerdicts={judge.start}
         />
       )}
       {/* FP-4 — per-student drill-down opened from a grouped review bubble.
@@ -1620,7 +1626,7 @@ export default function Lounge({
           onOpenReview={openReview}
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
           // The one door leads with judgement; the star lane comes after it.
-          onOpenStarVerdicts={startJudgeWalk}
+          onOpenStarVerdicts={judge.start}
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1666,24 +1672,22 @@ export default function Lounge({
         </RaterLanguageGate>
       )}
 
-      {deliveryArcId && (
-        <CoachDeliveryOverlay
-          arcId={deliveryArcId}
-          onOpenArcIdeal={(id) => setBestPresentationArcId(id)}
-          onPublished={(sessionIds) => {
-            // ONE delivery covers the whole arc, so every take goes done —
-            // markDone takes a single session, and marking only one would
-            // land the coach on a student that reads Done for take 1 and
-            // pending for take 2.
-            sessionIds.forEach((id) => reviewQueue.markDone(id));
-            setDetailNonce((n) => n + 1);
-          }}
-          onClose={() => {
-            setDeliveryArcId(null);
-            void reviewQueue.refresh();
-          }}
-        />
-      )}
+      <CoachDeliveryMount
+        arcId={deliveryArcId}
+        onOpenArcIdeal={(id) => setBestPresentationArcId(id)}
+        onPublished={(sessionIds) => {
+          // ONE delivery covers the whole arc, so every take goes done —
+          // markDone takes a single session, and marking only one would land
+          // the coach on a student that reads Done for take 1 and pending for
+          // take 2.
+          sessionIds.forEach((id) => reviewQueue.markDone(id));
+          setDetailNonce((n) => n + 1);
+        }}
+        onClose={() => {
+          setDeliveryArcId(null);
+          void reviewQueue.refresh();
+        }}
+      />
 
       {reviewSessionId && (
         <RaterLanguageGate onClose={closeReview}>
@@ -1692,19 +1696,15 @@ export default function Lounge({
               publish — is CoachDeliveryOverlay, reached from the Feedbacks
               review, because the student receives ONE analysis per arc. */}
           <CoachReviewOverlay
+            // Keyed by session: walking take 1 → take 2 swaps the id in place,
+            // and without a remount the queue keeps take 1's cursor — opening
+            // take 2 past its own last piece, with no forward control at all.
+            key={reviewSessionId}
             sessionId={reviewSessionId}
             onClose={closeReview}
-            initialPiece={
-              initialReviewPiece ? Number(initialReviewPiece) || null : null
-            }
-            completeLabel={
-              judgeWalk && judgeWalk.at + 1 < judgeWalk.sessionIds.length
-                ? `Judge take ${judgeWalk.at + 2}`
-                : judgeWalk
-                  ? "On to the feedback"
-                  : undefined
-            }
-            onQueueComplete={judgeWalk ? advanceJudgeWalk : undefined}
+            initialPiece={parseReviewPiece(initialReviewPiece)}
+            completeLabel={judge.completeLabel}
+            onQueueComplete={judge.onQueueComplete}
           />
         </RaterLanguageGate>
       )}

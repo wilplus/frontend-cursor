@@ -58,6 +58,51 @@ import { CoachCard, CoachEyebrow, CoachMetaPill } from "./coachChrome";
  * instrument, extracted from this card 2026-08-10) — see RATING_OPTIONS
  * there for the Ambiguous-vs-unrateable rationale. */
 
+/** PASS ONE, the whole of it: the clip, the question, and — on a Yes or a No —
+ *  the one thing that answer unlocks. Progress lives in CoachJudgementQueue's
+ *  strip, so the piece carries none of its own.
+ *
+ *  Lifted out of CoachSnippetReviewCard deliberately: the card is one of the
+ *  functions the complexity ratchet has grandfathered, and every branch added
+ *  inside it has to be paid for by taking one out. */
+function renderBlindPiece(options: {
+  snippet: CoachReviewSnippet;
+  revealedTranscript: string;
+  instrument: React.ReactNode;
+  rating: ConfidenceRatingValue | null;
+  onBuildExercise?: (snippetId: string) => void;
+}): React.ReactNode {
+  const { snippet, revealedTranscript, instrument, rating, onBuildExercise } =
+    options;
+  const answered = rating === "yes" || rating === "no";
+  return (
+    <CoachCard gap="lg">
+      <ConfidenceEvidenceReadout
+        audioRef={snippet.audioRef}
+        startOffsetMs={snippet.startOffsetMs}
+        durationMs={snippet.durationMs}
+        transcript={revealedTranscript}
+        transcriptRevealed={revealedTranscript.length > 0}
+      />
+      <div className="border-t border-border pt-4">{instrument}</div>
+      {onBuildExercise && answered ? (
+        <button
+          type="button"
+          onClick={() => onBuildExercise(snippet.id)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:border-primary/50"
+        >
+          <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">
+            Build an exercise for this moment
+          </span>
+          <span className="shrink-0 text-[12px] text-primary" aria-hidden>
+            →
+          </span>
+        </button>
+      ) : null}
+    </CoachCard>
+  );
+}
+
 export default function CoachSnippetReviewCard({
   sessionId,
   snippet,
@@ -95,7 +140,10 @@ export default function CoachSnippetReviewCard({
    *  decide whether to advance: In-between and the abstentions have nothing
    *  more to show, but a Yes or a No reveals the words and the exercise link,
    *  and jumping on would hide both. */
-  onBlindRatingCommitted?: (value: ConfidenceRatingValue | null) => void;
+  onBlindRatingCommitted?: (
+    snippetId: string,
+    value: ConfidenceRatingValue | null,
+  ) => void;
   /** Blind pass only: hand off to the exercise CMS for this snippet. */
   onBuildExercise?: (snippetId: string) => void;
 }) {
@@ -191,7 +239,7 @@ export default function CoachSnippetReviewCard({
         setRatingError(result.error ?? "Couldn't save that. Try again.");
       } else {
         setRevealedTranscript(result.transcript ?? "");
-        onBlindRatingCommitted?.(nextValue);
+        onBlindRatingCommitted?.(snippet.id, nextValue);
       }
     },
     [snippet.id, onBlindRatingCommitted],
@@ -228,35 +276,13 @@ export default function CoachSnippetReviewCard({
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
   if (!contextUnlocked) {
-    // Progress lives in CoachJudgementQueue's strip now, so the card carries
-    // none of its own: the piece, the question, and — on a Yes or a No — the
-    // one thing that answer unlocks.
-    return (
-      <CoachCard gap="lg">
-        <ConfidenceEvidenceReadout
-          audioRef={snippet.audioRef}
-          startOffsetMs={snippet.startOffsetMs}
-          durationMs={snippet.durationMs}
-          transcript={revealedTranscript}
-          transcriptRevealed={revealedTranscript.length > 0}
-        />
-        <div className="border-t border-border pt-4">{blindInstrument}</div>
-        {onBuildExercise && (rating === "yes" || rating === "no") ? (
-          <button
-            type="button"
-            onClick={() => onBuildExercise(snippet.id)}
-            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:border-primary/50"
-          >
-            <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">
-              Build an exercise for this moment
-            </span>
-            <span className="shrink-0 text-[12px] text-primary" aria-hidden>
-              →
-            </span>
-          </button>
-        ) : null}
-      </CoachCard>
-    );
+    return renderBlindPiece({
+      snippet,
+      revealedTranscript,
+      instrument: blindInstrument,
+      rating,
+      onBuildExercise,
+    });
   }
 
   // #191 — no auto-seed. Every snippet defaults HIDDEN (surfaced=false): the

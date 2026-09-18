@@ -179,6 +179,9 @@ export default function CoachReviewOverlay({
   const [localState, setLocalState] = useState<
     Record<string, CoachSnippetState>
   >(() => draftCache?.snippets ?? {});
+  /** Pieces answered in THIS sitting, OR'd with what the server has returned.
+   *  The blind lane saves on its own, so the session read trails it. */
+  const [judged, setJudged] = useState<Record<string, boolean>>({});
   const [cursor, setCursor] = useState(() =>
     initialPiece && initialPiece > 0 ? initialPiece - 1 : 0,
   );
@@ -222,7 +225,12 @@ export default function CoachReviewOverlay({
    *  which reveal the words and the exercise link. Advancing past those would
    *  hide both, so they hold the screen and Next becomes a tap. */
   const onBlindRatingCommitted = useCallback(
-    (value: ConfidenceRatingValue | null) => {
+    (snippetId: string, value: ConfidenceRatingValue | null) => {
+      // Mark it answered HERE, not on the refetch. The blind rating saves
+      // through its own lane, so the session read is a round trip behind —
+      // long enough for the dot to stay hollow and the forward button to still
+      // say Skip on a piece the coach has just answered.
+      setJudged((prev) => ({ ...prev, [snippetId]: true }));
       void refresh();
       if (value === "yes" || value === "no") return;
       window.setTimeout(() => {
@@ -305,6 +313,7 @@ export default function CoachReviewOverlay({
   if (!session.contextUnlocked) {
     const current = session.snippets[cursor];
     const answeredHere = (s: (typeof session.snippets)[number]) => {
+      if (judged[s.id]) return true;
       const st = localState[s.id] ?? s.coachState;
       return st.ratingValue !== null || st.ratingUnrateable;
     };
