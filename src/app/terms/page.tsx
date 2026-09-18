@@ -286,7 +286,11 @@ export default function TermsPage() {
             </li>
             <li>
               The Service infers characteristics of speech delivery from your
-              voice. <strong>This inference is opt-in and off by default.</strong>{" "}
+              voice. It runs as part of the Service and{" "}
+              <strong>
+                is never shown to you as a score, rating or grade, nor shown to
+                anyone else.
+              </strong>{" "}
               See the{" "}
               <Link
                 href="/privacy"

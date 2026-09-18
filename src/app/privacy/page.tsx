@@ -303,8 +303,12 @@ export default function PrivacyPage() {
           </h2>
           <p className="text-muted-foreground">
             The Service infers characteristics of <strong>speech delivery</strong>{" "}
-            from your recordings. This inference is{" "}
-            <strong>opt-in and off by default.</strong> What we measure:
+            from your recordings. It runs as part of the Service and{" "}
+            <strong>
+              is never shown to you as a score, rating or grade, nor shown to
+              anyone else.
+            </strong>{" "}
+            What we measure:
           </p>
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
             <li>
