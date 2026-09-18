@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ChevronLeft, X } from "lucide-react";
+import { enterAdvances } from "./laneKeys";
 
 /* -------------------------------------------------------------------------- */
 /*  The chrome every lane screen wears.                                        */
@@ -18,6 +19,7 @@ export function LaneShell({
   dark,
   onBack,
   onClose,
+  onEnter,
   children,
   footer,
 }: {
@@ -26,9 +28,45 @@ export function LaneShell({
   dark?: boolean;
   onBack: () => void;
   onClose: () => void;
+  /** Enter does what the CTA does. Omit it and Enter does nothing — which is
+   *  what the camera screen wants, since it deliberately has no CTA. */
+  onEnter?: () => void;
   children: ReactNode;
   footer: ReactNode;
 }) {
+  // Bound on WINDOW, not on the column. The founder walks a lane without ever
+  // clicking into a field on screens whose only control is a picker, so the
+  // press lands on <body> and a handler bound to the content never sees it.
+  // The ref keeps the listener bound once instead of on every parent render.
+  const enter = useRef(onEnter);
+  useEffect(() => {
+    enter.current = onEnter;
+  });
+  const enterEnabled = !!onEnter;
+  useEffect(() => {
+    if (!enterEnabled) return;
+    function onKeyDown(event: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null;
+      const advance = enterAdvances({
+        key: event.key,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        // keyCode 229 is Safari's IME press: it reports no isComposing.
+        isComposing: event.isComposing || event.keyCode === 229,
+        tagName: el?.tagName ?? "",
+        isContentEditable: el?.isContentEditable ?? false,
+        ownsEnter: el?.dataset?.ownsEnter === "true",
+      });
+      if (!advance) return;
+      event.preventDefault();
+      enter.current?.();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [enterEnabled]);
+
   return (
     <main
       className={`flex h-full flex-col ${

@@ -59,6 +59,7 @@ export default function NewContentClient({ path }: { path: string[] }) {
   const [errors, setErrors] = useState<AdminSpeakingError[]>([]);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [drawing, setDrawing] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const restored = useRef(false);
 
@@ -255,6 +256,14 @@ export default function NewContentClient({ path }: { path: string[] }) {
       dark={dark}
       onBack={() => (step > 1 ? go(step - 1) : router.push("/cms/new"))}
       onClose={() => router.push("/cms")}
+      // The camera screen deliberately has no CTA, so Enter has nothing to do
+      // there. Everywhere else Enter is the CTA — including Publish on the
+      // last screen, which is what the button under the thumb does too.
+      onEnter={
+        dark || busy || uploading || drawing
+          ? undefined
+          : () => (last ? void finish(true) : next())
+      }
       footer={
         <>
           {/* The camera screen carries the record ring and nothing else —
@@ -263,7 +272,7 @@ export default function NewContentClient({ path }: { path: string[] }) {
           {dark ? null : (
             <LaneCta
               onClick={() => (last ? void finish(true) : next())}
-              disabled={busy || uploading}
+              disabled={busy || uploading || drawing}
               dark={dark}
             >
               {busy ? "Saving…" : last ? "Publish" : "Next"}
