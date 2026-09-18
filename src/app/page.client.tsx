@@ -77,30 +77,33 @@ export default function LandingClient({
 
   return (
     <main className="bg-background text-foreground">
-      <section className="flex min-h-[100dvh] flex-col">
+      {/* THE HERO DELIBERATELY DOES NOT FILL THE VIEWPORT (founder 2026-09-18).
+          It gives up ~96px so the top of the first journal cover sits in view
+          before anyone scrolls. A full-height hero over a strip nobody can see
+          is a strip nobody reads; a sliver of an image is the whole invitation
+          and needs no label. */}
+      <section className="flex min-h-[calc(100dvh-6rem)] flex-col">
         <WelcomeConsent
           onAccept={() => {
             acceptConsentLocally();
             router.push("/chat");
           }}
+          onReadJournal={
+            posts.length > 0
+              ? () =>
+                  document
+                    .getElementById("journal")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              : undefined
+          }
         />
       </section>
 
       {posts.length > 0 ? (
-        <section className="border-t border-border/70 py-14">
+        /* No heading rule and no "From the journal" bar. The covers say there
+           are posts; a label above them only pushed them below the fold. */
+        <section id="journal" className="scroll-mt-4 pb-14 pt-3">
           <div className="mx-auto w-full max-w-5xl px-6">
-            <div className="mb-8 flex items-baseline justify-between gap-4">
-              <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                From the journal
-              </h2>
-              <Link
-                href="/blog"
-                className="text-[13px] text-foreground underline underline-offset-4 hover:text-foreground/70"
-              >
-                Read all
-              </Link>
-            </div>
-
             {/* Horizontal strip on small screens, settling into a grid once
                 there is room. -mx/px padding keeps the first and last card
                 from clipping against the viewport edge while scrolling. */}
@@ -113,6 +116,17 @@ export default function LandingClient({
                   <JournalCard post={p} />
                 </div>
               ))}
+            </div>
+
+            {/* "Read all" moved under the cards. Above them it competed with
+                the covers for the one thing the strip is for. */}
+            <div className="mt-8 flex justify-center">
+              <Link
+                href="/blog"
+                className="h-11 px-2 text-[14px] text-muted-foreground no-underline transition-colors hover:text-foreground"
+              >
+                Read all
+              </Link>
             </div>
           </div>
         </section>
