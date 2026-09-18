@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
-import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import {
+  CONFIDENCE_QUESTION,
+  type ConfidenceRatingValue,
+} from "@/services/api/stateRatings";
 import {
   completeFirstClientCoachReview,
   confirmFirstClientCoachRender,
@@ -123,7 +126,7 @@ export default function FirstClientCoachBlindReview({
           />
           <div className="mt-4">
             <ConfidenceLabelChips
-              question="Was this voice confident?"
+              question={CONFIDENCE_QUESTION}
               value={value(answers[assignment.assignmentId] ?? null)}
               unrateable={answers[assignment.assignmentId] === "rating_audio_unclear"}
               disabled={saving === assignment.assignmentId}

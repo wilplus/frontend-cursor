@@ -41,6 +41,7 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 export default function WillabSurface({
   sessionId,
   reviewSessionId,
+  reviewPiece,
   insightSessionId,
   bestPresentationArcId,
   idealTextArcId = null,
@@ -49,6 +50,7 @@ export default function WillabSurface({
   /** U12 — coach deep-link target from `/chat?review=<id>`; opens the in-Lounge
    *  CoachReviewOverlay on mount (coach-gated inside the Lounge). */
   reviewSessionId: string | null;
+  reviewPiece?: string | null;
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
    *  InsightsOverlay on mount. */
   insightSessionId: string | null;
@@ -163,6 +165,7 @@ export default function WillabSurface({
         onStartInProject={flow.startRecordingSetup}
         dispatch={flow.dispatch}
         initialReviewSessionId={reviewSessionId}
+        initialReviewPiece={reviewPiece ?? null}
         initialBestPresentationArcId={bestPresentationArcId}
         initialIdealTextArcId={idealTextArcId}
         recordingProgress={recordingProgress}
