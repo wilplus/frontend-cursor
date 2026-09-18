@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import LoadingState from "@/components/willab/LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import VoiceAlbumMoment from "@/components/willab/VoiceAlbumMoment";
+import PracticeNewQueue from "@/components/willab/PracticeNewQueue";
 import {
   fetchVoiceAlbum,
   type VoiceAlbumProject,
@@ -35,6 +36,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 type Status = "loading" | "ready" | "empty" | "error";
+type Mode = "yours" | "new";
 
 export default function VoiceAlbumPageClient({
   initialProjectId,
@@ -43,6 +45,9 @@ export default function VoiceAlbumPageClient({
   initialProjectId: string | null;
 }) {
   const router = useRouter();
+  /* The navbar toggle (founder 2026-09-18). Two halves of one product: the
+     moments that made it in, and the clips still waiting on your answer. */
+  const [mode, setMode] = useState<Mode>("yours");
   const [projects, setProjects] = useState<VoiceAlbumProject[] | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [openProjectId, setOpenProjectId] = useState<string | null>(initialProjectId);
@@ -72,9 +77,26 @@ export default function VoiceAlbumPageClient({
     if (band) band.scrollIntoView({ block: "start" });
   }, [status, openProjectId, projects]);
 
+  const shell = {
+    onClose: () => router.push("/chat"),
+    mode,
+    onMode: (next: Mode) => {
+      setMode(next);
+      window.scrollTo(0, 0);
+    },
+  };
+
+  if (mode === "new") {
+    return (
+      <Shell {...shell}>
+        <PracticeNewQueue />
+      </Shell>
+    );
+  }
+
   if (status === "loading") {
     return (
-      <Shell onClose={() => router.push("/chat")}>
+      <Shell {...shell}>
         <LoadingState placement="surface" />
       </Shell>
     );
@@ -82,7 +104,7 @@ export default function VoiceAlbumPageClient({
 
   if (status === "error") {
     return (
-      <Shell onClose={() => router.push("/chat")}>
+      <Shell {...shell}>
         <Centered>We couldn&apos;t load your Voice Album just now.</Centered>
       </Shell>
     );
@@ -90,7 +112,7 @@ export default function VoiceAlbumPageClient({
 
   if (status === "empty" || !projects || projects.length === 0) {
     return (
-      <Shell onClose={() => router.push("/chat")}>
+      <Shell {...shell}>
         <Centered>
           Your Voice Album is empty. Moments appear here only after the machine,
           you, and your coach independently hear confident delivery.
@@ -101,7 +123,7 @@ export default function VoiceAlbumPageClient({
 
   if (openProjectId === null) {
     return (
-      <Shell onClose={() => router.push("/chat")}>
+      <Shell {...shell}>
         <ul className="m-0 flex list-none flex-col gap-2 p-0 py-5">
           {projects.map((project) => (
             <li key={project.projectId}>
@@ -133,7 +155,7 @@ export default function VoiceAlbumPageClient({
 
   return (
     <Shell
-      onClose={() => router.push("/chat")}
+      {...shell}
       onBack={() => {
         setOpenProjectId(null);
         setOpenMoment(null);
@@ -186,26 +208,59 @@ function Shell({
   children,
   onClose,
   onBack,
+  mode,
+  onMode,
 }: {
   children: React.ReactNode;
   onClose: () => void;
   onBack?: () => void;
+  mode: Mode;
+  onMode: (next: Mode) => void;
 }) {
   return (
     <main className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-background px-5">
-      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 bg-background pb-2.5 pt-4">
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Back to your projects"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-          </button>
-        ) : null}
-        <h1 className="flex-1 text-[17px] font-semibold text-foreground">Voice Album</h1>
-        <OverlayCloseButton onClick={onClose} />
+      <header className="sticky top-0 z-10 shrink-0 bg-background pb-3 pt-4">
+        <div className="flex items-center gap-2 pb-2.5">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to your projects"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </button>
+          ) : null}
+          <h1 className="flex-1 text-[17px] font-semibold text-foreground">Voice Album</h1>
+          <OverlayCloseButton onClick={onClose} />
+        </div>
+
+        {/* The two halves of the Album. A segment, not tabs: there is no
+            hierarchy between them — one is what you keep, the other is what
+            is still waiting on you. */}
+        <div className="flex gap-0.5 rounded-full bg-muted p-[3px]" role="tablist" aria-label="Voice Album mode">
+          {(
+            [
+              ["yours", "Practice yours"],
+              ["new", "Practice new"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={mode === value}
+              onClick={() => onMode(value)}
+              className={
+                mode === value
+                  ? "flex-1 rounded-full bg-background px-2.5 py-2.5 text-[13.5px] font-semibold tracking-tight text-foreground shadow-sm"
+                  : "flex-1 rounded-full px-2.5 py-2.5 text-[13.5px] font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
       {children}
     </main>
