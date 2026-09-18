@@ -40,7 +40,7 @@ import {
   AUTOSAVE_DEBOUNCE_MS,
   shouldAutosaveDraft,
 } from "@/lib/willab/autosaveDrafts";
-import { publishArc } from "@/services/api/arcBatch";
+import { flushCoachReviewDrafts } from "@/lib/willab/flushCoachReviewDrafts";
 import {
   confirmCoachSessionLanguage,
   fetchConfidenceQueueResult,
@@ -774,58 +774,17 @@ function renderCoachStarTakesSection(options: {
 // The same arc-scoped PUBLISH action the review walker's wrap-up carries
 // (founder 2026-08-10, "GO the publish fold-in"). Extracted from
 // CoachStarVerdictOverlay's own body (audit Q-C7).
-function renderCoachStarPublishSection(options: {
-  reviewState: CoachReviewState | null;
-  publishing: boolean;
-  onPublish: () => void;
-  publishError: string | null;
-}): React.ReactNode {
-  const { reviewState, publishing, onPublish, publishError } = options;
-  if (!reviewState) return null;
-  if (reviewState.published) {
-    return (
-      <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
-        <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-2">
-      <Button
-        type="button"
-        onClick={onPublish}
-        disabled={!reviewState.canPublish || publishing}
-        className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
-      >
-        {publishing ? (
-          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
-        ) : null}
-        Publish the full analysis
-      </Button>
-      {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
-        <p className="text-center text-[12px] text-muted-foreground">
-          {reviewState.blockers.map(blockerReason).join(" · ")}
-        </p>
-      ) : reviewState.advisories.length > 0 ? (
-        /* Advisory, not a gate: says what a publish now would leave out.
-           The button above stays enabled. */
-        <p className="text-center text-[12px] text-muted-foreground">
-          {reviewState.advisories.map(advisoryNote).join(" · ")}
-        </p>
-      ) : null}
-      {publishError ? (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
-          {publishError}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+/* The publish block that used to end this screen is GONE (founder 2026-09-18).
+ * Delivery is one action on one screen now — CoachDeliveryOverlay's "Review and
+ * send" — reached from the footer below. Two copies of publish, one disabled
+ * with its reason and one hidden until the ideal text was approved, taught the
+ * coach two opposite conventions for the same button one screen apart. */
 
 export default function CoachStarVerdictOverlay({
   arcId,
   sessionIds,
   onOpenTakeReview,
+  onWrapUp,
   onClose,
 }: {
   arcId: string;
@@ -841,6 +800,9 @@ export default function CoachStarVerdictOverlay({
    *  both flows — wires the callback. Absent → the rows render without a
    *  tap. */
   onOpenTakeReview?: (sessionId: string) => void;
+  /** The one way on: judging done, carry the coach into delivery. Absent → the
+   *  footer is not rendered (the panel still reads as a standalone review). */
+  onWrapUp?: (arcId: string) => void;
   onClose: () => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
@@ -1125,8 +1087,7 @@ export default function CoachStarVerdictOverlay({
   // the same shipped copy — so the coach finishes a review WHERE they
   // review, and the SESSIONS rows stop being a second way in. ──
   const [reviewState, setReviewState] = useState<CoachReviewState | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
     if (!blindComplete) {
       setReviewState(null);
@@ -1140,28 +1101,19 @@ export default function CoachStarVerdictOverlay({
       active = false;
     };
   }, [arcId, blindComplete]);
-  const handlePublish = () => {
-    if (publishing || reviewState?.published) return;
-    const publishPayloads = (reviewState?.takes ?? [])
-      .map((take) => take.publishPayload)
-      .filter((payload) => payload !== null);
-    if (publishPayloads.length === 0) {
-      setPublishError("Save at least one reviewed take before publishing.");
-      return;
-    }
-    setPublishing(true);
-    setPublishError(null);
-    void publishArc(arcId, publishPayloads).then((r) => {
-      setPublishing(false);
-      if (r.kind === "ok") {
-        setReviewState((prev) =>
-          prev ? { ...prev, published: true, canPublish: false } : prev,
-        );
-        return;
-      }
-      setPublishError(r.message);
-      void fetchCoachReviewState(arcId).then((rs) => setReviewState(rs));
-    });
+  /** Leaving for the wrap-up is what commits the take now: the explicit Save
+   *  button is gone, so flush every stored draft on the way out before the
+   *  delivery flow reads the arc back (founder 2026-09-18). */
+  const handleWrapUp = () => {
+    if (leaving) return;
+    setLeaving(true);
+    const ids = (reviewState?.takes ?? []).map((t) => t.sessionId);
+    void flushCoachReviewDrafts(ids.length > 0 ? ids : (sessionIds ?? [])).then(
+      () => {
+        setLeaving(false);
+        onWrapUp?.(arcId);
+      },
+    );
   };
 
   // Progress derives from the rows on screen, so it can never disagree with
@@ -1446,14 +1398,32 @@ export default function CoachStarVerdictOverlay({
             </ul>
           )}
           {renderCoachStarTakesSection({ reviewState, onOpenTakeReview })}
-          {renderCoachStarPublishSection({
-            reviewState,
-            publishing,
-            onPublish: handlePublish,
-            publishError,
-          })}
         </div>
       </div>
+      {onWrapUp ? (
+        <div className="shrink-0 border-t border-border px-4 py-3">
+          <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-11 flex-1 rounded-full border border-border text-[15px] text-foreground"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={handleWrapUp}
+              disabled={leaving}
+              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-semibold text-background disabled:opacity-50"
+            >
+              {leaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : null}
+              Wrap up
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

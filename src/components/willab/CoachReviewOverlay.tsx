@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
 import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
-import CoachVideoSlot from "./CoachVideoSlot";
+import { CoachEyebrow } from "./coachChrome";
 import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
@@ -16,31 +15,10 @@ import type {
   CoachSnippetState,
   SessionFeeling,
 } from "@/services/api/coachReview";
-import { type PublishSnippetState } from "@/services/api/publishWillabSession";
-import { saveCoachFeedback } from "@/services/api/saveCoachFeedback";
 import {
-  fetchCoachReviewState,
-  type CoachReviewState,
-  type PublishBlocker,
-} from "@/services/api/coachReviewState";
-import { publishArc } from "@/services/api/arcBatch";
-import {
-  clearCoachReviewDraft,
   readCoachReviewDraft,
   writeCoachReviewDraft,
 } from "@/lib/willab/coachReviewDraft";
-
-/** Map a publish blocker to the disabled-PUBLISH reason (FE-2).
- *
- *  Only ONE thing blocks now (founder 2026-08-14). Unsaved takes and an
- *  unverified ideal text became advisories: the all-or-nothing gate meant a
- *  partial review delivered exactly as much as no review at all. */
-function blockerReason(b: PublishBlocker): string {
-  switch (b) {
-    case "NO_TAKES":
-      return "No recordings to publish yet";
-  }
-}
 
 const FEELING_EMOJI: Record<string, string> = {
   nervous: "😬",
@@ -63,118 +41,20 @@ function FeelingBadge({ feeling }: { feeling: SessionFeeling }) {
   );
 }
 
-/** Open the ideal text — the primary action. Before take 3 (pending) or with
- *  nothing to assemble (empty), it's a cue, not a button. */
-function renderIdealTextCue(options: {
-  reviewState: CoachReviewState | null;
-  onOpenArcIdeal?: (arcId: string) => void;
-  session: CoachReviewSession;
-}): React.ReactNode {
-  const { reviewState, onOpenArcIdeal, session } = options;
-  if (reviewState?.ideal.assemblyState === "pending") {
-    return (
-      <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
-        The ideal text assembles after take 3
-        {reviewState.ideal.takesDone !== null
-          ? `. ${reviewState.ideal.takesDone} of ${
-              reviewState.takesTarget ?? 3
-            } takes recorded so far.`
-          : "."}
-      </p>
-    );
-  }
-  if (reviewState?.ideal.assemblyState === "empty") {
-    return (
-      <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
-        Nothing to assemble yet. Mark some key moments in the takes first.
-      </p>
-    );
-  }
-  if (onOpenArcIdeal && session.arcId) {
-    return (
-      <>
-        <Button
-          type="button"
-          onClick={() => onOpenArcIdeal(session.arcId!)}
-          className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
-        >
-          Open the ideal text
-        </Button>
-        {/* FE-8 — the founder's "Save ≠ approve" confusion: make the
-            approval step explicit while PUBLISH is still hidden. */}
-        {reviewState && !reviewState.ideal.approved ? (
-          <p className="text-center text-[12px] text-muted-foreground">
-            Review and Verify it there to unlock publishing.
-          </p>
-        ) : null}
-      </>
-    );
-  }
-  return (
-    <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-      Open the ideal text from the student&apos;s page to review and
-      approve it.
-    </p>
-  );
-}
-
-/** PUBLISH — the last button, only once the ideal text is approved. */
-function renderPublishSection(options: {
-  reviewState: CoachReviewState | null;
-  publishing: boolean;
-  onPublish: () => void;
-}): React.ReactNode {
-  const { reviewState, publishing, onPublish } = options;
-  if (!reviewState?.ideal.approved) return null;
-  if (reviewState.published) {
-    return (
-      <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
-        <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
-      </div>
-    );
-  }
-  return (
-    <>
-      <Button
-        type="button"
-        onClick={onPublish}
-        disabled={!reviewState.canPublish || publishing}
-        className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
-      >
-        {publishing ? (
-          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
-        ) : null}
-        Publish the full analysis
-      </Button>
-      {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
-        <p className="text-center text-[12px] text-muted-foreground">
-          {reviewState.blockers.map(blockerReason).join(" · ")}
-        </p>
-      ) : null}
-    </>
-  );
-}
-
-/** The wrap-up page's own render: Save this take, then Open the ideal text
- *  (review + approve), then Publish the full analysis (FE-2). Extracted from
- *  CoachReviewOverlay's own body (audit Q-C7) — it needs no hooks of its
- *  own, only the state and handlers its one caller already computed. */
+/** The take's own tail: what belongs to THIS recording and nothing else.
+ *
+ *  Delivery left this screen on 2026-09-18. Save, the overall message, the
+ *  coach video, the ideal-text cue and PUBLISH now live in
+ *  CoachDeliveryOverlay, one action per screen, because the student receives
+ *  ONE analysis for the whole arc — a per-take wrap-up was the wrong place to
+ *  decide an arc-level delivery from, and it hid the publish button until the
+ *  ideal text was approved, which taught the coach a gate the server does not
+ *  have. Saving is automatic now: the drafts this overlay mirrors to
+ *  localStorage are flushed when the coach leaves the Feedbacks review
+ *  (flushCoachReviewDrafts). */
 function renderCoachReviewWrapupPage(options: {
   isAtWrapup: boolean;
   session: CoachReviewSession;
-  nothingSurfaced: boolean;
-  saving: boolean;
-  publishing: boolean;
-  savedFlash: boolean;
-  onSaveFeedback: () => void;
-  reviewState: CoachReviewState | null;
-  onOpenArcIdeal?: (arcId: string) => void;
-  onPublish: () => void;
-  publishError: string | null;
-  overallMessage: string;
-  setOverallMessage: (value: string) => void;
-  videoRef: string | null;
-  setVideoRef: (value: string | null) => void;
   recutConfirm: { drafts: number } | null;
   setRecutConfirm: (value: { drafts: number } | null) => void;
   recutting: boolean;
@@ -184,19 +64,6 @@ function renderCoachReviewWrapupPage(options: {
   const {
     isAtWrapup,
     session,
-    nothingSurfaced,
-    saving,
-    publishing,
-    savedFlash,
-    onSaveFeedback,
-    reviewState,
-    onOpenArcIdeal,
-    onPublish,
-    publishError,
-    overallMessage,
-    setOverallMessage,
-    videoRef,
-    setVideoRef,
     recutConfirm,
     setRecutConfirm,
     recutting,
@@ -205,59 +72,15 @@ function renderCoachReviewWrapupPage(options: {
   } = options;
   return (
     <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
-      <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
-
-      {/* FE-8 — a non-blocking nudge, not a gate: saving with nothing
-          surfaced is valid ("reviewed, nothing to surface"). */}
-      {nothingSurfaced ? (
-        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-          Nothing surfaced yet. You can still save; the user just won&apos;t
-          get snippet feedback from this take.
-        </p>
-      ) : null}
-
-      {/* FE-2 — the forward path, its own screen: Save this take, then Open
-          the ideal text (review + approve), then Publish the full analysis.
-          Each button shows its real, server-gated state from review-state. */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-foreground">
-              Save this take
-            </p>
-            <p className="text-[12px] text-muted-foreground">
-              Keeps your notes and labels for this recording.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onSaveFeedback}
-            disabled={saving || publishing}
-            className="shrink-0 rounded-full disabled:opacity-50"
-          >
-            {saving ? "Saving…" : savedFlash ? "Saved" : "Save feedback"}
-          </Button>
-        </div>
-
-        {renderIdealTextCue({ reviewState, onOpenArcIdeal, session })}
-
-        {renderPublishSection({ reviewState, publishing, onPublish })}
-      </div>
-
-      {publishError ? (
-        <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
-          {publishError}
-        </p>
-      ) : null}
+      <h2 className="text-[20px] font-semibold text-foreground">
+        End of this take
+      </h2>
 
       {session.feelings.length > 0 ? (
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="mb-3 text-sm font-semibold text-foreground">
+        <div className="flex flex-col gap-3">
+          <p className="text-[13.5px] font-semibold text-foreground">
             Pre-recording state
-            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-              Coach only
-            </span>
+            <CoachEyebrow className="ml-2">Coach only</CoachEyebrow>
           </p>
           <ul className="flex flex-wrap gap-2">
             {session.feelings.map((f, i) => (
@@ -272,38 +95,11 @@ function renderCoachReviewWrapupPage(options: {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold text-foreground">
-          Overall message
-          <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-            Shown to user · optional
-          </span>
-        </p>
-        <textarea
-          value={overallMessage}
-          onChange={(e) => setOverallMessage(e.target.value)}
-          rows={3}
-          placeholder="A warm opener tying these snippets together…"
-          className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-        />
-      </div>
-
-      <CoachVideoSlot
-        sessionId={session.sessionId}
-        videoRef={videoRef}
-        onUploaded={(nextRef) => setVideoRef(nextRef)}
-      />
-
       <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-foreground">
-              Re-cut snippets
-            </p>
-            <p className="text-[12px] text-muted-foreground">
-              Re-run segmentation on the stored audio.
-            </p>
-          </div>
+          <p className="text-[13px] font-medium text-foreground">
+            Re-cut snippets
+          </p>
           {recutConfirm ? (
             <div className="flex shrink-0 items-center gap-2">
               <Button
@@ -349,14 +145,6 @@ function renderCoachReviewWrapupPage(options: {
           <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
         ) : null}
       </div>
-
-      {/* A Save is a per-take checkpoint: nothing reaches the user until you
-          Publish the full analysis above (which needs every take saved + the
-          ideal text approved). */}
-      <p className="text-center text-[12px] text-muted-foreground">
-        Saving keeps this as your draft. The user receives everything at once
-        when you publish the full analysis.
-      </p>
     </div>
   );
 }
@@ -364,15 +152,9 @@ function renderCoachReviewWrapupPage(options: {
 export default function CoachReviewOverlay({
   sessionId,
   onClose,
-  onPublished,
-  onOpenArcIdeal,
 }: {
   sessionId: string;
   onClose: () => void;
-  onPublished?: (sessionId: string) => void;
-  /** FP-1 — open this arc's ideal-text panel directly from the wrap-up cue
-   *  (the founder's missing path). Optional: without it the cue is plain text. */
-  onOpenArcIdeal?: (arcId: string) => void;
 }) {
   useBackDismiss(onClose);
   const { status, session, refresh } = useCoachReview(sessionId);
@@ -384,19 +166,6 @@ export default function CoachReviewOverlay({
   const [localState, setLocalState] = useState<
     Record<string, CoachSnippetState>
   >(() => draftCache?.snippets ?? {});
-  const [videoRef, setVideoRef] = useState<string | null>(null);
-  const [overallMessage, setOverallMessage] = useState("");
-  const [publishing, setPublishing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  // "saving" = the per-take Save checkpoint; "delivered" = the arc PUBLISH
-  // succeeded (the terminal state). Separated so a Save no longer masquerades
-  // as the end of the flow (FE-2 gives the coach Open-ideal → Publish after).
-  const [savedFlash, setSavedFlash] = useState(false);
-  const [delivered, setDelivered] = useState(false);
-  // FE-2 — the wrap-up's single read: per-take review states + ideal-text
-  // assembly/approval + can_publish/blockers (mirrors publish-analysis's gate).
-  const [reviewState, setReviewState] = useState<CoachReviewState | null>(null);
   const [cursor, setCursor] = useState(0);
   const [recutting, setRecutting] = useState(false);
   const [recutError, setRecutError] = useState<string | null>(null);
@@ -421,17 +190,6 @@ export default function CoachReviewOverlay({
     setRecutting(false);
   }
 
-  useEffect(() => {
-    if (!session) return;
-    setVideoRef(session.videoRef);
-    // R4-8 — a crash-cache draft wins over the server overall message (the
-    // coach was mid-edit); otherwise seed from the server as before.
-    setOverallMessage((prev) =>
-      draftCache ? draftCache.overallMessage || prev : session.overallMessage,
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
-
   const onSnippetSaved = useCallback(
     (snippetId: string, next: CoachSnippetState) => {
       setLocalState((prev) => ({ ...prev, [snippetId]: next }));
@@ -442,156 +200,17 @@ export default function CoachReviewOverlay({
     void refresh();
   }, [refresh]);
 
-  // R4-8 — mirror the in-progress review to localStorage (debounced) as crash
-  // insurance. No server traffic; stops once the arc is delivered.
+  // R4-8 — mirror the in-progress review to localStorage (debounced). It was
+  // crash insurance; since 2026-09-18 it is also the SOURCE of the automatic
+  // save: leaving the Feedbacks review flushes these drafts to the server
+  // (flushCoachReviewDrafts), so what the coach last saw is what persists.
   useEffect(() => {
-    if (!session || delivered) return;
+    if (!session) return;
     const id = setTimeout(() => {
-      writeCoachReviewDraft(sessionId, overallMessage, localState);
+      writeCoachReviewDraft(sessionId, session.overallMessage, localState);
     }, 400);
     return () => clearTimeout(id);
-  }, [sessionId, session, localState, overallMessage, delivered]);
-
-  // FE-2 — load the wrap-up read once the arc id is known, and refresh it while
-  // the coach sits on the wrap-up (so approving in the ideal-text panel, which
-  // stacks over this overlay, flips PUBLISH live on return). Stops once the arc
-  // is delivered / published.
-  const arcId = session?.arcId ?? null;
-  const refreshReviewState = useCallback(async () => {
-    if (!arcId) return;
-    const r = await fetchCoachReviewState(arcId);
-    if (r) setReviewState(r);
-  }, [arcId]);
-
-  const atWrapupNow =
-    !!session && session.contextUnlocked && cursor === session.snippets.length;
-  useEffect(() => {
-    if (!arcId) return;
-    void refreshReviewState();
-  }, [arcId, refreshReviewState]);
-  useEffect(() => {
-    if (!arcId || !atWrapupNow || delivered) return;
-    if (reviewState?.published) return;
-    const id = setInterval(() => void refreshReviewState(), 5000);
-    return () => clearInterval(id);
-  }, [
-    arcId,
-    atWrapupNow,
-    delivered,
-    reviewState?.published,
-    refreshReviewState,
-  ]);
-
-  // FE-8 — informational only, NEVER a save gate: "reviewed, nothing to
-  // surface" is a valid coach verdict. The BE stamps coach_feedback_saved_at
-  // on an EMPTY save by design (test_save_feedback_no_body_still_stamps), and
-  // publish-analysis flips takes with zero surfaced snippets. The old FE floor
-  // ("surface ≥1 snippet + note to save") deadlocked publishing on such takes.
-  // Tests SURFACED alone — the save payload persists `surfaced` regardless of
-  // notes, so a surfaced note-less snippet still reaches the user and must not
-  // trip a "user gets nothing" banner.
-  const nothingSurfaced = session
-    ? !session.snippets.some((s) => (localState[s.id] ?? s.coachState).surfaced)
-    : true;
-
-  // Delivery layer — the per-take action is a SAVE checkpoint, not a publish:
-  // it persists the take's drafts + stamps coach_feedback_saved_at server-side
-  // and delivers NOTHING. The user only receives the 4 bubbles at the arc-level
-  // PUBLISH on the wrap-up, which requires all takes saved + the ideal text
-  // approved.
-  async function handleSaveFeedback() {
-    if (!session || saving || publishing) return;
-    setSaving(true);
-    setPublishError(null);
-
-    // The full per-snippet state array persists in one shot (R4-8 save-on-
-    // publish became save-on-Save).
-    const snippets: PublishSnippetState[] = [];
-    for (const s of session.snippets) {
-      const cs = localState[s.id] ?? s.coachState;
-      snippets.push({
-        id: s.id,
-        note: cs.note,
-        tag: cs.tag,
-        surfaced: cs.surfaced,
-      });
-    }
-
-    const result = await saveCoachFeedback({
-      sessionId: session.sessionId,
-      overallMessage: overallMessage.trim() || null,
-      snippets,
-    });
-
-    setSaving(false);
-    if (result.ok) {
-      // The saved truth is on the server now; the crash draft is stale. Stay on
-      // the wrap-up (the coach still opens the ideal text + publishes) and flash
-      // a confirmation; refresh review-state so takes_saved / blockers update.
-      // NOTE: do NOT call onPublished here — that's reviewQueue.markDone, the
-      // terminal "delivered" marker. A Save only stamps coach_feedback_saved_at
-      // (in_progress); the queue bubble picks that up via closeReview's refresh.
-      // Marking done on a mere save would falsely report delivery and drop the
-      // "still needs publishing" signal. onPublished stays PUBLISH-only.
-      clearCoachReviewDraft(session.sessionId);
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 1800);
-      void refreshReviewState();
-    } else {
-      setPublishError(result.message ?? "Couldn't save. Try again.");
-    }
-  }
-
-  // FE-2 — the final PUBLISH: only reachable once the ideal text is approved
-  // (the button is gated on reviewState.ideal.approved) and every precondition
-  // is met (can_publish). publish-analysis is still the server-side gate — its
-  // 409s shouldn't fire now, but arcBatch surfaces them if they do.
-  async function handlePublish() {
-    if (!arcId || publishing) return;
-    setPublishing(true);
-    setPublishError(null);
-    const publishPayloads = (reviewState?.takes ?? [])
-      .map((take) => take.publishPayload)
-      .filter(
-        (payload): payload is NonNullable<typeof payload> => payload !== null,
-      );
-    if (publishPayloads.length === 0) {
-      setPublishing(false);
-      setPublishError("Save at least one reviewed take before publishing.");
-      return;
-    }
-    const r = await publishArc(arcId, publishPayloads);
-    setPublishing(false);
-    if (r.kind === "ok") {
-      clearCoachReviewDraft(sessionId);
-      setDelivered(true);
-      onPublished?.(sessionId);
-    } else {
-      setPublishError(r.message);
-      void refreshReviewState();
-    }
-  }
-
-  if (delivered) {
-    return (
-      <div
-        className="fixed inset-0 z-40 flex cursor-pointer flex-col items-center justify-center gap-4 bg-background p-6 text-center"
-        onClick={onClose}
-        role="button"
-        tabIndex={0}
-        aria-label="Close, analysis delivered"
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") onClose();
-        }}
-      >
-        <CheckCircle2 className="h-14 w-14 text-success" aria-hidden />
-        <p className="text-[20px] font-semibold text-foreground">Delivered</p>
-        <p className="text-[14px] text-muted-foreground">
-          The full analysis is on its way to the student. Tap anywhere to close.
-        </p>
-      </div>
-    );
-  }
+  }, [sessionId, session, localState]);
 
   // Pre-shell states (loading / error / no snippets yet).
   if (status === "loading" || !session) {
@@ -653,7 +272,9 @@ export default function CoachReviewOverlay({
         (!session.contextUnlocked && cursor === session.snippets.length - 1)
       }
       managed={false}
-      isCoachMessage={isAtWrapup}
+      // The floating indicator + ✕ + their gradient belong over a slide. The
+      // wrap-up has none, and neither does a snippet the deck never mapped.
+      hasSlideBehind={!isAtWrapup && Boolean(session.snippets[cursor]?.slide)}
     >
       {/* Snippet pages — all stay mounted for draft preservation. */}
       {session.snippets.map((s, i) => (
@@ -676,23 +297,10 @@ export default function CoachReviewOverlay({
         </div>
       ))}
 
-      {/* Wrap-up page */}
+      {/* The take's own tail — delivery lives in CoachDeliveryOverlay now. */}
       {renderCoachReviewWrapupPage({
         isAtWrapup,
         session,
-        nothingSurfaced,
-        saving,
-        publishing,
-        savedFlash,
-        onSaveFeedback: () => void handleSaveFeedback(),
-        reviewState,
-        onOpenArcIdeal,
-        onPublish: () => void handlePublish(),
-        publishError,
-        overallMessage,
-        setOverallMessage,
-        videoRef,
-        setVideoRef,
         recutConfirm,
         setRecutConfirm,
         recutting,
