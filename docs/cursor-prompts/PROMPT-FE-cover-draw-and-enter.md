@@ -63,7 +63,7 @@ REDIRECT: n/a
 
 ---
 
-## THE SEVEN RULES THAT ARE NOT NEGOTIABLE
+## THE EIGHT RULES THAT ARE NOT NEGOTIABLE
 
 1. **NO BACKEND CHANGE.** `POST /v2/internal/journal/image/generate` already takes
    `{password, post_id, notes, parent_id, fresh, attach}` and already attaches the drawn
@@ -78,17 +78,23 @@ REDIRECT: n/a
    timeout as "it failed".
 3. **NEVER SEND `attach: false`.** The point of the feature is that the cover lands on the
    post instantly. Leave `attach` absent — the backend defaults it to true.
-4. **THE UPLOAD PATH STAYS EXACTLY AS IT IS.** "Choose a file" and "Or paste a URL" are
+4. **NO HELPER TEXT ON THE SCREEN (founder 2026-09-18).** No keyboard hint, no "Enter
+   draws", no explanatory sentence under a field, on this step or any other. The screen
+   carries the label, the control and — when something goes wrong — the error, and nothing
+   else. Enter is discoverable by pressing it; a sentence explaining it is clutter on a
+   screen whose whole point is one decision. This applies to anything you might be tempted
+   to add while building, not only the line removed here.
+5. **THE UPLOAD PATH STAYS EXACTLY AS IT IS.** "Choose a file" and "Or paste a URL" are
    untouched and remain the primary way in. The drawing box is an addition below them.
-5. **IMAGE TAB ONLY.** The generator makes an image. Rendering it on the video or audio tab
+6. **IMAGE TAB ONLY.** The generator makes an image. Rendering it on the video or audio tab
    would let a founder attach an image URL to a post whose `media_url` is a video and break
    its cover contract. Render the box only when `draft.coverKind === "image"`.
-6. **NEVER GUARD A DIRECT-TO-STORAGE UPLOAD WITH A BFF LIMIT.** `MAX_UPLOAD_BYTES`
+7. **NEVER GUARD A DIRECT-TO-STORAGE UPLOAD WITH A BFF LIMIT.** `MAX_UPLOAD_BYTES`
    (4.3 MB, `useCoachVideoRecorder.ts`) exists because the COACH video BFF buffers the body
    through a Vercel function. The CMS presigns and PUTs straight to R2 and never touches
    that function. The only cap that applies here is the backend's per-kind one, which the
    presign response already carries as `max_bytes`. Enforce that number; never hardcode it.
-7. **ENTER NEVER SUBMITS A TEXTAREA, AND NEVER EATS AN IME COMPOSITION.** A Polish, Japanese
+8. **ENTER NEVER SUBMITS A TEXTAREA, AND NEVER EATS AN IME COMPOSITION.** A Polish, Japanese
    or Chinese author commits a composition with Enter. Advancing on that press eats the word
    *and* walks the screen. Guard on `isComposing` / `keyCode === 229`.
 
@@ -574,10 +580,6 @@ export function CoverDraw({
         ) : null}
       </div>
 
-      <p className="text-[12px] text-muted-foreground">
-        Enter draws. Shift and Enter starts a new line.
-      </p>
-
       {error ? (
         <p className="rounded-[9px] bg-destructive/5 px-2.5 py-2 text-[12.5px] text-destructive">
           {error}
@@ -1040,7 +1042,6 @@ copy is signed off, not assumed. These are all of them:
 | Box label | `Or describe the cover` |
 | Placeholder | `A woman alone on an empty stage at dawn, seen from the last row, warm low light` |
 | Button | `Draw it` / `Draw again` |
-| Hint | `Enter draws. Shift and Enter starts a new line.` |
 | Waiting (reused verbatim from `CoverImageStudio`) | `Writing the brief…` · `Drawing…` · `Still drawing…` · `Taking a while, hold on…` |
 | Attach failed | `The cover drew but could not be saved onto the post. It is kept — open the post in the editor and pick it there.` |
 | Gave up | `The drawing never finished. If it turns up it will be on the post in the editor — look there before drawing another.` |
