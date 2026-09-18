@@ -38,6 +38,8 @@ interface Scope {
   networkCalls: string[];
   /** Cache names that exist. The worker deletes the ones it does not own. */
   cacheNames: Set<string>;
+  /** Every name the worker opened, in order. The first one IS `CACHE_NAME`. */
+  cachesOpened: string[];
   setNetwork: (fn: (url: string) => any) => void;
 }
 
@@ -82,10 +84,18 @@ function notFound() {
   };
 }
 
-function bootWorker(): Scope {
+/** Boot the real sw.js against a fake scope.
+ *
+ *  `swUrl` is the worker's OWN location, which since 2026-09-18 is where the
+ *  cache name comes from: the registrar registers `/sw.js?v=<build id>` and the
+ *  worker reads that back off `self.location`. Defaulting it to the versionless
+ *  path keeps every policy test below describing the policy rather than the
+ *  version — the two tests that care pass one explicitly. */
+function bootWorker(swUrl: string = `${ORIGIN}/sw.js`): Scope {
   const handlers: Record<string, Handler> = {};
   const store = new Map<string, string>();
   const cacheNames = new Set<string>(["willab-shell-v4", "some-other-cache"]);
+  const cachesOpened: string[] = [];
   const networkCalls: string[] = [];
   let network = (url: string) => ok(`fresh:${url}`);
 
@@ -123,6 +133,9 @@ function bootWorker(): Scope {
 
   let skipWaiting = false;
   const scope: any = {
+    // A real ServiceWorkerGlobalScope always has one, and it is the script URL
+    // the page registered — query string included.
+    location: { href: swUrl },
     addEventListener: (name: string, fn: Handler) => {
       handlers[name] = fn;
     },
@@ -138,7 +151,14 @@ function bootWorker(): Scope {
   const sandbox: any = {
     self: scope,
     caches: {
-      open: async () => cacheFor(),
+      open: async (name: string) => {
+        // `caches.open` CREATES the cache if it is absent, so a name the worker
+        // has opened is a name `caches.keys()` reports — which is what makes
+        // "activate deletes everything else but keeps its own" observable.
+        cachesOpened.push(name);
+        cacheNames.add(name);
+        return cacheFor();
+      },
       keys: async () => [...cacheNames],
       delete: async (name: string) => cacheNames.delete(name),
       // Deliberately absent from the policy: the worker must scope reads to
@@ -169,6 +189,7 @@ function bootWorker(): Scope {
     store,
     networkCalls,
     cacheNames,
+    cachesOpened,
     setNetwork: (fn) => {
       network = fn;
     },
@@ -384,6 +405,47 @@ describe("the service worker caching policy", () => {
 
     expect(sw.cacheNames.has("willab-shell-v4")).toBe(false);
     expect(sw.cacheNames.has("some-other-cache")).toBe(false);
+  });
+
+  it("names its cache after the build that registered it", async () => {
+    // The registrar registers `/sw.js?v=<build id>`; the worker reads that same
+    // value back off its own location. One value, two readers, so the URL that
+    // caused this worker to install and the cache it empties cannot disagree.
+    const versioned = bootWorker(`${ORIGIN}/sw.js?v=9f2c1ab77e40`);
+    await request(versioned, `${ORIGIN}/icon`);
+    expect(versioned.cachesOpened[0]).toBe("willab-shell-9f2c1ab77e40");
+  });
+
+  it("flushes the PREVIOUS build's shell without a hand-written bump", async () => {
+    // The failure this removes: `activate` deletes every cache whose name is
+    // not the current one, so while the name was a constant a deploy that
+    // forgot to bump it left the phone on the previous shell — with nothing on
+    // screen to say why. Two builds now differ without anyone editing sw.js.
+    const previous = bootWorker(`${ORIGIN}/sw.js?v=aaaaaaaaaaaa`);
+    await request(previous, `${ORIGIN}/icon`);
+    const older = previous.cachesOpened[0];
+
+    const current = bootWorker(`${ORIGIN}/sw.js?v=bbbbbbbbbbbb`);
+    current.cacheNames.add(older);
+    await request(current, `${ORIGIN}/icon`);
+    const newer = current.cachesOpened[0];
+    expect(newer).not.toBe(older);
+
+    const pending: Promise<any>[] = [];
+    current.activateHandler({ waitUntil: (p: Promise<any>) => pending.push(p) });
+    await Promise.all(pending);
+
+    expect(current.cacheNames.has(older)).toBe(false);
+    expect(current.cacheNames.has(newer)).toBe(true);
+  });
+
+  it("still has a working cache name when nothing versioned the registration", async () => {
+    // An unversioned registration is the pre-2026-09-18 behaviour, and it has
+    // to keep working: `caches.open(undefined)` would be one shared cache for
+    // every build, which is the frozen shell again by another route.
+    const bare = bootWorker(`${ORIGIN}/sw.js`);
+    await request(bare, `${ORIGIN}/icon`);
+    expect(bare.cachesOpened[0]).toBe("willab-shell-v7");
   });
 
   it("reads only from its own cache, never the whole origin", async () => {
