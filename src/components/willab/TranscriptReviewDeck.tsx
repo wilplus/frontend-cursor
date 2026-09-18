@@ -24,6 +24,7 @@ import {
   type ChunkState,
   type CoachMomentLite,
   type DeckChunk,
+  type DeckSlideGroupingResult,
   type OpenChunkRef,
 } from "@/lib/willab/deckChunks";
 import {
@@ -84,6 +85,53 @@ import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
 /*  Chrome is stripped to match: no frame, no height cap, no footer. The text  */
 /*  gets the room.                                                             */
 /* -------------------------------------------------------------------------- */
+
+/** Say WHY the deck flattened (founder 2026-09-18: "after a lock the text
+ *  skipped the slides and got concatenated again").
+ *
+ *  `groupChunksBySlide` distinguishes seven typed failures and all seven drew
+ *  the same screen — one unlinked section holding the whole document, no slide
+ *  kickers, and no slide picture, because the preview is rendered per slide
+ *  group. The reason was computed and dropped, so a snapshot that lost its
+ *  slide indexes and a lock that re-minted a part id were indistinguishable
+ *  from the outside.
+ *
+ *  Developer signal only. The degrade stays quiet for the SPEAKER — a
+ *  provenance defect must not replace their words — and new user-facing copy
+ *  needs founder sign-off. Module scope because the deck is at the complexity
+ *  ratchet's grandfathered ceiling and may only come down. */
+function warnUnlinked(
+  grouping: DeckSlideGroupingResult,
+  chunks: readonly DeckChunk[],
+  slideCount: number | null,
+  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
+  piecePartIds: readonly (string | null)[] | null | undefined,
+): void {
+  if (grouping.ok || chunks.length === 0) return;
+  const at = grouping.paragraphIndex;
+  console.warn("[deck] slide grouping failed — rendering one unlinked section", {
+    reason: grouping.error,
+    paragraphIndex: at,
+    partId: at === null ? null : (chunks[at]?.part.id ?? null),
+    chunks: chunks.length,
+    slideCount,
+    slideIndexes: pieceSlideIndexes?.length ?? null,
+    partIds: piecePartIds?.length ?? null,
+  });
+}
+
+/** The same answer as an attribute, readable from a device with no inspector —
+ *  the phone this was first seen on. Built here, not inline, for the ratchet. */
+function linkageAttrs(grouping: DeckSlideGroupingResult) {
+  if (grouping.ok) return { "data-slide-linkage": "linked" as const };
+  return {
+    "data-slide-linkage": "unlinked" as const,
+    "data-slide-linkage-reason": grouping.error,
+    ...(grouping.paragraphIndex === null
+      ? {}
+      : { "data-slide-linkage-at": String(grouping.paragraphIndex) }),
+  };
+}
 
 export default function TranscriptReviewDeck({
   title = "",
@@ -289,6 +337,24 @@ export default function TranscriptReviewDeck({
           : [],
     [grouping, chunks],
   );
+  /* THE DEGRADE MUST NAME ITSELF (founder 2026-09-18: "after a lock the text
+   * skipped the slides and got concatenated again").
+   *
+   * The fallback above is right and stays. What was wrong is that it was
+   * SILENT: `groupChunksBySlide` distinguishes seven typed reasons, and all
+   * seven collapsed into one unlinked section with the reason discarded. The
+   * symptom the founder can see — every slide boundary gone, the whole talk
+   * concatenated — is identical for a stale slide map, a lock that minted a
+   * new part id, and a backwards mapping, so nobody could say which had
+   * happened without adding a log and shipping it.
+   *
+   * Developer signal only: a console warning and a data attribute. Nothing
+   * user-facing, because the degrade is deliberately quiet for the user (a
+   * metadata defect must not replace their words) and new user-facing copy
+   * needs founder sign-off. */
+  useEffect(() => {
+    warnUnlinked(grouping, chunks, slideCount, pieceSlideIndexes, piecePartIds);
+  }, [grouping, chunks, slideCount, pieceSlideIndexes, piecePartIds]);
   const deckReady = groups.length > 0;
   /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
@@ -714,7 +780,7 @@ export default function TranscriptReviewDeck({
   return (
     <div
       className="flex h-full min-h-0 w-full flex-col bg-background"
-      data-slide-linkage={grouping.ok ? "linked" : "unlinked"}
+      {...linkageAttrs(grouping)}
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (
