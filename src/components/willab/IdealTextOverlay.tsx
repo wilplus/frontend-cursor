@@ -81,6 +81,7 @@ import {
 import {
   lockTargetAt,
   withPartRootPhrase,
+  partsFromCorePieces,
   partsToText,
   reconcileParts,
   updatePart,
@@ -362,7 +363,17 @@ export default function IdealTextOverlay({
       });
       versionRef.current = r.version;
       versionArmedRef.current = true;
-      partsRef.current = r.parts ?? reconcileParts(r.ideal.text);
+      // A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18).
+      // Same rule as IdealTextReadout: with no stored parts, minting fresh ids
+      // here is what makes seed-on-lock overwrite the core's Paragraph
+      // identity, and every `piecePartIds` slide join then fails at once.
+      // `??` also misses the empty-list case, which is the common one.
+      partsRef.current =
+        r.parts && r.parts.length > 0
+          ? r.parts
+          : (partsFromCorePieces(r.pieces) ??
+            r.parts ??
+            reconcileParts(r.ideal.text));
       setStatus("ready");
       if (refreshDocumentVariants) {
         refreshVariants();
