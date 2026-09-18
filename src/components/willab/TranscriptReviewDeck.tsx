@@ -868,11 +868,30 @@ export default function TranscriptReviewDeck({
                 <div className="flex flex-col gap-4">
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
+                    /* DOCUMENT STATE (contract 24g-1). A block holding an
+                       UNSETTLED judgement is softened; a settled one — locked
+                       or clean alike — is the ordinary text colour with no
+                       mark at all. There is no third "done" state: the clean
+                       text IS the settled state, so the document empties as
+                       the speaker works instead of accumulating marks.
+
+                       AT BLOCK LEVEL, NEVER AT WORD LEVEL. The class sits on
+                       the whole paragraph element, so no sentence changes
+                       colour midway and no gap can open inside a word.
+
+                       The two signals are the softened block and the
+                       bookmark, and nothing else: no underline, no highlight,
+                       no badge on the text. */
                     return (
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      className="text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
+                      data-settled={c.status === "waiting" ? undefined : "true"}
+                      className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
+                        c.status === "waiting"
+                          ? "text-foreground/55"
+                          : "text-foreground"
+                      }`}
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
