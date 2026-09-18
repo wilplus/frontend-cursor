@@ -11,6 +11,12 @@
 
 import { launchChromium } from "./_launch.mjs";
 
+/* The blind instrument's one question. Mirrors CONFIDENCE_QUESTION in
+ * src/services/api/stateRatings.ts — the corpus screen used to hardcode a
+ * second wording ("Was this voice confident?"), so the same instrument asked
+ * two different things depending on which surface the coach was on. */
+const CONFIDENCE_QUESTION = "Does the speaker sound confident here?";
+
 const BASE = process.env.CORPUS_URL ?? "http://localhost:3111/dev/corpus";
 
 let failures = 0;
@@ -360,7 +366,7 @@ check(
 );
 
 await page.locator("button", { hasText: "Board pitch" }).click();
-await page.waitForSelector("text=Was this voice confident?");
+await page.waitForSelector(`text=${CONFIDENCE_QUESTION}`);
 
 /* ------------------- FE-3: the labelling screen, blind --------------------- */
 const body = () => page.locator("body").innerText();
@@ -495,17 +501,17 @@ check(
 );
 check(
   "the dots now live in the NAV BAR — above the fold, not scrolled away at the bottom where they used to sit",
-  await page.evaluate(() => {
+  await page.evaluate((question) => {
     const dot = document.querySelector('button[aria-label^="Piece "]');
     // The native <audio> element MediaPlayer renders is visually hidden (its
     // own custom UI is what's shown), so it has no box to compare against.
     // The question is a real, visible layout anchor further down the screen.
     const confident = [...document.querySelectorAll("p")].find(
-      (x) => x.textContent?.trim() === "Was this voice confident?"
+      (x) => x.textContent?.trim() === question
     );
     if (!dot || !confident) return false;
     return dot.getBoundingClientRect().top < confident.getBoundingClientRect().top;
-  })
+  }, CONFIDENCE_QUESTION)
 );
 check(
   "a bubble encodes ONLY whether the coach has answered — never a band, score or machine read (N1)",
@@ -561,7 +567,7 @@ check(
 await page.locator('button[aria-label="Back to the corpus"]').click();
 await page.waitForTimeout(200);
 await page.locator("button", { hasText: "Board pitch" }).click();
-await page.waitForSelector("text=Was this voice confident?");
+await page.waitForSelector(`text=${CONFIDENCE_QUESTION}`);
 await page.locator("button", { hasText: /^No$/ }).click();
 await page.waitForTimeout(400);
 put = await labels(page);
