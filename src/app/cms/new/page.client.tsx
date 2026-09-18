@@ -26,6 +26,11 @@ import {
   type LaneDraft,
 } from "./laneDraft";
 import { LaneCta, LaneHeading, LaneQuiet, LaneShell } from "./LaneShell";
+import {
+  contentTypeFor,
+  oversizeMessage,
+  unsupportedMessage,
+} from "./laneMediaUpload";
 import { RecordStep } from "./RecordStep";
 import {
   BodyStep, CoverStep, DetailsStep, ExcerptStep, NameStep,
@@ -108,11 +113,14 @@ export default function NewContentClient({ path }: { path: string[] }) {
   );
 
   async function uploadCover(file: File) {
-    setUploading(true);
     const kind = draft?.coverKind ?? "image";
+    const contentType = contentTypeFor(file);
+    const wrongType = unsupportedMessage(contentType, kind);
+    if (wrongType) { setSaid(wrongType); return; }
+    setUploading(true);
     const presigned = await adminPresign(password, {
       filename: file.name,
-      contentType: file.type || "application/octet-stream",
+      contentType,
       kind: kind as JournalCoverKind,
     });
     if (!presigned.ok || !presigned.data) {
@@ -120,6 +128,8 @@ export default function NewContentClient({ path }: { path: string[] }) {
       setSaid(presigned.ok ? "Could not prepare the upload." : presigned.message);
       return;
     }
+    const tooBig = oversizeMessage(file.size, presigned.data.maxBytes);
+    if (tooBig) { setUploading(false); setSaid(tooBig); return; }
     const ok = await uploadToStorage(presigned.data, file);
     setUploading(false);
     if (!ok) { setSaid("The upload did not finish."); return; }
