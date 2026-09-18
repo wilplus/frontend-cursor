@@ -56,6 +56,9 @@ export interface DeckSuggestionLite {
   start: number;
   end: number;
   status: "pending" | "approved" | "dismissed" | null;
+  /** Which bookmark this item is (contract 24g). Optional and safe-ahead: a
+   *  backend that does not send it leaves every mark exactly as it was. */
+  bookmarkTier?: "exercise" | "most_confident" | "standard" | null;
 }
 
 export interface DeckChunk {
@@ -73,6 +76,10 @@ export interface DeckChunk {
   pendingIds: string[];
   /** Approved suggestions on this chunk — the accepted wash until lock-in. */
   approvedIds: string[];
+  /** The bookmark this paragraph wears (contract 24g), from the UNDECIDED
+   *  items on it. A settled item is no longer asking for anything, so it stops
+   *  colouring the mark — 24g-1's "the clean text IS the settled state". */
+  tier?: "exercise" | "most_confident" | "standard" | null;
   /** DISPLAY ONLY — the piece of this paragraph shown on THIS screen.
    *
    *  Set when a paragraph is too tall for one screen and is split across
@@ -107,6 +114,21 @@ function overlaps(
  *  wherever it joins to the text — the same partsForDocument rule the lock
  *  flow already follows, so the deck and the lock PUT can never disagree
  *  about which part a paragraph is. */
+/** The strongest bookmark among the undecided items on one paragraph.
+ *
+ *  The order is the contract's, not a preference: the exercise is the one item
+ *  the speaker is asked to go and DO (24f), so it takes the mark; green marks
+ *  work already done well; everything else is an ordinary bookmark. Position
+ *  among the greens is never consulted, because there is none to consult —
+ *  first and second are identical by construction (24i). */
+function pickTier(
+  tiers: readonly NonNullable<DeckSuggestionLite["bookmarkTier"]>[],
+): DeckChunk["tier"] {
+  if (tiers.includes("exercise")) return "exercise";
+  if (tiers.includes("most_confident")) return "most_confident";
+  return tiers.length > 0 ? "standard" : null;
+}
+
 export function buildDeckChunks(
   document: string,
   servedParts: readonly Part[] | null | undefined,
@@ -127,12 +149,19 @@ export function buildDeckChunks(
     const { start, end } = spans[i];
     const pendingIds: string[] = [];
     const approvedIds: string[] = [];
+    const tiers: NonNullable<DeckSuggestionLite["bookmarkTier"]>[] = [];
     for (const s of suggestions) {
       if (!overlaps(s, start, end)) continue;
       // null = UNDECIDED (R4). "dismissed" contributes nothing — a kept-mine
       // proposal is history, and history never colours the page.
       if (s.status === "approved") approvedIds.push(s.id);
-      else if (s.status !== "dismissed") pendingIds.push(s.id);
+      else if (s.status !== "dismissed") {
+        pendingIds.push(s.id);
+        // Only an UNDECIDED item colours the mark. An approved or dismissed
+        // one has been dealt with, and a bookmark that keeps its colour after
+        // the decision is a document that never empties (24g-1).
+        if (s.bookmarkTier) tiers.push(s.bookmarkTier);
+      }
     }
     const locked = parts[i].locked === true;
     // PENDING WORK BEATS THE LOCK (founder 2026-08-11: "once locked in but
@@ -162,6 +191,12 @@ export function buildDeckChunks(
     // where it belongs: DeckChunkModal reads `approvedIds` (still computed
     // below) for its "Accepted · not locked in yet" kicker. Inside the modal
     // that fact is useful; on the page it was a colour that lied.
+    // ONE PARAGRAPH, ONE BOOKMARK (contract 24g). A paragraph can hold more
+    // than one undecided item, and the marks are not equal: the exercise is
+    // the single thing the speaker is asked to go and do, so it outranks a
+    // green, which in turn outranks an ordinary mark. Ranked rather than
+    // first-wins, because span order is not a priority.
+    const tier = pickTier(tiers);
     const status: ChunkStatus = pendingIds.length > 0
       ? "waiting"
       : locked
@@ -175,6 +210,7 @@ export function buildDeckChunks(
       status,
       pendingIds,
       approvedIds,
+      tier,
     });
   }
   return chunks;
