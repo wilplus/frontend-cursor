@@ -105,7 +105,45 @@ export default function IdealTextActions({
 
   const guidedTake =
     typeof takeCount === "number" && takeCount >= 1 && takeCount <= 3;
+  /* THE KEY MOMENT MUST NOT GUESS (founder 2026-09-18).
+   *
+   * REPORTED: "for a moment Record take 2 and then next steps" — and on a
+   * take that had just finished, the wrong one stayed until the app was
+   * closed and reopened.
+   *
+   * `journeyNextStepsSeen` is `boolean | null`, and null means NOT KNOWN YET.
+   * The old test was `journeyNextStepsSeen === false`, which reads null and
+   * true identically — so while the answer was still in flight the screen
+   * confidently offered the record button, the one action that skips the
+   * hand-off entirely. It is the hinge of record -> Take -> next Take, so
+   * being wrong here for a second is worse than being blank for a second.
+   *
+   * Why the answer can be slow, and can never arrive: on a fresh open the
+   * document comes from `fetchIdealTextForDisplay`, whose body carries
+   * `journey_next_steps_seen` directly. Every later read uses
+   * `fetchIdealTextCore`, which does NOT carry it — it arrives as the
+   * asynchronous `journey` enrichment section, and `mergeIdealTextEnrichment`
+   * drops every section whose `documentSnapshotId` does not equal the core's.
+   * A take publishes a new snapshot, so that equality is exactly what a
+   * just-finished take is most likely to miss. That is the cold-open/restart
+   * asymmetry, and it is filed separately — this component's job is only to
+   * stop asserting an answer it does not have.
+   *
+   * BOUNDED, so the screen can never be dead: if the answer is still missing
+   * after the grace window the record button returns, because a guided take
+   * with no action at all is worse than the pre-existing behaviour. */
+  const journeyKnown = typeof journeyNextStepsSeen === "boolean";
+  const [journeyGraceOver, setJourneyGraceOver] = useState(false);
+  useEffect(() => {
+    if (journeyKnown) return;
+    setJourneyGraceOver(false);
+    const timer = setTimeout(() => setJourneyGraceOver(true), 5000);
+    return () => clearTimeout(timer);
+  }, [journeyKnown, arcId, takeCount]);
   const showNextSteps = guidedTake && journeyNextStepsSeen === false;
+  /** Neither button, rather than the wrong one, while the answer is in
+   *  flight. Only ever true inside the guided 1–3 window. */
+  const decidingNextSteps = guidedTake && !journeyKnown && !journeyGraceOver;
   const nextRecordingLabel =
     takeCount === 1
       ? "Record Take 2"
@@ -172,7 +210,7 @@ export default function IdealTextActions({
       {/* 2 — The next official take. Disabled rather than removed when the BE
           closes its gate, so the entry to the record loop never silently
           disappears from this screen. */}
-      {!showNextSteps ? (
+      {!showNextSteps && !decidingNextSteps ? (
         <Button
           type="button"
           onClick={onNewTake}
