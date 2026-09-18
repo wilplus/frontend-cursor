@@ -29,8 +29,11 @@ import { partsForDocument, type Part } from "./documentParts";
 /*  left and it was a defect: on accept the suggestion flips to approved for   */
 /*  the few milliseconds before the server bakes the change and drops it, so   */
 /*  the mark flashed GREEN and then settled GREY. The student was shown the    */
-/*  final state on the way to the in-between one. Green now means locked in,   */
-/*  full stop, and accepting lands on `clean` — which is what is true.         */
+/*  final state on the way to the in-between one. Accepting lands on `clean`,  */
+/*  which is what is true. (The 2026-08-15 rule "green means locked in" is     */
+/*  RETIRED as of 2026-09-18: a settled block carries no mark at all under     */
+/*  24g-1, and green is now `--affirm` on a bookmark — one of the Take's two   */
+/*  most Confident Voice items. See the status block below.)                   */
 /*  The accepted-not-locked fact still exists; it is read off `approvedIds`    */
 /*  by the modal, where it informs instead of misleading.                      */
 /*                                                                            */
@@ -183,9 +186,21 @@ export function buildDeckChunks(
     // to grey. The student saw the final state flash by on the way to the
     // in-between one — "it remains green in between, it is confusing".
     //
-    // Green is now what it says: LOCKED IN, and only the server's own flag
-    // says that. Accepting lands on "clean", which is the truth — nothing is
-    // pending on these words and the student has not locked them yet.
+    // Accepting lands on "clean", which is the truth — nothing is pending on
+    // these words and the student has not locked them yet.
+    //
+    // ⚠️ "GREEN MEANS LOCKED IN" IS DEAD (2026-09-18). The 2026-08-15 wording
+    // here described a mark that no longer exists: DeckLockMark has drawn
+    // `text-primary` for every status since, and under contract 24g-1 a
+    // settled block — locked or clean alike — carries NO mark at all, so
+    // there is nothing left for a lock to colour. Green in this product now
+    // means exactly one thing, `--affirm` on a bookmark: one of the Take's
+    // two most Confident Voice items (24g). The only other green on this
+    // screen is the copy-to-clipboard tick in the header, which is chrome.
+    //
+    // Left corrected rather than deleted because the stale text cost real
+    // time — it was read as a live colour conflict with the new green and
+    // raised as one.
     //
     // The distinction the merge existed to express is not lost, it moved to
     // where it belongs: DeckChunkModal reads `approvedIds` (still computed
@@ -310,9 +325,11 @@ export function coachMomentForChunk<T extends CoachMomentLite>(
 /* ---------------------- audit Q-C5: one state per chunk ------------------- */
 
 /** What has happened to these words — the modal's kicker fact, NOT a fourth
- *  page status. ChunkStatus stays three-valued (2026-08-15: green means
- *  LOCKED IN, and only the server's own flag says that); the approved-not-
- *  locked distinction lives here, read from the approved rider. */
+ *  page status. ChunkStatus stays three-valued; the approved-not-locked
+ *  distinction lives here, read from the approved rider.
+ *
+ *  (The 2026-08-15 note that "green means LOCKED IN" is retired — see the
+ *  status block above. A settled block carries no mark at all.) */
 export type ChunkDecision = "locked" | "approved" | "none";
 
 export type CoachReviewStatus = NonNullable<CoachMomentLite["reviewStatus"]>;
@@ -349,7 +366,8 @@ export interface ChunkState<
 > {
   chunk: DeckChunk;
   status: ChunkStatus;
-  /** The server-owned lock (the same flag the page's green mark reads). */
+  /** The server-owned lock. The page draws no mark for it — a settled
+   *  block is ordinary text with nothing on it (24g-1). */
   locked: boolean;
   decision: ChunkDecision;
   /** Undecided proposals on these words, in inventory order. */
