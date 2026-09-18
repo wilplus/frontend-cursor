@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
 import type { AdminSpeakingError } from "@/services/api/journalAdmin";
 import type { LaneDraft } from "./laneDraft";
@@ -166,8 +167,11 @@ export function ExcerptStep({ draft, patch }: { draft: LaneDraft; patch: Patch }
   );
 }
 
-export function CoverStep({ draft, patch, onUpload, busy }: {
+export function CoverStep({ draft, patch, onUpload, busy, draw }: {
   draft: LaneDraft; patch: Patch; onUpload: (file: File) => void; busy: boolean;
+  /** The drawing box. A slot rather than a prop bundle, so this file keeps
+   *  knowing nothing about the password or about saving. */
+  draw?: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -208,6 +212,9 @@ export function CoverStep({ draft, patch, onUpload, busy }: {
           />
         </label>
       )}
+      {/* Image only: the generator makes an image, and attaching one to a
+          video post would break the cover its media_url belongs to. */}
+      {draft.coverKind === "image" ? draw : null}
       <LaneField label="Or paste a URL">
         <input
           value={draft.coverUrl}

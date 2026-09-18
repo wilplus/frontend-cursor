@@ -624,6 +624,14 @@ export interface PresignResult {
   publicUrl: string;
   /** Extra form fields for a POST-policy upload; absent = plain PUT. */
   fields: Record<string, string> | null;
+  /** Exactly the headers the PUT must carry. ContentType is part of the
+   *  signature, so anything else is a SignatureDoesNotMatch that surfaces as
+   *  "the upload did not finish". */
+  headers: Record<string, string> | null;
+  /** The backend's per-kind cap (JOURNAL_MAX_VIDEO_MB etc, 500 MB for video
+   *  by default). The presign does NOT enforce it — R2 takes whatever is
+   *  PUT — so the caller must, and must never hardcode a number instead. */
+  maxBytes: number | null;
 }
 
 export function adminPresign(
@@ -647,7 +655,13 @@ export function adminPresign(
         r.fields && typeof r.fields === "object"
           ? (r.fields as Record<string, string>)
           : null;
-      return { uploadUrl, publicUrl, fields };
+      const headers =
+        r.headers && typeof r.headers === "object"
+          ? (r.headers as Record<string, string>)
+          : null;
+      const maxBytes =
+        typeof r.max_bytes === "number" && r.max_bytes > 0 ? r.max_bytes : null;
+      return { uploadUrl, publicUrl, fields, headers, maxBytes };
     }
   );
 }
@@ -669,7 +683,13 @@ export async function uploadToStorage(
     }
     const res = await fetch(presign.uploadUrl, {
       method: "PUT",
-      headers: { "Content-Type": file.type || "application/octet-stream" },
+      // The SIGNED headers, verbatim. Reconstructing them from the File is the
+      // silent killer: a picker that reports no MIME type makes the caller
+      // presign one type and PUT another, and R2 answers SignatureDoesNotMatch
+      // — which reached the author as "The upload did not finish."
+      headers: presign.headers ?? {
+        "Content-Type": file.type || "application/octet-stream",
+      },
       body: file,
     });
     return res.ok;

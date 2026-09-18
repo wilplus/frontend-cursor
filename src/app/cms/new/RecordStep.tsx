@@ -3,11 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
-  MAX_UPLOAD_BYTES,
   isCoachVideoRecordingSupported,
   useCoachVideoRecorder,
 } from "@/hooks/useCoachVideoRecorder";
 import { adminPresign, uploadToStorage } from "@/services/api/journalAdmin";
+import {
+  contentTypeFor,
+  oversizeMessage,
+  unsupportedMessage,
+} from "./laneMediaUpload";
 import { LaneCta, LaneQuiet, LANE_INPUT } from "./LaneShell";
 
 /* -------------------------------------------------------------------------- */
@@ -57,20 +61,40 @@ export function RecordStep({
   useEffect(() => { onBusyChange(uploading); }, [uploading, onBusyChange]);
 
   async function put(file: File) {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError("That clip is too big. Keep it under a minute.");
+    // DELIBERATELY NOT the coach recorder's 4.3 MB ceiling. That one is the
+    // COACH video BFF's — it buffers the body through a Vercel function. This
+    // lane presigns and PUTs straight to R2 and never touches it, so the cap
+    // here is the backend's (500 MB for video by default), served with the
+    // presign. The old guard refused every clip filmed on a phone and blamed
+    // its length.
+    //
+    // The constant is named in words rather than spelled, because
+    // laneMediaUpload.test.ts asserts the identifier is absent from this file —
+    // the guard that catches someone importing it back in.
+    const contentType = contentTypeFor(file);
+    const wrongType = unsupportedMessage(contentType, "video");
+    if (wrongType) {
+      setError(wrongType);
       return;
     }
     setUploading(true);
     setError(null);
     const presigned = await adminPresign(password, {
       filename: file.name,
-      contentType: file.type || "video/webm",
+      // The same value the PUT will send back: see uploadToStorage.
+      contentType,
       kind: "video",
     });
     if (!presigned.ok || !presigned.data) {
       setUploading(false);
       setError(presigned.ok ? "Could not prepare the upload." : presigned.message);
+      return;
+    }
+    // The only thing enforcing the cap: R2 would take the bytes regardless.
+    const tooBig = oversizeMessage(file.size, presigned.data.maxBytes);
+    if (tooBig) {
+      setUploading(false);
+      setError(tooBig);
       return;
     }
     const sentOk = await uploadToStorage(presigned.data, file);
