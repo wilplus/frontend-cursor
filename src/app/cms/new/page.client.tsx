@@ -26,10 +26,12 @@ import {
   type LaneDraft,
 } from "./laneDraft";
 import { LaneCta, LaneHeading, LaneQuiet, LaneShell } from "./LaneShell";
+import { CoverDraw } from "./CoverDraw";
 import {
   contentTypeFor,
   oversizeMessage,
   unsupportedMessage,
+  type MediaKind,
 } from "./laneMediaUpload";
 import { RecordStep } from "./RecordStep";
 import {
@@ -38,6 +40,70 @@ import {
 } from "./LaneSteps";
 
 const PW_KEY = "willpower.journal.pw";
+
+/** Presign, check the served cap, and PUT one cover file straight to R2.
+ *  Returns the public URL, or the one sentence to show instead.
+ *
+ *  MODULE LEVEL, not a closure inside the lane component: the guards this
+ *  needs (a served cap, a refused type, a dead presign, a PUT that did not
+ *  finish) are four more branches in a component the complexity ratchet
+ *  already holds at its ceiling, and none of them reads component state. */
+async function putCoverFile(
+  password: string,
+  kind: MediaKind,
+  contentType: string,
+  file: File,
+): Promise<{ url: string | null; message: string | null }> {
+  const presigned = await adminPresign(password, {
+    filename: file.name,
+    contentType,
+    kind: kind as JournalCoverKind,
+  });
+  if (!presigned.ok || !presigned.data) {
+    return {
+      url: null,
+      message: presigned.ok ? "Could not prepare the upload." : presigned.message,
+    };
+  }
+  // The only thing enforcing the cap: R2 takes whatever is PUT, because the
+  // presign signs the key and the content type, not a length.
+  const tooBig = oversizeMessage(file.size, presigned.data.maxBytes);
+  if (tooBig) return { url: null, message: tooBig };
+  const ok = await uploadToStorage(presigned.data, file);
+  if (!ok) return { url: null, message: "The upload did not finish." };
+  return { url: presigned.data.publicUrl, message: null };
+}
+
+/** The post id the cover generator draws for, saving the draft first if it has
+ *  never been written. The generator briefs from a POST, not from a draft in
+ *  sessionStorage, and the lane has written nothing until the author finishes —
+ *  so the first draw saves it as an UNPUBLISHED post and keeps the id, which
+ *  later steps update rather than duplicate.
+ *
+ *  Module level for the same reason as `putCoverFile`: four more branches in a
+ *  component the ratchet holds at its ceiling. */
+async function ensurePostId(
+  draft: LaneDraft | null,
+  save: (d: LaneDraft, publish: boolean) => Promise<{ id: string | null; message: string | null }>,
+  onSaved: (id: string) => void,
+): Promise<{ id: string | null; message: string | null }> {
+  if (!draft) return { id: null, message: "Nothing to save yet." };
+  if (draft.postId) return { id: draft.postId, message: null };
+  const saved = await save(draft, false);
+  if (saved.id) {
+    onSaved(saved.id);
+    return saved;
+  }
+  // The post lane has no address field, so "that slug is taken" is not
+  // actionable as written. Say what the author can actually do.
+  if (/slug|address/i.test(saved.message ?? "")) {
+    return {
+      id: null,
+      message: "A post already lives at that address. Change the title, then draw again.",
+    };
+  }
+  return saved;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  /cms/new — one action per screen (founder 2026-09-16).                     */
@@ -116,26 +182,26 @@ export default function NewContentClient({ path }: { path: string[] }) {
   async function uploadCover(file: File) {
     const kind = draft?.coverKind ?? "image";
     const contentType = contentTypeFor(file);
+    // Refused before any request goes out, and before the spinner: a file of
+    // the wrong type is not an upload that failed.
     const wrongType = unsupportedMessage(contentType, kind);
     if (wrongType) { setSaid(wrongType); return; }
     setUploading(true);
-    const presigned = await adminPresign(password, {
-      filename: file.name,
-      contentType,
-      kind: kind as JournalCoverKind,
-    });
-    if (!presigned.ok || !presigned.data) {
-      setUploading(false);
-      setSaid(presigned.ok ? "Could not prepare the upload." : presigned.message);
-      return;
-    }
-    const tooBig = oversizeMessage(file.size, presigned.data.maxBytes);
-    if (tooBig) { setUploading(false); setSaid(tooBig); return; }
-    const ok = await uploadToStorage(presigned.data, file);
+    const done = await putCoverFile(password, kind, contentType, file);
     setUploading(false);
-    if (!ok) { setSaid("The upload did not finish."); return; }
-    patch({ coverUrl: presigned.data.publicUrl });
+    if (done.url) patch({ coverUrl: done.url });
+    else setSaid(done.message);
   }
+
+  /** The cover generator draws for a POST — it reads the title to write the
+   *  brief and attaches the result server-side. The lane has written nothing
+   *  yet, so the first draw saves the draft as an UNPUBLISHED post and keeps
+   *  its id, which later steps then update rather than duplicate. */
+  const ensurePost = useCallback(
+    () => ensurePostId(draft, savePost, (id) => patch({ postId: id })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draft, patch],
+  );
 
   /** Write the post. The exercise lane needs one too — the founder kept the
    *  coupling, so an exercise is a published post plus a mapping. */
@@ -223,7 +289,30 @@ export default function NewContentClient({ path }: { path: string[] }) {
       case "body": return <BodyStep draft={draft} patch={patch} />;
       case "excerpt": return <ExcerptStep draft={draft} patch={patch} />;
       case "cover":
-        return <CoverStep draft={draft} patch={patch} onUpload={(f) => void uploadCover(f)} busy={uploading} />;
+        return (
+          <CoverStep
+            draft={draft}
+            patch={patch}
+            onUpload={(f) => void uploadCover(f)}
+            busy={uploading}
+            draw={
+              <CoverDraw
+                password={password}
+                ensurePost={ensurePost}
+                onDrawn={(imageUrl, altText) =>
+                  patch({
+                    coverKind: "image",
+                    coverUrl: imageUrl,
+                    // The model writes alt text FOR the image it just drew, so
+                    // it replaces whatever described the previous one.
+                    ...(altText ? { coverAlt: altText } : {}),
+                  })
+                }
+                onBusyChange={setDrawing}
+              />
+            }
+          />
+        );
       case "details": return <DetailsStep draft={draft} patch={patch} />;
       case "community":
         return (
@@ -235,7 +324,7 @@ export default function NewContentClient({ path }: { path: string[] }) {
       default: return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, current, errors, password, uploading, patch]);
+  }, [draft, current, errors, password, uploading, patch, ensurePost]);
 
   if (!lane) return <Fork onPick={(picked) => router.replace(`/cms/new/${picked}/1`)} />;
   if (!draft || !current) {
@@ -248,6 +337,11 @@ export default function NewContentClient({ path }: { path: string[] }) {
 
   const dark = current.id === "record" && !draft.videoUrl;
   const last = step === steps.length;
+  /** The lane is mid-write. Holding BOTH the CTA and Enter on one value is
+   *  what stops the two drifting apart the next time a slow lane is added. */
+  const laneBusy = busy || uploading || drawing;
+  /** The one thing the CTA does, so Enter does exactly it and not a copy. */
+  const advance = () => (last ? void finish(true) : next());
 
   return (
     <LaneShell
@@ -257,13 +351,10 @@ export default function NewContentClient({ path }: { path: string[] }) {
       onBack={() => (step > 1 ? go(step - 1) : router.push("/cms/new"))}
       onClose={() => router.push("/cms")}
       // The camera screen deliberately has no CTA, so Enter has nothing to do
-      // there. Everywhere else Enter is the CTA — including Publish on the
-      // last screen, which is what the button under the thumb does too.
-      onEnter={
-        dark || busy || uploading || drawing
-          ? undefined
-          : () => (last ? void finish(true) : next())
-      }
+      // there. Everywhere else Enter is the CTA — literally the same call, so
+      // the two can never drift — including Publish on the last screen, which
+      // is what the button under the thumb does too.
+      onEnter={dark || laneBusy ? undefined : advance}
       footer={
         <>
           {/* The camera screen carries the record ring and nothing else —
@@ -271,8 +362,8 @@ export default function NewContentClient({ path }: { path: string[] }) {
               It reappears the moment there is a clip to move on from. */}
           {dark ? null : (
             <LaneCta
-              onClick={() => (last ? void finish(true) : next())}
-              disabled={busy || uploading || drawing}
+              onClick={advance}
+              disabled={laneBusy}
               dark={dark}
             >
               {busy ? "Saving…" : last ? "Publish" : "Next"}
