@@ -875,6 +875,24 @@ export default function TranscriptReviewDeck({
                        text IS the settled state, so the document empties as
                        the speaker works instead of accumulating marks.
 
+                       GREY FOLLOWS THE MARK, one condition for both (founder
+                       2026-09-18: "the grey should be when there is a mark").
+                       Keyed on `status === "waiting"` these could disagree —
+                       the mark is drawn only for a Confident Voice judgement
+                       (2026-09-17: a column of identical marks down a talk
+                       teaches the eye to skip them), while any undecided item
+                       greys the block. That gap is grey text with nothing to
+                       tap.
+
+                       It is also unreachable by design, which is why one
+                       condition is safe rather than a narrowing: 24f anchors
+                       the rewrite and the praise TO a Confident Voice item
+                       instead of standing them up as their own cards, so a
+                       block cannot hold a rewrite without the judgement that
+                       carries it. Founder: "the rewrite only happens after the
+                       judgement". Sharing the condition makes that structural
+                       fact impossible to contradict on screen.
+
                        AT BLOCK LEVEL, NEVER AT WORD LEVEL. The class sits on
                        the whole paragraph element, so no sentence changes
                        colour midway and no gap can open inside a word.
@@ -882,15 +900,19 @@ export default function TranscriptReviewDeck({
                        The two signals are the softened block and the
                        bookmark, and nothing else: no underline, no highlight,
                        no badge on the text. */
+                    const unsettled =
+                      c.status === "waiting" &&
+                      markWorthShowing(
+                        st.pending,
+                        summaryByParagraph.get(c.part.id),
+                      );
                     return (
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      data-settled={c.status === "waiting" ? undefined : "true"}
+                      data-settled={unsettled ? undefined : "true"}
                       className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
-                        c.status === "waiting"
-                          ? "text-foreground/55"
-                          : "text-foreground"
+                        unsettled ? "text-foreground/55" : "text-foreground"
                       }`}
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
@@ -934,7 +956,7 @@ export default function TranscriptReviewDeck({
                           the sheet, the ladder, the lock and the inventory are
                           untouched, and every item the Manager approved is
                           still there when it opens. */}
-                      {markWorthShowing(st.pending, summaryByParagraph.get(c.part.id)) ? (
+                      {unsettled ? (
                       <DeckLockMark
                         status={c.status}
                         tier={c.tier}

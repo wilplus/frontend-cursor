@@ -59,12 +59,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // textually adjacent. What must hold is that nothing wraps the words
     // themselves, and that the mark is the paragraph's own last child.
     // The mark still sits inside the paragraph, after the words — but behind
-    // the `markWorthShowing` gate since 2026-09-17, with a tint callback
-    // between them, so the two are no longer textually adjacent. Asserting the
-    // DISTANCE would just re-break on the next edit between them; what matters
-    // is that nothing wraps the words, and that the mark is gated rather than
-    // unconditional.
-    expect(DECK).toMatch(/markWorthShowing\(st\.pending,[\s\S]{0,80}?<DeckLockMark/);
+    // a gate since 2026-09-17, with a tint callback between them, so the two
+    // are no longer textually adjacent. Asserting the DISTANCE would just
+    // re-break on the next edit between them; what matters is that nothing
+    // wraps the words, and that the mark is gated rather than unconditional.
+    //
+    // Since 2026-09-18 the gate is the NAMED `unsettled`, shared with the
+    // block's grey so the two signals cannot disagree — grey text with nothing
+    // to tap was the gap that closed (founder: "the grey should be when there
+    // is a mark"). Asserted as: the mark is gated on it, and it is derived
+    // from `markWorthShowing`.
+    expect(DECK).toMatch(/\{unsettled \? \([\s\S]{0,80}?<DeckLockMark/);
+    expect(DECK).toMatch(/const unsettled =[\s\S]{0,160}?markWorthShowing\(\s*st\.pending,/);
     expect(DECK).not.toMatch(/\/>\s*<DeckLockMark/);
   });
 

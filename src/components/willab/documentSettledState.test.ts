@@ -30,11 +30,23 @@ const open = (over: Partial<DeckSuggestionLite> = {}): DeckSuggestionLite => ({
 
 describe("settled text is ordinary, never grey", () => {
   it("softens only a block with an undecided judgement on it", () => {
-    // The whole rule, as one expression: waiting softens, everything else —
-    // locked and clean alike — is the ordinary colour.
-    expect(DECK).toContain('c.status === "waiting"');
-    expect(DECK).toContain('? "text-foreground/55"');
-    expect(DECK).toContain(': "text-foreground"');
+    // ONE condition for both signals (founder 2026-09-18: "the grey should be
+    // when there is a mark"). Keyed on `status === "waiting"` alone, grey and
+    // the bookmark could disagree and leave grey text with nothing to tap.
+    expect(DECK).toContain("const unsettled =");
+    expect(DECK).toContain('c.status === "waiting" &&');
+    expect(DECK).toContain('unsettled ? "text-foreground/55" : "text-foreground"');
+  });
+
+  it("greys exactly where the bookmark is drawn, and nowhere else", () => {
+    // 24f anchors the rewrite and the praise TO a Confident Voice item rather
+    // than standing them up as their own cards, so a block cannot hold a
+    // rewrite without the judgement that carries it — founder: "the rewrite
+    // only happens after the judgement". Sharing the condition makes that
+    // structural fact impossible to contradict on screen.
+    const gate = DECK.slice(DECK.indexOf("const unsettled ="));
+    expect(gate.slice(0, 200)).toContain("markWorthShowing");
+    expect(DECK).toMatch(/\{unsettled \? \([\s\S]{0,80}?<DeckLockMark/);
   });
 
   it("marks a locked block settled", () => {
