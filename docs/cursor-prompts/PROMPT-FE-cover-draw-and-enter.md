@@ -5,6 +5,9 @@ Paste everything below the line into the coding agent. It is self-contained.
 Clickable prototype of the finished screen (simulated draw, every outcome switchable):
 <https://claude.ai/artifact/VWgzPDejdoSngqjkcDQVyd>
 
+The same mock and a render of every state are committed beside this file, so the design can
+be matched without opening anything: `docs/cursor-prompts/assets/cover-step/`. See §DESIGN.
+
 ---
 
 ## TASK
@@ -1029,6 +1032,80 @@ The two-column editor's cover picker has the identical gap (`file.type ||
 "application/octet-stream"`, no size check). It is not what the founder hit, so it is fine to
 leave for a follow-up — but if you take it, it is the exact same three edits as §9 and it
 belongs in a **separate commit**, not mixed into the lane work.
+
+---
+
+## DESIGN — copy it one to one
+
+The reference is committed next to this prompt. Open both before you write the JSX:
+
+- **Renders of every state:** `docs/cursor-prompts/assets/cover-step/*.png`
+- **The working mock:** `docs/cursor-prompts/assets/cover-step/prototype.html` — a single
+  file, no build, open it in a browser. Its markup is plain HTML/CSS rather than Tailwind,
+  so **the JSX in §3 is what you copy**; the mock is what you check the result against.
+  The one place the mock is wrong: its text box is 15px, the app's is 16px (`LANE_INPUT`).
+  `LANE_INPUT` wins, always — it is the lane's own input and it is why iOS does not zoom.
+
+| State | File | What it shows |
+|---|---|---|
+| 1 | `1-empty.png` | The step as it opens: upload zone, then the box, empty, **Draw it** disabled |
+| 2 | `2-described.png` | Typed. The button is live; nothing else moved |
+| 3 | `3-drawing.png` | Drawing: button disabled, spinner + moving label beside it, **Next dimmed** |
+| 4 | `4-drawn.png` | Landed: the cover replaces the upload zone, URL and alt text filled, button reads **Draw again**, description kept |
+| 5 | `5-refused.png` | A 400 refusal: one red line inside the box, description kept for rewording |
+| 6 | `6-construct-flag.png` | Drawn, but the alt text tripped the construct guard: amber line under the button |
+| 7 | `7-video-tab.png` | Video tab: the box is not rendered at all |
+
+### Where it sits
+
+```
+Cover                                 ← LaneHeading, unchanged
+[ image ][ video ][ audio ]           ← unchanged
+┌──────────────────────────┐
+│  Choose a file           │          ← unchanged; becomes the cover preview once there is one
+└──────────────────────────┘
+┌──────────────────────────┐
+│ ✦ Or describe the cover  │          ← NEW, image tab only
+│ ┌──────────────────────┐ │
+│ │ (2-row text box)     │ │
+│ └──────────────────────┘ │
+│ ( Draw it )  ⟳ Drawing…  │
+│ [error / construct line] │
+└──────────────────────────┘
+Or paste a URL                        ← unchanged
+Alt text                              ← unchanged, filled by a draw
+( Next )   Skip                       ← unchanged; Next held while drawing
+```
+
+It is the **last child of the `body-col`**, directly above `Or paste a URL`. Not above the
+upload zone: the file the founder already has is still the first answer to "cover?".
+
+### Geometry — the block is one bordered card, and everything inside it is on an 8/10/12 rhythm
+
+| Element | Tailwind (what the JSX uses) | Why |
+|---|---|---|
+| The card | `rounded-xl border border-border p-3` + `flex flex-col gap-2.5` | Same 12px radius and hairline border as the preview frame above it, so the two read as one column, not as a panel bolted on |
+| Header row | `flex items-center justify-between gap-2` | Label left, character count right, and the count only appears past 380 |
+| Label | `text-[13px] font-medium` + `Sparkles` at `h-3.5 w-3.5`, `gap-1.5` | 13px is the lane's label size (`LaneField`). The icon is the only ornament on the screen; it earns its place by marking the one thing here that is not a plain input |
+| Count | `text-[11px] tabular-nums text-muted-foreground` | Tabular so it does not jitter while typing |
+| Text box | `LANE_INPUT` + `resize-none leading-relaxed`, `rows={2}` | The lane's input verbatim. Two rows: a cover brief is a sentence, and a taller box invites an essay the brief writer will not use |
+| Button | `rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background` + `disabled:opacity-30` | A small pill, not a second CTA. The step already has one full-width button and this must never compete with it |
+| Waiting | `Loader2 h-3.5 w-3.5 animate-spin` + `text-[13px] text-muted-foreground`, `gap-2`, beside the button | Beside, not below: the row keeps its height, so nothing under it jumps when the draw starts |
+| Error | `rounded-[9px] bg-destructive/5 px-2.5 py-2 text-[12.5px] text-destructive` | Inside the card. The step's own `said` line at the bottom belongs to the step, not to the draw |
+| Construct flag | `rounded-[9px] bg-[#fdf4e3] px-2.5 py-2 text-[12.5px] text-[#7a5410]` | Amber, the CMS's existing warning colour (`CoverImageStudio` flag row). A warning, never a block |
+
+### The rules the states encode
+
+1. **One row never moves under another.** The spinner sits beside the button; the error and
+   the flag are the only things that appear, and they appear at the bottom of the card.
+2. **The description survives everything** — a refusal, a timeout, a second draw. Steers
+   stack and a refused brief gets reworded, never retyped.
+3. **A draw holds the step.** `Next` is dimmed while drawing (`disabled:opacity-30`, already
+   the CTA's own style) so nobody walks off the screen the cover is about to land on.
+4. **Landing fills three things at once**: the preview, `Or paste a URL`, and `Alt text`.
+   The author can see and edit every one of them. Nothing is hidden, and nothing is
+   read-only.
+5. **No helper text.** See rule 4. The screenshots have none; neither may the build.
 
 ---
 
