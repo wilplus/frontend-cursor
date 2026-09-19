@@ -227,8 +227,15 @@ export async function copyAiGeneratedText(
       /* fall through — plain text remains usable */
     }
   }
+  // `navigator.clipboard?.writeText(plain)` would evaluate to `undefined`
+  // where the API is absent — a non-secure context is the live case — and
+  // `await undefined` resolves, so the old shape returned true having copied
+  // nothing and the button drew its "Copied" tick over a no-op. Worse here
+  // than elsewhere: this function's whole job is to attach the Art. 50(2)
+  // marking, so a false success is a claim that a marked copy happened.
+  if (!navigator.clipboard?.writeText) return false;
   try {
-    await navigator.clipboard?.writeText(plain);
+    await navigator.clipboard.writeText(plain);
     return true;
   } catch {
     return false;
