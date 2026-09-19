@@ -96,10 +96,30 @@ describe("ProcessingWait — the phase decides which labels are reachable", () =
     });
     expect(text).toContain(DOCUMENT);
     expect(text).toContain("62%");
-    // No percentage invented when the backend exposes none.
-    expect(
-      await render({ phase: "document", progress: null }),
-    ).toContain("…");
+  });
+
+  it("invents no percentage when the backend has never exposed one", async () => {
+    // A FRESH wait — nothing reported yet, so there is nothing to say, and
+    // "…" is the honest answer. Split out of the case above because that one
+    // now re-renders the SAME component: once a real percent has arrived it
+    // is held (below), which is a different rule, not a broken one.
+    expect(await render({ phase: "document", progress: null })).toContain("…");
+  });
+
+  it("holds the last real percentage instead of falling back to none", async () => {
+    /* FOUNDER 2026-09-19: "there is no continuity there and it feels like
+       it's stale". It was not stale — the worker had finished in seventeen
+       seconds. The analysis phase reports a percent and climbs, the document
+       phase is seeded `percent: null`, and a null draws as "…" on an empty
+       rail. So the bar filled, collapsed to nothing, and the text then
+       appeared from nowhere. This is that exact handover. */
+    await render({
+      phase: "analysis",
+      progress: { stage: "transcribing", percent: 62 },
+    });
+    const handover = await render({ phase: "document", progress: null });
+    expect(handover).toContain("62%");
+    expect(handover).not.toContain("…");
   });
 
   it("names the stage to assistive tech too, not just on screen", async () => {

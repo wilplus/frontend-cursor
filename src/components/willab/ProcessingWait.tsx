@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import RecordingAnalysisPresentation from "./RecordingAnalysisPresentation";
+import { nextWaitPercent } from "@/lib/willab/waitProgress";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -87,14 +89,21 @@ export default function ProcessingWait({
   // stage keeps it. Only the two audio labels below the floor are unreachable.
   const current =
     phase === "document" ? Math.max(reported, DOCUMENT_FLOOR) : reported;
-  const measuredPercent = progress?.percent;
+
+  /* ONE BAR ACROSS THE WHOLE WAIT (founder 2026-09-19: "there is no
+     continuity there and it feels like it's stale"). The document phase
+     reports no percent, and a null renders as "…" at width 0 — so the bar
+     climbed through analysis, collapsed to nothing, and the text then
+     appeared from nowhere. It HOLDS the last real percent instead. Nothing is
+     invented: see `waitProgress.ts` for why the first version of this, which
+     advanced on elapsed time, was refused by the gate. */
+  const shown = useRef<number | null>(null);
+  shown.current = nextWaitPercent(shown.current, progress?.percent ?? null);
 
   return (
     <RecordingAnalysisPresentation
       label={PROCESSING_STAGES[current]}
-      percent={
-        typeof measuredPercent === "number" ? measuredPercent : null
-      }
+      percent={shown.current}
       cycleStartedAt={cycleStartedAt}
     />
   );
