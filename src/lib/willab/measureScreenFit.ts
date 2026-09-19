@@ -105,6 +105,37 @@ export function measureScreenFit(
  */
 const WRAP_ALLOWANCE = 0.84;
 
+/** The tightest of several measured screens — the one with the least room.
+ *
+ *  ONE MEASUREMENT CANNOT SPEAK FOR SCREENS OF DIFFERENT HEIGHTS (2026-09-19,
+ *  founder: "the large slide that should have been truncated into two slides
+ *  is not"). The deck measured whichever screen happened to be active and
+ *  packed every screen in the document to it. That was harmless while all the
+ *  headers matched, and stopped being harmless the moment the slide picture
+ *  came back: a first screen carries the picture and a continuation screen
+ *  does not, so a measurement taken on a continuation over-budgets every first
+ *  screen by the height of a slide. The packing then believes a paragraph fits
+ *  where it does not, and the split it exists to perform never happens.
+ *
+ *  On a phone this needs no scrolling to trigger: the remeasure runs on
+ *  `resize`, and the URL bar sliding is a resize.
+ *
+ *  Taking the SMALLEST budget is the safe direction and the only one. Packing
+ *  to less room than a screen has costs white space at the bottom; packing to
+ *  more puts words under the fold, which is the whole defect. Pure, so the
+ *  rule is reachable by a unit test even though the measuring is not.
+ */
+export function tightestFit(
+  fits: readonly (ScreenFit | null)[],
+): ScreenFit | null {
+  let best: ScreenFit | null = null;
+  for (const fit of fits) {
+    if (!fit) continue;
+    if (!best || fit.budgetPx < best.budgetPx) best = fit;
+  }
+  return best;
+}
+
 /** Has the fit changed enough to be worth repacking the deck?
  *
  *  THE LOOP GUARD, and the reason this is a named rule rather than an `!==`.

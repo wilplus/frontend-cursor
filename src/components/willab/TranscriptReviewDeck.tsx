@@ -48,6 +48,7 @@ import {
 import {
   fitChangedMeaningfully,
   measureScreenFit,
+  tightestFit,
 } from "@/lib/willab/measureScreenFit";
 import { partRootTint, type Part } from "@/lib/willab/documentParts";
 import { bundleRootTint } from "@/lib/willab/rootPhraseLayer";
@@ -745,8 +746,17 @@ export default function TranscriptReviewDeck({
    * the column width moves with the breakpoint, and the height left for words
    * depends on whether the slide above them rendered at all.
    *
-   * It runs after layout (useEffect, on the ACTIVE screen's own scroller) and
-   * only adopts a fit that `fitChangedMeaningfully` accepts. That guard is
+   * It runs after layout and measures EVERY mounted screen, keeping the
+   * tightest (founder 2026-09-19: "the large slide that should have been
+   * truncated into two slides is not"). It used to measure only the active
+   * screen and pack the whole document to that one number, which is correct
+   * exactly while every screen is the same height — and stopped being so the
+   * moment the slide picture came back, because a first screen carries one
+   * and a continuation screen does not. Measured on a continuation, the
+   * budget was a slide too tall and the split silently stopped happening.
+   * `tightestFit` makes the asymmetry harmless whatever the headers do next.
+   *
+   * It only adopts a fit that `fitChangedMeaningfully` accepts. That guard is
    * load-bearing rather than tidy: repacking changes the screens, which
    * re-renders, which measures again — so a fit jittering by a fraction of a
    * pixel (a scrollbar appearing, sub-pixel line height, iOS rounding the
@@ -758,9 +768,14 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     if (!deckReady) return;
     const remeasure = () => {
-      const scroller = innerRefs.current[posRef.current.slide];
-      const sample = scroller?.querySelector<HTMLElement>("[data-chunk]");
-      const next = measureScreenFit(scroller ?? null, sample ?? null);
+      const next = tightestFit(
+        innerRefs.current.map((scroller) =>
+          measureScreenFit(
+            scroller ?? null,
+            scroller?.querySelector<HTMLElement>("[data-chunk]") ?? null,
+          ),
+        ),
+      );
       if (!next) return;
       setFit((prev) => (fitChangedMeaningfully(prev, next) ? next : prev));
     };
@@ -910,9 +925,25 @@ export default function TranscriptReviewDeck({
                     everywhere it is not redundant — the slide editor's
                     header, and the deck's copy output, where there is no
                     picture to read it from. */}
-                {g.screenOfSlide === 0 &&
-                presentationRef &&
-                g.slideIndex !== null ? (
+                {/* THE SLIDE REPEATS ON EVERY SCREEN IT SPANS (founder
+                    2026-09-19: "it should just repeat the slide and render
+                    the rest of the text there"). It used to draw only on
+                    `screenOfSlide === 0`, which meant the continuation of a
+                    long slide showed words with no picture above them — the
+                    reader lost the thing the words are about halfway through
+                    reading them.
+
+                    It is also what makes the measurement honest: with the
+                    picture on screen 0 only, a first screen and a
+                    continuation had different amounts of room, and one
+                    measured budget could not be right for both. Same header
+                    everywhere, one budget, and `tightestFit` to catch it if
+                    that ever stops being true.
+
+                    The document is unchanged by this: `screensInSlide` and
+                    the kicker already say "Slide N" on each screen, so no
+                    new copy is surfaced. */}
+                {presentationRef && g.slideIndex !== null ? (
                   <DeckSlidePreview
                     presentationRef={presentationRef}
                     pageIndex={g.slideIndex}
