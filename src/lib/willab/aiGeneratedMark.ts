@@ -154,6 +154,52 @@ export function aiGeneratedClipboardHtml(
   );
 }
 
+/** The same assertion as an XMP packet, for the PDF export.
+ *
+ *  `Iptc4xmpExt:DigitalSourceType` is the IPTC Extension property C2PA and the
+ *  IPTC's own guidance use to carry this claim, so a reader that understands
+ *  AI-provenance at all understands this. `dc:` and `xmp:` carry the same fact
+ *  for readers that only know Dublin Core.
+ *
+ *  Kept here rather than in the PDF module on purpose: the proposal in
+ *  `docs/AI-CONTENT-MARKING-PROPOSAL.md` §4 asks for one shared assertion so
+ *  that C2PA can be added BESIDE this later instead of replacing three
+ *  separately-worded copies of it.
+ */
+export function aiGeneratedXmp(opts: { name?: string | null } = {}): string {
+  const name = opts.name?.trim() || "Presentation notes";
+  const xml = (value: string) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  return `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+    xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/">
+   <dc:title><rdf:Alt><rdf:li xml:lang="x-default">${xml(name)}</rdf:li></rdf:Alt></dc:title>
+   <dc:creator><rdf:Seq><rdf:li>${xml(AI_GENERATED_PRODUCER)}</rdf:li></rdf:Seq></dc:creator>
+   <dc:description><rdf:Alt><rdf:li xml:lang="x-default">${xml(aiGeneratedAssertion())}</rdf:li></rdf:Alt></dc:description>
+   <xmp:CreatorTool>${xml(AI_GENERATED_PRODUCER)}</xmp:CreatorTool>
+   <Iptc4xmpExt:DigitalSourceType rdf:resource="${IPTC_TRAINED_ALGORITHMIC_MEDIA}"/>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+}
+
+/** The one sentence every format carries, so a person opening an exported file
+ *  in any of them reads the same claim. */
+export function aiGeneratedAssertion(): string {
+  return (
+    `Contains AI-generated text produced by ${AI_GENERATED_PRODUCER}. ` +
+    `digitalSourceType: ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`
+  );
+}
+
 /** Copy generated text to the clipboard with the marking attached.
  *
  *  Resolves true when something reached the clipboard. Degrades the way the

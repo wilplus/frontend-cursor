@@ -11,6 +11,7 @@ import type { PresentationDocumentSlide } from "@/lib/willab/presentationDocumen
 import {
   AI_GENERATED_PRODUCER,
   IPTC_TRAINED_ALGORITHMIC_MEDIA,
+  aiGeneratedAssertion,
 } from "@/lib/willab/aiGeneratedMark";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
@@ -140,9 +141,7 @@ export async function downloadPresentationDocx({
   const file = new Document({
     creator: AI_GENERATED_PRODUCER,
     title: "Presentation notes",
-    description:
-      `Contains AI-generated text produced by ${AI_GENERATED_PRODUCER}. ` +
-      `digitalSourceType: ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`,
+    description: aiGeneratedAssertion(),
     keywords: `ai-generated, ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`,
     sections: [{ properties: {}, children }],
   });
