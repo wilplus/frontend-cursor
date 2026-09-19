@@ -221,7 +221,15 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).toMatch(
       /grouping\.ok\s*\? grouping\.groups\s*:\s*chunks\.length > 0\s*\? \[\{ slideIndex: null/
     );
-    expect(DECK).toMatch(/data-slide-linkage=\{grouping\.ok \? "linked" : "unlinked"\}/);
+    // The linked/unlinked marker moved to `linkageAttrs` (2026-09-18) so the
+    // deck could also publish WHICH of the seven typed reasons flattened it
+    // without pushing the component past the complexity ratchet. Same two
+    // states, built in one place; `deckSlideLinkageDiagnosis.test.tsx` holds
+    // the rendered attributes.
+    expect(DECK).toMatch(/\{\.\.\.linkageAttrs\(grouping, chunks, piecePartIds\)\}/);
+    expect(DECK).toMatch(/"data-slide-linkage": "linked"/);
+    expect(DECK).toMatch(/"data-slide-linkage": "unlinked"/);
+    expect(DECK).toMatch(/"data-slide-linkage-reason": grouping\.error/);
     expect(DECK).not.toMatch(/role="alert"/);
     expect(DECK).not.toMatch(/Couldn&apos;t load your ideal text/);
   });

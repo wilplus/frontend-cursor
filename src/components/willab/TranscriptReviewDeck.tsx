@@ -24,6 +24,7 @@ import {
   type ChunkState,
   type CoachMomentLite,
   type DeckChunk,
+  type DeckSlideGroupingResult,
   type OpenChunkRef,
 } from "@/lib/willab/deckChunks";
 import {
@@ -84,6 +85,92 @@ import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
 /*  Chrome is stripped to match: no frame, no height cap, no footer. The text  */
 /*  gets the room.                                                             */
 /* -------------------------------------------------------------------------- */
+
+/** Say WHY the deck flattened (founder 2026-09-18: "after a lock the text
+ *  skipped the slides and got concatenated again").
+ *
+ *  `groupChunksBySlide` distinguishes seven typed failures and all seven drew
+ *  the same screen — one unlinked section holding the whole document, no slide
+ *  kickers, and no slide picture, because the preview is rendered per slide
+ *  group. The reason was computed and dropped, so a snapshot that lost its
+ *  slide indexes and a lock that re-minted a part id were indistinguishable
+ *  from the outside.
+ *
+ *  Developer signal only. The degrade stays quiet for the SPEAKER — a
+ *  provenance defect must not replace their words — and new user-facing copy
+ *  needs founder sign-off. Module scope because the deck is at the complexity
+ *  ratchet's grandfathered ceiling and may only come down. */
+function warnUnlinked(
+  grouping: DeckSlideGroupingResult,
+  chunks: readonly DeckChunk[],
+  slideCount: number | null,
+  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
+  piecePartIds: readonly (string | null)[] | null | undefined,
+): void {
+  if (grouping.ok || chunks.length === 0) return;
+  const at = grouping.paragraphIndex;
+  console.warn("[deck] slide grouping failed — rendering one unlinked section", {
+    reason: grouping.error,
+    paragraphIndex: at,
+    // BOTH SIDES OF THE COMPARISON THAT FAILED (2026-09-19). The first cut
+    // logged only the id the deck HAS, which proves nothing on its own: the
+    // question is always whether it equals the id the pieces zip EXPECTS, and
+    // without the expected value beside it a `piece_identity_mismatch` needs
+    // another round trip to interpret. `expectedAt` is where the deck's id
+    // does appear in the zip, if it appears at all — `-1` means the id is
+    // absent entirely (re-minted identity), any other number means the two
+    // lists hold the same ids in a different ORDER, and those are different
+    // bugs in different repos.
+    partId: at === null ? null : (chunks[at]?.part.id ?? null),
+    expectedPartId: at === null ? null : (piecePartIds?.[at] ?? null),
+    expectedAt:
+      at === null || !piecePartIds
+        ? null
+        : piecePartIds.indexOf(chunks[at]?.part.id ?? ""),
+    chunks: chunks.length,
+    slideCount,
+    slideIndexes: pieceSlideIndexes?.length ?? null,
+    partIds: piecePartIds?.length ?? null,
+  });
+}
+
+/** The same answer as attributes, readable from a device with no inspector —
+ *  the phone this was first seen on. Built here, not inline, for the ratchet.
+ *
+ *  IT CARRIES THE IDS TOO (2026-09-19). The pair that decides a
+ *  `piece_identity_mismatch` lived only in a `console.warn`, and a console with
+ *  its Warnings filter off — the default in more than one browser's saved
+ *  state — hides it completely. The founder read this element three times and
+ *  saw three attributes, because the two that mattered were in a message he
+ *  was never shown. A diagnostic that a filter can suppress is a diagnostic
+ *  that is absent exactly when someone is hunting for it, so the answer now
+ *  also sits in the DOM, where nothing can filter it. */
+function linkageAttrs(
+  grouping: DeckSlideGroupingResult,
+  chunks: readonly DeckChunk[],
+  piecePartIds: readonly (string | null)[] | null | undefined,
+) {
+  if (grouping.ok) return { "data-slide-linkage": "linked" as const };
+  const at = grouping.paragraphIndex;
+  const held = at === null ? null : (chunks[at]?.part.id ?? null);
+  return {
+    "data-slide-linkage": "unlinked" as const,
+    "data-slide-linkage-reason": grouping.error,
+    ...(at === null ? {} : { "data-slide-linkage-at": String(at) }),
+    ...(held === null
+      ? {}
+      : {
+          "data-slide-linkage-held": held,
+          "data-slide-linkage-expected": piecePartIds?.[at as number] ?? "",
+          // Where the deck's own id sits in the zip: -1 = absent entirely
+          // (identity was minted client-side), anything else = the same ids
+          // in a different order. Two different bugs, two different repos.
+          "data-slide-linkage-found-at": String(
+            piecePartIds ? piecePartIds.indexOf(held) : -1,
+          ),
+        }),
+  };
+}
 
 export default function TranscriptReviewDeck({
   title = "",
@@ -289,6 +376,24 @@ export default function TranscriptReviewDeck({
           : [],
     [grouping, chunks],
   );
+  /* THE DEGRADE MUST NAME ITSELF (founder 2026-09-18: "after a lock the text
+   * skipped the slides and got concatenated again").
+   *
+   * The fallback above is right and stays. What was wrong is that it was
+   * SILENT: `groupChunksBySlide` distinguishes seven typed reasons, and all
+   * seven collapsed into one unlinked section with the reason discarded. The
+   * symptom the founder can see — every slide boundary gone, the whole talk
+   * concatenated — is identical for a stale slide map, a lock that minted a
+   * new part id, and a backwards mapping, so nobody could say which had
+   * happened without adding a log and shipping it.
+   *
+   * Developer signal only: a console warning and a data attribute. Nothing
+   * user-facing, because the degrade is deliberately quiet for the user (a
+   * metadata defect must not replace their words) and new user-facing copy
+   * needs founder sign-off. */
+  useEffect(() => {
+    warnUnlinked(grouping, chunks, slideCount, pieceSlideIndexes, piecePartIds);
+  }, [grouping, chunks, slideCount, pieceSlideIndexes, piecePartIds]);
   const deckReady = groups.length > 0;
   /* §11.7.2/§11.7.3 — THE SCREEN GRAIN: the deck's sections are SCREENS
    * (≤3 chunks ≈ 9 lines), and a slide with more chunks CONTINUES on the
@@ -714,7 +819,7 @@ export default function TranscriptReviewDeck({
   return (
     <div
       className="flex h-full min-h-0 w-full flex-col bg-background"
-      data-slide-linkage={grouping.ok ? "linked" : "unlinked"}
+      {...linkageAttrs(grouping, chunks, piecePartIds)}
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (

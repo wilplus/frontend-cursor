@@ -16,7 +16,24 @@
 // The policy below replaces the one-size-fits-all rule that made the bump
 // necessary in the first place, so this should be the last bump that has to
 // rescue anybody rather than just tidy up.
-const CACHE_NAME = "willab-shell-v6";
+/* v7 (2026-09-18) — AND THE LAST ONE WRITTEN BY HAND.
+ *
+ * Every bump above was a person remembering to bump it. The failure that is
+ * not in the list is the one where nobody did: `activate` deletes every cache
+ * whose name is not this one, so an unchanged name means an unchanged shell,
+ * and a phone keeps serving the previous build with nothing on screen to say
+ * why. That is what "it holds on the desktop but not on the phone" looks like.
+ *
+ * The name now comes from the registration. `ServiceWorkerRegistrar` registers
+ * `/sw.js?v=<build id>`, which is a URL the browser has not seen before, so it
+ * fetches and installs a new worker on every deploy; this reads the same value
+ * back off its own location, so the registration and the cache it empties
+ * cannot disagree.
+ *
+ * The literal below is the FALLBACK, not the version: it is what an
+ * unversioned registration gets, and it behaves exactly as v6 did. */
+const BUILD_ID = new URL(self.location.href).searchParams.get("v");
+const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v7";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 /* ────────────────────────────────────────────────────────────────────────
