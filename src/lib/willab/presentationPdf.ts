@@ -180,10 +180,19 @@ function pdfString(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
 }
 
-/** Exported for the Article 50(2) metadata test, which parses a produced file
- *  with pdfjs: a hand-assembled PDF that a strict reader rejects is the exact
- *  failure mode `docs/AI-CONTENT-MARKING-PROPOSAL.md` §2 warns about, so the
- *  marking is verified against a real parser rather than a string match. */
+/** Exported for the Article 50(2) metadata test.
+ *
+ *  A hand-assembled PDF that a strict reader rejects is the exact failure mode
+ *  `docs/AI-CONTENT-MARKING-PROPOSAL.md` §2 warns about, so the test builds a
+ *  real file and checks the two structures that make one unreadable: it walks
+ *  every xref entry and asserts the byte at that offset actually begins the
+ *  object the entry claims, and it compares the metadata stream's declared
+ *  `/Length` against its real byte count.
+ *
+ *  It does NOT parse with pdfjs, and this comment used to say it did. The
+ *  distinction matters because `03-article-50-assessment` cites this test as
+ *  evidence: offset arithmetic is what the test proves, and acceptance by a
+ *  strict viewer still has to be confirmed by opening a produced file. */
 export function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
   const objects: Uint8Array[] = [];
   const pageIds = pages.map((_, index) => 3 + index * 3);
