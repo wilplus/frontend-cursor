@@ -112,7 +112,21 @@ function warnUnlinked(
   console.warn("[deck] slide grouping failed — rendering one unlinked section", {
     reason: grouping.error,
     paragraphIndex: at,
+    // BOTH SIDES OF THE COMPARISON THAT FAILED (2026-09-19). The first cut
+    // logged only the id the deck HAS, which proves nothing on its own: the
+    // question is always whether it equals the id the pieces zip EXPECTS, and
+    // without the expected value beside it a `piece_identity_mismatch` needs
+    // another round trip to interpret. `expectedAt` is where the deck's id
+    // does appear in the zip, if it appears at all — `-1` means the id is
+    // absent entirely (re-minted identity), any other number means the two
+    // lists hold the same ids in a different ORDER, and those are different
+    // bugs in different repos.
     partId: at === null ? null : (chunks[at]?.part.id ?? null),
+    expectedPartId: at === null ? null : (piecePartIds?.[at] ?? null),
+    expectedAt:
+      at === null || !piecePartIds
+        ? null
+        : piecePartIds.indexOf(chunks[at]?.part.id ?? ""),
     chunks: chunks.length,
     slideCount,
     slideIndexes: pieceSlideIndexes?.length ?? null,
