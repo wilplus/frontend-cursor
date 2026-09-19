@@ -156,6 +156,44 @@ describe("a flattened deck names its reason", () => {
       slideCount: 3,
     });
   });
+
+  it("logs BOTH ids when identity is what failed, and where the deck's id sits", async () => {
+    // A re-minted id and a re-ORDERED zip look identical on screen and are
+    // different bugs in different repos. `expectedAt: -1` says the deck's id
+    // is absent from the zip entirely; any other index says the two lists
+    // hold the same ids in a different order.
+    await render({
+      pieceSlideIndexes: [0, 1, 2],
+      piecePartIds: ["p3", "p2", "p1"],
+    });
+
+    const call = warn.mock.calls.find((c: unknown[]) =>
+      String(c[0]).includes("slide grouping failed"),
+    );
+    expect(call![1]).toMatchObject({
+      reason: "piece_identity_mismatch",
+      paragraphIndex: 0,
+      partId: "p1",
+      expectedPartId: "p3",
+      expectedAt: 2,
+    });
+  });
+
+  it("says -1 when the deck's id is nowhere in the zip at all", async () => {
+    await render({
+      pieceSlideIndexes: [0, 1, 2],
+      piecePartIds: ["minted-a", "minted-b", "minted-c"],
+    });
+
+    const call = warn.mock.calls.find((c: unknown[]) =>
+      String(c[0]).includes("slide grouping failed"),
+    );
+    expect(call![1]).toMatchObject({
+      partId: "p1",
+      expectedPartId: "minted-a",
+      expectedAt: -1,
+    });
+  });
 });
 
 describe("a healthy deck stays quiet", () => {
