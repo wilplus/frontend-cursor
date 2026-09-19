@@ -98,13 +98,47 @@ export function PdfPage({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [rendered, setRendered] = useState(false);
 
+  /* THE CALLBACK MAY NOT RESTART THE RENDER (2026-09-19, founder: "the
+     truncation of the text works but the slides are gone... it seems like it
+     flips when one works the other doesn't").
+
+     `onError` was a dependency of the render effect below, and every caller
+     writes it inline — `onError={() => setFailed(true)}` — which is a new
+     function on every parent render. So the effect re-ran whenever anything
+     above it re-rendered, and see below for why that was fatal. Held in a ref
+     instead: the latest callback is always the one called, and its identity
+     can never be mistaken for a reason to draw the page again. */
+  const onErrorRef = useRef(onError);
   useEffect(() => {
-    if (status === "error") onError?.();
-  }, [status, onError]);
+    onErrorRef.current = onError;
+  });
+
+  useEffect(() => {
+    if (status === "error") onErrorRef.current?.();
+  }, [status]);
 
   useEffect(() => {
     if (status !== "ready" || !doc) return;
     let cancelled = false;
+    /* THE PREVIOUS RENDER IS CANCELLED, NOT JUST IGNORED.
+
+       Setting a local flag stopped this effect ACTING on the old render; it
+       did nothing to the render itself, which stayed live inside pdf.js with
+       the canvas still in its `#canvasInUse` set. The canvas element is
+       stable across re-renders, so the next run handed pdf.js a canvas it
+       considered busy and pdf.js threw, by design:
+
+         "Cannot use the same canvas during multiple render() operations."
+
+       That throw landed in the catch below with `cancelled` still false, so
+       it was reported as a genuine failure — and `DeckSlidePreview` only
+       clears its failed state when the url or the page changes, neither of
+       which had. One spurious re-render turned the slide off permanently.
+
+       Cancelling rejects the promise with pdf.js's own cancellation error,
+       which arrives with `cancelled` true and is correctly ignored, and
+       releases the canvas so the next render can have it. */
+    let task: { cancel: () => void } | null = null;
     setRendered(false);
     void (async () => {
       try {
@@ -123,16 +157,28 @@ export function PdfPage({
         if (!ctx) return;
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        const render = page.render({ canvasContext: ctx, viewport });
+        task = render;
+        await render.promise;
         if (!cancelled) setRendered(true);
-      } catch {
-        if (!cancelled) onError?.();
+      } catch (error) {
+        // A CANCELLATION IS NOT A FAILED SLIDE, whoever asked for it. Our own
+        // cleanup sets `cancelled` first, but pdf.js also cancels on its own
+        // (a destroyed document, a page dropped under us), and that arrives
+        // here looking exactly like a broken deck. Reporting it would latch
+        // the preview off, because the failed state only clears when the url
+        // or the page changes.
+        if (cancelled) return;
+        if ((error as { name?: string } | null)?.name
+            === "RenderingCancelledException") return;
+        onErrorRef.current?.();
       }
     })();
     return () => {
       cancelled = true;
+      task?.cancel();
     };
-  }, [status, doc, pageIndex, onError]);
+  }, [status, doc, pageIndex]);
 
   return (
     <div ref={wrapRef} className={`${fit ? "h-full" : ""} ${className ?? ""}`}>
