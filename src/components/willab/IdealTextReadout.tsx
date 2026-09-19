@@ -44,6 +44,11 @@ import { useArcDeckRef } from "./useArcDeckRef";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
+import AiGeneratedNote from "./AiGeneratedNote";
+import {
+  aiGeneratedAttrs,
+  copyAiGeneratedText,
+} from "@/lib/willab/aiGeneratedMark";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
 import AdditionsPanel from "./AdditionsPanel";
@@ -997,6 +1002,7 @@ export default function IdealTextReadout({
     // content height and the screen grows a second scroll.
     <div
       data-ideal-text-wheel-owner
+      {...aiGeneratedAttrs("ideal-text")}
       className="flex min-h-0 flex-1 flex-col gap-4 overscroll-none"
     >
       {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
@@ -1012,12 +1018,15 @@ export default function IdealTextReadout({
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard
-                ?.writeText(stripRichMarkers(text))
-                .then(() => {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1600);
-                });
+              // Article 50(2) — same marked copy as the overlay's button, from
+              // the one module, so the two cannot export differently.
+              void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
+                name: sd?.title,
+              }).then((ok) => {
+                if (!ok) return;
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1600);
+              });
             }}
             aria-label={copied ? "Copied" : "Copy the text"}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -1036,6 +1045,12 @@ export default function IdealTextReadout({
             <OverlayCloseButton onClick={onClose} className="ml-1" />
           ) : null}
         </div>
+      </div>
+
+      {/* Article 50(2). Mounted here, above every body branch, for the reason
+          the overlay mounts it above its own. */}
+      <div>
+        <AiGeneratedNote kind="ideal-text" name={sd?.title} />
       </div>
 
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:

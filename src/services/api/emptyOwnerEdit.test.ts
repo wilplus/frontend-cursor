@@ -17,6 +17,7 @@
 /*  document was destroyed on the way to the screen by a truthiness check.     */
 /* -------------------------------------------------------------------------- */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { piecesForOwnerEdit, type IdealPiece } from "./idealText";
 
 const piece = (partId: string, slideIndex: number | null): IdealPiece => ({
@@ -83,7 +84,5 @@ describe("the mapper reads the edit for content, not for presence", () => {
 });
 
 function readMapper(): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { readFileSync } = require("node:fs") as typeof import("node:fs");
   return readFileSync("src/services/api/idealText.ts", "utf8");
 }

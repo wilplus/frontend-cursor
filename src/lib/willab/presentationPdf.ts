@@ -8,6 +8,12 @@ import {
   renderPresentationPage,
 } from "@/lib/willab/presentationVisuals";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import {
+  AI_GENERATED_PRODUCER,
+  IPTC_TRAINED_ALGORITHMIC_MEDIA,
+  aiGeneratedAssertion,
+  aiGeneratedXmp,
+} from "@/lib/willab/aiGeneratedMark";
 
 export type PresentationPdfSlide = PresentationDocumentSlide;
 
@@ -168,10 +174,19 @@ function concat(parts: Uint8Array[]): Uint8Array {
   return out;
 }
 
-function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
+/** PDF string literal escaping: `(`, `)` and `\` are the three characters that
+ *  can terminate or corrupt a literal string object. */
+function pdfString(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+}
+
+/** Exported for the Article 50(2) metadata test, which parses a produced file
+ *  with pdfjs: a hand-assembled PDF that a strict reader rejects is the exact
+ *  failure mode `docs/AI-CONTENT-MARKING-PROPOSAL.md` §2 warns about, so the
+ *  marking is verified against a real parser rather than a string match. */
+export function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
   const objects: Uint8Array[] = [];
   const pageIds = pages.map((_, index) => 3 + index * 3);
-  objects[1] = bytes("<< /Type /Catalog /Pages 2 0 R >>");
   objects[2] = bytes(
     `<< /Type /Pages /Count ${pages.length} /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] >>`
   );
@@ -196,6 +211,31 @@ function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
     );
   });
 
+  // Article 50(2) — this exporter assembles the file by hand, so there is no
+  // setMetadata() to call: the XMP packet is written as its own object and
+  // referenced from the catalogue, with the DocInfo dictionary carrying the
+  // same claim for readers that ignore XMP. Both come from the one shared
+  // assertion module, never worded here.
+  // Appended AFTER the pages so no existing object id moves: for n pages the
+  // highest id used is 3n+2, so `objects.length` is the next free one.
+  const metadataId = objects.length;
+  const infoId = metadataId + 1;
+  const xmp = bytes(aiGeneratedXmp());
+  objects[metadataId] = concat([
+    bytes(`<< /Type /Metadata /Subtype /XML /Length ${xmp.length} >>\nstream\n`),
+    xmp,
+    bytes("\nendstream"),
+  ]);
+  objects[infoId] = bytes(
+    `<< /Producer (${pdfString(AI_GENERATED_PRODUCER)})` +
+      ` /Creator (${pdfString(AI_GENERATED_PRODUCER)})` +
+      ` /Subject (${pdfString(aiGeneratedAssertion())})` +
+      ` /Keywords (${pdfString(`ai-generated, ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`)}) >>`
+  );
+  objects[1] = bytes(
+    `<< /Type /Catalog /Pages 2 0 R /Metadata ${metadataId} 0 R >>`
+  );
+
   const output: Uint8Array[] = [bytes("%PDF-1.4\n%âãÏÓ\n")];
   const offsets = new Array(objects.length).fill(0);
   let length = output[0].length;
@@ -210,7 +250,7 @@ function pdfFromCanvases(pages: HTMLCanvasElement[]): Blob {
     `xref\n0 ${objects.length}\n`,
     "0000000000 65535 f \n",
     ...offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`),
-    `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`,
+    `trailer\n<< /Size ${objects.length} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`,
   ].join("");
   output.push(bytes(xref));
   const final = concat(output);
