@@ -826,6 +826,35 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
   return out;
 }
 
+/** Re-anchor the slide zip onto an owner edit's Paragraph identity.
+ *
+ *  `pieces` describes the SNAPSHOT's paragraphs and carries the Paragraph →
+ *  Slide mapping. An owner edit replaces both the served text AND the served
+ *  parts, so without this the deck holds the EDIT's part ids while the zip
+ *  still holds the SNAPSHOT's — and `groupChunksBySlide` rejects the whole
+ *  document at the first index (`piece_identity_mismatch`), costing every
+ *  slide kicker and, because the preview renders per slide group, every slide
+ *  picture. An edit is the canonical document evolving, not a side copy
+ *  (founder 2026-09-19: "keep my edits rendering and fix the pieces side"), so
+ *  the mapping follows it rather than the document it was first computed on.
+ *
+ *  EQUAL COUNTS ARE THE PROOF, and the only one taken. The edit surface mutates
+ *  paragraph slots in place — it cannot insert, delete, split, merge or reorder
+ *  them — so on equal counts slot N is still the same Slide-bounded Paragraph.
+ *  That is the same argument the backend's ordinal adoption rests on, held to
+ *  the same limit: unequal counts mean the correspondence is unprovable, and
+ *  this returns null rather than guess which Slide an edited paragraph sits on.
+ *  Null degrades to the unlinked view, which is the honest outcome and now
+ *  names itself in the deck's diagnostic. */
+export function piecesForOwnerEdit(
+  pieces: IdealPiece[] | null,
+  editParts: readonly { id: string }[],
+): IdealPiece[] | null {
+  if (!pieces || pieces.length === 0) return pieces;
+  if (pieces.length !== editParts.length) return null;
+  return pieces.map((piece, index) => ({ ...piece, partId: editParts[index].id }));
+}
+
 /** E-2 (KEY_POINTS_ENABLED) — a presentation-mode cue: a verbatim milestone
  *  from one block of the ideal text, with its char range INTO the top-level
  *  `text` so the toggle can scroll/anchor back into the full read. */
@@ -1618,7 +1647,9 @@ function mapIdealTextCorePayload(
     takeCount: numberOrNull(body.take_count),
     journeyNextStepsSeen: null,
     latestTakeSessionId: str(body.latest_take_session_id) || null,
-    pieces: mapIdealPieces(body.pieces),
+    pieces: ownerEdit
+      ? piecesForOwnerEdit(mapIdealPieces(body.pieces), ownerEdit.parts)
+      : mapIdealPieces(body.pieces),
     suggestions: null,
     styleChanges: null,
     decisionHistory: null,
@@ -1631,6 +1662,8 @@ function mapIdealTextCorePayload(
           locked: part.locked,
         }))
       : mapParts(body.parts),
+    // See `piecesForOwnerEdit` — the zip has to follow the parts it is zipped
+    // against, and two lines above switched those to the edit's.
     additions: [],
     presentationRef: str(body.presentation_ref) || null,
     slideTitles: Array.isArray(body.slide_titles)
