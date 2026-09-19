@@ -851,6 +851,11 @@ export function piecesForOwnerEdit(
   editParts: readonly { id: string }[],
 ): IdealPiece[] | null {
   if (!pieces || pieces.length === 0) return pieces;
+  // An edit with no parts is the empty envelope, not a document with zero
+  // paragraphs. Re-anchoring onto it would discard a mapping that is still
+  // correct — which is exactly what nulling the zip did on 2026-09-19, turning
+  // a `piece_identity_mismatch` into a `missing_slide_mapping`.
+  if (editParts.length === 0) return pieces;
   if (pieces.length !== editParts.length) return null;
   return pieces.map((piece, index) => ({ ...piece, partId: editParts[index].id }));
 }
@@ -1629,6 +1634,25 @@ function mapIdealTextCorePayload(
     return null;
   }
   const servedIdeal = ownerEdit?.text ? { ...ideal, text: ownerEdit.text } : ideal;
+  /* AN EMPTY OWNER EDIT IS NOT AN OWNER EDIT (2026-09-19).
+   *
+   * `mapConfidentMomentOwnerEdit` returns a real object — `{text: null,
+   * parts: []}` — for "no edit yet", which is the ordinary state of almost
+   * every document. `ownerEdit ? …` is TRUE for it, so `parts` was set to the
+   * empty list, `partsForDocument` saw nothing served and fell through to
+   * `reconcileParts`, and every Paragraph id was minted fresh on the client.
+   * The zip still held the server's ids, so `groupChunksBySlide` failed at
+   * index 0 with `piece_identity_mismatch` and the deck collapsed into one
+   * unlinked section with no slide kickers and no slide picture — on a
+   * document whose snapshot was perfectly consistent, which is what made it
+   * so hard to see.
+   *
+   * `text` was already read for content rather than presence one line above;
+   * this is the same rule for `parts`. It is the same trap `IdealTextOverlay`
+   * names one file over: "`??` also misses the empty-list case, which is the
+   * common one." */
+  const ownerEditParts =
+    ownerEdit && ownerEdit.parts.length > 0 ? ownerEdit.parts : null;
   const numberOrNull = (value: unknown): number | null =>
     typeof value === "number" && Number.isFinite(value) ? value : null;
   return {
@@ -1647,23 +1671,23 @@ function mapIdealTextCorePayload(
     takeCount: numberOrNull(body.take_count),
     journeyNextStepsSeen: null,
     latestTakeSessionId: str(body.latest_take_session_id) || null,
-    pieces: ownerEdit
-      ? piecesForOwnerEdit(mapIdealPieces(body.pieces), ownerEdit.parts)
+    pieces: ownerEditParts
+      ? piecesForOwnerEdit(mapIdealPieces(body.pieces), ownerEditParts)
       : mapIdealPieces(body.pieces),
     suggestions: null,
     styleChanges: null,
     decisionHistory: null,
     saved: null,
     keyPoints: null,
-    parts: ownerEdit
-      ? ownerEdit.parts.map((part) => ({
+    parts: ownerEditParts
+      ? ownerEditParts.map((part) => ({
           id: part.id,
           text: part.text,
           locked: part.locked,
         }))
       : mapParts(body.parts),
     // See `piecesForOwnerEdit` — the zip has to follow the parts it is zipped
-    // against, and two lines above switched those to the edit's.
+    // against, and the branch above switches those to the edit's.
     additions: [],
     presentationRef: str(body.presentation_ref) || null,
     slideTitles: Array.isArray(body.slide_titles)
