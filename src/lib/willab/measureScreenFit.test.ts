@@ -116,6 +116,15 @@ describe("the deck measures every screen and shows the slide on each", () => {
     // text there". The gate below is also what made the two screen kinds
     // different heights in the first place.
     expect(deck).not.toMatch(/g\.screenOfSlide === 0 &&\s*presentationRef/);
-    expect(deck).toMatch(/\{presentationRef && g\.slideIndex !== null \?/);
+    expect(deck).toMatch(/\{g\.slideIndex !== null \?/);
+  });
+
+  it("does not gate the picture on there being an uploaded deck", () => {
+    // Founder 2026-09-19: a deckless project owns the canonical mock slides,
+    // and gating here is what made the same document read two different ways
+    // depending on whether a PDF had been uploaded. `DeckSlidePreview` owns
+    // the choice now, so both callers get it and neither can drift.
+    expect(deck).not.toMatch(/presentationRef && g\.slideIndex !== null/);
+    expect(deck).not.toMatch(/presentationRef && slideIndex !== null/);
   });
 });

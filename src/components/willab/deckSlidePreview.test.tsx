@@ -28,6 +28,8 @@ vi.mock("@/components/willab/pdfSlides", () => ({
     if (failNextLoad) queueMicrotask(() => onError?.());
     return createElement("canvas", { "data-testid": "page" });
   },
+  MockPresentationSlide: ({ title }: { title: string }) =>
+    createElement("div", { "data-testid": "mock-slide" }, title),
 }));
 
 import DeckSlidePreview from "./DeckSlidePreview";
@@ -46,7 +48,10 @@ afterEach(async () => {
   host.remove();
 });
 
-async function render(props: { presentationRef: string; pageIndex: number }) {
+async function render(props: {
+  presentationRef: string | null;
+  pageIndex: number;
+}) {
   await act(async () => {
     root.render(createElement(DeckSlidePreview, props));
   });
@@ -113,6 +118,49 @@ describe("the deck's slide preview", () => {
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect(src).not.toMatch(/transcript|chunk\.|part\.text/i);
+  });
+});
+
+describe("a deckless project reads the same way as a decked one", () => {
+  /* FOUNDER 2026-09-19: "when it's ideal text with the mock deck, the mock
+     deck also shows up in the slides; when it's ideal text with my deck, it
+     also shows up". Presentation Mode and every export adapter already drew
+     the canonical mock slides; this surface alone showed nothing, so the same
+     document read two different ways depending on whether a PDF had been
+     uploaded. DEFAULT_DECK is an F1 piece, not a placeholder — it is what
+     makes 1:1 word→slide segmentation defined for a speaker who never
+     uploaded anything. */
+
+  it("draws the canonical slide for a page the default deck has", async () => {
+    await render({ presentationRef: null, pageIndex: 0 });
+    const mock = host.querySelector('[data-testid="mock-slide"]');
+    expect(mock).not.toBeNull();
+    expect(mock?.textContent).toBe("Main premise");
+  });
+
+  it("uses the same bounded frame the uploaded deck gets", async () => {
+    // The bound is the whole reason this component exists (founder
+    // 2026-09-17: "on the desktop it covers the whole screen and the text is
+    // not visible"). A second lane that skipped it would reintroduce that.
+    await render({ presentationRef: null, pageIndex: 1 });
+    const framed = host.querySelector(".aspect-video.max-h-\\[38vh\\]");
+    expect(framed).not.toBeNull();
+    expect(framed?.querySelector('[data-testid="mock-slide"]')).not.toBeNull();
+  });
+
+  it("never asks pdf.js for a page when there is no deck", async () => {
+    onErrorSpy.mockClear();
+    await render({ presentationRef: null, pageIndex: 2 });
+    expect(onErrorSpy).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="page"]')).toBeNull();
+  });
+
+  it("renders nothing for a page the default deck does not have", async () => {
+    // A deckless talk has three slides; a fourth was never promised, and an
+    // apology box for one is worse than the absence.
+    await render({ presentationRef: null, pageIndex: 7 });
+    expect(host.querySelector('[data-testid="mock-slide"]')).toBeNull();
+    expect(host.textContent).toBe("");
   });
 });
 

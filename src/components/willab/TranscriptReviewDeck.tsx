@@ -942,8 +942,14 @@ export default function TranscriptReviewDeck({
 
                     The document is unchanged by this: `screensInSlide` and
                     the kicker already say "Slide N" on each screen, so no
-                    new copy is surfaced. */}
-                {presentationRef && g.slideIndex !== null ? (
+                    new copy is surfaced.
+
+                    NO `presentationRef` GUARD (founder 2026-09-19). A
+                    deckless project owns the canonical mock slides, and
+                    `DeckSlidePreview` serves both kinds; gating here was
+                    what made the same document read two different ways
+                    depending on whether a PDF had been uploaded. */}
+                {g.slideIndex !== null ? (
                   <DeckSlidePreview
                     presentationRef={presentationRef}
                     pageIndex={g.slideIndex}
@@ -1376,7 +1382,9 @@ function SlideEditor({
           <h2 className="mt-1 text-[17px] font-semibold text-foreground">{title}</h2>
         </div>
         <div className="scrollbar-none flex flex-col gap-4 overflow-y-auto px-5 py-4">
-          {presentationRef && slideIndex !== null ? (
+          {/* Same rule as the deck above: the slide editor shows whichever
+              deck this project has, uploaded or canonical. */}
+          {slideIndex !== null ? (
             <DeckSlidePreview
               presentationRef={presentationRef}
               pageIndex={slideIndex}
