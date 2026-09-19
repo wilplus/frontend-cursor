@@ -134,16 +134,41 @@ function warnUnlinked(
   });
 }
 
-/** The same answer as an attribute, readable from a device with no inspector —
- *  the phone this was first seen on. Built here, not inline, for the ratchet. */
-function linkageAttrs(grouping: DeckSlideGroupingResult) {
+/** The same answer as attributes, readable from a device with no inspector —
+ *  the phone this was first seen on. Built here, not inline, for the ratchet.
+ *
+ *  IT CARRIES THE IDS TOO (2026-09-19). The pair that decides a
+ *  `piece_identity_mismatch` lived only in a `console.warn`, and a console with
+ *  its Warnings filter off — the default in more than one browser's saved
+ *  state — hides it completely. The founder read this element three times and
+ *  saw three attributes, because the two that mattered were in a message he
+ *  was never shown. A diagnostic that a filter can suppress is a diagnostic
+ *  that is absent exactly when someone is hunting for it, so the answer now
+ *  also sits in the DOM, where nothing can filter it. */
+function linkageAttrs(
+  grouping: DeckSlideGroupingResult,
+  chunks: readonly DeckChunk[],
+  piecePartIds: readonly (string | null)[] | null | undefined,
+) {
   if (grouping.ok) return { "data-slide-linkage": "linked" as const };
+  const at = grouping.paragraphIndex;
+  const held = at === null ? null : (chunks[at]?.part.id ?? null);
   return {
     "data-slide-linkage": "unlinked" as const,
     "data-slide-linkage-reason": grouping.error,
-    ...(grouping.paragraphIndex === null
+    ...(at === null ? {} : { "data-slide-linkage-at": String(at) }),
+    ...(held === null
       ? {}
-      : { "data-slide-linkage-at": String(grouping.paragraphIndex) }),
+      : {
+          "data-slide-linkage-held": held,
+          "data-slide-linkage-expected": piecePartIds?.[at as number] ?? "",
+          // Where the deck's own id sits in the zip: -1 = absent entirely
+          // (identity was minted client-side), anything else = the same ids
+          // in a different order. Two different bugs, two different repos.
+          "data-slide-linkage-found-at": String(
+            piecePartIds ? piecePartIds.indexOf(held) : -1,
+          ),
+        }),
   };
 }
 
@@ -794,7 +819,7 @@ export default function TranscriptReviewDeck({
   return (
     <div
       className="flex h-full min-h-0 w-full flex-col bg-background"
-      {...linkageAttrs(grouping)}
+      {...linkageAttrs(grouping, chunks, piecePartIds)}
     >
       {/* Header — title, status chip, copy and close ONLY (Lovable §4). */}
       {chrome === "full" ? (

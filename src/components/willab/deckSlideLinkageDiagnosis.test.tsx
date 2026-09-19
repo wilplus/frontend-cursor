@@ -179,6 +179,30 @@ describe("a flattened deck names its reason", () => {
     });
   });
 
+  it("puts both ids in the DOM, where no console filter can hide them", async () => {
+    // The founder read this element three times and saw only three attributes,
+    // because the two that decide the fault were in a `console.warn` and his
+    // Warnings filter was off. A diagnostic a filter can suppress is absent
+    // exactly when someone is hunting for it.
+    const deck = await render({
+      pieceSlideIndexes: [0, 1, 2],
+      piecePartIds: ["p3", "p2", "p1"],
+    });
+
+    expect(deck.getAttribute("data-slide-linkage-held")).toBe("p1");
+    expect(deck.getAttribute("data-slide-linkage-expected")).toBe("p3");
+    expect(deck.getAttribute("data-slide-linkage-found-at")).toBe("2");
+  });
+
+  it("puts -1 in the DOM when the id was minted client-side", async () => {
+    const deck = await render({
+      pieceSlideIndexes: [0, 1, 2],
+      piecePartIds: ["minted-a", "minted-b", "minted-c"],
+    });
+
+    expect(deck.getAttribute("data-slide-linkage-found-at")).toBe("-1");
+  });
+
   it("says -1 when the deck's id is nowhere in the zip at all", async () => {
     await render({
       pieceSlideIndexes: [0, 1, 2],

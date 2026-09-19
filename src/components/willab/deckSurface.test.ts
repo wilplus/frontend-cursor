@@ -226,7 +226,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // without pushing the component past the complexity ratchet. Same two
     // states, built in one place; `deckSlideLinkageDiagnosis.test.tsx` holds
     // the rendered attributes.
-    expect(DECK).toMatch(/\{\.\.\.linkageAttrs\(grouping\)\}/);
+    expect(DECK).toMatch(/\{\.\.\.linkageAttrs\(grouping, chunks, piecePartIds\)\}/);
     expect(DECK).toMatch(/"data-slide-linkage": "linked"/);
     expect(DECK).toMatch(/"data-slide-linkage": "unlinked"/);
     expect(DECK).toMatch(/"data-slide-linkage-reason": grouping\.error/);
