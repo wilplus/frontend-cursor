@@ -624,6 +624,29 @@ export default function IdealTextReadout({
   // SLIDES — the arc's deck, for the slide-per-paragraph reading view.
   const deckRef = useArcDeckRef(arcId, sd?.presentationRef ?? null, sdSettled);
 
+  /* THE DECK'S INPUTS HAVE TO KEEP THEIR IDENTITY (2026-09-19). Same defect
+   * as IdealTextOverlay, fixed in both so they cannot drift: these were built
+   * inline in the JSX with `.map()`, which returns a NEW array every render.
+   * The deck memoises `grouping` on them, `groups` on `grouping` and `screens`
+   * on `groups`, so a fresh identity at the top re-ran slide grouping and
+   * screen building for the whole document on every single render — including
+   * the pass that measures how much text fits, which is why it showed up as a
+   * juddering scroll and a deck that expands a moment after it paints. */
+  const pieceSlideIndexes = useMemo(
+    () => sd?.pieces?.map((p) => p.slideIndex ?? null) ?? null,
+    [sd?.pieces],
+  );
+  const piecePartIds = useMemo(
+    () => sd?.pieces?.map((p) => p.partId ?? null) ?? null,
+    [sd?.pieces],
+  );
+  /* A dirty edit withholds suggestions (they cannot be anchored against words
+   * the server has not seen yet) — the same rule as before, memoised. */
+  const deckSuggestions = useMemo(
+    () => (dirty ? [] : (sd?.suggestions ?? [])),
+    [dirty, sd?.suggestions],
+  );
+
   // Founder 2026-08-11 — the polish-star bulk lane, the per-star taps and
   // the key-point tint retired with the stars; proposals decide one at a
   // time in the deck's REVIEW modal.
@@ -1080,11 +1103,9 @@ export default function IdealTextReadout({
             chrome="stage"
             document={text}
             parts={partsRef.current ?? sd.parts}
-            suggestions={dirty ? [] : (sd.suggestions ?? [])}
-            pieceSlideIndexes={
-              sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
-            }
-            piecePartIds={sd.pieces?.map((p) => p.partId ?? null) ?? null}
+            suggestions={deckSuggestions}
+            pieceSlideIndexes={pieceSlideIndexes}
+            piecePartIds={piecePartIds}
             slideTitles={sd.slideTitles ?? undefined}
             presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
