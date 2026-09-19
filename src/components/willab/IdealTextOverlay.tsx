@@ -468,6 +468,31 @@ export default function IdealTextOverlay({
 
   const displayText = notes ?? ideal?.text ?? "";
 
+  /* THE DECK'S INPUTS HAVE TO KEEP THEIR IDENTITY (2026-09-19, reported as
+   * "very laggy… bugging shaking screen when I scroll" and "it shows part of
+   * it and then it expands with the slides after a short while").
+   *
+   * These were built inline in the JSX below with `.map()`, which returns a
+   * NEW array on every render. The deck memoises `grouping` on them, `groups`
+   * on `grouping`, and `screens` on `groups` — so a fresh array identity at
+   * the top invalidated the whole chain, and every render of this component
+   * re-ran slide grouping and screen building for the entire document. The
+   * screen build also measures itself, so the wasted work lands exactly where
+   * it is most visible: during scroll, and on the pass that decides how much
+   * text fits.
+   *
+   * Memoised on `sd.pieces`, which only changes when a read lands. */
+  const pieceSlideIndexes = useMemo(
+    () => sd?.pieces?.map((p) => p.slideIndex ?? null) ?? null,
+    [sd?.pieces],
+  );
+  const piecePartIds = useMemo(
+    () => sd?.pieces?.map((p) => p.partId ?? null) ?? null,
+    [sd?.pieces],
+  );
+  /* `?? []` is the same trap in miniature: a literal is a new array too. */
+  const deckSuggestions = useMemo(() => sd?.suggestions ?? [], [sd?.suggestions]);
+
   /** T1 · 1.2 — persist the WHOLE resulting document after an add, a move, a
    *  removal or a textarea edit. The document renders first (optimistically)
    *  and the server answer only ever reconciles it, so the student never
@@ -1047,11 +1072,9 @@ export default function IdealTextOverlay({
             chrome="stage"
             document={displayText}
             parts={sd.parts}
-            suggestions={sd.suggestions ?? []}
-            pieceSlideIndexes={
-              sd.pieces?.map((p) => p.slideIndex ?? null) ?? null
-            }
-            piecePartIds={sd.pieces?.map((p) => p.partId ?? null) ?? null}
+            suggestions={deckSuggestions}
+            pieceSlideIndexes={pieceSlideIndexes}
+            piecePartIds={piecePartIds}
             slideTitles={sd.slideTitles ?? undefined}
             presentationRef={deckRef}
             onAccept={(s) => decideTracked(s, "accept")}
