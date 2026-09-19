@@ -8,6 +8,10 @@ import {
   TextRun,
 } from "docx";
 import type { PresentationDocumentSlide } from "@/lib/willab/presentationDocument";
+import {
+  AI_GENERATED_PRODUCER,
+  IPTC_TRAINED_ALGORITHMIC_MEDIA,
+} from "@/lib/willab/aiGeneratedMark";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   loadPresentationPdf,
@@ -126,9 +130,20 @@ export async function downloadPresentationDocx({
     }
   }
 
+  // Article 50(2) — this is the one FILE export that carries generated text
+  // out of the product, so the marking rides in the OOXML core properties
+  // (`docProps/core.xml`), which is where a reader of a .docx looks for
+  // provenance and what any office suite will show under File → Properties.
+  // `creator` also stops saying "Willab": it names the producer the mark
+  // refers to, and an exported file is the worst place to carry a retired
+  // product name.
   const file = new Document({
-    creator: "Willab",
+    creator: AI_GENERATED_PRODUCER,
     title: "Presentation notes",
+    description:
+      `Contains AI-generated text produced by ${AI_GENERATED_PRODUCER}. ` +
+      `digitalSourceType: ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`,
+    keywords: `ai-generated, ${IPTC_TRAINED_ALGORITHMIC_MEDIA}`,
     sections: [{ properties: {}, children }],
   });
   triggerDownload(await Packer.toBlob(file), filename);

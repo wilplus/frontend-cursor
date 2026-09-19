@@ -17,6 +17,8 @@ import {
   type FeedbackLanguageItem,
 } from "@/services/api/confidentMomentBundles";
 import ConfidentMomentExercisePanel from "./ConfidentMomentExercisePanel";
+import AiGeneratedNote from "./AiGeneratedNote";
+import { aiGeneratedAttrs } from "@/lib/willab/aiGeneratedMark";
 
 type PersistentRenderAttempt = {
   renderInstanceId: string;
@@ -467,7 +469,26 @@ export default function ConfidentMomentCoachingBundle({
                   <blockquote className="border-l-2 border-primary/50 pl-3 text-sm text-muted-foreground">
                     {item.sourcePassage.text}
                   </blockquote>
-                  {item.output ? <p className="leading-relaxed">{item.output.text}</p> : null}
+                  {/* Article 50(2) marks the MACHINE's text and only that.
+                      `origin: "coach"` is a person's own writing, and marking
+                      it as artificially generated would be a false claim — the
+                      same provenance wall L3 keeps everywhere else, read here
+                      from the field that already carries it. */}
+                  {item.output ? (
+                    <div className="flex flex-col gap-1">
+                      <p
+                        className="leading-relaxed"
+                        {...(item.output.origin === "machine"
+                          ? aiGeneratedAttrs("manager-feedback")
+                          : {})}
+                      >
+                        {item.output.text}
+                      </p>
+                      {item.output.origin === "machine" ? (
+                        <AiGeneratedNote kind="manager-feedback" />
+                      ) : null}
+                    </div>
+                  ) : null}
                 </>
               ) : null}
               {item.output?.outputKind === "rephrase" && item.updateTextAvailable ? (

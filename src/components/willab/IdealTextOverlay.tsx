@@ -19,6 +19,11 @@ import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import IdealTextHeading from "./IdealTextHeading";
 import MarkedParagraphs from "./MarkedParagraphs";
+import AiGeneratedNote from "./AiGeneratedNote";
+import {
+  aiGeneratedAttrs,
+  copyAiGeneratedText,
+} from "@/lib/willab/aiGeneratedMark";
 import {
   type Addition,
   fetchIdealTextCore,
@@ -931,18 +936,26 @@ export default function IdealTextOverlay({
   // the per-star taps, the moment sheet and its folds. Feedback reaches the
   // student as chunk proposals in the deck, decided one at a time.
 
+  // Article 50(2) — the copy button is an export path WE ship, so the marking
+  // travels with the text in the `text/html` flavour. The plain-text flavour
+  // is byte-identical to what the user reads: no appended line, no invisible
+  // characters. See `lib/willab/aiGeneratedMark.ts`.
   function copyText() {
-    void navigator.clipboard
-      ?.writeText(stripRichMarkers(displayText))
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1600);
-      });
+    void copyAiGeneratedText(
+      stripRichMarkers(displayText),
+      "ideal-text",
+      { name: sd?.title },
+    ).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    });
   }
 
   return (
     <div
       data-ideal-text-wheel-owner
+      {...aiGeneratedAttrs("ideal-text")}
       className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
@@ -1003,6 +1016,14 @@ export default function IdealTextOverlay({
               gone, and with them every branch they were the only entry to. */}
           <OverlayCloseButton onClick={onClose} />
         </div>
+      </div>
+
+      {/* Article 50(2) — "detectable as artificially generated". Under the
+          head rather than inside a branch, so it holds for the instant draft,
+          the deck and the plain fallback alike: a per-branch label is how one
+          of them quietly stops saying it. */}
+      <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-1.5">
+        <AiGeneratedNote kind="ideal-text" name={sd?.title} />
       </div>
 
       {status === "ready" && sd && ideal ? (
