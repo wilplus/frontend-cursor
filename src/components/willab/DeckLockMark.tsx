@@ -2,6 +2,7 @@
 
 import { Bookmark } from "lucide-react";
 import type { ChunkStatus } from "@/lib/willab/deckChunks";
+import { motionClasses } from "@/lib/willab/bookmarkMotion";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 
 /* One feedback control per paragraph. The icon describes the user's feedback
@@ -53,22 +54,27 @@ type BookmarkTier = "exercise" | "most_confident" | "standard" | null;
  *  component at its ceiling. Pure also makes the rule readable on its own —
  *  which colour, which ring, and what moves.
  *
- *  GREEN NEVER PULSES. The exercise is the one item the speaker is asked to go
- *  and do, so it is the only tier that moves; a moment that congratulates
- *  itself in motion is asking for attention it does not need. Both animations
- *  are motion-safe, the restraint the attention ring already keeps. */
+ *  ONLY THE EXERCISE MOVES. It is the one item the speaker is asked to go and
+ *  do; a moment that congratulates itself in motion is asking for attention it
+ *  does not need. That means BOTH animations, not just `animate-pulse` — the
+ *  attention ring's `lock-breathe` is motion too, and reserving one while
+ *  leaking the other made every undecided bookmark move. Everything here is
+ *  motion-safe. */
 function tierClasses(tier: BookmarkTier, attention: boolean): string {
   const affirmed = tier === "most_confident";
   const colour = affirmed
     ? "text-affirm focus-visible:outline-affirm"
     : "text-primary focus-visible:outline-primary";
+  // THE RING IS NOT THE MOTION. A static outline says "undecided", which the
+  // speaker needs and which predates the tiers; the breathing is separate and
+  // belongs to `bookmarkMotion`, where both animations are decided together
+  // so they cannot disagree. See that file for why they did.
   const ring = attention
-    ? `ring-2 ring-offset-2 ring-offset-background motion-safe:animate-lock-breathe ${
+    ? `ring-2 ring-offset-2 ring-offset-background ${
         affirmed ? "ring-affirm" : "ring-primary"
       }`
     : "";
-  const pulse = tier === "exercise" ? "motion-safe:animate-pulse" : "";
-  return `${colour} ${ring} ${pulse}`;
+  return `${colour} ${ring} ${motionClasses(tier, attention)}`;
 }
 
 export default function DeckLockMark({
@@ -119,9 +125,9 @@ export default function DeckLockMark({
   const attention =
     status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
   // The exercise is the ONE thing on the screen the speaker is asked to go and
-  // do, so it is the only tier that moves. Green never pulses — it marks work
-  // already done well, and a moment that congratulates itself in motion is
-  // asking for attention it does not need.
+  // do, so it is the only tier that moves — see `bookmarkMotion`, which owns
+  // both animations together because keeping them apart is what let green
+  // breathe while a comment here promised it never would.
   const isExercise = tier === "exercise";
   const isAffirmed = tier === "most_confident";
 

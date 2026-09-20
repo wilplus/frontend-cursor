@@ -36,6 +36,18 @@ const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
 const CHUNKS = code("src/lib/willab/deckChunks.ts");
 const STEPS = code("src/lib/willab/chunkSteps.ts");
+/* The breathing moved OUT of the component on 2026-09-20, when the first
+ * bookmarks the product ever showed a user were all moving at once: the mark
+ * carries two animations and only `animate-pulse` was being gated, so the
+ * attention ring's breathe leaked onto every undecided bookmark. Both now live
+ * in one module so they cannot disagree — see `bookmarkMotion.ts`.
+ *
+ * This guard follows the class rather than the file. Scanning the pair keeps
+ * it honest either way round: the breathe must still exist, it must still be
+ * motion-safe, and a bare `animate-lock-breathe` reintroduced in EITHER place
+ * fails here. */
+const MOTION = code("src/lib/willab/bookmarkMotion.ts");
+const MOVES = `${MARK}\n${MOTION}`;
 
 describe("the locked pill's amber pulse", () => {
   it("is a MODIFIER, not a fourth chunk status", () => {
@@ -55,13 +67,18 @@ describe("the locked pill's amber pulse", () => {
   });
 
   it("reuses the waiting state's amber and its breathing", () => {
+    // The amber ring is still the mark's own; the breathe is `bookmarkMotion`'s
+    // since 2026-09-20. The mark must still ASK for it — a component that
+    // stopped calling the module would pass a naive file scan while the
+    // screen went inert.
     expect(MARK).toMatch(/ring-primary/);
-    expect(MARK).toMatch(/motion-safe:animate-lock-breathe/);
+    expect(MARK).toMatch(/motionClasses\(tier, attention\)/);
+    expect(MOTION).toMatch(/motion-safe:animate-lock-breathe/);
   });
 
   it("degrades to a plain locked pill under reduced motion", () => {
     // The ring carries it on its own; every animation is motion-safe.
-    const hits = MARK.match(/[\w:-]*animate-lock-breathe/g) ?? [];
+    const hits = MOVES.match(/[\w:-]*animate-lock-breathe/g) ?? [];
     expect(hits.length).toBeGreaterThan(0);
     for (const h of hits) expect(h).toBe("motion-safe:animate-lock-breathe");
   });
