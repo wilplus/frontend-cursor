@@ -375,35 +375,55 @@ export default function Phase1AcceptanceFlow({
   /* ----------------------------------------------------------- country -- */
 
   if (step === "country") {
+    /* THIS STEP IS THE ONLY LONG ONE, AND IT WAS THE ONLY ONE THAT COULD NOT
+       SCROLL (founder 2026-09-20, on the first acceptance screen ever shown:
+       "I can't scroll the list").
+
+       Every other step fits a phone, so `justify-center` was right for them
+       and was copied here. With twenty-seven countries it is actively
+       harmful: a centred flex child that overflows its container spills off
+       BOTH ends, and the overflowing top is unreachable even once scrolling
+       works — so the fix is not only to add `overflow-y-auto`.
+
+       `m-auto` on the inner column is the pattern that does both: the margins
+       centre it while it fits, and collapse to nothing once it is taller than
+       the viewport, leaving an ordinary scroll from the true top. The
+       document step above solves the same problem the same way, with
+       `min-h-0 flex-1 overflow-y-auto`; this is that idea for a step whose
+       heading scrolls with the content rather than sitting above it. */
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-        <VoiceMark small />
-        <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-          Where do you live?
-        </h1>
-        <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
-          This decides which law applies to your recording, so it has to be your
-          real country of residence.
-        </p>
-        <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
-          {countries.map((choice) => (
-            <Choice
-              key={choice.code}
-              indicator="radio"
-              selected={country === choice.code}
-              onClick={() => setCountry(choice.code)}
-            >
-              <span className="block text-[15px] font-medium text-foreground">
-                {choice.label}
-              </span>
-            </Choice>
-          ))}
-        </div>
-        <div className="mt-10 flex flex-col items-center">
-          <Cta onClick={() => go("confirm")} disabled={country === null}>
-            Continue
-          </Cta>
-          <Secondary onClick={() => go(previousStep("country"))}>Back</Secondary>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-8">
+        <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
+          <VoiceMark small />
+          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
+            Where do you live?
+          </h1>
+          <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
+            This decides which law applies to your recording, so it has to be
+            your real country of residence.
+          </p>
+          <div className="mt-6 flex w-full flex-col gap-2">
+            {countries.map((choice) => (
+              <Choice
+                key={choice.code}
+                indicator="radio"
+                selected={country === choice.code}
+                onClick={() => setCountry(choice.code)}
+              >
+                <span className="block text-[15px] font-medium text-foreground">
+                  {choice.label}
+                </span>
+              </Choice>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-col items-center">
+            <Cta onClick={() => go("confirm")} disabled={country === null}>
+              Continue
+            </Cta>
+            <Secondary onClick={() => go(previousStep("country"))}>
+              Back
+            </Secondary>
+          </div>
         </div>
       </div>
     );
