@@ -41,15 +41,6 @@ export interface CountryChoice {
   label: string;
 }
 
-/** One row per allowed country, named in English, Poland first.
- *
- *  NO REGION ROWS, EVER. `allowed_countries` holds individual lowercase codes
- *  and `accept_phase1_processing_authorization_v1` compares what we send
- *  against that array character for character, raising COUNTRY_NOT_ALLOWED
- *  otherwise. A convenience row like "Another EU country" has no code to send,
- *  and the receipt would lose the one fact it exists to record: which
- *  country's law the user accepted under.
- */
 /** Shown first, always, whatever the reader's device language is.
  *
  *  Not a default and not a guess about anyone: the product is operated from
@@ -60,22 +51,29 @@ export interface CountryChoice {
  */
 const FIRST_CHOICE = "pl";
 
-/** The language the country names are written in.
+/** One row per allowed country, named in the reader's own language,
+ *  Poland first.
  *
- *  ENGLISH, NOT THE DEVICE LANGUAGE (founder 2026-09-20: "make it in
- *  English"). This used to read `navigator.language`, on the reasonable
- *  principle that people prefer their own language — but the rest of this
- *  screen is English-only, so a French phone produced "Where do you live?"
- *  above Allemagne, Autriche, Belgique. Half-translating a legal screen is
- *  worse than not translating it: the reader cannot tell which half they are
- *  being asked to trust. One language until the product has a second one.
+ *  NO REGION ROWS, EVER. `allowed_countries` holds individual lowercase codes
+ *  and `accept_phase1_processing_authorization_v1` compares what we send
+ *  against that array character for character, raising COUNTRY_NOT_ALLOWED
+ *  otherwise. A convenience row like "Another EU country" has no code to send,
+ *  and the receipt would lose the one fact it exists to record: which
+ *  country's law the user accepted under.
  */
-const LABEL_LOCALE = "en";
-
-export function countryChoices(policy: ProcessingPolicy): CountryChoice[] {
+export function countryChoices(
+  policy: ProcessingPolicy,
+  locale: string,
+): CountryChoice[] {
+  // NAMED IN THE READER'S OWN LANGUAGE, and that is the point of the pin
+  // (founder 2026-09-20: "keep the languages being dynamically assigned...
+  // just pin Poland first, no matter what the language"). Poland is
+  // Pologne, Polen, Polonia or Polska depending on the device, and lands in
+  // a different alphabetical position in each — which is exactly why it
+  // cannot be found by sorting, and has to be pinned instead.
   let names: Intl.DisplayNames | null = null;
   try {
-    names = new Intl.DisplayNames([LABEL_LOCALE], { type: "region" });
+    names = new Intl.DisplayNames([locale], { type: "region" });
   } catch {
     names = null;
   }
@@ -103,7 +101,7 @@ export function countryChoices(policy: ProcessingPolicy): CountryChoice[] {
   const pinned = rows.filter((row) => row.code === FIRST_CHOICE);
   const rest = rows
     .filter((row) => row.code !== FIRST_CHOICE)
-    .sort((a, b) => a.label.localeCompare(b.label, LABEL_LOCALE));
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
   return [...pinned, ...rest];
 }
 
