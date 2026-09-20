@@ -63,7 +63,18 @@ describe("the locked pill's amber pulse", () => {
   it("uses the single approved bookmark glyph", () => {
     const imports = MARK.match(/import \{([^}]*)\} from "lucide-react"/);
     expect(imports?.[1].trim()).toBe("Bookmark");
-    expect(MARK).toMatch(/fill=\{flagship \? "currentColor" : "none"\}/);
+    /* FILL ANSWERS "IS SOMETHING WAITING HERE", not "is a rooting phrase
+       live" (founder 2026-09-20: "There is just fill and motion").
+
+       It was `flagship` until #418 took the ring away and left the
+       undecided mark — the one state this glyph exists to announce — with
+       no ring, no fill and no motion. A hairline outline against grey text,
+       which the founder correctly reported four times as no bookmarks.
+
+       The rooting phrase is not lost: it is drawn in the paragraph itself,
+       which is the half of the ruling that freed fill to do this job. */
+    expect(MARK).toMatch(/fill=\{attention \? "currentColor" : "none"\}/);
+    expect(MARK).not.toMatch(/fill=\{flagship/);
   });
 
   it("reuses the waiting state's amber, and delegates the motion", () => {

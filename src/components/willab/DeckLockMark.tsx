@@ -161,10 +161,28 @@ export default function DeckLockMark({
       disabled={disabled}
       className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
     >
+      {/* FILL IS THE SIGNAL NOW, and it was meant to be from the moment the
+          ring went (founder 2026-09-20: "the role of solid bookmark is taken
+          by just black text. There is just fill and motion").
+
+          That ruling had two halves and #418 shipped one. The ring went, and
+          fill stayed tied to `flagship` — which is only true when a rooting
+          phrase is live. So on an UNDECIDED paragraph, the one state the mark
+          exists to announce, the glyph had no ring, no fill and no motion:
+          a hairline outline at the end of a line of grey text. The founder
+          looked at a screen with three correct bookmarks on it and reported
+          no bookmarks, four times, and he was describing exactly what was
+          there to see.
+
+          So fill carries attention, which is what the ring carried. The
+          rooting phrase is not lost with it — it is drawn in the paragraph
+          itself, which is the half of the ruling that made this possible:
+          "taken by just black text". One device per fact, and this is the
+          fact the mark is for. */}
       <Bookmark
         className="h-5 w-5"
         strokeWidth={2.1}
-        fill={flagship ? "currentColor" : "none"}
+        fill={attention ? "currentColor" : "none"}
         aria-hidden
       />
       {reviewStatus === "pending_coach_review" ? (
