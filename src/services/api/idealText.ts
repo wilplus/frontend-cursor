@@ -1,6 +1,10 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
+import {
+  nextSettleDelayMs,
+  retryableSections,
+} from "@/lib/willab/enrichmentSettle";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 import type {
   LearningExposureHandle,
@@ -1992,29 +1996,61 @@ export async function fetchIdealTextEnrichment(
  * retry used to race that same work and then abandon it until a full reload.
  * This bounded backoff keeps polling the exact snapshot and never mixes a
  * newer document into the visible one.
+ *
+ * IT USED TO GIVE UP AFTER THREE TRIES, 1.7 SECONDS APART (founder 2026-09-20,
+ * on the first bookmarks the product ever showed: "it refetched and then
+ * displayed — so this is just a loading bug").  The marks are computed inside
+ * the `document_layers` reader, and a Take whose Manager work outran that
+ * budget three times running lost them for good: nothing re-reads the document
+ * after the first paint.  The schedule now widens to eight tries across ninety
+ * seconds, and the result says which of the two ways it ended — see
+ * `lib/willab/enrichmentSettle`, which owns both bounds.
+ *
+ * A returned section that is STILL `retryable` means the budget ran out, not
+ * that the server finished.  Callers reserving space for late marks must read
+ * `feedbackStillComing(result.sections)` rather than `kind === "ready"`.
  */
 export async function settleIdealTextEnrichment(
   arcId: string,
   documentSnapshotId: string,
   initial: Extract<IdealTextEnrichmentResult, { kind: "ready" }>,
   options?: {
-    attempts?: number;
+    ceilingMs?: number;
     wait?: (delayMs: number) => Promise<void>;
+    now?: () => number;
   },
 ): Promise<IdealTextEnrichmentResult> {
   let current = initial;
-  const attempts = Math.max(0, options?.attempts ?? 3);
   const wait =
     options?.wait ??
     ((delayMs: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
-  const delays = [200, 500, 1000];
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const retryable = Object.entries(current.sections)
-      .filter(([, section]) => section.retryable)
-      .map(([name]) => name);
+  const now = options?.now ?? (() => Date.now());
+  const startedAt = now();
+  for (let attempt = 0; ; attempt += 1) {
+    const retryable = retryableSections(current.sections);
     if (retryable.length === 0) return current;
-    await wait(delays[Math.min(attempt, delays.length - 1)]);
+    const delay = nextSettleDelayMs(
+      attempt,
+      now() - startedAt,
+      options?.ceilingMs,
+    );
+    // Budget spent. Hand back what we have WITH its retryable sections intact,
+    // so the caller can tell "the server finished" from "we stopped asking".
+    if (delay === null) {
+      // Leave a trace in the browser timeline. Giving up used to be silent and
+      // indistinguishable from success, which is how it went unnoticed until a
+      // user reported the symptom rather than the cause.
+      if (typeof performance !== "undefined") {
+        try {
+          performance.mark("willab.ideal_text.enrichment_budget_spent");
+        } catch {
+          // Instrumentation must never affect the document read.
+        }
+      }
+      return current;
+    }
+    await wait(delay);
     const next = await fetchIdealTextEnrichment(
       arcId,
       documentSnapshotId,
@@ -2030,7 +2066,6 @@ export async function settleIdealTextEnrichment(
       sections: { ...current.sections, ...next.sections },
     };
   }
-  return current;
 }
 
 /** Apply only ready optional sections to their exact core revision. */
