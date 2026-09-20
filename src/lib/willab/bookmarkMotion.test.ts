@@ -1,101 +1,101 @@
 import { describe, expect, it } from "vitest";
-
 import {
+  type BookmarkTier,
   markPulses,
-  motionClasses,
   marksMove,
-  ringBreathes,
-} from "@/lib/willab/bookmarkMotion";
+  motionClasses,
+} from "./bookmarkMotion";
 
 /* -------------------------------------------------------------------------- */
-/*  ONLY THE EXERCISE MOVES (contract 24g)                                     */
+/*  ONLY THE EXERCISE MOVES (founder 2026-09-20)                               */
 /*                                                                            */
-/*  Founder, 2026-09-20, on the first bookmarks the product ever showed:       */
-/*  "two green bookmarks pulsing and one orange also pulsing — it should not   */
-/*  be pulsing."                                                               */
+/*  Two rulings on the first bookmarks the product ever showed.                */
 /*                                                                            */
-/*  `DeckLockMark` carried a comment saying "GREEN NEVER PULSES" for as long   */
-/*  as the tiers have existed. It was true of `animate-pulse` and false of     */
-/*  the screen: the attention ring's `lock-breathe` scales 1 → 1.1 → 1 every   */
-/*  two seconds forever, `attention` includes `status === "waiting"`, and      */
-/*  every undecided bookmark is waiting. Two animations, one intent, and only  */
-/*  one of them counted.                                                       */
+/*  "two green bookmarks pulsing and one orange also pulsing. It should not be */
+/*  pulsing."  The mark carried two animations and only `animate-pulse` was    */
+/*  gated; the attention ring's `animate-lock-breathe` ran on every undecided  */
+/*  mark, so all three moved.                                                  */
 /*                                                                            */
-/*  A comment asserted this rule once and the screen disagreed. These are the  */
-/*  assertions that cannot.                                                    */
+/*  "the ring should not be there because the role of solid bookmark is taken  */
+/*  by just black text. There is just fill and motion."  The ring went, and    */
+/*  its animation with it — `lock-breathe` WAS the ring breathing.             */
+/*                                                                            */
+/*  What these tests hold is the end state: one device per fact, and motion    */
+/*  belonging to exactly one tier.                                             */
 /* -------------------------------------------------------------------------- */
 
-const UNDECIDED = true;
+const TIERS: BookmarkTier[] = [
+  "exercise",
+  "most_confident",
+  "standard",
+  null,
+];
 
-describe("only the exercise moves", () => {
-  it("does not move a most-confident mark, even undecided", () => {
-    // THE REPORT, in one line.
-    expect(marksMove("most_confident", UNDECIDED)).toBe(false);
-  });
-
-  it("does not move a standard mark, even undecided", () => {
-    expect(marksMove("standard", UNDECIDED)).toBe(false);
-  });
-
-  it("moves the exercise mark", () => {
-    expect(marksMove("exercise", UNDECIDED)).toBe(true);
-  });
-
-  it("gives the exercise both animations and the others neither", () => {
-    expect(motionClasses("exercise", UNDECIDED)).toContain(
-      "motion-safe:animate-lock-breathe",
-    );
-    expect(motionClasses("exercise", UNDECIDED)).toContain(
-      "motion-safe:animate-pulse",
-    );
-    expect(motionClasses("most_confident", UNDECIDED)).toBe("");
-    expect(motionClasses("standard", UNDECIDED)).toBe("");
-  });
-});
-
-describe("the ring is not the motion", () => {
-  it("nothing moves when there is nothing waiting", () => {
-    for (const tier of ["exercise", "most_confident", "standard", null] as const) {
-      expect(ringBreathes(tier) && false).toBe(false);
-      expect(motionClasses(tier, false)).not.toContain("lock-breathe");
+describe("motionClasses", () => {
+  it("moves the exercise, and nothing else", () => {
+    // The whole point. The exercise is the one item the speaker is asked to
+    // go and do (24f); a moment that congratulates itself in motion is asking
+    // for attention it has not earned.
+    expect(motionClasses("exercise")).toBe("motion-safe:animate-pulse");
+    for (const tier of TIERS.filter((t) => t !== "exercise")) {
+      expect(motionClasses(tier)).toBe("");
     }
   });
 
-  it("a settled exercise still pulses but does not breathe", () => {
-    // The pulse belongs to the ITEM (24f: go and do this one); the breathe
-    // belongs to the undecided STATE. They are different claims.
-    const settled = motionClasses("exercise", false);
-    expect(settled).toContain("motion-safe:animate-pulse");
-    expect(settled).not.toContain("lock-breathe");
+  it("leaves NO trace of the ring's breathing anywhere", () => {
+    // `lock-breathe` scaled the attention ring 1 → 1.1 → 1, every two
+    // seconds, forever. The ring is gone, so a ring animation is a class
+    // animating nothing. Its return would be the old bug wearing the old
+    // name.
+    for (const tier of TIERS) {
+      expect(motionClasses(tier)).not.toContain("lock-breathe");
+    }
+  });
+
+  it("is motion-safe, so Reduce Motion stops everything", () => {
+    expect(motionClasses("exercise")).toMatch(/^motion-safe:/);
+  });
+
+  it("emits classes, never undefined or a stray space", () => {
+    for (const tier of TIERS) {
+      const out = motionClasses(tier);
+      expect(typeof out).toBe("string");
+      expect(out).toBe(out.trim());
+    }
   });
 });
 
-describe("an untiered mark is untouched", () => {
-  /* SAFE-AHEAD. `tier` shipped with "null renders exactly today's mark", and
-     a paragraph with no V3 tier — every paragraph before the cutover, and any
-     whose block produced no candidate — must keep the pre-tier behaviour. */
-  it("still breathes when something is waiting on it", () => {
-    expect(ringBreathes(null)).toBe(true);
-    expect(motionClasses(null, UNDECIDED)).toBe(
-      "motion-safe:animate-lock-breathe",
-    );
-  });
-
-  it("never pulses, because the pulse means the exercise", () => {
+describe("markPulses", () => {
+  it("is the exercise alone", () => {
+    expect(markPulses("exercise")).toBe(true);
+    expect(markPulses("most_confident")).toBe(false);
+    expect(markPulses("standard")).toBe(false);
     expect(markPulses(null)).toBe(false);
   });
 });
 
-describe("every animation stays motion-safe", () => {
-  /* The restraint the mark has always kept: a reader who has asked their
-     device for reduced motion gets none of this. */
-  it("prefixes every class it emits", () => {
-    for (const tier of ["exercise", "most_confident", "standard", null] as const) {
-      for (const attention of [true, false]) {
-        for (const cls of motionClasses(tier, attention).split(" ").filter(Boolean)) {
-          expect(cls.startsWith("motion-safe:")).toBe(true);
-        }
-      }
-    }
+describe("marksMove — the founder's sentence, asserted directly", () => {
+  it("green does NOT move", () => {
+    // Said in a comment for weeks while the screen did the opposite. Now it
+    // is a test.
+    expect(marksMove("most_confident")).toBe(false);
+  });
+
+  it("an ordinary orange mark does NOT move", () => {
+    expect(marksMove("standard")).toBe(false);
+  });
+
+  it("an untiered mark does NOT move", () => {
+    // It used to, via the ring. With the ring gone there is nothing for it
+    // to breathe around, so stillness is the honest default.
+    expect(marksMove(null)).toBe(false);
+  });
+
+  it("the exercise moves", () => {
+    expect(marksMove("exercise")).toBe(true);
+  });
+
+  it("exactly one tier moves, so motion still means one thing", () => {
+    expect(TIERS.filter((tier) => marksMove(tier))).toEqual(["exercise"]);
   });
 });
