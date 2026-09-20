@@ -27,18 +27,19 @@ const config: Config = {
           "0%, 100%": { transform: "scaleY(1)" },
           "50%": { transform: "scaleY(0.6)" },
         },
-        // Transcript review deck — the waiting-feedback lock breathes
-        // (Lovable spec §2). Only ever on a chunk with pending feedback.
-        "lock-breathe": {
-          "0%, 100%": { transform: "scale(1)" },
-          "50%": { transform: "scale(1.1)" },
-        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.5s ease-out both",
         "voice-dot": "voice-dot 1.2s ease-in-out infinite",
-        "lock-breathe": "lock-breathe 2s ease-in-out infinite",
       },
+      /* `lock-breathe` LIVED HERE and is deliberately gone (founder
+         2026-09-20: "the ring should not be there … There is just fill and
+         motion"). It scaled the bookmark's attention ring 1 → 1.1 → 1 every
+         two seconds, and it was the reason every undecided bookmark moved
+         while the component's own comment promised that green never pulses.
+         The ring it breathed around no longer exists. Left as a note rather
+         than silently deleted, so the next person to want a breathing mark
+         reads the ruling before rebuilding it. */
       colors: {
         background: "hsl(var(--background))",
         primary: "hsl(var(--primary))",

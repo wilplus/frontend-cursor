@@ -52,29 +52,31 @@ type BookmarkTier = "exercise" | "most_confident" | "standard" | null;
  *  Module level rather than inline: the mark already carries the lock, the
  *  coach dot, the style flag and the review status, and the ratchet holds this
  *  component at its ceiling. Pure also makes the rule readable on its own —
- *  which colour, which ring, and what moves.
+ *  which colour, and what moves.
  *
- *  ONLY THE EXERCISE MOVES. It is the one item the speaker is asked to go and
- *  do; a moment that congratulates itself in motion is asking for attention it
- *  does not need. That means BOTH animations, not just `animate-pulse` — the
- *  attention ring's `lock-breathe` is motion too, and reserving one while
- *  leaking the other made every undecided bookmark move. Everything here is
- *  motion-safe. */
-function tierClasses(tier: BookmarkTier, attention: boolean): string {
-  const affirmed = tier === "most_confident";
-  const colour = affirmed
-    ? "text-affirm focus-visible:outline-affirm"
-    : "text-primary focus-visible:outline-primary";
-  // THE RING IS NOT THE MOTION. A static outline says "undecided", which the
-  // speaker needs and which predates the tiers; the breathing is separate and
-  // belongs to `bookmarkMotion`, where both animations are decided together
-  // so they cannot disagree. See that file for why they did.
-  const ring = attention
-    ? `ring-2 ring-offset-2 ring-offset-background ${
-        affirmed ? "ring-affirm" : "ring-primary"
-      }`
-    : "";
-  return `${colour} ${ring} ${motionClasses(tier, attention)}`;
+ *  THERE IS NO RING (founder 2026-09-20: "the ring should not be there
+ *  because the role of solid bookmark is taken by just black text. There is
+ *  just fill and motion").
+ *
+ *  The ring meant "something is waiting on this paragraph" — and the deck
+ *  already says that with the paragraph itself, which renders
+ *  `text-foreground/55` while unsettled and `text-foreground` once settled.
+ *  A whole block dimming or going black is a louder, clearer statement of
+ *  that fact than a two-pixel outline, and the deck's own comment has called
+ *  the softened block a signal all along. The ring was a third device for a
+ *  fact already told twice.
+ *
+ *  What is left: colour for the tier, fill for a live rooting phrase, and
+ *  motion for the exercise alone — see `bookmarkMotion`, which owns the
+ *  motion rule so it cannot drift from the comment describing it. The
+ *  focus-visible outline below is NOT the ring: it is the keyboard focus
+ *  indicator and it stays. */
+function tierClasses(tier: BookmarkTier): string {
+  const colour =
+    tier === "most_confident"
+      ? "text-affirm focus-visible:outline-affirm"
+      : "text-primary focus-visible:outline-primary";
+  return `${colour} ${motionClasses(tier)}`;
 }
 
 export default function DeckLockMark({
@@ -126,8 +128,8 @@ export default function DeckLockMark({
     status === "waiting" || styled || hasUnreadCoachUpdate || reviewNeedsAttention;
   // The exercise is the ONE thing on the screen the speaker is asked to go and
   // do, so it is the only tier that moves — see `bookmarkMotion`, which owns
-  // both animations together because keeping them apart is what let green
-  // breathe while a comment here promised it never would.
+  // the motion rule because keeping it here is what let green breathe while a
+  // comment promised it never would.
   const isExercise = tier === "exercise";
   const isAffirmed = tier === "most_confident";
 
@@ -157,7 +159,7 @@ export default function DeckLockMark({
       data-tier={tier ?? undefined}
       onClick={onClick}
       disabled={disabled}
-      className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier, attention)}`}
+      className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
     >
       <Bookmark
         className="h-5 w-5"

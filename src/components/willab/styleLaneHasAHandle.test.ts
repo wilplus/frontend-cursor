@@ -66,21 +66,34 @@ describe("the locked pill's amber pulse", () => {
     expect(MARK).toMatch(/fill=\{flagship \? "currentColor" : "none"\}/);
   });
 
-  it("reuses the waiting state's amber and its breathing", () => {
-    // The amber ring is still the mark's own; the breathe is `bookmarkMotion`'s
-    // since 2026-09-20. The mark must still ASK for it — a component that
-    // stopped calling the module would pass a naive file scan while the
-    // screen went inert.
-    expect(MARK).toMatch(/ring-primary/);
-    expect(MARK).toMatch(/motionClasses\(tier, attention\)/);
-    expect(MOTION).toMatch(/motion-safe:animate-lock-breathe/);
+  it("reuses the waiting state's amber, and delegates the motion", () => {
+    /* THE RING IS GONE (founder 2026-09-20: "the ring should not be there
+       because the role of solid bookmark is taken by just black text. There
+       is just fill and motion").
+
+       The ring said "something is waiting on this paragraph", which the deck
+       already says by rendering the whole block `text-foreground/55` until it
+       settles. This lane's amber survives as the mark's COLOUR; what is
+       asserted here is that the amber is still the primary token and that the
+       component still asks `bookmarkMotion` for its movement — a mark that
+       stopped calling the module would pass a naive file scan while the
+       screen went inert. */
+    expect(MARK).toMatch(/text-primary/);
+    expect(MARK).toMatch(/motionClasses\(tier\)/);
+    expect(MARK).not.toMatch(/ring-primary|ring-affirm/);
   });
 
   it("degrades to a plain locked pill under reduced motion", () => {
-    // The ring carries it on its own; every animation is motion-safe.
-    const hits = MOVES.match(/[\w:-]*animate-lock-breathe/g) ?? [];
+    // Every animation the mark can carry is motion-safe, in either file.
+    const hits = MOVES.match(/[\w:-]*animate-(pulse|lock-breathe)/g) ?? [];
     expect(hits.length).toBeGreaterThan(0);
-    for (const h of hits) expect(h).toBe("motion-safe:animate-lock-breathe");
+    for (const h of hits) expect(h).toMatch(/^motion-safe:/);
+  });
+
+  it("keeps no ring animation for a ring that no longer exists", () => {
+    // `lock-breathe` WAS the ring breathing. Reintroducing it in either file
+    // would be the pulsing bug back under its original name.
+    expect(MOVES).not.toMatch(/animate-lock-breathe/);
   });
 
   it("only fires on a LOCKED chunk", () => {
