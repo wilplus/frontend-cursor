@@ -250,12 +250,10 @@ export default function Phase1AcceptanceFlow({
 
   const locale = useMemo(readLocale, []);
   const countries = useMemo(
-    // No locale: the names are English regardless of the device, and the
-    // list is Poland-first rather than alphabetical. `locale` is still read
-    // below — the RECEIPT records the device locale, which is evidence about
-    // the acceptance and unrelated to what language the list is written in.
-    () => countryChoices(policy),
-    [policy],
+    // Names follow the device language; only the ORDER is fixed, with
+    // Poland pinned first (founder 2026-09-20).
+    () => countryChoices(policy, locale),
+    [policy, locale],
   );
   // One key for this ATTEMPT, recomputed only when the policy identity changes.
   //

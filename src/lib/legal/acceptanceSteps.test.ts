@@ -52,7 +52,7 @@ describe("step order", () => {
 
 describe("countryChoices", () => {
   it("names each allowed country and keeps its stored code", () => {
-    const rows = countryChoices(policy({ allowedCountries: ["pl", "de"] }));
+    const rows = countryChoices(policy({ allowedCountries: ["pl", "de"] }), "en");
     expect(rows.map((r) => r.code).sort()).toEqual(["de", "pl"]);
     expect(rows.find((r) => r.code === "pl")?.label).toBe("Poland");
   });
@@ -62,29 +62,30 @@ describe("countryChoices", () => {
   // entry in allowed_countries shows as a visibly wrong row rather than a
   // blank one — which is what someone reviewing a registration needs to see.
   it("falls back to the uppercase code when the runtime has no name", () => {
-    const rows = countryChoices(policy({ allowedCountries: ["qq"] }));
+    const rows = countryChoices(policy({ allowedCountries: ["qq"] }), "en");
     expect(rows[0]).toEqual({ code: "qq", label: "QQ" });
   });
 
   it("survives a malformed code rather than throwing the screen away", () => {
-    const rows = countryChoices(policy({ allowedCountries: ["99", "pl"] }));
+    const rows = countryChoices(policy({ allowedCountries: ["99", "pl"] }), "en");
     expect(rows.map((r) => r.label).sort()).toEqual(["99", "Poland"]);
   });
 
   it("emits one row per code and never a region grouping", () => {
     const rows = countryChoices(
       policy({ allowedCountries: ["pl", "de", "fr"] }),
+      "en",
     );
     expect(rows).toHaveLength(3);
     expect(rows.every((r) => r.code.length === 2)).toBe(true);
   });
 
   it("normalises whatever case the policy stored", () => {
-    const rows = countryChoices(policy({ allowedCountries: ["PL"] })); 
+    const rows = countryChoices(policy({ allowedCountries: ["PL"] }), "en");
     expect(rows[0].code).toBe("pl");
   });
 
-  /* ---- POLAND FIRST, ENGLISH ALWAYS (founder 2026-09-20) -------------- */
+  /* ---- POLAND FIRST, IN EVERY LANGUAGE (founder 2026-09-20) ----------- */
 
   it("puts Poland first however the policy ordered the codes", () => {
     // The first acceptance screen ever shown listed 27 countries with Poland
@@ -92,6 +93,7 @@ describe("countryChoices", () => {
     // row most people need.
     const rows = countryChoices(
       policy({ allowedCountries: ["at", "de", "fr", "pl", "be"] }),
+      "en",
     );
     expect(rows[0].code).toBe("pl");
   });
@@ -99,15 +101,50 @@ describe("countryChoices", () => {
   it("keeps the rest alphabetical after the pinned row", () => {
     const rows = countryChoices(
       policy({ allowedCountries: ["fr", "at", "pl", "de"] }),
+      "en",
     );
     expect(rows.map((r) => r.label)).toEqual([
       "Poland", "Austria", "France", "Germany",
     ]);
   });
 
+  /* THE WHOLE REASON A PIN IS NEEDED RATHER THAN A SORT. Poland is Pologne,
+     Polen, Polonia or Polska depending on the device, so it lands in a
+     different alphabetical position in every language — there is no ordering
+     rule that finds it. The names still follow the reader's language; only
+     the position is fixed. */
+  it("pins Poland first in French, named in French", () => {
+    const rows = countryChoices(
+      policy({ allowedCountries: ["de", "at", "be", "pl"] }),
+      "fr",
+    );
+    expect(rows[0]).toEqual({ code: "pl", label: "Pologne" });
+    expect(rows.map((r) => r.label)).toEqual([
+      "Pologne", "Allemagne", "Autriche", "Belgique",
+    ]);
+  });
+
+  it("pins Poland first in Polish, named in Polish", () => {
+    const rows = countryChoices(
+      policy({ allowedCountries: ["de", "pl", "fr"] }),
+      "pl",
+    );
+    expect(rows[0].code).toBe("pl");
+    expect(rows[0].label).toBe("Polska");
+  });
+
+  it("pins Poland first in German, where it sorts late", () => {
+    const rows = countryChoices(
+      policy({ allowedCountries: ["at", "pl", "be"] }),
+      "de",
+    );
+    expect(rows[0].label).toBe("Polen");
+  });
+
   it("shows Poland exactly once, not pinned and alphabetical too", () => {
     const rows = countryChoices(
       policy({ allowedCountries: ["de", "pl", "fr"] }),
+      "en",
     );
     expect(rows.filter((r) => r.code === "pl")).toHaveLength(1);
   });
@@ -115,41 +152,19 @@ describe("countryChoices", () => {
   it("drops a duplicate the policy stored twice", () => {
     const rows = countryChoices(
       policy({ allowedCountries: ["pl", "de", "PL", "de"] }),
+      "en",
     );
     expect(rows.map((r) => r.code)).toEqual(["pl", "de"]);
   });
 
   it("still leads with Poland when it is the only country", () => {
-    expect(countryChoices(policy({ allowedCountries: ["pl"] }))[0].code)
+    expect(countryChoices(policy({ allowedCountries: ["pl"] }), "en")[0].code)
       .toBe("pl");
   });
 
   it("is unaffected when Poland is not allowed at all", () => {
-    const rows = countryChoices(policy({ allowedCountries: ["fr", "de"] }));
+    const rows = countryChoices(policy({ allowedCountries: ["fr", "de"] }), "en");
     expect(rows.map((r) => r.label)).toEqual(["France", "Germany"]);
-  });
-
-  /* ENGLISH REGARDLESS OF THE DEVICE. This is the actual report: a
-     French-language phone rendered "Where do you live?" above Allemagne,
-     Autriche, Belgique — half a legal screen in each language. The names no
-     longer read `navigator.language` at all, so the stub below changes
-     nothing. */
-  it("names countries in English whatever the device language is", () => {
-    const original = Object.getOwnPropertyDescriptor(navigator, "language");
-    Object.defineProperty(navigator, "language", {
-      value: "fr-FR",
-      configurable: true,
-    });
-    try {
-      const rows = countryChoices(
-        policy({ allowedCountries: ["de", "at", "be"] }),
-      );
-      expect(rows.map((r) => r.label)).toEqual([
-        "Austria", "Belgium", "Germany",
-      ]);
-    } finally {
-      if (original) Object.defineProperty(navigator, "language", original);
-    }
   });
 });
 
