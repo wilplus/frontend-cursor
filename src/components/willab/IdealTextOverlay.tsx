@@ -71,6 +71,7 @@ import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
+import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
@@ -429,7 +430,23 @@ export default function IdealTextOverlay({
             if (settled.kind === "ready") {
               merged = mergeIdealTextEnrichment(merged, settled);
               applySingle(merged, false);
-              setFeedbackPending(false);
+              /* THE SLOT CLOSES WHEN THE SERVER IS DONE, NOT WHEN WE STOP
+                 ASKING (founder 2026-09-20: "it refetched and then displayed
+                 — so this is just a loading bug").
+
+                 `kind === "ready"` is the envelope, not the answer. A settle
+                 that spent its budget also returns "ready", with its sections
+                 still marked retryable — so this line used to declare feedback
+                 finished for a Take whose Manager work was still running, drop
+                 the reserved marks, and paint a finished-looking talk with no
+                 bookmarks. Nothing re-reads the document after the first paint,
+                 so those marks were gone until an unrelated refetch.
+
+                 Reading the sections tells the two apart. When the budget IS
+                 spent the flag still clears — a slot held open forever is the
+                 same lie as a late mark, told more slowly, and an honest empty
+                 lane is a real outcome (24c/24d). */
+              setFeedbackPending(feedbackStillComing(settled.sections));
             } else if (settled.kind === "stale") {
               setRefetchNonce((value) => value + 1);
             }

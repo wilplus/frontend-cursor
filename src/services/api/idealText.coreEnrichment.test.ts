@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  SETTLE_MAX_ATTEMPTS,
+  feedbackStillComing,
+} from "@/lib/willab/enrichmentSettle";
+import {
   fetchIdealTextCore,
   fetchIdealTextEnrichment,
   mergeIdealTextEnrichment,
@@ -258,6 +262,105 @@ describe("Ideal Text core-first transport", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
       "sections=document_layers",
     );
+  });
+
+  /* THE LOADING BUG (founder 2026-09-20). Three attempts, 1.7 seconds apart,
+     against Manager work that can take tens of seconds. The fourth answer was
+     the one carrying the marks and nothing ever asked for it — nothing
+     re-reads the document after the first paint, so those bookmarks were gone
+     until an unrelated refetch ran the whole dance again. */
+  it("keeps asking past the fourth try when the Manager is still working", async () => {
+    const pending = () =>
+      response({
+        document_snapshot_id: "snapshot-1",
+        sections: { document_layers: { status: "pending", retryable: true } },
+      });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pending()) // the first read
+      .mockResolvedValueOnce(pending()) // retry 1
+      .mockResolvedValueOnce(pending()) // retry 2
+      .mockResolvedValueOnce(pending()) // retry 3 — the old budget ended here
+      .mockResolvedValueOnce(
+        response({
+          document_snapshot_id: "snapshot-1",
+          sections: {
+            document_layers: {
+              status: "ready",
+              data: { changes: [{ id: "feedback-1" }] },
+            },
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = await fetchIdealTextEnrichment("arc-1", "snapshot-1");
+    if (initial.kind !== "ready") throw new Error("expected enrichment");
+    const settled = await settleIdealTextEnrichment(
+      "arc-1",
+      "snapshot-1",
+      initial,
+      { wait: async () => undefined },
+    );
+    if (settled.kind !== "ready") throw new Error("expected enrichment");
+    expect(settled.sections.document_layers.status).toBe("ready");
+    expect(settled.sections.document_layers.retryable).toBeFalsy();
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("hands back the retryable sections when the budget runs out", async () => {
+    /* "READY" IS THE ENVELOPE, NOT THE ANSWER. A settle that spent its budget
+       returns the same `kind` as one that finished, so the caller must be able
+       to read which happened — that is the difference between reserving the
+       marks' places and painting a finished-looking talk without them. */
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      response({
+        document_snapshot_id: "snapshot-1",
+        sections: { document_layers: { status: "pending", retryable: true } },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = await fetchIdealTextEnrichment("arc-1", "snapshot-1");
+    if (initial.kind !== "ready") throw new Error("expected enrichment");
+    let clock = 0;
+    const settled = await settleIdealTextEnrichment(
+      "arc-1",
+      "snapshot-1",
+      initial,
+      {
+        ceilingMs: 5_000,
+        now: () => clock,
+        // Charge the clock the server's focused-retry budget too, the way a
+        // real attempt spends it.
+        wait: async (delayMs: number) => {
+          clock += delayMs + 8_000;
+        },
+      },
+    );
+    if (settled.kind !== "ready") throw new Error("expected enrichment");
+    expect(settled.sections.document_layers.retryable).toBe(true);
+    expect(feedbackStillComing(settled.sections)).toBe(true);
+    // It stopped: bounded, not a poll that runs until the tab closes.
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(3);
+  });
+
+  it("never asks more times than the request budget allows", async () => {
+    // An instant server that keeps saying retryable must not spin: the wall
+    // clock never advances, so only the attempt cap can end this.
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      response({
+        document_snapshot_id: "snapshot-1",
+        sections: { document_layers: { status: "pending", retryable: true } },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = await fetchIdealTextEnrichment("arc-1", "snapshot-1");
+    if (initial.kind !== "ready") throw new Error("expected enrichment");
+    await settleIdealTextEnrichment("arc-1", "snapshot-1", initial, {
+      wait: async () => undefined,
+      now: () => 0,
+    });
+    // one first read + at most SETTLE_MAX_ATTEMPTS retries
+    expect(fetchMock.mock.calls.length).toBe(SETTLE_MAX_ATTEMPTS + 1);
   });
 
   it("stops retries when the immutable snapshot becomes stale", async () => {
