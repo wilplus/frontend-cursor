@@ -28,9 +28,27 @@ vi.mock("@/components/results/MediaPlayer", () => ({
 /* ConfidentVoicePractice is gone (§3) — the exercise is a STEP now, drawn by
    the sheet, so there is nothing to mock. The real offer card carries the
    data-testid the practice assertions look for. */
+/* A BOOLEAN, NOT A FUNCTION — and the difference was never academic.
+ *
+ * `mlc3FirstClientPresentationEnabled` is a const boolean, inlined at build
+ * time from NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED. This mock used to return
+ * `() => false`, and the component reads it as `{flag && suggestion
+ * .firstClientService ? … }` — so the mock supplied a FUNCTION OBJECT, which
+ * is truthy, and every test in this file ran with the flag effectively ON
+ * while the mock said off.
+ *
+ * Nothing failed, which is why it survived: no fixture here sets
+ * `firstClientService`, so the second operand was undefined and the branch
+ * fell through to the chips either way. The mock was load-bearing for a
+ * condition it could not actually control — and the moment someone added a
+ * service identity to a fixture expecting the legacy path, they would have
+ * silently got the other one.
+ *
+ * It matters now because that flag went live (founder, 2026-09-20). The
+ * tests below pin the OFF path; `mlc3ServiceLane.test.tsx` pins ON. */
 vi.mock("@/services/api/mlc3FirstClient", async (load) => {
   const actual = await load<typeof import("@/services/api/mlc3FirstClient")>();
-  return { ...actual, mlc3FirstClientPresentationEnabled: () => false };
+  return { ...actual, mlc3FirstClientPresentationEnabled: false };
 });
 vi.mock("@/services/api/takeFeedback", () => ({
   saveTakeFeedbackResponse: vi.fn(async () => ({ ok: true })),
