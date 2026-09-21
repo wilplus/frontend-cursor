@@ -22,6 +22,10 @@ import {
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
+import {
+  useFailedTakeRecheck,
+  type FailedTakeVerdict,
+} from "./useFailedTakeRecheck";
 import { useUserId } from "./useUserId";
 import {
   readProcessingTake,
@@ -163,6 +167,17 @@ function CoachDeliveryMount({
       onClose={onClose}
     />
   );
+}
+
+/** Which take's failed note is on screen, if any. Under the Lab the Lab owns
+ *  the wait, so no recheck runs there. Pure, so the sheet's own function does
+ *  not grow a branch for it (complexity ratchet). */
+function failedNoteSession(
+  labOpen: boolean,
+  resume: { sessionId: string; status: "analyzing" | "failed" } | null,
+): string | null {
+  if (labOpen || !resume || resume.status !== "failed") return null;
+  return resume.sessionId;
 }
 
 export default function Lounge({
@@ -932,6 +947,43 @@ export default function Lounge({
       closeProcessingOverlay();
     }
   }, [openedProcessingSessionId, processingResume, closeProcessingOverlay]);
+
+  /** A FAILED NOTE IS CLEARED BY EVIDENCE, NOT BY TIME (founder 2026-09-21).
+   *  While the red note is on screen, useFailedTakeRecheck asks the server
+   *  whether the take really failed. W6 keeps the note across idle state
+   *  flips; this is not an idle flip — it is the server contradicting it.
+   *    recovered → the job finished behind our back: clear the marker, drop
+   *                the note, reload so the Take's card shows.
+   *    running   → the queue sweep requeued it: put the marker back into the
+   *                analysing state and let syncMarker resume the watch.
+   *    otherwise → the note stays, exactly as W6 says. */
+  function onFailedTakeVerdict(
+    sessionId: string,
+    verdict: FailedTakeVerdict,
+  ): void {
+    const marker = readProcessingTake(userId);
+    if (verdict === "recovered") {
+      clearProcessingTake(userId, sessionId);
+      setProcessingResume(null);
+      void reload();
+      return;
+    }
+    if (verdict === "running" && marker?.sessionId === sessionId) {
+      const now = Date.now();
+      writeProcessingTake(userId, {
+        ...marker,
+        status: "processing",
+        phase: "analysis",
+        startedAt: now,
+        phaseStartedAt: now,
+        progress: { stage: "processing_recording", percent: 0 },
+      });
+    }
+  }
+  useFailedTakeRecheck({
+    sessionId: failedNoteSession(isLabOverlay(state), processingResume),
+    onVerdict: onFailedTakeVerdict,
+  });
 
   /** Re-open the durable backend job against the original stored audio. */
   const retryPreservedProcessing = async () => {
