@@ -143,3 +143,42 @@ describe("chat processing re-entry", () => {
     expect(overlay).toContain('event.key !== "Tab"');
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*  THE WAIT MUST END, BY EITHER ROUTE.                                        */
+/*                                                                            */
+/*  FOUNDER 2026-09-21: the screen sat on "Building your Ideal Text" for ten   */
+/*  minutes after a job `processing_jobs` shows finished in twenty seconds —   */
+/*  waited 3s, ran 20s, completed, no error. The backend was never slow.      */
+/*                                                                            */
+/*  `takeInFlight` is `status === "analyzing" || documentSettle.pending`. The  */
+/*  ready path swaps only `progress` and leaves `status` at "analyzing", so    */
+/*  the analysis clause carries the screen through the whole document phase.   */
+/*  `expire` then sets the hook's marker terminal — `pending` goes false —     */
+/*  and that clause was still true with nothing left to clear it. Not a slow   */
+/*  release: NO release. Ten minutes is when he stopped watching.             */
+/* -------------------------------------------------------------------------- */
+
+describe("the document wait releases", () => {
+  it("clears the analysing marker when the settle EXPIRES, not only when it settles", () => {
+    const expired = LOUNGE.slice(
+      LOUNGE.indexOf("onExpired:"),
+      LOUNGE.indexOf("const takeInFlight"),
+    );
+    expect(expired).toMatch(/setProcessingResume/);
+    expect(expired).toMatch(/status: "failed"/);
+  });
+
+  it("still clears it on the settled path", () => {
+    expect(LOUNGE).toMatch(/onSettled[\s\S]{0,200}setProcessingResume/);
+  });
+
+  it("keeps both clauses of the in-flight predicate", () => {
+    // Record holds and the Ideal Text block on the SAME truth. If a future
+    // change drops either side, the two can disagree about whether a take is
+    // being worked — which is the defect this predicate was written to end.
+    expect(LOUNGE).toMatch(
+      /processingResume\?\.status === "analyzing" \|\|\s*documentSettle\.pending/,
+    );
+  });
+});

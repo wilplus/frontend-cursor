@@ -878,6 +878,32 @@ export default function Lounge({
           takeIndex: 1,
         });
       }
+      /* RELEASE THE SCREEN, which `onSettled` does and this did not.
+       *
+       * FOUNDER 2026-09-21: the wait sat on "Building your Ideal Text" for
+       * ten minutes after a job that `processing_jobs` shows finished in
+       * twenty seconds — waited 3s, ran 20s, completed, no error. The
+       * backend was never slow.
+       *
+       * `takeInFlight` is `status === "analyzing" || documentSettle.pending`.
+       * The ready path swaps only `progress` and leaves `status` at
+       * "analyzing", so the analysis clause carries the screen through the
+       * whole document phase. `expire` then sets the HOOK's marker terminal
+       * — `pending` goes false — and that clause is still true, with nothing
+       * left that can clear it. Not a slow release: no release. Ten minutes
+       * is simply when he gave up watching.
+       *
+       * So expiry ends the wait the same way settling does. "failed" rather
+       * than null because it IS the terminal state — `publishIdealText-
+       * Unconfirmed` above has just said so — and the failure note is built
+       * to stay until the speaker acts (W6), where a silent clear would
+       * leave them looking at a document that never arrived with nothing
+       * saying why. */
+      setProcessingResume((prev) =>
+        prev?.sessionId === take.sessionId && prev.status === "analyzing"
+          ? { ...prev, status: "failed", progress: null }
+          : prev,
+      );
     },
   });
   // The ONE in-flight predicate: the analysis phase (chip + resume watch)
