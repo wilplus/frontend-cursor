@@ -37,7 +37,30 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
  * temporal-dead-zone error at import time, not at call time. */
 const {
   answerServiceFeedback, confirmFeedbackRender, saveTakeFeedbackResponse,
+  confirmSourceSelfSpeaker, createServiceExerciseOffer,
 } = vi.hoisted(() => ({
+  confirmSourceSelfSpeaker: vi.fn(
+    async (_identity: Record<string, unknown>, _key: string) => ({
+      ok: true as const, value: { confirmed: true },
+    }),
+  ),
+  createServiceExerciseOffer: vi.fn(
+    async (
+      _identity: Record<string, unknown>,
+      _bindingId: string,
+      _key: string,
+    ) => ({
+      ok: true as const,
+      value: {
+        id: "offer-1",
+        outcome: "coach_exercise_requested" as const,
+        selectedExerciseVersionId: null,
+        candidateCount: 0,
+        eligibleCount: 0,
+        exercise: null,
+      },
+    }),
+  ),
   /* The parameter lists are declared, not inferred. `vi.fn(async () => …)`
    * types its calls as an EMPTY tuple, so `mock.calls[0]` is a type error at
    * every index — and the assertions that read the arguments are the whole
@@ -86,6 +109,8 @@ vi.mock("@/services/api/mlc3FirstClient", async (load) => {
     mlc3FirstClientPresentationEnabled: true,
     confirmFeedbackRender,
     answerServiceFeedback,
+    confirmSourceSelfSpeaker,
+    createServiceExerciseOffer,
     fetchServiceCoachGuidance: vi.fn(async () => ({ ok: true, value: [] })),
   };
 });
@@ -192,6 +217,22 @@ async function answerYes() {
   });
 }
 
+function buttonLabels(): string[] {
+  return Array.from(container.querySelectorAll("button")).map((b) =>
+    (b.textContent ?? "").trim(),
+  );
+}
+
+async function click(label: string) {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (b) => (b.textContent ?? "").trim() === label,
+  );
+  if (!button) throw new Error(`no button labelled ${label}`);
+  await act(async () => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
 describe("a served Confident Voice item answers through V3", () => {
   it("does not touch the legacy route, which is what was rejecting it", async () => {
     // THE REGRESSION, stated as the thing that actually went wrong. The
@@ -256,5 +297,80 @@ describe("an unserved item falls back, and the fallback still works", () => {
     expect(sent.feedbackId).toBe("s-cv");
     expect(sent.feedbackFamily).toBe("confident_voice");
     expect(sent.takeSessionId).toBe("take-1");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  THE DEAD-END (founder 2026-09-21). The served item answered through the    */
+/*  service route and stopped: the question screen saved the answer and never */
+/*  told the sheet, so `agreeSaved` stayed false (no footer), `judgement`     */
+/*  stayed null (no emphasis rung) and the only exit was the close button.    */
+/*  These pin the message the sheet now receives and what it does with it.    */
+/* -------------------------------------------------------------------------- */
+describe("a served answer advances the ladder by itself", () => {
+  it("moves straight on after a Yes — no Done tap, and the emphasis rung opens", async () => {
+    await render(served);
+    await answerYes();
+    // The question is gone from the screen: the sheet moved on.
+    expect(yesChips()).toHaveLength(0);
+    expect(buttonLabels()).not.toContain("Done");
+    // A Yes is what opens the orange-phrase step (§4); nothing was proposed,
+    // so the step opens in tap-to-choose mode with its one pill.
+    expect(buttonLabels()).toContain("Use this phrase");
+  });
+
+  it("skips emphasis on a No and lands on the lock", async () => {
+    await render(served);
+    await click("No — Not confident");
+    expect(yesChips()).toHaveLength(0);
+    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Lock");
+  });
+
+  it("puts the service exercise on its own rung when the server allows one", async () => {
+    answerServiceFeedback.mockResolvedValueOnce({
+      ok: true as const,
+      value: { response_binding_id: "binding-1", exercise_offer_allowed: true },
+    });
+    await render(served);
+    await answerYes();
+    // The exercise is a SCREEN after the answer, not a card under it: the
+    // self-voice check is the first thing on it, and the sheet's footer
+    // offers the way past it.
+    expect(container.querySelector('[data-testid="service-exercise"]')).not.toBeNull();
+    expect(container.textContent).toContain("Is this your voice in this recording?");
+    expect(buttonLabels()).toContain("Not now");
+    // Not now is a way on, and the emphasis rung is still there behind it.
+    await click("Not now");
+    expect(container.querySelector('[data-testid="service-exercise"]')).toBeNull();
+    expect(buttonLabels()).toContain("Use this phrase");
+  });
+
+  it("never offers the exercise rung when the server refused one", async () => {
+    await render(served);
+    await answerYes();
+    expect(container.querySelector('[data-testid="service-exercise"]')).toBeNull();
+  });
+
+  it("keeps the offer alive across the move to the exercise rung", async () => {
+    // The flow used to live inside the question screen; advancing unmounted
+    // it and the offer went with it. Confirming the voice on the rung must
+    // reach the offer that this answer created.
+    answerServiceFeedback.mockResolvedValueOnce({
+      ok: true as const,
+      value: { response_binding_id: "binding-1", exercise_offer_allowed: true },
+    });
+    await render(served);
+    await answerYes();
+    await click("Yes, this is my voice");
+    expect(confirmSourceSelfSpeaker).toHaveBeenCalledTimes(1);
+    expect(createServiceExerciseOffer).toHaveBeenCalledTimes(1);
+    expect(createServiceExerciseOffer.mock.calls[0][1]).toBe("binding-1");
+    // The coach was asked for one: nothing left to do here, Done is live.
+    expect(container.textContent).toContain("A matching exercise is not ready yet.");
+    const done = Array.from(container.querySelectorAll("button")).find(
+      (b) => (b.textContent ?? "").trim() === "Done",
+    );
+    expect(done?.hasAttribute("disabled")).toBe(false);
   });
 });

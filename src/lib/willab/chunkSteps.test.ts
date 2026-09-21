@@ -105,6 +105,35 @@ describe("the ladder", () => {
     expect(steps.map((s) => s.kind)).toEqual(["praise", "lock"]);
   });
 
+  it("adds the service exercise rung only when the server allowed one", () => {
+    const allowed = buildChunkSteps({
+      inventory: [confidence],
+      canPractiseService: true,
+      canEmphasise: true,
+    });
+    expect(allowed.map((s) => s.id)).toEqual([
+      "cv", "service_exercise", "emphasis", "lock",
+    ]);
+    const refused = buildChunkSteps({
+      inventory: [confidence],
+      canPractiseService: false,
+      canEmphasise: true,
+    });
+    expect(refused.map((s) => s.kind)).toEqual(["feedback", "emphasis", "lock"]);
+  });
+
+  it("never holds two exercise rungs (24f: one exercise per Take)", () => {
+    const both = buildChunkSteps({
+      inventory: [confidence],
+      canPractise: true,
+      canPractiseService: true,
+      canEmphasise: false,
+    });
+    expect(both.filter((s) => s.kind === "exercise").map((s) => s.id)).toEqual([
+      "exercise",
+    ]);
+  });
+
   it("gives the two founder paths four steps each", () => {
     const suggestionPath = buildChunkSteps({
       inventory: [confidence, rewrite],

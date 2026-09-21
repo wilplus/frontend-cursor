@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { Loader2, Mic, Square } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
@@ -248,26 +249,80 @@ function PracticeStep({
   );
 }
 
-function PracticeStage({
+/** THE QUESTION SCREEN — step one of the ladder, and only that.
+ *
+ *  It used to be one component with the exercise nested under the answered
+ *  question (founder 2026-09-21: "instead of a Done button simply instant
+ *  acceptance"). Answering now advances the ladder, so nothing may live under
+ *  the answer on this screen: the sheet is told the answer and moves on, and
+ *  the exercise has its own rung (`Mlc3ExerciseStep` below). */
+export function Mlc3ConfidenceQuestion({
+  flow,
+  question,
+  onAnswered,
+}: {
+  flow: PracticeFlow;
+  question: string;
+  /** The answer was saved server-side. `exerciseAllowed` is the server's
+   *  word on whether an exercise rung follows; the sheet builds the ladder
+   *  from it in the same tick, before this flow's state has re-rendered. */
+  onAnswered: (value: ConfidenceRatingValue, exerciseAllowed: boolean) => void;
+}) {
+  if (!flow.active || !flow.identity) return null;
+  return (
+    <section className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">
+      {flow.coachGuidance.length ? (
+        <div className="mb-4 grid gap-3">
+          {flow.coachGuidance.map((item) => (
+            <CoachGuidanceCard key={item.attachmentVersionId} item={item} />
+          ))}
+        </div>
+      ) : null}
+      <ConfidenceLabelChips
+        question={question}
+        value={flow.confidence}
+        disabled={!flow.feedbackReady || flow.busy || flow.confidence !== null}
+        saving={flow.busy}
+        error={flow.error}
+        ownerWording
+        onPick={(value) => {
+          void flow.answerConfidence(value).then((result) => {
+            if (result.saved) onAnswered(value, result.exerciseAllowed);
+          });
+        }}
+      />
+    </section>
+  );
+}
+
+/** THE EXERCISE RUNG. Everything that used to sit under the answered question:
+ *  the self-voice check, the frozen offer, the practice recording and the
+ *  owner's preference. The sheet owns the footer; this draws the body. */
+export function Mlc3ExerciseStep({
   flow,
   suggestion,
 }: {
   flow: PracticeFlow;
   suggestion: DocumentSuggestion;
 }) {
-  if (flow.confidence === null) {
-    return (
-      <ConfidenceLabelChips
-        question="Does this sound confident to you?"
-        value={flow.confidence}
-        disabled={!flow.feedbackReady || flow.busy}
-        saving={flow.busy}
-        error={flow.error}
-        ownerWording
-        onPick={(value) => void flow.answerConfidence(value)}
-      />
-    );
-  }
+  if (!flow.active || !flow.identity) return null;
+  return (
+    <section
+      data-testid="service-exercise"
+      className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4"
+    >
+      <ExerciseStage flow={flow} suggestion={suggestion} />
+    </section>
+  );
+}
+
+function ExerciseStage({
+  flow,
+  suggestion,
+}: {
+  flow: PracticeFlow;
+  suggestion: DocumentSuggestion;
+}) {
   if (flow.sourceSpeakerState === "pending") {
     return (
       <SpeakerConfirmation
@@ -299,23 +354,12 @@ function PracticeStage({
   return null;
 }
 
-export default function Mlc3FirstClientPractice({
-  suggestion,
-}: {
-  suggestion: DocumentSuggestion;
-}) {
-  const flow = usePracticeFlow(suggestion);
-  if (!flow.active || !flow.identity) return null;
+/** Has the rung reached a point where Done is honest? Not a verdict on the
+ *  practice — only "there is nothing left on this screen to do". */
+export function serviceExerciseSettled(flow: PracticeFlow): boolean {
   return (
-    <section className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">
-      {flow.coachGuidance.length ? (
-        <div className="mb-4 grid gap-3">
-          {flow.coachGuidance.map((item) => (
-            <CoachGuidanceCard key={item.attachmentVersionId} item={item} />
-          ))}
-        </div>
-      ) : null}
-      <PracticeStage flow={flow} suggestion={suggestion} />
-    </section>
+    flow.preferenceSaved ||
+    flow.sourceSpeakerState === "declined" ||
+    flow.offer?.outcome === "coach_exercise_requested"
   );
 }

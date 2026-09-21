@@ -90,7 +90,11 @@ export type StepKind =
 
 export type ChunkStep =
   | { kind: "feedback" | "suggestion" | "praise"; id: string }
-  | { kind: "exercise"; id: "exercise" }
+  /** `exercise` is the deterministic catalogue practice (useConfidenceExercise);
+   *  `service_exercise` is the MLC-3 service offer for a served Confident
+   *  Voice item. One Take carries at most one exercise (24f), so the ladder
+   *  never holds both. */
+  | { kind: "exercise"; id: "exercise" | "service_exercise" }
   | { kind: "emphasis"; id: "emphasis" }
   | { kind: "lock"; id: "lock" };
 
@@ -158,6 +162,9 @@ export function buildChunkSteps(args: {
   inventory: readonly DocumentSuggestion[];
   /** An exercise matched to this exact clip, still open. */
   canPractise?: boolean;
+  /** The MLC-3 service allowed an exercise on the answer just given. Only
+   *  consulted when no catalogue exercise is attached — one rung, never two. */
+  canPractiseService?: boolean;
   /** A phrase is proposable AND the paragraph was judged Yes. Both halves are
    *  the caller's to establish — see the gate in the modal. */
   canEmphasise: boolean;
@@ -167,6 +174,9 @@ export function buildChunkSteps(args: {
     id: item.id,
   }));
   if (args.canPractise) steps.push({ kind: "exercise", id: "exercise" });
+  else if (args.canPractiseService) {
+    steps.push({ kind: "exercise", id: "service_exercise" });
+  }
   if (args.canEmphasise) steps.push({ kind: "emphasis", id: "emphasis" });
   steps.push({ kind: "lock", id: "lock" });
   return steps;
