@@ -1,11 +1,1 @@
-{
-  "señor 2": {
-    "paths": [
-      "src/components/willab/IdealTextOverlay.tsx",
-      "src/lib/willab/enrichmentSettle.test.ts",
-      "src/lib/willab/enrichmentSettle.ts"
-    ],
-    "note": "F1 bookmarks must not wait on the F2 learning section (feedbackStillComing)",
-    "at": "2026-09-21T18:37Z"
-  }
-}
+{}
