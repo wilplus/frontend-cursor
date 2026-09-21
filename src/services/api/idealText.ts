@@ -982,6 +982,7 @@ export function mapParts(raw: unknown): Part[] | null {
       text,
       locked: r.locked === true,
       iteration: it,
+      edited: r.edited === true,
       rootPhrase,
       rootStart,
       rootEnd,

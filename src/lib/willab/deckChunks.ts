@@ -69,21 +69,24 @@ export type ChunkStatus = "untouched" | "clean" | "waiting" | "locked";
  *    dismissed; any answer is a review, 24g-1);
  *  · `rootPhrase` — a rooting phrase was chosen here;
  *  · `iteration` — the lock-in cycle count; one or more means it was locked
- *    at some point, even if it is open again now.
- *  An edit of the words alone is NOT visible to the page today (the served
- *  part carries no "edited since generation" flag); when it should count,
- *  the flag is a backend addition, not a guess here. */
+ *    at some point, even if it is open again now;
+ *  · `edited` — the server's word that these words are not the machine's
+ *    any more (founder 2026-09-21: an edit alone counts). The page cannot
+ *    see an edit on its own; the server compares against the generation's
+ *    head snapshot on every read and says so on the part. */
 export function isUntouched(evidence: {
   locked: boolean;
   decided: boolean;
   rootPhrase: string | null | undefined;
   iteration: number | undefined;
+  edited?: boolean;
 }): boolean {
   return (
     !evidence.locked &&
     !evidence.decided &&
     !evidence.rootPhrase &&
-    !(evidence.iteration && evidence.iteration > 0)
+    !(evidence.iteration && evidence.iteration > 0) &&
+    evidence.edited !== true
   );
 }
 
@@ -261,6 +264,7 @@ export function buildDeckChunks(
               decided,
               rootPhrase: parts[i].rootPhrase,
               iteration: parts[i].iteration,
+              edited: parts[i].edited,
             })
           ? "untouched"
           : "clean";
