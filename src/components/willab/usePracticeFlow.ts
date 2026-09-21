@@ -52,8 +52,20 @@ function confidenceAnswer(value: ConfidenceRatingValue): FiveStateConfidence {
   return "confident_audio_unclear";
 }
 
-export function usePracticeFlow(suggestion: DocumentSuggestion) {
-  const identity = suggestion.firstClientService;
+/** THE FLOW IS OWNED BY THE SHEET, NOT BY ONE SCREEN (founder 2026-09-21).
+ *
+ *  It used to be called inside `Mlc3FirstClientPractice`, which the sheet
+ *  mounted on the feedback step. Answering the question is what advances the
+ *  ladder now, and advancing unmounts that step — so a flow living in it lost
+ *  the offer, the practice session and every attempt the moment the speaker
+ *  moved on. The sheet calls this hook once and hands the same flow to the
+ *  question screen and to the exercise rung.
+ *
+ *  `suggestion` may be null: a sheet with no served Confident Voice item still
+ *  has to call the hook (hooks cannot be conditional), and the flow then
+ *  reports `active: false` and does nothing. */
+export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
+  const identity = suggestion?.firstClientService ?? null;
   const mic = useDualCaptureMic({ transcript: false });
   const feedbackRenderId = useRef(freshId()).current;
   const offerRenderId = useRef(freshId()).current;
@@ -68,6 +80,9 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
   const [feedbackResponseBindingId, setFeedbackResponseBindingId] = useState<
     string | null
   >(null);
+  /** The server said this answer may carry an exercise offer. This is what
+   *  puts the exercise rung on the ladder; "Audio unclear" never sets it. */
+  const [exerciseAllowed, setExerciseAllowed] = useState(false);
   const [offer, setOffer] = useState<ServiceExerciseOffer | null>(null);
   const [practice, setPractice] = useState<ServicePracticeSession | null>(null);
   const [attempts, setAttempts] = useState<ServicePracticeAttempt[]>([]);
@@ -171,8 +186,14 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     void uploadAttempt(mic.state.audioBlob);
   }, [mic.state, practice, uploadAttempt]);
 
-  const answerConfidence = useCallback(async (value: ConfidenceRatingValue) => {
-    if (!identity || !renderReceiptId || busy) return;
+  /** Save the answer. Resolves to whether it was saved and whether the server
+   *  allows an exercise on it — returned, not only stored, because the caller
+   *  advances the ladder in the same tick and React has not re-rendered yet. */
+  const answerConfidence = useCallback(async (
+    value: ConfidenceRatingValue,
+  ): Promise<{ saved: boolean; exerciseAllowed: boolean }> => {
+    const refused = { saved: false, exerciseAllowed: false };
+    if (!identity || !renderReceiptId || busy) return refused;
     setBusy(true);
     setError(null);
     const response = confidenceAnswer(value);
@@ -185,16 +206,19 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     if (!answered.ok) {
       setBusy(false);
       setError(answered.error ?? "Couldn't save that. Try again.");
-      return;
+      return refused;
     }
     setConfidence(value);
-    if (!answered.value.exercise_offer_allowed) {
+    const allowed = answered.value.exercise_offer_allowed;
+    setExerciseAllowed(allowed);
+    if (!allowed) {
       setBusy(false);
-      return;
+      return { saved: true, exerciseAllowed: false };
     }
     setFeedbackResponseBindingId(answered.value.response_binding_id);
     setSourceSpeakerState("pending");
     setBusy(false);
+    return { saved: true, exerciseAllowed: true };
   }, [busy, feedbackKey, identity, renderReceiptId]);
 
   const confirmSourceSpeaker = useCallback(async (confirmed: boolean) => {
@@ -230,7 +254,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
   }, [busy, feedbackResponseBindingId, identity]);
 
   const openPractice = useCallback(async () => {
-    if (!offer || !identity || !suggestion.quote.trim() || busy) return;
+    if (!offer || !identity || !suggestion?.quote.trim() || busy) return;
     setBusy(true);
     setError(null);
     const created = await createServicePracticeSession(
@@ -253,7 +277,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
       return;
     }
     setPractice(loaded.value);
-  }, [busy, identity, offer, suggestion.quote]);
+  }, [busy, identity, offer, suggestion?.quote]);
 
   const startRecording = useCallback(async () => {
     if (activeCapture.current) {
@@ -347,6 +371,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion) {
     offerRenderId,
     practiceRenderId,
     confidence,
+    exerciseAllowed,
     sourceSpeakerState,
     offer,
     practice,
