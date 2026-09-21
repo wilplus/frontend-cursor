@@ -421,6 +421,13 @@ export default function IdealTextOverlay({
           if (enrichment.kind === "ready") {
             let merged = mergeIdealTextEnrichment(r, enrichment);
             applySingle(merged, false);
+            // Judge the slot from the FIRST answer, not only after the settle
+            // returns: when the mark sections have already answered and only
+            // a non-mark section (the F2 `learning` receipt) is still being
+            // retried, the bookmarks are drawn now rather than after the
+            // settle spends its ninety-second budget on a section that puts
+            // nothing on the page. Re-judged below once the settle ends.
+            setFeedbackPending(feedbackStillComing(enrichment.sections));
             const settled = await settleIdealTextEnrichment(
               arcId,
               r.documentSnapshotId,

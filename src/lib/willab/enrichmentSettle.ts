@@ -104,14 +104,32 @@ export function retryableSections(
     .sort();
 }
 
-/** True when the server is still asking to be asked again — i.e. the marks
- *  this page is holding are NOT all the marks there are.
+/** The sections that carry MARKS — the ones the reserved slot is actually
+ *  waiting for. `document_layers` is the bookmarks (the Manager's block);
+ *  `feedback` is the key-moment links. Nothing else on the enrichment puts a
+ *  mark on the page. */
+export const MARK_SECTIONS: readonly string[] = ["document_layers", "feedback"];
+
+/** True when the server is still asking to be asked again ABOUT THE MARKS —
+ *  i.e. the marks this page is holding are NOT all the marks there are.
  *
  *  The property `feedbackPending` should actually be set from: a settle that
  *  ran out of budget still has retryable sections, and a caller that reads
- *  only `kind === "ready"` cannot tell that from a settle that finished. */
+ *  only `kind === "ready"` cannot tell that from a settle that finished.
+ *
+ *  ONLY THE MARK SECTIONS COUNT (founder 2026-09-21). The `learning` section
+ *  is the F2 learning layer's exposure receipt. In production it failed on
+ *  every read (`learning presentation ownership rejected`, a canonical
+ *  `takes` row that is only written for the data-foundation canary owner),
+ *  came back `retryable`, and this function read that as "feedback still
+ *  coming" — so the deck held the empty slot for the whole ninety-second
+ *  budget and drew no bookmarks over a Take whose `document_layers` had
+ *  answered in full. The bookmark does not wait on the learning layer (R12,
+ *  backend #574): a failing F2 section must never hide an F1 mark. */
 export function feedbackStillComing(
   sections: Readonly<Record<string, { retryable?: boolean }>>,
 ): boolean {
-  return retryableSections(sections).length > 0;
+  return retryableSections(sections).some((name) =>
+    MARK_SECTIONS.includes(name),
+  );
 }
