@@ -1,5 +1,4 @@
 import { getAuthToken } from "@/lib/api/auth-client";
-import { authedFetch } from "@/lib/api/authed-fetch";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import {
@@ -1545,14 +1544,18 @@ export async function fetchIdealText(
   arcId: string,
   version?: number | null,
 ): Promise<IdealTextResult> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
   const query =
     typeof version === "number" && Number.isFinite(version)
       ? `?version=${encodeURIComponent(version)}`
       : "";
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text${query}`,
+      { headers, credentials: "include", cache: "no-store" },
     );
   } catch {
     return { kind: "error" };
@@ -1816,10 +1819,14 @@ export async function fetchIdealTextCore(
   arcId: string,
 ): Promise<IdealTextResult> {
   const startedAt = typeof performance === "undefined" ? 0 : performance.now();
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
   let response: Response;
   try {
-    response = await authedFetch(
+    response = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/core`,
+      { headers, credentials: "include", cache: "no-store" },
     );
   } catch {
     recordIdealTextReadTiming("willab.ideal_text.core", startedAt);
@@ -1889,10 +1896,14 @@ export function mapRecordingRootsPayload(
 export async function fetchRecordingRoots(
   arcId: string,
 ): Promise<RecordingRootsResult> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
   let response: Response;
   try {
-    response = await authedFetch(
+    response = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/recording-roots`,
+      { headers, credentials: "include", cache: "no-store" },
     );
   } catch {
     return { kind: "error" };
@@ -1914,14 +1925,18 @@ export async function fetchIdealTextEnrichment(
   sections?: readonly string[],
 ): Promise<IdealTextEnrichmentResult> {
   const startedAt = typeof performance === "undefined" ? 0 : performance.now();
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
   const query = new URLSearchParams({
     document_snapshot_id: documentSnapshotId,
   });
   if (sections?.length) query.set("sections", sections.join(","));
   let response: Response;
   try {
-    response = await authedFetch(
+    response = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/enrichment?${query.toString()}`,
+      { headers, credentials: "include", cache: "no-store" },
     );
   } catch {
     recordIdealTextReadTiming("willab.ideal_text.enrichment", startedAt);
@@ -2246,16 +2261,20 @@ export async function saveIdealUserEdit(
   // and the student's words must survive either way.
   if (text.length > MAX_DOCUMENT_CHARS) return { ok: false, reason: "invalid" };
   // Header when available; otherwise the BFF's cookie-session fallback
-  // authenticates (same pattern as fetchIdealText / saveIdealNotes). A pass
-  // that expired while the student was typing renews and the PUT is sent
-  // again — losing written words to a 401 was the worst version of this bug.
+  // authenticates (same pattern as fetchIdealText / saveIdealNotes).
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/user-edit`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
+        credentials: "include",
         body: JSON.stringify({
           text,
           version,
@@ -2315,13 +2334,19 @@ export async function saveIdealNotes(
   arcId: string,
   text: string,
 ): Promise<boolean> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/notes`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
+        credentials: "include",
         body: JSON.stringify({ text }),
       },
     );
@@ -2367,13 +2392,16 @@ export interface CoachIdealText {
 export async function fetchCoachIdealText(
   arcId: string,
 ): Promise<CoachIdealText | null> {
-  // Guard first: `getAuthToken` renews before it gives up, so a null here is
-  // a genuine signed-out state and not a spent pass — worth not asking for.
-  if (!(await getAuthToken())) return null;
+  const token = await getAuthToken();
+  if (!token) return null;
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/coach/arc/${encodeURIComponent(arcId)}/ideal-text`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      },
     );
   } catch {
     return null;
@@ -2435,14 +2463,18 @@ export async function saveCoachIdealText(
   arcId: string,
   text: string,
 ): Promise<boolean> {
-  if (!(await getAuthToken())) return false;
+  const token = await getAuthToken();
+  if (!token) return false;
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/coach/arc/${encodeURIComponent(arcId)}/ideal-text`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ text }),
       },
     );
@@ -2453,12 +2485,13 @@ export async function saveCoachIdealText(
 }
 
 export async function approveIdealText(arcId: string): Promise<boolean> {
-  if (!(await getAuthToken())) return false;
+  const token = await getAuthToken();
+  if (!token) return false;
   let res: Response;
   try {
-    res = await authedFetch(
+    res = await fetch(
       `/api/v2/coach/arc/${encodeURIComponent(arcId)}/ideal-text/approve`,
-      { method: "POST" },
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
     );
   } catch {
     return false;
