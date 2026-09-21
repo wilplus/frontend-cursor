@@ -1,14 +1,4 @@
 {
-  "señor 2": {
-    "paths": [
-      "src/components/willab/DeckChunkModal.tsx",
-      "src/components/willab/Mlc3FirstClientPractice.tsx",
-      "src/components/willab/usePracticeFlow.ts",
-      "src/lib/willab/chunkSteps.ts"
-    ],
-    "note": "V3 ladder dead-end (#423)",
-    "at": "2026-09-21T14:55Z"
-  },
   "señor engineer": {
     "paths": [
       "backend-cursor/migrations/",
