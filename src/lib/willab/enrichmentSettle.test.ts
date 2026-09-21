@@ -189,4 +189,30 @@ describe("feedbackStillComing — the question the reserved slot is asking", () 
     // A Take with no marks must not hold a slot open forever.
     expect(feedbackStillComing({})).toBe(false);
   });
+
+  it("does not wait on the learning layer (founder 2026-09-21)", () => {
+    // PRODUCTION: `learning` failed on every read — a canonical `takes` row
+    // exists only for the data-foundation canary owner, so the exposure
+    // receipt write was refused — and came back retryable. The deck read that
+    // as "feedback still coming", held the empty slot for the whole budget,
+    // and drew no bookmarks over a Take whose `document_layers` had answered
+    // in full. An F2 section must never hide an F1 mark (R12, backend #574).
+    expect(
+      feedbackStillComing({
+        document_layers: {},
+        feedback: {},
+        learning: { retryable: true },
+      }),
+    ).toBe(false);
+  });
+
+  it("still waits for either mark section", () => {
+    expect(feedbackStillComing({ feedback: { retryable: true } })).toBe(true);
+    expect(
+      feedbackStillComing({
+        document_layers: { retryable: true },
+        learning: { retryable: true },
+      }),
+    ).toBe(true);
+  });
 });
