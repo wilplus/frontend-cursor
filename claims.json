@@ -1,1 +1,10 @@
-{}
+{
+  "señor 2": {
+    "paths": [
+      "backend-cursor/routes/v2/processing_authorization.py",
+      "backend-cursor/tests/test_phase1_gate_identity.py"
+    ],
+    "note": "Phase-1 gate cannot see the signed-in user (before_request runs before optional_auth) — 401 storm under enforce",
+    "at": "2026-09-21T17:45Z"
+  }
+}
