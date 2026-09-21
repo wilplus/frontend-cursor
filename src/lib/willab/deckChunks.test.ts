@@ -68,6 +68,18 @@ describe("untouched — the fourth state (founder 2026-09-21)", () => {
     ]);
   });
 
+  it("an edit of the words alone makes the chunk reviewed (server flag)", () => {
+    // Founder 2026-09-21: "yes" — an edit counts. The page cannot see an
+    // edit on its own; the server compares the words against the
+    // generation's head snapshot on every read and says so on the part.
+    const edited = parts().map((p, i) => (i === 0 ? { ...p, edited: true } : p));
+    expect(buildDeckChunks(DOC, edited, []).map((c) => c.status)).toEqual([
+      "clean",
+      "untouched",
+      "untouched",
+    ]);
+  });
+
   it("waiting and locked both outrank untouched", () => {
     expect(buildDeckChunks(DOC, parts([0]), [])[0].status).toBe("locked");
     expect(
@@ -75,15 +87,15 @@ describe("untouched — the fourth state (founder 2026-09-21)", () => {
     ).toBe("waiting");
   });
 
-  it("an edit alone is not visible to the page and does not count (yet)", async () => {
-    // The served part carries no "edited since generation" flag; counting
-    // edits is a backend addition, never a guess here.
+  it("every piece of evidence, including the server's edited flag, ends untouched", async () => {
     const { isUntouched } = await import("./deckChunks");
     expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 0 })).toBe(true);
     expect(isUntouched({ locked: false, decided: true, rootPhrase: null, iteration: 0 })).toBe(false);
     expect(isUntouched({ locked: false, decided: false, rootPhrase: "x", iteration: 0 })).toBe(false);
     expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 2 })).toBe(false);
     expect(isUntouched({ locked: true, decided: false, rootPhrase: null, iteration: 0 })).toBe(false);
+    expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 0, edited: true })).toBe(false);
+    expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 0, edited: false })).toBe(true);
   });
 });
 

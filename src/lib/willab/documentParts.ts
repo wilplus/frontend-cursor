@@ -41,6 +41,11 @@ export interface Part {
   rootPhrase?: string | null;
   rootStart?: number | null;
   rootEnd?: number | null;
+  /** The server's word: these words are not the machine's any more (the
+   *  paragraph was edited since generation). Derived on every read against
+   *  the head snapshot, so it is right on the first read after the edit and
+   *  after a reload. Absent when the server could not compare. */
+  edited?: boolean;
 }
 
 export interface PartRootPhrase {
@@ -191,6 +196,7 @@ export function reconcileParts(
       text: t,
       locked: prev[at].locked,
       iteration: prev[at].iteration,
+      edited: prev[at].edited,
       rootPhrase: prev[at].rootPhrase,
       rootStart: prev[at].rootStart,
       rootEnd: prev[at].rootEnd,
@@ -208,6 +214,7 @@ export function reconcileParts(
           text: t,
           locked: prev[j].locked,
           iteration: prev[j].iteration,
+          edited: prev[j].edited,
           rootPhrase: prev[j].rootPhrase,
           rootStart: prev[j].rootStart,
           rootEnd: prev[j].rootEnd,
@@ -239,6 +246,7 @@ export function partsForDocument(
       text: p.text,
       locked: p.locked,
       iteration: p.iteration,
+      edited: p.edited,
       rootPhrase: p.rootPhrase,
       rootStart: p.rootStart,
       rootEnd: p.rootEnd,
