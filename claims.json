@@ -1,13 +1,1 @@
-{
-  "señor 2": {
-    "paths": [
-      "src/components/willab/DeckChunkModal.test.tsx",
-      "src/components/willab/DeckChunkModal.tsx",
-      "src/components/willab/idealEditCopy.ts",
-      "src/components/willab/mlc3ServiceLane.test.tsx",
-      "src/services/api/takeFeedback.ts"
-    ],
-    "note": "superseded-take dead end on the legacy answer path (FE)",
-    "at": "2026-09-21T15:47Z"
-  }
-}
+{}
