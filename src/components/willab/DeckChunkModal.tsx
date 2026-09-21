@@ -93,6 +93,7 @@ import {
   stepProgress,
   stepTitle,
   type ChunkStep,
+  judgedStatus,
 } from "@/lib/willab/chunkSteps";
 import {
   nextSelection,
@@ -134,6 +135,15 @@ interface DeckChunkModalProps {
   /** Apply a legacy style proposal (`state.style`); new roots use
    *  onSetRootPhrase. */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
+  /** THE JUDGEMENT, REPORTED THE MOMENT IT IS SAVED (founder 2026-09-21:
+   *  "the state of the text didn't change and the bookmark stayed there …
+   *  it must be happening on the blink of an eye level"). Accept and Keep
+   *  mine already tell the host so it can flip the row's status locally;
+   *  the Confident Voice answer never did, so the mark stayed lit until the
+   *  next refetch caught up. `decided` is the status the server will serve
+   *  for this row from now on: "approved" for a Yes, "dismissed" for every
+   *  other answer (24g-1). */
+  onJudged?: (s: DocumentSuggestion, decided: "approved" | "dismissed") => void;
   /** Kept on the contract, unused by the sheet since 2026-09-15: the coach
    *  note card it fed is gone from every screen (§6). Hosts still pass it and
    *  the coach's own surfaces still render that card. */
@@ -186,6 +196,7 @@ export default function DeckChunkModal({
   onUnlockPart = null,
   onClose,
   onApplyStyle,
+  onJudged,
   arcId = null,
   rootingPhraseRoutingState = null,
 }: DeckChunkModalProps) {
@@ -769,6 +780,7 @@ export default function DeckChunkModal({
       // answer, including "not sure" and "audio unclear", is not a Yes.
       const answered = value === "yes" ? "yes" : "other";
       setJudgement(answered);
+      reportJudged(suggestion, answered);
       /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
        *
        * Answering WAS the decision; the screen that followed held a thank-you
@@ -811,7 +823,16 @@ export default function DeckChunkModal({
     setAgreeSaved(true);
     const answered = value === "yes" ? "yes" : "other";
     setJudgement(answered);
+    if (serviceItem) reportJudged(serviceItem, answered);
     advanceStep(answered, exerciseAllowed);
+  }
+
+  /** One place turns a judgement into the row status the host keeps. */
+  function reportJudged(
+    item: DocumentSuggestion,
+    answered: "yes" | "other",
+  ): void {
+    onJudged?.(item, judgedStatus(answered));
   }
 
   /** Step three. The hook owns the practice row, the mic and the two screens'

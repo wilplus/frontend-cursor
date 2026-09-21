@@ -230,3 +230,11 @@ describe("locksAsPreview — you see what you are committing", () => {
     })).toBe(false);
   });
 });
+
+describe("judgedStatus — the status the server serves for an answered row", () => {
+  it("a Yes keeps the ladder open; every other answer closes the item", async () => {
+    const { judgedStatus } = await import("./chunkSteps");
+    expect(judgedStatus("yes")).toBe("approved");
+    expect(judgedStatus("other")).toBe("dismissed");
+  });
+});

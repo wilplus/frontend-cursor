@@ -210,3 +210,14 @@ export function stepProgress(
   const index = steps.findIndex((step) => step.id === currentId);
   return { total: steps.length, current: index < 0 ? 0 : index };
 }
+
+/** The status the server serves for an answered Confident Voice row (24g-1):
+ *  a Yes keeps the ladder open and reads "approved"; every other answer has
+ *  been dealt with and reads "dismissed". Mirrors `decided_status` in the
+ *  backend, so the page and the server never disagree between a save and the
+ *  refetch that confirms it. */
+export function judgedStatus(
+  answered: "yes" | "other",
+): "approved" | "dismissed" {
+  return answered === "yes" ? "approved" : "dismissed";
+}
