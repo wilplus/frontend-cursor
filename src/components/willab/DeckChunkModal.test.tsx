@@ -125,6 +125,7 @@ const noop = async () => true;
 const props = {
   onAccept: vi.fn(noop),
   onKeepMine: vi.fn(noop),
+  onJudged: vi.fn(),
   // Typed so the mock records its argument, for the same reason
   // onSetRootPhrase is: the bold-on-tap test reads the TEXT that was locked,
   // not merely that a lock happened.
@@ -398,6 +399,35 @@ describe("DeckChunkModal — F1 net", () => {
     );
     expect(forThisClip).toHaveLength(1);
     expect(forThisClip[0][0].response).toBe("yes");
+  });
+
+  it("reports the judgement to the host the moment it is saved (24g-1)", async () => {
+    // Founder 2026-09-21: "the state of the text didn't change and the
+    // bookmark stayed there … it must be happening on the blink of an eye
+    // level". Accept and Keep mine already flip the row on the host; the
+    // Confident Voice answer never told the host anything, so the mark
+    // stayed lit until the next refetch. A Yes reads "approved" — the
+    // ladder stays open — and every other answer reads "dismissed", which is
+    // exactly what the server serves for that row from then on.
+    const judged = vi.mocked(props.onJudged);
+    judged.mockClear();
+
+    await render(confidentVoice);
+    await click("Yes — Confident");
+    expect(judged).toHaveBeenCalledTimes(1);
+    expect(judged.mock.calls[0][0].id).toBe(confidentVoice.id);
+    expect(judged.mock.calls[0][1]).toBe("approved");
+  });
+
+  it("any answer but Yes reports the row dismissed, on a fresh sheet", async () => {
+    const judged = vi.mocked(props.onJudged);
+    judged.mockClear();
+
+    await render(confidentVoice);
+    await click("No — Not confident");
+    expect(judged).toHaveBeenCalledTimes(1);
+    expect(judged.mock.calls[0][0].id).toBe(confidentVoice.id);
+    expect(judged.mock.calls[0][1]).toBe("dismissed");
   });
 
   it("answers into the exercise step, which is now its own screen", async () => {

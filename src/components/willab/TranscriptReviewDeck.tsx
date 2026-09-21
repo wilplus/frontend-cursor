@@ -187,6 +187,7 @@ export default function TranscriptReviewDeck({
   onAccept,
   onUndoAccept,
   onKeepMine,
+  onJudged,
   onLockPart,
   onKeepEvolving,
   onSetRootPhrase,
@@ -229,6 +230,8 @@ export default function TranscriptReviewDeck({
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
   onUndoAccept?: (s: DocumentSuggestion) => Promise<boolean>;
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
+  /** The Confident Voice judgement, the moment it is saved (see the sheet). */
+  onJudged?: (s: DocumentSuggestion, decided: "approved" | "dismissed") => void;
   /** Commit `newText` for the chunk (when changed) and lock it.
    *
    *  The whole CHUNK goes back, not just its part: the host addresses a lock
@@ -1269,6 +1272,7 @@ export default function TranscriptReviewDeck({
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
           onKeepMine={onKeepMine}
+          onJudged={onJudged}
           onLockIn={async (text: string): Promise<LockResult> => {
             const result = await onLockPart(openChunk, text);
             if (result.outcome === "ok") {

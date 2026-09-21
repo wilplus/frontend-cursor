@@ -1104,6 +1104,9 @@ export default function IdealTextOverlay({
             onAccept={(s) => decideTracked(s, "accept")}
             onUndoAccept={undoTracked}
             onKeepMine={(s) => decideTracked(s, "keep")}
+            onJudged={(s, decided) =>
+              setSd((prev) => withSuggestionStatus(prev, s.id, decided))
+            }
             onLockPart={deckLockPart}
             onKeepEvolving={deckKeepEvolving}
             onSetRootPhrase={deckSetRootPhrase}
