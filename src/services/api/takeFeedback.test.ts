@@ -50,3 +50,38 @@ describe("saveTakeFeedbackResponse", () => {
     });
   });
 });
+
+describe("the superseded-Take refusal (backend #597)", () => {
+  const refuse = (status: number, error: string) =>
+    vi.fn(async () => ({
+      ok: false, status, json: async () => ({ code: "INVALID_INPUT", error }),
+    }));
+
+  it("names the not_member refusal so the sheet can stop retrying it", async () => {
+    // The exact line from routes/v2/user_sessions.py — the only discriminator
+    // there is, since it shares INVALID_INPUT with every other bad body.
+    vi.stubGlobal("fetch", refuse(400, "feedback item is not in this Take's frozen set"));
+    expect(await saveTakeFeedbackResponse({
+      takeSessionId: "take-1",
+      feedbackId: "s-cv",
+      feedbackFamily: "confident_voice",
+      response: "yes",
+    })).toEqual({
+      ok: false,
+      error: "feedback item is not in this Take's frozen set",
+      reason: "superseded",
+    });
+  });
+
+  it("leaves every other 400 as an ordinary failure", async () => {
+    vi.stubGlobal("fetch", refuse(400, "snippet provenance does not match the feedback item"));
+    const result = await saveTakeFeedbackResponse({
+      takeSessionId: "take-1",
+      feedbackId: "s-cv",
+      feedbackFamily: "confident_voice",
+      response: "yes",
+    });
+    expect(result.ok).toBe(false);
+    expect("reason" in result).toBe(false);
+  });
+});

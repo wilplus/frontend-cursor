@@ -168,6 +168,21 @@ export const CHUNK_SHEET_COPY = {
   /* --- the one qualitative question --------------------------------------- */
   confidenceQuestion: "Does this sound confident to you?",
 
+  /* --- a superseded Take (grey text, the plain box, NOT a failure) ---------
+     ⚠ PENDING FOUNDER SIGN-OFF (LIVE LOOP). Placeholder is option A; the
+     founder picks. A Take frozen before the V3 cutover (backend #591/#597)
+     cannot take answers any more — the question stays on screen, as ruled
+     ("the first step should by all means be kept"), and this line explains
+     why the chips do nothing and Continue is the way on.
+       A. "This take was reviewed under an earlier version, so answers here
+           can't be saved. Your next take will ask again."
+       B. "Older take: this feedback is read-only. Record your next take to
+           answer."
+       C. "This feedback was prepared before an update and no longer takes
+           answers. Keep going — your next take will."                       */
+  noticeSuperseded:
+    "This take was reviewed under an earlier version, so answers here can't be saved. Your next take will ask again.",
+
   /* --- failures (red text, same plain box as every other message) ---------- */
   failApply: "Your choice is safe, but the text update needs another try.",
   failKeep: "Your choice is safe. Refresh to continue.",

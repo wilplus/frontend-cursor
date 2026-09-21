@@ -163,6 +163,18 @@ function serviceExerciseFooter(
   };
 }
 
+/** The footer of every feedback screen on a SUPERSEDED Take: read-only, so
+ *  the one move is on. Pure, for the complexity ratchet. */
+function supersededFooter(advance: () => void): {
+  pill: string | null;
+  icon: React.ReactNode;
+  pillDisabled?: boolean;
+  onPill?: () => void;
+  links: { label: string; onClick: () => void }[];
+} {
+  return { pill: COPY.pillContinue, icon: null, onPill: advance, links: [] };
+}
+
 export default function DeckChunkModal({
   state,
   onAccept,
@@ -306,6 +318,14 @@ export default function DeckChunkModal({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** THE SUPERSEDED TAKE (backend #597). The server refused the answer with
+   *  `not_member`: this Take's frozen set predates the items on screen and
+   *  cannot be repaired, so every feedback screen on it is read-only. Not an
+   *  error — the red line invited a retry that could never succeed, which is
+   *  the dead end this replaces. The question stays visible (founder: "the
+   *  first step should by all means be kept"); the chips go quiet and the
+   *  footer becomes the way on. No judgement is recorded, so no orange. */
+  const [superseded, setSuperseded] = useState(false);
   const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
     useState(false);
   /** THE BRIEF, REAL UNDO after an accepted rewrite. The ladder has no editor
@@ -391,7 +411,8 @@ export default function DeckChunkModal({
       feedbackExposureId: suggestion.feedbackExposureId,
     });
     if (!result.ok) {
-      setError(result.error ?? COPY.failResponse);
+      if (result.reason === "superseded") setSuperseded(true);
+      else setError(result.error ?? COPY.failResponse);
       return false;
     }
     return true;
@@ -769,8 +790,12 @@ export default function DeckChunkModal({
     }
     // Roll the chip back rather than leaving it lit over a row the server
     // never took — the same rule the style apply follows.
-      setAgreeValue(null);
-      setAgreeError(r.error ?? COPY.failResponse);
+    setAgreeValue(null);
+    if (r.reason === "superseded") {
+      setSuperseded(true);
+      return;
+    }
+    setAgreeError(r.error ?? COPY.failResponse);
   }
 
   /** THE V3 ANSWER, handed back by the question screen (founder 2026-09-21,
@@ -941,6 +966,8 @@ export default function DeckChunkModal({
   } = (() => {
     const none = { pill: null, icon: null, links: [] as FooterLink[] };
     if (!step) return none;
+    // Every feedback screen on a superseded Take has the same single move.
+    if (superseded && suggestion) return supersededFooter(() => advanceStep());
     if (step.kind === "feedback") {
       // Pre-answer there is no footer AT ALL: listen, then answer. A secondary
       // action here would offer a way past the one question the screen exists
@@ -1091,7 +1118,7 @@ export default function DeckChunkModal({
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
             value={agreeValue}
-            disabled={agreeSaving}
+            disabled={agreeSaving || superseded}
             saving={agreeSaving}
             error={agreeError}
             ownerWording
@@ -1353,6 +1380,20 @@ export default function DeckChunkModal({
     );
   }
 
+  /* ---- the superseded-Take notice, under whichever feedback screen ------ */
+  function renderSupersededNotice(): React.ReactNode {
+    if (!superseded || !suggestion) return null;
+    return (
+      <p
+        role="status"
+        data-testid="superseded-notice"
+        className="rounded-2xl border border-border px-4 py-3 text-[13px] leading-snug text-muted-foreground"
+      >
+        {COPY.noticeSuperseded}
+      </p>
+    );
+  }
+
   const stepContent: React.ReactNode =
     step.kind === "feedback" ? renderFeedbackStep() :
     step.kind === "exercise" ? renderExerciseStep() :
@@ -1487,6 +1528,7 @@ export default function DeckChunkModal({
               tint — the one exception being a failure, which keeps red text in
               the same box because a missed save costs the speaker their
               edit. */}
+          {renderSupersededNotice()}
           {error ? (
             <p
               role="alert"
