@@ -8,5 +8,15 @@
     ],
     "note": "V3 ladder dead-end (#423)",
     "at": "2026-09-21T14:55Z"
+  },
+  "señor engineer": {
+    "paths": [
+      "backend-cursor/migrations/",
+      "backend-cursor/services/ideal_text_changes.py",
+      "backend-cursor/services/take_feedback_set.py",
+      "backend-cursor/tests/"
+    ],
+    "note": "400 on the bookmark answer — backend freeze/answer path only (#597)",
+    "at": "2026-09-21T15:00Z"
   }
 }
