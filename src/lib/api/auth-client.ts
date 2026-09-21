@@ -59,7 +59,20 @@ export async function getAuthToken(): Promise<string | null> {
   }
 }
 
-/** Force a new access token, sharing one refresh across concurrent callers.
+/** Re-read the pass, letting the client renew it ONLY if it is actually spent.
+ *
+ *  NEVER `refreshSession()`. THAT SIGNED THE FOUNDER OUT OF PRODUCTION (#425).
+ *  A forced refresh that loses a race against the client's own background
+ *  rotation comes back "Invalid Refresh Token: Already Used" — a non-retryable
+ *  auth error — and auth-js answers those by calling `_removeSession()`, which
+ *  destroys the local session outright. #422 forced one on EVERY 401,
+ *  including the many that have nothing to do with the token being stale, so a
+ *  single unlucky 401 against a perfectly healthy session logged the user out
+ *  of the whole product. Strictly worse than the dead end it was fixing.
+ *
+ *  `getSession()` is the safe door to the same room: it renews when the pass
+ *  has actually expired, dedups concurrent renewals internally, and never
+ *  forces one that was not needed. A session that dies behind it was over.
  *
  *  Returns null when the session really is over — the caller should then say
  *  "sign in", not "something went wrong". */
@@ -70,7 +83,7 @@ export async function renewAuthToken(): Promise<string | null> {
       const supabase = createClient();
       const {
         data: { session },
-      } = await supabase.auth.refreshSession();
+      } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
       console.error("Failed to renew auth token:", error);

@@ -136,6 +136,29 @@ describe("a request that outlives its own pass", () => {
     expect(bearerOf(fetchMock.mock.calls[0])).toBeUndefined();
   });
 
+  it("asks for a token, and never forces a refresh of its own (#425)", async () => {
+    // THE REGRESSION THIS PINS. A forced `refreshSession()` that loses a race
+    // against the client's own background rotation returns "Invalid Refresh
+    // Token: Already Used" — a non-retryable auth error — and auth-js answers
+    // those with `_removeSession()`, destroying the local session. #422 forced
+    // one on EVERY 401, so a single unlucky 401 against a healthy session
+    // logged the founder out of production. The retry may only ever ASK for a
+    // token; deciding whether a renewal is needed belongs to auth-js.
+    auth.getAuthToken.mockResolvedValue("spent");
+    auth.renewAuthToken.mockResolvedValue("renewed");
+    const fetchMock = vi
+      .fn<(...args: unknown[]) => Promise<Response>>()
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(ok());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await authedFetch("/api/v2/explore/arc/a/ideal-text/core");
+
+    // One ask, no arguments — nothing here can request a forced refresh.
+    expect(auth.renewAuthToken).toHaveBeenCalledTimes(1);
+    expect(auth.renewAuthToken).toHaveBeenCalledWith();
+  });
+
   it("never loops: a second 401 after a good renewal is the answer", async () => {
     auth.getAuthToken.mockResolvedValue("spent");
     auth.renewAuthToken.mockResolvedValue("renewed");
