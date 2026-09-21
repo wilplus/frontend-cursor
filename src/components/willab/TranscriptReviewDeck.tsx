@@ -321,7 +321,8 @@ export default function TranscriptReviewDeck({
       return built;
     }
     return built.map((c) => {
-      if (c.status === "clean" && optimisticLocked.has(c.part.id)) {
+      if ((c.status === "clean" || c.status === "untouched")
+          && optimisticLocked.has(c.part.id)) {
         return { ...c, status: "locked" as const };
       }
       // An unlock never overrides PENDING work — the 2026-08-11 rule that a
@@ -1056,8 +1057,15 @@ export default function TranscriptReviewDeck({
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
                       data-settled={unsettled ? undefined : "true"}
+                      data-untouched={c.status === "untouched" ? "true" : undefined}
                       className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
-                        unsettled ? "text-foreground/55" : "text-foreground"
+                        /* UNTOUCHED READS GREY TOO (founder 2026-09-21), and
+                           without a mark: nothing was ever done with these
+                           words, and the page says so instead of drawing
+                           them like a reviewed paragraph. */
+                        unsettled || c.status === "untouched"
+                          ? "text-foreground/55"
+                          : "text-foreground"
                       }`}
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it

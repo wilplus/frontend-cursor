@@ -10,8 +10,15 @@ import { buildDeckChunks, type DeckSuggestionLite } from "@/lib/willab/deckChunk
 /*  "A block holding an unsettled judgement renders in a softened grey; a      */
 /*  settled block renders in the ordinary text colour with no mark at all."    */
 /*                                                                            */
-/*  There is no third "done" state. The clean text IS the settled state, and   */
-/*  the document empties as the speaker works rather than accumulating marks.  */
+/*  The clean text IS the settled state, and the document empties as the       */
+/*  speaker works rather than accumulating marks.                              */
+/*                                                                            */
+/*  AND ONE STATE BEFORE ALL OF THAT (founder 2026-09-21): a block nobody has  */
+/*  ever worked on — no bookmark answered, no rooting phrase, no lock cycle —  */
+/*  is UNTOUCHED: the same softened grey, and NO mark. So grey now means one   */
+/*  of two things, "waiting" (a bookmark is drawn) or "untouched" (nothing     */
+/*  is), and reviewed text is never grey. The page reads as the paragraph's    */
+/*  own history: grey → bookmark → full text → lock with its orange phrase.    */
 /* -------------------------------------------------------------------------- */
 
 const DECK = readFileSync(
@@ -29,13 +36,25 @@ const open = (over: Partial<DeckSuggestionLite> = {}): DeckSuggestionLite => ({
 });
 
 describe("settled text is ordinary, never grey", () => {
-  it("softens only a block with an undecided judgement on it", () => {
-    // ONE condition for both signals (founder 2026-09-18: "the grey should be
+  it("softens a block with an undecided judgement on it, and an untouched one", () => {
+    // ONE condition for the mark (founder 2026-09-18: "the grey should be
     // when there is a mark"). Keyed on `status === "waiting"` alone, grey and
     // the bookmark could disagree and leave grey text with nothing to tap.
+    // Since 2026-09-21 the untouched block shares the grey and, by design,
+    // has no mark: there is nothing to tap because nothing was ever asked.
     expect(DECK).toContain("const unsettled =");
     expect(DECK).toContain('c.status === "waiting" &&');
-    expect(DECK).toContain('unsettled ? "text-foreground/55" : "text-foreground"');
+    expect(DECK).toContain('unsettled || c.status === "untouched"');
+    expect(DECK).toContain('? "text-foreground/55"');
+    expect(DECK).toContain(': "text-foreground"');
+  });
+
+  it("an untouched block is grey with no mark; a reviewed one is neither", () => {
+    const chunks = buildDeckChunks(DOC, null, []);
+    expect(chunks.map((c) => c.status)).toEqual(["untouched", "untouched"]);
+    const reviewed = buildDeckChunks(DOC, null, [open({ status: "dismissed" })]);
+    expect(reviewed[0].status).toBe("clean");
+    expect(reviewed[0].pendingIds).toEqual([]);
   });
 
   it("greys exactly where the bookmark is drawn, and nowhere else", () => {
@@ -60,9 +79,12 @@ describe("settled text is ordinary, never grey", () => {
     expect(chunk.status === "waiting").toBe(false);
   });
 
-  it("marks a clean block settled too", () => {
-    const [chunk] = buildDeckChunks(DOC, null, []);
-    expect(chunk.status).toBe("clean");
+  it("marks a reviewed block settled too, and an untouched one is not waiting either", () => {
+    const [reviewed] = buildDeckChunks(DOC, null, [open({ status: "dismissed" })]);
+    expect(reviewed.status).toBe("clean");
+    const [bare] = buildDeckChunks(DOC, null, []);
+    expect(bare.status).toBe("untouched");
+    expect(bare.status === "waiting").toBe(false);
   });
 
   it("softens a block while something is still undecided on it", () => {

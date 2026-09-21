@@ -49,7 +49,43 @@ import { partsForDocument, type Part } from "./documentParts";
 /*  Pure — no React, no fetch.                                                 */
 /* -------------------------------------------------------------------------- */
 
-export type ChunkStatus = "clean" | "waiting" | "locked";
+/** UNTOUCHED IS THE FOURTH STATE (founder 2026-09-21): "a state of the text
+ *  where it was not reviewed even once — no rooting phrases, no redirection,
+ *  nothing was done with this text — mark it grey without the bookmark; that
+ *  finally complements the UI of the text and how it evolves."
+ *
+ *  Before it, "clean" hid two very different paragraphs behind one look: one
+ *  the speaker had reviewed (answered its bookmark, chosen words, locked and
+ *  unlocked) and simply not locked yet, and one nobody had ever touched. The
+ *  page now reads as the paragraph's own history: grey (untouched) → a
+ *  coloured bookmark (waiting) → full text (reviewed) → the lock with its
+ *  orange phrase (locked). */
+export type ChunkStatus = "untouched" | "clean" | "waiting" | "locked";
+
+/** The evidence that a paragraph has been worked on at least once. Every
+ *  input is something the served document already carries, so the state
+ *  survives a reload exactly as the server sees it:
+ *  · `decided` — a bookmark on these words was answered (approved or
+ *    dismissed; any answer is a review, 24g-1);
+ *  · `rootPhrase` — a rooting phrase was chosen here;
+ *  · `iteration` — the lock-in cycle count; one or more means it was locked
+ *    at some point, even if it is open again now.
+ *  An edit of the words alone is NOT visible to the page today (the served
+ *  part carries no "edited since generation" flag); when it should count,
+ *  the flag is a backend addition, not a guess here. */
+export function isUntouched(evidence: {
+  locked: boolean;
+  decided: boolean;
+  rootPhrase: string | null | undefined;
+  iteration: number | undefined;
+}): boolean {
+  return (
+    !evidence.locked &&
+    !evidence.decided &&
+    !evidence.rootPhrase &&
+    !(evidence.iteration && evidence.iteration > 0)
+  );
+}
 
 /** The slice of a DocumentSuggestion this model needs — structural, so the
  *  real mapper type satisfies it and tests stay dependency-free. Spans index
@@ -153,10 +189,14 @@ export function buildDeckChunks(
     const pendingIds: string[] = [];
     const approvedIds: string[] = [];
     const tiers: NonNullable<DeckSuggestionLite["bookmarkTier"]>[] = [];
+    // Any answered bookmark on these words is proof the paragraph was
+    // reviewed — it is what separates "untouched" from "clean" below.
+    let decided = false;
     for (const s of suggestions) {
       if (!overlaps(s, start, end)) continue;
       // null = UNDECIDED (R4). "dismissed" contributes nothing — a kept-mine
       // proposal is history, and history never colours the page.
+      if (s.status === "approved" || s.status === "dismissed") decided = true;
       if (s.status === "approved") approvedIds.push(s.id);
       else if (s.status !== "dismissed") {
         pendingIds.push(s.id);
@@ -216,7 +256,14 @@ export function buildDeckChunks(
       ? "waiting"
       : locked
         ? "locked"
-        : "clean";
+        : isUntouched({
+              locked,
+              decided,
+              rootPhrase: parts[i].rootPhrase,
+              iteration: parts[i].iteration,
+            })
+          ? "untouched"
+          : "clean";
     chunks.push({
       part: parts[i],
       paragraphIndex: i,

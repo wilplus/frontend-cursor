@@ -33,6 +33,9 @@ import { CHUNK_SHEET_COPY } from "./idealEditCopy";
  * different layers of the product. */
 
 const ARIA: Record<ChunkStatus, string> = {
+  // Never drawn: an untouched paragraph shows no mark at all. The entry
+  // exists because the record is total over the status union.
+  untouched: "No feedback pending",
   clean: "No feedback pending",
   waiting: "Feedback waiting — review it",
   locked: "Paragraph protected",

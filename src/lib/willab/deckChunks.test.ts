@@ -35,11 +35,70 @@ const parts = (locked: number[] = []): Part[] =>
     locked: locked.includes(i),
   }));
 
+describe("untouched — the fourth state (founder 2026-09-21)", () => {
+  // Grey, no mark: "not reviewed even once, no rooting phrases, no
+  // redirection, nothing was done with this text". Each piece of evidence
+  // the served document carries turns it into a reviewed ("clean") chunk.
+  it("an answered bookmark — approved or dismissed — makes the chunk reviewed", () => {
+    expect(
+      buildDeckChunks(DOC, parts(), [sug("s1", 0, 10, "approved")])[0].status,
+    ).toBe("clean");
+    expect(
+      buildDeckChunks(DOC, parts(), [sug("s1", 0, 10, "dismissed")])[0].status,
+    ).toBe("clean");
+  });
+
+  it("a rooting phrase makes the chunk reviewed", () => {
+    const withRoot = parts().map((p, i) =>
+      i === 1 ? { ...p, rootPhrase: "believed the numbers" } : p,
+    );
+    expect(buildDeckChunks(DOC, withRoot, []).map((c) => c.status)).toEqual([
+      "untouched",
+      "clean",
+      "untouched",
+    ]);
+  });
+
+  it("a lock-in cycle makes the chunk reviewed even once it is open again", () => {
+    const cycled = parts().map((p, i) => (i === 2 ? { ...p, iteration: 1 } : p));
+    expect(buildDeckChunks(DOC, cycled, []).map((c) => c.status)).toEqual([
+      "untouched",
+      "untouched",
+      "clean",
+    ]);
+  });
+
+  it("waiting and locked both outrank untouched", () => {
+    expect(buildDeckChunks(DOC, parts([0]), [])[0].status).toBe("locked");
+    expect(
+      buildDeckChunks(DOC, parts(), [sug("s1", 0, 10)])[0].status,
+    ).toBe("waiting");
+  });
+
+  it("an edit alone is not visible to the page and does not count (yet)", async () => {
+    // The served part carries no "edited since generation" flag; counting
+    // edits is a backend addition, never a guess here.
+    const { isUntouched } = await import("./deckChunks");
+    expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 0 })).toBe(true);
+    expect(isUntouched({ locked: false, decided: true, rootPhrase: null, iteration: 0 })).toBe(false);
+    expect(isUntouched({ locked: false, decided: false, rootPhrase: "x", iteration: 0 })).toBe(false);
+    expect(isUntouched({ locked: false, decided: false, rootPhrase: null, iteration: 2 })).toBe(false);
+    expect(isUntouched({ locked: true, decided: false, rootPhrase: null, iteration: 0 })).toBe(false);
+  });
+});
+
 describe("buildDeckChunks — status derivation", () => {
-  it("a chunk with no suggestions and no lock is clean", () => {
+  it("a chunk nobody has ever worked on is UNTOUCHED (founder 2026-09-21)", () => {
+    // This asserted "clean" until 2026-09-21. Clean hid two paragraphs
+    // behind one look: one the speaker had reviewed and not locked yet, and
+    // one nobody had ever touched. The second now says so — grey, no mark.
     const chunks = buildDeckChunks(DOC, parts(), []);
     expect(chunks).toHaveLength(3);
-    expect(chunks.map((c) => c.status)).toEqual(["clean", "clean", "clean"]);
+    expect(chunks.map((c) => c.status)).toEqual([
+      "untouched",
+      "untouched",
+      "untouched",
+    ]);
     // Identity flows from the served parts — the lock PUT and the deck can
     // never disagree about which part a paragraph is.
     expect(chunks.map((c) => c.part.id)).toEqual([
@@ -51,7 +110,11 @@ describe("buildDeckChunks — status derivation", () => {
 
   it("an UNDECIDED suggestion makes its chunk waiting — and only its chunk", () => {
     const chunks = buildDeckChunks(DOC, parts(), [sug("s1", 25, 40)]);
-    expect(chunks.map((c) => c.status)).toEqual(["clean", "waiting", "clean"]);
+    expect(chunks.map((c) => c.status)).toEqual([
+      "untouched",
+      "waiting",
+      "untouched",
+    ]);
     expect(chunks[1].pendingIds).toEqual(["s1"]);
   });
 
@@ -144,7 +207,7 @@ describe("buildDeckChunks — status derivation", () => {
     expect(chunks.map((c) => c.status)).toEqual([
       "waiting",
       "waiting",
-      "clean",
+      "untouched",
     ]);
   });
 
@@ -155,7 +218,7 @@ describe("buildDeckChunks — status derivation", () => {
     // ending exactly at 23 does not overlap [25,53), and one starting at 53
     // does not overlap [25,53).
     const chunks = buildDeckChunks(DOC, parts(), [sug("s1", 0, 23)]);
-    expect(chunks.map((c) => c.status)).toEqual(["waiting", "clean", "clean"]);
+    expect(chunks.map((c) => c.status)).toEqual(["waiting", "untouched", "untouched"]);
   });
 
   it("blank paragraphs are dropped on both sides, so offsets keep addressing the right chunk", () => {
@@ -166,7 +229,7 @@ describe("buildDeckChunks — status derivation", () => {
     ];
     const chunks = buildDeckChunks(doc, p, [sug("s1", doc.indexOf("Second"), doc.length)]);
     expect(chunks).toHaveLength(2);
-    expect(chunks.map((c) => c.status)).toEqual(["clean", "waiting"]);
+    expect(chunks.map((c) => c.status)).toEqual(["untouched", "waiting"]);
     expect(chunks[1].part.id).toBe("b");
   });
 
@@ -174,7 +237,7 @@ describe("buildDeckChunks — status derivation", () => {
     const chunks = buildDeckChunks(DOC, null, []);
     expect(chunks).toHaveLength(3);
     expect(new Set(chunks.map((c) => c.part.id)).size).toBe(3);
-    expect(chunks.every((c) => c.status === "clean")).toBe(true);
+    expect(chunks.every((c) => c.status === "untouched")).toBe(true);
   });
 });
 
