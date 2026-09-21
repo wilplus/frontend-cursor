@@ -127,7 +127,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
 
   it("there are THREE chunk states", () => {
     expect(CHUNKS).toMatch(
-      /export type ChunkStatus =\s*"clean" \| "waiting" \| "locked";/
+      /export type ChunkStatus =\s*"untouched" \| "clean" \| "waiting" \| "locked";/
     );
     expect(CHUNKS).not.toMatch(/"accepted"/);
     // PRECEDENCE (founder 2026-08-11, the locked-iteration ruling): undecided

@@ -55,7 +55,7 @@ describe("the locked pill's amber pulse", () => {
     // is decided. A fourth status would make the deck's state machine lie
     // about that in order to advertise an optional extra.
     expect(CHUNKS).toMatch(
-      /export type ChunkStatus =\s*"clean" \| "waiting" \| "locked"/
+      /export type ChunkStatus =\s*"untouched" \| "clean" \| "waiting" \| "locked"/
     );
     expect(MARK).not.toMatch(/"styled"|'styled'|styleStatus/);
   });
