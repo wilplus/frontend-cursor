@@ -1,11 +1,1 @@
-{
-  "señor 2": {
-    "paths": [
-      "src/components/willab/Lounge.tsx",
-      "src/components/willab/useFailedTakeRecheck.test.ts",
-      "src/components/willab/useFailedTakeRecheck.ts"
-    ],
-    "note": "stale failed-take note: re-check the server and clear it",
-    "at": "2026-09-21T16:45Z"
-  }
-}
+{}
