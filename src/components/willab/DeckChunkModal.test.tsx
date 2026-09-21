@@ -746,3 +746,84 @@ describe("the ladder", () => {
     expect(buttonLabels()).toContain("Lock");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/*  THE SUPERSEDED TAKE (backend #597, 2026-09-21).                            */
+/*                                                                            */
+/*  A Take frozen before the V3 cutover holds V2's three keys; the items on   */
+/*  screen are V3's and share no identity with them. The server answers      */
+/*  `not_member` → 400 "feedback item is not in this Take's frozen set", the  */
+/*  claim is insert-once, so the set cannot be repaired. Before this, the     */
+/*  sheet drew that as a red retryable error — a retry that could never      */
+/*  succeed, on every tap, forever. Now it is read-only: the question stays   */
+/*  (founder: "the first step should by all means be kept"), a grey notice    */
+/*  says why the chips are quiet, and Continue is the way on. No judgement    */
+/*  is recorded, so no orange.                                                */
+/* -------------------------------------------------------------------------- */
+describe("a superseded Take is read-only, not a dead end", () => {
+  const supersededRefusal = {
+    ok: false as const,
+    error: "feedback item is not in this Take's frozen set",
+    reason: "superseded" as const,
+  };
+
+  it("turns the refusal into a notice and a way on, with the question still visible", async () => {
+    const { saveTakeFeedbackResponse } = await import(
+      "@/services/api/takeFeedback"
+    );
+    const saved = vi.mocked(saveTakeFeedbackResponse);
+    saved.mockClear();
+    saved.mockResolvedValueOnce(supersededRefusal);
+    vi.mocked(props.onAccept).mockClear();
+    vi.mocked(props.onKeepMine).mockClear();
+
+    await renderLadder();
+    await click("Yes — Confident");
+
+    // Not a failure: no red alert, and the server's sentence never reaches
+    // the speaker.
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).not.toContain("frozen set");
+    // The question is still on screen — quiet, not gone.
+    expect(container.textContent).toContain("Does this sound confident to you?");
+    const yes = Array.from(container.querySelectorAll("button")).find((b) =>
+      (b.textContent ?? "").trim().startsWith("Yes"),
+    );
+    expect(yes?.hasAttribute("disabled")).toBe(true);
+    expect(container.querySelector('[data-testid="superseded-notice"]')).not.toBeNull();
+    // The one move.
+    expect(buttonLabels()).toContain("Continue");
+
+    // The rest of the Take's feedback is read-only too: the rewrite offers no
+    // Apply / Keep wording, the praise still reads, and nothing writes.
+    await click("Continue");
+    expect(container.textContent).toContain("Clearer version");
+    expect(buttonLabels()).not.toContain("Apply");
+    expect(buttonLabels()).not.toContain("Keep wording");
+    await click("Continue");
+    await click("Continue");
+    // No judgement was recorded, so no emphasis rung — straight to the lock.
+    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Lock");
+
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(props.onAccept).not.toHaveBeenCalled();
+    expect(props.onKeepMine).not.toHaveBeenCalled();
+  });
+
+  it("still treats any other refusal as the retryable failure it is", async () => {
+    const { saveTakeFeedbackResponse } = await import(
+      "@/services/api/takeFeedback"
+    );
+    const saved = vi.mocked(saveTakeFeedbackResponse);
+    saved.mockClear();
+    saved.mockResolvedValueOnce({ ok: false, error: "Couldn't save that response. Try again." });
+
+    await renderLadder();
+    await click("Yes — Confident");
+
+    expect(container.textContent).toContain("Couldn't save that response. Try again.");
+    expect(container.querySelector('[data-testid="superseded-notice"]')).toBeNull();
+    expect(buttonLabels()).not.toContain("Continue");
+  });
+});
