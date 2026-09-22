@@ -196,6 +196,89 @@ describe("wheelGestureStep — one trackpad gesture, one slide", () => {
     expect(tail.action).toBe("swallow");
   });
 
+  /* ── THE MAC TRACKPAD (founder 2026-09-22) ─────────────────────────────
+   * "when I scroll on mac ... I can not scroll easily, smth lags there and I
+   * need to repeat it to work, the movement; though on the mouse it works
+   * rather fine." One flick's momentum tail kept the latch alive for as long
+   * as it ran, so the next real push was swallowed. These pin both halves:
+   * the tail still may not steal a second slide, and a push after it must
+   * land. */
+
+  /** One macOS flick: a peak just after release, then decay to nothing. */
+  const momentumTail = (from: number, at: number) => {
+    const out: { deltaY: number; now: number }[] = [];
+    let delta = from;
+    let now = at;
+    while (delta > 0.5) {
+      out.push({ deltaY: delta, now });
+      delta *= 0.82;
+      now += 16;
+    }
+    return out;
+  };
+
+  it("lets a real push land while the previous tail is still running", () => {
+    let state = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 30,
+      now: 0,
+      innerCanScroll: false,
+    }).state;
+    let last = 0;
+    for (const event of momentumTail(90, 16)) {
+      const step = wheelGestureStep(state, { ...event, innerCanScroll: true });
+      expect(step.action).toBe("swallow");
+      state = step.state;
+      last = event.now;
+    }
+    // The tail is long — that is the whole problem. The reader pushes again
+    // while it is still emitting, and that push must move the page.
+    expect(last).toBeGreaterThan(400);
+    const push = wheelGestureStep(state, {
+      deltaY: 40,
+      now: last + 16,
+      innerCanScroll: true,
+    });
+    expect(push.action).toBe("scroll-inner");
+  });
+
+  it("still gives one slide per gesture when the swipe simply continues", () => {
+    // Fingers still down: deltas stay level rather than decaying, so this is
+    // one gesture however long it runs, and it may not walk the deck.
+    let state = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 30,
+      now: 0,
+      innerCanScroll: false,
+    }).state;
+    for (let now = 16; now <= 1_200; now += 16) {
+      const step = wheelGestureStep(state, {
+        deltaY: 30,
+        now,
+        innerCanScroll: false,
+      });
+      expect(step.action).toBe("swallow");
+      state = step.state;
+    }
+  });
+
+  it("does not mistake the momentum peak for a second gesture", () => {
+    // macOS momentum peaks AFTER release, so the events just past an advance
+    // are bigger than the one that caused it. Same flick.
+    const advanced = wheelGestureStep(IDLE_WHEEL_GESTURE, {
+      deltaY: 20,
+      now: 0,
+      innerCanScroll: false,
+    });
+    for (const deltaY of [60, 120, 95]) {
+      expect(
+        wheelGestureStep(advanced.state, {
+          deltaY,
+          now: 48,
+          innerCanScroll: false,
+        }).action
+      ).toBe("swallow");
+    }
+  });
+
   it("re-arms only after a quiet gap", () => {
     const advanced = wheelGestureStep(IDLE_WHEEL_GESTURE, {
       deltaY: 30,

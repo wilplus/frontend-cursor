@@ -95,6 +95,12 @@ export interface WheelGestureState {
   direction: 1 | -1 | null;
   boundaryDelta: number;
   advanced: boolean;
+  /** When the latch engaged, or null while it has not. */
+  advancedAt: number | null;
+  /** The smallest |deltaY| seen since it engaged. A momentum tail only
+   *  decays, so this floor falls as the tail dies and a delta that rises
+   *  clear of it is the reader's hand back on the glass. */
+  tailFloor: number;
 }
 
 export const IDLE_WHEEL_GESTURE: WheelGestureState = {
@@ -102,7 +108,14 @@ export const IDLE_WHEEL_GESTURE: WheelGestureState = {
   direction: null,
   boundaryDelta: 0,
   advanced: false,
+  advancedAt: null,
+  tailFloor: 0,
 };
+
+/** A push smaller than this is never a restart, however far the tail has
+ *  decayed — otherwise the floor approaching zero would make the tail's own
+ *  jitter look like a new gesture. */
+const MIN_RESTART_DELTA = 4;
 
 export type WheelGestureAction =
   | "scroll-inner"
@@ -111,7 +124,31 @@ export type WheelGestureAction =
 
 /** Browser wheel events do not expose a physical trackpad gesture. Treat a
  * quiet gap as a new gesture, accumulate intent at a slide boundary, advance
- * once, then swallow that gesture's entire momentum tail. */
+ * once, then swallow that gesture's entire momentum tail.
+ *
+ * WHEN THE TAIL ENDS (founder 2026-09-22: "when I scroll on mac... I can not
+ * scroll easily, I need to repeat it to work; though on the mouse it works
+ * rather fine"). A gesture used to end only at `quietMs` of silence, and a
+ * macOS trackpad never gives that: one flick emits a decaying tail for up to
+ * a second and a half, each event refreshing `lastAt`. So after a single
+ * slide advance the whole surface stayed latched — not just further advances
+ * but the new slide's own paragraph scrolling, since the latch is checked
+ * before anything else. Push again inside that window and the push was
+ * swallowed too, which is exactly "I need to repeat the movement". A mouse
+ * wheel has no tail and clicks land further apart than `quietMs`, so it
+ * re-armed every time and felt fine — the asymmetry the founder reported.
+ *
+ * The fix reads the tail for what it is: momentum DECAYS. The tail is over
+ * when the deltas stop falling. So a delta that rises clear of the floor
+ * seen so far, once the tail has had `tailSettleMs` to start falling, is a
+ * new gesture and re-arms the surface.
+ *
+ * THE SETTLE WINDOW IS NOT SLACK. macOS momentum PEAKS just after release,
+ * so the events right after an advance are routinely bigger than the one
+ * that caused it; that rise is the same flick, not a new one. Waiting out
+ * the peak is what keeps "one gesture, one slide" true — the rule that stops
+ * momentum flying through a slide the reader never saw (SPEC §11.3).
+ */
 export function wheelGestureStep(
   state: WheelGestureState,
   input: {
@@ -120,19 +157,34 @@ export function wheelGestureStep(
     innerCanScroll: boolean;
     quietMs?: number;
     boundaryThreshold?: number;
+    tailSettleMs?: number;
+    tailRiseRatio?: number;
   }
 ): { state: WheelGestureState; action: WheelGestureAction } {
   const dir: 1 | -1 = input.deltaY > 0 ? 1 : -1;
+  const magnitude = Math.abs(input.deltaY);
   const quietMs = input.quietMs ?? 120;
   const threshold = input.boundaryThreshold ?? 18;
-  const fresh =
-    state.lastAt === null ||
-    input.now - state.lastAt > quietMs;
-  const current = fresh ? IDLE_WHEEL_GESTURE : state;
+  const settleMs = input.tailSettleMs ?? 200;
+  const riseRatio = input.tailRiseRatio ?? 1.6;
+
+  const quiet = state.lastAt === null || input.now - state.lastAt > quietMs;
+  // A hand back on the glass: the tail has been falling for long enough to
+  // have fallen, and this delta stands clear above where it got to.
+  const pushedAgain =
+    state.advanced &&
+    state.advancedAt !== null &&
+    input.now - state.advancedAt >= settleMs &&
+    magnitude > Math.max(state.tailFloor * riseRatio, MIN_RESTART_DELTA);
+  const current = quiet || pushedAgain ? IDLE_WHEEL_GESTURE : state;
 
   if (current.advanced) {
     return {
-      state: { ...current, lastAt: input.now },
+      state: {
+        ...current,
+        lastAt: input.now,
+        tailFloor: Math.min(current.tailFloor, magnitude),
+      },
       action: "swallow",
     };
   }
@@ -144,6 +196,8 @@ export function wheelGestureStep(
         direction: dir,
         boundaryDelta: 0,
         advanced: false,
+        advancedAt: null,
+        tailFloor: 0,
       },
       action: "scroll-inner",
     };
@@ -151,8 +205,8 @@ export function wheelGestureStep(
 
   const boundaryDelta =
     current.direction === dir
-      ? current.boundaryDelta + Math.abs(input.deltaY)
-      : Math.abs(input.deltaY);
+      ? current.boundaryDelta + magnitude
+      : magnitude;
   const advanced = boundaryDelta >= threshold;
   return {
     state: {
@@ -160,6 +214,8 @@ export function wheelGestureStep(
       direction: dir,
       boundaryDelta,
       advanced,
+      advancedAt: advanced ? input.now : null,
+      tailFloor: advanced ? magnitude : 0,
     },
     action: advanced ? "advance-screen" : "swallow",
   };
