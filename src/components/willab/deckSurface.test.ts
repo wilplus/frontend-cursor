@@ -442,6 +442,43 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK_SRC).toMatch(/kickerFor\(g\.slideIndex, i\), titleFor\(g\.slideIndex\)/);
   });
 
+  /* ── THE KEYBOARD (founder 2026-09-22) ──────────────────────────────────
+   * "on the keyboard if I click it it scrolls one slide." It used to step
+   * one CHUNK, which since screens are packed to fit meant scrolling an
+   * inner scroller that had nowhere to go — so every press but the last of
+   * a screen moved nothing and read as the key being ignored. */
+
+  it("an arrow key steps a whole screen, not a chunk inside one", () => {
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    const handler = DECK_SRC.slice(
+      DECK_SRC.indexOf("const back = e.key"),
+      DECK_SRC.indexOf("className=\"relative min-h-0 flex-1")
+    );
+    expect(handler).toMatch(
+      /goTo\(\{\s*slide: posRef\.current\.slide \+ \(fwd \? 1 : -1\),\s*chunk: 0\s*\}\)/
+    );
+    // The chunk gate is NOT what the keyboard asks any more.
+    expect(handler).not.toMatch(/stepPosition/);
+  });
+
+  it("wheel and touch keep the chunk gate the keyboard gave up", () => {
+    // §11.3 is about a CONTINUOUS gesture, which has to be able to stop
+    // between chunks. A key press has no such middle, so only it changed.
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).toMatch(/const next = stepPosition\(counts, from, dir\)/);
+    expect(DECK_SRC).toMatch(/if \(outcome\.action === "advance-screen"\) tryBubble\(dir\)/);
+  });
+
+  it("the deck takes focus on open, and only from the body", () => {
+    // The handler lives on the stage, so an unfocused deck spends the
+    // reader's first press on focusing itself and looks broken.
+    const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK_SRC).toMatch(/stage\.focus\(\{ preventScroll: true \}\)/);
+    expect(DECK_SRC).toMatch(
+      /if \(active && active !== document\.body\) return;/
+    );
+  });
+
   it("the deck mount has no frame and no height cap", () => {
     const mount = READOUT.slice(
       READOUT.indexOf("<TranscriptReviewDeck") - 400,
