@@ -89,37 +89,102 @@ describe("ProcessingWait — the phase decides which labels are reachable", () =
     ).toContain(TRANSCRIBING);
   });
 
-  it("still renders the one waiting screen, with its real percentage", async () => {
+  it("still renders the one waiting screen, with its percentage", async () => {
+    /* A DOCUMENT-PHASE REPORT NOW LANDS IN THE DOCUMENT SLICE (founder
+       2026-09-22). It used to print straight through as "62%", which put a
+       document two thirds of the way along BELOW where the analysis phase had
+       already stood. The slices exist so the bar only ever moves forward:
+       62% of the document phase is 96% of the wait. */
     const text = await render({
       phase: "document",
       progress: { stage: "document_assembly", percent: 62 },
     });
     expect(text).toContain(DOCUMENT);
-    expect(text).toContain("62%");
+    expect(text).toContain("96%");
   });
 
-  it("invents no percentage when the backend has never exposed one", async () => {
-    // A FRESH wait — nothing reported yet, so there is nothing to say, and
-    // "…" is the honest answer. Split out of the case above because that one
-    // now re-renders the SAME component: once a real percent has arrived it
-    // is held (below), which is a different rule, not a broken one.
-    expect(await render({ phase: "document", progress: null })).toContain("…");
+  it("says nothing before the analysis phase has reported anything", async () => {
+    // Unchanged where it still holds: the analysis phase has no clock of its
+    // own, so before the first report there is genuinely nothing to say.
+    expect(await render({ phase: "analysis", progress: null })).toContain("…");
   });
 
-  it("holds the last real percentage instead of falling back to none", async () => {
+  it("speaks in the document phase even when nothing was ever reported", async () => {
+    /* THIS REVERSES THE 2026-09-19 RULING, on the founder's word, and the
+       line it replaces read "invents no percentage when the backend exposes
+       none". That rule was right while the bar claimed to measure WORK. The
+       founder has since defined what it measures — the WAIT, ending when the
+       text can be read — and this phase has a real deadline of its own, so it
+       is not silent about it. `waitProgress.ts` carries the full argument. */
+    const text = await render({ phase: "document", progress: null });
+    expect(text).toContain("90%");
+    expect(text).not.toContain("…");
+  });
+
+  it("hands over at the ceiling rather than collapsing or falling back", async () => {
     /* FOUNDER 2026-09-19: "there is no continuity there and it feels like
        it's stale". It was not stale — the worker had finished in seventeen
        seconds. The analysis phase reports a percent and climbs, the document
        phase is seeded `percent: null`, and a null draws as "…" on an empty
        rail. So the bar filled, collapsed to nothing, and the text then
-       appeared from nowhere. This is that exact handover. */
+       appeared from nowhere. This is that exact handover — and the document
+       phase now starts ABOVE where analysis left off rather than holding
+       its number. */
     await render({
       phase: "analysis",
       progress: { stage: "transcribing", percent: 62 },
     });
     const handover = await render({ phase: "document", progress: null });
-    expect(handover).toContain("62%");
+    expect(handover).toContain("90%");
     expect(handover).not.toContain("…");
+  });
+
+  it("never shows a full bar, because a full bar IS the ideal text", async () => {
+    /* FOUNDER 2026-09-22: "100% means instant switch to the ideal text". So
+       the last point is reserved for settlement and nothing else can print
+       it — the speaker never sees a finished bar and then waits behind it. */
+    const text = await render({
+      phase: "document",
+      progress: { stage: "document_assembly", percent: 100 },
+    });
+    expect(text).toContain("99%");
+    expect(text).not.toContain("100%");
+  });
+
+  it("does not rewind the label when the analysis phase hands over", async () => {
+    /* THE STALENESS, EXACTLY (founder 2026-09-22: "the building text is
+       simply stale there").
+
+       The pipeline reports its real stages and the wait walks all the way to
+       "Finding your anchors". The handover then rewrites the marker
+       `{stage: "document_assembly"}` — index 2 — and the screen stepped BACK
+       two labels and stopped there for the rest of the phase. A screen that
+       un-says what it just said reads as the machine starting over. */
+    await render({
+      phase: "analysis",
+      progress: { stage: "speaking_anchors", percent: 95 },
+    });
+    const handover = await render({
+      phase: "document",
+      progress: { stage: "document_assembly", percent: null },
+    });
+    expect(handover).toContain(ANCHORS);
+    expect(handover).not.toContain(DOCUMENT);
+  });
+
+  it("does not rewind within the analysis phase either", async () => {
+    // Same rule, one phase earlier: a stage the backend re-reports out of
+    // order must not walk the speaker backwards.
+    await render({
+      phase: "analysis",
+      progress: { stage: "speaking_anchors", percent: 95 },
+    });
+    const backwards = await render({
+      phase: "analysis",
+      progress: { stage: "transcribing", percent: 95 },
+    });
+    expect(backwards).toContain(ANCHORS);
+    expect(backwards).not.toContain(TRANSCRIBING);
   });
 
   it("names the stage to assistive tech too, not just on screen", async () => {

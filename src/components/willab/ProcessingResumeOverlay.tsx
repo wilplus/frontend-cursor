@@ -21,6 +21,7 @@ export default function ProcessingResumeOverlay({
   progress,
   phase = "analysis",
   cycleStartedAt,
+  phaseStartedAt = null,
   onClose,
 }: {
   progress: ProcessingProgress | null;
@@ -30,6 +31,9 @@ export default function ProcessingResumeOverlay({
    *  recording" whatever was actually running. */
   phase?: "analysis" | "document";
   cycleStartedAt: number;
+  /** When the resumed job entered its CURRENT phase, off the same marker.
+   *  The bar's document tail is measured from it. */
+  phaseStartedAt?: number | null;
   onClose: () => void;
 }) {
   useBackDismiss(onClose);
@@ -79,6 +83,7 @@ export default function ProcessingResumeOverlay({
           progress={progress}
           phase={phase}
           cycleStartedAt={cycleStartedAt}
+          phaseStartedAt={phaseStartedAt}
         />
       </div>
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import RecordingAnalysisPresentation from "./RecordingAnalysisPresentation";
-import { nextWaitPercent } from "@/lib/willab/waitProgress";
+import { nextWaitPercent, waitPercent } from "@/lib/willab/waitProgress";
+import { DOCUMENT_SETTLE_CAP_MS } from "@/lib/willab/documentSettle";
 
 /* -------------------------------------------------------------------------- */
 /*  ProcessingWait — THE ONE WAITING SCREEN (founder 2026-08-11)               */
@@ -77,28 +78,89 @@ export interface ProcessingWaitProps {
   /** Epoch shared by every view of one job. It keeps the same tip cycle when
    *  the presentation closes and reopens; omitting it starts a local cycle. */
   readonly cycleStartedAt?: number | null;
+  /** When the CURRENT phase began, from the job marker. The document tail is
+   *  measured from it against that phase's own deadline.
+   *
+   *  Omitted, this screen's own mount stands in — the honest answer for the
+   *  two document-only surfaces, which have no marker in hand and whose wait
+   *  genuinely begins when they appear. It is NOT the job's start epoch:
+   *  seeding the tail from there would have it saturated before the document
+   *  phase began, which says "nearly there" without having watched anything. */
+  readonly phaseStartedAt?: number | null;
 }
 
 export default function ProcessingWait({
   progress = null,
   phase = "analysis",
   cycleStartedAt = null,
+  phaseStartedAt = null,
 }: ProcessingWaitProps) {
   const reported = stageIndex(progress?.stage);
   // FLOOR, not override: a document phase that genuinely reaches a LATER
   // stage keeps it. Only the two audio labels below the floor are unreachable.
-  const current =
+  const floored =
     phase === "document" ? Math.max(reported, DOCUMENT_FLOOR) : reported;
 
+  /* THE LABEL NEVER GOES BACKWARDS (founder 2026-09-22: "the building text is
+     simply stale there").
+
+     It was not merely frozen — it REWOUND. The analysis phase reports the
+     pipeline's real stages and climbs all the way to "Finding your anchors";
+     the handover then rewrites the marker `{stage: "document_assembly"}`,
+     which is index 2, and the floor above holds it there. So the wait walked
+     forward through five labels, stepped back two, and stopped. A screen that
+     un-says what it just said reads as the machine starting over — the same
+     misreading the one-screen rule exists to prevent — and then it sat on
+     that older label for the whole document phase, because nothing updates
+     the marker again.
+
+     Holding the furthest label reached fixes both halves at once: no rewind,
+     and the document phase inherits the last true thing the pipeline said
+     rather than an earlier one. The bar is what moves from here (see
+     `waitProgress`), which is the part that can honestly keep moving. */
+  const reachedRef = useRef(0);
+  const jobRef = useRef<number | null>(null);
+  if (jobRef.current !== cycleStartedAt) {
+    jobRef.current = cycleStartedAt ?? null;
+    reachedRef.current = 0;
+  }
+  reachedRef.current = Math.max(reachedRef.current, floored);
+  const current = reachedRef.current;
+
   /* ONE BAR ACROSS THE WHOLE WAIT (founder 2026-09-19: "there is no
-     continuity there and it feels like it's stale"). The document phase
-     reports no percent, and a null renders as "…" at width 0 — so the bar
-     climbed through analysis, collapsed to nothing, and the text then
-     appeared from nowhere. It HOLDS the last real percent instead. Nothing is
-     invented: see `waitProgress.ts` for why the first version of this, which
-     advanced on elapsed time, was refused by the gate. */
+     continuity there and it feels like it's stale"; 2026-09-22: "ensure that
+     the progress bar ends when the full processing AND the text building is
+     done so that 100% means instant switch to the ideal text").
+
+     `held` is the analysis phase's own percent — real while reported, held
+     afterwards, never falling. `waitPercent` then maps it into the lower nine
+     tenths of the bar and gives the document phase the slice above, easing
+     toward 99 against that phase's real deadline. The last point belongs to
+     settlement, so a full bar is never something the speaker waits behind.
+     The rule and the reversal it represents live in `waitProgress.ts`. */
+  const held = useRef<number | null>(null);
+  held.current = nextWaitPercent(held.current, progress?.percent ?? null);
   const shown = useRef<number | null>(null);
-  shown.current = nextWaitPercent(shown.current, progress?.percent ?? null);
+
+  // THE TAIL NEEDS A CLOCK. Nothing else re-renders this screen during the
+  // document phase: the marker stops changing at the handover, so without a
+  // tick the bar would be as motionless as the label was.
+  const mountedAt = useRef(Date.now());
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (phase !== "document") return;
+    const id = setInterval(() => tick((n) => n + 1), 1_000);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  shown.current = waitPercent({
+    previous: shown.current,
+    held: held.current,
+    reported: phase === "document" ? (progress?.percent ?? null) : null,
+    phase,
+    phaseElapsedMs: Date.now() - (phaseStartedAt ?? mountedAt.current),
+    capMs: DOCUMENT_SETTLE_CAP_MS,
+  });
 
   return (
     <RecordingAnalysisPresentation

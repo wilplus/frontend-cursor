@@ -606,6 +606,10 @@ export default function Lounge({
     /* Carried so the resumed view can say WHICH wait it is. The marker has
        always known; this state used to drop it on the way to the screen. */
     phase: ProcessingPhase;
+    /* And WHEN that wait began, for the same reason. The bar's document tail
+       is measured from it; without it the screen can only time itself from
+       its own mount, which restarts the tail on every remount. */
+    phaseStartedAt: number;
   } | null>(null);
   // A presentation key, not a second lifecycle owner. The job observer below
   // stays mounted in the Lounge while this exact session is shown full-screen.
@@ -726,6 +730,7 @@ export default function Lounge({
               startedAt: marker.startedAt,
               progress: marker.progress,
               phase: marker.phase,
+              phaseStartedAt: marker.phaseStartedAt,
             };
       });
       if (marker.status === "failed" || marker.phase === "document") {
@@ -820,6 +825,10 @@ export default function Lounge({
             failedMarker?.sessionId === resumeWatch.sessionId
               ? failedMarker.phase
               : "analysis",
+          phaseStartedAt:
+            failedMarker?.sessionId === resumeWatch.sessionId
+              ? failedMarker.phaseStartedAt
+              : resumeWatch.startedAt,
         });
         setResumeWatch(null);
         // W6 (founder 2026-08-10) — the failure note used to clear itself
@@ -1012,6 +1021,7 @@ export default function Lounge({
       // Mirrors the marker written immediately above: this retry re-enters
       // audio analysis, so the recording labels are the true ones here.
       phase: "analysis",
+      phaseStartedAt: now,
     });
     setResumeWatch({
       sessionId: marker.sessionId,
@@ -1048,6 +1058,7 @@ export default function Lounge({
       // `ideal_text` stage already resolves above the audio labels — but the
       // marker says analysis, so this says analysis. One source of truth.
       phase: "analysis",
+      phaseStartedAt: now,
     });
     setResumeWatch({
       sessionId: target.takeSessionId,
@@ -1834,6 +1845,7 @@ export default function Lounge({
           progress={processingResume.progress}
           phase={processingResume.phase}
           cycleStartedAt={processingResume.startedAt}
+          phaseStartedAt={processingResume.phaseStartedAt}
           onClose={closeProcessingOverlay}
         />
       ) : null}
