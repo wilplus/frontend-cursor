@@ -1011,6 +1011,7 @@ export default function IdealTextReadout({
               wait is one wait, and a second waiting screen that still exists
               is one that comes back. */}
           <ProcessingWait
+            phase="document"
             progress={{ stage: "document_assembly", percent: null }}
             cycleStartedAt={processingCycleStartedAt}
           />
