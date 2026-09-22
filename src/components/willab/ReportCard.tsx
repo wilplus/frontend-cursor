@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
+import { REVIEWED } from "@/lib/willab/verificationCopy";
 import {
   fetchIdealTextCore,
   primeIdealTextDisplay,
@@ -600,20 +600,18 @@ function IdealRecordingCard({
           </span>
         ) : null}
       </div>
-      {/* Reviewed / pending pill (amber = informational, never red). */}
-      <div className="mt-4">
-        {verified ? (
+      {/* Reviewed pill only (founder 2026-09-22) — the pending state shows
+          nothing, here and in the header, for the reason given in
+          `verificationCopy`. The wrapper goes with it rather than staying as
+          an empty 16px gap under the card. */}
+      {verified ? (
+        <div className="mt-4">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-medium text-success ring-1 ring-success/25">
             <Check className="h-3.5 w-3.5" aria-hidden />
             {REVIEWED}
           </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-400/25">
-            <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
-            {PENDING_VERIFICATION}
-          </span>
-        )}
-      </div>
+        </div>
+      ) : null}
       {/* CTA — rounded-xl to echo the icon tile + card corners. */}
       {onOpen ? (
         <Button

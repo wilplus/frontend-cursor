@@ -144,3 +144,36 @@ describe("a chunk decision changes its own paragraph, never the document", () =>
     }
   });
 });
+
+/* ── THE PENDING BADGE IS GONE (founder 2026-09-22) ────────────────────────
+ * "please remove that pending from here and from the ideal text bubble; make
+ * it hidden, only when it gets verified display it in both places."
+ *
+ * Both surfaces used to render the state unconditionally, so the test is
+ * written against the thing that would bring it back: a render of the pending
+ * wording, on either. */
+describe("only a reviewed text wears a badge", () => {
+  const HEADING = source("IdealTextHeading.tsx");
+  const CARD = source("ReportCard.tsx");
+
+  it("neither surface renders the pending wording any more", () => {
+    for (const src of [HEADING, CARD]) {
+      expect(src).not.toMatch(/PENDING_SHORT|PENDING_VERIFICATION/);
+    }
+  });
+
+  it("both still render the reviewed one, gated on verified", () => {
+    expect(HEADING).toMatch(/status === "verified" \? \(/);
+    expect(HEADING).toMatch(/\{REVIEWED\}/);
+    expect(CARD).toMatch(/\{verified \? \(/);
+    expect(CARD).toMatch(/\{REVIEWED\}/);
+  });
+
+  it("the card leaves no empty spacer where the pill was", () => {
+    // `mt-4` used to sit on a wrapper that always rendered; an unverified card
+    // would keep a 16px gap under it reserved for nothing.
+    const pill = CARD.slice(CARD.indexOf("Reviewed pill only"), CARD.indexOf("CTA —"));
+    expect(pill).toMatch(/\{verified \? \(\s*<div className="mt-4">/);
+  });
+});
+

@@ -310,10 +310,11 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
-  it("offers an orange root after confidence feedback only for exact Yes", () => {
-    // The gate survives the ladder unchanged, only earlier: a paragraph whose
-    // only feedback was the confidence question gets an anchor ONLY if the
-    // speaker said yes. Any other answer locks the wording and ends there.
+  it("offers an orange root on every answer that heard the clip", () => {
+    // WIDENED 2026-09-22 (founder): the gate was "only an exact Yes", which
+    // delayed a rooting phrase by several takes for anyone who does not like
+    // the sound of their own voice. It is now every answer but "Audio
+    // unclear", which is the rule `opensRootPhrase` states and tests.
     expect(MODAL).toMatch(/feedbackInventory\.every\(isConfidentVoiceFeedback\)/);
     // IT READS `judgement`, NOT `agreeValue` — this fence used to pin
     // `agreeValue` and was pinning a BUG, reported from real use 2026-09-16:
@@ -329,9 +330,15 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // it survives the steps in between. Pinned by name so the shape cannot
     // quietly go back.
     expect(MODAL).toMatch(
-      /promotedQuote && !\(confidenceOnly && judgement !== "yes"\)/,
+      /promotedQuote && !\(confidenceOnly && !opensRootPhrase\(judgement\)\)/,
     );
     expect(MODAL).not.toMatch(/confidenceOnly && agreeValue !== "yes"/);
+    // THE TWO GATES READ ONE RULE. The step decides whether to ASK and this
+    // decides whether to STORE; a screen that is offered and then discarded is
+    // the silent data loss of 2026-09-16, so they may never spell out
+    // separate conditions again.
+    expect(MODAL).toMatch(/canEmphasise:\s*\n?\s*opensRootPhrase\(judgementValue\)/);
+    expect(MODAL).not.toMatch(/judgementValue === "yes"/);
     // ...and the anchor is only written when one actually resolved.
     expect(MODAL).toMatch(/if \(anchor\) await onSetRootPhrase\(anchor\)/);
   });

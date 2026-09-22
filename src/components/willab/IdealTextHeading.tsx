@@ -1,4 +1,4 @@
-import { PENDING_SHORT, REVIEWED } from "@/lib/willab/verificationCopy";
+import { REVIEWED } from "@/lib/willab/verificationCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextHeading — what heads an ideal text, on every screen that is one.   */
@@ -50,18 +50,17 @@ export default function IdealTextHeading({
       >
         {headerTitle}
       </span>
-      {status ? (
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${
-            status === "verified"
-              ? "bg-success/10 text-success"
-              : "bg-background text-muted-foreground"
-          }`}
-        >
-          {/* PENDING_SHORT is the named exception to the one-wording rule, and
-              its condition is exactly this: the badge sitting beside the
-              title, where the context already says what is being verified. */}
-          {status === "verified" ? REVIEWED : PENDING_SHORT}
+      {/* ONLY WHEN IT IS REVIEWED (founder 2026-09-22: "remove that pending
+          from here and from the ideal text bubble; make it hidden, only when
+          it gets verified display it").
+
+          Pending is the state nearly every text is in nearly all the time, so
+          a badge for it is a permanent label saying nothing changed — it read
+          as a warning on the reader's own document. Reviewed is the event
+          worth a badge, and its absence is now what says "not yet". */}
+      {status === "verified" ? (
+        <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-[12px] font-medium text-success">
+          {REVIEWED}
         </span>
       ) : null}
     </div>

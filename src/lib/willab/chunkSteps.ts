@@ -19,6 +19,7 @@
  *  offer, then always the lock.
  */
 import type { DocumentSuggestion } from "@/services/api/idealText";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 
 /** The Confident Voice lane, by family OR by source: the wire sends it as
@@ -52,6 +53,44 @@ export function confidentFragmentOf(
   items: readonly DocumentSuggestion[],
 ): string | null {
   return items.find(isConfidentVoiceFeedback)?.quote ?? null;
+}
+
+/** What the speaker answered, as the rooting step needs to read it.
+ *
+ *  The five real values where we have them; `"other"` from the two paths that
+ *  cannot express more — the legacy agreement chip, and the exercise's own
+ *  closing yes/no.
+ */
+export type RootGateAnswer = ConfidenceRatingValue | "other" | null;
+
+/** Does this answer open the tap-to-root phrase step?
+ *
+ *  FOUNDER 2026-09-22: "maybe do not restrict the tap to the YES answer only
+ *  ... cause people usually will hate their voice and not consider it
+ *  confident, so gate keeping it at YES will delay by several takes to get the
+ *  rooting phrases."
+ *
+ *  That is right, and the contract already said so: 24e makes the tap-to-root
+ *  phrase step part of EVERY item, not a reward for a good answer. The Yes
+ *  gate was a narrowing on top of it, and it had the effect the founder
+ *  describes — the speakers most in need of a rooting phrase are exactly the
+ *  ones who will not call their own voice confident.
+ *
+ *  ONE ANSWER STILL CLOSES IT, and only one. "Audio unclear" is not a
+ *  judgement of the delivery at all: it says the clip could not be heard. A
+ *  speaker who could not hear the words cannot choose which of them to land
+ *  on, so asking would be asking them to guess. Every other answer — Yes,
+ *  In-between, No, Not sure — is a real engagement with the recording, and a
+ *  No is arguably when a rooting phrase helps most.
+ *
+ *  WHY IT TAKES THE RAW ANSWER. The sheet used to collapse all five to
+ *  `yes | other` before any gate saw them, so "Not sure" was indistinguishable
+ *  from "No" and from "Audio unclear" — audit finding F-4. The row status
+ *  stays collapsed, because "did they accept this suggestion" really is a
+ *  yes-or-not question; this one is not.
+ */
+export function opensRootPhrase(answer: RootGateAnswer): boolean {
+  return answer !== null && answer !== "audio_unclear";
 }
 
 /** Does the lock step SHOW the paragraph rather than offer it for editing?
