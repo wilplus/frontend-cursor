@@ -16,6 +16,21 @@
 /*  LIVE LOOP — user-facing copy. Any change here needs founder sign-off.       */
 /* -------------------------------------------------------------------------- */
 
+/* ── THE PENDING STATE IS NOT SURFACED (founder 2026-09-22) ────────────────
+ * "please remove that pending from here and from the ideal text bubble; make
+ * it hidden, only when it gets verified display it in both places."
+ *
+ * Pending is the state nearly every text is in nearly all of the time, so a
+ * badge for it was a permanent label reporting that nothing had happened —
+ * next to the reader's own document it read as a warning about it. Reviewed is
+ * the event, and the absence of the badge is now what says "not yet".
+ *
+ * THE CONSTANTS STAY, unused, and that is the point of this module: if a
+ * surface ever needs to name this state again — a coach queue, an admin view —
+ * it takes the wording from here rather than inventing a third one, which is
+ * the drift FE-8 was raised for. Nothing renders them today; `IdealTextHeading`
+ * and `ReportCard` were the two that did. */
+
 /** Awaiting the coach. The short form, on every surface. */
 export const PENDING_VERIFICATION = "Pending verification";
 

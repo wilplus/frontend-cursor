@@ -60,7 +60,21 @@ const KIND_NAME: Record<GeneratedKind, string> = {
  *  second vocabulary for the same fact. AC-9 holds: it is a statement of
  *  provenance, never a score, rating, band or verdict. */
 export const AI_GENERATED_LABEL: Record<GeneratedKind, string> = {
-  "ideal-text": "Written by AI from what you said — it can be wrong, so check it before you present.",
+  /* SHORTENED (founder 2026-09-22): "can you make it smaller text and shorter
+     text; or maybe same font but shorter". It ran to a full line under the
+     document and read as a disclaimer rather than a mark.
+
+     What was cut is the advice — "from what you said", "so check it before you
+     present" — and what stays is the claim: written by AI, it can be wrong.
+     Those two are not decoration. They are the words `copy/ai-notice-1.0.txt`
+     uses, which is the notice the user accepted, and a surface that says the
+     same fact in different words is how a reader ends up thinking they are two
+     different facts. It is also the visible half of Art. 50(2) detectability;
+     the machine-readable half is untouched either way.
+
+     Both kinds now carry the identical sentence, which is the same one the
+     feedback surface always had. One wording, two surfaces. */
+  "ideal-text": "Written by AI — it can be wrong.",
   "manager-feedback": "Written by AI — it can be wrong.",
 };
 

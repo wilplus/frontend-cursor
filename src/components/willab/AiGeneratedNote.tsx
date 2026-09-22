@@ -38,7 +38,7 @@ export default function AiGeneratedNote({
     <>
       <p
         {...aiGeneratedAttrs(kind)}
-        className={`text-[12px] leading-snug text-muted-foreground ${className}`}
+        className={`text-[11px] leading-snug text-muted-foreground ${className}`}
       >
         {AI_GENERATED_LABEL[kind]}
       </p>
