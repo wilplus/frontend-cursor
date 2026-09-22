@@ -319,10 +319,23 @@ describe("a served answer advances the ladder by itself", () => {
     expect(buttonLabels()).toContain("Use this phrase");
   });
 
-  it("skips emphasis on a No and lands on the lock", async () => {
+  it("reaches emphasis on a No, and on Not sure (founder 2026-09-22)", async () => {
+    // WIDENED from "skips emphasis on a No". The Yes gate delayed a rooting
+    // phrase by several takes for anyone who dislikes their own voice, and
+    // "Not sure" could not even be told apart from a No — the sheet collapsed
+    // all five answers before any gate saw them (F-4).
     await render(served);
     await click("No — Not confident");
-    expect(yesChips()).toHaveLength(0);
+    expect(buttonLabels()).toContain("Use this phrase");
+  });
+
+  it("still skips it when the clip could not be heard", async () => {
+    // The one answer that closes the step, and not as a punishment: "Audio
+    // unclear" is not a judgement of the delivery at all, so there is nothing
+    // to choose words from. This is the protection the old No-test carried,
+    // pointed at the case that actually warrants it.
+    await render(served);
+    await click("Audio unclear");
     expect(buttonLabels()).not.toContain("Use this phrase");
     expect(buttonLabels()).toContain("Lock");
   });

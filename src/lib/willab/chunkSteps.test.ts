@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  opensRootPhrase,
   buildChunkSteps,
   orderedInventory,
   stepKindFor,
@@ -238,3 +239,49 @@ describe("judgedStatus — the status the server serves for an answered row", ()
     expect(judgedStatus("other")).toBe("dismissed");
   });
 });
+
+/* ── WHO MAY ROOT A PHRASE (founder 2026-09-22) ───────────────────────────
+ * "maybe do not restrict the tap to the YES answer only ... cause people
+ * usually will hate their voice and not consider it confident, so gate
+ * keeping it at YES will delay by several takes to get the rooting phrases."
+ *
+ * Contract 24e already made the tap-to-root step part of every item. These
+ * pin the one exception and, just as importantly, that the step and the store
+ * read the same rule — a screen offered but not saved is silent data loss. */
+describe("opensRootPhrase — every answer but one", () => {
+  it("opens for every answer that judged the delivery", () => {
+    for (const answer of ["yes", "in_between", "no", "not_sure"] as const) {
+      expect(opensRootPhrase(answer)).toBe(true);
+    }
+  });
+
+  it("stays closed when the clip could not be heard", () => {
+    // Not a harsh judgement — no judgement. Choosing which words to land on
+    // is not answerable by someone who could not make the words out.
+    expect(opensRootPhrase("audio_unclear")).toBe(false);
+  });
+
+  it("stays closed until something is answered at all", () => {
+    // A paragraph the detector never flagged reaches Lock with no orange.
+    expect(opensRootPhrase(null)).toBe(false);
+  });
+
+  it("opens for the coarse answer the older paths can express", () => {
+    // The legacy agreement chip and the exercise's closing yes/no carry only
+    // these two; neither can mean "audio unclear", so both open.
+    expect(opensRootPhrase("yes")).toBe(true);
+    expect(opensRootPhrase("other")).toBe(true);
+  });
+
+  it("is what the ladder asks, so the screen and the store cannot disagree", () => {
+    const ask = (answer: Parameters<typeof opensRootPhrase>[0]) =>
+      buildChunkSteps({
+        inventory: [],
+        canEmphasise: opensRootPhrase(answer),
+      }).some((step) => step.kind === "emphasis");
+    expect(ask("not_sure")).toBe(true);
+    expect(ask("no")).toBe(true);
+    expect(ask("audio_unclear")).toBe(false);
+  });
+});
+

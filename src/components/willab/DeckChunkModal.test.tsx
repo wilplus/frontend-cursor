@@ -691,23 +691,19 @@ describe("the ladder", () => {
     expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe("now");
   });
 
-  it("a judgement that was not Yes skips step four entirely", async () => {
-    // THE GATE, replacing the Skip button that used to carry this (founder
-    // 2026-09-16, §5: the step has no opt-out). Orange means "I confirmed I
-    // deliver this well", so anything other than a Yes must not reach the
-    // screen that offers it — and a paragraph without an orange phrase is one
-    // that never got there, not one that declined.
+  it("a No still reaches step four (founder 2026-09-22)", async () => {
+    // WIDENED. This used to assert the opposite: only an exact Yes opened the
+    // rooting step. "cause people usually will hate their voice and not
+    // consider it confident, so gate keeping it at YES will delay by several
+    // takes to get the rooting phrases." A No is arguably when a rooting
+    // phrase helps most, and contract 24e always put the step on every item.
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis });
     await click("No — Not confident");
     await click("Keep wording");
     await click("Continue");
-    // Straight to Lock: no emphasis screen, and therefore no Skip to press.
-    expect(container.textContent).not.toContain("With emphasis");
-    expect(buttonLabels()).not.toContain("Use this phrase");
-    await click("Lock");
-    expect(props.onLockIn).toHaveBeenCalled();
-    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("With emphasis");
+    expect(buttonLabels()).toContain("Use this phrase");
   });
 
   it("a paragraph never judged at all also skips it", async () => {

@@ -18,6 +18,7 @@ import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import {
   saveTakeFeedbackResponse,
@@ -94,6 +95,7 @@ import {
   stepTitle,
   type ChunkStep,
   judgedStatus,
+  opensRootPhrase,
 } from "@/lib/willab/chunkSteps";
 import {
   nextSelection,
@@ -234,7 +236,7 @@ export default function DeckChunkModal({
    *  to survive the steps in between. The exercise's final judgement
    *  supersedes step one's when it happens: it is a judgement of the same
    *  delivery, made later and better informed. */
-  const [judgement, setJudgement] = useState<"yes" | "other" | null>(null);
+  const [judgement, setJudgement] = useState<RootGateAnswer>(null);
 
   /** An exercise matched to this exact clip, from the confidence item that
    *  carries it. Read off the frozen inventory rather than the current step,
@@ -278,7 +280,7 @@ export default function DeckChunkModal({
      was preventing. */
   const buildSteps = useCallback(
     (
-      judgementValue: "yes" | "other" | null,
+      judgementValue: RootGateAnswer,
       servicePractise: boolean = service.exerciseAllowed,
     ): ChunkStep[] =>
       buildChunkSteps({
@@ -295,12 +297,13 @@ export default function DeckChunkModal({
         // is the point of the style lane rather than an exception to it: "open
         // takes rewrites; locked takes emphasis only".
         //
-        // AND the paragraph must have been judged Yes. Orange means "I
-        // confirmed I deliver this well" (§4), so a paragraph nobody judged —
-        // one the detector never flagged — reaches Lock with no orange, which
-        // is the intended shape rather than a gap.
+        // AND the paragraph must have been ANSWERED — see `opensRootPhrase`
+        // for which answers count (founder 2026-09-22: every one of them
+        // except "Audio unclear"). A paragraph nobody judged — one the
+        // detector never flagged — still reaches Lock with no orange, which is
+        // the intended shape rather than a gap.
         canEmphasise:
-          judgementValue === "yes" &&
+          opensRootPhrase(judgementValue) &&
           chunk.part.text.trim().length > 0 &&
           (Boolean(styleSuggestion) || chunk.part.locked !== true),
       }),
@@ -371,7 +374,7 @@ export default function DeckChunkModal({
    *  answer is the difference between "the step appears" and "the step is
    *  skipped forever". */
   function advanceStep(
-    withJudgement: "yes" | "other" | null = judgement,
+    withJudgement: RootGateAnswer = judgement,
     withServicePractise: boolean = service.exerciseAllowed,
   ): void {
     const list = buildSteps(withJudgement, withServicePractise);
@@ -549,11 +552,13 @@ export default function DeckChunkModal({
      * which is what this check always meant and which survives the steps in
      * between.
      *
-     * Belt and braces now: the emphasis step only appears on a Yes (§4), so
-     * promotedQuote cannot be set without one. The check stays because the two
-     * guard different things — the step decides whether to ASK, this decides
-     * whether to STORE — and the cost of them disagreeing is silent data loss,
-     * which is precisely what just happened.
+     * Belt and braces: the step and this check must read the SAME rule, or
+     * the speaker picks their words on a screen that was offered and the words
+     * are dropped at Lock. That is the silent data loss above, and it is why
+     * both now call `opensRootPhrase` rather than each spelling out a
+     * condition. The two still guard different things — the step decides
+     * whether to ASK, this decides whether to STORE — they just may never
+     * disagree about who is allowed.
      *
      * A quote that no longer resolves — edited away, or now ambiguous — locks
      * with no anchor rather than guessing at one. */
@@ -561,7 +566,7 @@ export default function DeckChunkModal({
       feedbackInventory.length > 0 &&
       feedbackInventory.every(isConfidentVoiceFeedback);
     const anchor =
-      promotedQuote && !(confidenceOnly && judgement !== "yes")
+      promotedQuote && !(confidenceOnly && !opensRootPhrase(judgement))
         ? quoteSpan(draft, promotedQuote)
         : null;
     if (anchor) await onSetRootPhrase(anchor);
@@ -821,10 +826,17 @@ export default function DeckChunkModal({
   ): void {
     setAgreeValue(value);
     setAgreeSaved(true);
-    const answered = value === "yes" ? "yes" : "other";
-    setJudgement(answered);
-    if (serviceItem) reportJudged(serviceItem, answered);
-    advanceStep(answered, exerciseAllowed);
+    // THE ROW STATUS STAYS COLLAPSED; THE ROOTING GATE NO LONGER IS.
+    // `judgedStatus` answers "did they accept this suggestion", which only a
+    // Yes does, so that mapping is unchanged. The rooting step asks something
+    // else — which words matter — and now reads the answer the speaker
+    // actually gave, so "Not sure" stops being indistinguishable from "No"
+    // and from "Audio unclear" (F-4).
+    if (serviceItem) {
+      reportJudged(serviceItem, value === "yes" ? "yes" : "other");
+    }
+    setJudgement(value);
+    advanceStep(value, exerciseAllowed);
   }
 
   /** One place turns a judgement into the row status the host keeps. */
