@@ -788,6 +788,24 @@ export default function TranscriptReviewDeck({
     return () => window.removeEventListener("resize", remeasure);
   }, [deckReady, screens]);
 
+  /* THE KEYS ARE LIVE ON OPEN (founder 2026-09-22). The handler lives on the
+   * stage, so until something focused it every arrow press went to the page
+   * instead — the reader presses once, nothing happens, and the control
+   * looks broken rather than unfocused.
+   *
+   * Only ever from the body: if the reader has already reached for a field,
+   * a button or the sheet, their focus is theirs and taking it would be the
+   * worse bug. `preventScroll` because focusing a tall stage otherwise jumps
+   * the page to it, undoing the position the deck just restored. */
+  useEffect(() => {
+    if (!deckReady) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    stage.focus({ preventScroll: true });
+  }, [deckReady]);
+
   const seatWidthRef = useRef(-1);
   useEffect(() => {
     const seat = () => {
@@ -876,9 +894,9 @@ export default function TranscriptReviewDeck({
       ) : null}
 
       {/* Stage — one slide per viewport; chunks scroll INSIDE the slide
-          first, the slide advances only from its final chunk (§11.3). The
-          stage is keyboard-navigable: arrows/PageUp/PageDown step one
-          CHUNK, bubbling across slides by the same rule as the gestures. */}
+          first, the slide advances only from its final chunk (§11.3) for
+          WHEEL AND TOUCH. The keyboard steps one whole SCREEN — see the
+          handler. */}
       <div
         ref={stageRef}
         tabIndex={deckReady ? 0 : -1}
@@ -889,7 +907,22 @@ export default function TranscriptReviewDeck({
           const back = e.key === "ArrowUp" || e.key === "PageUp";
           if (!fwd && !back) return;
           e.preventDefault();
-          goTo(stepPosition(counts, posRef.current, fwd ? 1 : -1));
+          /* ONE PRESS, ONE SCREENFUL (founder 2026-09-22: "on the keyboard
+             if I click it it scrolls one slide").
+
+             It used to step one CHUNK, which mostly moved nothing. Screens
+             are packed to FIT since 2026-09-17 — every chunk on a screen is
+             already visible — so scrolling the inner scroller to the next
+             chunk's offset had nowhere to go. Only the last press of a
+             screen did anything, and the ones before it read as the arrow
+             key being ignored.
+
+             So the keyboard addresses the screen, which is the unit a
+             reader actually sees, and lands on its top. Wheel and touch are
+             untouched: they still run the §11.3 chunk gate, because a
+             continuous gesture has to be able to stop between chunks and a
+             key press does not. */
+          goTo({ slide: posRef.current.slide + (fwd ? 1 : -1), chunk: 0 });
         }}
         className="relative min-h-0 flex-1 outline-none"
       >
