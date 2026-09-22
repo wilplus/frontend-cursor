@@ -71,7 +71,11 @@ import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
-import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
+import {
+  PROMPT_LANE,
+  SLOW_LANE,
+  feedbackStillComing,
+} from "@/lib/willab/enrichmentSettle";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
@@ -413,10 +417,36 @@ export default function IdealTextOverlay({
         applySingle(r, true);
         setFeedbackPending(Boolean(r.documentSnapshotId));
         if (r.documentSnapshotId) {
-          const enrichment = await fetchIdealTextEnrichment(
-            arcId,
-            r.documentSnapshotId,
-          );
+          /* TWO LANES, ASKED AT ONCE (founder 2026-09-22: "can you do
+             something to make loading of the bookmarks faster? cause it is
+             really long").
+
+             One request for everything cost a whole wasted round trip. The
+             server picks its budget from what is asked for, and asking for
+             nothing in particular got the two-second cold open — but the
+             Manager measurably takes about four and a half seconds, so the
+             bookmarks could not possibly answer in time. The page spent two
+             seconds failing, waited, and only then asked again with room to
+             finish. Seven seconds of ring for four and a half of work.
+
+             Now the marks get the long budget immediately, in their own
+             request, while everything the page draws around them keeps the
+             tight one and arrives when it always did. `mergeIdealText-
+             Enrichment` is a merge, so applying the two answers in whatever
+             order they land is the same document either way. */
+          const [prompt, slow] = await Promise.all([
+            fetchIdealTextEnrichment(arcId, r.documentSnapshotId, PROMPT_LANE),
+            fetchIdealTextEnrichment(arcId, r.documentSnapshotId, SLOW_LANE),
+          ]);
+          const enrichment =
+            prompt.kind === "ready" && slow.kind === "ready"
+              ? {
+                  ...prompt,
+                  sections: { ...prompt.sections, ...slow.sections },
+                }
+              : prompt.kind === "ready"
+                ? prompt
+                : slow;
           if (!active || gen !== fetchGenRef.current) return;
           if (enrichment.kind === "ready") {
             let merged = mergeIdealTextEnrichment(r, enrichment);

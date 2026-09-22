@@ -110,6 +110,33 @@ export function retryableSections(
  *  mark on the page. */
 export const MARK_SECTIONS: readonly string[] = ["document_layers", "feedback"];
 
+/** THE TWO LANES A FIRST OPEN ASKS IN (founder 2026-09-22: "can you do
+ *  something to make loading of the bookmarks faster? cause it is really
+ *  long").
+ *
+ *  It used to be one request for everything, and that cost a whole wasted
+ *  round trip. The server picks its budget from what is asked for, and a
+ *  request naming nothing got the two-second cold open — but the Manager
+ *  measurably takes about four and a half seconds, so the bookmarks could
+ *  not possibly answer in time. The page spent two seconds failing, waited,
+ *  and only then asked again with room to finish. Seven seconds of ring for
+ *  four and a half seconds of work.
+ *
+ *  Asking in two lanes at once gives each the budget it needs. The marks get
+ *  the long one immediately; everything the page draws around them keeps the
+ *  tight one and arrives when it always did. Neither can hold the other up,
+ *  which one response could never express — one response has one deadline.
+ *
+ *  SLOW_LANE is `document_layers` alone, and it matches `SLOW_SECTIONS` on
+ *  the server, which is where the rule is really decided. PROMPT_LANE is
+ *  every other section this page reads; `mergeIdealTextEnrichment` names the
+ *  same seven, so this is not a new place to keep in step with the backend. */
+export const SLOW_LANE: readonly string[] = ["document_layers"];
+
+export const PROMPT_LANE: readonly string[] = [
+  "feedback", "notes", "history", "journey", "entitlement", "learning",
+];
+
 /** True when the server is still asking to be asked again ABOUT THE MARKS —
  *  i.e. the marks this page is holding are NOT all the marks there are.
  *
