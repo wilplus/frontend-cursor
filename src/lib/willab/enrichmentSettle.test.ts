@@ -3,6 +3,8 @@ import {
   SETTLE_CEILING_MS,
   SETTLE_DELAYS_MS,
   SETTLE_MAX_ATTEMPTS,
+  PROMPT_LANE,
+  SLOW_LANE,
   feedbackStillComing,
   nextSettleDelayMs,
   retryableSections,
@@ -214,5 +216,36 @@ describe("feedbackStillComing — the question the reserved slot is asking", () 
         learning: { retryable: true },
       }),
     ).toBe(true);
+  });
+});
+
+describe("the two lanes a first open asks in", () => {
+  it("puts the slow section on its own, so nothing can hold it up", () => {
+    /* FOUNDER 2026-09-22: "can you do something to make loading of the
+       bookmarks faster? cause it is really long."
+
+       The server picks its budget from what is asked for. The marks alone
+       earn the long one; everything else keeps the tight one. Both go at
+       once, so the speaker waits for the Manager and nothing else. */
+    expect(SLOW_LANE).toEqual(["document_layers"]);
+  });
+
+  it("covers every section the page reads, exactly once", () => {
+    // `mergeIdealTextEnrichment` names these seven. A section in neither
+    // lane is one the page silently stops receiving; one in both is a
+    // duplicate Manager run.
+    const asked = [...SLOW_LANE, ...PROMPT_LANE];
+    expect(new Set(asked).size).toBe(asked.length);
+    expect([...asked].sort()).toEqual([
+      "document_layers", "entitlement", "feedback",
+      "history", "journey", "learning", "notes",
+    ]);
+  });
+
+  it("keeps the failing F2 receipt away from the marks", () => {
+    // `learning` fails on every read in production today (G-1). It must
+    // never share a lane with the bookmarks, or its budget becomes theirs.
+    expect(SLOW_LANE).not.toContain("learning");
+    expect(PROMPT_LANE).toContain("learning");
   });
 });

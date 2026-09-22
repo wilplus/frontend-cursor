@@ -11,8 +11,12 @@ describe("Ideal Text core-first screen contract", () => {
       const code = source(file);
       expect(code).toContain("fetchIdealTextCore");
       expect(code).toContain("fetchIdealTextEnrichment");
+      // The PROPERTY, not one spelling of it: the core is on screen before
+      // any enrichment request is made. Since 2026-09-22 a first open asks
+      // in two lanes at once, so the call is inside a `Promise.all` and the
+      // `await` no longer sits against the function name.
       expect(code.indexOf("applySingle(r, true)")).toBeLessThan(
-        code.indexOf("await fetchIdealTextEnrichment"),
+        code.indexOf("fetchIdealTextEnrichment("),
       );
       expect(code).toContain("mergeIdealTextEnrichment");
     });
