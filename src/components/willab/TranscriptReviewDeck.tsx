@@ -1174,10 +1174,24 @@ export default function TranscriptReviewDeck({
                            it cannot say whether this paragraph will get one,
                            because at this moment nothing knows. It says only
                            "not finished here yet", which is true. */
+                        /* IT SPINS (founder 2026-09-22: "can we make it
+                           spin?"). A pulsing disc reads as a mark that has
+                           not finished fading in — something about to be
+                           there. A rotating arc reads as work in progress,
+                           which is what this actually is: the Manager has
+                           not answered for this paragraph yet.
+
+                           Same 28px footprint and the same place in the
+                           line, so it still holds the mark's space exactly
+                           and the words do not move when the real mark
+                           lands. It remains aria-hidden and untappable —
+                           it carries no state and cannot say whether this
+                           paragraph will get a mark at all. Under
+                           `prefers-reduced-motion` it simply sits still. */
                         <span
                           aria-hidden
                           data-feedback-slot
-                          className="ml-1.5 inline-block h-7 w-7 shrink-0 rounded-full bg-muted/40 align-middle motion-safe:animate-pulse"
+                          className="ml-1.5 inline-block h-7 w-7 shrink-0 rounded-full border-2 border-muted/30 border-t-muted-foreground/45 align-middle motion-safe:animate-spin [animation-duration:1.1s]"
                         />
                       ) : null}
                     </p>
