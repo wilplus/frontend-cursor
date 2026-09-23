@@ -38,7 +38,10 @@ describe("the app-wide loading contract", () => {
     expect(ANALYSIS).toMatch(/pb-\[12vh\]/);
     expect(ANALYSIS).toMatch(/h-\[3px\]/);
     expect(ANALYSIS).toMatch(/While you wait/);
-    expect(ANALYSIS).toMatch(/processingTipFrame/);
+    // Was `processingTipFrame` until 2026-09-23. The point of the assertion is
+    // that the rich screen OWNS the recommendations; which mechanism shows
+    // them is not what this contract is about, and the timer is gone.
+    expect(ANALYSIS).toMatch(/WAITING_TIPS/);
     expect(LOADING).not.toMatch(/RecordingAnalysisPresentation/);
     expect(LOADING).not.toMatch(/setInterval/);
   });

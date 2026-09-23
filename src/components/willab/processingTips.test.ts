@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { processingTipFrame } from "./processingTipCycle";
+import {
+  forgetPlaces,
+  placeFromScroll,
+  rememberPlace,
+  rememberedPlace,
+} from "./waitingTipsDeck";
 import { availableWaitingTips } from "./processingWaitingTips";
 import { WAITING_TIPS, pickWaitingTip } from "./waitingTips";
 
@@ -87,44 +92,96 @@ describe("the waiting screen carries nothing but the wait", () => {
   });
 });
 
-describe("ProcessingWait tip continuity", () => {
-  const epoch = 1_000;
+describe("the advice does not move on its own", () => {
+  /* REPLACED 2026-09-23 (founder: "we want them to be static with a scroll...
+     so that you can scroll as you wait, from one advice to another").
 
-  it("derives the same tip and fade from the same job epoch after a remount", () => {
-    const beforeUnmount = processingTipFrame(epoch + 10_000, epoch, 4);
-    const afterRemount = processingTipFrame(epoch + 10_000, epoch, 4);
-    expect(afterRemount).toEqual(beforeUnmount);
-    expect(afterRemount).toMatchObject({ index: 1, visible: true });
+     Two tests lived here and both asserted the crossfade: that the same job
+     epoch derived the same frame after a remount, and that the cycle swapped
+     every seven seconds. They exercised `processingTipFrame` directly, so they
+     kept passing after the component stopped calling it — guarding a behaviour
+     that no longer ships while nothing guarded the one that does. That is the
+     failure mode worth naming: a pure-module test outlives the decision that
+     made the module worth having. */
+  const source = code("src/components/willab/RecordingAnalysisPresentation.tsx");
+
+  it("runs no timer on the tips", () => {
+    expect(source).not.toContain("processingTipFrame");
+    expect(source).not.toMatch(/setTimeout|setInterval/);
   });
 
-  it("starts a crossfade every seven seconds and swaps after 420ms", () => {
-    expect(processingTipFrame(epoch + 6_999, epoch, 4)).toMatchObject({
-      index: 0,
-      visible: true,
-    });
-    expect(processingTipFrame(epoch + 7_000, epoch, 4)).toMatchObject({
-      index: 0,
-      visible: false,
-      nextDelayMs: 420,
-    });
-    expect(processingTipFrame(epoch + 7_419, epoch, 4)).toMatchObject({
-      index: 0,
-      visible: false,
-      nextDelayMs: 1,
-    });
-    expect(processingTipFrame(epoch + 7_420, epoch, 4)).toMatchObject({
-      index: 1,
-      visible: true,
-    });
-    expect(processingTipFrame(epoch + 14_000, epoch, 4)).toMatchObject({
-      index: 1,
-      visible: false,
-      nextDelayMs: 420,
-    });
-    expect(processingTipFrame(epoch + 14_420, epoch, 4)).toMatchObject({
-      index: 2,
-      visible: true,
-    });
+  it("renders every tip rather than one at a time", () => {
+    // The whole collection is in the DOM and the reader moves through it.
+    expect(source).toContain("waitingTips.map");
+    expect(source).toContain("snap-y");
+    expect(source).toContain("snap-mandatory");
+  });
+
+  it("moves one tip per gesture, by the Ideal Text deck's own machine", () => {
+    // "The same scroll like you have on the ideal text" — the same code, so
+    // there is one place to fix if the feel is ever wrong again.
+    expect(source).toContain("wheelGestureStep");
+  });
+
+  it("drops the live region the rotation needed", () => {
+    // It announced text that changed unasked. Announcing a tip the reader
+    // scrolled to deliberately would talk over them.
+    expect(source).not.toContain("aria-live");
+  });
+});
+
+describe("the reader keeps their place across a remount", () => {
+  /* One wait remounts this screen: the analysis phase hands over to the
+     document phase, and an overlay can close and reopen. Starting again at the
+     first tip would take someone back to the top of something they were
+     halfway through — what waitingTips.ts calls for: "the exact scroll
+     position survives every processing screen". */
+  beforeEach(() => forgetPlaces());
+
+  it("starts at the first tip when the job has not been seen", () => {
+    expect(rememberedPlace(1_000, 12)).toBe(0);
+  });
+
+  it("gives back exactly where that job got to", () => {
+    rememberPlace(1_000, 5);
+    expect(rememberedPlace(1_000, 12)).toBe(5);
+  });
+
+  it("keeps jobs apart", () => {
+    rememberPlace(1_000, 5);
+    expect(rememberedPlace(2_000, 12)).toBe(0);
+  });
+
+  it("clamps a place the collection can no longer hold", () => {
+    // The collection is filtered at runtime (version skew, malformed entries),
+    // so a remembered index can outlive the tip it pointed at.
+    rememberPlace(1_000, 11);
+    expect(rememberedPlace(1_000, 4)).toBe(3);
+    expect(rememberedPlace(1_000, 1)).toBe(0);
+  });
+
+  it("does not grow without bound in a long-lived tab", () => {
+    for (let job = 0; job < 20; job += 1) rememberPlace(job, 1);
+    // The oldest are dropped; the most recent are still answerable.
+    expect(rememberedPlace(19, 12)).toBe(1);
+    expect(rememberedPlace(0, 12)).toBe(0);
+  });
+});
+
+describe("which tip a scroll position is showing", () => {
+  it("reports the nearest panel, not the one being left", () => {
+    // Half a drag past the boundary is already the next tip as far as the
+    // browser's snap is concerned, so the dots must agree.
+    expect(placeFromScroll(0, 200, 12)).toBe(0);
+    expect(placeFromScroll(99, 200, 12)).toBe(0);
+    expect(placeFromScroll(100, 200, 12)).toBe(1);
+    expect(placeFromScroll(420, 200, 12)).toBe(2);
+  });
+
+  it("never reports past the end, or a NaN height", () => {
+    expect(placeFromScroll(99_999, 200, 12)).toBe(11);
+    expect(placeFromScroll(100, 0, 12)).toBe(0);
+    expect(placeFromScroll(100, Number.NaN, 12)).toBe(0);
   });
 });
 
