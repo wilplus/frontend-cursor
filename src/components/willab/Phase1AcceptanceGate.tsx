@@ -83,14 +83,32 @@ export default function Phase1AcceptanceGate({
   if (state.kind === "checking") return <LoadingState placement="surface" />;
   if (state.kind === "pass") return <>{children}</>;
 
+  /* A FULL-VIEWPORT TAKEOVER, AND THE REASON IS THE SCROLLBAR (founder
+     2026-09-23: "make it scroll on the whole page, so the scroll bar is not
+     displayed on the right").
+
+     The surface shell is an app shell: `h-full overflow-hidden` on <main>,
+     with a centred `max-w-3xl` column that also clips. That is correct for the
+     Lounge, which is a chat with its own scrollable history — but it meant the
+     acceptance flow's scroll container was the 768px column, so its scrollbar
+     appeared floating inside the content instead of at the edge of the window.
+
+     Escaping with `fixed inset-0` makes the viewport itself the scroller, which
+     is what a takeover should be anyway: this screen is the processing
+     boundary, not a page within the app. The shell and the Lounge are
+     untouched. */
   return (
-    <Phase1AcceptanceFlow
-      // A new policy identity is a new agreement: remount rather than carry a
-      // half-finished walk through the old one's steps.
-      key={`${state.policy.policyVersion}:${attempt}`}
-      policy={state.policy}
-      onAccepted={onAccepted}
-      onStale={onStale}
-    />
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background">
+      <div className="flex min-h-full flex-col">
+        <Phase1AcceptanceFlow
+          // A new policy identity is a new agreement: remount rather than carry
+          // a half-finished walk through the old one's steps.
+          key={`${state.policy.policyVersion}:${attempt}`}
+          policy={state.policy}
+          onAccepted={onAccepted}
+          onStale={onStale}
+        />
+      </div>
+    </div>
   );
 }
