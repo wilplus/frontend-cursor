@@ -139,6 +139,23 @@ function Secondary({
   );
 }
 
+/** How long the chosen country stays visible before the step advances.
+ *
+ *  Founder 2026-09-23: selecting a country should carry you forward on its
+ *  own, Typeform-style, instead of asking for a second tap on "Continue".
+ *
+ *  THE DELAY IS NOT DECORATION. The radio has to visibly fill before the step
+ *  changes, or the tap reads as "the app jumped" rather than "my answer
+ *  registered" — and on a legal screen the second reading is the one that
+ *  matters. Short enough not to feel like waiting, long enough to be seen.
+ *
+ *  ONLY THE COUNTRY STEP DOES THIS, AND THAT IS THE POINT. The two
+ *  attestations on `confirm` are the agreement itself. Consent has to stay a
+ *  deliberate second action: auto-advancing off a tick box is precisely how a
+ *  mis-tap becomes a recorded agreement, and a receipt that names bytes the
+ *  user never meant to accept is worse than an extra tap. */
+const COUNTRY_ADVANCE_MS = 260;
+
 /** A selectable card. One shape for the countries and for the two
  *  attestations, because they are the same kind of question. */
 function Choice({
@@ -268,10 +285,39 @@ export default function Phase1AcceptanceFlow({
     [policy],
   );
 
-  const go = useCallback((to: Step) => {
-    setStep(to);
-    setSeen((prev) => (prev.has(to) ? prev : new Set(prev).add(to)));
+  // A pending country auto-advance, so that leaving the step by any other
+  // route — Back, or a second choice — cancels the one already scheduled.
+  const advance = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelAdvance = useCallback(() => {
+    if (advance.current === null) return;
+    clearTimeout(advance.current);
+    advance.current = null;
   }, []);
+  useEffect(() => cancelAdvance, [cancelAdvance]);
+
+  const go = useCallback(
+    (to: Step) => {
+      cancelAdvance();
+      setStep(to);
+      setSeen((prev) => (prev.has(to) ? prev : new Set(prev).add(to)));
+    },
+    [cancelAdvance],
+  );
+
+  // Choosing a country records it and carries the user on. Re-tapping a
+  // different country before the timer fires replaces both the answer and the
+  // pending transition, so the last tap is always the one that counts.
+  const chooseCountry = useCallback(
+    (code: string) => {
+      setCountry(code);
+      cancelAdvance();
+      advance.current = setTimeout(() => {
+        advance.current = null;
+        go("confirm");
+      }, COUNTRY_ADVANCE_MS);
+    },
+    [cancelAdvance, go],
+  );
 
   // Article 50(1)/(5) is about EXPOSURE, not agreement, so this is written when
   // the notice is shown and not when the button is pressed: someone who reads
@@ -377,24 +423,24 @@ export default function Phase1AcceptanceFlow({
   /* ----------------------------------------------------------- country -- */
 
   if (step === "country") {
-    /* THIS STEP IS THE ONLY LONG ONE, AND IT WAS THE ONLY ONE THAT COULD NOT
-       SCROLL (founder 2026-09-20, on the first acceptance screen ever shown:
-       "I can't scroll the list").
+    /* THIS STEP IS THE ONLY LONG ONE, AND IT COULD NOT SCROLL AT ALL (founder
+       2026-09-20, on the first acceptance screen ever shown: "I can't scroll
+       the list"). `justify-center` had been copied from the steps that fit a
+       phone; with twenty-seven countries a centred flex child that overflows
+       spills off BOTH ends, and the overflowing top stays unreachable even
+       once scrolling works.
 
-       Every other step fits a phone, so `justify-center` was right for them
-       and was copied here. With twenty-seven countries it is actively
-       harmful: a centred flex child that overflows its container spills off
-       BOTH ends, and the overflowing top is unreachable even once scrolling
-       works — so the fix is not only to add `overflow-y-auto`.
+       `m-auto` on the inner column is what fixes that half, and it still does:
+       the margins centre the column while it fits and collapse to nothing once
+       it is taller than the viewport, leaving an ordinary scroll from the true
+       top.
 
-       `m-auto` on the inner column is the pattern that does both: the margins
-       centre it while it fits, and collapse to nothing once it is taller than
-       the viewport, leaving an ordinary scroll from the true top. The
-       document step above solves the same problem the same way, with
-       `min-h-0 flex-1 overflow-y-auto`; this is that idea for a step whose
-       heading scrolls with the content rather than sitting above it. */
+       The scroll CONTAINER has since moved out (founder 2026-09-23). This step
+       used to carry its own `overflow-y-auto`, which put a scrollbar inside the
+       content; Phase1AcceptanceGate now makes the viewport the scroller for the
+       whole flow, so this step only has to lay itself out. */
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-8">
+      <div className="flex flex-1 flex-col px-6 py-8">
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
           <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
@@ -410,7 +456,7 @@ export default function Phase1AcceptanceFlow({
                 key={choice.code}
                 indicator="radio"
                 selected={country === choice.code}
-                onClick={() => setCountry(choice.code)}
+                onClick={() => chooseCountry(choice.code)}
               >
                 <span className="block text-[15px] font-medium text-foreground">
                   {choice.label}
@@ -418,6 +464,10 @@ export default function Phase1AcceptanceFlow({
               </Choice>
             ))}
           </div>
+          {/* Continue stays, even though a tap now advances on its own. Coming
+              BACK from `confirm` lands here with a country already chosen and
+              nothing left to tap — without this button that is a dead end. It
+              is the fallback, not the main path. */}
           <div className="mt-10 flex flex-col items-center">
             <Cta onClick={() => go("confirm")} disabled={country === null}>
               Continue
