@@ -387,13 +387,24 @@ export function DetailsStep({ draft, patch }: { draft: LaneDraft; patch: Patch }
 }
 
 export function ReviewStep({ draft }: { draft: LaneDraft }) {
+  // THE SUMMARY MUST MATCH WHAT WILL ACTUALLY BE WRITTEN. A declined write-up
+  // means no post row is created at all, so listing a Post and a /blog address
+  // here would promise a page that never appears — and the last screen before
+  // publishing is the worst place to be wrong about what publishing does.
   const rows: [string, string][] =
     draft.lane === "exercise"
       ? [
           ["Video", draft.videoSeconds ? `${draft.videoSeconds}s` : "added"],
           ["Fixes", draft.tags.join(", ") || "—"],
-          ["Post", draft.title || "—"],
-          ["Address", `/blog/${draft.slug}`],
+          ...((draft.publishPost
+            ? [
+                ["Post", draft.title || "—"],
+                ["Address", `/blog/${draft.slug}`],
+              ]
+            : [["Post", "none — video and instruction only"]]) as [string, string][]),
+          ...((draft.avatarEligible
+            ? [["Avatar set", draft.avatarSetupLabel || "—"]]
+            : []) as [string, string][]),
         ]
       : [
           ["Title", draft.title || "—"],

@@ -262,6 +262,22 @@ describe("the ticks decide how long the lane is", () => {
   });
 });
 
+describe("the Ready screen promises only what will be written", () => {
+  // The last screen before publishing is the worst place to be wrong about
+  // what publishing does. Asserted on the source because ReviewStep renders
+  // rows rather than exporting them.
+  const REVIEW = code("src/app/cms/new/LaneSteps.tsx");
+
+  it("does not list a Post row unconditionally", () => {
+    expect(REVIEW).toContain("draft.publishPost");
+    expect(REVIEW).toContain("none — video and instruction only");
+  });
+
+  it("shows the setup label when the avatar tick is set", () => {
+    expect(REVIEW).toContain("Avatar set");
+  });
+});
+
 describe("the avatar tick cannot be a tick alone", () => {
   const whereProblem = (draft: LaneDraft) =>
     EXERCISE_STEPS.find((s) => s.id === "where")!.problem(draft);
