@@ -17,7 +17,6 @@ const LOADING = code("src/components/willab/LoadingState.tsx");
 const ANALYSIS = code(
   "src/components/willab/RecordingAnalysisPresentation.tsx",
 );
-const TIP_CYCLE = code("src/components/willab/processingTipCycle.ts");
 const EVENTS = code(
   "src/app/api/v2/lab/recordings/[sessionId]/events/route.ts",
 );
@@ -84,16 +83,24 @@ describe("the processing-to-Ideal-Text journey", () => {
     expect(ANALYSIS).toMatch(/leading-\[1\.28\]/);
     expect(ANALYSIS).toMatch(/tracking-\[-0\.015em\]/);
     expect(ANALYSIS).toMatch(/text-balance/);
-    expect(TIP_CYCLE).toMatch(/TIP_VISIBLE_MS = 7_000/);
-    expect(TIP_CYCLE).toMatch(/TIP_FADE_MS = 420/);
-    expect(ANALYSIS).toMatch(/aria-live="polite"/);
+    /* The two TIP_CYCLE timings and the live region were asserted here until
+       2026-09-23, when the founder replaced the rotation with a scroll: "we
+       want them to be static with a scroll... so that you can scroll as you
+       wait, from one advice to another". What the hero owes is unchanged —
+       the mark, the rail, the honest percent — so the rest of this test
+       stands; only the three lines describing a carousel are gone, with the
+       module they described. */
     expect(ANALYSIS).toMatch(/prefers-reduced-motion: reduce/);
     expect(ANALYSIS).toMatch(/percent === null \? "…"/);
     expect(ANALYSIS).toMatch(
       /aria-busy=\{percent === null \? true : undefined\}/,
     );
     expect(WAIT).not.toMatch(/markSize/);
-    expect(ANALYSIS).not.toMatch(/snap-mandatory/);
+    // INVERTED 2026-09-23. This said the hero must NOT snap, back when the
+    // advice rotated on a timer and a scroller would have been a second idea
+    // on one screen. The founder asked for exactly that scroller, so the
+    // assertion now protects it rather than forbidding it.
+    expect(ANALYSIS).toMatch(/snap-mandatory/);
   });
 });
 
