@@ -55,6 +55,99 @@ export function NameStep({ draft, patch }: { draft: LaneDraft; patch: Patch }) {
   );
 }
 
+/** One tick and its sentence. `locked` draws it on and unpressable — the
+ *  exercise itself is not a choice, and a disabled checkbox that still looks
+ *  clickable is the kind of control people fight with. */
+function Tick({ on, locked, title, note, onToggle }: {
+  on: boolean; locked?: boolean; title: string; note: string;
+  onToggle?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={on}
+      aria-disabled={locked || undefined}
+      disabled={locked}
+      onClick={onToggle}
+      className={`flex w-full items-start gap-3 rounded-[10px] border p-3.5 text-left ${
+        on ? "border-foreground/40 bg-foreground/[0.04]" : "border-border bg-background"
+      } ${locked ? "cursor-default opacity-70" : ""}`}
+    >
+      <span
+        aria-hidden
+        className={`mt-[2px] flex h-[19px] w-[19px] flex-none items-center justify-center rounded-[5px] border-2 text-[12px] font-bold ${
+          on
+            ? "border-foreground bg-foreground text-background"
+            : "border-muted-foreground"
+        }`}
+      >
+        {on ? "✓" : ""}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[15px] font-medium">{title}</span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
+          {note}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Where the recording goes — the screen that decides the shape of the lane.
+ *
+ *  It sits at position two, straight after the camera, because the write-up
+ *  answer removes four later screens. Asking at the end would mean walking a
+ *  cover picker for a post the author had already declined. */
+export function WhereStep({ draft, patch }: { draft: LaneDraft; patch: Patch }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <Tick
+        on
+        locked
+        title="An exercise"
+        note="Always. It is the thing you just recorded."
+      />
+      <Tick
+        on={draft.publishPost}
+        title="Also a journal post"
+        note={
+          draft.publishPost
+            ? "You will write it up, give it a cover and an address."
+            : "Skipped — the exercise goes out on its video and instruction alone."
+        }
+        onToggle={() => patch({ publishPost: !draft.publishPost })}
+      />
+      <Tick
+        on={draft.avatarEligible}
+        title="Usable for a future avatar"
+        note="Same shirt, same angle, same light as the others in its setup."
+        onToggle={() => patch({ avatarEligible: !draft.avatarEligible })}
+      />
+      {draft.avatarEligible ? (
+        <div className="pt-1">
+          <LaneField label="Which setup?">
+            <input
+              value={draft.avatarSetupLabel}
+              onChange={(event) => patch({ avatarSetupLabel: event.target.value })}
+              placeholder="desk-white-shirt-sept"
+              maxLength={120}
+              className={LANE_INPUT}
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </LaneField>
+          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
+            The same label on every clip shot this way. A tick on its own says
+            this one was careful; the label is what says two of them match.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function TagStep({ draft, patch, errors }: {
   draft: LaneDraft; patch: Patch; errors: AdminSpeakingError[];
 }) {

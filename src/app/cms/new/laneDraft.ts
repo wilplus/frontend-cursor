@@ -45,6 +45,25 @@ export interface LaneDraft {
   tags: string[];
   opening: string;
   instruction: string;
+
+  /** Does this exercise also get a write-up on the journal?
+   *
+   *  It used to be forced: the lane's last four screens were the post and
+   *  there was no way past them. Since 2026-09-23 (backend migration 0353) an
+   *  exercise stands on its video and its instruction, and the write-up is a
+   *  companion the author may decline. Untick it and the post screens do not
+   *  render at all — see `stepsFor`. */
+  publishPost: boolean;
+
+  /** May this recording seed a future avatar? Perishable: only the person in
+   *  the room knows whether the shirt, angle and light matched. */
+  avatarEligible: boolean;
+
+  /** WHICH setup it was shot in — the same short string for every clip shot
+   *  the same way. Required whenever `avatarEligible`, because a bare yes says
+   *  a clip was shot carefully but never that two clips MATCH, and matching is
+   *  the whole requirement of a training set. */
+  avatarSetupLabel: string;
 }
 
 export function blankDraft(lane: Lane): LaneDraft {
@@ -68,6 +87,9 @@ export function blankDraft(lane: Lane): LaneDraft {
     tags: [],
     opening: "",
     instruction: "",
+    publishPost: true,
+    avatarEligible: false,
+    avatarSetupLabel: "",
   };
 }
 
@@ -133,11 +155,24 @@ export interface StepDef {
 const needs = (value: string, said: string) =>
   value.trim() ? null : said;
 
+/** The screens that only exist because the exercise also becomes a post.
+ *  Kept as one named list so `stepsFor` drops them as a unit and nobody has to
+ *  remember which four they were. */
+const POST_STEP_IDS = new Set(["writeup", "cover", "details"]);
+
 export const EXERCISE_STEPS: StepDef[] = [
   {
     id: "record",
     heading: "Show the exercise",
     problem: (d) => (d.videoUrl ? null : "Record it, or add a video another way."),
+  },
+  {
+    id: "where",
+    heading: "Where does this go?",
+    problem: (d) =>
+      d.avatarEligible && !d.avatarSetupLabel.trim()
+        ? "Name the setup — the same label for every clip with this shirt, angle and light."
+        : null,
   },
   {
     id: "name",
@@ -166,7 +201,7 @@ export const EXERCISE_STEPS: StepDef[] = [
   {
     id: "writeup",
     heading: "The write-up",
-    problem: (d) => needs(d.body, "An exercise goes live on a published post."),
+    problem: (d) => needs(d.body, "A post with nothing written on it helps nobody."),
   },
   { id: "cover", heading: "Cover", problem: () => null, skippable: true },
   {
@@ -190,13 +225,29 @@ export const POST_STEPS: StepDef[] = [
   },
 ];
 
-export function stepsFor(lane: Lane): StepDef[] {
-  return lane === "exercise" ? EXERCISE_STEPS : POST_STEPS;
+/** The screens this draft actually walks.
+ *
+ *  DRAFT-AWARE SINCE 2026-09-23, and that is the point of the change rather
+ *  than a detail of it. The three ticks on the `where` screen decide the SHAPE
+ *  of the rest of the lane: decline the write-up and the four post screens do
+ *  not render, so nobody walks a cover picker for a post they already said
+ *  they did not want. It is also why `where` sits at position two — the lane
+ *  needs the answer before it can know how long it is.
+ *
+ *  Overload kept for the `Lane`-only callers: they ask "how long is a fresh
+ *  exercise lane", and a fresh one publishes. */
+export function stepsFor(input: Lane | LaneDraft): StepDef[] {
+  const lane = typeof input === "string" ? input : input.lane;
+  if (lane !== "exercise") return POST_STEPS;
+  const publish = typeof input === "string" ? true : input.publishPost;
+  return publish
+    ? EXERCISE_STEPS
+    : EXERCISE_STEPS.filter((s) => !POST_STEP_IDS.has(s.id));
 }
 
 /** 1-based, clamped into the lane. An out-of-range step in the URL lands on a
  *  real screen rather than a blank one. */
-export function clampStep(lane: Lane, raw: unknown): number {
+export function clampStep(lane: Lane | LaneDraft, raw: unknown): number {
   const total = stepsFor(lane).length;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 1;

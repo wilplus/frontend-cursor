@@ -251,7 +251,9 @@ export function adminSaveDiagnosticExercise(
   password: string,
   exercise: {
     exerciseId: string;
-    journalPostId: string;
+    /** Null when the author declined the write-up (2026-09-23): an exercise
+     *  goes live on its video and instruction alone. */
+    journalPostId: string | null;
     title: string;
     instruction: string;
     introductionCopy: string;
@@ -263,11 +265,21 @@ export function adminSaveDiagnosticExercise(
      *  nothing about it. */
     acousticProblemTags: string[];
     active: boolean;
+    /** May this recording seed a future avatar? Perishable — only the person
+     *  in the room knows whether the shirt, angle and light matched, and it
+     *  cannot be recovered from the file later. Nothing reads it yet. */
+    avatarTrainingEligible?: boolean;
+    /** WHICH setup, so a set can actually be assembled. The backend refuses
+     *  the flag without it: a bare yes says a clip was shot carefully but
+     *  never that two clips match. */
+    avatarSetupLabel?: string;
   },
 ) {
   return post("diagnostic-exercises/save", password, {
     exercise_id: exercise.exerciseId,
     journal_post_id: exercise.journalPostId,
+    avatar_training_eligible: exercise.avatarTrainingEligible ?? false,
+    avatar_setup_label: exercise.avatarSetupLabel ?? "",
     title: exercise.title,
     instruction: exercise.instruction,
     introduction_copy: exercise.introductionCopy,
