@@ -106,8 +106,18 @@ export default function LandingClient({
           <div className="mx-auto w-full max-w-5xl px-6">
             {/* Horizontal strip on small screens, settling into a grid once
                 there is room. -mx/px padding keeps the first and last card
-                from clipping against the viewport edge while scrolling. */}
-            <div className="-mx-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-8 sm:gap-y-12 sm:overflow-visible sm:px-0 lg:grid-cols-3">
+                from clipping against the viewport edge while scrolling.
+
+                scroll-px-6 IS NOT DECORATION — without it the px-6 above does
+                nothing on a phone. `snap-start` aligns a card to the
+                container's SCROLLPORT, not to its padding box, so the browser
+                scrolls the strip by exactly the padding (24px) to satisfy the
+                snap and the left gutter disappears: the first card and its
+                text sit flush against the screen edge. scroll-padding moves
+                the snapport in by the same 24px, so the snap and the gutter
+                agree. Measured: without it scrollLeft settles at 24 and the
+                card's left edge is 0; with it, 0 and 24. */}
+            <div className="-mx-6 flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-px-6 px-6 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-8 sm:gap-y-12 sm:overflow-visible sm:scroll-px-0 sm:px-0 lg:grid-cols-3">
               {posts.map((p) => (
                 <div
                   key={p.slug}
