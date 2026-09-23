@@ -41,6 +41,38 @@ export function rememberPlace(cycleEpoch: number, at: number): void {
   PLACE_BY_CYCLE.set(cycleEpoch, at);
 }
 
+/** Where a wait OPENS: a different advice each time, then it stays there.
+ *
+ *  WHY RANDOM AT ALL (founder 2026-09-23: "it should start randomly with
+ *  different advices, but then you can scroll through it"). Making the advice
+ *  static fixed the reading problem and created a smaller one: a person who
+ *  never scrolls would meet the same first advice on every take forever. The
+ *  rotation used to give variety by accident; opening in a different place
+ *  gives it on purpose, and costs nobody the ability to reach the others.
+ *
+ *  ROLLED ONCE PER JOB, WHICH IS THE WHOLE TRICK. It remembers immediately, so
+ *  every later call for the same wait — every remount, every phase handover —
+ *  gets the same answer. A roll on each render would shuffle the advice under
+ *  someone mid-sentence, which is the behaviour this change exists to remove;
+ *  it would be the carousel again, only worse for being unpredictable.
+ *
+ *  `pick` is injectable so a test can state the outcome rather than sample it.
+ *  Called from a ref callback rather than during render: the server has no
+ *  business choosing, and a random value computed while rendering would make
+ *  the server and the client disagree about what they drew. */
+export function openingPlace(
+  cycleEpoch: number,
+  count: number,
+  pick: () => number = Math.random
+): number {
+  const seen = PLACE_BY_CYCLE.get(cycleEpoch);
+  if (typeof seen === "number") return clampPlace(seen, count);
+  if (count <= 0) return 0;
+  const at = clampPlace(Math.floor(pick() * count), count);
+  rememberPlace(cycleEpoch, at);
+  return at;
+}
+
 /** Test seam. Nothing in the app calls it. */
 export function forgetPlaces(): void {
   PLACE_BY_CYCLE.clear();

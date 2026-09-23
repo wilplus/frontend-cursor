@@ -4,9 +4,9 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { availableWaitingTips } from "./processingWaitingTips";
 import {
   clampPlace,
+  openingPlace,
   placeFromScroll,
   rememberPlace,
-  rememberedPlace,
 } from "./waitingTipsDeck";
 import { WAITING_TIPS } from "./waitingTips";
 import { VoiceMark } from "./LoadingState";
@@ -23,7 +23,11 @@ import type { WheelGestureState } from "@/lib/willab/deckScroll";
 /*                                                                            */
 /*  THE ADVICE NO LONGER MOVES ON ITS OWN (founder 2026-09-23: "we want them   */
 /*  to be static with a scroll, the same scroll like you have on the ideal     */
-/*  text, so that you can scroll as you wait, from one advice to another").    */
+/*  text, so that you can scroll as you wait, from one advice to another"),    */
+/*  BUT EACH WAIT OPENS SOMEWHERE NEW ("it should start randomly with          */
+/*  different advices, but then you can scroll through it"). Static is about   */
+/*  what happens while someone reads; the opening advice is about not showing  */
+/*  the same one to the same person on every take for the rest of time.        */
 /*                                                                            */
 /*  It used to cross-fade one tip to the next on a timer. Reading is not on a  */
 /*  timer: a tip could leave mid-sentence, and there was no way back to one    */
@@ -71,26 +75,50 @@ export default function RecordingAnalysisPresentation({
   const moveBehavior = (): ScrollBehavior =>
     motionReduced() ? ("instant" as ScrollBehavior) : "smooth";
 
+  /* `scrollTo` IS NOT EVERYWHERE, and this screen is the live loop. A throw
+     inside the ref callback below would take the whole waiting screen with it,
+     leaving someone mid-recording staring at nothing — so the movement falls
+     back to `scrollTop`, which every engine has had for decades and which
+     lands in exactly the same place, just without the easing.
+     (Found by the test suite: jsdom has no `scrollTo`, and until the opening
+     advice became random the call never fired, because the place was always
+     zero. A guard that only matters once a value stops being zero is the kind
+     that is missing until the day it is needed.) */
+  const scrollTo = (node: HTMLDivElement, top: number, behavior: ScrollBehavior) => {
+    if (typeof node.scrollTo === "function") {
+      node.scrollTo({ top, behavior });
+      return;
+    }
+    node.scrollTop = top;
+  };
+
   const scrollerRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<WheelGestureState>(IDLE_WHEEL_GESTURE);
-  const [place, setPlace] = useState(() =>
-    rememberedPlace(cycleEpoch, waitingTips.length),
-  );
+  /* ZERO ON THE FIRST RENDER, ALWAYS. Where this wait opens is decided below,
+     in the ref callback, and deliberately not here: the opening advice is
+     random, and a random value chosen while rendering would have the server
+     draw one advice and the client another. The correction lands in the same
+     commit, before the browser paints, so nothing is seen to move. */
+  const [place, setPlace] = useState(0);
 
-  /* The remembered place has to be PUT BACK, not just remembered. A remount
-     starts the scroller at the top whatever state says, so the first layout
-     jumps the reader to tip one and the state quietly disagrees with the
-     screen. `instant` because this is a restoration, not a movement: animating
-     back to where they already were would look like the screen moving by
-     itself, which is the thing this change removes. */
-  const restoredFor = useRef<number | null>(null);
+  /* WHERE THE WAIT OPENS, AND WHERE IT RESUMES — one path, because they are
+     the same question asked twice. A job that has not been seen rolls a
+     starting advice and remembers it; a job that has been seen gets back
+     exactly where its reader was, which is what makes a phase handover
+     invisible. `instant` either way: this is placement, not movement, and
+     animating into position would look like the screen moving by itself —
+     the behaviour this change exists to remove. */
+  const placedFor = useRef<number | null>(null);
   const attachScroller = useCallback(
     (node: HTMLDivElement | null) => {
       scrollerRef.current = node;
-      if (!node || restoredFor.current === cycleEpoch) return;
-      restoredFor.current = cycleEpoch;
-      const at = rememberedPlace(cycleEpoch, waitingTips.length);
-      if (at > 0) node.scrollTo({ top: at * node.clientHeight, behavior: "instant" as ScrollBehavior });
+      if (!node || placedFor.current === cycleEpoch) return;
+      placedFor.current = cycleEpoch;
+      const at = openingPlace(cycleEpoch, waitingTips.length);
+      setPlace(at);
+      if (at > 0) {
+        scrollTo(node, at * node.clientHeight, "instant" as ScrollBehavior);
+      }
     },
     [cycleEpoch, waitingTips.length],
   );
@@ -101,7 +129,7 @@ export default function RecordingAnalysisPresentation({
       const at = clampPlace(next, waitingTips.length);
       setPlace(at);
       rememberPlace(cycleEpoch, at);
-      node?.scrollTo({ top: at * node.clientHeight, behavior: moveBehavior() });
+      if (node) scrollTo(node, at * node.clientHeight, moveBehavior());
     },
     [cycleEpoch, waitingTips.length],
   );

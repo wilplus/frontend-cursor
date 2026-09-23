@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   forgetPlaces,
+  openingPlace,
   placeFromScroll,
   rememberPlace,
   rememberedPlace,
@@ -165,6 +166,60 @@ describe("the reader keeps their place across a remount", () => {
     // The oldest are dropped; the most recent are still answerable.
     expect(rememberedPlace(19, 12)).toBe(1);
     expect(rememberedPlace(0, 12)).toBe(0);
+  });
+});
+
+describe("each wait opens somewhere new", () => {
+  /* Founder 2026-09-23: "it should start randomly with different advices, but
+     then you can scroll through it." Making the advice static fixed the
+     reading problem and created a smaller one — a person who never scrolls
+     would meet the same first advice on every take forever. */
+  beforeEach(() => forgetPlaces());
+
+  it("opens on the advice the roll chose", () => {
+    expect(openingPlace(1_000, 12, () => 0.5)).toBe(6);
+    forgetPlaces();
+    expect(openingPlace(1_000, 12, () => 0)).toBe(0);
+  });
+
+  it("never lands past the end on a roll of almost one", () => {
+    expect(openingPlace(1_000, 12, () => 0.999_999)).toBe(11);
+  });
+
+  it("ROLLS ONCE PER JOB, so a remount cannot shuffle it", () => {
+    // The whole trick. A roll on every render would move the advice under
+    // someone mid-sentence — the carousel again, only unpredictable.
+    const first = openingPlace(1_000, 12, () => 0.25);
+    expect(openingPlace(1_000, 12, () => 0.9)).toBe(first);
+    expect(openingPlace(1_000, 12, () => 0.1)).toBe(first);
+  });
+
+  it("does not re-roll over a place the reader scrolled to", () => {
+    openingPlace(1_000, 12, () => 0.25);
+    rememberPlace(1_000, 9);
+    expect(openingPlace(1_000, 12, () => 0.8)).toBe(9);
+  });
+
+  it("rolls separately for a different job", () => {
+    expect(openingPlace(1_000, 12, () => 0.25)).toBe(3);
+    expect(openingPlace(2_000, 12, () => 0.75)).toBe(9);
+  });
+
+  it("survives a collection of one, and of none", () => {
+    expect(openingPlace(1_000, 1, () => 0.9)).toBe(0);
+    forgetPlaces();
+    expect(openingPlace(1_000, 0, () => 0.9)).toBe(0);
+  });
+
+  it("spreads across the collection rather than favouring one end", () => {
+    // Not a distribution proof — just that the mapping uses the whole range,
+    // which a stray Math.floor or an off-by-one would break.
+    const seen = new Set<number>();
+    for (let roll = 0; roll < 12; roll += 1) {
+      forgetPlaces();
+      seen.add(openingPlace(1_000, 12, () => roll / 12));
+    }
+    expect(seen.size).toBe(12);
   });
 });
 
