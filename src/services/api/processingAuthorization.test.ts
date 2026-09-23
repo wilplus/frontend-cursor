@@ -143,6 +143,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "pl",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
@@ -150,6 +151,41 @@ describe("sending the acceptance", () => {
     expect(body.privacy_copy_sha256).toBe(PRIVACY_HASH);
     expect(body.ai_notice_copy_sha256).toBe(NOTICE_HASH);
     expect(body.agreement_copy_sha256).toBe(AGREEMENT_HASH);
+  });
+
+  it("sends only the optional purposes that were ticked", async () => {
+    const policy = await acceptedPolicy();
+    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
+    await acceptAuthorization({
+      policy,
+      countryOfResidence: "pl",
+      locale: "pl-PL",
+      clientVersion: "web-1",
+      optionalPurposes: ["personalized_exercise_recommendation"],
+      idempotencyKey: "attempt-1",
+    });
+    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
+    expect(body.optional_purposes).toEqual([
+      "personalized_exercise_recommendation",
+    ]);
+  });
+
+  it("sends an empty array when practice was declined", async () => {
+    // A recorded no. The receipt must be able to distinguish "said no" from
+    // "was never asked", and an absent field cannot.
+    const policy = await acceptedPolicy();
+    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
+    await acceptAuthorization({
+      policy,
+      countryOfResidence: "pl",
+      locale: "pl-PL",
+      clientVersion: "web-1",
+      optionalPurposes: [],
+      idempotencyKey: "attempt-1",
+    });
+    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
+    expect(body.optional_purposes).toEqual([]);
+    expect("optional_purposes" in body).toBe(true);
   });
 
   it("never sends any policy COPY back to the server", async () => {
@@ -163,6 +199,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "pl",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     const raw = String(spy.mock.calls[0][1]?.body);
@@ -179,6 +216,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "pl",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
@@ -194,6 +232,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "  PL ",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     expect(JSON.parse(String(spy.mock.calls[0][1]?.body)).country_of_residence)
@@ -211,6 +250,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "pl",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     expect(result.kind).toBe("stale");
@@ -225,6 +265,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "de",
       locale: "de-DE",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-1",
     });
     expect(result.kind).toBe("rejected");
@@ -239,6 +280,7 @@ describe("sending the acceptance", () => {
       countryOfResidence: "pl",
       locale: "pl-PL",
       clientVersion: "web-1",
+      optionalPurposes: [],
       idempotencyKey: "attempt-7",
     });
     expect(JSON.parse(String(spy.mock.calls[0][1]?.body)).idempotency_key)

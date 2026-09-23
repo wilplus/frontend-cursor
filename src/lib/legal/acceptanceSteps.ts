@@ -112,6 +112,34 @@ export interface ConfirmState {
   ageAttested: boolean;
   /** Art 9(2)(a) — the separate explicit consent for what a voice can reveal. */
   sensitiveAttested: boolean;
+  /** Art 6(1)(a) — practice, and the profile that personalises it.
+   *
+   *  REFUSABLE, and deliberately absent from `canSubmit`. Someone who leaves
+   *  this off gets the whole service minus practice; if it gated the button it
+   *  would be a required purpose wearing an optional tick, which is the Art
+   *  7(4) defect the 2026-09-23 policy exists to remove. */
+  practiceOptIn: boolean;
+}
+
+/** The purposes the optional tick stands for.
+ *
+ *  TWO ROWS, ONE CHOICE. The recommendation and the profile that makes it
+ *  personal are one decision from the user's side — a profile that
+ *  personalises nothing, or exercises that cannot be personalised, is a choice
+ *  with no meaning. They travel together in `p_optional_purposes`, which the
+ *  accept RPC validates against the policy: a purpose that is not in it, or
+ *  one that is required, is refused rather than silently recorded. */
+export const OPTIONAL_PURPOSE_IDS: readonly string[] = [
+  "personalized_exercise_recommendation",
+  "individual_learning_profile",
+];
+
+/** What to send as `optional_purposes` for this state. Empty when declined —
+ *  an empty array is a recorded "no", not a missing answer. */
+export function optionalPurposesFor(
+  state: Pick<ConfirmState, "practiceOptIn">,
+): readonly string[] {
+  return state.practiceOptIn ? OPTIONAL_PURPOSE_IDS : [];
 }
 
 /** Whether "Agree and continue" may be pressed.
