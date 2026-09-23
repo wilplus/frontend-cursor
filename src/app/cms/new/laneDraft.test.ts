@@ -57,11 +57,18 @@ function full(over: Partial<LaneDraft> = {}): LaneDraft {
 }
 
 describe("the lanes are the shape the founder locked", () => {
-  it("is eight steps for an exercise and six for a post", () => {
-    expect(EXERCISE_STEPS).toHaveLength(8);
+  it("is nine steps for an exercise and six for a post", () => {
+    // Nine since 2026-09-23: `where` joined at position two.
+    expect(EXERCISE_STEPS).toHaveLength(9);
     expect(POST_STEPS).toHaveLength(6);
     expect(stepsFor("exercise")).toBe(EXERCISE_STEPS);
     expect(stepsFor("post")).toBe(POST_STEPS);
+  });
+
+  it("asks where it goes straight after the camera", () => {
+    // Position two, not the end: the answer REMOVES four later screens, and
+    // asking last would mean walking a cover picker for a declined post.
+    expect(EXERCISE_STEPS[1].id).toBe("where");
   });
 
   it("opens the exercise lane on the camera", () => {
@@ -118,11 +125,21 @@ describe("a step will not let you past what it needs", () => {
     expect(problemOf("words", full({ instruction: " " }))).toMatch(/what they do/i);
   });
 
-  it("says WHY the write-up is not optional", () => {
-    // It is only here because the founder kept the coupling: an exercise goes
-    // live on a published post. The message should say that rather than
-    // sounding like blogging for its own sake.
-    expect(problemOf("writeup", full({ body: "" }))).toMatch(/published post/);
+  it("still refuses an EMPTY write-up once you have asked for one", () => {
+    // REWRITTEN 2026-09-23. This used to assert the message named the
+    // coupling ("an exercise goes live on a published post"), because the
+    // write-up was compulsory. It no longer is — you decline it on the `where`
+    // screen. What survives is the narrower rule: having ASKED for a post, you
+    // cannot ship a blank one to the public journal.
+    expect(problemOf("writeup", full({ body: "" }))).toBeTruthy();
+    expect(problemOf("writeup", full({ body: "Something." }))).toBeNull();
+  });
+
+  it("and the screen is simply gone when the write-up was declined", () => {
+    // The stronger guarantee: not "an empty post is refused" but "there is no
+    // post screen to be empty".
+    expect(stepsFor(full({ publishPost: false })).some((s) => s.id === "writeup"))
+      .toBe(false);
   });
 });
 
@@ -166,7 +183,7 @@ describe("the draft survives the lane", () => {
 describe("a bad URL lands somewhere real", () => {
   it("clamps the step into the lane", () => {
     expect(clampStep("exercise", 0)).toBe(1);
-    expect(clampStep("exercise", 99)).toBe(8);
+    expect(clampStep("exercise", 99)).toBe(9);
     expect(clampStep("post", 99)).toBe(6);
     expect(clampStep("exercise", "3")).toBe(3);
   });
@@ -207,5 +224,86 @@ describe("the doors into the lane", () => {
 
   it("bounces to the CMS when the tab has no password", () => {
     expect(CLIENT).toContain('router.replace("/cms")');
+  });
+});
+
+
+describe("the ticks decide how long the lane is", () => {
+  const POST_ONLY = ["writeup", "cover", "details"];
+
+  it("keeps the post screens when the write-up is kept", () => {
+    const ids = stepsFor(full({ publishPost: true })).map((s) => s.id);
+    for (const id of POST_ONLY) expect(ids).toContain(id);
+    expect(ids).toHaveLength(9);
+  });
+
+  it("drops exactly the post screens when it is declined", () => {
+    const ids = stepsFor(full({ publishPost: false })).map((s) => s.id);
+    for (const id of POST_ONLY) expect(ids).not.toContain(id);
+    expect(ids).toEqual(["record", "where", "name", "fixes", "words", "publish"]);
+  });
+
+  it("still ends on Ready, so an exercise without a post can still ship", () => {
+    // The point of the change. If this lane could not finish, the tick would
+    // mean "saved and never offered" — the outcome the founder rejected.
+    const steps = stepsFor(full({ publishPost: false }));
+    expect(steps[steps.length - 1].id).toBe("publish");
+  });
+
+  it("clamps a URL step into the SHORTENED lane", () => {
+    // Someone deep in the lane who unticks the write-up must not land on a
+    // screen that no longer exists.
+    expect(clampStep(full({ publishPost: false }), 9)).toBe(6);
+    expect(clampStep(full({ publishPost: true }), 9)).toBe(9);
+  });
+
+  it("a fresh lane publishes, so the Lane-only callers still work", () => {
+    expect(stepsFor("exercise")).toHaveLength(9);
+  });
+});
+
+describe("the Ready screen promises only what will be written", () => {
+  // The last screen before publishing is the worst place to be wrong about
+  // what publishing does. Asserted on the source because ReviewStep renders
+  // rows rather than exporting them.
+  const REVIEW = code("src/app/cms/new/LaneSteps.tsx");
+
+  it("does not list a Post row unconditionally", () => {
+    expect(REVIEW).toContain("draft.publishPost");
+    expect(REVIEW).toContain("none — video and instruction only");
+  });
+
+  it("shows the setup label when the avatar tick is set", () => {
+    expect(REVIEW).toContain("Avatar set");
+  });
+});
+
+describe("the avatar tick cannot be a tick alone", () => {
+  const whereProblem = (draft: LaneDraft) =>
+    EXERCISE_STEPS.find((s) => s.id === "where")!.problem(draft);
+
+  it("lets you past with nothing ticked but the exercise", () => {
+    expect(whereProblem(full({ avatarEligible: false }))).toBeNull();
+  });
+
+  it("will not go past a ticked avatar with no setup named", () => {
+    // A bare yes says this clip was shot carefully; it cannot say two clips
+    // MATCH, and matching is the whole requirement of a training set.
+    const problem = whereProblem(
+      full({ avatarEligible: true, avatarSetupLabel: "" }),
+    );
+    expect(problem).toBeTruthy();
+    expect(problem).toContain("setup");
+  });
+
+  it("treats whitespace as no label", () => {
+    expect(whereProblem(full({ avatarEligible: true, avatarSetupLabel: "   " })))
+      .toBeTruthy();
+  });
+
+  it("passes once the setup is named", () => {
+    expect(
+      whereProblem(full({ avatarEligible: true, avatarSetupLabel: "desk-white-shirt" })),
+    ).toBeNull();
   });
 });

@@ -36,7 +36,7 @@ import {
 import { RecordStep } from "./RecordStep";
 import {
   BodyStep, CoverStep, DetailsStep, ExcerptStep, NameStep,
-  ReviewStep, TagStep, TitleStep, WordsStep,
+  ReviewStep, TagStep, TitleStep, WhereStep, WordsStep,
 } from "./LaneSteps";
 
 const PW_KEY = "willpower.journal.pw";
@@ -131,8 +131,12 @@ export default function NewContentClient({ path }: { path: string[] }) {
 
   const lane: Lane | null =
     path[0] === "exercise" ? "exercise" : path[0] === "post" ? "post" : null;
-  const steps = lane ? stepsFor(lane) : [];
-  const step = lane ? clampStep(lane, path[1] ?? 1) : 0;
+  // Draft-aware: the `where` ticks decide how long this lane is, so the step
+  // list has to be read off the draft rather than the lane name. Before the
+  // draft is restored a fresh lane is the right assumption — it publishes.
+  const shape = draft ?? lane;
+  const steps = shape ? stepsFor(shape) : [];
+  const step = shape ? clampStep(shape, path[1] ?? 1) : 0;
   const current = steps[step - 1];
 
   useEffect(() => {
@@ -203,8 +207,9 @@ export default function NewContentClient({ path }: { path: string[] }) {
     [draft, patch],
   );
 
-  /** Write the post. The exercise lane needs one too — the founder kept the
-   *  coupling, so an exercise is a published post plus a mapping. */
+  /** Write the post. The exercise lane no longer NEEDS one — since 2026-09-23
+   *  an exercise stands on its video and instruction — so `finish` calls this
+   *  only when the author kept the write-up tick. */
   async function savePost(d: LaneDraft, publish: boolean) {
     const fields = {
       slug: d.slug || slugify(d.title),
@@ -239,14 +244,24 @@ export default function NewContentClient({ path }: { path: string[] }) {
     if (!draft || busy) return;
     setBusy(true);
     setSaid(null);
-    const post = await savePost(draft, publish);
-    if (!post.id) { setBusy(false); setSaid(post.message); return; }
-    patch({ postId: post.id });
+
+    // NO POST UNLESS THE AUTHOR ASKED FOR ONE. An exercise that declined the
+    // write-up has no title page, no cover and no address — writing an empty
+    // one anyway would put a blank entry on the public journal, which is worse
+    // than the missing explanation it was meant to stand in for.
+    const wantsPost = draft.lane !== "exercise" || draft.publishPost;
+    let postId: string | null = null;
+    if (wantsPost) {
+      const post = await savePost(draft, publish);
+      if (!post.id) { setBusy(false); setSaid(post.message); return; }
+      postId = post.id;
+      patch({ postId });
+    }
 
     if (draft.lane === "exercise") {
       const saved = await adminSaveDiagnosticExercise(password, {
         exerciseId: draft.exerciseId,
-        journalPostId: post.id,
+        journalPostId: postId,
         title: draft.title,
         instruction: draft.instruction,
         introductionCopy: draft.opening,
@@ -254,6 +269,8 @@ export default function NewContentClient({ path }: { path: string[] }) {
         explanationVideoUrl: draft.videoUrl,
         acousticProblemTags: draft.tags,
         active: publish,
+        avatarTrainingEligible: draft.avatarEligible,
+        avatarSetupLabel: draft.avatarSetupLabel.trim(),
       });
       if (!saved.ok) { setBusy(false); setSaid(saved.message); return; }
     }
@@ -281,6 +298,7 @@ export default function NewContentClient({ path }: { path: string[] }) {
             onBusyChange={setUploading}
           />
         );
+      case "where": return <WhereStep draft={draft} patch={patch} />;
       case "name": return <NameStep draft={draft} patch={patch} />;
       case "title": return <TitleStep draft={draft} patch={patch} idKeep="-" />;
       case "fixes": return <TagStep draft={draft} patch={patch} errors={errors} />;
