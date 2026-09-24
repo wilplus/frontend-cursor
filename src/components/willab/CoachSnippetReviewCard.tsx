@@ -65,6 +65,20 @@ import { CoachCard, CoachEyebrow, CoachMetaPill } from "./coachChrome";
  *  Lifted out of CoachSnippetReviewCard deliberately: the card is one of the
  *  functions the complexity ratchet has grandfathered, and every branch added
  *  inside it has to be paid for by taking one out. */
+/** The speaker's own five answers, in their own wording.
+ *
+ *  Read from the OWNER chip list rather than the rater's: the coach is being
+ *  shown what the speaker was asked and what they picked, so "No — Not
+ *  confident" is the honest read-back and a bare "No" would be a paraphrase of
+ *  someone else's answer. Copy is coach-facing and needs founder sign-off. */
+const OWNER_ANSWER_LABELS: Record<string, string> = {
+  yes: "Yes — Confident",
+  in_between: "In-between",
+  no: "No — Not confident",
+  not_sure: "Not sure",
+  audio_unclear: "Audio unclear",
+};
+
 function renderBlindPiece(options: {
   snippet: CoachReviewSnippet;
   revealedTranscript: string;
@@ -109,6 +123,29 @@ function renderBlindPiece(options: {
              the unavailable-slide fallback already uses. */
           className="aspect-video w-full"
         />
+      ) : null}
+      {/* WHAT THE SPEAKER SAID ABOUT THIS SAME MOMENT (founder 2026-09-24:
+          "in the coach review I want to see what the user judged after I
+          judge it").
+
+          It arrives EMPTY until the coach has committed their own answer —
+          the server withholds it on the transcript's rule, so there is
+          nothing here to hide and nothing to leak. Rendering it at all is
+          therefore already proof the coach has answered.
+
+          IT IS LABELLED AS THEIRS, not merged into the coach's own row. L3
+          keeps owner routing and coach judgment in separate lanes; two
+          answers to the same question sitting side by side, each named,
+          is the readable form of that separation rather than a breach of
+          it. Their wording, from the owner chip list, so the coach reads
+          back exactly what the speaker was offered. */}
+      {snippet.ownerAnswer ? (
+        <p className="text-[13px] text-muted-foreground">
+          The speaker said:{" "}
+          <span className="font-medium text-foreground">
+            {OWNER_ANSWER_LABELS[snippet.ownerAnswer] ?? snippet.ownerAnswer}
+          </span>
+        </p>
       ) : null}
       {/* WAS THIS ONE BOOKMARKED. The word and nothing else: not the tier, not
           the colour, not whether the machine thought it confident — founder

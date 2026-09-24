@@ -84,6 +84,7 @@ function snippet(id: string) {
     recordingKind: "spoken" as const,
     takeSessionId: null,
     bookmarked: false,
+    ownerAnswer: "",
     coachState: {
       note: "",
       tag: null,

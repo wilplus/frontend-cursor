@@ -55,6 +55,12 @@ export interface CoachReviewSnippet {
    *  tier behind it (green / orange) never crosses, because that is the
    *  machine's read and AC-9 keeps it off a rater's screen. */
   bookmarked: boolean;
+  /** What the SPEAKER answered about this same moment, once THIS coach has
+   *  committed their own (founder 2026-09-24: "I want to see what the user
+   *  judged after I judge it"). "" until then, and it is "" on the wire too —
+   *  the server withholds it rather than the browser hiding it. One of the
+   *  five values the same question takes. */
+  ownerAnswer: string;
   id: string;
   index: number;
   transcript: string;
@@ -250,6 +256,7 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
     // boolean and nothing else: never the tier, never the colour. Safe-ahead —
     // an older backend sends nothing and every dot renders as it does today.
     bookmarked: r.bookmarked === true,
+    ownerAnswer: typeof r.owner_answer === "string" ? r.owner_answer : "",
   };
 }
 

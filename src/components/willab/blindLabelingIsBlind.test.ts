@@ -121,6 +121,18 @@ describe("the blind labeling surface shows no machine read", () => {
     }
   });
 
+  it("reads the speaker's answer from the server-gated field", () => {
+    /* Founder 2026-09-24: "what the user judged AFTER I judge it." The gate
+       is the server's — `owner_answer` arrives empty until this coach has
+       committed, exactly as the transcript does — so the fence here is that
+       the blind tree reads THAT field and never reaches for an ungated one.
+       A component that hid it with CSS would put the speaker's answer in the
+       network payload of a coach who has not answered yet. */
+    const blindPass = blindPieceBody();
+    expect(blindPass).toContain("snippet.ownerAnswer");
+    expect(blindPass).not.toContain("coachState.ratingValue");
+  });
+
   it("shows the bookmark as a bare word, never as its tier", () => {
     /* Founder 2026-09-24: "a small label on the snippet saying that this is
        the bookmarked; without stating that it's confident or not." The tier
