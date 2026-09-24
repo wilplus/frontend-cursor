@@ -309,8 +309,42 @@ export default function CoachReviewOverlay({
 
      The hard fence is unchanged and still structural: this branch returns
      before any slide, note, surface toggle or practice control is
-     CONSTRUCTED, and the backend redacts the same fields independently. */
-  if (!session.contextUnlocked) {
+     CONSTRUCTED, and the backend redacts the same fields independently.
+
+     A WALK HOLDS THIS SCREEN UNTIL THE COACH LEAVES IT (founder 2026-09-24:
+     "the coach flow doesn't work as intended; after the confident voices are
+     judged and some other moments").
+
+     `contextUnlocked` is the server saying "this coach has now answered every
+     piece", so it flips on the LAST answer of the queue — the same moment the
+     forward control finally appears. Reading it alone as "leave the blind
+     pass" meant the branch, and the only control that carries the walk
+     forward, vanished on the refetch that the last answer itself triggered.
+     What the coach actually saw: they answered the last piece, the screen
+     swapped under them into the contextual pass, and "Judge take 2" / "On to
+     the feedback" was never there to press. The contextual pass has no
+     forward control of its own and its one exit is the ✕, which in the Lounge
+     calls judge.stop() — so take 2 was never judged and the Feedbacks review
+     never opened. A dead end, not a glitch.
+
+     SPEC.md puts the contextual pass on a DETOUR — "a take row on the
+     Feedbacks review opens that take's contextual pass" — never inside the
+     walk, which is judgement, take by take, then the feedback. So while a
+     walk runs, this screen stays, and the coach leaves it by taking its one
+     action.
+
+     THE TEST IS `onQueueComplete`, and that is its documented contract rather
+     than a proxy: useJudgeWalk returns it undefined exactly when no walk is
+     running. The detour keeps working for the same reason — the star panel's
+     take rows call the Lounge's openReview directly, starting no walk, so a
+     deep-linked or detoured review still opens its contextual pass the moment
+     the server unlocks it.
+
+     It cannot weaken the fence: it keeps the BLIND branch rendering for
+     longer, and every card here is still constructed with
+     contextUnlocked={false}. */
+  const walking = onQueueComplete !== undefined;
+  if (!session.contextUnlocked || walking) {
     const current = session.snippets[cursor];
     const answeredHere = (s: (typeof session.snippets)[number]) => {
       if (judged[s.id]) return true;
