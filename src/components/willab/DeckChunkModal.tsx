@@ -655,8 +655,28 @@ export default function DeckChunkModal({
    *  does not. A quote that no longer resolves saves nothing rather than
    *  guessing at a position. */
   async function saveEmphasis(phrase: string | null): Promise<boolean> {
-    const anchor = phrase ? quoteSpan(draft, phrase) : null;
-    if (!anchor) return true;
+    /* NO PHRASE AND AN UNRESOLVABLE PHRASE ARE NOT THE SAME ANSWER, and
+       collapsing them was a second, quieter bug on this path. Both produced a
+       null anchor and both returned true, so a speaker whose tapped words no
+       longer resolved against the draft watched the ladder advance past the
+       only step that records them, with nothing saved and nothing said.
+
+       Nothing chosen is still "nothing to save": that is the honest true.
+       Words chosen that cannot be anchored is a failure, and it stops the
+       ladder exactly as a rejected write does — the comment above is right
+       that we must not guess at a position, but refusing to guess is not the
+       same as reporting success.
+
+       TODO(copy, founder): this reuses `failRoot`, which reads as though the
+       save was rejected. A phrase that no longer matches the edited text is a
+       different thing to say, and saying it properly needs new user-facing
+       copy — held for sign-off rather than invented here. */
+    if (!phrase) return true;
+    const anchor = quoteSpan(draft, phrase);
+    if (!anchor) {
+      setError(COPY.failRoot);
+      return false;
+    }
     const ok = await onSetRootPhrase(anchor);
     if (!ok) setError(COPY.failRoot);
     return ok;

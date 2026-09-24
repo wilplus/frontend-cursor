@@ -1073,3 +1073,39 @@ describe("declining the exercise keeps the emphasis step", () => {
     expect(buttonLabels()).toContain("Lock");
   });
 });
+
+/* ── A PHRASE THAT CANNOT BE ANCHORED IS A FAILURE, NOT A SUCCESS ──────────
+ * `saveEmphasis` used to fold two different answers into one `return true`:
+ * "no phrase was chosen" (nothing to save — honestly true) and "the chosen
+ * phrase no longer resolves against the draft" (a failure). Both produced a
+ * null anchor, so the second advanced the ladder past the only step that
+ * records the words, with nothing written and nothing said.
+ *
+ * The comment on that path is right that a span must never be guessed at.
+ * Refusing to guess is not the same as reporting success.
+ */
+describe("an emphasis phrase that cannot be anchored", () => {
+  const strayEmphasis = suggestion({
+    id: "s-style-stray",
+    feedbackFamily: "rewrite_clarity",
+    kind: "bold",
+    quote: "words this paragraph never contained",
+    takeSessionId: "take-1",
+  });
+
+  it("stops the ladder and says so, instead of advancing silently", async () => {
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    vi.mocked(props.onClose).mockClear();
+
+    await renderLadder({ style: strayEmphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    expect(container.textContent).toContain("With emphasis");
+    await click("Use this phrase");
+
+    // Nothing was sent — there was no span to send.
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+    // And the speaker is told, still standing on the step.
+    expect(container.textContent).toContain("Couldn't save those words");
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+});
