@@ -20,6 +20,7 @@ vi.mock("@/services/api/labRecording", () => ({ fetchGuestLabReadout }));
 
 import {
   recheckVerdict,
+  probeTakeVerdict,
   useFailedTakeRecheck,
   type FailedTakeVerdict,
 } from "./useFailedTakeRecheck";
@@ -116,5 +117,49 @@ describe("the hook", () => {
     });
     expect(fetchGuestLabReadout).toHaveBeenCalledTimes(2);
     expect(onVerdict).toHaveBeenLastCalledWith("take-3", "still_failed");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  EVIDENCE BEFORE THE CLAIM (founder 2026-09-24).                            */
+/*                                                                            */
+/*  "Ideal text generation fails!" — shown as the ready v1.0 card with "we     */
+/*  couldn't create your Ideal Text" underneath it. The document phase's own   */
+/*  120-second cap had expired in the tab and the browser wrote that card      */
+/*  straight into the durable thread WITHOUT ASKING THE SERVER. A cap          */
+/*  releasing the screen is a fact about this tab; the card is a claim about   */
+/*  the take, and this is the check that now stands between the two.           */
+/* -------------------------------------------------------------------------- */
+describe("asking the server before claiming a take failed", () => {
+  beforeEach(() => {
+    fetchGuestLabReadout.mockReset();
+  });
+
+  it("does not agree while the backend is still working", async () => {
+    fetchGuestLabReadout.mockResolvedValue(answer("processing"));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("running");
+  });
+
+  it("does not agree once the backend has finished", async () => {
+    fetchGuestLabReadout.mockResolvedValue(answer("readout_ready"));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("recovered");
+  });
+
+  it("agrees when the server says the same thing", async () => {
+    fetchGuestLabReadout.mockResolvedValue(
+      answer("failed_ideal_text_unconfirmed"),
+    );
+    await expect(probeTakeVerdict("s1")).resolves.toBe("still_failed");
+  });
+
+  it("is unknown, never a verdict, when the server cannot be reached", async () => {
+    fetchGuestLabReadout.mockRejectedValue(new Error("offline"));
+    await expect(probeTakeVerdict("s1")).resolves.toBe("unknown");
+  });
+
+  it("asks about the take it was given", async () => {
+    fetchGuestLabReadout.mockResolvedValue(answer("processing"));
+    await probeTakeVerdict("session-42");
+    expect(fetchGuestLabReadout).toHaveBeenCalledWith("session-42");
   });
 });

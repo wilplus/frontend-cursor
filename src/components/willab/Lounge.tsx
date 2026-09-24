@@ -24,6 +24,7 @@ import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import {
   useFailedTakeRecheck,
+  probeTakeVerdict,
   type FailedTakeVerdict,
 } from "./useFailedTakeRecheck";
 import { useUserId } from "./useUserId";
@@ -633,39 +634,74 @@ export default function Lounge({
       if (!target.arcId || target.takeIndex !== 1) return;
       if (idealTextFailurePublishRef.current.has(target.sessionId)) return;
       idealTextFailurePublishRef.current.add(target.sessionId);
-
-      const existing = readProcessingTake(userId);
-      if (existing?.sessionId === target.sessionId) {
-        markProcessingTakeIdealTextUnconfirmed(userId, target.sessionId);
-      } else {
-        const now = Date.now();
-        writeProcessingTake(userId, {
-          sessionId: target.sessionId,
-          arcId: target.arcId,
-          takeIndex: 1,
-          startedAt: now,
-          phaseStartedAt: now,
-          phase: "analysis",
-          status: "failed_ideal_text_unconfirmed",
-          progress: { stage: "ideal_text", percent: null },
-        });
-      }
-      setResumeWatch(null);
       try {
-        await thread.append(
-          idealTextUnconfirmedDraft({
+        // EVIDENCE BEFORE THE CLAIM (founder 2026-09-24). This card is
+        // durable and it is what the speaker reads, so it may not rest on a
+        // timer alone — the document cap expiring in this tab says nothing
+        // about whether the backend made the document.
+        const verdict = await probeTakeVerdict(target.sessionId);
+        if (verdict === "recovered") {
+          // The take is done. There was never a failure to publish.
+          clearProcessingTake(userId, target.sessionId);
+          setProcessingResume(null);
+          setResumeWatch(null);
+          await reload().catch(() => undefined);
+          return;
+        }
+        if (verdict === "running") {
+          // Still working. The cap released the screen; that is all it may
+          // do. PUT THE MARKER BACK -- syncMarker re-enters this path every
+          // 500ms while the marker reads terminal, so returning without
+          // repairing it would poll the readout twice a second. Same repair
+          // the failed-note recheck makes on the same verdict.
+          const marker = readProcessingTake(userId);
+          if (marker?.sessionId === target.sessionId) {
+            const now = Date.now();
+            writeProcessingTake(userId, {
+              ...marker,
+              status: "processing",
+              phase: "analysis",
+              startedAt: now,
+              phaseStartedAt: now,
+              progress: { stage: "processing_recording", percent: 0 },
+            });
+          }
+          return;
+        }
+
+        const existing = readProcessingTake(userId);
+        if (existing?.sessionId === target.sessionId) {
+          markProcessingTakeIdealTextUnconfirmed(userId, target.sessionId);
+        } else {
+          const now = Date.now();
+          writeProcessingTake(userId, {
             sessionId: target.sessionId,
             arcId: target.arcId,
             takeIndex: 1,
-          }),
-        );
-        // Clear only after the session-keyed card has been durably appended.
-        // If delivery fails, the terminal marker survives and this observer
-        // retries instead of letting the failure disappear.
-        clearProcessingTake(userId, target.sessionId);
-        setProcessingResume(null);
-      } catch {
-        await reload().catch(() => undefined);
+            startedAt: now,
+            phaseStartedAt: now,
+            phase: "analysis",
+            status: "failed_ideal_text_unconfirmed",
+            progress: { stage: "ideal_text", percent: null },
+          });
+        }
+        setResumeWatch(null);
+        try {
+          await thread.append(
+            idealTextUnconfirmedDraft({
+              sessionId: target.sessionId,
+              arcId: target.arcId,
+              takeIndex: 1,
+            }),
+          );
+          // Clear only after the session-keyed card has been durably
+          // appended. If delivery fails, the terminal marker survives and
+          // this observer retries instead of letting the failure disappear.
+          clearProcessingTake(userId, target.sessionId);
+          setProcessingResume(null);
+        } catch {
+          await reload().catch(() => undefined);
+        }
       } finally {
         idealTextFailurePublishRef.current.delete(target.sessionId);
       }
@@ -992,6 +1028,40 @@ export default function Lounge({
   useFailedTakeRecheck({
     sessionId: failedNoteSession(isLabOverlay(state), processingResume),
     onVerdict: onFailedTakeVerdict,
+  });
+
+  /** THE CARD MUST NOT OUTLIVE THE FAILURE EITHER (founder 2026-09-24).
+   *
+   *  The rule above was written for the local note. The Lounge card is
+   *  DURABLE, and it is the one the founder was looking at: "we couldn't
+   *  create your Ideal Text" sitting directly under the card announcing that
+   *  the ideal text is ready. Nothing on any path ever withdrew it.
+   *
+   *  Same rule, same evidence. While such a card is the newest thing said
+   *  about this project's document, ask the server about its take; when the
+   *  server says the take is done, the backend has already retracted the card
+   *  on that same read, so reloading the thread is all this has to do.
+   *
+   *  Bounded on purpose: only the NEWEST ideal-text card is watched, so an
+   *  honest old failure the speaker has moved on from is not re-probed for
+   *  the life of the thread. */
+  const unconfirmedCardSession = useMemo<string | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.kind !== "ideal_text") continue;
+      const md = m.metadata as Record<string, unknown> | null | undefined;
+      if (!md || md.variant !== "ideal_text_unconfirmed") return null;
+      return typeof md.take_session_id === "string"
+        ? md.take_session_id
+        : null;
+    }
+    return null;
+  }, [messages]);
+  useFailedTakeRecheck({
+    sessionId: unconfirmedCardSession,
+    onVerdict: (_sessionId, verdict) => {
+      if (verdict === "recovered") void reload();
+    },
   });
 
   /** Re-open the durable backend job against the original stored audio. */
