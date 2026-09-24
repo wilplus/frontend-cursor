@@ -66,6 +66,29 @@ export function recheckVerdict(
 
 export const FAILED_TAKE_RECHECK_MS = 30_000;
 
+/** Ask the server what it thinks of this take, once.
+ *
+ *  FOUNDER 2026-09-24: "Ideal text generation fails!" — with the ready v1.0
+ *  card and "we couldn't create your Ideal Text" in the same thread. The
+ *  document phase has its own 120s cap, and when it expired the browser wrote
+ *  the failure card straight into the Lounge WITHOUT EVER ASKING THE SERVER.
+ *  Two independent 120-second timers, one of them running in a tab, both
+ *  entitled to declare the same document lost.
+ *
+ *  A cap releasing the screen is a fact about this tab. A card in the durable
+ *  thread is a claim about the take, and this is how that claim gets checked
+ *  before it is made. Same pure verdict the recheck above uses, so the two
+ *  cannot disagree. */
+export async function probeTakeVerdict(
+  sessionId: string,
+): Promise<FailedTakeVerdict> {
+  try {
+    return recheckVerdict(await fetchGuestLabReadout(sessionId));
+  } catch {
+    return "unknown";
+  }
+}
+
 export function useFailedTakeRecheck(args: {
   /** The failed take's session while its note is on screen; null otherwise. */
   sessionId: string | null;

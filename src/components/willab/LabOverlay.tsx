@@ -7,6 +7,7 @@ import { Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
   submitLabRecording,
   fetchGuestLabReadout,
@@ -213,6 +214,17 @@ export default function LabOverlay({
     sessionId: string;
     arcId: string;
   }) => {
+    // EVIDENCE BEFORE THE CLAIM (founder 2026-09-24). The document cap is a
+    // fact about this tab; the card is a durable claim about the take. Two
+    // 120-second timers — this one and the backend's — were both entitled to
+    // declare the document lost, and neither ever asked the other.
+    const verdict = await probeTakeVerdict(target.sessionId);
+    if (verdict === "recovered") {
+      clearProcessingTake(userId, target.sessionId);
+      await reloadThread().catch(() => undefined);
+      return;
+    }
+    if (verdict === "running") return;
     const existing = readProcessingTake(userId);
     if (existing?.sessionId === target.sessionId) {
       markProcessingTakeIdealTextUnconfirmed(userId, target.sessionId);

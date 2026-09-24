@@ -74,10 +74,25 @@ export interface FeedbackBubbleTarget {
   takeIndex: number | null;
 }
 
+/** The Take a card is about.
+ *
+ *  Not always Take 1: a later Take creates the document when the project
+ *  still has none (backend Option A, 2026-09-22), and the retry has to name
+ *  the Take the card is about or the backend refuses it. Defaults to 1 for
+ *  cards written before the real index was carried in their metadata. */
+function takeIndexOfCard(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1
+    ? raw
+    : 1;
+}
+
 export interface IdealTextRetryTarget {
   arcId: string;
   takeSessionId: string;
-  takeIndex: 1;
+  /** The Take the card is about. Usually 1, but a later Take creates the
+   *  document when the project still has none (backend Option A, 2026-09-22),
+   *  and the retry must name that Take or the backend refuses it. */
+  takeIndex: number;
 }
 
 // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
@@ -191,6 +206,7 @@ function renderIdealTextReportCard(
       typeof message.metadata?.take_session_id === "string"
         ? message.metadata.take_session_id
         : null;
+    const cardTakeIndex = takeIndexOfCard(message.metadata?.take_index);
     const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
     const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
     return (
@@ -216,7 +232,7 @@ function renderIdealTextReportCard(
                   await onRetryIdealText({
                     arcId,
                     takeSessionId,
-                    takeIndex: 1,
+                    takeIndex: cardTakeIndex,
                   });
                 } finally {
                   setRetryingIdealText(false);
@@ -235,7 +251,7 @@ function renderIdealTextReportCard(
                 onOpenFeedback!({
                   arcId: arcId!,
                   takeSessionId,
-                  takeIndex: 1,
+                  takeIndex: cardTakeIndex,
                 })
               }
               className="h-10 w-full rounded-full"
