@@ -286,7 +286,7 @@ export default function RecordingSetup({
       <div className="flex-1">
         {current === "topic" && (
           <div>
-            <StepHead icon={Mic} question="What are you speaking on?" />
+            <StepHead icon={Mic} question="What is the topic?" />
             <input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
@@ -300,11 +300,7 @@ export default function RecordingSetup({
 
         {current === "audience" && (
           <div>
-            <StepHead
-              icon={Mic}
-              question="Who's the audience?"
-              helper="Naming the audience anchors the tone: leadership team, students, investors, a single person."
-            />
+            <StepHead icon={Mic} question="Who's the audience?" />
             <input
               value={audience}
               onChange={(e) => setAudience(e.target.value)}
@@ -318,11 +314,7 @@ export default function RecordingSetup({
 
         {current === "call_to_action" && (
           <div>
-            <StepHead
-              icon={Mic}
-              question="What should the audience do next?"
-              helper="Name the change you want in the audience by the end."
-            />
+            <StepHead icon={Mic} question="What should the audience do next?" />
             <input
               value={desiredCallToAction}
               onChange={(e) => setDesiredCallToAction(e.target.value)}
@@ -383,12 +375,9 @@ export default function RecordingSetup({
           <div>
             <StepHead
               icon={Mic}
-              question="Anything your coach should know?"
-              helper="A line on the stakes, the setting, or what you want to nail. Your coach uses it to sharpen the ideal text."
+              question="Additional sources to help us understand what your presentation is about"
+              helper="You can upload here the core written logic and any other resources you might have."
             />
-            <div className="mb-3 rounded-xl bg-muted px-3 py-2 text-[13px] text-muted-foreground">
-              Optional, but this is where it brings most value.
-            </div>
             <textarea
               value={strategicContext}
               onChange={(e) => setStrategicContext(e.target.value)}
