@@ -60,11 +60,6 @@ export default function PresentationInput({
     void takeFile(file);
   }
 
-  function clearDeck() {
-    setWarnings([]);
-    onChange([], null);
-  }
-
   return (
     <div>
       <input
@@ -95,8 +90,8 @@ export default function PresentationInput({
             : "border-border hover:bg-muted"
         }`}
       >
-        {/* Once a deck is attached the upload arrow gives way to a check —
-            the box still replaces the deck on tap. */}
+        {/* Once a deck is attached the upload arrow gives way to a check and
+            the box reads "Deck attached" — tapping it still replaces it. */}
         {presentationRef && uploadState !== "uploading" ? (
           <CircleCheck className="h-6 w-6 text-foreground" aria-label="Deck attached" />
         ) : (
@@ -106,25 +101,23 @@ export default function PresentationInput({
           {uploadState === "uploading"
             ? "Reading your deck…"
             : presentationRef
-              ? "Replace deck"
+              ? "Deck attached"
               : "Upload your deck (PDF)"}
         </span>
       </button>
 
       {presentationRef ? (
-        // Sized like the deck modal's footer pair (black pill + grey link):
-        // 16px semibold at the pill's 54px, 16px grey at the link's 48px,
-        // stacked with the same tight gap.
-        <div className="mt-3 flex flex-col items-center gap-0.5">
-          <p className="flex min-h-[54px] items-center justify-center text-[16px] font-semibold text-foreground">
-            Deck attached
-          </p>
+        // The box says "Deck attached"; the one move under it is replacing
+        // the deck (founder 2026-09-24: no remove). Sized like the deck
+        // modal's grey footer link: 16px at 48px.
+        <div className="mt-3 flex flex-col items-center">
           <button
             type="button"
-            onClick={clearDeck}
-            className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadState === "uploading"}
+            className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
           >
-            remove
+            Replace the deck
           </button>
         </div>
       ) : null}
