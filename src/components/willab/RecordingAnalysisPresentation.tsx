@@ -217,41 +217,61 @@ export default function RecordingAnalysisPresentation({
           While you wait
         </p>
 
-        <div
-          ref={attachScroller}
-          onWheel={onWheel}
-          onScroll={onScroll}
-          tabIndex={0}
-          role="group"
-          aria-labelledby="while-you-wait"
-          className="h-[clamp(9rem,26vh,13rem)] snap-y snap-mandatory overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {waitingTips.map((entry, at) => (
-            <p
-              key={entry}
-              aria-posinset={at + 1}
-              aria-setsize={waitingTips.length}
-              className="flex min-h-full snap-start items-start text-balance text-[clamp(1.45rem,5.2vw,2.05rem)] font-medium leading-[1.28] tracking-[-0.015em] text-foreground"
-            >
-              {entry}
-            </p>
-          ))}
-        </div>
-
-        {/* The affordance the rotation used to be. A tip that never moves and
-            carries no mark of the others reads as the only one there is. */}
-        {waitingTips.length > 1 ? (
-          <div className="mt-6 flex gap-1.5" aria-hidden>
+        {/* The rail on the right is the Ideal Text deck's own position rail
+            (founder 2026-09-24: "the same scroll on the right as on the ideal
+            text, without the horizontal black lines"): one dot per advice,
+            the current one a short black bar, each one a way to jump there. */}
+        <div className="relative">
+          <div
+            ref={attachScroller}
+            onWheel={onWheel}
+            onScroll={onScroll}
+            tabIndex={0}
+            role="group"
+            aria-labelledby="while-you-wait"
+            className={`h-[clamp(9rem,26vh,13rem)] snap-y snap-mandatory overflow-y-auto overscroll-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+              waitingTips.length > 1 ? "pr-9" : ""
+            }`}
+          >
             {waitingTips.map((entry, at) => (
-              <span
+              <p
                 key={entry}
-                className={`h-[3px] flex-1 rounded-full transition-colors duration-300 motion-reduce:transition-none ${
-                  at === place ? "bg-foreground" : "bg-border"
-                }`}
-              />
+                aria-posinset={at + 1}
+                aria-setsize={waitingTips.length}
+                className="flex min-h-full snap-start items-start text-balance text-[clamp(1.45rem,5.2vw,2.05rem)] font-medium leading-[1.28] tracking-[-0.015em] text-foreground"
+              >
+                {entry}
+              </p>
             ))}
           </div>
-        ) : null}
+
+          {waitingTips.length > 1 ? (
+            <nav
+              className="absolute inset-y-0 right-0 flex flex-col items-center justify-center"
+              aria-label="Advice position"
+            >
+              {waitingTips.map((entry, at) => (
+                <button
+                  key={entry}
+                  type="button"
+                  aria-label={`Go to advice ${at + 1} of ${waitingTips.length}`}
+                  aria-current={at === place ? "step" : undefined}
+                  onClick={() => goTo(at)}
+                  className="flex h-3.5 w-8 items-center justify-center"
+                >
+                  <span
+                    className={
+                      at === place
+                        ? "h-3 w-1.5 rounded-full bg-foreground transition-[height] motion-reduce:transition-none"
+                        : "h-1.5 w-1.5 rounded-full bg-muted-foreground/35 transition-[height] hover:bg-muted-foreground motion-reduce:transition-none"
+                    }
+                    aria-hidden
+                  />
+                </button>
+              ))}
+            </nav>
+          ) : null}
+        </div>
       </div>
     </div>
   );
