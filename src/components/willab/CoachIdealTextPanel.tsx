@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { SlideRender } from "./pdfSlides";
@@ -43,10 +43,16 @@ function splitParagraphs(text: string): string[] {
 export default function CoachIdealTextPanel({
   arcId,
   presentationRef = null,
+  onDone,
 }: {
   arcId: string;
   /** The arc's deck (for the cover slide); null → a blank slide placeholder. */
   presentationRef?: string | null;
+  /** Leave this panel once the text is verified. The delivery overlay is still
+   *  open underneath — closing lands the coach back on Wrap up, whose one
+   *  button now reads "Ideal text · approved" and carries them onward. Omitted
+   *  (a deep link with nothing beneath) simply hides the control. */
+  onDone?: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<"pending" | "empty" | "ready" | "failed">(
@@ -321,10 +327,31 @@ export default function CoachIdealTextPanel({
               </Button>
             )}
           </div>
+          {/* THE END OF THE VERIFY STEP, WHICH USED TO BE A DEAD END (founder
+              2026-09-24). Approving swapped the button for a badge and left
+              nothing to press, so the coach had to work out that the ✕ was
+              the way on; and the line under it named the wrong screen —
+              publishing lives on "Review and send", two screens past Wrap up
+              (CoachDeliveryOverlay). Both are fixed here: the sentence names
+              the real destination, and the control does what the ✕ does,
+              which is all it needs to do — the delivery overlay is still
+              mounted underneath with its own forward path. */}
           {approved ? (
-            <p className="text-[12px] text-muted-foreground">
-              Verified. Publish the full analysis from the wrap-up screen.
-            </p>
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-[12px] text-muted-foreground">
+                Verified. The analysis publishes from Review and send.
+              </p>
+              {onDone ? (
+                <Button
+                  type="button"
+                  onClick={onDone}
+                  className="h-9 rounded-full bg-foreground px-5 text-[13px] text-background hover:bg-foreground/90"
+                >
+                  Back to Wrap up
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+                </Button>
+              ) : null}
+            </div>
           ) : null}
           {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
         </div>
