@@ -65,7 +65,7 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
     <div className="flex flex-1 flex-col">
       <div className="mt-2">
         <h2 className="text-[20px] font-semibold text-foreground">
-          How do you feel
+          How do you feel?
         </h2>
         <p className="mt-1 text-[15px] text-muted-foreground">
           Before you step on stage

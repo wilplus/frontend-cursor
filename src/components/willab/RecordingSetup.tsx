@@ -314,7 +314,10 @@ export default function RecordingSetup({
 
         {current === "call_to_action" && (
           <div>
-            <StepHead icon={Mic} question="What should the audience do next?" />
+            <StepHead
+              icon={Mic}
+              question="What do you want your audience to do as a result of your presentation?"
+            />
             <input
               value={desiredCallToAction}
               onChange={(e) => setDesiredCallToAction(e.target.value)}
