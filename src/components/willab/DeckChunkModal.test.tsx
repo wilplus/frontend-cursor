@@ -57,6 +57,21 @@ vi.mock("@/services/api/takeFeedback", () => ({
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));
+/* The practice ROW, not the practice screens. "Not now" asks the server to
+   open a row so it can close it; with nothing opened the hook takes its
+   "nothing to close" branch and reports a closed practice with no judgement —
+   which is the exact path the regression below is about. Mocked rather than
+   left to a bare fetch so the branch is chosen deliberately instead of by
+   whatever jsdom does with an unmocked network call. */
+vi.mock("@/services/api/confidentVoicePractice", () => ({
+  // The refusal shape, not null: the hook reads `result.ok`. A row that never
+  // opened is the honest case here and it is the one the offer screen starts
+  // from, before anything has been recorded.
+  startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
+  uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
+  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
+  fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
+}));
 
 const TEXT =
   "We should ship it now because the data is clear and the team is ready.";
@@ -969,5 +984,92 @@ describe("a not-confident answer ends the ladder at the emphasis step", () => {
     expect(container.textContent).toContain("Tap the words");
     expect(container.textContent).toContain("Couldn't save those words");
     expect(props.onClose).not.toHaveBeenCalled();
+  });
+});
+
+/* ── DECLINING A DRILL MUST NOT COST THE ROOTING PHRASE ───────────────────
+ * Founder, shown the case on the real screen 2026-09-24: "fix U1 and U2".
+ *
+ * Closing the practice without judging the corrected take reported `null`,
+ * and the sheet read that as "nobody judged this paragraph" rather than "the
+ * answer has not changed". So the ladder was rebuilt with no emphasis step
+ * and "Not now" jumped the speaker to Lock. The step bar still counted the
+ * screen: four segments, the third never visited.
+ *
+ * Contract 24e makes the tap-to-root step part of EVERY item. An exercise is
+ * separate work the speaker may decline; declining it says nothing about
+ * which words the paragraph turns on.
+ */
+describe("declining the exercise keeps the emphasis step", () => {
+  const withPractice = suggestion({
+    id: "s-cv-drill",
+    feedbackFamily: "confident_voice",
+    source: "confident_voice",
+    snippetId: "snip-drill",
+    takeSessionId: "take-1",
+    practiceExercise: { id: "ex-1", instruction: "Say it again, slower." },
+    evidence: {
+      projectId: "arc-1",
+      takeSessionId: "take-1",
+      slideIndex: 0,
+      paragraphIndex: 0,
+      start: 0,
+      end: 21,
+    },
+  } as unknown as Partial<DocumentSuggestion>);
+
+  async function openOnTheDrill(answer: string) {
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [withPractice.id] } as DeckChunk,
+            { document: TEXT, suggestions: [withPractice] },
+          ),
+        }),
+      );
+    });
+    await click(answer);
+    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
+    await click("Not now");
+  }
+
+  it("Yes then Not now lands on Emphasis, not Lock", async () => {
+    // THE DEFECT, on the answer where it was visible.
+    await openOnTheDrill("Yes — Confident");
+    expect(container.textContent).toContain("Tap the words");
+    expect(buttonLabels()).toContain("Use this phrase");
+  });
+
+  it("No then Not now lands on Emphasis for the RIGHT reason", async () => {
+    // It already landed here before the fix, but by accident: the advance
+    // computed "go to Lock", there is no lock step on a No, and a fallback
+    // dropped it on the last screen — which happened to be the right one.
+    // Pinned so the screen stops depending on that.
+    await openOnTheDrill("No — Not confident");
+    expect(container.textContent).toContain("Tap the words");
+    // ...and the answer still costs the lock, which is the other half.
+    expect(buttonLabels()).not.toContain("Lock");
+    expect(buttonLabels()).not.toContain("Keep evolving");
+  });
+
+  it("the paragraph's answer survives the drill it declined", async () => {
+    // The root of both: `null` from a closed practice means "no new
+    // judgement", never "this paragraph was never judged". If it leaked back
+    // into the ladder the emphasis step would vanish, which is the bug.
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await openOnTheDrill("In-between");
+    const word = Array.from(container.querySelectorAll("button")).find((b) =>
+      b.hasAttribute("aria-pressed"),
+    );
+    if (!word) throw new Error("the tap surface offered no words");
+    await act(async () => {
+      word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await click("Use this phrase");
+    expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
+    // In-between keeps its lock, so the ladder still ends there.
+    expect(buttonLabels()).toContain("Lock");
   });
 });

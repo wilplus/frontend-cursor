@@ -293,9 +293,19 @@ export default function DeckChunkModal({
         // Nothing to emphasise on an empty paragraph, and nothing to choose on
         // one already locked and settled — that sheet is a single Discard.
         //
-        // A LOCKED paragraph WITH a style offer still gets the step, and that
-        // is the point of the style lane rather than an exception to it: "open
-        // takes rewrites; locked takes emphasis only".
+        // THE STYLE-OFFER CLAUSE IS DEAD, AND THE FOUNDER HAS RULED IT SHOULD
+        // STAY THAT WAY (2026-09-24). This used to claim that "a LOCKED
+        // paragraph WITH a style offer still gets the step, and that is the
+        // point of the style lane rather than an exception to it: open takes
+        // rewrites; locked takes emphasis only". It never did. A locked
+        // paragraph carrying only a style offer has no Confident Voice item to
+        // answer, so `judgementValue` stays null, `opensRootPhrase` is false,
+        // and the branch is unreachable however the style lane behaves. Shown
+        // the case, the founder's ruling was that the comment was wrong rather
+        // than the behaviour: a settled paragraph is not where a rooting
+        // phrase gets chosen. The condition is kept as written because it is
+        // the honest expression of "not on a settled paragraph"; only the
+        // claim about what it achieves is gone.
         //
         // AND the paragraph must have been ANSWERED — see `opensRootPhrase`
         // for which answers count (founder 2026-09-22: every one of them
@@ -931,11 +941,34 @@ export default function DeckChunkModal({
    *  judgement of the same delivery — so it supersedes step one's answer for
    *  the emphasis gate. */
   const onExerciseFinished = useCallback((answer: "yes" | "no" | null) => {
-    const answered =
-      answer === null ? null : answer === "yes" ? "yes" : "other";
-    if (answered !== null) setJudgement(answered);
-    // Same reason as advanceStep's own note: the exercise's final judgement
-    // can open the emphasis step, and the list in scope predates it.
+    /* NO ANSWER IS NOT THE SAME AS NO JUDGEMENT, and conflating the two was a
+     * live defect (founder, shown the case 2026-09-24).
+     *
+     * `null` here means the practice closed without judging the corrected
+     * take — "Not now", or a practice that was never opened server-side. It
+     * says nothing about the paragraph, whose Confident Voice answer was given
+     * two screens ago and still stands. Passing that null through built the
+     * ladder as though NOBODY had judged the paragraph, and `opensRootPhrase`
+     * reads an unjudged paragraph as one with no emphasis step — so declining
+     * a drill silently cost the speaker their rooting phrase. The step bar
+     * still counted it: four segments, the third never visited.
+     *
+     * Calling with no argument lets the default pick up the paragraph's
+     * current `judgement`. The ref is re-pointed every render, so the default
+     * it reads is this render's, which is the whole reason the ref exists.
+     *
+     * ON A "No" THE BUG LOOKED FIXED AND WAS NOT. There is no lock step on
+     * that answer any more, so the advance computed "go to Lock", found no
+     * such step, and fell back to the last one — which happened to be
+     * Emphasis. Right screen, wrong reason, and nothing to rely on. */
+    if (answer === null) {
+      advanceStepRef.current();
+      return;
+    }
+    // A real judgement of the corrected take supersedes step one's: it is the
+    // same delivery, judged later and better informed.
+    const answered = answer === "yes" ? "yes" : "other";
+    setJudgement(answered);
     advanceStepRef.current(answered);
   }, []);
   const exercise = useConfidenceExercise({
