@@ -139,13 +139,29 @@ export default function NewContentClient({ path }: { path: string[] }) {
   const step = shape ? clampStep(shape, path[1] ?? 1) : 0;
   const current = steps[step - 1];
 
+  /* THE PASSWORD GATE USED TO EAT THE DEEP LINK (founder 2026-09-24: from the
+     judgement card "you should be already further down the path of recording
+     the exercise").
+
+     The coach's review hands off to /cms/new/exercise/1 — step 1 of the
+     exercise lane IS the record screen, so the link was right. But the CMS
+     password lives in sessionStorage, which is per-tab, and a coach judging
+     takes has not opened the CMS in that tab. So this bounced to /cms and
+     dropped the lane, the step and the returnTo with it: they typed the
+     password, clicked through to new, and landed on the Post-or-Exercise fork
+     — two screens behind where they were sent, with no way back to the piece
+     they came from.
+
+     The destination now rides the bounce and /cms resumes it after unlocking. */
   useEffect(() => {
+    const here = () =>
+      `/cms?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     try {
       const saved = window.sessionStorage.getItem(PW_KEY);
       if (saved) setPassword(saved);
-      else router.replace("/cms");
+      else router.replace(here());
     } catch {
-      router.replace("/cms");
+      router.replace(here());
     }
   }, [router]);
 

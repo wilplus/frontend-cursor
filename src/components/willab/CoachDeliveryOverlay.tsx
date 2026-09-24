@@ -14,6 +14,7 @@ import {
   type CoachPublishPayload,
   type CoachReviewState,
 } from "@/services/api/coachReviewState";
+import { fetchCoachReviewSession } from "@/services/api/coachReview";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachDeliveryOverlay — everything between "I have judged this arc" and     */
@@ -175,6 +176,30 @@ export default function CoachDeliveryOverlay({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  /* SEED THE COACH VIDEO FROM THE SERVER (founder 2026-09-24). `videoRef` was
+     local state that only an upload in THIS sitting could fill, so a coach who
+     recorded the video last week was told "Coach video · None" on the last
+     screen before the student receives the analysis — and the slot offered an
+     empty upload box rather than their own clip. The arc-level read carries no
+     video, so this takes it from the take's own session, which is where
+     `coach_video_ref` lives.
+
+     It never overwrites a ref set locally: an upload made during this sitting
+     is newer than anything the server had when the flow opened. The session
+     read withholds `video_ref` until the coach has answered every piece, which
+     is already true by the time this flow is reachable from the Feedbacks
+     review. */
+  useEffect(() => {
+    if (!sessionId || videoRef) return;
+    let live = true;
+    void fetchCoachReviewSession(sessionId).then((s) => {
+      if (live && s?.videoRef) setVideoRef(s.videoRef);
+    });
+    return () => {
+      live = false;
+    };
+  }, [sessionId, videoRef]);
 
   // Seed the message from whatever the primary take already carries, once.
   useEffect(() => {
@@ -366,7 +391,13 @@ export default function CoachDeliveryOverlay({
     <Shell
       title="Review and send"
       sub="Coach only"
-      onClose={() => setScreen(approved ? "message" : "wrapup")}
+      /* THE ✕ LEAVES (founder 2026-09-24: "make it go out"). It used to step
+         back a screen, which made one glyph do two jobs — every other Shell
+         in this flow closes the overlay, so the last screen was the only
+         place ✕ meant something else. No back control replaces it because
+         no other screen here has one either; the way back in is the
+         Feedbacks review, which reopens this flow where it left off. */
+      onClose={onClose}
     >
       <Body>
         <div className="flex flex-col gap-3">
