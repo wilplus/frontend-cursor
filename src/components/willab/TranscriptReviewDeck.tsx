@@ -204,6 +204,7 @@ export default function TranscriptReviewDeck({
   confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
   feedbackPending = false,
+  takeCount = null,
 }: {
   title?: string;
   /** Optional right-of-title chip (e.g. "Verified"). Qualitative only. */
@@ -269,6 +270,8 @@ export default function TranscriptReviewDeck({
   coachMoments?: readonly CoachMomentLite[] | null;
   arcId?: string | null;
   takeSessionId?: string | null;
+  /** The project's official-take count; 1 marks the first take. */
+  takeCount?: number | null;
   confidentMomentSummary?: ConfidentMomentSummary | null;
   confidentMomentOwnerEdit?: ConfidentMomentOwnerEdit | null;
   /** The feedback request has not answered yet, so no paragraph can be said
@@ -1372,6 +1375,7 @@ export default function TranscriptReviewDeck({
           onClose={() => setOpenPart(null)}
           onApplyStyle={onApplyStyle}
           arcId={arcId}
+          firstTake={takeCount === 1}
         />
       ) : null}
       {deckReady && editingSlideIndex !== undefined ? (
