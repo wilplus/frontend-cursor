@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
 import DiagnosticExerciseSection from "./DiagnosticExerciseSection";
+import { interruptedDestination } from "./interruptedDestination";
 import BodyBlocks from "@/components/journal/BodyBlocks";
 import {
   ArrowDown,
@@ -64,25 +65,6 @@ import {
 
 const PW_KEY = "willpower.journal.pw";
 
-/** The authoring screen this password gate interrupted, or null.
- *
- *  /cms/new bounces here when the tab has no password, carrying where it was
- *  going. Without this the coach's "build an exercise for this moment" link
- *  died at the gate and they resumed at the Post-or-Exercise fork, two screens
- *  behind the record step they were sent to.
- *
- *  ONLY an authoring path is ever followed. The value arrives in a query
- *  parameter, so anything else — an absolute URL, a protocol-relative host, a
- *  path elsewhere in the app — is refused rather than navigated to, and the
- *  parameter cannot be turned into an open redirect. */
-export function interruptedDestination(): string | null {
-  try {
-    const raw = new URLSearchParams(window.location.search).get("next");
-    return raw && raw.startsWith("/cms/new/") ? raw : null;
-  } catch {
-    return null;
-  }
-}
 
 const LABEL_CLS =
   "mb-1.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground";

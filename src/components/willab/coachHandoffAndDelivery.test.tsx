@@ -22,7 +22,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { interruptedDestination } from "@/app/cms/page";
+import { interruptedDestination } from "@/app/cms/interruptedDestination";
 
 // process.cwd(), not import.meta.url: this file runs in jsdom, where
 // import.meta.url is not a file: URL and fileURLToPath throws.
