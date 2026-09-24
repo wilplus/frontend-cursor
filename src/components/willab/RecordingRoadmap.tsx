@@ -208,7 +208,14 @@ export default function RecordingRoadmap({
         >
           <div className="flex min-h-full flex-col justify-center py-6">
             {showNextHint ? (
-              <NextSlideHint onNext={() => goToSlide(currentSlide + 1)} />
+              <NextSlideHint
+                onPrev={
+                  currentSlide > 0
+                    ? () => goToSlide(currentSlide - 1)
+                    : undefined
+                }
+                onNext={() => goToSlide(currentSlide + 1)}
+              />
             ) : null}
             {currentRoots.map((root, rootIndex) => (
               <p
@@ -257,56 +264,91 @@ export default function RecordingRoadmap({
 }
 
 /** Faint "go to the next slide" hint for the empty first-take space.
- *  Touch screens get "Scroll down" with a large arrow; mouse/trackpad screens
- *  get the arrow-key cluster with the down key outlined in orange. Chosen by
- *  CSS pointer media so the server render matches the client. */
-function NextSlideHint({ onNext }: { onNext: () => void }) {
+ *  Touch screens get "Scroll down" with a large arrow (tap = next slide);
+ *  mouse/trackpad screens get the arrow-key cluster with the down key
+ *  outlined in orange. There the up key goes to the previous slide and the
+ *  down key to the next, like the keyboard's own arrows. Chosen by CSS
+ *  pointer media so the server render matches the client. */
+function NextSlideHint({
+  onPrev,
+  onNext,
+}: {
+  /** Absent on the first slide, where there is nothing before it. */
+  onPrev?: () => void;
+  onNext: () => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onNext}
-      aria-label="Next slide"
-      className="flex flex-col items-center justify-center gap-4 self-center text-foreground opacity-50 transition-opacity hover:opacity-70"
-    >
-      <span className="hidden flex-col items-center gap-2 [@media(pointer:coarse)]:flex">
+    <div className="flex flex-col items-center justify-center self-center text-foreground opacity-50">
+      <button
+        type="button"
+        onClick={onNext}
+        aria-label="Next slide"
+        className="hidden flex-col items-center gap-2 transition-opacity hover:opacity-70 [@media(pointer:coarse)]:flex"
+      >
         <span className="text-[clamp(1.6rem,6vw,2.2rem)] font-semibold leading-tight">
           Scroll down
         </span>
         <ChevronDown className="h-10 w-10" aria-hidden />
-      </span>
-      <span className="flex flex-col items-center gap-4 [@media(pointer:coarse)]:hidden">
-        <span className="grid grid-cols-3 gap-1.5" aria-hidden>
+      </button>
+      <div className="flex flex-col items-center gap-4 [@media(pointer:coarse)]:hidden">
+        <div className="grid grid-cols-3 gap-1.5">
           <span />
-          <ArrowKey icon={ChevronUp} />
+          <ArrowKey
+            icon={ChevronUp}
+            onClick={onPrev}
+            label="Previous slide"
+          />
           <span />
           <ArrowKey icon={ChevronLeft} />
-          <ArrowKey icon={ChevronDown} active />
+          <ArrowKey
+            icon={ChevronDown}
+            active
+            onClick={onNext}
+            label="Next slide"
+          />
           <ArrowKey icon={ChevronRight} />
-        </span>
+        </div>
         <span className="text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight">
           Click down
         </span>
-      </span>
-    </button>
+      </div>
+    </div>
   );
 }
 
+/** One key of the drawn arrow cluster. With `onClick` it is a real button;
+ *  without, it is only a picture of a key. */
 function ArrowKey({
   icon: Icon,
   active = false,
+  onClick,
+  label,
 }: {
   icon: LucideIcon;
   active?: boolean;
+  onClick?: () => void;
+  label?: string;
 }) {
+  const className = `flex h-11 w-11 items-center justify-center rounded-lg border-2 ${
+    active
+      ? "border-primary text-primary"
+      : "border-muted-foreground/40 text-muted-foreground"
+  }`;
+  if (!onClick) {
+    return (
+      <span className={className} aria-hidden>
+        <Icon className="h-5 w-5" />
+      </span>
+    );
+  }
   return (
-    <span
-      className={`flex h-11 w-11 items-center justify-center rounded-lg border-2 ${
-        active
-          ? "border-primary text-primary"
-          : "border-muted-foreground/40 text-muted-foreground"
-      }`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`${className} transition-colors hover:bg-muted`}
     >
-      <Icon className="h-5 w-5" />
-    </span>
+      <Icon className="h-5 w-5" aria-hidden />
+    </button>
   );
 }
