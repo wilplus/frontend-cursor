@@ -360,20 +360,35 @@ export default function CoachReviewOverlay({
         items={session.snippets.map((s) => ({
           id: s.id,
           answered: answeredHere(s),
+          bookmarked: s.bookmarked,
         }))}
         index={cursor}
         onJump={setCursor}
         onBack={() => setCursor((c) => Math.max(c - 1, 0))}
         onClose={onClose}
         forward={
+          /* THE LAST PIECE ALWAYS HAS A WAY ON (founder 2026-09-24: "it is ok
+             to skip it and you can still go to the next screen, it is not
+             obligatory to have it judged on the coach's side").
+
+             It used to disappear on the last piece unless every piece was
+             answered — the rule that made the queue a commitment rather than
+             an offer, and the only way out of it was the ✕. A coach who cannot
+             judge one moment could not finish the take.
+
+             The TONE still tells the truth: black when everything is answered,
+             quiet when it is not, so leaving work behind looks like leaving
+             work behind without being forbidden. A skipped moment stays
+             unanswered and comes back next time (founder, same day: "it just
+             stays there"); nothing here closes it. */
           last
-            ? allAnswered
-              ? {
-                  label: completeLabel ?? "Done",
-                  onClick: onQueueComplete ?? onClose,
-                  tone: "primary" as const,
-                }
-              : undefined
+            ? {
+                label: completeLabel ?? "Done",
+                onClick: onQueueComplete ?? onClose,
+                tone: allAnswered
+                  ? ("primary" as const)
+                  : ("quiet" as const),
+              }
             : {
                 label: current && answeredHere(current) ? "Next" : "Skip",
                 onClick: () =>

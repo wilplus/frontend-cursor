@@ -29,6 +29,10 @@ export interface JudgementQueueItem {
   /** Stable identity for the dot, and what `savingId` is compared against. */
   id: string;
   answered: boolean;
+  /** Was this moment bookmarked on the user's Ideal Text (founder
+   *  2026-09-24)? It changes the dot's SHAPE, never its colour — see the dot
+   *  itself for why. Absent → today's dot exactly. */
+  bookmarked?: boolean;
 }
 
 export default function CoachJudgementQueue({
@@ -88,8 +92,8 @@ export default function CoachJudgementQueue({
                 key={item.id}
                 type="button"
                 aria-label={`Piece ${i + 1}${
-                  saving ? ", saving" : item.answered ? ", answered" : ""
-                }`}
+                  item.bookmarked ? ", bookmarked" : ""
+                }${saving ? ", saving" : item.answered ? ", answered" : ""}`}
                 aria-current={i === index ? "true" : undefined}
                 onClick={() => onJump(i)}
                 className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
@@ -98,8 +102,21 @@ export default function CoachJudgementQueue({
                     : ""
                 }`}
               >
+                {/* SHAPE SAYS BOOKMARKED, FILL SAYS ANSWERED, and keeping
+                    those two on separate axes is the whole design (founder
+                    2026-09-24: "just change the type of the dot").
+
+                    It is a SQUARE and not a second colour on purpose. The
+                    bookmark's own tier is green or orange, and a coloured dot
+                    here would be read as that tier — which is the machine's
+                    verdict on the moment and the one thing AC-9 keeps off a
+                    rater's screen. A shape carries "the user saw this" without
+                    carrying any judgement of it, and it stays legible whether
+                    the piece is answered, unanswered or mid-save. */}
                 <span
-                  className={`block h-2.5 w-2.5 rounded-full border transition-colors ${
+                  className={`block h-2.5 w-2.5 border transition-colors ${
+                    item.bookmarked ? "rounded-[3px]" : "rounded-full"
+                  } ${
                     saving
                       ? "animate-pulse border-amber-500 bg-amber-400"
                       : item.answered

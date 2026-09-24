@@ -98,14 +98,45 @@ describe("the blind labeling surface shows no machine read", () => {
     const blindPass = gate + blindPieceBody();
     expect(blindPass).toContain("ConfidenceEvidenceReadout");
     expect(blindPass).toContain("instrument");
+    /* THE SLIDE LEFT THIS LIST ON 2026-09-24, and it is the only thing that
+       ever has. A founder override, taken after being shown the fence and the
+       compliant alternative: "I want as a coach to see the slide at the top;
+       to know on which slide they are talking about." Only the founder can
+       move this fence, which is why the list shrinks by exactly one name and
+       says so rather than the assertion quietly being dropped.
+
+       The fence is not relaxed anywhere else. Everything below still says
+       something ABOUT the speaker or belongs to the coach's own authoring, and
+       none of it may be constructed before the answer. What pays for the
+       slide is server-side: the rating write stamps `saw_slide`, so a
+       voice-only label and a voice-plus-slide label stay distinguishable in
+       the corpus. */
     for (const contextual of [
-      "SlideRender",
       "SnippetSlideCorrection",
       "CoachConfidencePracticeReview",
       "Coach note",
       "toggleSurfaced",
     ]) {
       expect(blindPass).not.toContain(contextual);
+    }
+  });
+
+  it("shows the bookmark as a bare word, never as its tier", () => {
+    /* Founder 2026-09-24: "a small label on the snippet saying that this is
+       the bookmarked; without stating that it's confident or not." The tier
+       behind a bookmark IS the machine's read — green for the Take's most
+       confident, orange for the rest — so the word may cross and the tier may
+       not. This pins that the blind tree learned only the boolean. */
+    const blindPass = blindPieceBody();
+    expect(blindPass).toContain("snippet.bookmarked");
+    for (const tell of [
+      "most_confident",
+      "bookmarkTier",
+      "exercise\"",
+      "text-success",
+      "bg-primary",
+    ]) {
+      expect(blindPass).not.toContain(tell);
     }
   });
 

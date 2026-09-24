@@ -70,13 +70,55 @@ function renderBlindPiece(options: {
   revealedTranscript: string;
   instrument: React.ReactNode;
   rating: ConfidenceRatingValue | null;
+  presentationRef: string | null;
   onBuildExercise?: (snippetId: string) => void;
 }): React.ReactNode {
-  const { snippet, revealedTranscript, instrument, rating, onBuildExercise } =
-    options;
+  const {
+    snippet, revealedTranscript, instrument, rating, presentationRef,
+    onBuildExercise,
+  } = options;
   const answered = rating === "yes" || rating === "no";
   return (
     <CoachCard gap="lg">
+      {/* THE SLIDE, ON THE BLIND SCREEN — a founder override of the
+          blind-coach fence (2026-09-24: "I want as a coach to see the slide at
+          the top; to know on which slide they are talking about").
+
+          Until that ruling this branch returned before a slide was ever
+          constructed, and the server redacted it independently, so the
+          confidence label came from the voice alone. It no longer does. The
+          founder was shown the fence and the compliant alternative — reveal
+          the slide on the answer, as the transcript already does — and chose
+          this deliberately; only the founder can move that fence.
+
+          The cost is paid server-side rather than here: every rating written
+          from this surface is stamped `saw_slide`, so the corpus can tell the
+          two instruments apart instead of silently merging them. If this block
+          ever moves back above the fence, that stamp goes with it. */}
+      {snippet.slide ? (
+        <SlideRender
+          presentationRef={presentationRef}
+          pageIndex={snippet.slide.index}
+          title={snippet.slide.title}
+          body={snippet.slide.body}
+          /* THE BOX NEEDS A HEIGHT OF ITS OWN. SlideRender's text branch draws
+             a `h-full` card, so a wrapper with width but no height collapses it
+             to nothing — the slide is in the DOM, reads in the accessibility
+             tree, and paints zero pixels. Caught by screenshotting it rather
+             than by any test. `aspect-video` is the deck's own shape and what
+             the unavailable-slide fallback already uses. */
+          className="aspect-video w-full"
+        />
+      ) : null}
+      {/* WAS THIS ONE BOOKMARKED. The word and nothing else: not the tier, not
+          the colour, not whether the machine thought it confident — founder
+          2026-09-24, "a small label saying that this is the bookmarked;
+          without stating that it's confident or not". */}
+      {snippet.bookmarked ? (
+        <span className="w-fit rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+          Bookmarked
+        </span>
+      ) : null}
       <ConfidenceEvidenceReadout
         audioRef={snippet.audioRef}
         startOffsetMs={snippet.startOffsetMs}
@@ -281,6 +323,7 @@ export default function CoachSnippetReviewCard({
       revealedTranscript,
       instrument: blindInstrument,
       rating,
+      presentationRef,
       onBuildExercise,
     });
   }

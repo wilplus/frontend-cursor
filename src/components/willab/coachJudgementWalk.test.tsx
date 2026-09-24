@@ -83,6 +83,7 @@ function snippet(id: string) {
     autoComment: null,
     recordingKind: "spoken" as const,
     takeSessionId: null,
+    bookmarked: false,
     coachState: {
       note: "",
       tag: null,

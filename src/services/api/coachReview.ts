@@ -49,6 +49,12 @@ export interface CoachSnippetState {
 /** Identity-stripped snippet payload (§S.4). NO control/salience score, NO
  *  best/worst flag, NO KPI, NO prior AI direction verdict. */
 export interface CoachReviewSnippet {
+  /** Whether the USER was shown this moment as a bookmark on their Ideal Text
+   *  (founder 2026-09-24: "the user potentially judged them; and thus the
+   *  judgement from the coach should be on those too"). A bare boolean — the
+   *  tier behind it (green / orange) never crosses, because that is the
+   *  machine's read and AC-9 keeps it off a rater's screen. */
+  bookmarked: boolean;
   id: string;
   index: number;
   transcript: string;
@@ -240,6 +246,10 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
         ? r.take_session_id
         : null,
     coachState: pickCoachState(r.coach_state),
+    // Did the USER meet this moment as a bookmark (founder 2026-09-24)? One
+    // boolean and nothing else: never the tier, never the colour. Safe-ahead —
+    // an older backend sends nothing and every dot renders as it does today.
+    bookmarked: r.bookmarked === true,
   };
 }
 
