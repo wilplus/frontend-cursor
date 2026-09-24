@@ -1355,11 +1355,20 @@ export default function DeckChunkModal({
             />
           </div>
         ) : null}
-        <div className="rounded-2xl border border-border p-4">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {exerciseItem.practiceExercise.instruction}
-          </p>
-        </div>
+        {/* AN EXERCISE MAY CARRY NO WORDS AT ALL (founder 2026-09-24: the
+            CMS lane's words step "is not obligatory"). A video-only exercise
+            must not draw an empty bordered box under its clip, so the box
+            goes with the text rather than standing there hollow. */}
+        {/* `?? ""` because the field is typed string but arrives undefined on
+            an offer assembled before it existed — the old render tolerated
+            that by printing nothing, and a bare .trim() here threw. */}
+        {(exerciseItem.practiceExercise.instruction ?? "").trim() ? (
+          <div className="rounded-2xl border border-border p-4">
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {exerciseItem.practiceExercise.instruction}
+            </p>
+          </div>
+        ) : null}
         {exercise.error ? (
           <p className="rounded-xl border border-border p-3 text-[13px] text-destructive">
             {exercise.error}

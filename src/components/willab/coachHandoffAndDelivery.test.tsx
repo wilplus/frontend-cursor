@@ -25,7 +25,10 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { interruptedDestination } from "@/app/cms/interruptedDestination";
+import {
+  authoringReturnTo,
+  interruptedDestination,
+} from "@/app/cms/interruptedDestination";
 
 // process.cwd(), not import.meta.url: this file runs in jsdom, where
 // import.meta.url is not a file: URL and fileURLToPath throws.
@@ -194,6 +197,25 @@ describe("the CMS deep link survives the password gate", () => {
     // and the returnTo in one line.
     expect(gate).not.toContain('router.replace("/cms")');
     expect(gate).toContain("/cms?next=");
+  });
+
+  it("returns the author to where they came from after publishing", () => {
+    // The whole point of carrying returnTo: publishing used to push "/cms"
+    // unconditionally, so a coach who came from a moment landed in the
+    // catalogue instead of back on the piece.
+    const client = read(join("app", "cms", "new", "page.client.tsx"));
+    expect(client).toContain("authoringReturnTo() ?? \"/cms\"");
+    expect(client).not.toContain('router.push("/cms");');
+  });
+
+  it("refuses a returnTo that would leave the app", () => {
+    expect(authoringReturnTo("?returnTo=%2Fchat%3Freview%3Dtake-1")).toBe(
+      "/chat?review=take-1",
+    );
+    for (const bad of ["https://evil.example/x", "//evil.example/x", "chat", ""]) {
+      expect(authoringReturnTo(`?returnTo=${encodeURIComponent(bad)}`)).toBeNull();
+    }
+    expect(authoringReturnTo("")).toBeNull();
   });
 
   it("step 1 of the exercise lane is still the record screen", () => {
