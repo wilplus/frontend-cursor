@@ -366,7 +366,7 @@ export default function PostSessionResultsEmail({
                         borderRadius: 9999,
                       }}
                     >
-                      Open your Voice Journey →
+                      See the feedback →
                     </Link>
                   </td>
                 </tr>
