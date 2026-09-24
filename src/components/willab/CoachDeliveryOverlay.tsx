@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import LoadingState from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
-import CoachVideoSlot from "./CoachVideoSlot";
 import { CoachEyebrow, CoachErrorLine } from "./coachChrome";
 import { useBackDismiss } from "./useBackDismiss";
 import { publishArc } from "@/services/api/arcBatch";
@@ -14,7 +13,6 @@ import {
   type CoachPublishPayload,
   type CoachReviewState,
 } from "@/services/api/coachReviewState";
-import { fetchCoachReviewSession } from "@/services/api/coachReview";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachDeliveryOverlay — everything between "I have judged this arc" and     */
@@ -159,7 +157,6 @@ export default function CoachDeliveryOverlay({
   const [state, setState] = useState<CoachReviewState | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [videoRef, setVideoRef] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -176,30 +173,6 @@ export default function CoachDeliveryOverlay({
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  /* SEED THE COACH VIDEO FROM THE SERVER (founder 2026-09-24). `videoRef` was
-     local state that only an upload in THIS sitting could fill, so a coach who
-     recorded the video last week was told "Coach video · None" on the last
-     screen before the student receives the analysis — and the slot offered an
-     empty upload box rather than their own clip. The arc-level read carries no
-     video, so this takes it from the take's own session, which is where
-     `coach_video_ref` lives.
-
-     It never overwrites a ref set locally: an upload made during this sitting
-     is newer than anything the server had when the flow opened. The session
-     read withholds `video_ref` until the coach has answered every piece, which
-     is already true by the time this flow is reachable from the Feedbacks
-     review. */
-  useEffect(() => {
-    if (!sessionId || videoRef) return;
-    let live = true;
-    void fetchCoachReviewSession(sessionId).then((s) => {
-      if (live && s?.videoRef) setVideoRef(s.videoRef);
-    });
-    return () => {
-      live = false;
-    };
-  }, [sessionId, videoRef]);
 
   // Seed the message from whatever the primary take already carries, once.
   useEffect(() => {
@@ -347,16 +320,12 @@ export default function CoachDeliveryOverlay({
               className="min-h-[9.5rem] w-full resize-y rounded-xl border border-border bg-background px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-primary"
             />
           </Field>
-          {/* The coach's video stays an in-app upload: it attaches to THIS
-              session (uploadCoachVideo), while the CMS record step uploads a
-              CMS asset through adminPresign and could never reach the take. */}
-          {sessionId ? (
-            <CoachVideoSlot
-              sessionId={sessionId}
-              videoRef={videoRef}
-              onUploaded={setVideoRef}
-            />
-          ) : null}
+          {/* NO VIDEO HERE ANY MORE (founder 2026-09-24: "I only want to
+              exercise videos, not the coach video at the end"). The take-level
+              coach video is retired as a product surface: an exercise's own
+              demonstration video is the one that reaches the speaker, from the
+              practice screen and the CMS lane. This screen carries the written
+              message only. */}
           {error ? <CoachErrorLine>{error}</CoachErrorLine> : null}
           <Action
             label="Review and send"
@@ -384,7 +353,6 @@ export default function CoachDeliveryOverlay({
     ],
     ["Ideal text", approved ? "Approved" : "Not approved", approved],
     ["Message from you", message.trim() ? "Written" : "None", !!message.trim()],
-    ["Coach video", videoRef ? "Recorded" : "None", !!videoRef],
   ];
 
   return (
