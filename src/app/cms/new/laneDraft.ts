@@ -194,9 +194,14 @@ export const EXERCISE_STEPS: StepDef[] = [
   {
     id: "words",
     heading: "The words",
-    problem: (d) =>
-      needs(d.opening, "Write what they see first.") ??
-      needs(d.instruction, "Write what they do."),
+    // OPTIONAL (founder 2026-09-24: "that is not obligatory!"). A video is
+    // required and always was, so what this allows is an exercise that
+    // DEMONSTRATES rather than describes — the shape the speaker's screen
+    // already takes, with the coach's recording first and the words below it.
+    // The backend stopped requiring them in the same change; relaxing only
+    // here would have moved the refusal to the end of a nine-screen lane.
+    problem: () => null,
+    skippable: true,
   },
   {
     id: "writeup",

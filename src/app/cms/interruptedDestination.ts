@@ -26,3 +26,28 @@ export function interruptedDestination(): string | null {
     return null;
   }
 }
+
+/** Where an authoring lane should return its author, or null.
+ *
+ *  The coach's review hands off with `?returnTo=/chat?review=…&piece=…` so the
+ *  queue reopens on the exact piece. That parameter survived the trip in and
+ *  was then thrown away at the end: publishing pushed `/cms` unconditionally,
+ *  so a coach who came from a moment landed in the catalogue instead of back
+ *  on it (founder 2026-09-24: "after publishing the video bring me back to the
+ *  coach screen from where I was redirected to the CMS").
+ *
+ *  ONLY an in-app absolute path is ever followed. It arrives in a query
+ *  parameter, so an absolute URL and a protocol-relative "//host" — which a
+ *  browser would treat as another origin — are refused rather than navigated
+ *  to. */
+export function authoringReturnTo(search?: string): string | null {
+  try {
+    const raw = new URLSearchParams(
+      search ?? window.location.search,
+    ).get("returnTo");
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}

@@ -85,10 +85,13 @@ describe("the lanes are the shape the founder locked", () => {
     expect(EXERCISE_STEPS.some((s) => s.id === "opening")).toBe(false);
   });
 
-  it("only lets cover and community be skipped", () => {
+  it("names exactly the steps an author may walk past", () => {
     const skippable = (steps: typeof EXERCISE_STEPS) =>
       steps.filter((s) => s.skippable).map((s) => s.id);
-    expect(skippable(EXERCISE_STEPS)).toEqual(["cover"]);
+    // `words` joined `cover` on 2026-09-24 ("that is not obligatory!"): an
+    // exercise may demonstrate rather than describe. The video did NOT join
+    // them and must not.
+    expect(skippable(EXERCISE_STEPS).sort()).toEqual(["cover", "words"]);
     expect(skippable(POST_STEPS).sort()).toEqual(["community", "cover", "excerpt"]);
   });
 });
@@ -120,9 +123,11 @@ describe("a step will not let you past what it needs", () => {
     expect(problemOf("fixes", full({ tags: [] }))).toMatch(/never offered/);
   });
 
-  it("asks for both halves of the words screen", () => {
-    expect(problemOf("words", full({ opening: "" }))).toMatch(/see first/);
-    expect(problemOf("words", full({ instruction: " " }))).toMatch(/what they do/i);
+  it("asks for neither half of the words screen", () => {
+    // Was "asks for both halves" until 2026-09-24. Both are optional now;
+    // the screen stays, so an author who wants to write them still can.
+    expect(problemOf("words", full({ opening: "" }))).toBeNull();
+    expect(problemOf("words", full({ instruction: " " }))).toBeNull();
   });
 
   it("still refuses an EMPTY write-up once you have asked for one", () => {
@@ -310,5 +315,35 @@ describe("the avatar tick cannot be a tick alone", () => {
     expect(
       whereProblem(full({ avatarEligible: true, avatarSetupLabel: "desk-white-shirt" })),
     ).toBeNull();
+  });
+});
+
+describe("the words step does not block the lane", () => {
+  /* Founder 2026-09-24, on "The words": "that is not obligatory!"
+   *
+   * A video is required and always was, so what this allows is an exercise
+   * that DEMONSTRATES rather than describes. The backend stopped requiring
+   * the same two fields in the same change — relaxing only here would have
+   * moved the refusal to the end of a nine-screen lane. */
+  const words = EXERCISE_STEPS.find((s) => s.id === "words");
+
+  it("still exists as a screen", () => {
+    expect(words).toBeTruthy();
+    expect(words!.heading).toBe("The words");
+  });
+
+  it("raises no problem when both fields are blank", () => {
+    expect(words!.problem(full({ opening: "", instruction: "" }))).toBeNull();
+  });
+
+  it("is marked skippable, like the cover step", () => {
+    expect(words!.skippable).toBe(true);
+  });
+
+  it("leaves the video requirement alone", () => {
+    // The one thing an exercise cannot go live without. If this ever goes
+    // too, "exercise" means a title and nothing else.
+    const record = EXERCISE_STEPS.find((s) => s.id === "record");
+    expect(record!.problem(full({ videoUrl: "" }))).toBeTruthy();
   });
 });

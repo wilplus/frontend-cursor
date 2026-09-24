@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authoringReturnTo } from "../interruptedDestination";
 import { Loader2 } from "lucide-react";
 import {
   adminCreatePost,
@@ -292,7 +293,10 @@ export default function NewContentClient({ path }: { path: string[] }) {
     }
     setBusy(false);
     clearDraft();
-    router.push("/cms");
+    // Back where they came from, when they came from somewhere. The coach's
+    // review sends `?returnTo=` so the queue reopens on the exact piece; the
+    // catalogue is only the right destination for an author who started here.
+    router.push(authoringReturnTo() ?? "/cms");
   }
 
   function next() {
