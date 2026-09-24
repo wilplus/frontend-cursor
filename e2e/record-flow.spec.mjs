@@ -106,10 +106,10 @@ const openPicker = async (p) => {
   await seed(p);
   await openPicker(p);
   if (await click(p, /Start a new topic/i)) {
-    expect("new topic → the feelings check-in (once, before Take 1)", await body(p), "How are you feeling about this one?");
+    expect("new topic → the feelings check-in (once, before Take 1)", await body(p), "How do you feel");
     if (await click(p, /^Calm$/i)) {
-      expect("feelings → the setup form", await body(p), "What are you speaking on?");
-      expectNot("the check-in is not asked twice", await body(p), "How are you feeling");
+      expect("feelings → the setup form", await body(p), "What is the topic?");
+      expectNot("the check-in is not asked twice", await body(p), "How do you feel");
     }
   }
   await p.close();
@@ -126,7 +126,7 @@ const openPicker = async (p) => {
     expect("existing project → its ideal text", text, "Your ideal text");
     expect("the served text is the one on screen", text, "This is my ideal text.");
     expect("the loop continues: the next take is offered", text, "Record the next take");
-    expectNot("no feelings check-in on a continuation", text, "How are you feeling");
+    expectNot("no feelings check-in on a continuation", text, "How do you feel");
   }
   await p.close();
 }

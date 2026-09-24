@@ -8,6 +8,13 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  type LucideIcon,
+} from "lucide-react";
+import {
   canBubble,
   IDLE_WHEEL_GESTURE,
   scrollEdge,
@@ -156,6 +163,11 @@ export default function RecordingRoadmap({
     };
   }, [goToSlide]);
 
+  // First take: no Ideal Text yet, so no anchors fill the space under the
+  // slide. Show how to move on instead — until the last slide.
+  const showNextHint =
+    roots.length === 0 && currentSlide < slides.length - 1;
+
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const scroller = scrollRef.current;
     if (!scroller) return;
@@ -195,6 +207,9 @@ export default function RecordingRoadmap({
           aria-label={`Speaking anchors for slide ${currentSlide + 1}`}
         >
           <div className="flex min-h-full flex-col justify-center py-6">
+            {showNextHint ? (
+              <NextSlideHint onNext={() => goToSlide(currentSlide + 1)} />
+            ) : null}
             {currentRoots.map((root, rootIndex) => (
               <p
                 key={`${rootIndex}-${root.text}`}
@@ -238,5 +253,60 @@ export default function RecordingRoadmap({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Faint "go to the next slide" hint for the empty first-take space.
+ *  Touch screens get "Scroll down" with a large arrow; mouse/trackpad screens
+ *  get the arrow-key cluster with the down key outlined in orange. Chosen by
+ *  CSS pointer media so the server render matches the client. */
+function NextSlideHint({ onNext }: { onNext: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onNext}
+      aria-label="Next slide"
+      className="flex flex-col items-center justify-center gap-4 self-center text-foreground opacity-50 transition-opacity hover:opacity-70"
+    >
+      <span className="hidden flex-col items-center gap-2 [@media(pointer:coarse)]:flex">
+        <span className="text-[clamp(1.6rem,6vw,2.2rem)] font-semibold leading-tight">
+          Scroll down
+        </span>
+        <ChevronDown className="h-10 w-10" aria-hidden />
+      </span>
+      <span className="flex flex-col items-center gap-4 [@media(pointer:coarse)]:hidden">
+        <span className="grid grid-cols-3 gap-1.5" aria-hidden>
+          <span />
+          <ArrowKey icon={ChevronUp} />
+          <span />
+          <ArrowKey icon={ChevronLeft} />
+          <ArrowKey icon={ChevronDown} active />
+          <ArrowKey icon={ChevronRight} />
+        </span>
+        <span className="text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight">
+          Click down
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ArrowKey({
+  icon: Icon,
+  active = false,
+}: {
+  icon: LucideIcon;
+  active?: boolean;
+}) {
+  return (
+    <span
+      className={`flex h-11 w-11 items-center justify-center rounded-lg border-2 ${
+        active
+          ? "border-primary text-primary"
+          : "border-muted-foreground/40 text-muted-foreground"
+      }`}
+    >
+      <Icon className="h-5 w-5" />
+    </span>
   );
 }

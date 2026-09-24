@@ -65,10 +65,10 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
     <div className="flex flex-1 flex-col">
       <div className="mt-2">
         <h2 className="text-[20px] font-semibold text-foreground">
-          Before you step on stage
+          How do you feel
         </h2>
         <p className="mt-1 text-[15px] text-muted-foreground">
-          How are you feeling about this one?
+          Before you step on stage
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { CircleCheck, Upload } from "lucide-react";
 import { extractPresentation } from "@/services/api/presentationExtract";
 import {
   ACCEPTED_DECK_ACCEPT,
@@ -95,7 +95,13 @@ export default function PresentationInput({
             : "border-border hover:bg-muted"
         }`}
       >
-        <Upload className="h-5 w-5 text-muted-foreground" aria-hidden />
+        {/* Once a deck is attached the upload arrow gives way to a check —
+            the box still replaces the deck on tap. */}
+        {presentationRef && uploadState !== "uploading" ? (
+          <CircleCheck className="h-6 w-6 text-foreground" aria-label="Deck attached" />
+        ) : (
+          <Upload className="h-5 w-5 text-muted-foreground" aria-hidden />
+        )}
         <span className="text-[14px] text-foreground">
           {uploadState === "uploading"
             ? "Reading your deck…"
@@ -106,16 +112,21 @@ export default function PresentationInput({
       </button>
 
       {presentationRef ? (
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[13px] text-muted-foreground">
-          Deck attached
+        // Sized like the deck modal's footer pair (black pill + grey link):
+        // 16px semibold at the pill's 54px, 16px grey at the link's 48px,
+        // stacked with the same tight gap.
+        <div className="mt-3 flex flex-col items-center gap-0.5">
+          <p className="flex min-h-[54px] items-center justify-center text-[16px] font-semibold text-foreground">
+            Deck attached
+          </p>
           <button
             type="button"
             onClick={clearDeck}
-            className="underline-offset-2 hover:text-foreground hover:underline"
+            className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground"
           >
             remove
           </button>
-        </p>
+        </div>
       ) : null}
       {errorMsg ? (
         <p className="mt-2 text-[12px] text-destructive">{errorMsg}</p>
