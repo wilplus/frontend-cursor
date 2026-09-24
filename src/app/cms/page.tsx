@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
 import DiagnosticExerciseSection from "./DiagnosticExerciseSection";
+import { interruptedDestination } from "./interruptedDestination";
 import BodyBlocks from "@/components/journal/BodyBlocks";
 import {
   ArrowDown,
@@ -63,6 +64,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const PW_KEY = "willpower.journal.pw";
+
 
 const LABEL_CLS =
   "mb-1.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground";
@@ -364,6 +366,9 @@ export default function JournalAdminPage() {
     } catch {
       /* ignore */
     }
+    // Resume the authoring deep link this gate interrupted, if there was one.
+    const next = interruptedDestination();
+    if (next) router.replace(next);
   }
 
   function flash(msg: string) {

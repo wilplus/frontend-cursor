@@ -222,8 +222,13 @@ describe("the doors into the lane", () => {
     expect(COACH).not.toContain("Create new exercise");
   });
 
-  it("bounces to the CMS when the tab has no password", () => {
-    expect(CLIENT).toContain('router.replace("/cms")');
+  it("bounces to the CMS when the tab has no password, carrying where it was going", () => {
+    // It used to bounce to a bare /cms, which dropped the lane, the step and
+    // the returnTo — so a coach sent to the record screen resumed at the
+    // Post-or-Exercise fork (founder 2026-09-24). The destination now rides
+    // the bounce and /cms resumes it after unlocking.
+    expect(CLIENT).toContain("/cms?next=");
+    expect(CLIENT).not.toContain('router.replace("/cms")');
   });
 });
 
