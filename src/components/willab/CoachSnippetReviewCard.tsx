@@ -124,29 +124,6 @@ function renderBlindPiece(options: {
           className="aspect-video w-full"
         />
       ) : null}
-      {/* WHAT THE SPEAKER SAID ABOUT THIS SAME MOMENT (founder 2026-09-24:
-          "in the coach review I want to see what the user judged after I
-          judge it").
-
-          It arrives EMPTY until the coach has committed their own answer —
-          the server withholds it on the transcript's rule, so there is
-          nothing here to hide and nothing to leak. Rendering it at all is
-          therefore already proof the coach has answered.
-
-          IT IS LABELLED AS THEIRS, not merged into the coach's own row. L3
-          keeps owner routing and coach judgment in separate lanes; two
-          answers to the same question sitting side by side, each named,
-          is the readable form of that separation rather than a breach of
-          it. Their wording, from the owner chip list, so the coach reads
-          back exactly what the speaker was offered. */}
-      {snippet.ownerAnswer ? (
-        <p className="text-[13px] text-muted-foreground">
-          The speaker said:{" "}
-          <span className="font-medium text-foreground">
-            {OWNER_ANSWER_LABELS[snippet.ownerAnswer] ?? snippet.ownerAnswer}
-          </span>
-        </p>
-      ) : null}
       {/* WAS THIS ONE BOOKMARKED. The word and nothing else: not the tier, not
           the colour, not whether the machine thought it confident — founder
           2026-09-24, "a small label saying that this is the bookmarked;
@@ -163,7 +140,36 @@ function renderBlindPiece(options: {
         transcript={revealedTranscript}
         transcriptRevealed={revealedTranscript.length > 0}
       />
-      <div className="border-t border-border pt-4">{instrument}</div>
+      <div className="border-t border-border pt-4">
+        {instrument}
+        {/* WHAT THE SPEAKER SAID ABOUT THIS SAME MOMENT (founder 2026-09-24:
+            "in the coach review I want to see what the user judged after I
+            judge it"), UNDER THE COACH'S OWN ANSWER (founder sign-off
+            2026-09-24) — it used to sit above the bookmark pill and the
+            audio, mid-card, a screen's length from the chips the coach had
+            just tapped. Side by side the two answers read as one comparison
+            instead of two.
+
+            It arrives EMPTY until the coach has committed their own answer —
+            the server withholds it on the transcript's rule, so there is
+            nothing here to hide and nothing to leak. Rendering it at all is
+            therefore already proof the coach has answered.
+
+            IT IS LABELLED AS THEIRS, not merged into the coach's own row. L3
+            keeps owner routing and coach judgment in separate lanes; two
+            answers to the same question sitting side by side, each named, is
+            the readable form of that separation rather than a breach of it.
+            Their wording, from the owner chip list, so the coach reads back
+            exactly what the speaker was offered. */}
+        {snippet.ownerAnswer ? (
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            The speaker said:{" "}
+            <span className="font-medium text-foreground">
+              {OWNER_ANSWER_LABELS[snippet.ownerAnswer] ?? snippet.ownerAnswer}
+            </span>
+          </p>
+        ) : null}
+      </div>
       {onBuildExercise && answered ? (
         <button
           type="button"

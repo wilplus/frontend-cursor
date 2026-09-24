@@ -165,6 +165,9 @@ export default function BestPresentationOverlay({
         <CoachIdealTextPanel
           arcId={arcId}
           presentationRef={result?.presentationRef ?? null}
+          /* Verified → leave. Same exit as the ✕ above: this overlay closes
+             and the delivery flow it opened from is revealed underneath. */
+          onDone={onClose}
         />
       </div>
     );
