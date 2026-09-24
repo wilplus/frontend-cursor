@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   opensRootPhrase,
+  closesLock,
   buildChunkSteps,
   orderedInventory,
   stepKindFor,
@@ -240,35 +241,49 @@ describe("judgedStatus — the status the server serves for an answered row", ()
   });
 });
 
-/* ── WHO MAY ROOT A PHRASE (founder 2026-09-22) ───────────────────────────
+/* ── WHO MAY ROOT A PHRASE (founder 2026-09-22, finished 2026-09-24) ──────
  * "maybe do not restrict the tap to the YES answer only ... cause people
  * usually will hate their voice and not consider it confident, so gate
  * keeping it at YES will delay by several takes to get the rooting phrases."
  *
- * Contract 24e already made the tap-to-root step part of every item. These
- * pin the one exception and, just as importantly, that the step and the store
- * read the same rule — a screen offered but not saved is silent data loss. */
-describe("opensRootPhrase — every answer but one", () => {
-  it("opens for every answer that judged the delivery", () => {
-    for (const answer of ["yes", "in_between", "no", "not_sure"] as const) {
+ * The 09-22 ruling left one carve-out — "Audio unclear" — on the reasoning
+ * that someone who could not hear the clip cannot choose which words to land
+ * on. Shown that case on the real screen and asked directly, the founder
+ * ruled the other way on 09-24: "keep the emphasis open". These tests are
+ * rewritten to the answer he gave rather than deleted, so the reversal is
+ * legible to whoever reads them next.
+ *
+ * What still matters most is the second half: the step and the store read the
+ * SAME rule. A screen offered but not saved is silent data loss. */
+describe("opensRootPhrase — every answer, now with no exception", () => {
+  it("opens for every answer there is", () => {
+    for (const answer of [
+      "yes",
+      "in_between",
+      "no",
+      "not_sure",
+      "audio_unclear",
+    ] as const) {
       expect(opensRootPhrase(answer)).toBe(true);
     }
   });
 
-  it("stays closed when the clip could not be heard", () => {
-    // Not a harsh judgement — no judgement. Choosing which words to land on
-    // is not answerable by someone who could not make the words out.
-    expect(opensRootPhrase("audio_unclear")).toBe(false);
+  it("opens for the clip that could not be heard (founder 2026-09-24)", () => {
+    // The phrase is about the WORDS — which of them this paragraph turns on —
+    // and that is answerable whether or not the recording came through. What
+    // "Audio unclear" costs is the lock, not the phrase.
+    expect(opensRootPhrase("audio_unclear")).toBe(true);
+    expect(closesLock("audio_unclear")).toBe(true);
   });
 
   it("stays closed until something is answered at all", () => {
-    // A paragraph the detector never flagged reaches Lock with no orange.
+    // A paragraph the detector never flagged reaches the end with no orange.
     expect(opensRootPhrase(null)).toBe(false);
   });
 
   it("opens for the coarse answer the older paths can express", () => {
     // The legacy agreement chip and the exercise's closing yes/no carry only
-    // these two; neither can mean "audio unclear", so both open.
+    // these two.
     expect(opensRootPhrase("yes")).toBe(true);
     expect(opensRootPhrase("other")).toBe(true);
   });
@@ -281,7 +296,78 @@ describe("opensRootPhrase — every answer but one", () => {
       }).some((step) => step.kind === "emphasis");
     expect(ask("not_sure")).toBe(true);
     expect(ask("no")).toBe(true);
-    expect(ask("audio_unclear")).toBe(false);
+    expect(ask("audio_unclear")).toBe(true);
+    expect(ask(null)).toBe(false);
   });
 });
 
+/* ── WHICH ANSWERS TAKE THE LOCK AWAY (founder 2026-09-24) ────────────────
+ * "when there is an answer that no, not confident or not sure, do not give
+ * the people option to lock it in ... and the same for audio unclear." Then,
+ * on a draft that merely demoted Lock to Keep evolving: "no just don't show
+ * that overlay; no keep evolving — after the rooting phrases close the
+ * overlay in these cases."
+ *
+ * The distinction these pin is the one a collapsed yes/other answer cannot
+ * express at all: "No" and "In-between" fall on opposite sides of it. */
+describe("closesLock — three answers end the ladder early", () => {
+  it("closes on No, Not sure and Audio unclear", () => {
+    expect(closesLock("no")).toBe(true);
+    expect(closesLock("not_sure")).toBe(true);
+    expect(closesLock("audio_unclear")).toBe(true);
+  });
+
+  it("In-between keeps its Lock", () => {
+    // Founder, asked directly the same day. Someone who thought it was
+    // middling still thought something about the words; a No, a shrug and a
+    // dead mic are the three that say this is not the delivery to freeze.
+    expect(closesLock("in_between")).toBe(false);
+  });
+
+  it("Yes, the coarse answer, and no answer at all keep it", () => {
+    expect(closesLock("yes")).toBe(false);
+    // The exercise's closing judgement is about the PRACTICE recording, not
+    // this one, so it does not carry the founder's rule about this one.
+    expect(closesLock("other")).toBe(false);
+    // A paragraph nobody judged is untouched by any of this.
+    expect(closesLock(null)).toBe(false);
+  });
+
+  it("takes the step off the end rather than disabling it", () => {
+    const ladder = (answer: Parameters<typeof closesLock>[0]) =>
+      buildChunkSteps({
+        inventory: [],
+        canEmphasise: opensRootPhrase(answer),
+        canLock: !closesLock(answer),
+      }).map((step) => step.kind);
+    expect(ladder("yes")).toContain("lock");
+    expect(ladder("in_between")).toContain("lock");
+    expect(ladder("no")).not.toContain("lock");
+    expect(ladder("audio_unclear")).not.toContain("lock");
+  });
+
+  it("an older caller that passes no canLock keeps the lock", () => {
+    // Safe-ahead: the flag defaults to true, so nothing that has not been
+    // taught the rule loses a step.
+    expect(
+      buildChunkSteps({ inventory: [], canEmphasise: false }).map((s) => s.kind),
+    ).toEqual(["lock"]);
+  });
+
+  it("never returns an empty ladder", () => {
+    // THE INVARIANT THAT REPLACES "the lock is always present". The sheet
+    // renders `steps[current]` and would have nothing to draw. It holds
+    // structurally: canLock is only false once an answer exists, an answer
+    // only exists once a Confident Voice item has been answered, and that
+    // item is itself a step in this list.
+    for (const answer of ["no", "not_sure", "audio_unclear"] as const) {
+      const steps = buildChunkSteps({
+        inventory: [confidence],
+        canEmphasise: opensRootPhrase(answer),
+        canLock: !closesLock(answer),
+      });
+      expect(steps.length).toBeGreaterThan(0);
+      expect(steps[0].kind).toBe("feedback");
+    }
+  });
+});

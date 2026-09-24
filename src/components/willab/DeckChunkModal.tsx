@@ -9,7 +9,6 @@ import {
   Pencil,
   Sparkles,
   Square,
-  ThumbsUp,
   Undo2,
 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
@@ -96,6 +95,7 @@ import {
   type ChunkStep,
   judgedStatus,
   opensRootPhrase,
+  closesLock,
 } from "@/lib/willab/chunkSteps";
 import {
   nextSelection,
@@ -306,6 +306,11 @@ export default function DeckChunkModal({
           opensRootPhrase(judgementValue) &&
           chunk.part.text.trim().length > 0 &&
           (Boolean(styleSuggestion) || chunk.part.locked !== true),
+        // FOUNDER 2026-09-24. No, Not sure and Audio unclear take the Lock
+        // step off the end: the ladder finishes on emphasis and the sheet
+        // closes. Read from the SAME judgement the emphasis gate reads, one
+        // line above, so the two can never disagree about the same answer.
+        canLock: !closesLock(judgementValue),
       }),
     [
       feedbackInventory,
@@ -380,7 +385,18 @@ export default function DeckChunkModal({
     const list = buildSteps(withJudgement, withServicePractise);
     const at = list.findIndex((entry) => entry.id === stepId);
     const next = list[at + 1];
-    if (next) setStepId(next.id);
+    /* THE LADDER CAN NOW END SOMEWHERE THAT IS NOT THE LOCK (founder
+       2026-09-24). It used to be true that "the lock step is always last, so
+       this always lands somewhere and there is no no-more-items branch to get
+       wrong" — on No, Not sure and Audio unclear there is no lock step, so
+       this is that branch, and it is the close. Nothing is saved here: the
+       rooting phrase was written on the emphasis step itself, which is the
+       point of moving it there. */
+    if (!next) {
+      onClose();
+      return;
+    }
+    setStepId(next.id);
     setRewriteCollisionConfirmed(false);
     setError(null);
     // The next item gets a CLEAN instrument, and this is an L3 fix, not a
@@ -523,53 +539,55 @@ export default function DeckChunkModal({
       );
       return;
     }
-    /* EMPHASIS + LOCK PROMOTES THE PHRASE BY ITSELF (founder 2026-09-15).
+    /* THE LOCK LOCKS THE TEXT. THE EMPHASIS SAVED THE EMPHASIS.
      *
-     * There is no rooting-phrase screen after a lock any more. The speaker
-     * already said which words matter, on the emphasis step, and asking again
-     * is asking twice. So the words they chose are resolved against the text
-     * that was actually locked and stored directly.
+     * FOUNDER 2026-09-24, and it is a statement about versioning rather than
+     * about screens: "lock the whole text chunk with the edits made and saved
+     * on the emphasis, but if you record and see the rooting phrases and say
+     * things before not locking it, it will be gone, cause the new text will
+     * replace it — that is the versioning system in its essence."
      *
-     * Resolved here rather than carried as an offset on purpose: an accepted
-     * emphasis rewraps the words in `**`, which moves every raw index after
-     * it. The readable text is stable across that; an offset is not.
+     * So the two promises are separate. Choosing the phrase records a fact
+     * about this recording, immediately, on the step that chose it
+     * (`saveEmphasis`) — it does not wait for a lock that may never come, and
+     * on the three answers that now end the ladder early there IS no lock to
+     * wait for. Locking is the other promise: these words stop being
+     * replaceable by the next take, and the phrase standing on them survives
+     * with them.
      *
-     * A quote that no longer resolves — edited away, or now ambiguous — locks
-     * with no anchor rather than guessing at one. Skip does the same, and
-     * means it: nothing asks again later.
+     * WHAT IS LEFT HERE IS A RE-ANCHOR, NOT THE SAVE. The lock step is also
+     * the editor, so the speaker can change the words after picking the
+     * phrase — and then the span written on the emphasis step points into text
+     * that no longer exists. `dirtyRef` is exactly "they typed", so only then
+     * is the phrase resolved again, against the text actually committed, and
+     * written once more. On the ordinary path nothing is re-sent.
      *
-     * THE GATE READS `judgement`, NOT `agreeValue` — and that is a live bug
-     * fix, reported from real use 2026-09-16: "I tap to choose the emphasis
-     * words, I click lock, and it doesn't save".
+     * Resolved against the text rather than carried as an offset, for the
+     * reason this path always gave: an accepted emphasis rewraps the words in
+     * `**`, which moves every raw index after it, while the readable text is
+     * stable across that. A quote that no longer resolves locks with no anchor
+     * rather than guessing at one.
      *
-     * `agreeValue` is the CHIP's state and advanceStep clears it, deliberately,
-     * so a second confident-voice item on the same chunk opens unanswered (L3).
-     * By the time the speaker reached Lock it was always null, so
-     * `agreeValue !== "yes"` was always true — and on a paragraph whose only
-     * feedback was the confidence question, that nulled the anchor and
-     * onSetRootPhrase was never called. The speaker picked their words, locked,
-     * and nothing turned orange. `judgement` is the paragraph-level answer,
+     * THE GATE READS `judgement`, NOT `agreeValue` — a live bug fix reported
+     * from real use 2026-09-16: "I tap to choose the emphasis words, I click
+     * lock, and it doesn't save". `agreeValue` is the CHIP's state and
+     * advanceStep clears it, deliberately, so a second confident-voice item on
+     * the same chunk opens unanswered (L3); by the time the speaker reached
+     * Lock it was always null. `judgement` is the paragraph-level answer,
      * which is what this check always meant and which survives the steps in
-     * between.
-     *
-     * Belt and braces: the step and this check must read the SAME rule, or
-     * the speaker picks their words on a screen that was offered and the words
-     * are dropped at Lock. That is the silent data loss above, and it is why
-     * both now call `opensRootPhrase` rather than each spelling out a
-     * condition. The two still guard different things — the step decides
-     * whether to ASK, this decides whether to STORE — they just may never
-     * disagree about who is allowed.
-     *
-     * A quote that no longer resolves — edited away, or now ambiguous — locks
-     * with no anchor rather than guessing at one. */
+     * between. It must read the same rule the emphasis step reads, so both
+     * call `opensRootPhrase`: the step decides whether to ASK, this decides
+     * whether to STORE, and they may never disagree about who is allowed. */
     const confidenceOnly =
       feedbackInventory.length > 0 &&
       feedbackInventory.every(isConfidentVoiceFeedback);
-    const anchor =
-      promotedQuote && !(confidenceOnly && !opensRootPhrase(judgement))
+    const reAnchor =
+      dirtyRef.current &&
+      promotedQuote &&
+      !(confidenceOnly && !opensRootPhrase(judgement))
         ? quoteSpan(draft, promotedQuote)
         : null;
-    if (anchor) await onSetRootPhrase(anchor);
+    if (reAnchor) await onSetRootPhrase(reAnchor);
     setBusy(false);
     onClose();
   }
@@ -597,9 +615,48 @@ export default function DeckChunkModal({
    *                         --primary rather than in a selection colour.
    * Skip                  — lock with no anchor at all.
    */
+  /** Write the chosen phrase NOW, on the screen that chose it.
+   *
+   *  FOUNDER 2026-09-24: "handle it through the emphasis screen not through
+   *  the lock ... make the emphasis save the emphasis and lock the text with
+   *  the emphasis."
+   *
+   *  It used to be stored by `lockIn`, which made the lock do two jobs and
+   *  made the phrase depend on the second one. That was already the wrong
+   *  shape, and removing the Lock step for three of the answers would have
+   *  turned it into silent data loss — the speaker taps their words on a
+   *  screen that then closes, and nothing is written. The founder's own
+   *  reasoning is the better one and it is about versioning, not screens:
+   *  the phrase is a fact about this recording the moment it is chosen, while
+   *  the lock is what stops a later take replacing the words underneath it.
+   *  Two different promises, so two different moments.
+   *
+   *  A FAILURE STOPS THE LADDER. Returning false here leaves the speaker on
+   *  the emphasis screen with `failRoot` showing, rather than advancing past
+   *  the only chance to record the words they just picked.
+   *
+   *  The span is resolved against the text rather than carried as an offset,
+   *  for the reason the lock path always gave: an accepted emphasis rewraps
+   *  words in `**` and moves every raw index after it, while the readable text
+   *  does not. A quote that no longer resolves saves nothing rather than
+   *  guessing at a position. */
+  async function saveEmphasis(phrase: string | null): Promise<boolean> {
+    const anchor = phrase ? quoteSpan(draft, phrase) : null;
+    if (!anchor) return true;
+    const ok = await onSetRootPhrase(anchor);
+    if (!ok) setError(COPY.failRoot);
+    return ok;
+  }
+
   async function emphasiseProposed() {
     if (!styleSuggestion || busy) return;
-    setPromotedQuote(styleSuggestion.quote || null);
+    const chosen = styleSuggestion.quote || null;
+    setBusy(true);
+    setError(null);
+    const saved = await saveEmphasis(chosen);
+    setBusy(false);
+    if (!saved) return;
+    setPromotedQuote(chosen);
     if (onApplyStyle) await applyStyle();
     advanceStep();
   }
@@ -629,8 +686,15 @@ export default function DeckChunkModal({
      renders tapped words in --primary as they are tapped, which is how a
      rooting phrase renders while recording. The preview is immediate; only
      the invented document edit is gone. */
-  function emphasiseChosen() {
-    setPromotedQuote(selectionText(draft, phraseTokens(draft), phraseRun));
+  async function emphasiseChosen() {
+    if (busy) return;
+    const chosen = selectionText(draft, phraseTokens(draft), phraseRun);
+    setBusy(true);
+    setError(null);
+    const saved = await saveEmphasis(chosen);
+    setBusy(false);
+    if (!saved) return;
+    setPromotedQuote(chosen);
     advanceStep();
   }
 
@@ -780,11 +844,19 @@ export default function DeckChunkModal({
     setAgreeSaving(false);
     if (r.ok) {
       setAgreeSaved(true);
-      // The paragraph's judgement, kept where advanceStep's per-item reset
-      // cannot reach it. Only a Yes opens the emphasis step (§4); every other
-      // answer, including "not sure" and "audio unclear", is not a Yes.
+      /* THE PARAGRAPH'S JUDGEMENT, kept where advanceStep's per-item reset
+         cannot reach it — and kept WHOLE.
+ 
+         It used to be collapsed to `yes | other` right here, before any gate
+         saw it (audit finding F-4). That was survivable while the only
+         question was "does emphasis open", which every answer now does. It is
+         not survivable now: `closesLock` puts "No" and "In-between" on
+         opposite sides of the same collapse, so a sheet that forgets which of
+         the five was tapped cannot obey the founder's rule at all. The row
+         STATUS stays collapsed, because "did they accept this suggestion"
+         really is a yes-or-not question; the judgement itself does not. */
       const answered = value === "yes" ? "yes" : "other";
-      setJudgement(answered);
+      setJudgement(value);
       reportJudged(suggestion, answered);
       /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
        *
@@ -801,8 +873,14 @@ export default function DeckChunkModal({
        *
        * No second write: `saveTakeFeedbackResponse` above already recorded
        * this answer, and the retired Done button called it AGAIN through
-       * resolveObservedFeedback with the same id and value. */
-      advanceStep(answered);
+       * resolveObservedFeedback with the same id and value.
+       *
+       * IT ADVANCES ON THE RAW ANSWER, for the same reason `judgement` now
+       * holds it: React has not re-rendered, so the list this builds is the
+       * only one that sees the answer just given — hand it the collapsed
+       * `answered` and the ladder keeps a Lock step the founder's rule has
+       * just removed, on the one advance where it matters. */
+      advanceStep(value);
       return;
     }
     // Roll the chip back rather than leaving it lit over a row the server
@@ -1079,7 +1157,7 @@ export default function DeckChunkModal({
         icon: <Sparkles className="h-4 w-4" aria-hidden />,
         pillDisabled: tapping && phraseRun === null,
         onPill: tapping
-          ? () => emphasiseChosen()
+          ? () => void emphasiseChosen()
           : () => void emphasiseProposed(),
         /* NO SKIP, on any of the three states (founder 2026-09-16, §5). The
            step offers two choices and no opt-out — take the phrase it
@@ -1211,17 +1289,29 @@ export default function DeckChunkModal({
         </div>
       </>
     ) : (
-      /* THE OFFER. No "what you said" box, no eyebrow, no corner icon —
-         the sheet title already says Exercise. */
-      <div
-        data-testid="practice-offer"
-        className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-      >
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {exerciseItem.practiceExercise.instruction}
-        </p>
+      /* THE OFFER (founder 2026-09-24). No "what you said" box, no eyebrow, no
+         corner icon — the sheet title already says Exercise.
+
+         THE VIDEO LEADS AND THE INSTRUCTION IS PLAIN, and the two are one
+         decision. "Exercise should have the video displayed, not the text. Or
+         it should have the video and below the text so that it's connected to
+         what is uploaded through the exercise upload system" — so the coach's
+         own recording is the first thing on the screen, and the words are
+         underneath it. It is the same file the CMS exercise lane uploaded:
+         videoUrl -> explanation_video_ref -> explanationVideoRef. Nothing new
+         is fetched and no second upload path exists.
+
+         AND THE INSTRUCTION LEAVES THE ORANGE BOX: "the instruction should not
+         be in the same box, orange box, as the text you are saying, because it
+         is confusing." Orange means words that get said; this is us telling
+         the speaker what to do with them, so it takes the plain box — the same
+         one "What you said" wears on the Suggestion screen, and the same one
+         the praise comment now wears next door. There are no spoken words on
+         this screen (the offer's `passage` is deliberately not drawn), so the
+         screen carries no orange at all. */
+      <div data-testid="practice-offer" className="flex flex-col gap-3">
         {exerciseItem.practiceExercise.explanationVideoRef ? (
-          <div className="mt-3 overflow-hidden rounded-xl bg-black">
+          <div className="overflow-hidden rounded-2xl bg-black">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               src={exerciseItem.practiceExercise.explanationVideoRef}
@@ -1232,8 +1322,13 @@ export default function DeckChunkModal({
             />
           </div>
         ) : null}
+        <div className="rounded-2xl border border-border p-4">
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {exerciseItem.practiceExercise.instruction}
+          </p>
+        </div>
         {exercise.error ? (
-          <p className="mt-3 rounded-xl border border-border p-3 text-[13px] text-destructive">
+          <p className="rounded-xl border border-border p-3 text-[13px] text-destructive">
             {exercise.error}
           </p>
         ) : null}
@@ -1241,12 +1336,30 @@ export default function DeckChunkModal({
     );
   }
 
-  /* ---- GOOD JOB · read, not rated ------------------------------- */
+  /* ---- GOOD JOB · read, not rated -------------------------------
+      THE ORANGE IS ON THE SPEAKER'S OWN WORDS (founder 2026-09-24):
+      "the box with what you said should be the orange one and the
+      comment should be exactly the same as the instruction for the
+      exercise. And as what you said on the suggestion, same white
+      box." So the two boxes swap.
+
+      It is the colour rule the whole sheet now runs on, confirmed by
+      the founder the same day: ORANGE is words that get said — the
+      ones that worked here, the ones to say next time on Suggestion —
+      and PLAIN is what we are telling the speaker about them. On
+      Suggestion "What you said" stays plain because it is being
+      replaced; here those words are the keeper, so they take the
+      orange.
+
+      "Exactly the same as the instruction for the exercise" is taken
+      literally: that box has no eyebrow and no corner icon, so the
+      thumbs-up goes with the comment into the plain box and is not
+      redrawn. The screen title already says Good job. */
   function renderPraiseStep(): React.ReactNode {
     if (!suggestion) return null;
     return (
       <>
-        <div className="rounded-2xl border border-border p-4">
+        <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
           <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
             {COPY.cardWhatYouSaid}
           </p>
@@ -1254,14 +1367,9 @@ export default function DeckChunkModal({
             {suggestion.quote || chunk.part.text}
           </p>
         </div>
-        <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-          <span className="absolute right-4 top-4 text-pending" aria-hidden>
-            <ThumbsUp className="h-4 w-4" />
-          </span>
-          <p className="pr-8 text-[15px] leading-relaxed text-foreground">
-            {suggestion.tentative
-              ? "This may be one of the strongest formulations in this Take."
-              : PRAISE_LEAD}
+        <div className="rounded-2xl border border-border p-4">
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {suggestion.tentative ? COPY.praiseTentative : PRAISE_LEAD}
           </p>
         </div>
       </>
@@ -1370,8 +1478,20 @@ export default function DeckChunkModal({
   function renderLockStep(): React.ReactNode {
     return (
       <div className="relative rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
+        {/* A PENCIL, NOT A PADLOCK (founder 2026-09-24): "on the orange box
+            the icon should be little pencil in the top right corner instead
+            of a lock icon ... although keep the lock icon on the CTA, so the
+            button that locks it."
+
+            The icon on the card should say what the card does, and this card
+            is the paragraph itself — editable on the editor face, and the
+            thing about to be committed on the preview face. The padlock names
+            an action, so it belongs on the button that performs it and
+            nowhere else. Same card behind both titles, so one change covers
+            Lock and Edit this chunk. It is the pencil the Suggestion screen
+            already uses for "edit myself", so the app has one pencil. */}
         <span className="absolute right-4 top-4 text-pending" aria-hidden>
-          <Lock className="h-4 w-4" />
+          <Pencil className="h-4 w-4" />
         </span>
         {acceptedRewrite && onUndoAccept ? (
           <button

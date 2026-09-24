@@ -65,32 +65,63 @@ export type RootGateAnswer = ConfidenceRatingValue | "other" | null;
 
 /** Does this answer open the tap-to-root phrase step?
  *
+ *  EVERY ANSWER DOES. Not "every answer except one" — every one.
+ *
  *  FOUNDER 2026-09-22: "maybe do not restrict the tap to the YES answer only
  *  ... cause people usually will hate their voice and not consider it
  *  confident, so gate keeping it at YES will delay by several takes to get the
- *  rooting phrases."
+ *  rooting phrases." That removed the Yes gate, and 24e already said so: the
+ *  tap-to-root phrase step is part of EVERY item, not a reward for a good
+ *  answer.
  *
- *  That is right, and the contract already said so: 24e makes the tap-to-root
- *  phrase step part of EVERY item, not a reward for a good answer. The Yes
- *  gate was a narrowing on top of it, and it had the effect the founder
- *  describes — the speakers most in need of a rooting phrase are exactly the
- *  ones who will not call their own voice confident.
+ *  FOUNDER 2026-09-24 removes the last carve-out. This function used to close
+ *  on "Audio unclear", reasoning that someone who could not hear the clip
+ *  cannot choose which words to land on. Shown the case and asked directly,
+ *  the founder ruled the other way: "keep the emphasis open". The phrase is
+ *  about the WORDS — which of them this paragraph turns on — and that is a
+ *  judgement about the script, answerable whether or not the recording came
+ *  through. What "Audio unclear" does cost is the lock; see `closesLock`.
  *
- *  ONE ANSWER STILL CLOSES IT, and only one. "Audio unclear" is not a
- *  judgement of the delivery at all: it says the clip could not be heard. A
- *  speaker who could not hear the words cannot choose which of them to land
- *  on, so asking would be asking them to guess. Every other answer — Yes,
- *  In-between, No, Not sure — is a real engagement with the recording, and a
- *  No is arguably when a rooting phrase helps most.
+ *  So the only thing left that closes the step is nobody having answered at
+ *  all — a paragraph the detector never flagged, which reaches the end with no
+ *  orange. That is the intended shape rather than a gap.
  *
- *  WHY IT TAKES THE RAW ANSWER. The sheet used to collapse all five to
- *  `yes | other` before any gate saw them, so "Not sure" was indistinguishable
- *  from "No" and from "Audio unclear" — audit finding F-4. The row status
- *  stays collapsed, because "did they accept this suggestion" really is a
- *  yes-or-not question; this one is not.
+ *  IT STILL TAKES THE RAW ANSWER, and now it matters more than ever. The sheet
+ *  used to collapse all five to `yes | other` before any gate saw them (audit
+ *  finding F-4); `closesLock` cannot be written on top of that collapse at
+ *  all, because "No" and "In-between" fall on opposite sides of it. The row
+ *  status stays collapsed — "did they accept this suggestion" really is a
+ *  yes-or-not question — but nothing else may be.
  */
 export function opensRootPhrase(answer: RootGateAnswer): boolean {
-  return answer !== null && answer !== "audio_unclear";
+  return answer !== null;
+}
+
+/** Does this answer take the Lock step off the end of the ladder?
+ *
+ *  FOUNDER 2026-09-24: "when there is an answer that no, not confident or not
+ *  sure, do not give the people option to lock it in. Just save the rooting
+ *  phrases orange, but do not let them lock that text. And the same for audio
+ *  unclear." Then, shown a version that merely demoted Lock to Keep evolving:
+ *  "no just don't show that overlay; no keep evolving — after the rooting
+ *  phrases close the overlay in these cases."
+ *
+ *  So this is not a disabled button and not a softer button. The step is not
+ *  built, and the sheet ends when the ladder runs out.
+ *
+ *  WHY THESE THREE AND NOT FOUR. "In-between" keeps its Lock (founder, same
+ *  day, asked directly). A speaker who thought it was middling still thought
+ *  something about the words; a No, a shrug and a dead mic are the three that
+ *  say this delivery is not the one to freeze.
+ *
+ *  `"other"` is NOT in the set, and that is deliberate rather than an
+ *  oversight. It is what the two paths that cannot express more report — the
+ *  legacy agreement chip, and the exercise's own closing yes/no — and a
+ *  judgement of a DIFFERENT recording (the practice attempt) is not the
+ *  founder's rule about this one. Those paths keep the Lock.
+ */
+export function closesLock(answer: RootGateAnswer): boolean {
+  return answer === "no" || answer === "not_sure" || answer === "audio_unclear";
 }
 
 /** Does the lock step SHOW the paragraph rather than offer it for editing?
@@ -170,32 +201,34 @@ export function orderedInventory(
 
 /** The whole ladder for one open sheet.
  *
- *  THE EMPHASIS GATE (founder 2026-09-16, §4 — reversing the reading this
- *  module took on 09-15 and flagged for exactly this answer). The step now
- *  requires BOTH a proposal to exist AND the paragraph's judgement to have
- *  come back Yes — step one's, or the exercise's final judgement.
- *
- *  Yesterday's reading was the permissive one: gating on a proposal alone
- *  would leave a paragraph unable to set a rooting phrase at all, so the step
- *  was offered wherever there were words. The founder's answer is that this
- *  was the wrong worry. Orange means "I confirmed I deliver this well", not
- *  "a phrase was available" — so a paragraph nobody judged, or judged
- *  anything other than Yes, must not carry one.
- *
- *  THE CONSEQUENCE IS THE POINT, not an oversight: a paragraph the detector
- *  never flagged is never judged, so most paragraphs reach Lock with no
- *  orange at all. Worth checking against live data once it ships — if the
- *  detector flags two paragraphs a deck, that is two possible anchors out of
- *  twenty.
+ *  THE EMPHASIS GATE (founder 2026-09-16 §4, widened 09-22, finished 09-24).
+ *  The step requires a paragraph with words and an ANSWER — see
+ *  `opensRootPhrase`, which as of 2026-09-24 is every answer there is. A
+ *  paragraph the detector never flagged is never judged, so it reaches the end
+ *  with no orange at all; that is the intended shape, not an oversight.
  *
  *  THE EXERCISE STEP sits between the feedback items and emphasis. It is the
  *  only place the asynchronous side of the product surfaces in this sheet,
  *  and it is offered on a Yes and on a No alike: the practice is matched to
  *  the clip, not awarded for a verdict.
  *
- *  The lock step is always last and always present: every path through the
- *  sheet ends at the same question, which is what keeps the step bar a count
- *  of screens rather than of findings.
+ *  THE LOCK STEP IS NO LONGER ALWAYS THERE, and the sentence that used to
+ *  stand here — "the lock step is always last and always present: every path
+ *  through the sheet ends at the same question" — is retired rather than
+ *  quietly left in place. Founder 2026-09-24: an answer of No, Not sure or
+ *  Audio unclear takes the step off the end entirely, and the sheet closes
+ *  when the ladder runs out. Not a disabled Lock and not a Keep evolving in
+ *  its place: "just don't show that overlay".
+ *
+ *  What the caller must know about that: the ladder can now END on a screen
+ *  that is not the lock, so advancing past the last step is a real branch and
+ *  it is the close. It can never be empty, though — `canLock` is only false
+ *  once a judgement exists, a judgement only exists once a Confident Voice
+ *  item has been answered, and that item is itself a step in this list.
+ *
+ *  The step bar therefore gets shorter on those answers. It still counts
+ *  SCREENS and only screens (AC-9): the speaker's own answer changing how many
+ *  decisions are left is not the machine reporting a verdict about them.
  */
 export function buildChunkSteps(args: {
   inventory: readonly DocumentSuggestion[];
@@ -204,9 +237,13 @@ export function buildChunkSteps(args: {
   /** The MLC-3 service allowed an exercise on the answer just given. Only
    *  consulted when no catalogue exercise is attached — one rung, never two. */
   canPractiseService?: boolean;
-  /** A phrase is proposable AND the paragraph was judged Yes. Both halves are
-   *  the caller's to establish — see the gate in the modal. */
+  /** A phrase is proposable AND the paragraph has been answered. Both halves
+   *  are the caller's to establish — see the gate in the modal. */
   canEmphasise: boolean;
+  /** May this paragraph still be locked? False on the three answers in
+   *  `closesLock`, and then the ladder simply ends earlier. Defaults to true
+   *  so an older caller keeps the pre-2026-09-24 ladder exactly. */
+  canLock?: boolean;
 }): ChunkStep[] {
   const steps: ChunkStep[] = orderedInventory(args.inventory).map((item) => ({
     kind: stepKindFor(item),
@@ -217,7 +254,7 @@ export function buildChunkSteps(args: {
     steps.push({ kind: "exercise", id: "service_exercise" });
   }
   if (args.canEmphasise) steps.push({ kind: "emphasis", id: "emphasis" });
-  steps.push({ kind: "lock", id: "lock" });
+  if (args.canLock !== false) steps.push({ kind: "lock", id: "lock" });
   return steps;
 }
 

@@ -91,8 +91,14 @@ export const EMPHASIS_WHY = [
 
 /** `impeccable` — the one line that says the delivery landed. Fixed, no
  *  variants: praise that rewords itself reads as the system hedging, the same
- *  reason the Confident Voice body has exactly one form. */
-export const PRAISE_LEAD = "You said this one really well.";
+ *  reason the Confident Voice body has exactly one form.
+ *
+ *  FOUNDER WORDING, 2026-09-24, replacing "You said this one really well."
+ *  His note: the praise should NAME what happened rather than pat the speaker
+ *  on the head, and "your confident moment" is the thing the whole Confident
+ *  Voice lane exists to find. Signed off in his own words, not written to a
+ *  brief — do not reword it. */
+export const PRAISE_LEAD = "It was your confident moment.";
 
 /** "Do you agree?" on the Confident Voice card (founder 2026-08-15).
  *
