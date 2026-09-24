@@ -49,7 +49,7 @@ export function buildPostSessionResultsText(
     ``,
     `  • Published snippets: ${snippetCount} new`,
     ``,
-    `Open your Voice Journey:`,
+    `See the feedback:`,
     `  ${journeyUrl}`,
     ``,
     `Each snippet has a coach note, a one-tap player, and a CTA back`,
