@@ -155,7 +155,7 @@ describe("titles", () => {
     expect(stepTitle("feedback", false)).toBe("Feedback");
     expect(stepTitle("suggestion", false)).toBe("Suggestion");
     expect(stepTitle("praise", false)).toBe("Good job");
-    expect(stepTitle("emphasis", false)).toBe("Emphasis");
+    expect(stepTitle("emphasis", false)).toBe("Choose your helper words");
     expect(stepTitle("lock", false)).toBe("Lock");
   });
 

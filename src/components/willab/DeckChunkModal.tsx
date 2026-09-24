@@ -152,6 +152,9 @@ interface DeckChunkModalProps {
   arcId?: string | null;
   /** Disabled RPQ-V1 enrichment. It never changes the existing V3 inventory. */
   rootingPhraseRoutingState?: RootingPhraseRoutingState | null;
+  /** The project has exactly one take — the emphasis step then explains
+   *  where the helper words will show up. */
+  firstTake?: boolean;
 }
 
 /** The footer of the MLC-3 exercise rung. Pure, so the sheet's own function
@@ -201,6 +204,7 @@ export default function DeckChunkModal({
   onJudged,
   arcId = null,
   rootingPhraseRoutingState = null,
+  firstTake = false,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -1659,6 +1663,7 @@ export default function DeckChunkModal({
             <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
               {title}
             </h2>
+            <EmphasisFirstTakeNote firstTake={firstTake} step={step} />
           </button>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
@@ -1766,5 +1771,23 @@ export default function DeckChunkModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/** The grey line under "Choose your helper words", after Take 1 only. Its own
+ *  component so the sheet (grandfathered at the complexity ratchet) gains no
+ *  branch. */
+function EmphasisFirstTakeNote({
+  firstTake,
+  step,
+}: {
+  firstTake: boolean;
+  step: { kind: string } | null | undefined;
+}) {
+  if (!firstTake || step?.kind !== "emphasis") return null;
+  return (
+    <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+      {COPY.emphasisFirstTakeNote}
+    </p>
   );
 }

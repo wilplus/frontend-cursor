@@ -42,8 +42,8 @@ const ARIA: Record<ChunkStatus, string> = {
 };
 
 const COACH_LABEL = "Coach note:";
-/* ONE WORD FOR ONE THING. The sheet's step is titled "Emphasis" since
-   2026-09-15, so the mark reads from that copy rather than keeping its own
+/* ONE WORD FOR ONE THING. The mark reads the sheet's emphasis-step title
+   (renamed "Choose your helper words" 2026-09-24) rather than keeping its own
    spelling — a bookmark saying "Style" over a screen saying "Emphasis" is how
    a second vocabulary starts, which is what this label's test guards. */
 const STYLE_LABEL = CHUNK_SHEET_COPY.titleEmphasis;

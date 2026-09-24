@@ -1150,6 +1150,7 @@ export default function IdealTextOverlay({
             }))}
             arcId={arcId}
             takeSessionId={sd.latestTakeSessionId}
+            takeCount={sd.takeCount}
             confidentMomentSummary={sd.confidentMomentSummary}
             confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
             feedbackPending={feedbackPending}

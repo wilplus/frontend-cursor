@@ -180,7 +180,7 @@ check(
    and THAT, not a Skip button, is how a paragraph ends up without an orange
    phrase. The Skip this walk used to expect is gone with it (§5): the step has
    no opt-out, because it only appears on a paragraph already judged Yes. */
-await page.waitForSelector("text=Emphasis");
+await page.waitForSelector("text=Choose your helper words");
 check(
   // This paragraph has no emphasis PROPOSAL — the style lane sits on the
   // protected one below — so the step opens straight into tap-to-select.
