@@ -165,6 +165,19 @@ export const CHUNK_SHEET_COPY = {
      left it deliberately (handoff, "one note"). */
   cardTapWords: "Tap the words",
 
+  /* --- praise on weak evidence -------------------------------------------
+     FOUNDER WORDING, 2026-09-24, replacing "This may be one of the strongest
+     formulations in this Take." That line hedged about "formulations" without
+     saying the one true thing: of everything in THIS take, this is the moment
+     that landed most confident — and it is still not finished. His words, his
+     sign-off (option B of the two he was offered); it was inline in the sheet
+     until now, which is exactly the quiet copy this file exists to prevent.
+
+     AC-9 holds: "the most confident on this take" is a comparison inside one
+     take, which is what the lane already is. No number, no band, no rank. */
+  praiseTentative:
+    "On this take, this landed the most confident — and there is still room to improve.",
+
   /* --- the one qualitative question --------------------------------------- */
   confidenceQuestion: "Does this sound confident to you?",
 

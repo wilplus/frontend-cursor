@@ -329,15 +329,23 @@ describe("a served answer advances the ladder by itself", () => {
     expect(buttonLabels()).toContain("Use this phrase");
   });
 
-  it("still skips it when the clip could not be heard", async () => {
-    // The one answer that closes the step, and not as a punishment: "Audio
-    // unclear" is not a judgement of the delivery at all, so there is nothing
-    // to choose words from. This is the protection the old No-test carried,
-    // pointed at the case that actually warrants it.
+  it("reaches emphasis on Audio unclear too, but loses the lock (founder 2026-09-24)", async () => {
+    // THE LAST CARVE-OUT, REVERSED. This test used to pin the opposite:
+    // "Audio unclear" was the one answer that closed the step, reasoning that
+    // someone who could not hear the clip has nothing to choose words from.
+    // Shown that case on the real screen and asked directly, the founder
+    // ruled against it — "keep the emphasis open" — because the phrase is
+    // about the WORDS, which of them this paragraph turns on, and that is
+    // answerable whether or not the recording came through.
+    //
+    // What the answer costs instead is the lock: it is one of the three that
+    // take the step off the end of the ladder entirely. Rewritten rather than
+    // deleted, so the reversal stays legible here too.
     await render(served);
     await click("Audio unclear");
-    expect(buttonLabels()).not.toContain("Use this phrase");
-    expect(buttonLabels()).toContain("Lock");
+    expect(buttonLabels()).toContain("Use this phrase");
+    expect(buttonLabels()).not.toContain("Lock");
+    expect(buttonLabels()).not.toContain("Keep evolving");
   });
 
   it("puts the service exercise on its own rung when the server allows one", async () => {

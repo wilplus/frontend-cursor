@@ -310,37 +310,76 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
-  it("offers an orange root on every answer that heard the clip", () => {
+  it("offers an orange root on every answer, and saves it where it is chosen", () => {
     // WIDENED 2026-09-22 (founder): the gate was "only an exact Yes", which
     // delayed a rooting phrase by several takes for anyone who does not like
-    // the sound of their own voice. It is now every answer but "Audio
-    // unclear", which is the rule `opensRootPhrase` states and tests.
+    // the sound of their own voice. FINISHED 2026-09-24: the last carve-out,
+    // "Audio unclear", is gone too — the phrase is about the words, which is
+    // answerable whether or not the clip came through. `opensRootPhrase` is
+    // now "anything was answered", and it is the rule both gates read.
     expect(MODAL).toMatch(/feedbackInventory\.every\(isConfidentVoiceFeedback\)/);
+
+    // THE EMPHASIS STEP SAVES THE EMPHASIS (founder 2026-09-24: "handle it
+    // through the emphasis screen not through the lock ... make the emphasis
+    // save the emphasis and lock the text with the emphasis").
+    //
+    // This is the fence that matters most now. Three answers end the ladder
+    // before any lock, so a phrase still written by `lockIn` alone would be a
+    // phrase the speaker picks on a screen that then closes, with nothing
+    // stored and nothing said. Pinned by name so it cannot drift back.
+    expect(MODAL).toMatch(/async function saveEmphasis\(/);
+    expect(MODAL).toMatch(/const ok = await onSetRootPhrase\(anchor\)/);
+    // A failed write keeps the speaker on the step; there is no later chance.
+    expect(MODAL).toMatch(/if \(!ok\) setError\(COPY\.failRoot\)/);
+    expect(MODAL).toMatch(/const saved = await saveEmphasis\(chosen\)/);
+
+    // WHAT IS LEFT AT LOCK IS A RE-ANCHOR, NOT THE SAVE. The lock step is
+    // also the editor, so words typed after the phrase was chosen would leave
+    // the stored span pointing at text that no longer exists. `dirtyRef` is
+    // exactly "they typed", so only then is it resolved again against the
+    // text actually committed.
+    //
     // IT READS `judgement`, NOT `agreeValue` — this fence used to pin
     // `agreeValue` and was pinning a BUG, reported from real use 2026-09-16:
     // "I tap to choose the emphasis words, I click lock, and it doesn't save."
-    //
     // `agreeValue` is the CHIP's state, and advanceStep clears it on every
     // step (deliberately, so a second confident-voice item opens unanswered —
-    // L3). By the time Lock ran it was always null, so on a confidence-only
-    // paragraph the anchor was nulled and onSetRootPhrase never fired. The
-    // speaker picked their words, locked, and nothing turned orange.
-    //
-    // `judgement` is the paragraph-level answer this check always meant, and
-    // it survives the steps in between. Pinned by name so the shape cannot
-    // quietly go back.
+    // L3), so by Lock it was always null.
     expect(MODAL).toMatch(
-      /promotedQuote && !\(confidenceOnly && !opensRootPhrase\(judgement\)\)/,
+      /dirtyRef\.current &&\s*\n\s*promotedQuote &&\s*\n\s*!\(confidenceOnly && !opensRootPhrase\(judgement\)\)/,
     );
     expect(MODAL).not.toMatch(/confidenceOnly && agreeValue !== "yes"/);
-    // THE TWO GATES READ ONE RULE. The step decides whether to ASK and this
-    // decides whether to STORE; a screen that is offered and then discarded is
-    // the silent data loss of 2026-09-16, so they may never spell out
-    // separate conditions again.
+
+    // THE TWO GATES READ ONE RULE. The step decides whether to ASK and the
+    // store decides whether to STORE; a screen that is offered and then
+    // discarded is the silent data loss of 2026-09-16, so they may never
+    // spell out separate conditions again.
     expect(MODAL).toMatch(/canEmphasise:\s*\n?\s*opensRootPhrase\(judgementValue\)/);
     expect(MODAL).not.toMatch(/judgementValue === "yes"/);
-    // ...and the anchor is only written when one actually resolved.
-    expect(MODAL).toMatch(/if \(anchor\) await onSetRootPhrase\(anchor\)/);
+    // ...and the re-anchor is only written when one actually resolved.
+    expect(MODAL).toMatch(/if \(reAnchor\) await onSetRootPhrase\(reAnchor\)/);
+  });
+
+  it("the lock step is gone on the three answers that close it", () => {
+    // FOUNDER 2026-09-24: "no just don't show that overlay; no keep evolving
+    // — after the rooting phrases close the overlay in these cases." Not a
+    // disabled pill and not a softer pill: the step is not built.
+    expect(MODAL).toMatch(/canLock: !closesLock\(judgementValue\)/);
+    // And the ladder running out is now a real branch, which is the close.
+    expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*onClose\(\);/);
+    // THE ANSWER REACHES IT UNCOLLAPSED. `closesLock` puts "No" and
+    // "In-between" on opposite sides of the yes/other collapse (F-4), so a
+    // sheet that forgets which of the five was tapped cannot obey the rule.
+    // Pinned as the exact pair, because a bare `setJudgement(answered)` still
+    // lives on the EXERCISE path, where "yes"/"other" is genuinely all the
+    // practice's closing question can express. It is this one — the five-chip
+    // answer — that must arrive whole.
+    expect(MODAL).toMatch(
+      /const answered = value === "yes" \? "yes" : "other";[\s\S]{0,80}?setJudgement\(value\);/,
+    );
+    // And it advances on the raw value too: React has not re-rendered, so the
+    // list built on this advance is the only one that sees the new answer.
+    expect(MODAL).toMatch(/advanceStep\(value\);/);
   });
 
   it("the modal has two detents and a continuous Pointer Events drag", () => {
