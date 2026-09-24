@@ -99,13 +99,29 @@ export default function StudentDetailOverlay({
   // topic per arc, kept explicitly: `new Map(entries)` is last-write-wins for
   // duplicate keys, which would label an arc with its OLDEST take's topic
   // when the topic was refined between takes (review 2026-07-28).
-  const starArcs: { arcId: string; topic: string }[] = [];
+  const starArcs: { arcId: string; topic: string; sent: boolean }[] = [];
   if (detail !== null) {
     const seen = new Set<string>();
     for (const s of detail.sessions) {
       if (!s.arcId || seen.has(s.arcId)) continue;
       seen.add(s.arcId);
-      starArcs.push({ arcId: s.arcId, topic: s.topic || "Recording" });
+      const takes = detail.sessions.filter((t) => t.arcId === s.arcId);
+      starArcs.push({
+        arcId: s.arcId,
+        topic: s.topic || "Recording",
+        // SENT MEANS EVERY TAKE IN THE ARC HAS REACHED THE STUDENT (founder
+        // 2026-09-24: "when feedback sent; change the state to sent from open
+        // to sent"). Per-take `review_state` already carried this; the arc row
+        // was the one place ignoring it, so a finished project sat here
+        // reading Open for ever.
+        //
+        // EVERY, not some: a take recorded after a delivery is real work
+        // waiting, and an arc that called itself Sent while carrying one
+        // would hide it. A null state is an older payload that cannot claim
+        // delivery, so it reads Open — the safe direction, since Open costs a
+        // look and Sent costs a missed student.
+        sent: takes.every((t) => t.reviewState === "delivered"),
+      });
     }
   }
 
@@ -195,7 +211,7 @@ export default function StudentDetailOverlay({
                 that overlay is the blind labeling flow, and this surface shows
                 the machine's guesses (N1). */}
             {onOpenStarVerdicts
-              ? starArcs.map(({ arcId, topic }) => (
+              ? starArcs.map(({ arcId, topic, sent }) => (
                   <button
                     key={`stars-${arcId}`}
                     type="button"
@@ -226,7 +242,17 @@ export default function StudentDetailOverlay({
                         · {topic}
                       </span>
                     </span>
-                    <span className="text-[12px] text-primary">Open</span>
+                    {/* A state, not an action, so it drops the accent —
+                        orange on this surface means "there is something to
+                        do". The row stays pressable either way: a delivered
+                        arc is still worth re-reading. */}
+                    {sent ? (
+                      <span className="text-[12px] text-muted-foreground">
+                        Sent
+                      </span>
+                    ) : (
+                      <span className="text-[12px] text-primary">Open</span>
+                    )}
                   </button>
                 ))
               : null}
