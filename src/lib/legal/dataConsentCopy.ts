@@ -37,4 +37,7 @@ export const DATA_CONSENT_COPY = {
     "Recording is off because you withdrew your consent. You can turn it back on in Data & consent.",
   privacyUnavailable:
     "The privacy policy couldn’t be loaded. Refresh the page to try again.",
+  // Approved by the founder 2026-09-25 ("yes"), decision 2.
+  termsUnavailable:
+    "The terms of service couldn’t be loaded. Refresh the page to try again.",
 } as const;

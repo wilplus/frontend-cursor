@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { PublishedPolicyText } from "@/components/legal/PublishedPolicyText";
 import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
+import { loadPublishedPolicyText } from "@/lib/legal/publishedPolicy.server";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | WillpowerLab",
@@ -19,10 +20,15 @@ export const metadata: Metadata = {
  * policy that is no longer true. It now shows a loading line, and says so
  * plainly if the record cannot be read.
  *
- * Known cost: with no JavaScript (and for crawlers) the page shows only the
- * loading line, because the stored copy is read in the browser.
+ * Founder 2026-09-25, decision 3: the stored copy is read on the server, so
+ * it is in the HTML — with no JavaScript, for a crawler, and for a first-time
+ * visitor the old owner-bound read refused. The loading line and the
+ * unavailable line remain only for when that read fails.
  */
-export default function PrivacyPage() {
+export const revalidate = 300;
+
+export default async function PrivacyPage() {
+  const initial = await loadPublishedPolicyText("privacy");
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
       <Link
@@ -35,6 +41,7 @@ export default function PrivacyPage() {
 
       <PublishedPolicyText
         which="privacy"
+        initial={initial}
         unavailable={
           <p role="alert" className="text-sm text-muted-foreground">
             {DATA_CONSENT_COPY.privacyUnavailable}

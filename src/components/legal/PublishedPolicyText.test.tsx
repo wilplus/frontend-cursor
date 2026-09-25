@@ -6,10 +6,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const auth = vi.hoisted(() => ({ fetchAuthorization: vi.fn() }));
-vi.mock("@/services/api/processingAuthorization", () => auth);
+const api = vi.hoisted(() => ({ fetchPublishedPolicyText: vi.fn() }));
+vi.mock("@/services/api/publishedPolicy", () => api);
 
 import { PublishedPolicyText } from "./PublishedPolicyText";
+import type { PolicyTextState } from "@/lib/legal/policyText";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -18,7 +19,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  auth.fetchAuthorization.mockReset();
+  api.fetchPublishedPolicyText.mockReset();
 });
 
 afterEach(() => {
@@ -26,10 +27,10 @@ afterEach(() => {
   container.remove();
 });
 
-function render(unavailable?: string) {
+function render(unavailable?: string, initial?: PolicyTextState) {
   act(() =>
     root.render(
-      <PublishedPolicyText which="privacy" unavailable={unavailable}>
+      <PublishedPolicyText which="privacy" initial={initial} unavailable={unavailable}>
         waiting
       </PublishedPolicyText>,
     ),
@@ -40,36 +41,50 @@ const settle = () => act(async () => { await Promise.resolve(); await Promise.re
 
 describe("PublishedPolicyText", () => {
   it("shows the stand-in while the record has not answered", () => {
-    auth.fetchAuthorization.mockReturnValue(new Promise(() => {}));
+    api.fetchPublishedPolicyText.mockReturnValue(new Promise(() => {}));
     render("could not load");
     expect(container.textContent).toBe("waiting");
   });
 
   it("shows the unavailable line once the record answers without a copy", async () => {
-    auth.fetchAuthorization.mockResolvedValue({ kind: "error" });
+    api.fetchPublishedPolicyText.mockResolvedValue({ kind: "fallback" });
     render("could not load");
     await settle();
     expect(container.textContent).toBe("could not load");
   });
 
   it("keeps the stand-in for a page that gives no unavailable line", async () => {
-    auth.fetchAuthorization.mockResolvedValue({ kind: "unavailable" });
+    api.fetchPublishedPolicyText.mockResolvedValue({ kind: "fallback" });
     render();
     await settle();
     expect(container.textContent).toBe("waiting");
   });
 
   it("shows the stored copy once it is published", async () => {
-    auth.fetchAuthorization.mockResolvedValue({
-      kind: "acceptance_required",
-      policy: {
-        privacy: { copy: "The stored words.", version: "3.1" },
-        terms: { copy: "t", version: "3.1" },
-      },
+    api.fetchPublishedPolicyText.mockResolvedValue({
+      kind: "published", copy: "The stored words.", version: "3.1",
     });
     render("could not load");
     await settle();
     expect(container.textContent).toContain("The stored words.");
     expect(container.textContent).toContain("Version 3.1");
+  });
+
+  it("renders what the server read at once, and the browser does not ask again", () => {
+    // Founder 2026-09-25, decisions 2/3: the copy is in the HTML sent.
+    render("could not load", { kind: "published", copy: "Served words.", version: "3.1" });
+    expect(container.textContent).toContain("Served words.");
+    expect(api.fetchPublishedPolicyText).not.toHaveBeenCalled();
+  });
+
+  it("tries again in the browser when the server could not read it", async () => {
+    api.fetchPublishedPolicyText.mockResolvedValue({
+      kind: "published", copy: "Second try.", version: "3.1",
+    });
+    render("could not load", { kind: "fallback" });
+    expect(container.textContent).toBe("waiting");
+    await settle();
+    expect(api.fetchPublishedPolicyText).toHaveBeenCalledWith("privacy");
+    expect(container.textContent).toContain("Second try.");
   });
 });

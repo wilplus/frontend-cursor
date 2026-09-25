@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { policyTextState } from "./policyText";
+import { policyTextState, publishedPolicyTextState } from "./policyText";
 import type {
   AuthorizationStatus,
   ProcessingPolicy,
@@ -101,6 +101,34 @@ describe("when there is nothing authoritative to show", () => {
         "terms",
       );
       expect(state).toEqual({ kind: "fallback" });
+    }
+  });
+});
+
+describe("publishedPolicyTextState (the public read, founder 2026-09-25)", () => {
+  const row = {
+    policy_version: "phase1-2026-09-23",
+    terms: { version: "3.1", copy: "TERMS BYTES" },
+    privacy: { version: "3.1", copy: "PRIVACY BYTES" },
+  };
+
+  it("returns exactly the stored bytes and version for the page asked", () => {
+    expect(publishedPolicyTextState(row, "terms")).toEqual({
+      kind: "published", copy: "TERMS BYTES", version: "3.1",
+    });
+    expect(publishedPolicyTextState(row, "privacy")).toEqual({
+      kind: "published", copy: "PRIVACY BYTES", version: "3.1",
+    });
+  });
+
+  it("falls back on anything short of a stored copy with its version", () => {
+    for (const bad of [
+      null, "text", { code: "PROCESSING_POLICY_INACTIVE" },
+      { terms: { version: "3.1", copy: "   " } },
+      { terms: { version: "", copy: "words" } },
+      { terms: { copy: "words" } },
+    ]) {
+      expect(publishedPolicyTextState(bad, "terms")).toEqual({ kind: "fallback" });
     }
   });
 });

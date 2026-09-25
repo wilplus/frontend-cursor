@@ -74,9 +74,19 @@ describe("MLC-2 founder consent UI contract", () => {
 });
 
 describe("legal copy version aligns with the canonical policy", () => {
-  it("publishes Terms version 1.2", () => {
+  it("shows only the stored Terms, never a stale stand-in", () => {
+    // Founder 2026-09-25, decision 2 — the same fix F3 gave Privacy. The
+    // v1.2 stand-in (the retired bundled consent) was all a visitor without
+    // an owner ever read. The page now shows the stored copy, read on the
+    // server, and says plainly when it cannot be read.
     const terms = read("app/terms/page.tsx");
-    expect(terms).toContain("Version 1.2");
+    expect(terms).toContain('<PublishedPolicyText\n        which="terms"');
+    expect(terms).toContain("initial={initial}");
+    expect(terms).toContain("<SectionLoadingState />");
+    expect(terms).toContain("DATA_CONSENT_COPY.termsUnavailable");
+    for (const stale of ["Version 1.2", "28 August 2026. Version", "pooled"]) {
+      expect(terms).not.toContain(stale);
+    }
   });
 
   it("shows only the stored Privacy Policy, never a stale stand-in", () => {
@@ -86,6 +96,7 @@ describe("legal copy version aligns with the canonical policy", () => {
     // plainly when it cannot be read.
     const privacy = read("app/privacy/page.tsx");
     expect(privacy).toContain('<PublishedPolicyText\n        which="privacy"');
+    expect(privacy).toContain("initial={initial}");
     expect(privacy).toContain("<SectionLoadingState />");
     expect(privacy).toContain("DATA_CONSENT_COPY.privacyUnavailable");
     for (const stale of ["Version 1.2", "Article 6(1)(a)", "pooled"]) {
