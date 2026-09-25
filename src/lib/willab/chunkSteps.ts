@@ -65,63 +65,35 @@ export type RootGateAnswer = ConfidenceRatingValue | "other" | null;
 
 /** Does this answer open the tap-to-root phrase step?
  *
- *  EVERY ANSWER DOES. Not "every answer except one" — every one.
+ *  FOUNDER 2026-09-25 (contract 24e): "if they choose judgment no or unclear,
+ *  then they should have no option to root that. Just close the overlay."
+ *  Yes, In-between and Not sure open it; No and Audio unclear do not. This
+ *  reverses the 2026-09-24 "keep the emphasis open" ruling.
  *
- *  FOUNDER 2026-09-22: "maybe do not restrict the tap to the YES answer only
- *  ... cause people usually will hate their voice and not consider it
- *  confident, so gate keeping it at YES will delay by several takes to get the
- *  rooting phrases." That removed the Yes gate, and 24e already said so: the
- *  tap-to-root phrase step is part of EVERY item, not a reward for a good
- *  answer.
+ *  A No or Audio unclear is not the end of the road: after an exercise the
+ *  speaker practises and judges each attempt on the same five answers (29a),
+ *  and that judgement supersedes this one. A Yes, In-between or Not sure there
+ *  opens this step with the practice's words.
  *
- *  FOUNDER 2026-09-24 removes the last carve-out. This function used to close
- *  on "Audio unclear", reasoning that someone who could not hear the clip
- *  cannot choose which words to land on. Shown the case and asked directly,
- *  the founder ruled the other way: "keep the emphasis open". The phrase is
- *  about the WORDS — which of them this paragraph turns on — and that is a
- *  judgement about the script, answerable whether or not the recording came
- *  through. What "Audio unclear" does cost is the lock; see `closesLock`.
- *
- *  So the only thing left that closes the step is nobody having answered at
- *  all — a paragraph the detector never flagged, which reaches the end with no
- *  orange. That is the intended shape rather than a gap.
- *
- *  IT STILL TAKES THE RAW ANSWER, and now it matters more than ever. The sheet
- *  used to collapse all five to `yes | other` before any gate saw them (audit
- *  finding F-4); `closesLock` cannot be written on top of that collapse at
- *  all, because "No" and "In-between" fall on opposite sides of it. The row
- *  status stays collapsed — "did they accept this suggestion" really is a
- *  yes-or-not question — but nothing else may be.
+ *  `"other"` is what the older coarse paths report (the legacy agreement
+ *  chip); it keeps the step, as before. Nobody having answered — a paragraph
+ *  the detector never flagged — still closes it.
  */
 export function opensRootPhrase(answer: RootGateAnswer): boolean {
-  return answer !== null;
+  return answer !== null && answer !== "no" && answer !== "audio_unclear";
 }
 
 /** Does this answer take the Lock step off the end of the ladder?
  *
- *  FOUNDER 2026-09-24: "when there is an answer that no, not confident or not
- *  sure, do not give the people option to lock it in. Just save the rooting
- *  phrases orange, but do not let them lock that text. And the same for audio
- *  unclear." Then, shown a version that merely demoted Lock to Keep evolving:
- *  "no just don't show that overlay; no keep evolving — after the rooting
- *  phrases close the overlay in these cases."
+ *  FOUNDER 2026-09-25: Yes, In-between and Not sure lock ("Q1: B" — Not sure
+ *  keeps its Lock); No and Audio unclear do not. With no helper-words step on
+ *  those two either, their sheet ends when the feedback does.
  *
- *  So this is not a disabled button and not a softer button. The step is not
- *  built, and the sheet ends when the ladder runs out.
- *
- *  WHY THESE THREE AND NOT FOUR. "In-between" keeps its Lock (founder, same
- *  day, asked directly). A speaker who thought it was middling still thought
- *  something about the words; a No, a shrug and a dead mic are the three that
- *  say this delivery is not the one to freeze.
- *
- *  `"other"` is NOT in the set, and that is deliberate rather than an
- *  oversight. It is what the two paths that cannot express more report — the
- *  legacy agreement chip, and the exercise's own closing yes/no — and a
- *  judgement of a DIFFERENT recording (the practice attempt) is not the
- *  founder's rule about this one. Those paths keep the Lock.
+ *  `"other"` keeps the Lock, as before: it is what the older coarse paths
+ *  report, and a judgement of a different recording is not this rule.
  */
 export function closesLock(answer: RootGateAnswer): boolean {
-  return answer === "no" || answer === "not_sure" || answer === "audio_unclear";
+  return answer === "no" || answer === "audio_unclear";
 }
 
 /** Does the lock step SHOW the paragraph rather than offer it for editing?

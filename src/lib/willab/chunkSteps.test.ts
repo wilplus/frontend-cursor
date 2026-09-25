@@ -255,35 +255,25 @@ describe("judgedStatus — the status the server serves for an answered row", ()
  *
  * What still matters most is the second half: the step and the store read the
  * SAME rule. A screen offered but not saved is silent data loss. */
-describe("opensRootPhrase — every answer, now with no exception", () => {
-  it("opens for every answer there is", () => {
-    for (const answer of [
-      "yes",
-      "in_between",
-      "no",
-      "not_sure",
-      "audio_unclear",
-    ] as const) {
+describe("opensRootPhrase — Yes, In-between and Not sure (founder 2026-09-25)", () => {
+  it("opens for the three answers that go on to Lock", () => {
+    for (const answer of ["yes", "in_between", "not_sure"] as const) {
       expect(opensRootPhrase(answer)).toBe(true);
     }
   });
 
-  it("opens for the clip that could not be heard (founder 2026-09-24)", () => {
-    // The phrase is about the WORDS — which of them this paragraph turns on —
-    // and that is answerable whether or not the recording came through. What
-    // "Audio unclear" costs is the lock, not the phrase.
-    expect(opensRootPhrase("audio_unclear")).toBe(true);
-    expect(closesLock("audio_unclear")).toBe(true);
+  it("stays closed on No and Audio unclear: the sheet closes after the feedback", () => {
+    // Reverses 2026-09-24's "keep the emphasis open". A practice judged Yes,
+    // In-between or Not sure afterwards supersedes this answer (29a).
+    expect(opensRootPhrase("no")).toBe(false);
+    expect(opensRootPhrase("audio_unclear")).toBe(false);
   });
 
   it("stays closed until something is answered at all", () => {
-    // A paragraph the detector never flagged reaches the end with no orange.
     expect(opensRootPhrase(null)).toBe(false);
   });
 
   it("opens for the coarse answer the older paths can express", () => {
-    // The legacy agreement chip and the exercise's closing yes/no carry only
-    // these two.
     expect(opensRootPhrase("yes")).toBe(true);
     expect(opensRootPhrase("other")).toBe(true);
   });
@@ -295,8 +285,9 @@ describe("opensRootPhrase — every answer, now with no exception", () => {
         canEmphasise: opensRootPhrase(answer),
       }).some((step) => step.kind === "emphasis");
     expect(ask("not_sure")).toBe(true);
-    expect(ask("no")).toBe(true);
-    expect(ask("audio_unclear")).toBe(true);
+    expect(ask("in_between")).toBe(true);
+    expect(ask("no")).toBe(false);
+    expect(ask("audio_unclear")).toBe(false);
     expect(ask(null)).toBe(false);
   });
 });
@@ -310,11 +301,14 @@ describe("opensRootPhrase — every answer, now with no exception", () => {
  *
  * The distinction these pin is the one a collapsed yes/other answer cannot
  * express at all: "No" and "In-between" fall on opposite sides of it. */
-describe("closesLock — three answers end the ladder early", () => {
-  it("closes on No, Not sure and Audio unclear", () => {
+describe("closesLock — No and Audio unclear end the ladder early", () => {
+  it("closes on No and Audio unclear", () => {
     expect(closesLock("no")).toBe(true);
-    expect(closesLock("not_sure")).toBe(true);
     expect(closesLock("audio_unclear")).toBe(true);
+  });
+
+  it("Not sure keeps its Lock (founder 2026-09-25, Q1 B)", () => {
+    expect(closesLock("not_sure")).toBe(false);
   });
 
   it("In-between keeps its Lock", () => {

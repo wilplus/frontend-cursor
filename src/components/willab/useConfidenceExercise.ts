@@ -42,16 +42,41 @@ import type {
 } from "@/services/api/idealText";
 import {
   finishConfidencePractice,
+  judgeConfidencePracticeAttempt,
   startConfidencePractice,
   uploadConfidencePracticeAttempt,
   type ConfidencePractice,
   type ConfidencePracticeAttempt,
+  type PracticeAnswer,
 } from "@/services/api/confidentVoicePractice";
 
 type Evidence = NonNullable<DocumentSuggestion["evidence"]>;
 
 /** Which of the step's two screens the sheet should draw. */
 export type ExerciseScreen = "offer" | "judgement";
+
+/** What a finished practice hands the sheet (contract 29a, founder
+ *  2026-09-25). `adopted`: the practised passage now reads as this attempt,
+ *  and `paragraph` is the paragraph's new words. `attemptWords`: what was
+ *  said in the attempt, which the helper-words step taps from. */
+export interface PracticeOutcome {
+  practiceId: string;
+  adopted: boolean;
+  paragraph: string | null;
+  attemptWords: string | null;
+}
+
+/** The attempt the judgement screen asks about: the latest one while it is
+ *  unjudged (Q17 A), else the server's frozen comparison attempt. */
+export function attemptToJudge(
+  practice: ConfidencePractice | null,
+): ConfidencePracticeAttempt | null {
+  if (!practice) return null;
+  return (
+    practice.attempts.find((a) => a.id === practice.judgeableAttemptId) ??
+    practice.strongestAttempt
+  );
+}
 
 export interface ConfidenceExercise {
   screen: ExerciseScreen;
@@ -73,8 +98,10 @@ export interface ConfidenceExercise {
   stop: () => void;
   /** Decline the exercise. Closes the practice row so it does not return. */
   notNow: () => Promise<void>;
-  /** Answer the judgement. This is also what unlocks the emphasis step. */
-  finish: (answer: "yes" | "no") => Promise<void>;
+  /** Judge the latest attempt with one of the five answers (Q17 A). No or
+   *  Audio unclear with attempts left lands back on the offer to practise
+   *  again; anything else finishes the step. */
+  finish: (answer: PracticeAnswer) => Promise<void>;
   /** Leave the judgement unanswered and land on the offer. */
   back: () => void;
 }
@@ -85,7 +112,10 @@ export function useConfidenceExercise(args: {
   evidence: Evidence | null;
   originalUserAnswer: "yes" | "no";
   /** Called once the practice row closes, so the ladder can advance. */
-  onFinished: (answer: "yes" | "no" | null) => void;
+  onFinished: (
+    answer: PracticeAnswer | null,
+    outcome?: PracticeOutcome,
+  ) => void;
 }): ConfidenceExercise {
   const { snippetId, offer, evidence, originalUserAnswer, onFinished } = args;
   const mic = useDualCaptureMic({ transcript: false });
@@ -141,9 +171,10 @@ export function useConfidenceExercise(args: {
         return;
       }
       setPractice(result.practice);
-      // The server decides whether this attempt is worth judging. When it is
-      // not, we stay on the offer and say nothing — see the module header.
-      if (result.practice.finalReady) setScreen("judgement");
+      // Every attempt is judged as soon as it is recorded (Q17 A, founder
+      // 2026-09-25). An attempt the server rejected is not judgeable, and we
+      // stay on the offer — see the module header.
+      if (result.practice.judgeableAttemptId) setScreen("judgement");
     },
     [ensurePractice, mic],
   );
@@ -196,25 +227,38 @@ export function useConfidenceExercise(args: {
   }, [ensurePractice, mic]);
 
   const finish = useCallback(
-    async (answer: "yes" | "no") => {
-      const strongest = practice?.strongestAttempt;
-      if (!practice || !strongest || busy) return;
+    async (answer: PracticeAnswer) => {
+      const target = attemptToJudge(practice);
+      if (!practice || !target || busy) return;
       setBusy(true);
       setError(null);
-      const result = await finishConfidencePractice(practice.id, {
-        attempt_id: strongest.id,
-        user_answer: answer,
-      });
+      const result = await judgeConfidencePracticeAttempt(
+        practice.id,
+        target.id,
+        answer,
+      );
       setBusy(false);
       if (!result.ok) {
         setError(result.error ?? "Couldn't save that answer. Try again.");
         return;
       }
       setPractice(result.practice);
+      if (result.outcome === "again") {
+        // No or Audio unclear with attempts left: back to the offer, where
+        // the pill reads Practise again (29a).
+        setReturned(true);
+        setScreen("offer");
+        return;
+      }
       setFinished(true);
-      // This answer is also what unlocks the emphasis step (§4), so the host
-      // is told WHICH answer, not merely that the step closed.
-      finishedRef.current(answer);
+      // The answer is also what decides the helper-words step and the Lock
+      // (§4), so the host is told WHICH answer and what it did.
+      finishedRef.current(answer, {
+        practiceId: practice.id,
+        adopted: result.adopted,
+        paragraph: result.paragraph,
+        attemptWords: result.attemptWords,
+      });
     },
     [practice, busy],
   );
@@ -232,7 +276,7 @@ export function useConfidenceExercise(args: {
     returned,
     busy,
     error,
-    corrected: practice?.strongestAttempt ?? null,
+    corrected: attemptToJudge(practice),
     // Only the practice row carries the cap; before one is opened the count is
     // unknown rather than zero, and the offer screen does not surface it.
     attemptsRemaining: practice?.attemptsRemaining ?? 0,

@@ -707,19 +707,19 @@ describe("the ladder", () => {
     expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe("now");
   });
 
-  it("a No still reaches step four (founder 2026-09-22)", async () => {
-    // WIDENED. This used to assert the opposite: only an exact Yes opened the
-    // rooting step. "cause people usually will hate their voice and not
-    // consider it confident, so gate keeping it at YES will delay by several
-    // takes to get the rooting phrases." A No is arguably when a rooting
-    // phrase helps most, and contract 24e always put the step on every item.
+  it("a No has no helper-words step and no Lock (founder 2026-09-25)", async () => {
+    // REVERSED AGAIN, by the founder: "if they choose judgment no or unclear,
+    // then they should have no option to root that. Just close the overlay."
+    // The feedback still shows; after it the sheet ends. A practice judged
+    // Yes, In-between or Not sure later is how a No reaches helper words.
     vi.mocked(props.onSetRootPhrase).mockClear();
+    vi.mocked(props.onClose).mockClear();
     await renderLadder({ style: emphasis });
     await click("No — Not confident");
-    await click("Keep wording");
-    await click("Continue");
-    expect(container.textContent).toContain("With emphasis");
-    expect(buttonLabels()).toContain("Use this phrase");
+    expect(container.textContent).not.toContain("With emphasis");
+    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).not.toContain("Lock");
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
   });
 
   it("a paragraph never judged at all also skips it", async () => {
@@ -885,7 +885,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
  * moment three answers end the ladder earlier — the speaker taps their words,
  * the sheet closes, and nothing was ever written.
  */
-describe("a not-confident answer ends the ladder at the emphasis step", () => {
+describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (founder 2026-09-25)", () => {
   /** Pick the first offered word and commit it. */
   async function tapAWordAndCommit() {
     expect(container.textContent).toContain("Tap the words");
@@ -899,44 +899,39 @@ describe("a not-confident answer ends the ladder at the emphasis step", () => {
     await click("Use this phrase");
   }
 
-  it("No — Not confident: the phrase saves and the sheet closes, with no Lock anywhere", async () => {
+  it("No — Not confident: no helper words, no Lock, and the sheet is done", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onLockIn).mockClear();
     vi.mocked(props.onKeepEvolving).mockClear();
-    vi.mocked(props.onClose).mockClear();
 
     await renderLadder({ pending: [confidentVoice] });
     await click("No — Not confident");
 
-    // Straight to emphasis — the tap surface, because no phrase was proposed.
-    await tapAWordAndCommit();
-
-    // The phrase is stored by the step that chose it, not by a lock.
-    expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
-    // And nothing locked or half-locked the paragraph on the way out.
-    expect(props.onLockIn).not.toHaveBeenCalled();
-    expect(props.onKeepEvolving).not.toHaveBeenCalled();
-    expect(props.onClose).toHaveBeenCalled();
-  });
-
-  it("neither Lock nor Keep evolving is ever drawn on that path", async () => {
-    // "No keep evolving" — it is not a softer button, it is no screen.
-    await renderLadder({ pending: [confidentVoice] });
-    await click("Not sure");
+    expect(container.textContent).not.toContain("Tap the words");
     const labels = buttonLabels();
+    expect(labels).not.toContain("Use this phrase");
     expect(labels).not.toContain("Lock");
     expect(labels).not.toContain("Keep evolving");
-    expect(container.textContent).toContain("Tap the words");
+    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
+    expect(props.onLockIn).not.toHaveBeenCalled();
+    expect(props.onKeepEvolving).not.toHaveBeenCalled();
   });
 
-  it("Audio unclear keeps the phrase step and loses the lock (founder 2026-09-24)", async () => {
-    // The 09-22 rule closed the phrase step on this one answer. Shown the
-    // real screen, the founder ruled the other way: the phrase is about the
-    // WORDS, and that is answerable whether or not the clip came through.
+  it("Audio unclear is the same as No: no helper words, no Lock", async () => {
     await renderLadder({ pending: [confidentVoice] });
     await click("Audio unclear");
-    expect(container.textContent).toContain("Tap the words");
+    expect(container.textContent).not.toContain("Tap the words");
     expect(buttonLabels()).not.toContain("Lock");
+  });
+
+  it("Not sure taps helper words and keeps its Lock (Q1 B)", async () => {
+    vi.mocked(props.onLockIn).mockClear();
+    await renderLadder({ pending: [confidentVoice] });
+    await click("Not sure");
+    await tapAWordAndCommit();
+    expect(buttonLabels()).toContain("Lock");
+    await click("Lock");
+    expect(props.onLockIn).toHaveBeenCalled();
   });
 
   it("In-between keeps its Lock", async () => {
@@ -973,13 +968,12 @@ describe("a not-confident answer ends the ladder at the emphasis step", () => {
   });
 
   it("a phrase that fails to save keeps the speaker on the step", async () => {
-    // There is no later chance to record it on this path, so advancing past a
-    // failed write would lose the words silently.
+    // Advancing past a failed write would lose the words silently.
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onSetRootPhrase).mockResolvedValueOnce(false);
     vi.mocked(props.onClose).mockClear();
     await renderLadder({ pending: [confidentVoice] });
-    await click("No — Not confident");
+    await click("In-between");
     await tapAWordAndCommit();
     expect(container.textContent).toContain("Tap the words");
     expect(container.textContent).toContain("Couldn't save those words");
@@ -1042,14 +1036,12 @@ describe("declining the exercise keeps the emphasis step", () => {
     expect(buttonLabels()).toContain("Use this phrase");
   });
 
-  it("No then Not now lands on Emphasis for the RIGHT reason", async () => {
-    // It already landed here before the fix, but by accident: the advance
-    // computed "go to Lock", there is no lock step on a No, and a fallback
-    // dropped it on the last screen — which happened to be the right one.
-    // Pinned so the screen stops depending on that.
+  it("No then Not now ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
+    // Declining the drill leaves the No standing, and a No has neither the
+    // helper-words step nor the Lock. Nothing is left on the ladder.
+    vi.mocked(props.onClose).mockClear();
     await openOnTheDrill("No — Not confident");
-    expect(container.textContent).toContain("Tap the words");
-    // ...and the answer still costs the lock, which is the other half.
+    expect(container.textContent).not.toContain("Tap the words");
     expect(buttonLabels()).not.toContain("Lock");
     expect(buttonLabels()).not.toContain("Keep evolving");
   });
