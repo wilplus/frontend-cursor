@@ -41,6 +41,9 @@ const ALLOWED: Record<string, readonly string[]> = {
   // practice switch and the sensitive-information withdrawal on the Data &
   // consent page. Nothing else from the backend lane opens with it.
   choices: ["GET", "POST"],
+  // The published Terms and Privacy Policy, for anyone (founder 2026-09-25,
+  // decisions 2/3): the legal pages' browser fallback. Read-only.
+  "policy-text": ["GET"],
 };
 
 function target(context: { params: { path?: string[] } }, method: string): string | null {

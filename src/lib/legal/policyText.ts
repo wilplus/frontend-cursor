@@ -44,3 +44,20 @@ export function policyTextState(
     version: document.version,
   };
 }
+
+/** Read the public policy-text answer (`GET /v2/processing-authorization/
+ *  policy-text`, founder 2026-09-25 decisions 2 and 3) into what a legal page
+ *  renders. The same rule as above: anything short of a non-empty stored copy
+ *  with its version is not a document, and falls back. */
+export function publishedPolicyTextState(
+  row: unknown,
+  which: Which,
+): PolicyTextState {
+  const record = row && typeof row === "object" ? (row as Record<string, unknown>) : null;
+  const document = record?.[which];
+  if (!document || typeof document !== "object") return { kind: "fallback" };
+  const { copy, version } = document as Record<string, unknown>;
+  if (typeof copy !== "string" || !copy.trim()) return { kind: "fallback" };
+  if (typeof version !== "string" || !version.trim()) return { kind: "fallback" };
+  return { kind: "published", copy, version };
+}

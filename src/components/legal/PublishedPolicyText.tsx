@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { fetchAuthorization } from "@/services/api/processingAuthorization";
-import {
-  policyTextState,
-  type PolicyTextState,
-  type Which,
-} from "@/lib/legal/policyText";
+import { fetchPublishedPolicyText } from "@/services/api/publishedPolicy";
+import type { PolicyTextState, Which } from "@/lib/legal/policyText";
 
 /* -------------------------------------------------------------------------- */
 /*  Render the policy text the DATABASE stores, not a copy of it (Task 4).     */
@@ -41,10 +37,15 @@ type State = PolicyTextState | null;
 
 export function PublishedPolicyText({
   which,
+  initial,
   children,
   unavailable,
 }: {
   which: Which;
+  /** What the server already read (founder 2026-09-25, decisions 2/3). A
+   *  published copy is rendered at once and the browser does not ask again;
+   *  anything else leaves the browser to try. */
+  initial?: PolicyTextState;
   /** What shows until the policy record answers (and, for a page that gives
    *  no `unavailable`, after it fails to). */
   children: ReactNode;
@@ -53,17 +54,21 @@ export function PublishedPolicyText({
    *  leave that line spinning for good (founder 2026-09-25, F3). */
   unavailable?: ReactNode;
 }) {
-  const [state, setState] = useState<State>(null);
+  const served = initial?.kind === "published" ? initial : null;
+  const [state, setState] = useState<State>(served);
 
   useEffect(() => {
+    if (served) return;
     let active = true;
-    void fetchAuthorization().then((status) => {
-      if (active) setState(policyTextState(status, which));
+    // The public read (no owner needed). The owner-bound status call it
+    // replaces refused a first-time visitor, who then never saw the policy.
+    void fetchPublishedPolicyText(which).then((next) => {
+      if (active) setState(next);
     });
     return () => {
       active = false;
     };
-  }, [which]);
+  }, [which, served]);
 
   if (state?.kind === "published") {
     return (

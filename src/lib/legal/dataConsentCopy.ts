@@ -38,3 +38,14 @@ export const DATA_CONSENT_COPY = {
   privacyUnavailable:
     "The privacy policy couldn’t be loaded. Refresh the page to try again.",
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/*  PENDING — founder sign-off required before this merges (decision 2,       */
+/*  2026-09-25: "one new sentence would come to you for approval"). Shown on  */
+/*  /terms only when neither the server nor the browser could read the stored */
+/*  terms. Mirrors the approved privacyUnavailable line word for word.        */
+/* -------------------------------------------------------------------------- */
+export const DATA_CONSENT_PENDING_COPY = {
+  termsUnavailable:
+    "The terms of service couldn’t be loaded. Refresh the page to try again.",
+} as const;
