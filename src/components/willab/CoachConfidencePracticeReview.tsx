@@ -272,13 +272,14 @@ export default function CoachConfidencePracticeReview({
                     : "border-border bg-background text-foreground"
                 }`}
               >
-                Just for them
+                Write one here
               </button>
               {/* The third door, added 2026-09-16. Since founder decision 04
-                  (2026-09-25) "Just for them" no longer makes a one-off: the
-                  backend files it into the library under this moment's error,
-                  like any other exercise. This door builds one in the full
-                  CMS lane instead, with its own video and post. */}
+                  (2026-09-25) "Write one here" (relabelled by the founder the
+                  same day) no longer makes a one-off: the
+                  backend files it into the library under this moment's
+                  error, like any other exercise. This door builds one in the
+                  full CMS lane instead, with its own video and post. */}
               {/* Brings the coach back to this moment with the new exercise
                   already chosen, when a review hosts the sheet (founder
                   2026-09-25). The plain link was a one-way trip. */}
