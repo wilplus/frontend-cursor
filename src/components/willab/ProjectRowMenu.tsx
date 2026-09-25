@@ -5,23 +5,44 @@ import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
-/*  ProjectRowMenu — the ⋯ on the right of a DRAFT row in the project picker   */
-/*  (founder 2026-09-25). One action: Delete, behind a confirmation. Projects  */
-/*  carry no menu: their delete was pulled (see ProjectPicker).               */
+/*  ProjectRowMenu — the ⋯ on the right of a row in the project picker        */
+/*  (founder 2026-09-25). One action, usually behind a confirmation: a draft  */
+/*  row's Delete, a project row's Delete (a deletion REQUEST, N8), or a       */
+/*  pending project's Cancel deletion, which needs no confirmation.           */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
 /*  landed: on failure the dialog stays open and says so.                     */
 /* -------------------------------------------------------------------------- */
 
+export interface ConfirmCopy {
+  title: string;
+  body: string;
+  confirmLabel: string;
+}
+
+/** A draft's confirmation, unchanged since 2026-09-25. */
+const DRAFT_CONFIRM: ConfirmCopy = {
+  title: "Delete this draft?",
+  body: "Your unfinished setup answers will be removed.",
+  confirmLabel: "Delete",
+};
+
 export default function ProjectRowMenu({
   label,
   onDelete,
+  actionLabel = "Delete",
+  confirm = DRAFT_CONFIRM,
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
-  /** Resolves true once deleted; false keeps the dialog open with an error. */
+  /** Resolves true once done; false keeps the dialog open with an error. */
   onDelete: () => Promise<boolean>;
+  /** The menu item's words. */
+  actionLabel?: string;
+  /** The confirmation's words; null runs the action straight away. */
+  confirm?: ConfirmCopy | null;
 }) {
+  const [failedDirect, setFailedDirect] = useState(false);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -64,17 +85,35 @@ export default function ProjectRowMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              setConfirming(true);
+              if (confirm) {
+                setConfirming(true);
+                return;
+              }
+              setFailedDirect(false);
+              void onDelete()
+                .catch(() => false)
+                .then((ok) => setFailedDirect(!ok));
             }}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] text-record transition hover:bg-muted"
+            className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-[14px] transition hover:bg-muted ${
+              confirm ? "text-record" : "text-foreground"
+            }`}
           >
-            <Trash2 className="h-4 w-4" aria-hidden />
-            Delete
+            {confirm ? <Trash2 className="h-4 w-4" aria-hidden /> : null}
+            {actionLabel}
           </button>
         </div>
       ) : null}
-      {confirming ? (
+      {failedDirect ? (
+        <p
+          role="alert"
+          className="absolute right-0 top-full mt-1 whitespace-nowrap text-[12px] text-record"
+        >
+          Couldn&apos;t save that. Try again.
+        </p>
+      ) : null}
+      {confirming && confirm ? (
         <ConfirmDelete
+          copy={confirm}
           onCancel={() => setConfirming(false)}
           onDelete={onDelete}
         />
@@ -84,9 +123,11 @@ export default function ProjectRowMenu({
 }
 
 function ConfirmDelete({
+  copy,
   onCancel,
   onDelete,
 }: {
+  copy: ConfirmCopy;
   onCancel: () => void;
   onDelete: () => Promise<boolean>;
 }) {
@@ -124,10 +165,10 @@ function ConfirmDelete({
           id="delete-project-title"
           className="break-words text-[18px] font-semibold text-foreground"
         >
-          Delete this draft?
+          {copy.title}
         </h2>
         <p className="mt-2 text-[14px] text-muted-foreground">
-          Your unfinished setup answers will be removed.
+          {copy.body}
         </p>
         {failed ? (
           <p className="mt-2 text-[13px] text-record">
@@ -150,7 +191,7 @@ function ConfirmDelete({
             disabled={busy}
             className="rounded-full bg-record text-record-foreground hover:bg-record/90"
           >
-            Delete
+            {copy.confirmLabel}
           </Button>
         </div>
       </div>
