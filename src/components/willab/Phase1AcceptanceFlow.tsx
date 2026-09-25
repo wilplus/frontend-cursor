@@ -531,8 +531,8 @@ export default function Phase1AcceptanceFlow({
             stays true of the two, and it is absent from `canSubmit` so
             declining it never blocks the button — an optional purpose that
             gates the button is a required purpose wearing an optional tick.
-            TODO(founder sign-off): the label and the sentence below are
-            user-facing copy and need approval before this ships. */}
+            Founder-approved wording, 2026-09-26 (the "Optional" label and
+            the sentence below) — change it only with sign-off. */}
         <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
           <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
             Optional
