@@ -70,6 +70,24 @@ describe("CEO hostname routing", () => {
     ).toBe("not-found");
   });
 
+  it("serves the project deletion queue only on the CEO host", () => {
+    expect(decide(CEO_CANONICAL_HOST, "/admin/project-deletions").action).toBe(
+      "allow"
+    );
+    expect(
+      decide(
+        CEO_CANONICAL_HOST,
+        "/api/v2/admin/project-deletions/00000000-0000-4000-8000-000000000000/confirm"
+      ).action
+    ).toBe("allow");
+    expect(decide("www.willpowerlab.com", "/admin/project-deletions").action).toBe(
+      "redirect-to-ceo-host"
+    );
+    expect(
+      decide("willpowerlab.com", "/api/v2/admin/project-deletions").action
+    ).toBe("not-found");
+  });
+
   it("removes deployment ports from canonical production redirects", () => {
     expect(
       ceoCanonicalUrl(

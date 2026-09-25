@@ -101,15 +101,19 @@ afterEach(async () => {
   container.remove();
 });
 
-function render() {
-  const s = state();
+const useWords = vi.fn(async (_span: { text: string }) => true);
+const closeSheet = vi.fn();
+
+function render(s = state()) {
   return act(async () => {
     root.render(
       createElement(OpenChunkSheet, {
         state: s,
         arcId: "arc-1",
         takeSessionId: "take-1",
-        onClose: vi.fn(),
+        headline: "ship it now",
+        onUseHelperWords: useWords,
+        onClose: closeSheet,
         renderSheet: (practiseAgain) =>
           createElement(DeckChunkModal, {
             state: s,
@@ -120,7 +124,6 @@ function render() {
               outcome: "ok" as const,
               rootPhraseProposal: null,
             })),
-            onKeepEvolving: vi.fn(async () => "ok" as const),
             onSetRootPhrase: vi.fn(async () => true),
             onClose: vi.fn(),
           }),
@@ -130,18 +133,28 @@ function render() {
 }
 
 describe("the answered bookmark", () => {
-  it("opens on the history: exercise, answer, versions, helper words", async () => {
+  it("opens on one screen: helper words and now, exercise, answer, one timeline", async () => {
     await render();
-    const sheet = container.querySelector('[data-testid="answered-bookmark"]');
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
     expect(sheet).not.toBeNull();
     const text = sheet?.textContent ?? "";
+    const now = container.querySelector('[data-testid="paragraph-now"]')?.textContent ?? "";
+    expect(now).toContain("Helper words");
+    expect(now).toContain("ship it now");
+    expect(now).toContain(TEXT);
     expect(text).toContain("Say it again, slower.");
     expect(text).toContain("You said: Not sure");
     expect(text).toContain("How this changed");
     expect(text.indexOf("Take 2")).toBeLessThan(text.indexOf("Take 1"));
-    expect(text).toContain("Helper words");
-    expect(text).toContain("ship it now");
     expect(text).not.toMatch(/\d+\s*%|\bscore\b/i);
+  });
+
+  it("the helper words are not a button on a paragraph that is not locked", async () => {
+    await render();
+    const words = container.querySelector<HTMLButtonElement>(
+      '[data-testid="paragraph-helper-words"]',
+    );
+    expect(words?.disabled).toBe(true);
   });
 
   it("Practise opens the judgement sheet on its exercise step", async () => {
@@ -150,7 +163,7 @@ describe("the answered bookmark", () => {
       (b) => b.textContent?.trim() === "Practise",
     );
     await act(async () => practise?.click());
-    expect(container.querySelector('[data-testid="answered-bookmark"]')).toBeNull();
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
     expect(
       container.querySelector('[data-testid="practice-offer"]'),
     ).not.toBeNull();
@@ -187,6 +200,7 @@ describe("the sheet is chosen once, when it opens", () => {
             state: s,
             arcId: "arc-1",
             takeSessionId: "take-1",
+            headline: null,
             onClose: vi.fn(),
             renderSheet: () => createElement("div", { "data-testid": "judge" }),
           }),
@@ -195,6 +209,56 @@ describe("the sheet is chosen once, when it opens", () => {
     await renderWith(make(pending, [], [pending.id]));
     await renderWith(make(answered, [answered.id], []));
     expect(container.querySelector('[data-testid="judge"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="answered-bookmark"]')).toBeNull();
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
+  });
+});
+
+describe("a locked paragraph chooses new helper words (Q27 B)", () => {
+  function lockedState() {
+    return chunkStateFor(
+      {
+        part: { id: "p1", text: TEXT, locked: true },
+        paragraphIndex: 0,
+        start: 0,
+        end: TEXT.length,
+        status: "locked",
+        pendingIds: [],
+        approvedIds: [],
+        decidedIds: [],
+      } as DeckChunk,
+      { document: TEXT, suggestions: [] },
+    );
+  }
+
+  it("opens the sheet on a locked paragraph with nothing answered", async () => {
+    await render(lockedState());
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
+  });
+
+  it("tapping the helper words opens the picker with nothing selected; Use this phrase locks them", async () => {
+    useWords.mockClear();
+    closeSheet.mockClear();
+    await render(lockedState());
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[data-testid="paragraph-helper-words"]')
+        ?.click(),
+    );
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
+    expect(sheet?.textContent).toContain("Choose your helper words");
+    expect(sheet?.textContent).toContain("ship it now");
+    const pill = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent?.trim() === "Use this phrase",
+    );
+    expect(pill?.disabled).toBe(true);
+    const tokens = container.querySelectorAll('[data-testid="picker-tokens"] button');
+    expect(Array.from(tokens).some((t) => t.getAttribute("aria-pressed") === "true")).toBe(false);
+    const word = Array.from(tokens).find((t) => t.textContent === "data");
+    await act(async () => (word as HTMLButtonElement).click());
+    expect(pill?.disabled).toBe(false);
+    await act(async () => pill?.click());
+    expect(useWords).toHaveBeenCalledTimes(1);
+    expect(useWords.mock.calls[0][0].text).toBe("data");
+    expect(closeSheet).toHaveBeenCalled();
   });
 });

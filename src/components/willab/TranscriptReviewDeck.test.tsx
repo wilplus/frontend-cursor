@@ -60,7 +60,6 @@ const props = {
   onAccept: vi.fn(noop),
   onKeepMine: vi.fn(noop),
   onLockPart: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
-  onKeepEvolving: vi.fn(async () => "ok" as const),
   onSetRootPhrase: vi.fn(noop),
   onEditSlide: vi.fn(noop),
   onClose: vi.fn(),

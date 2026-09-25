@@ -40,7 +40,6 @@ export interface AnsweredCopy {
   historyFromPractice: string;
   historyTake: string;
   historyNow: string;
-  historyBefore: string;
 }
 
 export interface LabelledLine {
@@ -48,11 +47,18 @@ export interface LabelledLine {
   text: string;
 }
 
+/** One Take in the paragraph's timeline (founder 2026-09-25, Q26 B): what
+ *  was said, and the helper words that were locked while it stood. */
+export interface TimelineEntry {
+  label: string | null;
+  text: string;
+  helperWords: string | null;
+}
+
 export interface AnsweredView {
   youSaid: string | null;
   boxes: LabelledLine[];
-  versions: LabelledLine[];
-  helperWords: LabelledLine[];
+  timeline: TimelineEntry[];
 }
 
 /** One headline per Slide: all its helper words, in pick order (Q12 A,
@@ -127,33 +133,47 @@ function boxesOf(
   return kept.map(({ label, text }) => ({ label, text }));
 }
 
-/** The Slide's words, newest first, each labelled with its Take. */
-function versionsOf(
-  history: ParagraphHistory | null,
-  copy: AnsweredCopy,
-): LabelledLine[] {
-  return [...(history?.versions ?? [])]
-    .filter((v) => v.paragraphs.some((p) => p.trim()))
-    .reverse()
-    .map((v) => ({
-      label: v.takeIndex ? `${copy.historyTake} ${v.takeIndex}` : null,
-      text: v.paragraphs.join("\n\n"),
-    }));
+function time(value: string | null): number {
+  const parsed = value ? Date.parse(value) : NaN;
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
 }
 
-/** Now, then every earlier set. An empty set is not a set of helper words. */
-function helperWordsOf(
+/** The helper words locked while a version stood: the last locked set
+ *  written before the next version replaced it (for the newest version, the
+ *  set in force now). An empty set is no helper words. */
+function helperWordsBefore(
+  history: ParagraphHistory,
+  until: number,
+): string | null {
+  let current: string[] = [];
+  for (const set of history.helperWords) {
+    if (time(set.at) >= until) break;
+    current = set.phrases.map((p) => p.trim()).filter(Boolean);
+  }
+  return current.length > 0 ? current.join(" · ") : null;
+}
+
+/** One timeline, newest Take first (Q26 B): each Take's words and, under
+ *  them, the helper words that were locked while they stood. */
+export function timelineOf(
   history: ParagraphHistory | null,
-  copy: AnsweredCopy,
-): LabelledLine[] {
-  const sets = (history?.helperWords ?? [])
-    .map((h) => h.phrases.map((p) => p.trim()).filter(Boolean))
-    .filter((phrases) => phrases.length > 0)
-    .reverse();
-  return sets.map((phrases, i) => ({
-    label: i === 0 ? copy.historyNow : copy.historyBefore,
-    text: phrases.join(" · "),
+  copy: Pick<AnsweredCopy, "historyTake">,
+): TimelineEntry[] {
+  if (!history) return [];
+  const versions = history.versions.filter((v) =>
+    v.paragraphs.some((p) => p.trim()),
+  );
+  const out: TimelineEntry[] = versions.map((v, i) => ({
+    label: v.takeIndex ? `${copy.historyTake} ${v.takeIndex}` : null,
+    text: v.paragraphs.join("\n\n"),
+    helperWords: helperWordsBefore(
+      history,
+      i + 1 < versions.length
+        ? time(versions[i + 1].at)
+        : Number.POSITIVE_INFINITY,
+    ),
   }));
+  return out.reverse();
 }
 
 export function answeredView(args: {
@@ -165,16 +185,20 @@ export function answeredView(args: {
   return {
     youSaid: youSaidOf(args.items, args.answers),
     boxes: boxesOf(args.items, args.history, args.copy),
-    versions: versionsOf(args.history, args.copy),
-    helperWords: helperWordsOf(args.history, args.copy),
+    timeline: timelineOf(args.history, args.copy),
   };
 }
 
-/** An answered bookmark: nothing on the paragraph is waiting, and at least
- *  one item on it was answered. Everything else opens as it always has. */
-export function opensAnswered(state: {
+/** Which paragraphs open their own sheet rather than the judgement: nothing
+ *  on them is waiting, and they were answered (Q19 A) or locked (Q26 B). A
+ *  paragraph that is neither has nothing to show and opens nothing. */
+export function opensParagraphSheet(state: {
   pending: readonly unknown[];
   decided?: readonly unknown[];
+  locked?: boolean;
 }): boolean {
-  return state.pending.length === 0 && (state.decided?.length ?? 0) > 0;
+  return (
+    state.pending.length === 0 &&
+    ((state.decided?.length ?? 0) > 0 || state.locked === true)
+  );
 }

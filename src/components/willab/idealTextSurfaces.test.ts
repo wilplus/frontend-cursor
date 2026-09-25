@@ -99,9 +99,7 @@ describe("a chunk decision changes its own paragraph, never the document", () =>
   const handlers = [
     // name of the handler, and the success projection that replaces its refetch
     ["lockParagraph", "lockedParts"],
-    ["unlockParagraph", "unlockedParts"],
     ["deckLockPart", "lockedParts"],
-    ["deckKeepEvolving", "evolvingParts"],
     ["deckSetRootPhrase", "nextParts"],
   ] as const;
 
@@ -134,10 +132,15 @@ describe("a chunk decision changes its own paragraph, never the document", () =>
     });
   }
 
+  it("there is no unlock and no keep-evolving handler left to regress", () => {
+    expect(code).not.toMatch(/const (unlockParagraph|deckKeepEvolving) = useCallback/);
+  });
+
   it("the success path of a lock carries NO refetch at all", () => {
     // The precise regression: `setRefetchNonce` sitting after the parts
     // projection, on the ok path, with nothing stale about it.
-    for (const name of ["lockParagraph", "unlockParagraph"]) {
+    // unlockParagraph is gone with Unlock itself (founder 2026-09-25, Q6 A).
+    for (const name of ["lockParagraph"]) {
       const src = body(name);
       const afterProjection = src.slice(src.indexOf("setSd("));
       expect(afterProjection, name).not.toContain("setRefetchNonce");

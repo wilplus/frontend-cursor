@@ -1,11 +1,17 @@
 export const CEO_CANONICAL_HOST = "dev.willpowerlab.com";
 export const CEO_ROOT_PATH = "/admin/ceo";
 
-const CEO_SURFACE_PATHS = [CEO_ROOT_PATH, "/admin/users", "/admin/tokens"];
+const CEO_SURFACE_PATHS = [
+  CEO_ROOT_PATH,
+  "/admin/users",
+  "/admin/tokens",
+  "/admin/project-deletions",
+];
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
   "/api/v2/admin/users",
   "/api/v2/admin/tokens",
+  "/api/v2/admin/project-deletions",
 ];
 
 export type CeoHostRouteAction =

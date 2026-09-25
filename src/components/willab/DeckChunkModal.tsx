@@ -103,7 +103,6 @@ import {
   type ChunkStep,
   judgedStatus,
   opensRootPhrase,
-  closesLock,
 } from "@/lib/willab/chunkSteps";
 import {
   nextSelection,
@@ -132,15 +131,8 @@ interface DeckChunkModalProps {
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   /** Commit the draft (when changed) and lock the part. */
   onLockIn: (text: string) => Promise<LockResult>;
-  /** Save the draft but explicitly leave this paragraph replaceable. */
-  onKeepEvolving: (text: string) => Promise<LockOutcome>;
   /** Post-lock orange metadata; null is an explicit Skip. */
   onSetRootPhrase: (phrase: RootPhraseSpan | null) => Promise<boolean>;
-  /** UNDO the lock (founder 2026-08-15) — the inverse of onLockIn, and the
-   *  only thing "Discard" means on a locked chunk. Optional: a host that
-   *  cannot unlock simply shows no button there, which is the pre-08-15
-   *  behaviour rather than a Discard that does nothing. */
-  onUnlockPart?: (() => Promise<LockOutcome>) | null;
   onClose: () => void;
   /** Apply a legacy style proposal (`state.style`); new roots use
    *  onSetRootPhrase. */
@@ -284,9 +276,7 @@ export default function DeckChunkModal({
   onUndoAccept,
   onKeepMine,
   onLockIn,
-  onKeepEvolving,
   onSetRootPhrase,
-  onUnlockPart = null,
   onClose,
   onApplyStyle,
   onJudged,
@@ -411,11 +401,14 @@ export default function DeckChunkModal({
           opensRootPhrase(judgementValue) &&
           chunk.part.text.trim().length > 0 &&
           (Boolean(styleSuggestion) || chunk.part.locked !== true),
-        // FOUNDER 2026-09-24. No, Not sure and Audio unclear take the Lock
-        // step off the end: the ladder finishes on emphasis and the sheet
-        // closes. Read from the SAME judgement the emphasis gate reads, one
-        // line above, so the two can never disagree about the same answer.
-        canLock: !closesLock(judgementValue),
+        // NO LOCK SCREEN ANY MORE (founder 2026-09-25). Q24 B: choosing the
+        // helper words locks them on the emphasis step itself. Q25 B: a
+        // paragraph with no helper-words step (a correction, praise, or a No)
+        // closes after its feedback — there is nothing for a Lock to keep.
+        // The one exception is a sheet opened with nothing in it at all: the
+        // deck never does that (such a paragraph opens its own sheet, or
+        // nothing), but a ladder with no steps would have no screen to draw.
+        canLock: feedbackInventory.length === 0,
       }),
     [
       feedbackInventory,
@@ -469,10 +462,6 @@ export default function DeckChunkModal({
    *  against the locked draft at lock time — see lockIn. `null` is Skip, and
    *  Skip is a real answer, not a deferral. */
   const [promotedQuote, setPromotedQuote] = useState<string | null>(null);
-  /** Set by Discard. The served chunk still says locked until the host
-   *  refetches, so without this the sheet would keep offering Discard to a
-   *  paragraph it has just unlocked. */
-  const [unlocked, setUnlocked] = useState(false);
   /** Move to the next screen. The lock step is always last, so this always
    *  lands somewhere and there is no "no more items" branch to get wrong. */
   /** @param withJudgement the answer being given RIGHT NOW, when this advance
@@ -632,11 +621,18 @@ export default function DeckChunkModal({
     advanceStep();
   }
 
-  async function lockIn() {
+  /** @param text the words to lock, and @param quote the chosen helper
+   *  words. Passed in when the lock follows a choice made in the same tap
+   *  (Q24 B): React has not re-rendered, so `draft` and `promotedQuote` in
+   *  scope are still the values from before that choice. */
+  async function lockIn(
+    text: string = draft,
+    quote: string | null = promotedQuote,
+  ) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await onLockIn(draft.trim());
+    const result = await onLockIn(text.trim());
     if (result.outcome !== "ok") {
       setBusy(false);
       setError(
@@ -688,27 +684,16 @@ export default function DeckChunkModal({
       feedbackInventory.every(isConfidentVoiceFeedback);
     const reAnchor =
       dirtyRef.current &&
-      promotedQuote &&
+      quote &&
       !(confidenceOnly && !opensRootPhrase(judgement))
-        ? quoteSpan(draft, promotedQuote)
+        ? quoteSpan(text, quote)
         : null;
     if (reAnchor) await onSetRootPhrase(reAnchor);
     setBusy(false);
     onClose();
   }
 
-  async function keepEvolving() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const outcome = await onKeepEvolving(draft.trim());
-    setBusy(false);
-    if (outcome === "ok") {
-      onClose();
-      return;
-    }
-    setError(COPY.failEvolve);
-  }
+
 
   /* THE EMPHASIS STEP'S THREE MOVES.
    *
@@ -789,8 +774,10 @@ export default function DeckChunkModal({
     setBusy(false);
     if (!saved) return;
     setPromotedQuote(chosen);
-    if (onApplyStyle) await applyStyle();
-    advanceStep();
+    // The styled words, not the stale `draft`: the lock must carry the bold
+    // the server just folded in, and re-anchor the phrase against it.
+    const styled = await applyStyle();
+    await lockIn(styled, chosen);
   }
 
   /* TAP-TO-SELECT DOES NOT WRITE A MARKER INTO THE DRAFT, and that is a
@@ -828,7 +815,9 @@ export default function DeckChunkModal({
     setBusy(false);
     if (!saved) return;
     setPromotedQuote(chosen);
-    advanceStep();
+    // ONE SCREEN (founder 2026-09-25, Q24 B): "Use this phrase" locks the
+    // words at once and the sheet closes. There is no Lock screen after it.
+    await lockIn(draft, chosen);
   }
 
   /* skipEmphasis is GONE (founder 2026-09-16, §5). It set promotedQuote to
@@ -855,8 +844,10 @@ export default function DeckChunkModal({
    * a local edit is trivially reversible, which is why doing it first is safe
    * here in a way an irreversible action would not be. */
 
-  async function applyStyle() {
-    if (!styleSuggestion || !onApplyStyle || busy) return;
+  /** Resolves to the words now on screen: styled when the server took the
+   *  emphasis, unchanged otherwise. */
+  async function applyStyle(): Promise<string> {
+    if (!styleSuggestion || !onApplyStyle || busy) return draft;
     const before = draft;
     const next = emphasizeQuote(draft, styleSuggestion.quote);
     if (next !== draft) {
@@ -874,28 +865,13 @@ export default function DeckChunkModal({
         setDraft(before);
       }
       setError(COPY.failEmphasis);
+      return before;
     }
+    return next;
   }
 
 
-  async function unlock() {
-    if (busy || !onUnlockPart) return;
-    setBusy(true);
-    setError(null);
-    const outcome = await onUnlockPart();
-    setBusy(false);
-    if (outcome === "ok") {
-      // DISCARD LANDS ON THE EDITOR, NOT ON THE PAGE (founder 2026-09-15,
-      // §5). It used to call onClose(), so undoing a lock also dismissed the
-      // sheet — the speaker asked to edit and was put back where they started,
-      // with the paragraph now unlocked and nothing on screen saying so. The
-      // lock step is the editor, so staying here IS the editor.
-      setUnlocked(true);
-      setStepId("lock");
-      return;
-    }
-    setError(COPY.failUnlock);
-  }
+
 
   const rewriteOverlapsFlagship = Boolean(
     suggestion?.kind === "replace" &&
@@ -1120,15 +1096,6 @@ export default function DeckChunkModal({
     onFinished: onExerciseFinished,
   });
 
-  // Paragraph versioning boundary: after this Take's feedback is resolved,
-  // the student explicitly chooses Lock for next Take or Keep evolving.
-  // Reopening a settled paragraph that had no feedback keeps the established
-  // inverse action (unlock). A paragraph that did have feedback must pass the
-  // explicit commit boundary again even if it arrived already locked.
-  const lockedAndSettled =
-    chunk.part.locked === true && draft === chunk.part.text;
-  const showUnlock =
-    lockedAndSettled && !hadFeedback && !!onUnlockPart && !unlocked;
 
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
   // follows the pointer continuously, then settles to one of two detents.
@@ -1347,24 +1314,16 @@ export default function DeckChunkModal({
             ],
       };
     }
-    // THE LOCK STEP. A settled locked paragraph reopened with nothing pending
-    // has exactly one move, and it is the inverse of the lock.
-    if (showUnlock) {
-      return {
-        pill: COPY.pillDiscard,
-        icon: <Undo2 className="h-4 w-4" aria-hidden />,
-        onPill: () => void unlock(),
-        links: [],
-      };
-    }
+    // THE LOCK STEP. No longer built (founder 2026-09-25, Q24 B / Q25 B):
+    // "Use this phrase" locks, and a sheet without helper words closes after
+    // its feedback. Kept as the ladder's defensive fallback only — Lock, with
+    // no Keep evolving and no Discard (Q6 A: there is no Unlock).
     return {
       pill: COPY.pillLock,
       icon: <Lock className="h-4 w-4" aria-hidden />,
       pillDisabled: draft.trim().length === 0,
       onPill: () => void lockIn(),
-      links: [
-        { label: COPY.linkKeepEvolving, onClick: () => void keepEvolving() },
-      ],
+      links: [],
     };
   })();
 
