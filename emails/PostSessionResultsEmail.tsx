@@ -19,20 +19,16 @@
  *     contents were filled in from the brand voice on /results.
  *     Treat anything below as a first draft to iterate on, NOT as
  *     a faithful reproduction of a Lovable mock.
- *   • The Pacifico <Font> load uses Google Fonts. Outlook strips it;
- *     Apple Mail and Gmail web load it. The fallback for the
- *     "willab." wordmark when Pacifico fails to load is "Brush Script
- *     MT, cursive" — the cleanest non-Pacifico script that ships on
- *     macOS and Windows.
+ *   • The header is the app's own logo, rendered to a PNG by
+ *     /willab-logo so no web font is needed (founder 2026-09-25).
  */
 
 import {
   Body,
   Container,
-  Font,
+
   Head,
   Heading,
-  Hr,
   Html,
   Img,
   Link,
@@ -59,18 +55,20 @@ const COLOR = {
 
 const FONT_STACK_SYSTEM =
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-const FONT_STACK_PACIFICO = `"Pacifico", "Brush Script MT", cursive`;
 
 /* -------------------------------------------------------------------------- */
-/* Static lucide SVG strings — Mic + Trophy (per spec §3, info chips)         */
-/* Inline SVG so they don't depend on any external image host.                */
+/* Copy — signed off by the founder 2026-09-25                                 */
 /* -------------------------------------------------------------------------- */
 
-const ICON_SIZE = 14;
-
-const MIC_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="${COLOR.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>`;
-
-const TROPHY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="${COLOR.primary}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`;
+/** The one line that says what happened. A count of moments, never a score
+ *  (AC-9). Shared with the plain-text part so the two cannot drift. */
+export function momentsLine(snippetCount: number): string {
+  const n = Math.max(0, Math.floor(snippetCount || 0));
+  if (n === 0) return "Your coach listened to your latest take and left feedback.";
+  return `Your coach listened to your latest take and left feedback on ${n} ${
+    n === 1 ? "moment" : "moments"
+  }.`;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Props                                                                       */
@@ -96,43 +94,23 @@ export interface PostSessionResultsEmailProps {
 /* Email                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/* FOUNDER 2026-09-25: the old subject stays, the body is new and has one
+   button, and the header is the app's own logo (/willab-logo). The project
+   name leads, because the email is about ONE talk. `userFirstName` stays on
+   the props for backend compatibility; the greeting is gone. */
 export default function PostSessionResultsEmail({
-  userFirstName,
   snippetCount,
-  // topTheme intentionally NOT destructured — kept on the props
-  // interface for backend BFF compat but no longer rendered.
+  topTheme,
   journeyUrl,
   unsubscribeUrl,
 }: PostSessionResultsEmailProps) {
-  const greeting = userFirstName?.trim()
-    ? `Hi ${userFirstName.trim()},`
-    : `Hi there,`;
-
-  // Inbox preview text. topTheme used to be tacked on the end here
-  // ("… — High Charisma."), removed per spec along with the chip.
-  const previewText = `${snippetCount} new voice ${
-    snippetCount === 1 ? "moment" : "moments"
-  } from your last session.`;
+  const previewText = momentsLine(snippetCount);
 
   return (
     <Html>
       <Head>
         <meta name="color-scheme" content="light only" />
         <meta name="supported-color-schemes" content="light" />
-
-        {/* Pacifico for the "WillpowerLab" wordmark only. Gracefully
-            falls back to "Brush Script MT, cursive" in Outlook +
-            other clients that strip Google Fonts. */}
-        <Font
-          fontFamily="Pacifico"
-          fallbackFontFamily="cursive"
-          webFont={{
-            url: "https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy14u9lezJ-6H6MmBp0u-.woff2",
-            format: "woff2",
-          }}
-          fontWeight={400}
-          fontStyle="normal"
-        />
 
         {/* Staggered fade-in-up — pure progressive enhancement.
             Email clients that strip <style> show the static layout. */}
@@ -174,22 +152,20 @@ export default function PostSessionResultsEmail({
             margin: "0 auto",
           }}
         >
-          {/* Top: centred WillpowerLab wordmark logo, dynamically rendered
-              by /willab-logo (src/app/willab-logo/route.tsx — Vercel
-              edge ImageResponse with Pacifico baked into the PNG).
-              4:1 aspect (480×120 source) sits properly in an email
-              header at ~160 px wide. Renders identically in every
+          {/* Top: the app's own logo — three dots and "WillpowerLab" —
+              rendered by /willab-logo (src/app/willab-logo/route.tsx, an
+              edge ImageResponse). 520×120 source, shown ~182 px wide. Renders identically in every
               email client because the font is rasterised — no
               Google Fonts strip risk. */}
           <Section style={{ paddingBottom: 24, textAlign: "center" }}>
             <Img
               src="https://www.willpowerlab.com/willab-logo"
               alt="WillpowerLab"
-              width="160"
-              height="40"
+              width="182"
+              height="42"
               style={{
                 display: "inline-block",
-                width: "160px",
+                width: "182px",
                 height: "auto",
                 border: 0,
               }}
@@ -217,7 +193,7 @@ export default function PostSessionResultsEmail({
                 fontWeight: 600,
               }}
             >
-              Your Voice Journey
+              {topTheme}
             </Text>
 
             {/* Headline */}
@@ -233,9 +209,7 @@ export default function PostSessionResultsEmail({
                 color: COLOR.text,
               }}
             >
-              {greeting}
-              <br />
-              your latest voice moments are ready.
+              Your coach&apos;s feedback is in.
             </Heading>
 
             {/* Body copy */}
@@ -248,95 +222,20 @@ export default function PostSessionResultsEmail({
                 color: COLOR.text,
               }}
             >
-              Your coach finished pulling out the moments where your delivery
-              hit hardest, and the ones worth a second pass. Open your
-              journey to listen back, read the coach&apos;s notes, and pick
-              what to push on next.
+              {momentsLine(snippetCount)}
             </Text>
-
-            {/* Info chips (spec §3.5 — table layout for Outlook).
-                Two equal columns, each with an inline SVG icon + label.
-                Built as a table so Outlook 2016+ honours the side-by-side
-                layout — flex/grid would collapse there. */}
-            <table
-              role="presentation"
-              cellPadding={0}
-              cellSpacing={0}
-              border={0}
+            <Text
               className="pse-fade pse-fade-4"
-              style={{ width: "100%", marginTop: 28, borderCollapse: "separate", borderSpacing: 0 }}
+              style={{
+                margin: "12px 0 0 0",
+                fontSize: 16,
+                lineHeight: "26px",
+                color: COLOR.text,
+              }}
             >
-              <tbody>
-                <tr>
-                  {/* Single full-width Published-snippets chip. The
-                      Top-theme cell that used to live alongside this
-                      was removed per spec — the topic/theme readout
-                      no longer ships in the email body. `topTheme`
-                      stays on the props interface for backend BFF
-                      compat but is not rendered. */}
-                  <td
-                    style={{
-                      width: "100%",
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    <table
-                      role="presentation"
-                      cellPadding={0}
-                      cellSpacing={0}
-                      border={0}
-                      style={{
-                        width: "100%",
-                        backgroundColor: COLOR.primarySoft,
-                        borderRadius: 12,
-                        padding: "12px 14px",
-                      }}
-                    >
-                      <tbody>
-                        <tr>
-                          <td
-                            style={{
-                              width: ICON_SIZE,
-                              verticalAlign: "middle",
-                              paddingRight: 8,
-                              lineHeight: 0,
-                            }}
-                            dangerouslySetInnerHTML={{ __html: MIC_SVG }}
-                          />
-                          <td style={{ verticalAlign: "middle" }}>
-                            <span
-                              style={{
-                                display: "block",
-                                fontSize: 11,
-                                letterSpacing: "0.06em",
-                                textTransform: "uppercase",
-                                color: COLOR.textMuted,
-                                fontWeight: 600,
-                                lineHeight: "13px",
-                              }}
-                            >
-                              Published snippets
-                            </span>
-                            <span
-                              style={{
-                                display: "block",
-                                marginTop: 2,
-                                fontSize: 16,
-                                fontWeight: 600,
-                                color: COLOR.text,
-                                lineHeight: "20px",
-                              }}
-                            >
-                              {snippetCount} new
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              Open it to hear each moment, say how it sounded to you, and see
+              your coach&apos;s notes and exercises.
+            </Text>
 
             {/* CTA pill — Inline anchor so Outlook stops reflowing it.
                 The pill is centred via a single-cell table — Outlook
@@ -366,35 +265,13 @@ export default function PostSessionResultsEmail({
                         borderRadius: 9999,
                       }}
                     >
-                      See the feedback →
+                      Open the feedback
                     </Link>
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            <Hr
-              style={{
-                borderTop: `1px solid ${COLOR.divider}`,
-                borderBottom: 0,
-                borderLeft: 0,
-                borderRight: 0,
-                margin: "32px 0 24px 0",
-              }}
-            />
-
-            <Text
-              style={{
-                margin: 0,
-                fontSize: 13,
-                lineHeight: "20px",
-                color: COLOR.textMuted,
-              }}
-            >
-              Each snippet has a coach note, a one-tap player, and a CTA back
-              into a contextual chat. Pick the moment that grabs you and
-              push on it.
-            </Text>
           </Section>
 
           {/* Footer — three legal/admin links only. */}

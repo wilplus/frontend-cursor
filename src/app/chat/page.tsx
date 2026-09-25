@@ -49,6 +49,9 @@ export default function ChatPage({
   // coach reviewed this talk" used to land on bare /chat and leave the student
   // hunting the right bubble. Distinct from `?arc=` (best presentation).
   const idealTextArcId = firstQueryValue(searchParams.idealArc);
+  // `&feedback=1` (founder 2026-09-25, Q28 A): open with the sheet already on
+  // the coach's first reviewed moment.
+  const idealTextFeedback = firstQueryValue(searchParams.feedback) === "1";
 
   return (
     <Suspense fallback={<LoadingState placement="viewport" />}>
@@ -59,6 +62,7 @@ export default function ChatPage({
         insightSessionId={insightSessionId}
         bestPresentationArcId={bestPresentationArcId}
         idealTextArcId={idealTextArcId}
+        idealTextFeedback={idealTextFeedback}
       />
     </Suspense>
   );

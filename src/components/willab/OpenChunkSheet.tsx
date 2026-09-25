@@ -11,6 +11,7 @@ import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
+import type { Pager } from "@/components/willab/feedbackPager";
 
 export type PractiseAgain = {
   item: DocumentSuggestion;
@@ -35,6 +36,7 @@ export default function OpenChunkSheet({
   takeSessionId,
   headline,
   onUseHelperWords,
+  pager = null,
   onClose,
   renderSheet,
 }: {
@@ -44,6 +46,7 @@ export default function OpenChunkSheet({
   /** The Slide's locked helper words, joined " · ", or null. */
   headline: string | null;
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
+  pager?: Pager | null;
   onClose: () => void;
   renderSheet: (practiseAgain: PractiseAgain) => ReactNode;
 }) {
@@ -68,6 +71,7 @@ export default function OpenChunkSheet({
         setPractiseAgain({ item, answer: asJudgement(answer) })
       }
       onUseHelperWords={onUseHelperWords}
+      pager={pager}
       onClose={onClose}
     />
   );

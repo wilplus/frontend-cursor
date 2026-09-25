@@ -13,6 +13,7 @@ import {
 } from "@/services/api/bookmarkHistory";
 import {
   answeredView,
+  timelineOf,
   type LabelledLine,
   type TimelineEntry,
 } from "@/lib/willab/answeredBookmark";
@@ -24,6 +25,7 @@ import {
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PARAGRAPH'S OWN SHEET (founder 2026-09-25, Q19 A, Q26 B, Q27 B).       */
@@ -331,6 +333,43 @@ function HelperWordsPicker({
   );
 }
 
+/** Whose history to show under the coach's work (the coaching sheet). */
+export interface HistoryTarget {
+  arcId: string | null;
+  partId: string;
+  text: string;
+  headline: string | null;
+}
+
+/** A done bookmark's history, for the coaching sheet (founder 2026-09-25):
+ *  the helper words and the paragraph now, then one timeline by Take. */
+export function ParagraphHistoryBlock({
+  arcId,
+  partId,
+  text,
+  headline,
+}: HistoryTarget) {
+  const [history, setHistory] = useState<ParagraphHistory | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (arcId) {
+      void fetchParagraphHistory(arcId, partId).then((result) => {
+        if (alive) setHistory(result);
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [arcId, partId]);
+  const entries = useMemo(() => timelineOf(history, COPY), [history]);
+  return (
+    <div className="flex flex-col gap-5" data-testid="bundle-history">
+      <NowCard headline={headline} text={text} onChooseWords={null} />
+      <Timeline entries={entries} />
+    </div>
+  );
+}
+
 export default function ParagraphSheet({
   arcId,
   takeSessionId,
@@ -341,6 +380,7 @@ export default function ParagraphSheet({
   decided,
   onPractise,
   onUseHelperWords,
+  pager = null,
   onClose,
 }: {
   arcId: string | null;
@@ -360,6 +400,8 @@ export default function ParagraphSheet({
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
    *  landed. Absent → the helper words are not a button. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
+  /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
+  pager?: Pager | null;
   onClose: () => void;
 }) {
   const [history, setHistory] = useState<ParagraphHistory | null>(null);
@@ -404,7 +446,11 @@ export default function ParagraphSheet({
   }
 
   return (
-    <SheetFrame title={COPY.titleFeedback} onClose={onClose}>
+    <SheetFrame
+      title={COPY.titleFeedback}
+      onClose={onClose}
+      footer={pager ? <FeedbackPagerBar pager={pager} /> : null}
+    >
       <NowCard
         headline={headline}
         text={text}

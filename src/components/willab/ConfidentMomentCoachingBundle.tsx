@@ -17,6 +17,10 @@ import {
   type FeedbackLanguageItem,
 } from "@/services/api/confidentMomentBundles";
 import ConfidentMomentExercisePanel from "./ConfidentMomentExercisePanel";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
+import { FeedbackPagerBar, type Pager } from "./feedbackPager";
+import { ParagraphHistoryBlock, type HistoryTarget } from "./ParagraphSheet";
+import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import AiGeneratedNote from "./AiGeneratedNote";
 import { aiGeneratedAttrs } from "@/lib/willab/aiGeneratedMark";
 
@@ -99,12 +103,20 @@ export default function ConfidentMomentCoachingBundle({
   ownerEdit,
   onChanged,
   onClose,
+  pager = null,
+  history = null,
 }: {
   bundle: ConfidentMomentBundle;
   documentSnapshotId: string;
   ownerEdit: ConfidentMomentOwnerEdit | null;
   onChanged: () => void;
   onClose: () => void;
+  /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
+  pager?: Pager | null;
+  /** The paragraph's own history, shown under the coach's work once the
+   *  moment is answered: a done bookmark shows its history (founder
+   *  2026-09-25). */
+  history?: HistoryTarget | null;
 }) {
   const [receipts, setReceipts] = useState<Record<string, string>>({});
   const [responses, setResponses] = useState<Record<string, { decisionId: string; ownerResponseId: string | null; responseBindingId: string | null }>>(() =>
@@ -379,22 +391,23 @@ export default function ConfidentMomentCoachingBundle({
     } : null;
   }, [bundle.bundleId, items, ownerEdit?.currentBundleTextUpdateBinding, practiceRootSource, responses, textRootSource]);
 
-  const rootAction = useCallback(async (action: "save_owner_selected_root" | "unlock_current_root" | "restore_previous_root") => {
+  // Save only: Unlock and Restore are gone (founder 2026-09-25, Q6 A).
+  const rootAction = useCallback(async (action: "save_owner_selected_root") => {
     if (!rootingCoverageEnabled() || busy) return;
     const attachmentId = rootSource?.attachmentId ?? items[0]?.bundleAttachmentId;
-    if (!attachmentId || (action === "save_owner_selected_root" && !rootSource)) return;
+    if (!attachmentId || !rootSource) return;
     setBusy(attachmentId);
     const rootBody = {
       action,
       expected_block_head_action_id: bundle.root.activeRootActionId,
-      source_feedback_exposure_id: action === "save_owner_selected_root" ? rootSource?.feedbackExposureId : null,
-      source_owner_response_id: action === "save_owner_selected_root" ? rootSource?.ownerResponseId : null,
-      source_practice_attempt_id: action === "save_owner_selected_root" ? rootSource?.practiceAttemptId : null,
-      source_ideal_text_revision_id: action === "save_owner_selected_root" ? rootSource?.idealTextRevisionId : null,
-      source_text_update_binding_id: action === "save_owner_selected_root" ? rootSource?.textUpdateBindingId : null,
-      source_target_speaker_binding_id: action === "save_owner_selected_root" ? rootSource?.sourceTargetSpeakerBindingId : null,
-      practice_target_speaker_binding_id: action === "save_owner_selected_root" ? rootSource?.practiceTargetSpeakerBindingId : null,
-      restore_product_action_id: action === "restore_previous_root" ? bundle.root.restoreProductActionId : null,
+      source_feedback_exposure_id: rootSource?.feedbackExposureId ?? null,
+      source_owner_response_id: rootSource?.ownerResponseId ?? null,
+      source_practice_attempt_id: rootSource?.practiceAttemptId ?? null,
+      source_ideal_text_revision_id: rootSource?.idealTextRevisionId ?? null,
+      source_text_update_binding_id: rootSource?.textUpdateBindingId ?? null,
+      source_target_speaker_binding_id: rootSource?.sourceTargetSpeakerBindingId ?? null,
+      practice_target_speaker_binding_id: rootSource?.practiceTargetSpeakerBindingId ?? null,
+      restore_product_action_id: null,
       policy_version: "rooting-coverage-30-80-100-v1",
     };
     const result = await recordBundleRootAction({
@@ -407,7 +420,7 @@ export default function ConfidentMomentCoachingBundle({
     });
     setBusy(null);
     if (result.kind === "ok") onChanged();
-  }, [bundle.bundleId, bundle.root.activeRootActionId, bundle.root.restoreProductActionId, busy, items, onChanged, rootSource]);
+  }, [bundle.bundleId, bundle.root.activeRootActionId, busy, items, onChanged, rootSource]);
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-label="Confident moment coaching">
@@ -454,14 +467,19 @@ export default function ConfidentMomentCoachingBundle({
                       </Button>
                     )
                   ) : null}
-                  {!responses[item.bundleAttachmentId] ? <div className="flex flex-wrap gap-2">
-                    {[
-                      ["Yes", "yes"], ["In between", "in_between"], ["No", "no"],
-                      ["Not sure", "not_sure"], ["Audio unclear", "audio_unclear"],
-                    ].map(([label, value]) => (
-                      <Button key={value} variant="outline" disabled={sourcePlayback[item.bundleAttachmentId] !== "completed" || !receipts[item.bundleAttachmentId] || busy !== null} onClick={() => void respond(item, value)}>{label}</Button>
-                    ))}
-                  </div> : null}
+                  {/* THE SAME FIVE ANSWERS AS EVERYWHERE ELSE (founder
+                      2026-09-25, Q36 A): the owner wording of the one
+                      judgement instrument, not a second set of labels. */}
+                  {!responses[item.bundleAttachmentId] ? (
+                    <ConfidenceLabelChips
+                      question={COPY.confidenceQuestion}
+                      value={null}
+                      disabled={sourcePlayback[item.bundleAttachmentId] !== "completed" || !receipts[item.bundleAttachmentId] || busy !== null}
+                      saving={busy !== null}
+                      ownerWording
+                      onPick={(value) => void respond(item, value)}
+                    />
+                  ) : null}
                 </div>
               ) : null}
               {item.feedbackFamily !== "confident_voice" || responses[item.bundleAttachmentId] ? (
@@ -510,20 +528,23 @@ export default function ConfidentMomentCoachingBundle({
               onPracticeSourceReady={setPracticeRootSource}
             />
           ) : null}
-          {rootingCoverageEnabled() && items.length > 0 && (bundle.root.isOrange || rootSource) ? (
+          {/* NO UNLOCK, NO RESTORE (founder 2026-09-25, Q6 A): new words
+              replace the old ones; there is no inverse of the lock. */}
+          {rootingCoverageEnabled() && items.length > 0 && (bundle.root.isOrange || rootSource) && !bundle.root.isLocked ? (
             <div className="flex flex-wrap gap-2" data-root-controls-for={bundle.bundleId}>
-              {bundle.root.isLocked ? (
-                <Button disabled={busy !== null} onClick={() => void rootAction("unlock_current_root")}>Unlock</Button>
-              ) : (
-                <Button disabled={busy !== null || !rootSource} onClick={() => void rootAction("save_owner_selected_root")}>Save the text</Button>
-              )}
-              {bundle.root.canRestorePrevious ? (
-                <Button variant="outline" disabled={busy !== null} onClick={() => void rootAction("restore_previous_root")}>Restore previous version</Button>
-              ) : null}
+              <Button disabled={busy !== null || !rootSource} onClick={() => void rootAction("save_owner_selected_root")}>Save the text</Button>
               <Button variant="ghost" onClick={onClose}>Cancel</Button>
             </div>
           ) : null}
+          {history && (confidenceAnswered || !confidenceItem) ? (
+            <ParagraphHistoryBlock {...history} />
+          ) : null}
         </div>
+        {pager ? (
+          <div className="sticky bottom-0 -mx-6 -mb-6 mt-6 bg-background">
+            <FeedbackPagerBar pager={pager} />
+          </div>
+        ) : null}
       </section>
     </div>
   );

@@ -219,8 +219,6 @@ export interface ReadoutPayload {
   feedbackItems: ReadoutFeedbackItem[];
   /** Optional take-level coach summary, separate from paragraph feedback. */
   overallMessage: string | null;
-  /** Optional take-level coach video, separate from paragraph feedback. */
-  videoRef: string | null;
   /** Phase 2 — the session's served deck PDF (presentation_ref), used to render
    *  the per-snippet slide page. null when no deck was attached. */
   presentationRef: string | null;
@@ -611,10 +609,6 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
       typeof coachReview.overall_message === "string"
         ? coachReview.overall_message
         : null,
-    videoRef:
-      typeof coachReview.video_ref === "string" && coachReview.video_ref.length > 0
-        ? coachReview.video_ref
-        : null,
     presentationRef: pickPresentationRef(r),
     slides,
     slideTranscripts,
@@ -793,7 +787,6 @@ export function mockReadout(topic: string): ReadoutPayload {
   return {
     feedbackItems: [],
     overallMessage: null,
-    videoRef: null,
     presentationRef: null,
     slides: [],
     slideTranscripts: [],

@@ -29,7 +29,9 @@ describe("Confident Moment user media boundary", () => {
     expect(bundle).toContain("source_practice_attempt_id");
     expect(bundle).toContain("source_target_speaker_binding_id");
     expect(bundle).toContain("practice_target_speaker_binding_id");
-    expect(bundle).toContain('action === "save_owner_selected_root"');
+    expect(bundle).toContain('rootAction("save_owner_selected_root")');
+    // Q6 A (founder 2026-09-25): no Unlock and no Restore.
+    expect(bundle).not.toMatch(/unlock_current_root|restore_previous_root|>Unlock<|Restore previous version/);
   });
 
   it("keeps practice locked until playback completion is durably confirmed", () => {
