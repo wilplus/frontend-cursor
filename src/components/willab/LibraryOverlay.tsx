@@ -8,6 +8,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import type { ExploreArc } from "@/lib/willab/exploreArc";
 import {
   deletePresentation,
+  deleteRefusalLine,
   deleteTake,
   fetchStrengths,
   type PresentationGroup,
@@ -131,6 +132,14 @@ export default function LibraryOverlay({
   const [idealArcId, setIdealArcId] = useState<string | null>(null);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // A take the backend refused to delete (409 TAKE_HAS_LINEAGE): it comes
+  // back, with the approved line under it. Nothing was deleted, so the take
+  // keeps its number.
+  const [takeRefusal, setTakeRefusal] = useState<{
+    presentationId: string;
+    takeNumber: number;
+    line: string;
+  } | null>(null);
 
   // Refs for the popstate handler (avoids stale closures in the [] effect).
   const navRef = useRef(nav);
@@ -265,14 +274,18 @@ export default function LibraryOverlay({
     if (nav.level === "L2" && nav.presentation.presentationId === p.presentationId) {
       goL1();
     }
-    deletePresentation(p.presentationId).catch(() => {
+    deletePresentation(p.presentationId).catch((err: unknown) => {
       setPresentations(prev);
-      setDeleteError("Could not delete presentation. Please try again.");
+      setDeleteError(
+        deleteRefusalLine(err, "presentation") ??
+          "Could not delete presentation. Please try again."
+      );
       setTimeout(() => setDeleteError(null), 3000);
     });
   };
 
   const handleDeleteTake = (presentationId: string, takeNumber: number) => {
+    setTakeRefusal(null);
     setPresentations((ps) =>
       ps.map((p) =>
         p.presentationId !== presentationId
@@ -280,11 +293,13 @@ export default function LibraryOverlay({
           : { ...p, takes: p.takes.filter((t) => t.takeNumber !== takeNumber) }
       )
     );
-    deleteTake(presentationId, takeNumber).catch(() => {
+    deleteTake(presentationId, takeNumber).catch((err: unknown) => {
+      const line = deleteRefusalLine(err, "take");
       // re-fetch on failure rather than trying to reconstruct the old state
       void fetchStrengths().then((v) => {
         setPresentations(v.presentations);
         setGeneral(v.general);
+        if (line) setTakeRefusal({ presentationId, takeNumber, line });
       });
     });
   };
@@ -360,6 +375,11 @@ export default function LibraryOverlay({
               )
             }
             onDeleteTake={(tn) => handleDeleteTake(nav.presentation.presentationId, tn)}
+            takeRefusal={
+              takeRefusal?.presentationId === nav.presentation.presentationId
+                ? takeRefusal
+                : null
+            }
             onRecordAnother={() => {
               const p = nav.presentation;
               if (!p.arcId) return;
@@ -616,12 +636,14 @@ function PresentationDetail({
   onOpenTake,
   onDeleteTake,
   onRecordAnother,
+  takeRefusal,
 }: {
   presentation: PresentationGroup;
   onOpenBest: () => void;
   onOpenTake: (t: PresentationTake) => void;
   onDeleteTake: (takeNumber: number) => void;
   onRecordAnother: () => void;
+  takeRefusal: { takeNumber: number; line: string } | null;
 }) {
   const coverSlide = presentation.slides[0];
   // The composed best presentation needs ≥3 takes (built from the recordings,
@@ -699,24 +721,28 @@ function PresentationDetail({
       ) : null}
 
       {presentation.takes.map((t) => (
-        <Card
-          key={t.takeNumber}
-          height={84}
-          onClick={() => onOpenTake(t)}
-          presentationRef={t.presentationRef}
-          slideIndex={t.slides[0]?.index ?? 0}
-          slideTitle={t.slides[0]?.title}
-          slideBody={t.slides[0]?.body}
-          title={`Take ${t.takeNumber}`}
-          sub={new Date(t.createdAt).toLocaleDateString()}
-          menuItems={[
-            {
-              label: "Delete take",
-              danger: true,
-              onClick: () => onDeleteTake(t.takeNumber),
-            },
-          ]}
-        />
+        <div key={t.takeNumber} className="flex flex-col gap-1">
+          <Card
+            height={84}
+            onClick={() => onOpenTake(t)}
+            presentationRef={t.presentationRef}
+            slideIndex={t.slides[0]?.index ?? 0}
+            slideTitle={t.slides[0]?.title}
+            slideBody={t.slides[0]?.body}
+            title={`Take ${t.takeNumber}`}
+            sub={new Date(t.createdAt).toLocaleDateString()}
+            menuItems={[
+              {
+                label: "Delete take",
+                danger: true,
+                onClick: () => onDeleteTake(t.takeNumber),
+              },
+            ]}
+          />
+          {takeRefusal?.takeNumber === t.takeNumber ? (
+            <p className="text-[13px] text-destructive">{takeRefusal.line}</p>
+          ) : null}
+        </div>
       ))}
       </div>
     </div>

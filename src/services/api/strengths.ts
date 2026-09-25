@@ -211,6 +211,65 @@ export async function fetchStrengths(): Promise<StrengthsView> {
   return mapStrengths(await res.json().catch(() => null));
 }
 
+/* -------------------------------------------------------------------------- */
+/*  A delete the backend refuses (BE #653, 2026-09-25)                         */
+/*                                                                            */
+/*  A canonical take is still referenced by its project's history, so the     */
+/*  backend answers 409 TAKE_HAS_LINEAGE and changes nothing. That refusal is  */
+/*  permanent: "try again" cannot help, so it gets its own founder-approved   */
+/*  line. Every other failure keeps the copy it had.                          */
+/*                                                                            */
+/*  No screen a user can reach deletes a take today (the L2 presentation      */
+/*  view has not been rendered since 2026-08-24); this is ready for the       */
+/*  surface that returns.                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const TAKE_HAS_LINEAGE = "TAKE_HAS_LINEAGE";
+
+/** Founder-approved 2026-09-25. Do not edit without sign-off. */
+export const TAKE_LINEAGE_REFUSAL = {
+  take: "This take can't be deleted on its own. It's part of your project's history.",
+  presentation:
+    "This presentation can't be deleted on its own. Its takes are part of your project's history.",
+} as const;
+
+export class DeleteFailedError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.name = "DeleteFailedError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function deleteFailure(res: Response, what: string): Promise<DeleteFailedError> {
+  let code: string | null = null;
+  try {
+    const body: unknown = await res.json();
+    if (body && typeof body === "object" && typeof (body as { code?: unknown }).code === "string") {
+      code = (body as { code: string }).code;
+    }
+  } catch {
+    // No JSON body: the status alone decides.
+  }
+  return new DeleteFailedError(`${what}: ${res.status}`, res.status, code);
+}
+
+/** The approved line for a refused delete, or null for any other failure
+ *  (the caller keeps its existing copy). Needs both the 409 and the code. */
+export function deleteRefusalLine(
+  err: unknown,
+  kind: keyof typeof TAKE_LINEAGE_REFUSAL
+): string | null {
+  if (err instanceof DeleteFailedError && err.status === 409 && err.code === TAKE_HAS_LINEAGE) {
+    return TAKE_LINEAGE_REFUSAL[kind];
+  }
+  return null;
+}
+
 export async function deletePresentation(presentationId: string): Promise<void> {
   const token = await getAuthToken();
   if (!token) throw new Error("Not authenticated");
@@ -218,7 +277,7 @@ export async function deletePresentation(presentationId: string): Promise<void> 
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`Delete presentation failed: ${res.status}`);
+  if (!res.ok) throw await deleteFailure(res, "Delete presentation failed");
 }
 
 export async function deleteTake(
@@ -234,5 +293,5 @@ export async function deleteTake(
       headers: { Authorization: `Bearer ${token}` },
     }
   );
-  if (!res.ok) throw new Error(`Delete take failed: ${res.status}`);
+  if (!res.ok) throw await deleteFailure(res, "Delete take failed");
 }
