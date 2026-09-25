@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
+import ProjectRowMenu from "./ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
+import {
+  deleteSetupDraft,
+  listSetupDrafts,
+  type SetupDraft,
+} from "@/lib/willab/setupDraft";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectPicker — context-aware recording setup, Scenario A (founder         */
@@ -18,8 +24,14 @@ import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 /*  dates. `cover_ref` / `take_count` / `created_at` are all ignored even      */
 /*  though the payload carries them.                                          */
 /*                                                                            */
-/*  "Start a new topic" is a BUTTON above the list, never a list item, so      */
+/*  "Start a new project" is a BUTTON above the list, never a list item, so    */
 /*  starting fresh can never be mistaken for continuing something.            */
+/*                                                                            */
+/*  2026-09-25 — an interrupted new-project setup is listed first as a Draft   */
+/*  that resumes where it stopped (this device only); its ⋯ menu deletes it.   */
+/*  Projects have NO delete here: a row delete cannot remove a canonical Take  */
+/*  (RESTRICT lineage) and was pulled the day it shipped — the real project    */
+/*  delete goes through the governed purge path, not this list.                */
 /*                                                                            */
 /*  One row identifies one immutable project and its Ideal Text. Picking it    */
 /*  continues exactly that project; visible names are never identity.          */
@@ -35,13 +47,19 @@ import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 /* -------------------------------------------------------------------------- */
 
 export default function ProjectPicker({
+  ownerId,
   onNewTopic,
+  onResumeDraft,
   onContinue,
   onSkip,
   onClose,
 }: {
+  /** The account whose drafts are listed. */
+  ownerId: string | null;
   /** Today's blank setup flow, unchanged. CLEARS the arc seed. */
   onNewTopic: () => void;
+  /** Resume an interrupted new-project setup with its answers restored. */
+  onResumeDraft: (draft: SetupDraft) => void;
   /** Continue this project — the caller seeds the arc and opens setup. */
   onContinue: (arc: TrainingArc) => void;
   /** There is nothing to choose between: go straight on WITHOUT clearing the
@@ -59,6 +77,17 @@ export default function ProjectPicker({
     "loading"
   );
   const [attempt, setAttempt] = useState(0);
+  // Drafts are local and synchronous — read after mount (hydration-safe).
+  const [drafts, setDrafts] = useState<SetupDraft[]>([]);
+  useEffect(() => {
+    setDrafts(listSetupDrafts(ownerId));
+  }, [ownerId]);
+
+  async function deleteDraft(draft: SetupDraft): Promise<boolean> {
+    deleteSetupDraft(ownerId, draft.id);
+    setDrafts(listSetupDrafts(ownerId));
+    return true;
+  }
 
   useEffect(() => {
     let active = true;
@@ -82,11 +111,16 @@ export default function ProjectPicker({
   const titled = arcs.filter((a) => a.topic.trim().length > 0);
 
   // Arcs exist but none carry a title: there is nothing to put in a list of
-  // words, so skip the question rather than leave "Start a new topic" as the
+  // words, so skip the question rather than leave "Start a new project" as the
   // only answer — that would WIPE a seeded arc and mint a duplicate project
   // (review R-pp7). Deliberately onSkip, not onNewTopic: this must not clear
   // the seed. The error state is NOT this case; it keeps its retry below.
-  const untitledOnly = status === "ready" && arcs.length > 0 && titled.length === 0;
+  // A draft IS something to choose, so its presence keeps the question.
+  const untitledOnly =
+    status === "ready" &&
+    arcs.length > 0 &&
+    titled.length === 0 &&
+    drafts.length === 0;
   useEffect(() => {
     if (untitledOnly) onSkip();
   }, [untitledOnly, onSkip]);
@@ -95,7 +129,9 @@ export default function ProjectPicker({
   // FE-4 — a genuinely first-time user: GET /v2/user/trainings came back
   // {trainings: []}. Gated on `arcs`, not `titled`, so an untitled-project
   // account never lands here and loses its seed to the new-topic path.
-  const firstProject = status === "ready" && arcs.length === 0;
+  // A draft is also something to come back to, so it keeps the list.
+  const firstProject =
+    status === "ready" && arcs.length === 0 && drafts.length === 0;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -129,7 +165,7 @@ export default function ProjectPicker({
             className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden />
-            Start a new topic
+            Start a new project
           </Button>
 
           {status === "loading" ? (
@@ -139,7 +175,7 @@ export default function ProjectPicker({
             </div>
           ) : status === "error" ? (
             // Unreachable is NOT "you have no projects" — offer the retry
-            // rather than steer someone into starting a duplicate topic
+            // rather than steer someone into starting a duplicate project
             // (review R-pp3/R-pp6).
             <div className="flex flex-col items-start gap-2 px-1">
               <p className="text-[13px] text-muted-foreground">
@@ -154,27 +190,69 @@ export default function ProjectPicker({
               </button>
             </div>
           ) : null}
-          {/* The list only exists once there is something to continue. */}
-          {status === "ready" && titled.length > 0 ? (
+          {/* The list only exists once there is something to continue. Drafts
+              are local, so they list even while projects load or fail. */}
+          {drafts.length > 0 ||
+          (status === "ready" && titled.length > 0) ? (
             <div className="flex flex-col gap-1">
               <p className="px-1 pb-1 text-[13px] text-muted-foreground">
                 Or another take of:
               </p>
-              {titled.map((a) => (
-                <button
-                  key={a.arcId}
-                  type="button"
-                  onClick={() => onContinue(a)}
-                  className="rounded-xl px-3 py-3 text-left text-[16px] leading-snug text-foreground transition-colors hover:bg-muted"
-                >
-                  {a.topic}
-                </button>
+              {drafts.map((d) => (
+                <PickerRow
+                  key={`draft:${d.id}`}
+                  label={d.topic.trim() || "Untitled draft"}
+                  draft
+                  onOpen={() => onResumeDraft(d)}
+                  onDelete={() => deleteDraft(d)}
+                />
               ))}
+              {status === "ready"
+                ? titled.map((a) => (
+                    <PickerRow
+                      key={a.arcId}
+                      label={a.topic}
+                      onOpen={() => onContinue(a)}
+                    />
+                  ))
+                : null}
             </div>
           ) : null}
         </div>
       </div>
       )}
+    </div>
+  );
+}
+
+/** One row: the title (tap = open it). A draft says so beside its title — it
+ *  is not a project yet — and carries the ⋯ menu that deletes it. */
+function PickerRow({
+  label,
+  draft = false,
+  onOpen,
+  onDelete,
+}: {
+  label: string;
+  draft?: boolean;
+  onOpen: () => void;
+  onDelete?: () => Promise<boolean>;
+}) {
+  return (
+    <div className="flex items-center gap-1 rounded-xl transition-colors hover:bg-muted">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-baseline gap-2 px-3 py-3 text-left text-[16px] leading-snug text-foreground"
+      >
+        <span className="min-w-0 break-words">{label}</span>
+        {draft ? (
+          <span className="shrink-0 text-[13px] text-muted-foreground">
+            Draft
+          </span>
+        ) : null}
+      </button>
+      {onDelete ? <ProjectRowMenu label={label} onDelete={onDelete} /> : null}
     </div>
   );
 }

@@ -26,6 +26,11 @@ import {
   writeExploreArc,
 } from "@/lib/willab/exploreArc";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
+import {
+  beginSetupDraft,
+  clearActiveSetupDraft,
+  resumeSetupDraft,
+} from "@/lib/willab/setupDraft";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -64,8 +69,8 @@ export default function WillabSurface({
   const [recordingProgress, setRecordingProgress] =
     useState<RecordingProgress | null>(null);
   // Founder 2026-07-27 — picking an EXISTING project from the picker opens
-  // that project, which is its ideal text. Only "Start a new topic" goes into
-  // the recording onboarding.
+  // that project, which is its ideal text. Only "Start a new project" (or
+  // resuming its draft) goes into the recording onboarding.
   const [pickedArcId, setPickedArcId] = useState<string | null>(null);
   // SPEC-lockin-loop §1 — the picker-mounted overlay's pending truth. Only
   // probing while that overlay is actually open; the Lounge and the Lab run
@@ -160,9 +165,13 @@ export default function WillabSurface({
         onStart={flow.startRecording}
         onStartNewProject={() => {
           clearExploreArc(userId);
+          beginSetupDraft(userId);
           flow.startNewTopicSetup();
         }}
-        onStartInProject={flow.startRecordingSetup}
+        onStartInProject={() => {
+          clearActiveSetupDraft(userId);
+          flow.startRecordingSetup();
+        }}
         dispatch={flow.dispatch}
         initialReviewSessionId={reviewSessionId}
         initialReviewPiece={reviewPiece ?? null}
@@ -172,17 +181,29 @@ export default function WillabSurface({
       />
       {/* Context-aware setup — WHICH project, asked before the Lab opens.
           Picking a title seeds the arc so the setup form prefills from it and
-          the take continues that project's master document; "new topic"
+          the take continues that project's master document; "new project"
           clears the seed so the blank flow is genuinely blank. */}
       {flow.state === "lab_project_pick" && (
         <ProjectPicker
+          ownerId={userId}
           onNewTopic={() => {
             clearExploreArc(userId);
+            // A fresh draft slot: the setup saves into it from the first
+            // answered question, so an interruption leaves it resumable.
+            beginSetupDraft(userId);
             // The existing emotion check happens once, before Take 1. A
             // continuation reuses the project without asking it again.
             flow.startNewTopicSetup();
           }}
+          onResumeDraft={(draft) => {
+            // A draft is a brand-new project that was interrupted — same
+            // entry as "Start a new project", with its answers restored.
+            clearExploreArc(userId);
+            resumeSetupDraft(userId, draft.id);
+            flow.startNewTopicSetup();
+          }}
           onContinue={(arc) => {
+            clearActiveSetupDraft(userId);
             // An EXISTING project opens the project itself — its ideal text —
             // rather than dropping the user straight into another take. The
             // arc is still seeded, so "Read it aloud" from inside the ideal
@@ -221,10 +242,13 @@ export default function WillabSurface({
             flow.closeLab(); // dismiss the picker; the ideal text takes over
           }}
           // Nothing to choose (no projects, or the list is unreachable) →
-          // skip the question entirely rather than leave "Start a new topic"
+          // skip the question entirely rather than leave "Start a new project"
           // as the only answer, which would WIPE a seeded arc (review R-pp7).
           // Deliberately NOT onNewTopic: this must not clear the seed.
-          onSkip={flow.startRecordingSetup}
+          onSkip={() => {
+            clearActiveSetupDraft(userId);
+            flow.startRecordingSetup();
+          }}
           onClose={flow.closeLab}
         />
       )}

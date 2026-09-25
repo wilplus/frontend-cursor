@@ -2,7 +2,7 @@
 /*  The record flow — the core of the app, end to end                          */
 /*                                                                            */
 /*  Picking from the project picker must GO somewhere:                         */
-/*    "Start a new topic"   → the feelings check-in, then the setup form       */
+/*    "Start a new project" → the feelings check-in, then the setup form       */
 /*    an existing project   → that project, i.e. its ideal text                */
 /*                                                                            */
 /*  This exists because both paths silently died. The picker unmounting as the */
@@ -97,7 +97,7 @@ const openPicker = async (p) => {
   await p.waitForTimeout(1500);
   await click(p, /Start your first recording|^Record$/i);
   console.log("picker : " + (await body(p)));
-  expect("the picker offers a new topic", await body(p), "Start a new topic");
+  expect("the picker offers a new project", await body(p), "Start a new project");
 };
 
 // --- PATH A: new topic → feelings check-in → the setup form ---------------
@@ -105,7 +105,7 @@ const openPicker = async (p) => {
   const p = await ctx.newPage();
   await seed(p);
   await openPicker(p);
-  if (await click(p, /Start a new topic/i)) {
+  if (await click(p, /Start a new project/i)) {
     expect("new topic → the feelings check-in (once, before Take 1)", await body(p), "How do you feel");
     if (await click(p, /^Calm$/i)) {
       expect("feelings → the setup form", await body(p), "What is the topic?");

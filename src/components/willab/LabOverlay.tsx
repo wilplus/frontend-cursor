@@ -1309,6 +1309,9 @@ export default function LabOverlay({
             // no prior arc bleeds into it.
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
+            // Setup drafts — RecordingSetup itself refuses to draft a staged
+            // upload or a take pre-filled from an existing project's deck.
+            draftOwnerId={userId}
             // FE-6 — the same exit the header ✕ performs, now owned by the
             // wizard so it can confirm before throwing away a part-filled form.
             onCancel={handleClose}
