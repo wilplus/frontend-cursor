@@ -8,6 +8,11 @@ import DeckChunkModal, {
   type LockOutcome,
   type LockResult,
 } from "@/components/willab/DeckChunkModal";
+import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
+import {
+  headlineFor,
+  useSlideHeadlines,
+} from "@/components/willab/useSlideHeadlines";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
 import MarkedEditor from "@/components/willab/MarkedEditor";
@@ -484,6 +489,7 @@ export default function TranscriptReviewDeck({
     setEditingSlideIndex(undefined);
   }, [deckReady]);
   const openChunk = resolveOpenChunk(chunks, openPart);
+  const headlines = useSlideHeadlines(arcId, doc, openPart !== null);
   const openState = openChunk ? stateOf(openChunk) : null;
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
@@ -1048,6 +1054,9 @@ export default function TranscriptReviewDeck({
                     constant: it is always directly under the header, on every
                     screen, whatever is or is not above it. */}
                 <div className="flex flex-col gap-4">
+                  <SlideHeadline
+                    text={headlineFor(headlines, g.slideIndex, g.screenOfSlide)}
+                  />
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
                     /* DOCUMENT STATE (contract 24g-1). A block holding an
@@ -1324,8 +1333,16 @@ export default function TranscriptReviewDeck({
           your speech sitting under your speech. */}
 
       {deckReady && openChunk && openState ? (
-        <DeckChunkModal
+        <OpenChunkSheet
           key={openSeq}
+          state={openState}
+          arcId={arcId}
+          takeSessionId={takeSessionId}
+          onClose={() => setOpenPart(null)}
+          renderSheet={(practiseAgain) => (
+        <DeckChunkModal
+          key={practiseAgain ? "again" : "judge"}
+          practiseAgain={practiseAgain}
           state={openState}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
@@ -1377,6 +1394,8 @@ export default function TranscriptReviewDeck({
           onApplyStyle={onApplyStyle}
           arcId={arcId}
           firstTake={takeCount === 1}
+        />
+          )}
         />
       ) : null}
       {deckReady && editingSlideIndex !== undefined ? (
@@ -1505,5 +1524,21 @@ function SlideEditor({
         </div>
       </div>
     </div>
+  );
+}
+
+/** THE SLIDE'S HEADLINE (founder 2026-09-25, Q20 A): all of the Slide's
+ *  helper words on one line, joined " · ", bold orange, above its
+ *  paragraphs — like a newspaper headline over the article that repeats its
+ *  words in ordinary type. Its own component so the deck gains no branch. */
+function SlideHeadline({ text }: { text: string | null }) {
+  if (!text) return null;
+  return (
+    <p
+      data-slide-headline
+      className="text-[clamp(1.1rem,2.8vw,1.35rem)] font-bold leading-snug text-primary"
+    >
+      {text}
+    </p>
   );
 }

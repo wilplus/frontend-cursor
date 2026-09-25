@@ -349,7 +349,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         window.__deckCalls!.push({ url, method, body, t: performance.now() });
         return json({ ok: true, version: 4 });
       }
-      if (url.includes("/feedback") && method === "GET") {
+      // `(?!-)`: the answered bookmark's `/feedback-responses` read (Q19 A)
+      // is not the Take feedback payload, and must not be recorded as it.
+      if (/\/feedback(?!-)/.test(url) && method === "GET") {
         window.__deckCalls!.push({ url, method, body: null, t: performance.now() });
         return json({
           arc_id: "arc-deck",

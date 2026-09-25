@@ -167,6 +167,39 @@ interface DeckChunkModalProps {
    *  (contract 29a): the host re-reads the document so the page and the
    *  lock see the words the server now holds. */
   onDocumentChanged?: () => void;
+  /** PRACTISE AGAIN from an answered bookmark (founder 2026-09-25, Q19 A):
+   *  the sheet opens on this item's exercise step, carrying the answer the
+   *  owner already gave, and the ladder continues from there as usual. */
+  practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
+}
+
+/** The inventory the sheet opens with: the answered item being practised
+ *  again, or the pending items. Pure, for the complexity ratchet. */
+function initialInventory(
+  pending: readonly DocumentSuggestion[],
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+): readonly DocumentSuggestion[] {
+  const source = practiseAgain ? [practiseAgain.item] : pending;
+  const seen = new Set<string>();
+  return source
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+/** The first screen: the exercise when practising again, else the top of
+ *  the ladder. Pure, for the complexity ratchet. */
+function firstStepId(
+  steps: readonly ChunkStep[],
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+): string {
+  const exercise = practiseAgain
+    ? steps.find((entry) => entry.kind === "exercise")
+    : undefined;
+  return (exercise ?? steps[0])?.id ?? "lock";
 }
 
 /** The words the helper-words step taps from (founder 2026-09-25, Q10 B /
@@ -261,6 +294,7 @@ export default function DeckChunkModal({
   rootingPhraseRoutingState = null,
   firstTake = false,
   onDocumentChanged,
+  practiseAgain = null,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -271,15 +305,9 @@ export default function DeckChunkModal({
   // payload row, but it must not rewrite the student's memory of which items
   // were present when review began. Resolved rows are marked locally; no new
   // identity can enter this list.
-  const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() => {
-    const source = pendingSuggestions;
-    const seen = new Set<string>();
-    return source.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    }).slice(0, 3);
-  });
+  const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() =>
+    initialInventory(pendingSuggestions, practiseAgain),
+  );
   /* THE LADDER (founder 2026-09-15). One ordered list built when the sheet
    * opens, walked one screen at a time, ending at the lock. It replaces the
    * three faces ("review" | "editor" | "root") and the in-place iteration of
@@ -296,7 +324,9 @@ export default function DeckChunkModal({
    *  to survive the steps in between. The exercise's final judgement
    *  supersedes step one's when it happens: it is a judgement of the same
    *  delivery, made later and better informed. */
-  const [judgement, setJudgement] = useState<RootGateAnswer>(null);
+  const [judgement, setJudgement] = useState<RootGateAnswer>(
+    () => practiseAgain?.answer ?? null,
+  );
   /** What the finished practice did (contract 29a): adopted into the
    *  paragraph, or only its words to tap helper words from. */
   const [practiceWords, setPracticeWords] = useState<PracticeOutcome | null>(
@@ -397,8 +427,8 @@ export default function DeckChunkModal({
     ],
   );
   const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
-  const [stepId, setStepId] = useState<string>(
-    () => buildSteps(null)[0]?.id ?? "lock",
+  const [stepId, setStepId] = useState<string>(() =>
+    firstStepId(buildSteps(practiseAgain?.answer ?? null), practiseAgain),
   );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
