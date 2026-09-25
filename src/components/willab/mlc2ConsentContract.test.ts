@@ -83,7 +83,7 @@ describe("legal copy version aligns with the canonical policy", () => {
     expect(terms).toContain('<PublishedPolicyText\n        which="terms"');
     expect(terms).toContain("initial={initial}");
     expect(terms).toContain("<SectionLoadingState />");
-    expect(terms).toContain("DATA_CONSENT_PENDING_COPY.termsUnavailable");
+    expect(terms).toContain("DATA_CONSENT_COPY.termsUnavailable");
     for (const stale of ["Version 1.2", "28 August 2026. Version", "pooled"]) {
       expect(terms).not.toContain(stale);
     }

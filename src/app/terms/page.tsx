@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PublishedPolicyText } from "@/components/legal/PublishedPolicyText";
 import { SectionLoadingState } from "@/components/willab/LoadingState";
-import { DATA_CONSENT_PENDING_COPY } from "@/lib/legal/dataConsentCopy";
+import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import { loadPublishedPolicyText } from "@/lib/legal/publishedPolicy.server";
 
 export const metadata: Metadata = {
@@ -40,7 +40,7 @@ export default async function TermsPage() {
         initial={initial}
         unavailable={
           <p role="alert" className="text-sm text-muted-foreground">
-            {DATA_CONSENT_PENDING_COPY.termsUnavailable}
+            {DATA_CONSENT_COPY.termsUnavailable}
           </p>
         }
       >
