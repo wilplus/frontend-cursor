@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { mapProjectDeletion, type ProjectDeletion } from "./projectDeletion";
 
 /* -------------------------------------------------------------------------- */
 /*  trainings — the training tab's arc-grouped source (R4-13, BE-B)            */
@@ -32,6 +33,8 @@ export interface TrainingArc {
   /** Delivery layer — the arc's cover image ref (the served deck PDF); null =
    *  render the mock cover. */
   coverRef: string | null;
+  /** An open deletion request (P1, N8): the project is locked while set. */
+  deletion: ProjectDeletion | null;
 }
 
 function mapTake(raw: unknown): TrainingTake | null {
@@ -82,6 +85,7 @@ function mapArc(raw: unknown): TrainingArc | null {
         : typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
           ? r.presentation_ref
           : null,
+    deletion: mapProjectDeletion(r.deletion),
   };
 }
 

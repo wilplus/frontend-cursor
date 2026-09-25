@@ -26,7 +26,12 @@ const BUTTON =
 const PRIMARY =
   "inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background";
 
-export default function TrainingConsentCard() {
+export default function TrainingConsentCard({
+  onOffered,
+}: {
+  /** Told whether the switch is offered, so the page intro can match. */
+  onOffered?: (offered: boolean) => void;
+}) {
   const [state, setState] = useState<TrainingConsent | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -35,9 +40,13 @@ export default function TrainingConsentCard() {
   useEffect(() => {
     let alive = true;
     void fetchTrainingConsent().then((value) => {
-      if (alive) setState(value);
+      if (!alive) return;
+      setState(value);
+      onOffered?.(Boolean(value?.available && value.copy));
     });
     return () => { alive = false; };
+    // Read once on mount; the callback is not a reason to read again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!state?.available || !state.copy) return null;

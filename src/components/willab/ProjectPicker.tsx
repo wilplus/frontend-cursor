@@ -9,6 +9,14 @@ import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import {
+  cancelProjectDeletion,
+  requestProjectDeletion,
+} from "@/services/api/projectDeletion";
+import {
+  PROJECT_DELETE_ENABLED,
+  PROJECT_DELETION_COPY,
+} from "@/lib/willab/projectDeletionCopy";
+import {
   deleteSetupDraft,
   listSetupDrafts,
   type SetupDraft,
@@ -29,9 +37,11 @@ import {
 /*                                                                            */
 /*  2026-09-25 — an interrupted new-project setup is listed first as a Draft   */
 /*  that resumes where it stopped (this device only); its ⋯ menu deletes it.   */
-/*  Projects have NO delete here: a row delete cannot remove a canonical Take  */
-/*  (RESTRICT lineage) and was pulled the day it shipped — the real project    */
-/*  delete goes through the governed purge path, not this list.                */
+/*  A project's ⋯ menu ASKS for its deletion (N8): nothing is deleted on tap.  */
+/*  An operator confirms within 7 days through the governed purge; until then  */
+/*  the row says "Deletion pending", cannot be opened, and can be cancelled.   */
+/*  Off until the real delete ships (PROJECT_DELETE_ENABLED, founder           */
+/*  2026-09-26).                                                              */
 /*                                                                            */
 /*  One row identifies one immutable project and its Ideal Text. Picking it    */
 /*  continues exactly that project; visible names are never identity.          */
@@ -82,6 +92,26 @@ export default function ProjectPicker({
   useEffect(() => {
     setDrafts(listSetupDrafts(ownerId));
   }, [ownerId]);
+
+  function setDeletion(arcId: string, deletion: TrainingArc["deletion"]) {
+    setArcs((list) =>
+      list.map((a) => (a.arcId === arcId ? { ...a, deletion } : a))
+    );
+  }
+
+  async function requestDelete(arc: TrainingArc): Promise<boolean> {
+    const result = await requestProjectDeletion(arc.arcId);
+    if (result.ok) {
+      setDeletion(arc.arcId, result.deletion ?? { state: "pending", dueAt: null });
+    }
+    return result.ok;
+  }
+
+  async function cancelDelete(arc: TrainingArc): Promise<boolean> {
+    const result = await cancelProjectDeletion(arc.arcId);
+    if (result.ok) setDeletion(arc.arcId, null);
+    return result.ok;
+  }
 
   async function deleteDraft(draft: SetupDraft): Promise<boolean> {
     deleteSetupDraft(ownerId, draft.id);
@@ -209,10 +239,12 @@ export default function ProjectPicker({
               ))}
               {status === "ready"
                 ? titled.map((a) => (
-                    <PickerRow
+                    <ProjectRow
                       key={a.arcId}
-                      label={a.topic}
+                      arc={a}
                       onOpen={() => onContinue(a)}
+                      onRequestDelete={() => requestDelete(a)}
+                      onCancelDelete={() => cancelDelete(a)}
                     />
                   ))
                 : null}
@@ -253,6 +285,68 @@ function PickerRow({
         ) : null}
       </button>
       {onDelete ? <ProjectRowMenu label={label} onDelete={onDelete} /> : null}
+    </div>
+  );
+}
+
+/** A project row. With the delete switched on it carries the ⋯ menu; while a
+ *  deletion is pending it is locked (not openable) and offers the cancel. A
+ *  confirmed deletion can no longer be cancelled, so it has no menu. */
+function ProjectRow({
+  arc,
+  onOpen,
+  onRequestDelete,
+  onCancelDelete,
+}: {
+  arc: TrainingArc;
+  onOpen: () => void;
+  onRequestDelete: () => Promise<boolean>;
+  onCancelDelete: () => Promise<boolean>;
+}) {
+  const copy = PROJECT_DELETION_COPY;
+  const deletion = PROJECT_DELETE_ENABLED ? arc.deletion : null;
+  if (!PROJECT_DELETE_ENABLED) {
+    return <PickerRow label={arc.topic} onOpen={onOpen} />;
+  }
+  if (deletion) {
+    return (
+      <div className="flex items-center gap-1 rounded-xl">
+        <div
+          aria-disabled="true"
+          className="flex min-w-0 flex-1 items-baseline gap-2 px-3 py-3 text-left text-[16px] leading-snug text-muted-foreground"
+        >
+          <span className="min-w-0 break-words">{arc.topic}</span>
+          <span className="shrink-0 text-[13px]">{copy.pending}</span>
+        </div>
+        {deletion.state === "pending" ? (
+          <ProjectRowMenu
+            label={arc.topic}
+            actionLabel={copy.cancel}
+            confirm={null}
+            onDelete={onCancelDelete}
+          />
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1 rounded-xl transition-colors hover:bg-muted">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-baseline gap-2 px-3 py-3 text-left text-[16px] leading-snug text-foreground"
+      >
+        <span className="min-w-0 break-words">{arc.topic}</span>
+      </button>
+      <ProjectRowMenu
+        label={arc.topic}
+        confirm={{
+          title: copy.title(arc.topic),
+          body: copy.body,
+          confirmLabel: copy.confirm,
+        }}
+        onDelete={onRequestDelete}
+      />
     </div>
   );
 }
