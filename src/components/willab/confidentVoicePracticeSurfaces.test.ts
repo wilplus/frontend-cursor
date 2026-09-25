@@ -58,9 +58,10 @@ describe("Confident Voice micro-practice journey fences", () => {
   it("closes the practice row so a declined exercise does not return", () => {
     // "Not now" is a decision, not a deferral: it closes the row server-side.
     expect(exercise).toContain('finishConfidencePractice(opened.id, { action: "dismiss" })');
-    // Done answers it with the attempt the SERVER chose, never a local pick.
-    expect(exercise).toContain("const strongest = practice?.strongestAttempt");
-    expect(exercise).toContain("attempt_id: strongest.id");
+    // Done judges the attempt the SERVER names as judgeable — the latest,
+    // unjudged one (founder 2026-09-25, Q17 A) — never a local pick.
+    expect(exercise).toContain("const target = attemptToJudge(practice)");
+    expect(exercise).toContain("practice.judgeableAttemptId");
     expect(exercise).not.toContain("onLockIn");
     expect(exercise).not.toContain("onCloseIdealText");
   });

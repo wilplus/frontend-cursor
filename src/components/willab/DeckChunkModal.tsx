@@ -38,7 +38,14 @@ import {
   type ChunkState,
   type CoachMomentLite,
 } from "@/lib/willab/deckChunks";
-import { useConfidenceExercise } from "@/components/willab/useConfidenceExercise";
+import {
+  useConfidenceExercise,
+  type PracticeOutcome,
+} from "@/components/willab/useConfidenceExercise";
+import {
+  savePracticeHelperWords,
+  type PracticeAnswer,
+} from "@/services/api/confidentVoicePractice";
 import {
   Mlc3ConfidenceQuestion,
   Mlc3ExerciseStep,
@@ -156,6 +163,86 @@ interface DeckChunkModalProps {
   /** The project has exactly one take — the emphasis step then explains
    *  where the helper words will show up. */
   firstTake?: boolean;
+  /** An adopted practice attempt rewrote this paragraph on the server
+   *  (contract 29a): the host re-reads the document so the page and the
+   *  lock see the words the server now holds. */
+  onDocumentChanged?: () => void;
+  /** PRACTISE AGAIN from an answered bookmark (founder 2026-09-25, Q19 A):
+   *  the sheet opens on this item's exercise step, carrying the answer the
+   *  owner already gave, and the ladder continues from there as usual. */
+  practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
+}
+
+/** The inventory the sheet opens with: the answered item being practised
+ *  again, or the pending items. Pure, for the complexity ratchet. */
+function initialInventory(
+  pending: readonly DocumentSuggestion[],
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+): readonly DocumentSuggestion[] {
+  const source = practiseAgain ? [practiseAgain.item] : pending;
+  const seen = new Set<string>();
+  return source
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+/** The first screen: the exercise when practising again, else the top of
+ *  the ladder. Pure, for the complexity ratchet. */
+function firstStepId(
+  steps: readonly ChunkStep[],
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+): string {
+  const exercise = practiseAgain
+    ? steps.find((entry) => entry.kind === "exercise")
+    : undefined;
+  return (exercise ?? steps[0])?.id ?? "lock";
+}
+
+/** The words the helper-words step taps from (founder 2026-09-25, Q10 B /
+ *  Q18 A): the practice's words when they could not be adopted into the
+ *  paragraph, otherwise the paragraph. Pure, for the complexity ratchet. */
+function tapSource(draft: string, practice: PracticeOutcome | null): string {
+  return practice && !practice.adopted && practice.attemptWords
+    ? practice.attemptWords
+    : draft;
+}
+
+/** The tappable words. The paragraph narrows to the Confident Voice fragment
+ *  (founder 2026-09-17); the practice's own words are the fragment already. */
+function tapTokens(
+  draft: string,
+  practice: PracticeOutcome | null,
+  fragment: string | null,
+) {
+  const source = tapSource(draft, practice);
+  return tokensWithinFragment(
+    phraseTokens(source),
+    source,
+    source === draft ? fragment : null,
+  );
+}
+
+/** Done on the practice judgement waits for an attempt and one of the five
+ *  answers. Pure, for the complexity ratchet. */
+function judgementPillDisabled(
+  exercise: { busy: boolean; corrected: unknown },
+  judgement: RootGateAnswer,
+): boolean {
+  return (
+    exercise.busy ||
+    exercise.corrected === null ||
+    practiceChipValue(judgement) === null
+  );
+}
+
+/** Which answer the practice judgement chips show: the five real ones, never
+ *  the coarse "other" the older paths report. */
+function practiceChipValue(judgement: RootGateAnswer): PracticeAnswer | null {
+  return judgement === null || judgement === "other" ? null : judgement;
 }
 
 /** The footer of the MLC-3 exercise rung. Pure, so the sheet's own function
@@ -206,6 +293,8 @@ export default function DeckChunkModal({
   arcId = null,
   rootingPhraseRoutingState = null,
   firstTake = false,
+  onDocumentChanged,
+  practiseAgain = null,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -216,15 +305,9 @@ export default function DeckChunkModal({
   // payload row, but it must not rewrite the student's memory of which items
   // were present when review began. Resolved rows are marked locally; no new
   // identity can enter this list.
-  const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() => {
-    const source = pendingSuggestions;
-    const seen = new Set<string>();
-    return source.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    }).slice(0, 3);
-  });
+  const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() =>
+    initialInventory(pendingSuggestions, practiseAgain),
+  );
   /* THE LADDER (founder 2026-09-15). One ordered list built when the sheet
    * opens, walked one screen at a time, ending at the lock. It replaces the
    * three faces ("review" | "editor" | "root") and the in-place iteration of
@@ -241,7 +324,14 @@ export default function DeckChunkModal({
    *  to survive the steps in between. The exercise's final judgement
    *  supersedes step one's when it happens: it is a judgement of the same
    *  delivery, made later and better informed. */
-  const [judgement, setJudgement] = useState<RootGateAnswer>(null);
+  const [judgement, setJudgement] = useState<RootGateAnswer>(
+    () => practiseAgain?.answer ?? null,
+  );
+  /** What the finished practice did (contract 29a): adopted into the
+   *  paragraph, or only its words to tap helper words from. */
+  const [practiceWords, setPracticeWords] = useState<PracticeOutcome | null>(
+    null,
+  );
 
   /** An exercise matched to this exact clip, from the confidence item that
    *  carries it. Read off the frozen inventory rather than the current step,
@@ -337,8 +427,8 @@ export default function DeckChunkModal({
     ],
   );
   const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
-  const [stepId, setStepId] = useState<string>(
-    () => buildSteps(null)[0]?.id ?? "lock",
+  const [stepId, setStepId] = useState<string>(() =>
+    firstStepId(buildSteps(practiseAgain?.answer ?? null), practiseAgain),
   );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
@@ -672,6 +762,14 @@ export default function DeckChunkModal({
        off by the founder. `failRoot` keeps "Try again", which is right for a
        refused write and wrong here. */
     if (!phrase) return true;
+    if (tapSource(draft, practiceWords) !== draft && practiceWords) {
+      // Words from a practice that could not be adopted (Q10 B): they are
+      // not in the paragraph, so they go to the Slide through the practice.
+      const saved = await savePracticeHelperWords(
+        practiceWords.practiceId, chunk.part.id, phrase);
+      if (!saved) setError(COPY.failRoot);
+      return saved;
+    }
     const anchor = quoteSpan(draft, phrase);
     if (!anchor) {
       setError(COPY.failRootStale);
@@ -722,7 +820,8 @@ export default function DeckChunkModal({
      the invented document edit is gone. */
   async function emphasiseChosen() {
     if (busy) return;
-    const chosen = selectionText(draft, phraseTokens(draft), phraseRun);
+    const source = tapSource(draft, practiceWords);
+    const chosen = selectionText(source, phraseTokens(source), phraseRun);
     setBusy(true);
     setError(null);
     const saved = await saveEmphasis(chosen);
@@ -964,7 +1063,12 @@ export default function DeckChunkModal({
    *  step does. A closed practice advances the ladder, and a final Yes is a
    *  judgement of the same delivery — so it supersedes step one's answer for
    *  the emphasis gate. */
-  const onExerciseFinished = useCallback((answer: "yes" | "no" | null) => {
+  const onDocumentChangedRef = useRef(onDocumentChanged);
+  onDocumentChangedRef.current = onDocumentChanged;
+  const onExerciseFinished = useCallback((
+    answer: PracticeAnswer | null,
+    outcome?: PracticeOutcome,
+  ) => {
     /* NO ANSWER IS NOT THE SAME AS NO JUDGEMENT, and conflating the two was a
      * live defect (founder, shown the case 2026-09-24).
      *
@@ -989,11 +1093,21 @@ export default function DeckChunkModal({
       advanceStepRef.current();
       return;
     }
-    // A real judgement of the corrected take supersedes step one's: it is the
-    // same delivery, judged later and better informed.
-    const answered = answer === "yes" ? "yes" : "other";
-    setJudgement(answered);
-    advanceStepRef.current(answered);
+    // A real judgement of the practice supersedes step one's, and it is KEPT
+    // WHOLE (founder 2026-09-25): Yes, In-between and Not sure open the
+    // helper words and the Lock; a No or Audio unclear on the last attempt
+    // closes the sheet like the first answer would have.
+    //
+    // An ADOPTED attempt rewrote this paragraph on the server, so the draft
+    // takes the new words (the lock then commits exactly what the server
+    // holds) and the host re-reads the document behind the sheet.
+    if (outcome?.adopted && outcome.paragraph) {
+      setDraft(outcome.paragraph);
+      onDocumentChangedRef.current?.();
+    }
+    setPracticeWords(outcome ?? null);
+    setJudgement(answer);
+    advanceStepRef.current(answer);
   }, []);
   const exercise = useConfidenceExercise({
     snippetId: exerciseItem?.snippetId ?? null,
@@ -1111,11 +1225,7 @@ export default function DeckChunkModal({
      fragment cannot be located, so the step never dead-ends. */
   const tokens =
     step?.kind === "emphasis"
-      ? tokensWithinFragment(
-          phraseTokens(draft),
-          draft,
-          confidentFragmentOf(feedbackInventory),
-        )
+      ? tapTokens(draft, practiceWords, confidentFragmentOf(feedbackInventory))
       : [];
   const emphasisPreview =
     step?.kind === "emphasis" && styleSuggestion
@@ -1183,8 +1293,11 @@ export default function DeckChunkModal({
         return {
           pill: COPY.pillDone,
           icon: <Check className="h-4 w-4" aria-hidden />,
-          pillDisabled: exercise.busy || exercise.corrected === null,
-          onPill: () => void exercise.finish(judgement === "yes" ? "yes" : "no"),
+          pillDisabled: judgementPillDisabled(exercise, judgement),
+          onPill: () => {
+            const answer = practiceChipValue(judgement);
+            if (answer) void exercise.finish(answer);
+          },
           links: [{ label: COPY.linkBack, onClick: () => exercise.back() }],
         };
       }
@@ -1334,14 +1447,12 @@ export default function DeckChunkModal({
         <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
-            value={judgement === "yes" ? "yes" : null}
+            value={practiceChipValue(judgement)}
             disabled={exercise.busy}
             saving={exercise.busy}
             error={exercise.error}
             ownerWording
-            onPick={(value) =>
-              setJudgement(value === "yes" ? "yes" : "other")
-            }
+            onPick={(value) => setJudgement(value)}
           />
         </div>
       </>

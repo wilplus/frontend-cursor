@@ -74,3 +74,34 @@ describe("practice payload fences", () => {
     expect(coach?.attempts[0].coachConfidenceDecision).toBe("yes");
   });
 });
+
+describe("practice is judged after every attempt (founder 2026-09-25)", () => {
+  it("keeps all five answers and names the attempt to judge", () => {
+    const mapped = mapConfidencePractice({
+      ...userPractice,
+      attempts: [
+        { ...userPractice.attempts[0], user_answer: "not_sure" },
+        {
+          ...userPractice.attempts[0],
+          id: "attempt-2",
+          attempt_index: 2,
+          user_answer: null,
+        },
+      ],
+      final_user_answer: "in_between",
+      judgeable_attempt_id: "attempt-2",
+    });
+    expect(mapped?.attempts[0].userAnswer).toBe("not_sure");
+    expect(mapped?.finalUserAnswer).toBe("in_between");
+    expect(mapped?.judgeableAttemptId).toBe("attempt-2");
+  });
+
+  it("reads an unknown answer as none rather than guessing", () => {
+    const mapped = mapConfidencePractice({
+      ...userPractice,
+      final_user_answer: "maybe",
+    });
+    expect(mapped?.finalUserAnswer).toBeNull();
+    expect(mapped?.judgeableAttemptId).toBeNull();
+  });
+});

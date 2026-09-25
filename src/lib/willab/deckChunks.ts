@@ -118,6 +118,10 @@ export interface DeckChunk {
   pendingIds: string[];
   /** Approved suggestions on this chunk — the accepted wash until lock-in. */
   approvedIds: string[];
+  /** Every ANSWERED item on this chunk, approved or dismissed — what the
+   *  answered bookmark opens on (founder 2026-09-25, Q19 A). Optional so
+   *  hand-built chunks in tests stay valid. */
+  decidedIds?: string[];
   /** The bookmark this paragraph wears (contract 24g), from the UNDECIDED
    *  items on it. A settled item is no longer asking for anything, so it stops
    *  colouring the mark — 24g-1's "the clean text IS the settled state". */
@@ -191,6 +195,7 @@ export function buildDeckChunks(
     const { start, end } = spans[i];
     const pendingIds: string[] = [];
     const approvedIds: string[] = [];
+    const decidedIds: string[] = [];
     const tiers: NonNullable<DeckSuggestionLite["bookmarkTier"]>[] = [];
     // Any answered bookmark on these words is proof the paragraph was
     // reviewed — it is what separates "untouched" from "clean" below.
@@ -199,7 +204,10 @@ export function buildDeckChunks(
       if (!overlaps(s, start, end)) continue;
       // null = UNDECIDED (R4). "dismissed" contributes nothing — a kept-mine
       // proposal is history, and history never colours the page.
-      if (s.status === "approved" || s.status === "dismissed") decided = true;
+      if (s.status === "approved" || s.status === "dismissed") {
+        decided = true;
+        decidedIds.push(s.id);
+      }
       if (s.status === "approved") approvedIds.push(s.id);
       else if (s.status !== "dismissed") {
         pendingIds.push(s.id);
@@ -276,6 +284,7 @@ export function buildDeckChunks(
       status,
       pendingIds,
       approvedIds,
+      decidedIds,
       tier,
     });
   }
@@ -423,6 +432,8 @@ export interface ChunkState<
   decision: ChunkDecision;
   /** Undecided proposals on these words, in inventory order. */
   pending: S[];
+  /** Answered proposals on these words (Q19 A: the answered bookmark). */
+  decided: S[];
   /** The pending post-lock style proposal, or null. */
   style: S | null;
   /** Decided proposals whose words belong to this chunk. */
@@ -458,6 +469,9 @@ function stateFor<
     .map((id) => byId.get(id) ?? null)
     .filter((s): s is S => s !== null)
     .slice(0, PENDING_INVENTORY_CAP);
+  const decided = (chunk.decidedIds ?? [])
+    .map((id) => byId.get(id) ?? null)
+    .filter((s): s is S => s !== null);
   const moment = coachMomentForChunk(inputs.coachMoments, inputs.document, chunk);
   const hasFeedback = moment?.hasExplanation === true;
   const locked = chunk.part.locked === true;
@@ -468,6 +482,7 @@ function stateFor<
     // KEYED ON THE APPROVED RIDER, not on `chunk.status` (see ChunkDecision).
     decision: locked ? "locked" : chunk.approvedIds.length > 0 ? "approved" : "none",
     pending,
+    decided,
     style: styleFor(inputs.styleChanges, chunk),
     history: historyForChunk(inputs.decisionHistory, chunk.part.text),
     coach: {

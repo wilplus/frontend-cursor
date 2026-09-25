@@ -1,6 +1,24 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 
+/** The five answers, the same as the first judgement (founder 2026-09-25). */
+export type PracticeAnswer =
+  | "yes"
+  | "in_between"
+  | "no"
+  | "not_sure"
+  | "audio_unclear";
+
+const PRACTICE_ANSWERS: readonly PracticeAnswer[] = [
+  "yes", "in_between", "no", "not_sure", "audio_unclear",
+];
+
+function practiceAnswer(value: unknown): PracticeAnswer | null {
+  return PRACTICE_ANSWERS.includes(value as PracticeAnswer)
+    ? (value as PracticeAnswer)
+    : null;
+}
+
 export interface ConfidencePracticeAttempt {
   id: string;
   attemptIndex: number;
@@ -9,7 +27,7 @@ export interface ConfidencePracticeAttempt {
   assessment: string;
   isStrongest: boolean;
   kept: boolean;
-  userAnswer: "yes" | "no" | null;
+  userAnswer: PracticeAnswer | null;
 }
 
 export interface ConfidencePractice {
@@ -32,8 +50,11 @@ export interface ConfidencePractice {
   finalReady: boolean;
   finalMessage: string | null;
   finalQuestion: string | null;
-  finalUserAnswer: "yes" | "no" | null;
+  finalUserAnswer: PracticeAnswer | null;
   selectedAttemptId: string | null;
+  /** The latest attempt while it is still unjudged (Q17 A): the judgement
+   *  screen asks about exactly this one. */
+  judgeableAttemptId: string | null;
 }
 
 export type PracticeResult =
@@ -58,8 +79,7 @@ function attempt(raw: unknown): ConfidencePracticeAttempt | null {
     assessment: r.assessment,
     isStrongest: r.is_strongest === true,
     kept: r.kept === true,
-    userAnswer: r.user_answer === "yes" || r.user_answer === "no"
-      ? r.user_answer : null,
+    userAnswer: practiceAnswer(r.user_answer),
   };
 }
 
@@ -105,10 +125,11 @@ export function mapConfidencePractice(raw: unknown): ConfidencePractice | null {
     finalReady: r.final_ready === true,
     finalMessage: typeof r.final_message === "string" ? r.final_message : null,
     finalQuestion: typeof r.final_question === "string" ? r.final_question : null,
-    finalUserAnswer: r.final_user_answer === "yes" || r.final_user_answer === "no"
-      ? r.final_user_answer : null,
+    finalUserAnswer: practiceAnswer(r.final_user_answer),
     selectedAttemptId: typeof r.selected_attempt_id === "string"
       ? r.selected_attempt_id : null,
+    judgeableAttemptId: typeof r.judgeable_attempt_id === "string"
+      ? r.judgeable_attempt_id : null,
   };
 }
 
@@ -212,5 +233,88 @@ export async function fetchConfidencePractice(
     return result(res);
   } catch {
     return { ok: false, error: null };
+  }
+}
+
+/** What judging one attempt did (contract 29a, founder 2026-09-25).
+ *
+ *  `again`  — No or Audio unclear with attempts left: record another.
+ *  `adopt`  — Yes, In-between or Not sure: the practice is done and its words
+ *             replaced the practised passage when the server could find it
+ *             (`adopted`); `paragraph` is then the paragraph's new words.
+ *             `attemptWords` are what was said, for the helper-words step.
+ *  `closed` — a No or Audio unclear on the last attempt. */
+export type JudgeResult =
+  | {
+      ok: true;
+      practice: ConfidencePractice;
+      outcome: "again" | "adopt" | "closed";
+      adopted: boolean;
+      paragraph: string | null;
+      attemptWords: string | null;
+    }
+  | { ok: false; error: string | null };
+
+export async function judgeConfidencePracticeAttempt(
+  practiceId: string,
+  attemptId: string,
+  answer: PracticeAnswer,
+): Promise<JudgeResult> {
+  const headers = await tokenHeaders(true);
+  if (!headers) return { ok: false, error: null };
+  try {
+    const res = await fetch(
+      `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}` +
+        `/attempts/${encodeURIComponent(attemptId)}/answer`,
+      {
+        method: "PUT", headers, cache: "no-store",
+        body: JSON.stringify({ user_answer: answer }),
+      },
+    );
+    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+    const practice = mapConfidencePractice(data?.practice);
+    const outcome = data?.outcome;
+    if (!res.ok || !practice ||
+        (outcome !== "again" && outcome !== "adopt" && outcome !== "closed")) {
+      return {
+        ok: false,
+        error: typeof data?.error === "string" ? data.error : null,
+      };
+    }
+    return {
+      ok: true,
+      practice,
+      outcome,
+      adopted: data?.adopted === true,
+      paragraph: typeof data?.paragraph === "string" ? data.paragraph : null,
+      attemptWords: typeof data?.attempt_transcript === "string"
+        ? data.attempt_transcript : null,
+    };
+  } catch {
+    return { ok: false, error: null };
+  }
+}
+
+/** Helper words tapped from the practice's words, for when they could not
+ *  be adopted into the paragraph (Q10 B). Stored on the Slide; the Lock step
+ *  locks them like any other pick. */
+export async function savePracticeHelperWords(
+  practiceId: string,
+  partId: string,
+  phrase: string,
+): Promise<boolean> {
+  const headers = await tokenHeaders(true);
+  if (!headers) return false;
+  try {
+    const res = await fetch(
+      `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/helper-words`,
+      {
+        method: "PUT", headers, cache: "no-store",
+        body: JSON.stringify({ part_id: partId, phrase }),
+      },
+    );
+    return res.ok;
+  } catch {
+    return false;
   }
 }

@@ -40,4 +40,15 @@ export const DATA_CONSENT_COPY = {
   // Approved by the founder 2026-09-25 ("yes"), decision 2.
   termsUnavailable:
     "The terms of service couldn’t be loaded. Refresh the page to try again.",
+  // Signed by the founder 2026-09-26 (backend SPEC-DECISIONS-LOG N10). The
+  // switch's own sentence is not here: the backend serves it, exactly as the
+  // database holds and fingerprints it.
+  trainingTitle: "Help improve WillpowerLab",
+  trainingOffTitle: "Turn off training?",
+  trainingOffBody:
+    "Your training copies will be deleted. Anything already used to train stays in that training, but it won’t be used again.",
+  // TODO(founder sign-off): `intro` above says recordings "are not used to
+  // train models". Once the switch is live that is true only for people who
+  // leave it off. It needs new wording before MLC2_TRAINING_SWITCH_ENABLED is
+  // turned on in the backend.
 } as const;
