@@ -222,4 +222,20 @@ export const CHUNK_SHEET_COPY = {
      told to do the one thing that could not work. */
   failRootStale: "Those words aren't in the text any more. Tap them again.",
   failResponse: "Couldn't save that response. Try again.",
+
+  /* --- the answered bookmark (founder 2026-09-25, Q19 A / Q21 A) -----------
+     SIGNED OFF as written. An answered bookmark opens on one screen: the
+     exercise, if the moment has one; "You said" and the answer in one line;
+     what happened to the moment in one or two boxes; then how the Slide's
+     words and helper words changed. Words only — no score (AC-9). "Exercise"
+     and "Practise" reuse titleExercise and pillPractise above. */
+  historyYouSaid: "You said",
+  historyCorrectionAccepted: "Correction accepted",
+  historyPraised: "Praised",
+  historyFromPractice: "From your practice",
+  historyHowItChanged: "How this changed",
+  historyTake: "Take",
+  historyHelperWords: "Helper words",
+  historyNow: "Now",
+  historyBefore: "Before",
 } as const;
