@@ -167,7 +167,7 @@ function Dot() {
   return <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-current opacity-50" aria-hidden />;
 }
 
-function Origin({
+export function Origin({
   takeIndex,
   slideIndex,
   recorded,
@@ -195,7 +195,7 @@ function Origin({
 
 /* The rail: one vertical line, one dot per event, so the column reads as a
    history rather than as a stack of unrelated cards. */
-function Event({ event }: { event: MomentEvent }) {
+export function Event({ event }: { event: MomentEvent }) {
   const when = shortDate(event.at);
   return (
     <li className="relative py-3 pl-[26px] before:absolute before:bottom-0 before:left-1 before:top-0 before:w-px before:bg-border last:before:h-[18px] first:before:top-[18px]">
