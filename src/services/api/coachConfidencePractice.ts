@@ -20,6 +20,22 @@ export interface CoachPracticeExercise {
   isCustom: boolean;
 }
 
+/** An error the coach named on this moment. Coach-only: the speaker's payload
+ *  never carries it. */
+export interface CoachNamedError {
+  errorId: string;
+  label: string;
+}
+
+/** What attaching an exercise from this moment taught the library, and can
+ *  still be undone. Only teachings that changed the library are listed. */
+export interface CoachLibraryTeaching {
+  teachingId: string;
+  exerciseId: string;
+  errorId: string;
+  errorLabel: string;
+}
+
 export interface CoachConfidencePractice {
   id: string;
   exactPassage: string;
@@ -33,10 +49,45 @@ export interface CoachConfidencePractice {
   exercise: CoachPracticeExercise;
   availableExercises: CoachPracticeExercise[];
   attempts: CoachPracticeAttempt[];
+  namedErrors: CoachNamedError[];
+  libraryTeachings: CoachLibraryTeaching[];
 }
 
 function answer(value: unknown): "yes" | "no" | null {
   return value === "yes" || value === "no" ? value : null;
+}
+
+function records(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> =>
+        !!item && typeof item === "object")
+    : [];
+}
+
+function mapNamedErrors(value: unknown): CoachNamedError[] {
+  return records(value).flatMap((item) =>
+    typeof item.error_id === "string" && item.error_id
+      ? [{
+          errorId: item.error_id,
+          label: typeof item.label === "string" && item.label
+            ? item.label : item.error_id,
+        }]
+      : []);
+}
+
+function mapLibraryTeachings(value: unknown): CoachLibraryTeaching[] {
+  return records(value).flatMap((item) =>
+    typeof item.teaching_id === "string" &&
+    typeof item.exercise_id === "string" &&
+    typeof item.error_id === "string"
+      ? [{
+          teachingId: item.teaching_id,
+          exerciseId: item.exercise_id,
+          errorId: item.error_id,
+          errorLabel: typeof item.error_label === "string" && item.error_label
+            ? item.error_label : item.error_id,
+        }]
+      : []);
 }
 
 export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractice | null {
@@ -114,6 +165,8 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
     exercise: mappedExercise,
     availableExercises,
     attempts,
+    namedErrors: mapNamedErrors(r.named_errors),
+    libraryTeachings: mapLibraryTeachings(r.library_teachings),
   };
 }
 
@@ -178,4 +231,59 @@ export async function saveCoachConfidencePractice(
   } catch {
     return null;
   }
+}
+
+function practicePath(sessionId: string, snippetId: string): string {
+  return `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/confidence-practice`;
+}
+
+async function practiceCall(
+  url: string,
+  init: RequestInit,
+): Promise<CoachConfidencePractice | null> {
+  try {
+    const res = await fetch(url, { credentials: "include", ...init });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+    return mapCoachConfidencePractice(data?.practice);
+  } catch {
+    return null;
+  }
+}
+
+/** One edit on the coach's practice review, as a PATCH on the review itself.
+ *  The backend keeps the coach's exercise surface to one purpose-guarded
+ *  route, so naming and undoing ride on it, behind its own blind gate. */
+function patchPractice(
+  sessionId: string,
+  snippetId: string,
+  edit: Record<string, unknown>,
+): Promise<CoachConfidencePractice | null> {
+  return practiceCall(practicePath(sessionId, snippetId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(edit),
+  });
+}
+
+/** Name (or withdraw) an error on this moment. The error must already be in
+ *  the library. Returns the refreshed practice, or null when it failed. */
+export function nameMomentError(
+  sessionId: string,
+  snippetId: string,
+  errorId: string,
+  named: boolean,
+): Promise<CoachConfidencePractice | null> {
+  return patchPractice(sessionId, snippetId, {
+    name_error: { error_id: errorId, named },
+  });
+}
+
+/** Undo what attaching an exercise from this moment taught the library. */
+export function undoLibraryTeaching(
+  sessionId: string,
+  snippetId: string,
+  teachingId: string,
+): Promise<CoachConfidencePractice | null> {
+  return patchPractice(sessionId, snippetId, { undo_teaching: teachingId });
 }
