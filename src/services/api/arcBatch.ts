@@ -45,7 +45,6 @@ export async function publishArc(
               : `${review.sessionId}:${Date.now()}`,
           overall_message: review.overallMessage,
           feedback_items: review.feedbackItems,
-          share_video: review.shareVideo,
         })),
       }),
     });

@@ -60,7 +60,7 @@ const STATE = {
   published: false,
   takes: [
     { sessionId: "take-1", takeIndex: 1, reviewState: null, hasReread: false,
-      publishPayload: { sessionId: "take-1", overallMessage: "", feedbackItems: [], shareVideo: false } },
+      publishPayload: { sessionId: "take-1", overallMessage: "", feedbackItems: [] } },
   ],
   takesSaved: 1, takesTotal: 1, takesTarget: 3,
   ideal: { assemblyState: "ready", ready: true, approved: true, source: "machine", takesDone: 3 },

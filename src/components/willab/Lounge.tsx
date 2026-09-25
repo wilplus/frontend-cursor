@@ -191,6 +191,7 @@ export default function Lounge({
   initialReviewPiece = null,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
+  initialIdealTextFeedback = false,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -215,6 +216,8 @@ export default function Lounge({
   /** When set (from /chat?idealArc=<arc_id>), open the IdealTextOverlay for
    *  that arc once on mount — the coach-feedback email's CTA. */
   initialIdealTextArcId?: string | null;
+  /** With `&feedback=1`, open that notebook on the coach's feedback. */
+  initialIdealTextFeedback?: boolean;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -525,8 +528,9 @@ export default function Lounge({
   useEffect(() => {
     if (idealLinkOpenedRef.current || !initialIdealTextArcId) return;
     idealLinkOpenedRef.current = true;
+    if (initialIdealTextFeedback) setIdealTextLaunchMode("feedback");
     setIdealTextArcId(initialIdealTextArcId);
-  }, [initialIdealTextArcId]);
+  }, [initialIdealTextArcId, initialIdealTextFeedback]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays

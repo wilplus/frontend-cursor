@@ -70,7 +70,6 @@ describe("willabParked.readParked", () => {
         snippets: [],
         feedbackItems: [],
         overallMessage: null,
-        videoRef: null,
         presentationRef: null,
         slides: [{ index: 0, title: "Cover", body: "" }],
         slideTranscripts: [
@@ -98,7 +97,6 @@ describe("willabParked.readParked", () => {
         snippets: [],
         feedbackItems: [],
         overallMessage: null,
-        videoRef: null,
         presentationRef: null,
         slides: [],
         slideTranscripts: [],

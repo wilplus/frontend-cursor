@@ -15,46 +15,30 @@
  * no "delivered to <email>" line, no copyright.
  */
 
-import type { PostSessionResultsEmailProps } from "./PostSessionResultsEmail";
+import {
+  momentsLine,
+  type PostSessionResultsEmailProps,
+} from "./PostSessionResultsEmail";
 
 export function buildPostSessionResultsText(
   props: PostSessionResultsEmailProps
 ): string {
-  const {
-    userFirstName,
-    snippetCount,
-    // topTheme stays on the props interface for backend BFF compat,
-    // but is no longer rendered in either the HTML or text MIME parts
-    // per the email-template refinement spec.
-    journeyUrl,
-    unsubscribeUrl,
-  } = props;
+  const { snippetCount, topTheme, journeyUrl, unsubscribeUrl } = props;
 
-  const greeting = userFirstName?.trim()
-    ? `Hi ${userFirstName.trim()},`
-    : `Hi there,`;
-  const snippetWord = snippetCount === 1 ? "moment" : "moments";
-
+  // Founder 2026-09-25: the same words as the HTML part.
   return [
     `WillpowerLab`,
     ``,
-    `YOUR VOICE JOURNEY`,
+    (topTheme ?? "").trim().toUpperCase(),
     ``,
-    greeting,
-    `your latest voice ${snippetWord} are ready.`,
+    `Your coach's feedback is in.`,
     ``,
-    `Your coach finished pulling out the moments where your delivery`,
-    `hit hardest, and the ones worth a second pass. Open your journey`,
-    `to listen back, read the coach's notes, and pick what to push on next.`,
+    momentsLine(snippetCount),
+    `Open it to hear each moment, say how it sounded to you, and see`,
+    `your coach's notes and exercises.`,
     ``,
-    `  • Published snippets: ${snippetCount} new`,
-    ``,
-    `See the feedback:`,
+    `Open the feedback:`,
     `  ${journeyUrl}`,
-    ``,
-    `Each snippet has a coach note, a one-tap player, and a CTA back`,
-    `into a contextual chat. Pick the moment that grabs you and push`,
-    `on it.`,
     ``,
     `--`,
     `Unsubscribe: ${unsubscribeUrl}`,

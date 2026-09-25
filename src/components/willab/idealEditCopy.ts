@@ -233,5 +233,12 @@ export const CHUNK_SHEET_COPY = {
   historyHowItChanged: "How this changed",
   historyTake: "Take",
   historyHelperWords: "Helper words",
+  /* --- Back / Next across the bookmarks (founder 2026-09-25, Q31 B / Q32 A) -
+     The coach panel's own footer words, copied so the two read as one
+     product. The right-hand button always says Next, and Done on the last
+     bookmark, where it closes the sheet. */
+  pagerBack: "Back",
+  pagerNext: "Next",
+  pagerDone: "Done",
   historyNow: "Now",
 } as const;

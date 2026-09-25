@@ -3,50 +3,62 @@ import { ImageResponse } from "next/og";
 /**
  * GET /willab-logo
  *
- * Dynamically-rendered WillpowerLab wordmark for transactional email
- * headers (PostSessionResultsEmail and friends). Same trick as
- * src/app/icon.tsx — Vercel renders the JSX into a PNG at the
- * edge, hosts it for free, no static asset upload needed.
+ * The WillpowerLab logo for transactional email headers
+ * (PostSessionResultsEmail and friends), rendered to a PNG at the edge.
  *
- * Why dynamic instead of a checked-in PNG:
- *   • Pacifico is the brand font — but it ships only via Google
- *     Fonts. Email clients strip Google Fonts, so the in-template
- *     <span> wordmark fell back to "Brush Script MT, cursive"
- *     half the time. Rasterising once on the server bakes Pacifico
- *     into the pixels and every client sees the same brand.
- *   • Wider aspect (4:1) than the favicon /icon route (1:1, the
- *     emoji-on-tile), so it sits properly in an email header at
- *     ~120 px wide without looking chunky.
- *   • Single source of truth — change the colour or proportions
- *     here and every email picks it up on next render.
+ * THE APP'S OWN LOGO (founder 2026-09-25: "change it to the logo from the
+ * app ... the logo text is black font WillpowerLab and small symbol logo").
+ * It used to be a Pacifico script wordmark with an orange full stop — a mark
+ * the app itself never shows. Now it is exactly src/components/Logo.tsx: three
+ * black dots in a voice rhythm (the middle one larger) beside "WillpowerLab"
+ * in a black semibold sans.
  *
- * Cache-Control: public, max-age=86400 — wordmark doesn't change
- * often, so let CDNs / mail-image-proxies hold the PNG for a day
- * before re-fetching.
+ * Why a PNG and not inline SVG in the email: many email clients strip SVG and
+ * web fonts, so rasterising once bakes the mark and the font into pixels and
+ * every client shows the same logo. The background is transparent, so it sits
+ * on the email's own background unchanged.
+ *
+ * Cache-Control: public, max-age=86400 — the logo rarely changes, so let CDNs
+ * and mail-image proxies keep the PNG for a day.
  */
 export const runtime = "edge";
 
-const W = 480;
+const W = 520;
 const H = 120;
+const INK = "#121212";
 
-const COLOR_TEXT = "#1F1A14";
-const COLOR_DOT = "#F97316";
-const COLOR_BG = "#FCFAF6";
+/** Inter 600 as a TTF (the renderer reads TTF/OTF/WOFF, not WOFF2). The CSS
+ *  API answers with TTF when asked without a browser user agent. */
+async function loadInterSemibold(): Promise<ArrayBuffer | null> {
+  try {
+    const css = await (
+      await fetch("https://fonts.googleapis.com/css2?family=Inter:wght@600")
+    ).text();
+    const url = css.match(/src:\s*url\(([^)]+)\)\s*format\('(?:truetype|opentype)'\)/)?.[1];
+    if (!url) return null;
+    const res = await fetch(url);
+    return res.ok ? await res.arrayBuffer() : null;
+  } catch {
+    // Non-fatal: the default sans still renders the same shapes.
+    return null;
+  }
+}
 
-const PACIFICO_WOFF2 =
-  "https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy14u9lezJ-6H6MmBp0u-.woff2";
+function Dot({ size }: { size: number }) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        background: INK,
+      }}
+    />
+  );
+}
 
 export async function GET() {
-  // Edge runtime can fetch fonts at request time — embedded into the
-  // PNG so receiving clients don't need Google Fonts access.
-  let pacifico: ArrayBuffer | null = null;
-  try {
-    const res = await fetch(PACIFICO_WOFF2);
-    if (res.ok) pacifico = await res.arrayBuffer();
-  } catch {
-    // Non-fatal — fall through to system serif. Wordmark still
-    // renders, just less brand-on.
-  }
+  const inter = await loadInterSemibold();
 
   return new ImageResponse(
     (
@@ -57,33 +69,42 @@ export async function GET() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: COLOR_BG,
-          fontFamily: pacifico
-            ? "Pacifico"
-            : "Brush Script MT, cursive, serif",
-          fontSize: 84,
-          lineHeight: 1,
-          color: COLOR_TEXT,
-          // Slight optical drop so the descender of the "b" doesn't
-          // crash the bottom edge.
-          paddingBottom: 8,
+          gap: 22,
         }}
       >
-        <span>WillpowerLab</span>
-        <span style={{ color: COLOR_DOT }}>.</span>
+        {/* Logo.tsx's viewBox (22 wide: r 2.2 / 3.2 / 2.2 at x 3 / 11 / 19),
+            scaled ×4.4 so the mark sits beside 52px type as it does in the
+            app. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <Dot size={19} />
+          <Dot size={28} />
+          <Dot size={19} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontFamily: inter ? "Inter" : "sans-serif",
+            fontWeight: 600,
+            fontSize: 52,
+            letterSpacing: -1,
+            color: INK,
+          }}
+        >
+          WillpowerLab
+        </div>
       </div>
     ),
     {
       width: W,
       height: H,
-      ...(pacifico
+      ...(inter
         ? {
             fonts: [
               {
-                name: "Pacifico",
-                data: pacifico,
+                name: "Inter",
+                data: inter,
                 style: "normal" as const,
-                weight: 400 as const,
+                weight: 600 as const,
               },
             ],
           }
@@ -91,6 +112,6 @@ export async function GET() {
       headers: {
         "Cache-Control": "public, max-age=86400",
       },
-    }
+    },
   );
 }
