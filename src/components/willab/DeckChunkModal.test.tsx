@@ -1104,8 +1104,11 @@ describe("an emphasis phrase that cannot be anchored", () => {
 
     // Nothing was sent — there was no span to send.
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
-    // And the speaker is told, still standing on the step.
-    expect(container.textContent).toContain("Couldn't save those words");
+    // And the speaker is told what actually went wrong, still standing on the
+    // step. Not `failRoot` — that one ends in "Try again", which is the one
+    // thing that cannot work when the words are no longer in the text.
+    expect(container.textContent).toContain("aren't in the text any more");
+    expect(container.textContent).not.toContain("Try again");
     expect(props.onClose).not.toHaveBeenCalled();
   });
 });

@@ -110,8 +110,15 @@ export const CHUNK_SHEET_COPY = {
   titleEmphasis: "Choose your helper words",
   /* Under the title on the emphasis step, after Take 1 only — later takes
      have seen helper words while recording, so they only get the title. */
+  /* NAMES THE CONDITION, because it was not true for everyone. Helper words
+     are only shown while recording once the paragraph is locked, so a speaker
+     who taps words and never locks was promised something that never arrived
+     (founder-reported, 2026-09-25). Written as a statement rather than an
+     instruction on purpose: on "No", "Not sure" and "Audio unclear" the Lock
+     step is not built at all, so "lock it" would be an instruction they cannot
+     follow. */
   emphasisFirstTakeNote:
-    "This will show up as a helper text on your next take as you record",
+    "Once locked, these words show while you record your next take",
   titleLock: "Lock",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
   titleEditChunk: "Edit this chunk",
@@ -208,5 +215,11 @@ export const CHUNK_SHEET_COPY = {
   failEmphasis: "Couldn't apply that. Try again.",
   failUnlock: "Couldn't unlock this. Try again.",
   failRoot: "Couldn't save those words. Try again.",
+  /* A DIFFERENT FAILURE NEEDS A DIFFERENT SENTENCE. `failRoot` ends in "Try
+     again", which is right when the server refused the write and wrong when
+     the words no longer exist in the paragraph — retrying cannot find them.
+     Both cases used to share one line, so half the people reading it were
+     told to do the one thing that could not work. */
+  failRootStale: "Those words aren't in the text any more. Tap them again.",
   failResponse: "Couldn't save that response. Try again.",
 } as const;
