@@ -667,14 +667,13 @@ export default function DeckChunkModal({
        that we must not guess at a position, but refusing to guess is not the
        same as reporting success.
 
-       TODO(copy, founder): this reuses `failRoot`, which reads as though the
-       save was rejected. A phrase that no longer matches the edited text is a
-       different thing to say, and saying it properly needs new user-facing
-       copy — held for sign-off rather than invented here. */
+       Resolved 2026-09-25: `failRootStale` is that different sentence, signed
+       off by the founder. `failRoot` keeps "Try again", which is right for a
+       refused write and wrong here. */
     if (!phrase) return true;
     const anchor = quoteSpan(draft, phrase);
     if (!anchor) {
-      setError(COPY.failRoot);
+      setError(COPY.failRootStale);
       return false;
     }
     const ok = await onSetRootPhrase(anchor);
