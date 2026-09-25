@@ -7,17 +7,12 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
-import {
-  deleteTraining,
-  fetchTrainings,
-  type TrainingArc,
-} from "@/services/api/trainings";
+import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import {
   deleteSetupDraft,
   listSetupDrafts,
   type SetupDraft,
 } from "@/lib/willab/setupDraft";
-import { clearExploreArc, readExploreArc } from "@/lib/willab/exploreArc";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectPicker — context-aware recording setup, Scenario A (founder         */
@@ -32,9 +27,11 @@ import { clearExploreArc, readExploreArc } from "@/lib/willab/exploreArc";
 /*  "Start a new project" is a BUTTON above the list, never a list item, so    */
 /*  starting fresh can never be mistaken for continuing something.            */
 /*                                                                            */
-/*  2026-09-25 — every row carries a ⋯ menu with Delete (permanent, behind a   */
-/*  confirmation), and an interrupted new-project setup is listed first as a   */
-/*  Draft that resumes where it stopped (this device only).                    */
+/*  2026-09-25 — an interrupted new-project setup is listed first as a Draft   */
+/*  that resumes where it stopped (this device only); its ⋯ menu deletes it.   */
+/*  Projects have NO delete here: a row delete cannot remove a canonical Take  */
+/*  (RESTRICT lineage) and was pulled the day it shipped — the real project    */
+/*  delete goes through the governed purge path, not this list.                */
 /*                                                                            */
 /*  One row identifies one immutable project and its Ideal Text. Picking it    */
 /*  continues exactly that project; visible names are never identity.          */
@@ -57,7 +54,7 @@ export default function ProjectPicker({
   onSkip,
   onClose,
 }: {
-  /** The account whose drafts are listed and whose projects can be deleted. */
+  /** The account whose drafts are listed. */
   ownerId: string | null;
   /** Today's blank setup flow, unchanged. CLEARS the arc seed. */
   onNewTopic: () => void;
@@ -86,14 +83,6 @@ export default function ProjectPicker({
     setDrafts(listSetupDrafts(ownerId));
   }, [ownerId]);
 
-  async function deleteProject(arc: TrainingArc): Promise<boolean> {
-    const ok = await deleteTraining(arc.arcId);
-    if (!ok) return false;
-    // A carried seed for the deleted project must not continue into it.
-    if (readExploreArc(ownerId)?.arcId === arc.arcId) clearExploreArc(ownerId);
-    setArcs((prev) => prev.filter((a) => a.arcId !== arc.arcId));
-    return true;
-  }
   async function deleteDraft(draft: SetupDraft): Promise<boolean> {
     deleteSetupDraft(ownerId, draft.id);
     setDrafts(listSetupDrafts(ownerId));
@@ -224,7 +213,6 @@ export default function ProjectPicker({
                       key={a.arcId}
                       label={a.topic}
                       onOpen={() => onContinue(a)}
-                      onDelete={() => deleteProject(a)}
                     />
                   ))
                 : null}
@@ -237,8 +225,8 @@ export default function ProjectPicker({
   );
 }
 
-/** One row: the title (tap = open it) and, on the right, the ⋯ menu. A draft
- *  says so beside its title — it is not a project yet. */
+/** One row: the title (tap = open it). A draft says so beside its title — it
+ *  is not a project yet — and carries the ⋯ menu that deletes it. */
 function PickerRow({
   label,
   draft = false,
@@ -248,7 +236,7 @@ function PickerRow({
   label: string;
   draft?: boolean;
   onOpen: () => void;
-  onDelete: () => Promise<boolean>;
+  onDelete?: () => Promise<boolean>;
 }) {
   return (
     <div className="flex items-center gap-1 rounded-xl transition-colors hover:bg-muted">
@@ -264,11 +252,7 @@ function PickerRow({
           </span>
         ) : null}
       </button>
-      <ProjectRowMenu
-        label={label}
-        kind={draft ? "draft" : "project"}
-        onDelete={onDelete}
-      />
+      {onDelete ? <ProjectRowMenu label={label} onDelete={onDelete} /> : null}
     </div>
   );
 }

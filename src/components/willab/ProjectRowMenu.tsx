@@ -5,22 +5,20 @@ import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
-/*  ProjectRowMenu — the ⋯ on the right of a project-picker row (founder       */
-/*  2026-09-25). One action today: Delete, always behind a confirmation,      */
-/*  because deleting a project is permanent — every take goes with it.         */
+/*  ProjectRowMenu — the ⋯ on the right of a DRAFT row in the project picker   */
+/*  (founder 2026-09-25). One action: Delete, behind a confirmation. Projects  */
+/*  carry no menu: their delete was pulled (see ProjectPicker).               */
 /*                                                                            */
-/*  The confirmation owns the network call so the row cannot vanish before    */
-/*  the delete actually landed: on failure the dialog stays open and says so.  */
+/*  The confirmation owns the delete so the row cannot vanish before it       */
+/*  landed: on failure the dialog stays open and says so.                     */
 /* -------------------------------------------------------------------------- */
 
 export default function ProjectRowMenu({
   label,
-  kind,
   onDelete,
 }: {
-  /** The row's visible title, for the menu's accessible name and the dialog. */
+  /** The row's visible title, for the menu's accessible name. */
   label: string;
-  kind: "project" | "draft";
   /** Resolves true once deleted; false keeps the dialog open with an error. */
   onDelete: () => Promise<boolean>;
 }) {
@@ -77,8 +75,6 @@ export default function ProjectRowMenu({
       ) : null}
       {confirming ? (
         <ConfirmDelete
-          label={label}
-          kind={kind}
           onCancel={() => setConfirming(false)}
           onDelete={onDelete}
         />
@@ -88,13 +84,9 @@ export default function ProjectRowMenu({
 }
 
 function ConfirmDelete({
-  label,
-  kind,
   onCancel,
   onDelete,
 }: {
-  label: string;
-  kind: "project" | "draft";
   onCancel: () => void;
   onDelete: () => Promise<boolean>;
 }) {
@@ -132,12 +124,10 @@ function ConfirmDelete({
           id="delete-project-title"
           className="break-words text-[18px] font-semibold text-foreground"
         >
-          {kind === "draft" ? "Delete this draft?" : `Delete “${label}”?`}
+          Delete this draft?
         </h2>
         <p className="mt-2 text-[14px] text-muted-foreground">
-          {kind === "draft"
-            ? "Your unfinished setup answers will be removed."
-            : "Every take in this project and its ideal text will be permanently deleted. This can’t be undone."}
+          Your unfinished setup answers will be removed.
         </p>
         {failed ? (
           <p className="mt-2 text-[13px] text-record">
