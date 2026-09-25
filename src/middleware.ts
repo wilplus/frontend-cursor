@@ -5,6 +5,7 @@ import {
   ceoCanonicalUrl,
   decideCeoHostRoute,
 } from "@/lib/ceo/hostRouting";
+import { strayAuthCallbackUrl } from "@/lib/auth/strayCallback";
 
 // "/panel" — the Life Panel is signed-in only. The SECOND gate (feature flag,
 // consent, allowlist) is server-side in `/v2/life/state`, which 404s: this
@@ -226,10 +227,11 @@ export async function middleware(req: NextRequest) {
   const nonce = generateNonce();
   const cspDirectives = getCspDirectives(nonce);
 
-  // If user landed on dashboard with auth callback params (e.g. Supabase redirect URL was set to /dashboard), send to callback then update-password
-  if (pathname === "/dashboard" && (searchParams.has("code") || searchParams.get("type") === "recovery")) {
-    const callbackUrl = new URL("/auth/callback", req.url);
-    searchParams.forEach((value, key) => callbackUrl.searchParams.set(key, value));
+  // An OAuth / recovery answer that Supabase sent to its Site URL (or
+  // /dashboard, /chat) instead of the redirectTo it was given — see
+  // strayCallback.ts. Without this a LinkedIn sign-up lands signed out.
+  const callbackUrl = strayAuthCallbackUrl(req.url);
+  if (callbackUrl) {
     return applyCsp(NextResponse.redirect(callbackUrl), cspDirectives);
   }
 

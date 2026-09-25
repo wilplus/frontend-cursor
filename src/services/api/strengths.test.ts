@@ -2,7 +2,10 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   mapStrengths,
   deletePresentation,
+  deleteRefusalLine,
   deleteTake,
+  DeleteFailedError,
+  TAKE_LINEAGE_REFUSAL,
   type StrengthMoment,
   type StrengthSlide,
   type PresentationTake,
@@ -381,6 +384,95 @@ describe("deleteTake", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     await expect(deleteTake("pid-123", 1)).rejects.toThrow("500");
+  });
+});
+
+describe("a delete the backend refuses (409 TAKE_HAS_LINEAGE)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const refuse = (status: number, body: unknown) =>
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: () => Promise.resolve(body),
+    });
+
+  async function failureOf(p: Promise<unknown>): Promise<unknown> {
+    try {
+      await p;
+    } catch (e) {
+      return e;
+    }
+    throw new Error("expected the delete to throw");
+  }
+
+  it("carries the status and code the backend sent", async () => {
+    vi.stubGlobal("fetch", refuse(409, { code: "TAKE_HAS_LINEAGE", error: "x" }));
+    const err = await failureOf(deleteTake("pid-1", 2));
+    expect(err).toBeInstanceOf(DeleteFailedError);
+    expect((err as DeleteFailedError).status).toBe(409);
+    expect((err as DeleteFailedError).code).toBe("TAKE_HAS_LINEAGE");
+    expect((err as Error).message).toContain("409");
+  });
+
+  it("maps a refused take to the approved take line", async () => {
+    vi.stubGlobal("fetch", refuse(409, { code: "TAKE_HAS_LINEAGE" }));
+    const err = await failureOf(deleteTake("pid-1", 2));
+    expect(deleteRefusalLine(err, "take")).toBe(
+      "This take can't be deleted on its own. It's part of your project's history."
+    );
+  });
+
+  it("maps a refused presentation to the approved presentation line", async () => {
+    vi.stubGlobal("fetch", refuse(409, { code: "TAKE_HAS_LINEAGE" }));
+    const err = await failureOf(deletePresentation("pid-1"));
+    expect(deleteRefusalLine(err, "presentation")).toBe(
+      "This presentation can't be deleted on its own. Its takes are part of your project's history."
+    );
+  });
+
+  it("keeps the approved lines word for word", () => {
+    expect(TAKE_LINEAGE_REFUSAL).toEqual({
+      take: "This take can't be deleted on its own. It's part of your project's history.",
+      presentation:
+        "This presentation can't be deleted on its own. Its takes are part of your project's history.",
+    });
+  });
+
+  it("leaves every other failure to the existing copy", async () => {
+    const cases: Array<[number, unknown]> = [
+      [409, { code: "SOMETHING_ELSE" }], // a 409 with another code
+      [500, { code: "TAKE_HAS_LINEAGE" }], // the code without the 409
+      [404, { code: "NOT_FOUND" }],
+      [502, "not an object"],
+    ];
+    for (const [status, body] of cases) {
+      vi.stubGlobal("fetch", refuse(status, body));
+      const err = await failureOf(deleteTake("pid-1", 1));
+      expect(deleteRefusalLine(err, "take")).toBeNull();
+      expect(deleteRefusalLine(err, "presentation")).toBeNull();
+    }
+  });
+
+  it("survives a body that is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+      })
+    );
+    const err = await failureOf(deletePresentation("pid-1"));
+    expect((err as DeleteFailedError).code).toBeNull();
+    expect(deleteRefusalLine(err, "presentation")).toBeNull();
+  });
+
+  it("ignores errors that did not come from a delete", () => {
+    expect(deleteRefusalLine(new Error("409 TAKE_HAS_LINEAGE"), "take")).toBeNull();
+    expect(deleteRefusalLine(undefined, "take")).toBeNull();
   });
 });
 
