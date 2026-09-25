@@ -293,8 +293,9 @@ describe("useExerciseChoice", () => {
       ),
     );
     expect(s.setId).not.toHaveBeenCalled();
+    // Founder-approved wording, 2026-09-25.
     expect(s.setNotice).toHaveBeenCalledWith(
-      expect.stringContaining("published with their video"),
+      "Exercise is not here yet. Publish it first, and then it will appear here!",
     );
   });
 

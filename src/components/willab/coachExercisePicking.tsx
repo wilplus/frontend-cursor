@@ -84,9 +84,9 @@ export function usePendingAttach(
   }, [snippetId, available, onFound, onMissing]);
 }
 
-/** Said when the exercise the coach just made comes back missing from the list. */
-const NOT_YET_PUBLISHED =
-  "The exercise you just made isn’t here yet. Only exercises published with their video can be chosen.";
+/** Said when the exercise the coach just made comes back missing from the list.
+ *  Founder-approved wording, 2026-09-25 — change it only with sign-off. */
+const NOT_YET_PUBLISHED = "Exercise is not here yet. Publish it first, and then it will appear here!";
 
 /** The sheet's setters, handed over so every choosing branch lives here. */
 export interface ExerciseChoiceSetters {
