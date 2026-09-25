@@ -112,3 +112,21 @@ export async function fetchTrainings(): Promise<TrainingArc[] | null> {
   if (!list) return null;
   return list.map(mapArc).filter((a): a is TrainingArc => !!a);
 }
+
+/** Permanently delete one project (arc) and every take in it — the project
+ *  picker's ⋯ → Delete. Owner-scoped server-side. true ONLY on 2xx: a 404 is
+ *  also what a backend without this route answers, and reporting that as a
+ *  delete would drop a row that is still there. */
+export async function deleteTraining(arcId: string): Promise<boolean> {
+  const token = await getAuthToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/v2/user/arcs/${encodeURIComponent(arcId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

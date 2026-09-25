@@ -16,6 +16,11 @@ import {
 } from "./presentation";
 import { fetchRecordingConfig } from "@/services/api/recordingConfig";
 import RecordPriceNote from "@/components/tokens/RecordPriceNote";
+import {
+  deleteSetupDraft,
+  readActiveSetupDraft,
+  saveSetupDraft,
+} from "@/lib/willab/setupDraft";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
@@ -72,6 +77,7 @@ export default function RecordingSetup({
   contextArcId,
   preloadDeck,
   hideDeck = false,
+  draftOwnerId,
   onSubmit,
   onCancel,
 }: {
@@ -82,21 +88,58 @@ export default function RecordingSetup({
   preloadDeck: ExploreArcDeck | null;
   /** Skip the slide step (deckless-only flows, e.g. a staged footer upload). */
   hideDeck?: boolean;
+  /** Setup drafts (founder 2026-09-25) — the account whose ACTIVE draft this
+   *  setup restores from and writes to. Undefined = never draft. A staged
+   *  upload (hideDeck) or a deck-prefilled continuation never drafts either,
+   *  and only the new-project entries set an active draft, so an owner with
+   *  no active draft writes nothing. */
+  draftOwnerId?: string | null;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
   /** FE-6 — leave the setup flow. Present → the ✕ is drawn on the step
    *  indicator row, on EVERY step. Absent → no ✕ (the host has its own way
    *  out and a second one would just be two crosses on one screen). */
   onCancel?: () => void;
 }) {
-  const [topic, setTopic] = useState("");
-  const [audience, setAudience] = useState("");
-  const [desiredCallToAction, setDesiredCallToAction] = useState("");
-  const [lengthSec, setLengthSec] = useState<number | null>(null);
-  const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
-  const [presentationRef, setPresentationRef] = useState<string | null>(null);
-  const [strategicContext, setStrategicContext] = useState("");
+  const steps: StepKey[] = hideDeck
+    ? ["topic", "audience", "call_to_action", "length", "context"]
+    : [
+        "topic",
+        "audience",
+        "call_to_action",
+        "length",
+        "slides",
+        "context",
+      ];
+  // Read once, at mount: the draft being resumed (or the fresh slot "Start a
+  // new project" opened). Later renders never re-read it — this form owns it.
+  const [active] = useState(() =>
+    draftOwnerId === undefined || hideDeck || preloadDeck
+      ? null
+      : readActiveSetupDraft(draftOwnerId)
+  );
+  const draft = active?.draft ?? null;
+  const [topic, setTopic] = useState(draft?.topic ?? "");
+  const [audience, setAudience] = useState(draft?.audience ?? "");
+  const [desiredCallToAction, setDesiredCallToAction] = useState(
+    draft?.desiredCallToAction ?? ""
+  );
+  const [lengthSec, setLengthSec] = useState<number | null>(
+    draft?.lengthSec ?? null
+  );
+  const [slides, setSlides] = useState<PresentationSlide[]>(() =>
+    draft && draft.slides.length > 0 ? draft.slides : initialSlides()
+  );
+  const [presentationRef, setPresentationRef] = useState<string | null>(
+    draft?.presentationRef ?? null
+  );
+  const [strategicContext, setStrategicContext] = useState(
+    draft?.strategicContext ?? ""
+  );
   const [contextDocument, setContextDocument] = useState<File | null>(null);
-  const [step, setStep] = useState(0);
+  // A resumed draft's step is clamped so it can never index past the flow.
+  const [step, setStep] = useState(() =>
+    Math.min(draft?.step ?? 0, steps.length - 1)
+  );
   // FE-5 — the threshold, read from the server. Never a literal: the number is
   // served precisely so it can move without a deploy.
   const [cautionSec, setCautionSec] = useState<number | null>(null);
@@ -115,16 +158,6 @@ export default function RecordingSetup({
     };
   }, []);
 
-  const steps: StepKey[] = hideDeck
-    ? ["topic", "audience", "call_to_action", "length", "context"]
-    : [
-        "topic",
-        "audience",
-        "call_to_action",
-        "length",
-        "slides",
-        "context",
-      ];
   const current = steps[step];
   const isLast = step === steps.length - 1;
 
@@ -189,6 +222,35 @@ export default function RecordingSetup({
 
 
 
+  // Every answer lands in the draft as it is typed, so any interruption —
+  // the ✕, a closed tab, a crash — leaves the setup resumable from the picker.
+  // Nothing is stored until at least one question holds an answer.
+  const draftId = active?.id ?? null;
+  useEffect(() => {
+    if (draftId === null || draftOwnerId === undefined) return;
+    saveSetupDraft(draftOwnerId, draftId, {
+      step,
+      topic,
+      audience,
+      desiredCallToAction,
+      lengthSec,
+      slides,
+      presentationRef,
+      strategicContext,
+    });
+  }, [
+    draftId,
+    draftOwnerId,
+    step,
+    topic,
+    audience,
+    desiredCallToAction,
+    lengthSec,
+    slides,
+    presentationRef,
+    strategicContext,
+  ]);
+
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
 
   // A project title is display copy, never identity. Same-named projects are
@@ -211,6 +273,10 @@ export default function RecordingSetup({
     ]
       .filter((line): line is string => Boolean(line))
       .join("\n");
+    // Take 1 is starting: the draft becomes a real project and leaves the list.
+    if (draftId !== null && draftOwnerId !== undefined) {
+      deleteSetupDraft(draftOwnerId, draftId);
+    }
     onSubmit(
       {
         topic: t,
