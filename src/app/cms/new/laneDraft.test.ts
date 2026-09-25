@@ -221,9 +221,12 @@ describe("the doors into the lane", () => {
     expect(COACH).toContain("Add to the library");
   });
 
-  it("names the one-off for what it is", () => {
-    // It never enters the catalogue and can never reach a second speaker.
-    expect(COACH).toContain("Just for them");
+  it("names the in-panel exercise for what it is", () => {
+    // Since decision 04 it is filed into the library under the moment's
+    // error, so the label says where it is made rather than who it is for
+    // (founder-approved 2026-09-25).
+    expect(COACH).toContain("Write one here");
+    expect(COACH).not.toContain("Just for them");
     expect(COACH).not.toContain("Create new exercise");
   });
 

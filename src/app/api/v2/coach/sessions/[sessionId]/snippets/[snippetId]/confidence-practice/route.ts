@@ -25,3 +25,17 @@ export async function PUT(
     body: (await req.text()) || "{}",
   });
 }
+
+// Naming an error on the moment, or undoing what attaching taught the library
+// (founder 2026-09-25). Same pass-through; the backend dispatches it after the
+// review's own blind gate.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { sessionId: string; snippetId: string } },
+) {
+  return callBackend(path(params.sessionId, params.snippetId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: (await req.text()) || "{}",
+  });
+}

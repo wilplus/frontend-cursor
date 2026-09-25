@@ -13,6 +13,7 @@ import {
   ExercisePickList,
   useExerciseChoice,
 } from "./coachExercisePicking";
+import { LibraryTeachings, MomentErrors } from "./coachMomentErrors";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import {
   newUploadKey,
@@ -242,6 +243,12 @@ export default function CoachConfidencePracticeReview({
               ))}
             </div>
           </div>
+          <MomentErrors
+            sessionId={sessionId}
+            snippetId={snippetId}
+            named={practice.namedErrors}
+            onPractice={setPractice}
+          />
           <div>
             <p className="text-[13px] font-semibold text-foreground">Follow-up exercise</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -265,15 +272,14 @@ export default function CoachConfidencePracticeReview({
                     : "border-border bg-background text-foreground"
                 }`}
               >
-                Just for them
+                Write one here
               </button>
-              {/* The third door, added 2026-09-16. "Just for them" above makes
-                  a ONE-OFF welded to this recording — it never enters the
-                  catalogue, carries no tags, and can never reach a second
-                  speaker. That is a real need, so it stays; but it used to be
-                  the only way, and it read as "Create new exercise", which
-                  sounds like building something reusable. This is the one that
-                  actually does. */}
+              {/* The third door, added 2026-09-16. Since founder decision 04
+                  (2026-09-25) "Write one here" (relabelled by the founder the
+                  same day) no longer makes a one-off: the
+                  backend files it into the library under this moment's
+                  error, like any other exercise. This door builds one in the
+                  full CMS lane instead, with its own video and post. */}
               {/* Brings the coach back to this moment with the new exercise
                   already chosen, when a review hosts the sheet (founder
                   2026-09-25). The plain link was a one-way trip. */}
@@ -317,6 +323,12 @@ export default function CoachConfidencePracticeReview({
               </label>
             </div>
           )}
+          <LibraryTeachings
+            sessionId={sessionId}
+            snippetId={snippetId}
+            practice={practice}
+            onPractice={setPractice}
+          />
           <div className="rounded-xl border border-border bg-background p-3">
             <p className="text-[13px] font-semibold text-foreground">
               Exercise video
