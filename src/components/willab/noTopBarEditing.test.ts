@@ -61,16 +61,19 @@ describe("no editing in the ideal-text top bar (founder 2026-08-11)", () => {
     }
   });
 
-  it("the chunk's lock modal still IS the editor — the way in did not just vanish", () => {
+  it("editing still has a way in — the slide's own editor — so it did not just vanish", () => {
     // The counterweight to the three assertions above: removing the pencils
-    // must not read as "editing was removed". It moved into the modal, which
-    // still carries a text field and the Lock in / Discard pair.
+    // must not read as "editing was removed". Since 2026-09-25 (Q24 B) there
+    // is no Lock screen in the sheet, so the way in is the slide editor; the
+    // sheet keeps its marker-aware field only as the ladder's fallback.
     const modal = readFileSync(
       "src/components/willab/DeckChunkModal.tsx",
       "utf8"
     );
     expect(modal).toMatch(/<MarkedEditor/);
-    expect(modal).toMatch(/Lock for next Take/);
+    expect(
+      readFileSync("src/components/willab/TranscriptReviewDeck.tsx", "utf8"),
+    ).toMatch(/onClick=\{\(\) => setEditingSlideIndex\(g\.slideIndex\)\}/);
     // And it is the MARKER-AWARE field, never a raw one: a textarea over the
     // marker source prints "**bold**" at the student, which FE-1 forbids —
     // and this modal is the only way into the text.

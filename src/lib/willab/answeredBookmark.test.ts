@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   answeredView,
-  opensAnswered,
+  opensParagraphSheet,
   slideHeadlines,
   type DecidedItemLite,
 } from "./answeredBookmark";
@@ -74,26 +74,33 @@ describe("the answered bookmark (Q19 A)", () => {
     expect(two.boxes).toEqual([{ label: "Praised", text: "first week" }]);
   });
 
-  it("lists the Slide's words newest first, by Take", () => {
-    const view = answeredView({ items: [], answers: [], history, copy: COPY });
-    expect(view.versions).toEqual([
-      { label: "Take 3", text: "Nine days became two.\n\nBuddy." },
-      { label: "Take 1", text: "We cut onboarding." },
+  it("one timeline, newest first, each Take with the helper words locked then (Q26 B)", () => {
+    const timed: ParagraphHistory = {
+      ...history,
+      versions: [
+        { takeIndex: 1, paragraphs: ["We cut onboarding."], at: "2026-09-25T10:00:00Z" },
+        { takeIndex: 2, paragraphs: ["Nine days became two."], at: "2026-09-25T11:00:00Z" },
+        { takeIndex: 3, paragraphs: ["Two days now.", "Buddy."], at: "2026-09-25T12:00:00Z" },
+      ],
+      helperWords: [
+        { phrases: ["nine days to two"], at: "2026-09-25T10:30:00Z" },
+        { phrases: [], at: "2026-09-25T11:10:00Z" },
+        { phrases: ["two days", "buddy"], at: "2026-09-25T12:30:00Z" },
+      ],
+    };
+    const view = answeredView({ items: [], answers: [], history: timed, copy: COPY });
+    expect(view.timeline).toEqual([
+      { label: "Take 3", text: "Two days now.\n\nBuddy.", helperWords: "two days · buddy" },
+      { label: "Take 2", text: "Nine days became two.", helperWords: null },
+      { label: "Take 1", text: "We cut onboarding.", helperWords: "nine days to two" },
     ]);
   });
 
-  it("lists helper words Now then Before, skipping empty sets", () => {
-    const view = answeredView({ items: [], answers: [], history, copy: COPY });
-    expect(view.helperWords).toEqual([
-      { label: "Now", text: "nine days to two · first week" },
-      { label: "Before", text: "nine days to two" },
-    ]);
-  });
-
-  it("opens only when nothing waits and something was answered", () => {
-    expect(opensAnswered({ pending: [], decided: [cv] })).toBe(true);
-    expect(opensAnswered({ pending: [cv], decided: [cv] })).toBe(false);
-    expect(opensAnswered({ pending: [], decided: [] })).toBe(false);
+  it("opens its own sheet only when nothing waits and it was answered or locked", () => {
+    expect(opensParagraphSheet({ pending: [], decided: [cv] })).toBe(true);
+    expect(opensParagraphSheet({ pending: [], decided: [], locked: true })).toBe(true);
+    expect(opensParagraphSheet({ pending: [cv], decided: [cv], locked: true })).toBe(false);
+    expect(opensParagraphSheet({ pending: [], decided: [] })).toBe(false);
   });
 });
 

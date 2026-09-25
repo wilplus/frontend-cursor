@@ -800,30 +800,6 @@ export default function IdealTextReadout({
    * Refetches for the same reason the lock does, in reverse: an unlocked
    * paragraph becomes eligible for offers again, and the layer filter has to
    * be told. */
-  const unlockParagraph = useCallback(
-    async (chunk: DeckChunk): Promise<"ok" | "blocked" | "failed"> => {
-      const aid = arcIdRef.current;
-      if (!aid) return "failed";
-      const parts = reconcileParts(textRef.current, partsRef.current ?? []);
-      partsRef.current = parts;
-      const target = lockTargetAt(parts, chunk.paragraphIndex, chunk.part.text);
-      if (!target) return "failed";
-      if (!target.locked) return "ok"; // already open — nothing to write
-      const r = await setPartLock(aid, target.id, false, textRef.current);
-      if (r.kind === "stale") {
-        sdGenRef.current++;
-        setSdNonce((n) => n + 1);
-        return "failed";
-      }
-      if (r.kind === "error" || r.kind === "undecided") return "failed";
-      partsRef.current = (partsRef.current ?? []).map((pt) =>
-        pt.id === target.id ? { ...pt, locked: false } : pt,
-      );
-      setSdNonce((n) => n + 1);
-      return "ok";
-    },
-    [],
-  );
 
   const deckLockPart = useCallback(
     async (chunk: DeckChunk, newText: string): Promise<LockResult> => {
@@ -877,52 +853,6 @@ export default function IdealTextReadout({
     [applyEdit, flushEdits, lockParagraph, markDirty],
   );
 
-  const deckKeepEvolving = useCallback(
-    async (
-      chunk: DeckChunk,
-      newText: string,
-    ): Promise<"ok" | "blocked" | "failed"> => {
-      const aid = arcIdRef.current;
-      if (!aid) return "failed";
-      const at = chunk.paragraphIndex;
-      let next = reconcileParts(textRef.current, partsRef.current ?? []);
-      if (at < 0 || at >= next.length) return "failed";
-      const trimmed = newText.trim();
-      if (!trimmed) return "failed";
-      if (trimmed !== next[at].text.trim()) {
-        next = updatePart(next, at, trimmed);
-        applyEdit(partsToText(next), next);
-        if (!(await flushEdits())) return "failed";
-        next = reconcileParts(textRef.current, partsRef.current ?? next);
-      }
-      const target = next[at];
-      const result = await setPartLock(aid, target.id, false, textRef.current, {
-        reason: "keep_evolving",
-      });
-      if (result.kind !== "ok") {
-        if (result.kind === "stale") {
-          sdGenRef.current++;
-          setSdNonce((n) => n + 1);
-        }
-        return "failed";
-      }
-      partsRef.current = next.map((part) =>
-        part.id === target.id
-          ? {
-              ...part,
-              locked: false,
-              rootPhrase: null,
-              rootStart: null,
-              rootEnd: null,
-            }
-          : part,
-      );
-      markDirty(false);
-      setSdNonce((n) => n + 1);
-      return "ok";
-    },
-    [applyEdit, flushEdits, markDirty],
-  );
 
   const deckSetRootPhrase = useCallback(
     async (
@@ -1113,10 +1043,8 @@ export default function IdealTextReadout({
             onUndoAccept={undoTracked}
             onKeepMine={(s) => decideTracked(s, "keep")}
             onLockPart={deckLockPart}
-            onKeepEvolving={deckKeepEvolving}
             onSetRootPhrase={deckSetRootPhrase}
             onEditSlide={deckEditSlide}
-            onUnlockPart={unlockParagraph}
             coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,

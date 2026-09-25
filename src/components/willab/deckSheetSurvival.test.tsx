@@ -98,7 +98,6 @@ const props = (parts: Part[]) => ({
     outcome: "ok" as const,
     rootPhraseProposal: null,
   })),
-  onKeepEvolving: vi.fn(async () => "ok" as const),
   onSetRootPhrase: vi.fn(async () => true),
   onEditSlide: vi.fn(async () => true),
   onClose: vi.fn(),

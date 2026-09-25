@@ -5,10 +5,10 @@ import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
-  type LockOutcome,
   type LockResult,
 } from "@/components/willab/DeckChunkModal";
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
+import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
 import {
   headlineFor,
   useSlideHeadlines,
@@ -194,10 +194,8 @@ export default function TranscriptReviewDeck({
   onKeepMine,
   onJudged,
   onLockPart,
-  onKeepEvolving,
   onSetRootPhrase,
   onEditSlide,
-  onUnlockPart = null,
   onClose,
   styleChanges = null,
   onApplyStyle,
@@ -249,7 +247,6 @@ export default function TranscriptReviewDeck({
    *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
    *  the lock endpoint verifies anyway. */
   onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockResult>;
-  onKeepEvolving: (chunk: DeckChunk, newText: string) => Promise<LockOutcome>;
   onSetRootPhrase: (
     chunk: DeckChunk,
     phrase: RootPhraseSpan | null,
@@ -259,10 +256,6 @@ export default function TranscriptReviewDeck({
   onEditSlide: (
     edits: Array<{ chunk: DeckChunk; text: string }>
   ) => Promise<boolean>;
-  /** UNDO a lock (founder 2026-08-15). "Discard" on a locked chunk is the
-   *  inverse of "Lock in", not a close — see DeckChunkModal. Optional so a
-   *  host without the capability shows no button rather than a dead one. */
-  onUnlockPart?: ((chunk: DeckChunk) => Promise<LockOutcome>) | null;
   onClose?: () => void;
   /** Legacy post-lock bold proposals, retained for already-created records. */
   styleChanges?: readonly DocumentSuggestion[] | null;
@@ -311,21 +304,13 @@ export default function TranscriptReviewDeck({
   const [optimisticLocked, setOptimisticLocked] = useState<
     ReadonlySet<string>
   >(new Set());
-  /* The same instant feedback for the INVERSE (2026-08-15). Without it a
-   * confirmed unlock leaves the mark green until the host refetches, which is
-   * the same lag §11.7.1 was written to remove — just in the other
-   * direction. Cleared on fresh parts; the server's truth always takes over. */
-  const [optimisticUnlocked, setOptimisticUnlocked] = useState<
-    ReadonlySet<string>
-  >(new Set());
   useEffect(() => {
     setOptimisticLocked(new Set());
-    setOptimisticUnlocked(new Set());
   }, [parts]);
 
   const chunks = useMemo(() => {
     const built = buildDeckChunks(doc, parts, suggestions);
-    if (optimisticLocked.size === 0 && optimisticUnlocked.size === 0) {
+    if (optimisticLocked.size === 0) {
       return built;
     }
     return built.map((c) => {
@@ -333,19 +318,9 @@ export default function TranscriptReviewDeck({
           && optimisticLocked.has(c.part.id)) {
         return { ...c, status: "locked" as const };
       }
-      // An unlock never overrides PENDING work — the 2026-08-11 rule that a
-      // pending proposal beats the lock cuts both ways, and a chunk with
-      // feedback outstanding must keep saying so.
-      if (c.status === "locked" && optimisticUnlocked.has(c.part.id)) {
-        return {
-          ...c,
-          status: "clean" as const,
-          part: { ...c.part, locked: false },
-        };
-      }
       return c;
     });
-  }, [doc, parts, suggestions, optimisticLocked, optimisticUnlocked]);
+  }, [doc, parts, suggestions, optimisticLocked]);
   // ONE STATE PER CHUNK (audit Q-C5): the joins the page and the modal both
   // read — the pending inventory, the style-lane proposal, the decided
   // history, the coach's own feedback — computed once per chunk here, never
@@ -1101,6 +1076,9 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
+                      {...paragraphTap(!unsettled && opensParagraphSheet(st), () =>
+                        openParagraph(c),
+                      )}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
                       className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
@@ -1338,6 +1316,13 @@ export default function TranscriptReviewDeck({
           state={openState}
           arcId={arcId}
           takeSessionId={takeSessionId}
+          headline={headlineOfChunk(headlines, groups, openChunk.part.id)}
+          onUseHelperWords={async (span) => {
+            // Q24 B / Q27 B: the new words are saved, then locked, at once.
+            if (!(await onSetRootPhrase(openChunk, span))) return false;
+            const result = await onLockPart(openChunk, openChunk.part.text);
+            return result.outcome === "ok";
+          }}
           onClose={() => setOpenPart(null)}
           renderSheet={(practiseAgain) => (
         <DeckChunkModal
@@ -1364,32 +1349,8 @@ export default function TranscriptReviewDeck({
             }
             return result;
           }}
-          onKeepEvolving={(text) => onKeepEvolving(openChunk, text)}
           onSetRootPhrase={(phrase) => onSetRootPhrase(openChunk, phrase)}
           onDocumentChanged={onConfidentMomentChanged}
-          onUnlockPart={
-            onUnlockPart
-              ? async (): Promise<LockOutcome> => {
-                  const outcome = await onUnlockPart(openChunk);
-                  if (outcome === "ok") {
-                    // Mirror of the lock's optimism: the mark greys the
-                    // instant the server confirms, instead of waiting on the
-                    // host's refetch. Clearing the id is enough — the base
-                    // status is derived from the served part, which the
-                    // refetch will report unlocked anyway.
-                    setOptimisticLocked((prev) => {
-                      const next = new Set(prev);
-                      next.delete(openChunk.part.id);
-                      return next;
-                    });
-                    setOptimisticUnlocked((prev) =>
-                      new Set(prev).add(openChunk.part.id)
-                    );
-                  }
-                  return outcome;
-                }
-              : null
-          }
           onClose={() => setOpenPart(null)}
           onApplyStyle={onApplyStyle}
           arcId={arcId}
@@ -1541,4 +1502,38 @@ function SlideHeadline({ text }: { text: string | null }) {
       {text}
     </p>
   );
+}
+
+/** A settled paragraph that was answered or locked opens its own sheet when
+ *  tapped (founder 2026-09-25, Q26 B). A button in behaviour; the words stay
+ *  ordinary text. Pure, so the deck gains no branch. */
+function paragraphTap(
+  opens: boolean,
+  open: () => void,
+): Record<string, unknown> {
+  if (!opens) return {};
+  return {
+    role: "button",
+    tabIndex: 0,
+    "data-opens-sheet": "true",
+    onClick: open,
+    onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      open();
+    },
+    style: { cursor: "pointer" },
+  };
+}
+
+/** The open paragraph's Slide headline, from the same map the page draws. */
+function headlineOfChunk(
+  headlines: Map<number, string>,
+  groups: readonly { slideIndex: number | null; chunks: readonly DeckChunk[] }[],
+  partId: string,
+): string | null {
+  const group = groups.find((g) => g.chunks.some((c) => c.part.id === partId));
+  return group && group.slideIndex !== null
+    ? (headlines.get(group.slideIndex) ?? null)
+    : null;
 }
