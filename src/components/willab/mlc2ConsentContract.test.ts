@@ -31,9 +31,14 @@ describe("MLC-2 founder consent UI contract", () => {
     expect(gate).toContain("!status.applicable || status.granted");
     expect(gate).toContain("if (!founderEligible)");
     expect(surface).toContain("MLC2_FOUNDER_CANARY_EMAIL");
-    expect(dashboard).toContain(
-      "menu.userEmail?.trim().toLowerCase() === MLC2_FOUNDER_CANARY_EMAIL",
-    );
+    // The Data & consent LINK is no longer founder-only (founder 2026-09-25,
+    // E4 = A): the page it opens now carries every person's own choices, not
+    // the MLC-2 canary consent, so every signed-in person gets it. The founder
+    // gate itself (above) is unchanged.
+    for (const header of [dashboard, read("components/SiteHeader.tsx")]) {
+      expect(header).toContain('dataConsentHref="/account/data-consent"');
+      expect(header).not.toContain("MLC2_FOUNDER_CANARY_EMAIL");
+    }
   });
 
   it("does not reuse the old local welcome transition as legal consent", () => {
@@ -44,10 +49,19 @@ describe("MLC-2 founder consent UI contract", () => {
   });
 
   it("ships explicit withdrawal rather than silently clearing history", () => {
-    const page = read("app/account/data-consent/page.tsx");
+    // The page now carries the person's own choices (founder 2026-09-25,
+    // F2 = A). Both destructive changes still ask first: turning practice off
+    // (which deletes the practice recordings) and withdrawing the consent
+    // recording rests on each go through a confirm step with its approved
+    // question.
+    const body = read("components/account/DataConsentChoices.tsx");
+    const copy = read("lib/legal/dataConsentCopy.ts");
+    expect(body.match(/<Confirm\b/g)?.length).toBe(2);
+    expect(body).toContain("question={COPY.turnOffConfirm}");
+    expect(body).toContain("question={COPY.withdrawConfirm}");
+    expect(copy).toContain("Your practice recordings will be deleted.");
+    expect(copy).toContain("Withdraw and stop recording?");
     const api = read("services/api/mlc2Consent.ts");
-    expect(page).toContain("Confirm withdrawal");
-    expect(page).toContain("retention and purge process");
     expect(api).toContain('method: "DELETE"');
   });
 

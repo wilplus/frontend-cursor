@@ -1,3 +1,4 @@
+import { DATA_CONSENT_PENDING_COPY } from "@/lib/legal/dataConsentCopy";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import {
@@ -459,6 +460,16 @@ function mapLabFailure(
       status: 413,
       code,
       message: "That file is too large to upload. Try a shorter audio file.",
+    };
+  }
+  if (code === "PROCESSING_RECORDING_WITHDRAWN") {
+    // The person withdrew the consent recording rests on (founder
+    // 2026-09-25, E5 = A). Say why, and where it comes back on.
+    return {
+      kind: "error",
+      status: 403,
+      code,
+      message: DATA_CONSENT_PENDING_COPY.recordScreenOff,
     };
   }
   if (isProcessingTimeout(response, code)) {

@@ -173,12 +173,20 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
 export async function fetchCoachConfidencePractice(
   sessionId: string,
   snippetId: string,
+  options: { onSpeakerOff?: () => void } = {},
 ): Promise<CoachConfidencePractice | null> {
   try {
     const res = await fetch(
       `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/confidence-practice`,
       { credentials: "include", cache: "no-store" },
     );
+    if (res.status === 409) {
+      // The speaker turned practice off (founder 2026-09-25, E3): there is
+      // nothing to review, and the coach is told why rather than shown nothing.
+      const body = await res.json().catch(() => null) as Record<string, unknown> | null;
+      if (body?.code === "SPEAKER_PRACTICE_OFF") options.onSpeakerOff?.();
+      return null;
+    }
     if (!res.ok) return null;
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     return mapCoachConfidencePractice(data?.practice);

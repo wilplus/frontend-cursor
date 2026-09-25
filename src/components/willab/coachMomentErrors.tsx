@@ -25,6 +25,7 @@ import {
   type CoachLibraryTeaching,
   type CoachNamedError,
 } from "@/services/api/coachConfidencePractice";
+import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import {
   draftProblem,
   listSpeakingErrors,
@@ -377,5 +378,24 @@ export function LibraryTeachings({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/* ── a speaker who turned practice off ──────────────────────────────────── */
+
+/** E3 (founder 2026-09-25): a coach cannot send an exercise to someone who
+ *  turned practice off, and is told so rather than shown nothing. */
+export function SpeakerPracticeOffNote({
+  enabled,
+  speakerOff,
+}: {
+  enabled: boolean;
+  speakerOff: boolean;
+}) {
+  if (!enabled || !speakerOff) return null;
+  return (
+    <p role="status" className="text-[12.5px] leading-snug text-muted-foreground">
+      {DATA_CONSENT_COPY.coachSpeakerOff}
+    </p>
   );
 }
