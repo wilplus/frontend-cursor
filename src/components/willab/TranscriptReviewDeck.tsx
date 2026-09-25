@@ -1349,6 +1349,7 @@ export default function TranscriptReviewDeck({
           }}
           onKeepEvolving={(text) => onKeepEvolving(openChunk, text)}
           onSetRootPhrase={(phrase) => onSetRootPhrase(openChunk, phrase)}
+          onDocumentChanged={onConfidentMomentChanged}
           onUnlockPart={
             onUnlockPart
               ? async (): Promise<LockOutcome> => {

@@ -319,33 +319,24 @@ describe("a served answer advances the ladder by itself", () => {
     expect(buttonLabels()).toContain("Use this phrase");
   });
 
-  it("reaches emphasis on a No, and on Not sure (founder 2026-09-22)", async () => {
-    // WIDENED from "skips emphasis on a No". The Yes gate delayed a rooting
-    // phrase by several takes for anyone who dislikes their own voice, and
-    // "Not sure" could not even be told apart from a No — the sheet collapsed
-    // all five answers before any gate saw them (F-4).
+  it("Not sure reaches the helper words and keeps the Lock (founder 2026-09-25, Q1 B)", async () => {
     await render(served);
-    await click("No — Not confident");
+    await click("Not sure");
     expect(buttonLabels()).toContain("Use this phrase");
   });
 
-  it("reaches emphasis on Audio unclear too, but loses the lock (founder 2026-09-24)", async () => {
-    // THE LAST CARVE-OUT, REVERSED. This test used to pin the opposite:
-    // "Audio unclear" was the one answer that closed the step, reasoning that
-    // someone who could not hear the clip has nothing to choose words from.
-    // Shown that case on the real screen and asked directly, the founder
-    // ruled against it — "keep the emphasis open" — because the phrase is
-    // about the WORDS, which of them this paragraph turns on, and that is
-    // answerable whether or not the recording came through.
-    //
-    // What the answer costs instead is the lock: it is one of the three that
-    // take the step off the end of the ladder entirely. Rewritten rather than
-    // deleted, so the reversal stays legible here too.
-    await render(served);
-    await click("Audio unclear");
-    expect(buttonLabels()).toContain("Use this phrase");
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(buttonLabels()).not.toContain("Keep evolving");
+  it("No and Audio unclear offer no helper words and no Lock (founder 2026-09-25)", async () => {
+    // REVERSES 2026-09-22 / 09-24 ("keep the emphasis open"): "if they choose
+    // judgment no or unclear, then they should have no option to root that.
+    // Just close the overlay." With no exercise on this item there is nothing
+    // after the answer, so the sheet has no phrase step and no Lock.
+    for (const answer of ["No — Not confident", "Audio unclear"]) {
+      await render(served);
+      await click(answer);
+      expect(buttonLabels()).not.toContain("Use this phrase");
+      expect(buttonLabels()).not.toContain("Lock");
+      expect(buttonLabels()).not.toContain("Keep evolving");
+    }
   });
 
   it("puts the service exercise on its own rung when the server allows one", async () => {
