@@ -31,7 +31,7 @@ const PRIMARY =
 
 type Outcome = { choice: ConsentChoice; on: boolean } | null;
 
-export default function DataConsentChoices() {
+export default function DataConsentChoices({ intro = COPY.intro }: { intro?: string }) {
   const [choices, setChoices] = useState<ConsentChoices | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState<ConsentChoice | null>(null);
@@ -64,7 +64,7 @@ export default function DataConsentChoices() {
 
   return (
     <div className="mt-4 flex flex-col gap-6">
-      <p className="text-sm leading-relaxed text-muted-foreground">{COPY.intro}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground">{intro}</p>
       {!choices && !loadFailed ? <LoadingState placement="surface" /> : null}
       {loadFailed ? (
         <p role="alert" className="text-sm text-destructive">{COPY.loadFailed}</p>

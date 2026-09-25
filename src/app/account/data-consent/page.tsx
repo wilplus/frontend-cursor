@@ -11,6 +11,7 @@
 /*  Next.js page file may export only Next's own fields.                      */
 /* -------------------------------------------------------------------------- */
 
+import { useState } from "react";
 import Link from "next/link";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DataConsentChoices from "@/components/account/DataConsentChoices";
@@ -18,6 +19,7 @@ import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 export default function DataConsentPage() {
+  const [trainingOffered, setTrainingOffered] = useState(false);
   return (
     <main className="min-h-[100dvh] bg-background text-foreground">
       <DashboardHeader />
@@ -25,9 +27,11 @@ export default function DataConsentPage() {
         <h1 className="text-3xl font-semibold tracking-tight">
           {DATA_CONSENT_COPY.title}
         </h1>
-        <DataConsentChoices />
+        <DataConsentChoices
+          intro={trainingOffered ? DATA_CONSENT_COPY.introWithTraining : DATA_CONSENT_COPY.intro}
+        />
         <div className="mt-6">
-          <TrainingConsentCard />
+          <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
         <p className="mt-8 text-sm text-muted-foreground">
           <Link href="/privacy" className="underline underline-offset-4">
