@@ -8,6 +8,11 @@ import {
   saveCoachConfidencePractice,
   type CoachConfidencePractice,
 } from "@/services/api/coachConfidencePractice";
+import {
+  AddToLibraryDoor,
+  ExercisePickList,
+  useExerciseChoice,
+} from "./coachExercisePicking";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import {
   newUploadKey,
@@ -19,10 +24,14 @@ export default function CoachConfidencePracticeReview({
   sessionId,
   snippetId,
   enabled,
+  onBuildExercise,
 }: {
   sessionId: string;
   snippetId: string;
   enabled: boolean;
+  /** The review's own hand-off to the CMS, which returns to THIS moment.
+   *  Absent where no review queue hosts the sheet; the plain link then stands. */
+  onBuildExercise?: (snippetId: string) => void;
 }) {
   const [practice, setPractice] = useState<CoachConfidencePractice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +48,13 @@ export default function CoachConfidencePracticeReview({
   const [videoUploading, setVideoUploading] = useState(false);
   const [saving, setSaving] = useState<"private" | "share" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attachNotice, setAttachNotice] = useState<string | null>(null);
+  const chooseExercise = useExerciseChoice(snippetId, practice, {
+    setMode: setExerciseMode,
+    setId: setExerciseId,
+    setNotice: setAttachNotice,
+    setVideo: setVideoUrl,
+  });
 
   useEffect(() => {
     if (!enabled) return;
@@ -258,36 +274,25 @@ export default function CoachConfidencePracticeReview({
                   the only way, and it read as "Create new exercise", which
                   sounds like building something reusable. This is the one that
                   actually does. */}
-              <a
+              {/* Brings the coach back to this moment with the new exercise
+                  already chosen, when a review hosts the sheet (founder
+                  2026-09-25). The plain link was a one-way trip. */}
+              <AddToLibraryDoor
                 href="/cms/new/exercise/1"
-                className="rounded-full border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground no-underline"
+                snippetId={snippetId}
+                onBuild={onBuildExercise}
               >
                 Add to the library
-              </a>
+              </AddToLibraryDoor>
             </div>
           </div>
           {exerciseMode === "library" ? (
-            <label className="text-[13px] font-medium text-foreground">
-              Reviewed exercise
-              <select
-                value={exerciseId || practice.exercise.exerciseId}
-                onChange={(event) => {
-                  const nextId = event.target.value;
-                  setExerciseId(nextId);
-                  const next = practice.availableExercises.find(
-                    (item) => item.exerciseId === nextId,
-                  );
-                  if (next?.explanationVideoRef) setVideoUrl(next.explanationVideoRef);
-                }}
-                className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] outline-none focus:border-primary"
-              >
-                {practice.availableExercises.map((item) => (
-                  <option key={item.exerciseId} value={item.exerciseId}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ExercisePickList
+              exercises={practice.availableExercises}
+              selectedId={exerciseId || practice.exercise.exerciseId}
+              onPick={chooseExercise}
+              notice={attachNotice}
+            />
           ) : (
             <div className="flex flex-col gap-3">
               <label className="text-[13px] font-medium text-foreground">

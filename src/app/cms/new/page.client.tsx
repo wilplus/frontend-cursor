@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authoringReturnTo } from "../interruptedDestination";
+import { authoringReturnTo, withAttachedExercise } from "../interruptedDestination";
 import { Loader2 } from "lucide-react";
 import {
   adminCreatePost,
@@ -296,7 +296,16 @@ export default function NewContentClient({ path }: { path: string[] }) {
     // Back where they came from, when they came from somewhere. The coach's
     // review sends `?returnTo=` so the queue reopens on the exact piece; the
     // catalogue is only the right destination for an author who started here.
-    router.push(authoringReturnTo() ?? "/cms");
+    // An exercise that came from a moment also sends its own id back, so that
+    // moment opens with it already chosen. A post has nothing to attach, and
+    // an author who started in the catalogue has no moment to return to.
+    const back = authoringReturnTo() ?? "/cms";
+    const cameFromAMoment = back !== "/cms";
+    router.push(
+      draft.lane === "exercise" && cameFromAMoment
+        ? withAttachedExercise(back, draft.exerciseId)
+        : back,
+    );
   }
 
   function next() {

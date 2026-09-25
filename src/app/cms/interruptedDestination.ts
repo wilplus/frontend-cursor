@@ -51,3 +51,28 @@ export function authoringReturnTo(search?: string): string | null {
     return null;
   }
 }
+
+/** The return address with the exercise the author just made riding along.
+ *
+ *  Coming back to the moment is only half of what the coach asked for (founder
+ *  2026-09-25: "you are immediately redirected to the place where you came
+ *  from … because the exercise has been already added"). The other half is
+ *  that the new exercise is waiting there, chosen, instead of the coach
+ *  hunting for it in the list they left. So the lane hands its id back as
+ *  `attach`, and the review preselects it — preselects, never saves: the coach
+ *  still presses the button that shares it.
+ *
+ *  `returnTo` has already passed `authoringReturnTo`, so it is an in-app path.
+ *  Parsing it against a throwaway origin and emitting only path, query and
+ *  hash keeps it one: nothing added here can turn it into another origin. */
+export function withAttachedExercise(returnTo: string, exerciseId: string): string {
+  const id = exerciseId.trim();
+  if (!id) return returnTo;
+  try {
+    const url = new URL(returnTo, "https://return.invalid");
+    url.searchParams.set("attach", id);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return returnTo;
+  }
+}

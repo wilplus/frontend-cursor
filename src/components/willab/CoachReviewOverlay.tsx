@@ -242,9 +242,16 @@ export default function CoachReviewOverlay({
 
   /** The CMS owns exercise authoring; the review only hands off and comes
    *  back. `returnTo` carries the exact piece so the queue reopens where the
-   *  coach left it — the drafts survive the trip in localStorage already. */
-  const onBuildExercise = useCallback(() => {
-    const back = `/chat?review=${encodeURIComponent(sessionId)}&piece=${cursor + 1}`;
+   *  coach left it — the drafts survive the trip in localStorage already.
+   *
+   *  `piece` is 1-based (`initialPiece - 1` on the way back), so this reopens
+   *  the SAME moment, not the next one — which is what the coach needs, since
+   *  the exercise they just made belongs to it. `for` names that moment, so
+   *  the exercise the CMS hands back is only ever preselected on the clip it
+   *  was made for, never on whichever clip happens to render first. */
+  const onBuildExercise = useCallback((snippetId?: string) => {
+    const forMoment = snippetId ? `&for=${encodeURIComponent(snippetId)}` : "";
+    const back = `/chat?review=${encodeURIComponent(sessionId)}&piece=${cursor + 1}${forMoment}`;
     window.location.assign(
       `/cms/new/exercise/1?returnTo=${encodeURIComponent(back)}`,
     );
