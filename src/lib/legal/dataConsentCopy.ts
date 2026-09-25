@@ -1,10 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*  Every word on the Data & consent page, in one place.                      */
 /*                                                                            */
-/*  APPROVED: signed off by the founder 2026-09-25 with the locked choices   */
-/*  E2 = C, E3 = A, E5 = A ("Wording: approved as shown on the page").        */
-/*  PENDING: needed by the build and NOT yet signed off. Each is marked, and  */
-/*  none may ship until the founder approves it.                              */
+/*  All signed off by the founder 2026-09-25: the first set with the locked   */
+/*  choices E2 = C, E3 = A, E5 = A ("Wording: approved as shown on the        */
+/*  page"), the last seven ("You got yes on all of them. All seven.") the     */
+/*  same day. A new sentence goes to the founder before it ships.             */
 /* -------------------------------------------------------------------------- */
 
 export const DATA_CONSENT_COPY = {
@@ -28,10 +28,6 @@ export const DATA_CONSENT_COPY = {
   withdraw: "Withdraw",
   withdrawConfirm: "Withdraw and stop recording?",
   coachSpeakerOff: "This speaker has turned off personalised practice.",
-} as const;
-
-/** TODO(copy, founder): none of these may ship before sign-off. */
-export const DATA_CONSENT_PENDING_COPY = {
   cancel: "Cancel",
   loadFailed: "Couldn’t load your choices. Try again.",
   recordingOff: "Recording is off.",

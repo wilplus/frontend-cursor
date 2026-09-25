@@ -87,7 +87,7 @@ describe("legal copy version aligns with the canonical policy", () => {
     const privacy = read("app/privacy/page.tsx");
     expect(privacy).toContain('<PublishedPolicyText\n        which="privacy"');
     expect(privacy).toContain("<SectionLoadingState />");
-    expect(privacy).toContain("DATA_CONSENT_PENDING_COPY.privacyUnavailable");
+    expect(privacy).toContain("DATA_CONSENT_COPY.privacyUnavailable");
     for (const stale of ["Version 1.2", "Article 6(1)(a)", "pooled"]) {
       expect(privacy).not.toContain(stale);
     }

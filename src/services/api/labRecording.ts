@@ -1,4 +1,4 @@
-import { DATA_CONSENT_PENDING_COPY } from "@/lib/legal/dataConsentCopy";
+import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import { getAuthToken } from "@/lib/api/auth-client";
 import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import {
@@ -469,7 +469,7 @@ function mapLabFailure(
       kind: "error",
       status: 403,
       code,
-      message: DATA_CONSENT_PENDING_COPY.recordScreenOff,
+      message: DATA_CONSENT_COPY.recordScreenOff,
     };
   }
   if (isProcessingTimeout(response, code)) {

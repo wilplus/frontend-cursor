@@ -22,7 +22,7 @@ import {
   type ConsentChoice,
   type ConsentChoices,
 } from "@/services/api/consentChoices";
-import { DATA_CONSENT_COPY as COPY, DATA_CONSENT_PENDING_COPY as PENDING } from "@/lib/legal/dataConsentCopy";
+import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 
 const BUTTON =
   "inline-flex h-10 items-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground";
@@ -67,7 +67,7 @@ export default function DataConsentChoices() {
       <p className="text-sm leading-relaxed text-muted-foreground">{COPY.intro}</p>
       {!choices && !loadFailed ? <LoadingState placement="surface" /> : null}
       {loadFailed ? (
-        <p role="alert" className="text-sm text-destructive">{PENDING.loadFailed}</p>
+        <p role="alert" className="text-sm text-destructive">{COPY.loadFailed}</p>
       ) : null}
       {choices?.hasReceipt ? (
         <>
@@ -120,7 +120,7 @@ function Confirm({
           {confirmLabel}
         </button>
         <button type="button" className={BUTTON} onClick={onCancel}>
-          {PENDING.cancel}
+          {COPY.cancel}
         </button>
       </div>
     </div>
@@ -160,7 +160,7 @@ export function PracticeCard({
         </p>
       ) : null}
       {erasureFinishing ? (
-        <p className="text-sm text-muted-foreground">{PENDING.erasureFinishing}</p>
+        <p className="text-sm text-muted-foreground">{COPY.erasureFinishing}</p>
       ) : null}
       {confirming ? (
         <Confirm
@@ -206,7 +206,7 @@ export function SensitiveCard({
       <p className="text-sm leading-relaxed text-muted-foreground">
         {COPY.sensitiveText}
       </p>
-      {!on ? <p role="status" className="text-sm">{PENDING.recordingOff}</p> : null}
+      {!on ? <p role="status" className="text-sm">{COPY.recordingOff}</p> : null}
       {confirming ? (
         <Confirm
           question={COPY.withdrawConfirm}
@@ -225,7 +225,7 @@ export function SensitiveCard({
             disabled={busy}
             onClick={() => (on ? setConfirming(true) : onChange(true))}
           >
-            {on ? COPY.withdraw : PENDING.agreeAgain}
+            {on ? COPY.withdraw : COPY.agreeAgain}
           </button>
         </div>
       )}

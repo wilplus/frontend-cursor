@@ -27,7 +27,7 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => {
 });
 
 import DataConsentChoices from "./DataConsentChoices";
-import { DATA_CONSENT_COPY as COPY, DATA_CONSENT_PENDING_COPY as PENDING } from "@/lib/legal/dataConsentCopy";
+import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import { mapConsentChoices, type ConsentChoices } from "@/services/api/consentChoices";
 import { SpeakerPracticeOffNote } from "@/components/willab/coachMomentErrors";
 
@@ -101,7 +101,7 @@ describe("the page", () => {
 
   it("says so when the choices cannot be read", async () => {
     await renderWith(null);
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(PENDING.loadFailed);
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(COPY.loadFailed);
   });
 });
 
@@ -124,14 +124,14 @@ describe("turning practice off", () => {
   it("can be cancelled", async () => {
     await renderWith(choices());
     await act(async () => inSection(COPY.practiceTitle, COPY.turnOff)?.click());
-    await act(async () => inSection(COPY.practiceTitle, PENDING.cancel)?.click());
+    await act(async () => inSection(COPY.practiceTitle, COPY.cancel)?.click());
     expect(container.textContent).not.toContain(COPY.turnOffConfirm);
     expect(api.setConsentChoice).not.toHaveBeenCalled();
   });
 
   it("says when the recordings are still being deleted", async () => {
     await renderWith(choices({ personalisedPractice: false, practiceErasureComplete: false }));
-    expect(container.textContent).toContain(PENDING.erasureFinishing);
+    expect(container.textContent).toContain(COPY.erasureFinishing);
   });
 
   it("turns back on without a confirm", async () => {
@@ -167,10 +167,10 @@ describe("withdrawing sensitive information", () => {
     await act(async () => confirm?.click());
     await flush();
     expect(api.setConsentChoice).toHaveBeenCalledWith("sensitive_information", false);
-    expect(container.textContent).toContain(PENDING.recordingOff);
+    expect(container.textContent).toContain(COPY.recordingOff);
 
     api.setConsentChoice.mockResolvedValue(choices());
-    await act(async () => inSection(COPY.sensitiveTitle, PENDING.agreeAgain)?.click());
+    await act(async () => inSection(COPY.sensitiveTitle, COPY.agreeAgain)?.click());
     await flush();
     expect(api.setConsentChoice).toHaveBeenLastCalledWith("sensitive_information", true);
   });
@@ -214,7 +214,7 @@ describe("around the page", () => {
   it("the record screen says why recording is off", () => {
     const lab = read("services/api/labRecording.ts");
     expect(lab).toContain('code === "PROCESSING_RECORDING_WITHDRAWN"');
-    expect(lab).toContain("DATA_CONSENT_PENDING_COPY.recordScreenOff");
+    expect(lab).toContain("DATA_CONSENT_COPY.recordScreenOff");
   });
 
   it("buttons read as what they do", async () => {
