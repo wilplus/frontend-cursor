@@ -47,8 +47,9 @@ export const DATA_CONSENT_COPY = {
   trainingOffTitle: "Turn off training?",
   trainingOffBody:
     "Your training copies will be deleted. Anything already used to train stays in that training, but it won’t be used again.",
-  // TODO(founder sign-off): `intro` above says recordings "are not used to
-  // train models". Once the switch is live that is true only for people who
-  // leave it off. It needs new wording before MLC2_TRAINING_SWITCH_ENABLED is
-  // turned on in the backend.
+  // Approved by the founder 2026-09-26 (backend N12, answer 3). Shown in
+  // place of `intro` only while the training switch is offered: until then
+  // `intro` stays, because it is still true.
+  introWithTraining:
+    "Your recordings are used to run your own coaching. They are used to train models only if you turn on Help improve WillpowerLab.",
 } as const;
