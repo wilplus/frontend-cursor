@@ -8,12 +8,13 @@ import {
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
 import {
+  STEP_ORDER,
   allDocumentsSeen,
   canSubmit,
   countryChoices,
   nextStep,
+  optionalPurposesFor,
   previousStep,
-  STEP_ORDER,
   type Step,
 } from "@/lib/legal/acceptanceSteps";
 
@@ -261,6 +262,7 @@ export default function Phase1AcceptanceFlow({
   const [country, setCountry] = useState<string | null>(null);
   const [ageAttested, setAge] = useState(false);
   const [sensitiveAttested, setSensitive] = useState(false);
+  const [practiceOptIn, setPractice] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -344,6 +346,7 @@ export default function Phase1AcceptanceFlow({
       countryOfResidence: country,
       locale,
       clientVersion: CLIENT_VERSION,
+      optionalPurposes: optionalPurposesFor({ practiceOptIn }),
       idempotencyKey: attemptKey,
     })
       .then((result) => {
@@ -358,7 +361,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, practiceOptIn, onAccepted, onStale]);
 
   /* ---------------------------------------------------------- declined -- */
 
@@ -485,7 +488,7 @@ export default function Phase1AcceptanceFlow({
 
   if (step === "confirm") {
     const ready = canSubmit(
-      { country, ageAttested, sensitiveAttested },
+      { country, ageAttested, sensitiveAttested, practiceOptIn },
       policy,
     );
     return (
@@ -518,6 +521,33 @@ export default function Phase1AcceptanceFlow({
               information about me, and I consent to WillpowerLab processing my
               recordings where it does. I can withdraw this at any time, which
               ends my use of recording.
+            </span>
+          </Choice>
+        </div>
+
+        {/* SEPARATE BLOCK, AND NOT PART OF THE HEADING ABOVE. The two ticks
+            above are what must be confirmed; this one may be left alone and
+            the service still works. It is under its own label so the heading
+            stays true of the two, and it is absent from `canSubmit` so
+            declining it never blocks the button — an optional purpose that
+            gates the button is a required purpose wearing an optional tick.
+            TODO(founder sign-off): the label and the sentence below are
+            user-facing copy and need approval before this ships. */}
+        <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
+          <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+            Optional
+          </p>
+          <Choice
+            indicator="check"
+            selected={practiceOptIn}
+            onClick={() => setPractice((v) => !v)}
+          >
+            <span className="block text-[14.5px] leading-snug text-foreground">
+              Personalised practice. Use my recordings to choose short
+              exercises that fit them, to keep the fragments I re-record, and
+              to remember what I am working on so the exercises get more
+              personal. I can turn this off at any time and keep using
+              everything else.
             </span>
           </Choice>
         </div>

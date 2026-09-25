@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 import {
+  OPTIONAL_PURPOSE_IDS,
+  STEP_ORDER,
   allDocumentsSeen,
   canSubmit,
   countryChoices,
   nextStep,
+  optionalPurposesFor,
   previousStep,
-  STEP_ORDER,
   type Step,
 } from "./acceptanceSteps";
 
@@ -174,7 +176,7 @@ describe("canSubmit", () => {
   it("requires country, age and the sensitive-data consent together", () => {
     expect(
       canSubmit(
-        { country: "pl", ageAttested: true, sensitiveAttested: true },
+        { country: "pl", ageAttested: true, sensitiveAttested: true, practiceOptIn: false },
         p,
       ),
     ).toBe(true);
@@ -183,13 +185,13 @@ describe("canSubmit", () => {
   it("refuses when either attestation is missing", () => {
     expect(
       canSubmit(
-        { country: "pl", ageAttested: false, sensitiveAttested: true },
+        { country: "pl", ageAttested: false, sensitiveAttested: true, practiceOptIn: false },
         p,
       ),
     ).toBe(false);
     expect(
       canSubmit(
-        { country: "pl", ageAttested: true, sensitiveAttested: false },
+        { country: "pl", ageAttested: true, sensitiveAttested: false, practiceOptIn: false },
         p,
       ),
     ).toBe(false);
@@ -198,7 +200,7 @@ describe("canSubmit", () => {
   it("refuses without a country", () => {
     expect(
       canSubmit(
-        { country: null, ageAttested: true, sensitiveAttested: true },
+        { country: null, ageAttested: true, sensitiveAttested: true, practiceOptIn: false },
         p,
       ),
     ).toBe(false);
@@ -209,7 +211,7 @@ describe("canSubmit", () => {
   it("refuses a country the policy does not allow", () => {
     expect(
       canSubmit(
-        { country: "us", ageAttested: true, sensitiveAttested: true },
+        { country: "us", ageAttested: true, sensitiveAttested: true, practiceOptIn: false },
         p,
       ),
     ).toBe(false);
@@ -228,5 +230,42 @@ describe("allDocumentsSeen", () => {
     expect(allDocumentsSeen(new Set<Step>(["notice", "country", "confirm"]))).toBe(
       false,
     );
+  });
+});
+
+describe("the optional practice purposes", () => {
+  const p = policy({ allowedCountries: ["pl"] });
+  const base = {
+    country: "pl",
+    ageAttested: true,
+    sensitiveAttested: true,
+  };
+
+  it("sends both purposes when the tick is on", () => {
+    expect(optionalPurposesFor({ practiceOptIn: true })).toEqual([
+      "personalized_exercise_recommendation",
+      "individual_learning_profile",
+    ]);
+  });
+
+  it("sends an empty array when it is off, not nothing", () => {
+    // An empty array is a RECORDED no. Omitting the field would leave the
+    // receipt unable to say whether the person declined or was never asked.
+    expect(optionalPurposesFor({ practiceOptIn: false })).toEqual([]);
+  });
+
+  it("carries the profile with the recommendation, never alone", () => {
+    // Two registry rows, one choice: a profile that personalises nothing, or
+    // exercises that cannot be personalised, is a choice with no meaning.
+    expect(OPTIONAL_PURPOSE_IDS).toHaveLength(2);
+    expect(optionalPurposesFor({ practiceOptIn: true })).toHaveLength(2);
+  });
+
+  it("does NOT gate the button — declining still submits", () => {
+    // THE WHOLE POINT. An optional purpose that blocks submission is a
+    // required purpose wearing an optional tick, which is the Art 7(4) defect
+    // the 2026-09-23 policy exists to remove.
+    expect(canSubmit({ ...base, practiceOptIn: false }, p)).toBe(true);
+    expect(canSubmit({ ...base, practiceOptIn: true }, p)).toBe(true);
   });
 });

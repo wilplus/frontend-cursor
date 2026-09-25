@@ -147,6 +147,10 @@ export interface AcceptanceInput {
   countryOfResidence: string;
   locale: string;
   clientVersion: string;
+  /** The optional purposes the person actually ticked, or [] if they
+   *  declined. Sent on every acceptance: an empty array is the recorded "no",
+   *  and omitting the field would be a missing answer instead. */
+  optionalPurposes: readonly string[];
   /** One key per ACCEPTANCE ATTEMPT, held across retries of that attempt.
    *  The RPC stores it per principal and replays the same receipt for a
    *  repeated key, so a double tap creates one receipt — but a NEW attempt
@@ -174,6 +178,10 @@ export async function acceptAuthorization(
     ai_notice_copy_sha256: policy.aiNotice.sha256,
     agreement_copy_sha256: policy.agreementCopySha256,
     explicit_action: "agree_and_continue",
+    // Only what was ticked. accept_..._v2 refuses a purpose that is not in the
+    // policy, or one that IS required, so this array can only ever record a
+    // real separable choice.
+    optional_purposes: [...input.optionalPurposes],
     age_18_attested: true,
     country_of_residence: input.countryOfResidence.trim().toLowerCase(),
     locale: input.locale,
