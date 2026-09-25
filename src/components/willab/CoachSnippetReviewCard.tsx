@@ -462,6 +462,7 @@ export default function CoachSnippetReviewCard({
             !unrateable &&
             (rating === "yes" || rating === "no")
           }
+          onBuildExercise={onBuildExercise}
         />
 
         {/* Coach note — user-facing prose */}
