@@ -11,6 +11,8 @@
 /*       until confirmed;                                                     */
 /*    5. a failure says so and changes nothing.                               */
 /* -------------------------------------------------------------------------- */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -147,5 +149,34 @@ describe("once it is available", () => {
     await flush();
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(COPY.failed);
     expect(button(COPY.turnOn)?.getAttribute("aria-checked")).toBe("false");
+  });
+});
+
+describe("the page intro follows the switch (founder N12, answer 3)", () => {
+  it("tells the page when the switch is offered", async () => {
+    const offered = vi.fn();
+    api.fetchTrainingConsent.mockResolvedValue(state());
+    act(() => root.render(createElement(TrainingConsentCard, { onOffered: offered })));
+    await flush();
+    expect(offered).toHaveBeenCalledWith(true);
+  });
+
+  it("tells the page when it is not", async () => {
+    const offered = vi.fn();
+    api.fetchTrainingConsent.mockResolvedValue(null);
+    act(() => root.render(createElement(TrainingConsentCard, { onOffered: offered })));
+    await flush();
+    expect(offered).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps today's sentence until the switch is offered, then the approved one", () => {
+    expect(COPY.intro).toBe(
+      "Your recordings are used to run your own coaching. They are not used to train models.",
+    );
+    expect(COPY.introWithTraining).toBe(
+      "Your recordings are used to run your own coaching. They are used to train models only if you turn on Help improve WillpowerLab.",
+    );
+    const page = readFileSync(join(process.cwd(), "src/app/account/data-consent/page.tsx"), "utf8");
+    expect(page).toContain("trainingOffered ? DATA_CONSENT_COPY.introWithTraining : DATA_CONSENT_COPY.intro");
   });
 });
