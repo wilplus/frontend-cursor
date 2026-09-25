@@ -13,7 +13,7 @@ import {
   ExercisePickList,
   useExerciseChoice,
 } from "./coachExercisePicking";
-import { LibraryTeachings, MomentErrors } from "./coachMomentErrors";
+import { LibraryTeachings, MomentErrors, SpeakerPracticeOffNote } from "./coachMomentErrors";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import {
   newUploadKey,
@@ -50,6 +50,7 @@ export default function CoachConfidencePracticeReview({
   const [saving, setSaving] = useState<"private" | "share" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attachNotice, setAttachNotice] = useState<string | null>(null);
+  const [speakerOff, setSpeakerOff] = useState(false);
   const chooseExercise = useExerciseChoice(snippetId, practice, {
     setMode: setExerciseMode,
     setId: setExerciseId,
@@ -61,7 +62,10 @@ export default function CoachConfidencePracticeReview({
     if (!enabled) return;
     let alive = true;
     setLoading(true);
-    void fetchCoachConfidencePractice(sessionId, snippetId).then((value) => {
+    setSpeakerOff(false);
+    void fetchCoachConfidencePractice(sessionId, snippetId, {
+      onSpeakerOff: () => setSpeakerOff(true),
+    }).then((value) => {
       if (!alive) return;
       setLoading(false);
       setPractice(value);
@@ -138,7 +142,7 @@ export default function CoachConfidencePracticeReview({
 
   // The endpoint deliberately returns nothing until the blind Yes/No answer
   // is saved. A 404 means this snippet had no practice, so no empty card.
-  if (!enabled || (!loading && !practice)) return null;
+  if (!enabled || (!loading && !practice)) return <SpeakerPracticeOffNote enabled={enabled} speakerOff={speakerOff} />;
 
   return (
     <section className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">

@@ -37,6 +37,10 @@ const ALLOWED: Record<string, readonly string[]> = {
   "": ["GET", "POST"],
   principal: ["POST"],
   "ai-rendered": ["POST"],
+  // A person changing a choice after accepting (founder 2026-09-25): the
+  // practice switch and the sensitive-information withdrawal on the Data &
+  // consent page. Nothing else from the backend lane opens with it.
+  choices: ["GET", "POST"],
 };
 
 function target(context: { params: { path?: string[] } }, method: string): string | null {

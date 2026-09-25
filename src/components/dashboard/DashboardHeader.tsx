@@ -5,7 +5,6 @@ import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
 import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
-import { MLC2_FOUNDER_CANARY_EMAIL } from "@/services/api/mlc2Consent";
 
 /* -------------------------------------------------------------------------- */
 /*  DashboardHeader — the lab's chrome.                                        */
@@ -62,11 +61,9 @@ export default function DashboardHeader() {
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
             corpusHref={menu.isCoach ? "/coach/corpus" : null}
-            dataConsentHref={
-              menu.userEmail?.trim().toLowerCase() === MLC2_FOUNDER_CANARY_EMAIL
-                ? "/account/data-consent"
-                : null
-            }
+            // Every signed-in person (founder 2026-09-25, E4 = A); the
+            // menu already hides it from anyone signed out.
+            dataConsentHref="/account/data-consent"
           />
         </div>
       </div>

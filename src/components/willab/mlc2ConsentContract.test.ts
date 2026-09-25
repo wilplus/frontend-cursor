@@ -31,9 +31,14 @@ describe("MLC-2 founder consent UI contract", () => {
     expect(gate).toContain("!status.applicable || status.granted");
     expect(gate).toContain("if (!founderEligible)");
     expect(surface).toContain("MLC2_FOUNDER_CANARY_EMAIL");
-    expect(dashboard).toContain(
-      "menu.userEmail?.trim().toLowerCase() === MLC2_FOUNDER_CANARY_EMAIL",
-    );
+    // The Data & consent LINK is no longer founder-only (founder 2026-09-25,
+    // E4 = A): the page it opens now carries every person's own choices, not
+    // the MLC-2 canary consent, so every signed-in person gets it. The founder
+    // gate itself (above) is unchanged.
+    for (const header of [dashboard, read("components/SiteHeader.tsx")]) {
+      expect(header).toContain('dataConsentHref="/account/data-consent"');
+      expect(header).not.toContain("MLC2_FOUNDER_CANARY_EMAIL");
+    }
   });
 
   it("does not reuse the old local welcome transition as legal consent", () => {
@@ -44,10 +49,19 @@ describe("MLC-2 founder consent UI contract", () => {
   });
 
   it("ships explicit withdrawal rather than silently clearing history", () => {
-    const page = read("app/account/data-consent/page.tsx");
+    // The page now carries the person's own choices (founder 2026-09-25,
+    // F2 = A). Both destructive changes still ask first: turning practice off
+    // (which deletes the practice recordings) and withdrawing the consent
+    // recording rests on each go through a confirm step with its approved
+    // question.
+    const body = read("components/account/DataConsentChoices.tsx");
+    const copy = read("lib/legal/dataConsentCopy.ts");
+    expect(body.match(/<Confirm\b/g)?.length).toBe(2);
+    expect(body).toContain("question={COPY.turnOffConfirm}");
+    expect(body).toContain("question={COPY.withdrawConfirm}");
+    expect(copy).toContain("Your practice recordings will be deleted.");
+    expect(copy).toContain("Withdraw and stop recording?");
     const api = read("services/api/mlc2Consent.ts");
-    expect(page).toContain("Confirm withdrawal");
-    expect(page).toContain("retention and purge process");
     expect(api).toContain('method: "DELETE"');
   });
 
@@ -60,12 +74,22 @@ describe("MLC-2 founder consent UI contract", () => {
 });
 
 describe("legal copy version aligns with the canonical policy", () => {
-  it("publishes Terms and Privacy version 1.2", () => {
-    const privacy = read("app/privacy/page.tsx");
+  it("publishes Terms version 1.2", () => {
     const terms = read("app/terms/page.tsx");
-    expect(privacy).toContain("Version 1.2");
     expect(terms).toContain("Version 1.2");
-    expect(privacy).toContain("Article 6(1)(a)");
-    expect(privacy).toContain("Article 9(2)(a)");
+  });
+
+  it("shows only the stored Privacy Policy, never a stale stand-in", () => {
+    // Founder 2026-09-25, F3 = A. The v1.2 stand-in described the retired
+    // bundled training consent and was shown to every visitor while the
+    // stored policy loaded. The page now waits for the stored copy, and says
+    // plainly when it cannot be read.
+    const privacy = read("app/privacy/page.tsx");
+    expect(privacy).toContain('<PublishedPolicyText\n        which="privacy"');
+    expect(privacy).toContain("<SectionLoadingState />");
+    expect(privacy).toContain("DATA_CONSENT_COPY.privacyUnavailable");
+    for (const stale of ["Version 1.2", "Article 6(1)(a)", "pooled"]) {
+      expect(privacy).not.toContain(stale);
+    }
   });
 });
