@@ -159,7 +159,6 @@ const props = {
   onAccept: vi.fn(async () => true),
   onKeepMine: vi.fn(async () => true),
   onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
-  onKeepEvolving: vi.fn(async () => "ok" as const),
   onSetRootPhrase: vi.fn(async () => true),
   onClose: vi.fn(),
 };

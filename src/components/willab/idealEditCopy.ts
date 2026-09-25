@@ -136,7 +136,6 @@ export const CHUNK_SHEET_COPY = {
   pillEmphasise: "Use this phrase",
   pillChooseWords: "Choose different words",
   pillLock: "Lock",
-  pillDiscard: "Discard",
   /* The exercise step's two pills. They differ by one word on purpose:
      "Practise again" appears only after Back off the judgement screen, and it
      spends one of the capped attempts on a NEW run rather than resuming the
@@ -157,7 +156,6 @@ export const CHUNK_SHEET_COPY = {
   /* linkSkip is GONE with the button that used it (founder 2026-09-16, §5):
      the emphasis step has no opt-out, because it only appears on a paragraph
      already judged Yes. */
-  linkKeepEvolving: "Keep evolving",
   /* "Not now" declines the exercise and closes the practice server-side, so it
      does not return on the next Take. "Back" leaves the judgement without
      answering it and lands on the offer — the same screen a rejected attempt
@@ -211,9 +209,7 @@ export const CHUNK_SHEET_COPY = {
   failKeep: "Your choice is safe. Refresh to continue.",
   failLockBlocked: "Decide every suggestion on this chunk first.",
   failLock: "Couldn't lock this in. Try again.",
-  failEvolve: "Couldn't keep this paragraph evolving. Try again.",
   failEmphasis: "Couldn't apply that. Try again.",
-  failUnlock: "Couldn't unlock this. Try again.",
   failRoot: "Couldn't save those words. Try again.",
   /* A DIFFERENT FAILURE NEEDS A DIFFERENT SENTENCE. `failRoot` ends in "Try
      again", which is right when the server refused the write and wrong when
@@ -227,7 +223,8 @@ export const CHUNK_SHEET_COPY = {
      SIGNED OFF as written. An answered bookmark opens on one screen: the
      exercise, if the moment has one; "You said" and the answer in one line;
      what happened to the moment in one or two boxes; then how the Slide's
-     words and helper words changed. Words only — no score (AC-9). "Exercise"
+     words and helper words changed. "Before" is gone with the two-list
+     layout: the timeline shows each Take with its own helper words (Q26 B). Words only — no score (AC-9). "Exercise"
      and "Practise" reuse titleExercise and pillPractise above. */
   historyYouSaid: "You said",
   historyCorrectionAccepted: "Correction accepted",
@@ -237,5 +234,4 @@ export const CHUNK_SHEET_COPY = {
   historyTake: "Take",
   historyHelperWords: "Helper words",
   historyNow: "Now",
-  historyBefore: "Before",
 } as const;

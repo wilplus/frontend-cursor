@@ -640,31 +640,6 @@ export default function IdealTextOverlay({
    * client-minted identity on a document the server has no parts for; a chunk
    * that is already locked proves the server holds that identity, so there is
    * nothing to seed. */
-  const unlockParagraph = useCallback(
-    async (chunk: DeckChunk): Promise<"ok" | "blocked" | "failed"> => {
-      const parts = reconcileParts(displayText, partsRef.current ?? []);
-      partsRef.current = parts;
-      const target = lockTargetAt(parts, chunk.paragraphIndex, chunk.part.text);
-      if (!target) return "failed";
-      if (!target.locked) return "ok"; // already open — nothing to write
-      const r = await setPartLock(arcId, target.id, false, displayText);
-      if (r.kind === "stale") {
-        setRefetchNonce((n) => n + 1);
-        return "failed";
-      }
-      if (r.kind === "error" || r.kind === "undecided") return "failed";
-      const unlockedParts = (partsRef.current ?? []).map((p) =>
-        p.id === target.id ? { ...p, locked: false } : p,
-      );
-      partsRef.current = unlockedParts;
-      // The inverse of the lock, and it keeps the inverse's rule: this
-      // paragraph, not the document. Undoing a lock must not rebuild the deck
-      // any more than making one does.
-      setSd((prev) => (prev ? { ...prev, parts: unlockedParts } : prev));
-      return "ok";
-    },
-    [arcId, displayText],
-  );
 
   // MATERIAL RECOVERY — accept promotes the candidate block into the master;
   // "Not now" drops the offer, and the same words may be offered again if said
@@ -827,49 +802,6 @@ export default function IdealTextOverlay({
     [arcId, displayText, saveDocument, lockParagraph],
   );
 
-  const deckKeepEvolving = useCallback(
-    async (
-      chunk: DeckChunk,
-      newText: string,
-    ): Promise<"ok" | "blocked" | "failed"> => {
-      const at = chunk.paragraphIndex;
-      let next = reconcileParts(displayText, partsRef.current ?? []);
-      if (at < 0 || at >= next.length) return "failed";
-      const trimmed = newText.trim();
-      if (!trimmed) return "failed";
-      if (trimmed !== next[at].text.trim()) {
-        next = updatePart(next, at, trimmed);
-        if (!(await saveDocument(partsToText(next), next))) return "failed";
-      }
-      const textEcho = partsToText(next);
-      const target = next[at];
-      const result = await setPartLock(arcId, target.id, false, textEcho, {
-        reason: "keep_evolving",
-      });
-      if (result.kind !== "ok") {
-        if (result.kind === "stale") setRefetchNonce((n) => n + 1);
-        return "failed";
-      }
-      const evolvingParts = next.map((part) =>
-        part.id === target.id
-          ? {
-              ...part,
-              locked: false,
-              rootPhrase: null,
-              rootStart: null,
-              rootEnd: null,
-            }
-          : part,
-      );
-      partsRef.current = evolvingParts;
-      // Same rule as the lock above: this paragraph, not the document.
-      setSd((prev) =>
-        prev ? { ...prev, text: textEcho, parts: evolvingParts } : prev,
-      );
-      return "ok";
-    },
-    [arcId, displayText, saveDocument],
-  );
 
   const deckSetRootPhrase = useCallback(
     async (
@@ -1138,10 +1070,8 @@ export default function IdealTextOverlay({
               setSd((prev) => withSuggestionStatus(prev, s.id, decided))
             }
             onLockPart={deckLockPart}
-            onKeepEvolving={deckKeepEvolving}
             onSetRootPhrase={deckSetRootPhrase}
             onEditSlide={deckEditSlide}
-            onUnlockPart={unlockParagraph}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,

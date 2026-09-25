@@ -196,11 +196,16 @@ check(
   "tapped words preview in the accent, which is how a rooting phrase records",
   (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3
 );
+// ONE SCREEN (founder 2026-09-25, Q24 B): "Use this phrase" locks the words
+// at once and the sheet closes. There is no Lock screen after it, and no
+// "Keep evolving" anywhere.
 await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).click();
-
-await page.waitForSelector("text=Lock");
-await dialog(page).locator("button", { hasText: /^Lock$/ }).last().click();
 await page.waitForTimeout(700);
+check(
+  "choosing the helper words locks them and closes the sheet, with no Lock screen",
+  (await page.locator('[role="dialog"]').count()) === 0 &&
+    (await page.locator("button", { hasText: /^Keep evolving$/ }).count()) === 0
+);
 writes = await calls(page);
 const lockWrites = writes.filter((entry) => entry.url.includes("/lock"));
 check(
@@ -259,6 +264,23 @@ check(
   (await page.locator('button[aria-label*="Paragraph protected"]').count()) === 0 &&
     (await page.locator("button[data-status]").count()) === 0
 );
+/* THE PARAGRAPH'S OWN SHEET (founder 2026-09-25, Q26 B). A paragraph that was
+   answered or locked has no mark, but tapping its words opens its own sheet:
+   the helper words and the paragraph now at the top, the history below. No
+   Discard (Q6 A). */
+await page
+  .locator('[data-opens-sheet="true"]', { hasText: "Nobody trusted the figures" })
+  .first()
+  .click();
+await page.waitForSelector('[data-testid="paragraph-sheet"]');
+check(
+  "tapping a locked paragraph opens its own sheet with the paragraph as it is now",
+  (await page.locator('[data-testid="paragraph-now"]', { hasText: "Nobody trusted the figures" }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Discard$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Lock$/ }).count()) === 0
+);
+await dialog(page).locator('button[aria-label="Close"]').first().click();
+await page.waitForTimeout(300);
 check(
   // ...and the page still does its job: marker syntax never reaches the reader,
   // on a paragraph that carries a style offer it can no longer be shown.

@@ -281,33 +281,20 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).not.toMatch(/chunk\.status/);
   });
 
-  it("ends a reviewed paragraph with an explicit lock-or-evolve commit", () => {
+  it("choosing the helper words locks them; there is no Keep evolving and no Discard", () => {
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
-    expect(MODAL).toMatch(
-      /const lockedAndSettled =\s*chunk\.part\.locked === true && draft === chunk\.part\.text;/
-    );
-    expect(MODAL).toMatch(
-      /const showUnlock =\s*lockedAndSettled && !hadFeedback && !!onUnlockPart && !unlocked;/
-    );
-    // The pill is the verb of its own screen; the decline is a grey link under
-    // it, never a second button beside it.
-    expect(MODAL).toMatch(/COPY\.pillLock/);
-    expect(MODAL).toMatch(/COPY\.linkKeepEvolving/);
-    expect(MODAL).toMatch(/void keepEvolving\(\)/);
-    // THE ROOT FACE IS GONE (founder 2026-09-15). The rooting phrase is
-    // chosen on the emphasis step, before the lock, and promoted by the lock
-    // itself — they already said which words matter, and asking again after
-    // the lock was asking twice.
+    // FOUNDER 2026-09-25, Q24 B: "Use this phrase" locks at once and the
+    // sheet closes — both ways of choosing end in the lock, not an advance.
+    expect(MODAL).toMatch(/const styled = await applyStyle\(\);\s*\n\s*await lockIn\(styled, chosen\);/);
+    expect(MODAL).toMatch(/await lockIn\(draft, chosen\);/);
+    // Q6 A: no Unlock. "Keep evolving" means nothing when every Take
+    // rewrites every paragraph (L1, amended 2026-09-25).
+    expect(MODAL).not.toMatch(/linkKeepEvolving|keepEvolving|onKeepEvolving/);
+    expect(MODAL).not.toMatch(/pillDiscard|onUnlockPart|setUnlocked/);
+    // THE ROOT FACE IS GONE (founder 2026-09-15), and stays gone.
     expect(STEPS).not.toMatch(/Choose a rooting phrase/);
     expect(MODAL).not.toMatch(/setFace\(/);
-    expect(MODAL).toMatch(/quoteSpan\(draft, promotedQuote\)/);
     expect(MODAL).not.toMatch(/Make this phrase orange/);
-    // Legacy unlock remains available for an already-settled paragraph — and
-    // since 2026-09-15 it lands on the editor rather than dismissing the
-    // sheet, which is what "Discard" always meant.
-    expect(MODAL).toMatch(/void unlock\(\)/);
-    expect(MODAL).toMatch(/setUnlocked\(true\);\s*\n\s*setStepId\("lock"\)/);
-    expect(MODAL).not.toMatch(/lockedAndSettled = [^;]*dirtyRef/);
   });
 
   it("offers an orange root on every answer, and saves it where it is chosen", () => {
@@ -346,7 +333,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // step (deliberately, so a second confident-voice item opens unanswered —
     // L3), so by Lock it was always null.
     expect(MODAL).toMatch(
-      /dirtyRef\.current &&\s*\n\s*promotedQuote &&\s*\n\s*!\(confidenceOnly && !opensRootPhrase\(judgement\)\)/,
+      /dirtyRef\.current &&\s*\n\s*quote &&\s*\n\s*!\(confidenceOnly && !opensRootPhrase\(judgement\)\)/,
     );
     expect(MODAL).not.toMatch(/confidenceOnly && agreeValue !== "yes"/);
 
@@ -360,11 +347,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).toMatch(/if \(reAnchor\) await onSetRootPhrase\(reAnchor\)/);
   });
 
-  it("the lock step is gone on the three answers that close it", () => {
+  it("a settled paragraph that was answered or locked opens its own sheet when tapped (Q26 B)", () => {
+    const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
+    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(!unsettled && opensParagraphSheet\(st\)/);
+  });
+
+  it("no sheet ends on a Lock screen any more", () => {
     // FOUNDER 2026-09-24: "no just don't show that overlay; no keep evolving
     // — after the rooting phrases close the overlay in these cases." Not a
     // disabled pill and not a softer pill: the step is not built.
-    expect(MODAL).toMatch(/canLock: !closesLock\(judgementValue\)/);
+    // FOUNDER 2026-09-25 (Q24 B / Q25 B): no Lock screen on any answer. The
+    // helper words lock on the emphasis step; everything else just closes.
+    expect(MODAL).toMatch(/canLock: feedbackInventory\.length === 0,/);
     // And the ladder running out is now a real branch, which is the close.
     expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*onClose\(\);/);
     // THE ANSWER REACHES IT UNCOLLAPSED. `closesLock` puts "No" and

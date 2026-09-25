@@ -149,7 +149,6 @@ const props = {
     outcome: "ok" as const,
     rootPhraseProposal: null,
   })),
-  onKeepEvolving: vi.fn(async () => "ok" as const),
   // Typed so the mock records its argument: the promotion test needs to read
   // the span that was stored, not merely that something was.
   onSetRootPhrase: vi.fn(async (_phrase: RootPhraseSpan | null) => true),
@@ -612,15 +611,48 @@ describe("the ladder", () => {
     await click("Continue");            // good job
     expect(container.textContent).toContain("With emphasis");
     await click("Use this phrase");
-    // The lock step, and it is the LAST one: no rooting-phrase screen behind
-    // it. They already said which words matter.
+    // "Use this phrase" locks at once and closes (Q24 B): no Lock screen and
+    // no rooting-phrase screen behind it. They already said which words matter.
     expect(container.textContent).not.toContain("Tap the words");
-    await click("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
     expect(calls[0][0]?.text).toContain("the team is ready");
     expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it("an accepted proposed emphasis locks the STYLED words and re-anchors on them (Q24 B)", async () => {
+    // Locking in the same tap as the style: `draft` in scope is still the
+    // pre-style text, so the lock must be handed the styled words, or it
+    // would lock (and save) the paragraph without the bold the server has.
+    vi.mocked(props.onLockIn).mockClear();
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    const onApplyStyle = vi.fn(async () => true);
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          onApplyStyle,
+          state: {
+            ...chunkStateFor(
+              { ...chunk(), pendingIds: [confidentVoice.id] } as DeckChunk,
+              { document: TEXT, suggestions: [confidentVoice] },
+            ),
+            style: emphasis,
+          },
+        }),
+      );
+    });
+    await click("Yes — Confident");
+    await click("Use this phrase");
+    expect(onApplyStyle).toHaveBeenCalledTimes(1);
+    const locked = vi.mocked(props.onLockIn).mock.calls[0][0];
+    expect(locked).toContain("{{orange:the team is ready}}");
+    const anchors = vi.mocked(props.onSetRootPhrase).mock.calls;
+    // Saved once where chosen, then once more against the styled words.
+    expect(anchors).toHaveLength(2);
+    const last = anchors[1][0]!;
+    expect(locked.slice(last.start, last.end)).toContain("the team is ready");
   });
 
   it("saves the emphasis on a CONFIDENCE-ONLY paragraph", async () => {
@@ -641,8 +673,7 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
     await click("Yes — Confident");
     expect(container.textContent).toContain("With emphasis");
-    await click("Use this phrase");
-    await click("Lock");
+    await click("Use this phrase"); // locks at once (Q24 B)
     expect(props.onLockIn).toHaveBeenCalled();
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
@@ -693,8 +724,7 @@ describe("the ladder", () => {
     expect(word.getAttribute("aria-pressed")).toBe("true");
     expect(word.className).toContain("text-primary");
 
-    await click("Use this phrase");
-    await click("Lock");
+    await click("Use this phrase"); // locks at once (Q24 B)
     const lockedText = vi.mocked(props.onLockIn).mock.calls[0][0];
     expect(lockedText).not.toContain("{{orange:");
     expect(lockedText).not.toContain("**");
@@ -758,17 +788,13 @@ describe("the ladder", () => {
     expect(word.className).toContain("text-primary");
   });
 
-  it("Discard lands on the editor rather than dismissing the sheet", async () => {
-    // It used to call onClose(), so undoing a lock also closed the sheet: the
-    // speaker asked to edit and was put back where they started, with the
-    // paragraph now unlocked and nothing on screen saying so.
-    const onUnlockPart = vi.fn(async () => "ok" as const);
-    vi.mocked(props.onClose).mockClear();
+  it("a locked paragraph offers no Discard and no Keep evolving (Q6 A)", async () => {
+    // Unlock is gone (founder 2026-09-25): a locked paragraph opens its own
+    // sheet from the deck now, and this sheet has no inverse of the lock.
     await act(async () => {
       root.render(
         createElement(DeckChunkModal, {
           ...props,
-          onUnlockPart,
           state: chunkStateFor(
             {
               ...chunk(),
@@ -781,11 +807,8 @@ describe("the ladder", () => {
         }),
       );
     });
-    expect(buttonLabels()).toContain("Discard");
-    await click("Discard");
-    expect(onUnlockPart).toHaveBeenCalled();
-    expect(props.onClose).not.toHaveBeenCalled();
-    expect(buttonLabels()).toContain("Lock");
+    expect(buttonLabels()).not.toContain("Discard");
+    expect(buttonLabels()).not.toContain("Keep evolving");
   });
 });
 
@@ -844,9 +867,11 @@ describe("a superseded Take is read-only, not a dead end", () => {
     expect(buttonLabels()).not.toContain("Keep wording");
     await click("Continue");
     await click("Continue");
-    // No judgement was recorded, so no emphasis rung — straight to the lock.
+    // No judgement was recorded, so no helper-words step, and with no Lock
+    // screen any more (Q25 B) the sheet simply closes.
     expect(buttonLabels()).not.toContain("Use this phrase");
-    expect(buttonLabels()).toContain("Lock");
+    expect(buttonLabels()).not.toContain("Lock");
+    expect(props.onClose).toHaveBeenCalled();
 
     expect(saved).toHaveBeenCalledTimes(1);
     expect(props.onAccept).not.toHaveBeenCalled();
@@ -885,7 +910,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
  * moment three answers end the ladder earlier — the speaker taps their words,
  * the sheet closes, and nothing was ever written.
  */
-describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (founder 2026-09-25)", () => {
+describe("No and Audio unclear end the sheet; Not sure keeps words and their lock (founder 2026-09-25)", () => {
   /** Pick the first offered word and commit it. */
   async function tapAWordAndCommit() {
     expect(container.textContent).toContain("Tap the words");
@@ -902,7 +927,6 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
   it("No — Not confident: no helper words, no Lock, and the sheet is done", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onLockIn).mockClear();
-    vi.mocked(props.onKeepEvolving).mockClear();
 
     await renderLadder({ pending: [confidentVoice] });
     await click("No — Not confident");
@@ -914,7 +938,6 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
     expect(labels).not.toContain("Keep evolving");
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
     expect(props.onLockIn).not.toHaveBeenCalled();
-    expect(props.onKeepEvolving).not.toHaveBeenCalled();
   });
 
   it("Audio unclear is the same as No: no helper words, no Lock", async () => {
@@ -929,8 +952,8 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
     await renderLadder({ pending: [confidentVoice] });
     await click("Not sure");
     await tapAWordAndCommit();
-    expect(buttonLabels()).toContain("Lock");
-    await click("Lock");
+    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
 
@@ -940,8 +963,8 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
     await renderLadder({ pending: [confidentVoice] });
     await click("In-between");
     await tapAWordAndCommit();
-    expect(buttonLabels()).toContain("Lock");
-    await click("Lock");
+    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
 
@@ -950,8 +973,8 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
     await renderLadder({ pending: [confidentVoice] });
     await click("Yes — Confident");
     await tapAWordAndCommit();
-    expect(buttonLabels()).toContain("Lock");
-    await click("Lock");
+    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
 
@@ -964,7 +987,12 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and Lock (fou
     await click("Yes — Confident");
     await tapAWordAndCommit();
     expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
-    expect(buttonLabels()).toContain("Lock"); // still standing on the lock step
+    // Written first, then locked (Q24 B).
+    expect(
+      vi.mocked(props.onSetRootPhrase).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(props.onLockIn).mock.invocationCallOrder.at(-1) ?? 0,
+    );
   });
 
   it("a phrase that fails to save keeps the speaker on the step", async () => {
@@ -1061,8 +1089,8 @@ describe("declining the exercise keeps the emphasis step", () => {
     });
     await click("Use this phrase");
     expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
-    // In-between keeps its lock, so the ladder still ends there.
-    expect(buttonLabels()).toContain("Lock");
+    // In-between keeps its lock: "Use this phrase" locked the words.
+    expect(props.onLockIn).toHaveBeenCalled();
   });
 });
 
