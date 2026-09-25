@@ -1,8 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Lock } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ExternalLink, Lock } from "lucide-react";
 import type { AdminSpeakingError } from "@/services/api/journalAdmin";
+import {
+  draftProblem,
+  saveSpeakingError,
+  suggestErrorId,
+} from "@/services/api/speakingErrors";
 import type { LaneDraft } from "./laneDraft";
 import { slugify } from "./laneDraft";
 import { LANE_INPUT, LaneField } from "./LaneShell";
@@ -204,6 +209,154 @@ export function TagStep({ draft, patch, errors }: {
           </div>
         </div>
       ) : null}
+      <NameAnErrorBox />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  NAMING ONE THAT IS NOT THERE (founder 2026-09-25, decision 03).            */
+/*                                                                            */
+/*  Two holes, one box. The library page existed and NOTHING in the app        */
+/*  linked to it, so most coaches had never seen the list they are tagging     */
+/*  from. And when a coach heard something the list does not have, there was   */
+/*  nowhere to put it — so it was lost at the one moment someone knew it.      */
+/*                                                                            */
+/*  It is a filing cabinet, not a switch, and the confirmation says so. A      */
+/*  newly named pattern saves as `observed`: code cannot hear it, so no        */
+/*  exercise may be tagged with it, and nothing reaches a speaker until a      */
+/*  detector exists. Telling the coach that plainly is the whole point —       */
+/*  letting them believe they had just switched something on would be worse    */
+/*  than not having the box.                                                   */
+/*                                                                            */
+/*  Copy: founder sign-off 2026-09-25, except "The one question it answers",   */
+/*  which the CONSTRUCT fence requires and which is awaiting sign-off.         */
+/* -------------------------------------------------------------------------- */
+export function NameAnErrorBox() {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [definition, setDefinition] = useState("");
+  const [asks, setAsks] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [filed, setFiled] = useState<string | null>(null);
+
+  const reset = () => {
+    setLabel("");
+    setDefinition("");
+    setAsks("");
+    setProblem(null);
+  };
+
+  const submit = async () => {
+    if (saving) return;
+    const draft = {
+      errorId: suggestErrorId(label),
+      label: label.trim(),
+      definition: definition.trim(),
+      asks: asks.trim(),
+    };
+    const stop = draftProblem(draft);
+    if (stop) {
+      setProblem(stop);
+      return;
+    }
+    setSaving(true);
+    const result = await saveSpeakingError(draft);
+    setSaving(false);
+    if (!result.ok) {
+      setProblem(result.message);
+      return;
+    }
+    setFiled(draft.label);
+    setOpen(false);
+    reset();
+  };
+
+  return (
+    <div className="mt-6 border-t border-border pt-5">
+      <a
+        href="/coach/errors"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground underline underline-offset-4"
+      >
+        See all known errors
+        <ExternalLink className="h-3 w-3" aria-hidden />
+      </a>
+
+      {filed ? (
+        <p className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+          Filed. It can’t be attached to an exercise until the app can
+          hear it.
+        </p>
+      ) : null}
+
+      {open ? (
+        <div className="mt-4 flex flex-col gap-[18px] rounded-xl border border-border p-4">
+          <LaneField label="A short name">
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              className={LANE_INPUT}
+            />
+          </LaneField>
+          <LaneField label="What you heard">
+            <textarea
+              rows={3}
+              value={definition}
+              onChange={(event) => setDefinition(event.target.value)}
+              className={`${LANE_INPUT} resize-none leading-relaxed`}
+            />
+          </LaneField>
+          <LaneField label="The one question it answers">
+            <input
+              value={asks}
+              onChange={(event) => setAsks(event.target.value)}
+              className={LANE_INPUT}
+            />
+          </LaneField>
+          {problem ? (
+            <p className="text-[13px] leading-relaxed text-destructive">
+              {problem}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void submit()}
+              className="rounded-full bg-foreground px-5 py-3 text-[14px] text-background disabled:opacity-50"
+            >
+              {saving ? "Filing…" : "File it"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                reset();
+              }}
+              className="rounded-full border border-border px-5 py-3 text-[14px]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <p className="text-[13px] text-muted-foreground">Not on the list?</p>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+              setFiled(null);
+            }}
+            className="mt-2 rounded-full border border-border px-5 py-3 text-[14px]"
+          >
+            Name what you heard
+          </button>
+        </div>
+      )}
     </div>
   );
 }

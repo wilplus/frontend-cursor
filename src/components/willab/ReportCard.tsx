@@ -5,6 +5,7 @@ import {
   Check,
   Crown,
   FileText,
+  MessageSquareQuote,
   Mic,
   ShieldAlert,
   Sparkles,
@@ -159,6 +160,128 @@ function renderFeedbackReportCard(
 //     grey card (deliberately NOT purple, so the later coach-perfected purple
 //     bubble still reads as the upgrade moment, never a duplicate).
 //   no variant / "perfected" → the publish-time PURPLE card (unchanged).
+/** THE MOMENT THE COACH'S WORK LANDS (founder 2026-09-25, decision 02).
+ *
+ *  Until now this was the silent moment: hours of judgement, Publish pressed,
+ *  and nothing in the thread at all. One card, and it opens the same place the
+ *  email's button opens, so the inbox and the chat lead to one destination
+ *  rather than two. It is NOT a per-take bubble — those were retired in July
+ *  because they put a second deliverable beside the canonical document.
+ *
+ *  Copy: founder sign-off 2026-09-25. */
+function CoachFeedbackPublishedCard({
+  body,
+  onOpen,
+}: {
+  body: string;
+  onOpen: (() => void) | null;
+}) {
+  return (
+    <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+      <div className="flex items-start gap-2">
+        <MessageSquareQuote
+          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+          aria-hidden
+        />
+        <p className="text-[15px] leading-relaxed text-foreground">{body}</p>
+      </div>
+      {onOpen ? (
+        <Button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 h-10 w-full rounded-full"
+        >
+          See the feedback
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The Take whose document could not be created, with its two ways out.
+ *
+ *  Its own component because the dispatcher below is a dispatcher: every
+ *  branch it inlines costs the whole function complexity that belongs to one
+ *  card. Behaviour is unchanged by the extraction. */
+function IdealTextUnconfirmedCard({
+  message,
+  arcId,
+  onRetryIdealText,
+  onOpenFeedback,
+  retryingIdealText,
+  setRetryingIdealText,
+}: {
+  message: LoungeMessage;
+  arcId: string | null;
+  onRetryIdealText?: (
+    target: IdealTextRetryTarget,
+  ) => boolean | Promise<boolean>;
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  retryingIdealText: boolean;
+  setRetryingIdealText: (value: boolean) => void;
+}) {
+  const takeSessionId =
+    typeof message.metadata?.take_session_id === "string"
+      ? message.metadata.take_session_id
+      : null;
+  const cardTakeIndex = takeIndexOfCard(message.metadata?.take_index);
+  const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
+  const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
+  return (
+    <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
+      <div className="flex items-start gap-2">
+        <ShieldAlert
+          className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+          aria-hidden
+        />
+        <p className="text-[15px] leading-relaxed text-foreground">
+          {message.body}
+        </p>
+      </div>
+      <div className="mt-3 flex flex-col gap-2">
+        {canRetry ? (
+          <Button
+            type="button"
+            disabled={retryingIdealText}
+            onClick={async () => {
+              if (!arcId || !takeSessionId || !onRetryIdealText) return;
+              setRetryingIdealText(true);
+              try {
+                await onRetryIdealText({
+                  arcId,
+                  takeSessionId,
+                  takeIndex: cardTakeIndex,
+                });
+              } finally {
+                setRetryingIdealText(false);
+              }
+            }}
+            className="h-10 w-full rounded-full"
+          >
+            Try creating it again
+          </Button>
+        ) : null}
+        {canOpenFeedback ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              onOpenFeedback!({
+                arcId: arcId!,
+                takeSessionId,
+                takeIndex: cardTakeIndex,
+              })
+            }
+            className="h-10 w-full rounded-full"
+          >
+            View this take&apos;s feedback
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function renderIdealTextReportCard(
   message: LoungeMessage,
   options: {
@@ -202,65 +325,23 @@ function renderIdealTextReportCard(
     if (arcId && onOpenIdealText) onOpenIdealText(arcId);
   };
   if (variant === "ideal_text_unconfirmed") {
-    const takeSessionId =
-      typeof message.metadata?.take_session_id === "string"
-        ? message.metadata.take_session_id
-        : null;
-    const cardTakeIndex = takeIndexOfCard(message.metadata?.take_index);
-    const canRetry = !!(arcId && takeSessionId && onRetryIdealText);
-    const canOpenFeedback = !!(arcId && takeSessionId && onOpenFeedback);
     return (
-      <div className="my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3">
-        <div className="flex items-start gap-2">
-          <ShieldAlert
-            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-            aria-hidden
-          />
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {message.body}
-          </p>
-        </div>
-        <div className="mt-3 flex flex-col gap-2">
-          {canRetry ? (
-            <Button
-              type="button"
-              disabled={retryingIdealText}
-              onClick={async () => {
-                if (!arcId || !takeSessionId || !onRetryIdealText) return;
-                setRetryingIdealText(true);
-                try {
-                  await onRetryIdealText({
-                    arcId,
-                    takeSessionId,
-                    takeIndex: cardTakeIndex,
-                  });
-                } finally {
-                  setRetryingIdealText(false);
-                }
-              }}
-              className="h-10 w-full rounded-full"
-            >
-              Try creating it again
-            </Button>
-          ) : null}
-          {canOpenFeedback ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                onOpenFeedback!({
-                  arcId: arcId!,
-                  takeSessionId,
-                  takeIndex: cardTakeIndex,
-                })
-              }
-              className="h-10 w-full rounded-full"
-            >
-              View this take&apos;s feedback
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      <IdealTextUnconfirmedCard
+        message={message}
+        arcId={arcId}
+        onRetryIdealText={onRetryIdealText}
+        onOpenFeedback={onOpenFeedback}
+        retryingIdealText={retryingIdealText}
+        setRetryingIdealText={setRetryingIdealText}
+      />
+    );
+  }
+  if (variant === "coach_feedback_published") {
+    return (
+      <CoachFeedbackPublishedCard
+        body={message.body}
+        onOpen={openable ? open : null}
+      />
     );
   }
   const verified = variant === "verified";
