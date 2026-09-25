@@ -162,3 +162,39 @@ describe("the answered bookmark", () => {
     expect(asJudgement(null)).toBeNull();
   });
 });
+
+describe("the sheet is chosen once, when it opens", () => {
+  it("answering inside the judgement sheet does not swap it for the history", async () => {
+    const pending = { ...answered, status: null } as DocumentSuggestion;
+    const make = (item: DocumentSuggestion, decided: string[], waiting: string[]) =>
+      chunkStateFor(
+        {
+          part: { id: "p1", text: TEXT, locked: false },
+          paragraphIndex: 0,
+          start: 0,
+          end: TEXT.length,
+          status: "waiting",
+          pendingIds: waiting,
+          approvedIds: [],
+          decidedIds: decided,
+        } as DeckChunk,
+        { document: TEXT, suggestions: [item] },
+      );
+    const renderWith = (s: ReturnType<typeof make>) =>
+      act(async () => {
+        root.render(
+          createElement(OpenChunkSheet, {
+            state: s,
+            arcId: "arc-1",
+            takeSessionId: "take-1",
+            onClose: vi.fn(),
+            renderSheet: () => createElement("div", { "data-testid": "judge" }),
+          }),
+        );
+      });
+    await renderWith(make(pending, [], [pending.id]));
+    await renderWith(make(answered, [answered.id], []));
+    expect(container.querySelector('[data-testid="judge"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="answered-bookmark"]')).toBeNull();
+  });
+});

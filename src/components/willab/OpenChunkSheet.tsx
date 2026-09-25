@@ -41,7 +41,11 @@ export default function OpenChunkSheet({
   renderSheet: (practiseAgain: PractiseAgain) => ReactNode;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
-  if (practiseAgain || !opensAnswered(state)) {
+  // Decided ONCE, when the sheet opens. Answering inside the judgement sheet
+  // empties the paragraph's pending list; reading it live would swap the
+  // sheet for the history halfway down the ladder.
+  const [answered] = useState(() => opensAnswered(state));
+  if (practiseAgain || !answered) {
     return <>{renderSheet(practiseAgain)}</>;
   }
   return (
