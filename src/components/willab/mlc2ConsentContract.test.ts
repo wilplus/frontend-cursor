@@ -74,12 +74,22 @@ describe("MLC-2 founder consent UI contract", () => {
 });
 
 describe("legal copy version aligns with the canonical policy", () => {
-  it("publishes Terms and Privacy version 1.2", () => {
-    const privacy = read("app/privacy/page.tsx");
+  it("publishes Terms version 1.2", () => {
     const terms = read("app/terms/page.tsx");
-    expect(privacy).toContain("Version 1.2");
     expect(terms).toContain("Version 1.2");
-    expect(privacy).toContain("Article 6(1)(a)");
-    expect(privacy).toContain("Article 9(2)(a)");
+  });
+
+  it("shows only the stored Privacy Policy, never a stale stand-in", () => {
+    // Founder 2026-09-25, F3 = A. The v1.2 stand-in described the retired
+    // bundled training consent and was shown to every visitor while the
+    // stored policy loaded. The page now waits for the stored copy, and says
+    // plainly when it cannot be read.
+    const privacy = read("app/privacy/page.tsx");
+    expect(privacy).toContain('<PublishedPolicyText\n        which="privacy"');
+    expect(privacy).toContain("<SectionLoadingState />");
+    expect(privacy).toContain("DATA_CONSENT_PENDING_COPY.privacyUnavailable");
+    for (const stale of ["Version 1.2", "Article 6(1)(a)", "pooled"]) {
+      expect(privacy).not.toContain(stale);
+    }
   });
 });

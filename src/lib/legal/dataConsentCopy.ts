@@ -39,4 +39,6 @@ export const DATA_CONSENT_PENDING_COPY = {
   erasureFinishing: "Your practice recordings are still being deleted.",
   recordScreenOff:
     "Recording is off because you withdrew your consent. You can turn it back on in Data & consent.",
+  privacyUnavailable:
+    "The privacy policy couldn’t be loaded. Refresh the page to try again.",
 } as const;

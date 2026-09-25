@@ -42,10 +42,16 @@ type State = PolicyTextState | null;
 export function PublishedPolicyText({
   which,
   children,
+  unavailable,
 }: {
   which: Which;
-  /** The server-rendered static document. SEO and no-JS only. */
+  /** What shows until the policy record answers (and, for a page that gives
+   *  no `unavailable`, after it fails to). */
   children: ReactNode;
+  /** Shown once the record has answered WITHOUT a published copy. A page
+   *  whose fallback is only a loading line needs it, or a failed read would
+   *  leave that line spinning for good (founder 2026-09-25, F3). */
+  unavailable?: ReactNode;
 }) {
   const [state, setState] = useState<State>(null);
 
@@ -81,5 +87,6 @@ export function PublishedPolicyText({
   // The static document already carries its own version and effective date in
   // its header, which is the honest statement and needs no help. When a policy
   // is registered this branch stops being reached at all.
+  if (state !== null && unavailable !== undefined) return <>{unavailable}</>;
   return <>{children}</>;
 }
