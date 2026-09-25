@@ -231,6 +231,14 @@ export async function fetchMomentHistory(
         `&moment=${encodeURIComponent(momentKey)}`
     )
   );
+  return mapHistory(body, momentKey);
+}
+
+/** One history payload, whichever endpoint served it. */
+function mapHistory(
+  body: Record<string, unknown> | null,
+  fallbackKey: string
+): MomentHistory | null {
   if (!body) return null;
   const origin = rec(body.origin) ?? {};
   const events: MomentEvent[] = [];
@@ -239,7 +247,7 @@ export async function fetchMomentHistory(
     if (event) events.push(event);
   }
   return {
-    momentKey: str(body.moment_key) ?? momentKey,
+    momentKey: str(body.moment_key) ?? fallbackKey,
     origin: {
       takeIndex: num(origin.take_index),
       slideIndex: num(origin.slide_index),
@@ -248,6 +256,37 @@ export async function fetchMomentHistory(
     },
     events,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  THE STORY BEHIND ANY MOMENT (founder 2026-09-25).                          */
+/*                                                                            */
+/*  "the album shows your confident moments, not any moments." The Album is a  */
+/*  trophy case — three separate yeses to get in — so the history above it can */
+/*  only ever be told about a moment that went well. The moments worth         */
+/*  learning from are the others, and this serves those.                       */
+/*                                                                            */
+/*  Same payload, same renderer, same signed words. The one difference is made */
+/*  on the SERVER: a snippet history never carries the `coach_agreed` lane,    */
+/*  because that row appears only on a coach's yes and its absence everywhere  */
+/*  else would announce the verdict on the rest. Nothing here has to know      */
+/*  that — the lane simply never arrives.                                      */
+/* -------------------------------------------------------------------------- */
+export async function fetchSnippetHistory(
+  projectId: string,
+  sessionId: string,
+  snippetId: string
+): Promise<MomentHistory | null> {
+  if (!projectId || !sessionId || !snippetId) return null;
+  const query = new URLSearchParams({
+    arc: projectId,
+    session: sessionId,
+    snippet: snippetId,
+  });
+  return mapHistory(
+    rec(await getJson(`/api/v2/moment-history?${query.toString()}`)),
+    snippetId
+  );
 }
 
 export async function saveMomentNote(

@@ -15,6 +15,7 @@ import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
+import MomentStory from "./MomentStory";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
@@ -1398,6 +1399,17 @@ export default function DeckChunkModal({
             {exercise.error}
           </p>
         ) : null}
+        {/* THE STORY BEHIND THIS MOMENT (founder 2026-09-25): "the album
+            shows your confident moments, not any moments." It sits INSIDE
+            this step rather than taking a step of its own, because
+            `stepProgress` counts screens and a story step present only where
+            there is a story would make the bar longer on exactly the weaker
+            paragraphs — a score, drawn as a bar. Loaded only when opened. */}
+        <MomentStory
+          arcId={arcId}
+          sessionId={exerciseItem.takeSessionId ?? null}
+          snippetId={exerciseItem.snippetId ?? null}
+        />
       </div>
     );
   }
