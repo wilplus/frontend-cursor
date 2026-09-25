@@ -188,8 +188,7 @@ describe("AddToLibraryDoor", () => {
           href: "/cms/new/exercise/1",
           snippetId: "snip-7",
           onBuild,
-          children: "Add to the library",
-        }),
+        }, "Add to the library"),
       ),
     );
     const button = container.querySelector("button");
@@ -205,8 +204,7 @@ describe("AddToLibraryDoor", () => {
         createElement(AddToLibraryDoor, {
           href: "/cms/new/exercise/1",
           snippetId: "snip-7",
-          children: "Add to the library",
-        }),
+        }, "Add to the library"),
       ),
     );
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/cms/new/exercise/1");

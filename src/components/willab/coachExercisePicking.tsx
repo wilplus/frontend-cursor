@@ -210,7 +210,7 @@ export function AddToLibraryDoor({
   href: string;
   snippetId: string;
   onBuild?: (snippetId: string) => void;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const look =
     "rounded-full border border-border bg-background px-4 py-2 text-[13px] font-medium text-foreground";
