@@ -114,8 +114,21 @@ describe("nextSelection", () => {
     expect(nextSelection({ from: 3, to: 3 }, 3)).toBeNull();
   });
 
-  it("starts over on a tap far away", () => {
-    expect(nextSelection({ from: 2, to: 3 }, 9)).toEqual({ from: 9, to: 9 });
+  it("fills every word in between on a tap further along (founder 2026-09-26)", () => {
+    expect(nextSelection({ from: 0, to: 0 }, 3)).toEqual({ from: 0, to: 3 });
+    expect(nextSelection({ from: 2, to: 3 }, 9)).toEqual({ from: 2, to: 9 });
+  });
+
+  it("fills backwards too", () => {
+    expect(nextSelection({ from: 6, to: 6 }, 2)).toEqual({ from: 2, to: 6 });
+  });
+
+  it("starts somewhere else by shrinking to the first word, then clearing", () => {
+    let selection = nextSelection({ from: 2, to: 6 }, 2);
+    expect(selection).toEqual({ from: 2, to: 2 });
+    selection = nextSelection(selection, 2);
+    expect(selection).toBeNull();
+    expect(nextSelection(selection, 9)).toEqual({ from: 9, to: 9 });
   });
 
   it("can only ever select one run, so the exactly-once rule holds", () => {
