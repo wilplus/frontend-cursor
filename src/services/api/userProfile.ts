@@ -104,7 +104,38 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
  * rather than throwing, so Intake advances on the local cache even when
  * unsigned (401) or offline. The server copy is (re-)synced at sign-up.
  */
+/* ONE PROFILE READ PER PAGE, SHARED (founder 2026-09-26: the coach review
+   "is just very long"). The Lounge, the language gate around the review and
+   the Feedbacks review each read the profile on mount, so opening a take
+   waited through the same GET more than once. One in-flight promise now
+   serves them all for a short window; a save or a sign-out drops it, so a
+   changed profile or another account is never served from it. */
+const SHARED_PROFILE_TTL_MS = 30_000;
+let sharedProfile: { at: number; promise: Promise<UserProfile | null> } | null =
+  null;
+
+/** The profile, from the shared read when one is fresh. */
+export function fetchUserProfileShared(): Promise<UserProfile | null> {
+  const now = Date.now();
+  if (sharedProfile && now - sharedProfile.at < SHARED_PROFILE_TTL_MS) {
+    return sharedProfile.promise;
+  }
+  const promise = fetchUserProfile();
+  sharedProfile = { at: now, promise };
+  // A failed read (null) is not worth sharing: the next caller asks again.
+  void promise.then((p) => {
+    if (p === null && sharedProfile?.promise === promise) sharedProfile = null;
+  });
+  return promise;
+}
+
+/** Forget the shared read (after a save, or when the account changes). */
+export function forgetSharedUserProfile(): void {
+  sharedProfile = null;
+}
+
 export async function saveUserProfile(draft: UserProfileDraft): Promise<boolean> {
+  forgetSharedUserProfile();
   const headers = await authHeaders();
   if (!headers) return false;
   try {

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  fetchUserProfile,
+  fetchUserProfileShared,
+  forgetSharedUserProfile,
   type UserProfile,
 } from "@/services/api/userProfile";
 import { useSignedIn } from "./useSignedIn";
@@ -28,11 +29,19 @@ export interface UseUserProfileResult {
 export function useUserProfile(): UseUserProfileResult {
   const signedIn = useSignedIn();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  /* LOADING UNTIL KNOWN (founder 2026-09-26). This started false, so the
+     first render said "no profile, not loading" while auth was still
+     resolving. The language gate read that as "not a coach", mounted the
+     coach review (which fired its whole session GET), then swapped to its
+     spinner a moment later, unmounting the review, and mounted it again for
+     a second GET. Unknown now reads as loading. */
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (signedIn === null) return; // auth still resolving: stay loading
     // Anonymous → no profile, no fetch.
     if (signedIn !== true) {
+      forgetSharedUserProfile();
       setProfile(null);
       setLoading(false);
       return;
@@ -40,7 +49,7 @@ export function useUserProfile(): UseUserProfileResult {
 
     let cancelled = false;
     setLoading(true);
-    void fetchUserProfile().then((p) => {
+    void fetchUserProfileShared().then((p) => {
       if (cancelled) return;
       setProfile(p);
       setLoading(false);
