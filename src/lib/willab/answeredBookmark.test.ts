@@ -101,7 +101,8 @@ describe("the answered bookmark (Q19 A)", () => {
     expect(opensParagraphSheet({ pending: [], decided: [cv] })).toBe(true);
     expect(opensParagraphSheet({ pending: [], decided: [], locked: true })).toBe(true);
     expect(opensParagraphSheet({ pending: [cv], decided: [cv], locked: true })).toBe(false);
-    expect(opensParagraphSheet({ pending: [], decided: [] })).toBe(false);
+    // J10 (founder 2026-09-26): a paragraph with no feedback opens too.
+    expect(opensParagraphSheet({ pending: [], decided: [] })).toBe(true);
   });
 });
 

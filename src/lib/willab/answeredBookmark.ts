@@ -230,15 +230,14 @@ export function answeredView(args: {
 }
 
 /** Which paragraphs open their own sheet rather than the judgement: nothing
- *  on them is waiting, and they were answered (Q19 A) or locked (Q26 B). A
- *  paragraph that is neither has nothing to show and opens nothing. */
+ *  on them is waiting. Answered (Q19 A), locked (Q26 B) — and, since founder
+ *  2026-09-26 (J10), a paragraph nobody gave feedback on, which opens on its
+ *  latest text and its earlier Takes instead of doing nothing (clause 16: a
+ *  bookmark is never an empty screen). */
 export function opensParagraphSheet(state: {
   pending: readonly unknown[];
   decided?: readonly unknown[];
   locked?: boolean;
 }): boolean {
-  return (
-    state.pending.length === 0 &&
-    ((state.decided?.length ?? 0) > 0 || state.locked === true)
-  );
+  return state.pending.length === 0;
 }

@@ -17,7 +17,12 @@ import {
   type LabelledLine,
   type TimelineEntry,
 } from "@/lib/willab/answeredBookmark";
-import { isConfidentVoiceFeedback } from "@/lib/willab/chunkSteps";
+import {
+  isConfidentVoiceFeedback,
+  opensRootPhrase,
+  type RootGateAnswer,
+} from "@/lib/willab/chunkSteps";
+import MomentPlayer from "./MomentPlayer";
 import {
   nextSelection,
   phraseTokens,
@@ -114,48 +119,6 @@ function SheetFrame({
   );
 }
 
-/** The top card: the Slide's helper words (a button) and the paragraph now. */
-function NowCard({
-  headline,
-  text,
-  onChooseWords,
-}: {
-  headline: string | null;
-  text: string;
-  onChooseWords: (() => void) | null;
-}) {
-  return (
-    <div
-      data-testid="paragraph-now"
-      className="flex flex-col gap-3 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-    >
-      {headline ? (
-        <button
-          type="button"
-          disabled={!onChooseWords}
-          onClick={() => onChooseWords?.()}
-          data-testid="paragraph-helper-words"
-          className="flex flex-col items-start gap-1 text-left"
-        >
-          <span className={EYEBROW}>{COPY.historyHelperWords}</span>
-          <span className="flex w-full items-start justify-between gap-3 text-[17px] font-bold leading-snug text-primary">
-            {headline}
-            {onChooseWords ? (
-              <Pencil className="mt-1 h-4 w-4 shrink-0" aria-hidden />
-            ) : null}
-          </span>
-        </button>
-      ) : null}
-      <div className="flex flex-col gap-1">
-        <span className={EYEBROW}>{COPY.historyNow}</span>
-        <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-          {text}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function ExerciseCard({
   item,
   onPractise,
@@ -216,35 +179,6 @@ function Boxes({ boxes }: { boxes: LabelledLine[] }) {
         </div>
       ))}
     </div>
-  );
-}
-
-function Timeline({ entries }: { entries: TimelineEntry[] }) {
-  if (entries.length === 0) return null;
-  return (
-    <section className="flex flex-col gap-2" data-testid="paragraph-timeline">
-      <h3 className="text-[13px] font-semibold text-foreground">
-        {COPY.historyHowItChanged}
-      </h3>
-      <ol className="flex flex-col gap-2">
-        {entries.map((entry, index) => (
-          <li
-            key={`${entry.label ?? "take"}-${index}`}
-            className="flex flex-col gap-1 rounded-xl border border-border p-3"
-          >
-            {entry.label ? <p className={EYEBROW}>{entry.label}</p> : null}
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-              {entry.text}
-            </p>
-            {entry.helperWords ? (
-              <p className="text-[14px] font-bold leading-snug text-primary">
-                {entry.helperWords}
-              </p>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-    </section>
   );
 }
 
@@ -333,6 +267,146 @@ function HelperWordsPicker({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  THE TAKE STACK (founder 2026-09-26, Ideal Text redesign, locked L3/L3b).   */
+/*                                                                            */
+/*  "You said: Yes" never showed what was asked, and nothing said the list    */
+/*  below it was earlier Takes. Now every Take is the same card: the current  */
+/*  one open ("Take 2 · Now") with its recording and the owner's own answer    */
+/*  sentence, earlier ones folded underneath "Earlier Takes". The helper words */
+/*  sit on top because they carry across Takes (clause 14). Only what the     */
+/*  history holds is shown: answers and recordings exist for the current Take */
+/*  only, so earlier rows carry their words and helper words, nothing more.   */
+/* -------------------------------------------------------------------------- */
+
+function HelperWordsCard({
+  headline,
+  onChoose,
+}: {
+  headline: string | null;
+  onChoose: (() => void) | null;
+}) {
+  if (!headline) {
+    return onChoose ? (
+      <button
+        type="button"
+        data-testid="paragraph-helper-words"
+        onClick={onChoose}
+        className="flex min-h-[48px] items-center justify-center rounded-full bg-foreground px-5 text-[15px] font-semibold text-background transition-colors hover:bg-foreground/90"
+      >
+        {COPY.titleEmphasis}
+      </button>
+    ) : null;
+  }
+  return (
+    <div
+      data-testid="paragraph-helper-card"
+      className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+    >
+      <span className={EYEBROW}>{COPY.historyHelperWords}</span>
+      <p className="text-[18px] font-bold leading-snug text-primary">{headline}</p>
+      <button
+        type="button"
+        data-testid="paragraph-helper-words"
+        disabled={!onChoose}
+        onClick={() => onChoose?.()}
+        className="self-start text-[14px] font-semibold text-primary transition-opacity hover:opacity-70 disabled:hidden"
+      >
+        {COPY.pillChooseWords}
+      </button>
+    </div>
+  );
+}
+
+function NowTakeCard({
+  label,
+  text,
+  player,
+  youSaid,
+  children,
+}: {
+  label: string | null;
+  text: string;
+  player: ReactNode;
+  youSaid: string | null;
+  children?: ReactNode;
+}) {
+  return (
+    <section
+      data-testid="paragraph-now"
+      className="flex flex-col gap-3 rounded-2xl border border-border p-4"
+    >
+      <p className="text-[13px] font-semibold text-foreground">
+        {label ? `${label} · ${COPY.historyNow}` : COPY.historyNow}
+      </p>
+      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+        {text}
+      </p>
+      {player}
+      {youSaid ? (
+        <p data-testid="answered-you-said" className="text-[15px] text-foreground">
+          {youSaid}
+        </p>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+function EarlierTakes({ entries }: { entries: TimelineEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2" data-testid="paragraph-timeline">
+      <h3 className={EYEBROW}>{COPY.historyEarlierTakes}</h3>
+      <ol className="flex flex-col gap-2">
+        {entries.map((entry, index) => (
+          <li key={`${entry.label ?? "take"}-${index}`}>
+            <details className="group rounded-xl bg-muted/60 px-3 py-2.5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[14px] font-semibold text-foreground">
+                <span>{entry.label ?? COPY.historyTake}</span>
+                <span className="text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>
+                  ›
+                </span>
+              </summary>
+              {entry.helperWords ? (
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {COPY.historyHelperWords}:{" "}
+                  <span className="font-semibold text-primary">{entry.helperWords}</span>
+                </p>
+              ) : null}
+              <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground group-[:not([open])]:hidden">
+                {entry.text}
+              </p>
+            </details>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** Can the owner choose helper words here? Once locked they can always
+ *  choose new ones (Q26). Before that, only when their answer on this moment
+ *  opens the helper-words step (24e: Yes, In-between, Not sure) — the speaker
+ *  who closed the sheet before choosing is not locked out for the Take. */
+function mayChooseHelperWords(
+  locked: boolean,
+  decided: readonly DocumentSuggestion[],
+  answers: readonly OwnerAnswer[],
+): boolean {
+  if (locked) return true;
+  const cv = decided.find(isConfidentVoiceFeedback);
+  const answer = cv ? answers.find((a) => a.feedbackId === cv.id)?.response ?? null : null;
+  return opensRootPhrase(asJudgementValue(answer));
+}
+
+const FIVE_ANSWERS = new Set(["yes", "in_between", "no", "not_sure", "audio_unclear"]);
+
+/** The stored answer as one of the five, or null (then nothing is opened). */
+function asJudgementValue(answer: string | null): RootGateAnswer {
+  return answer && FIVE_ANSWERS.has(answer) ? (answer as RootGateAnswer) : null;
+}
+
 /** Whose history to show under the coach's work (the coaching sheet). */
 export interface HistoryTarget {
   arcId: string | null;
@@ -364,8 +438,9 @@ export function ParagraphHistoryBlock({
   const entries = useMemo(() => timelineOf(history, COPY), [history]);
   return (
     <div className="flex flex-col gap-5" data-testid="bundle-history">
-      <NowCard headline={headline} text={text} onChooseWords={null} />
-      <Timeline entries={entries} />
+      <HelperWordsCard headline={headline} onChoose={null} />
+      <NowTakeCard label={entries[0]?.label ?? null} text={text} player={null} youSaid={null} />
+      <EarlierTakes entries={entries.slice(1)} />
     </div>
   );
 }
@@ -432,7 +507,8 @@ export default function ParagraphSheet({
   const exercise = exerciseOf(decided);
   const exerciseAnswer =
     answers.find((a) => a.feedbackId === exercise?.id)?.response ?? null;
-  const canChoose = locked && Boolean(onUseHelperWords);
+  const canChoose =
+    Boolean(onUseHelperWords) && mayChooseHelperWords(locked, decided, answers);
 
   if (picking && onUseHelperWords) {
     return (
@@ -451,26 +527,27 @@ export default function ParagraphSheet({
       onClose={onClose}
       nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
     >
-      <NowCard
+      <HelperWordsCard
         headline={headline}
-        text={text}
-        onChooseWords={canChoose ? () => setPicking(true) : null}
+        onChoose={canChoose ? () => setPicking(true) : null}
       />
-      {exercise ? (
-        <ExerciseCard
-          item={exercise}
-          onPractise={
-            onPractise ? () => onPractise(exercise, exerciseAnswer) : null
-          }
-        />
-      ) : null}
-      {view.youSaid ? (
-        <p data-testid="answered-you-said" className="text-[15px] text-foreground">
-          {view.youSaid}
-        </p>
-      ) : null}
-      <Boxes boxes={view.boxes} />
-      <Timeline entries={view.timeline} />
+      <NowTakeCard
+        label={view.timeline[0]?.label ?? null}
+        text={text}
+        player={<MomentPlayer item={decided.find(isConfidentVoiceFeedback) ?? null} />}
+        youSaid={view.youSaid}
+      >
+        <Boxes boxes={view.boxes} />
+        {exercise ? (
+          <ExerciseCard
+            item={exercise}
+            onPractise={
+              onPractise ? () => onPractise(exercise, exerciseAnswer) : null
+            }
+          />
+        ) : null}
+      </NowTakeCard>
+      <EarlierTakes entries={view.timeline.slice(1)} />
     </SheetFrame>
   );
 }

@@ -1475,6 +1475,13 @@ function SlideEditor({
               frameClass="min-h-32 border border-border bg-background focus-within:border-primary"
             />
           ))}
+          {/* WHAT AN EDIT IS FOR (founder 2026-09-26, J11): the next Take
+              rewrites the paragraph from what is said (clause 8/9), and this
+              version stays in its history (clause 16). Said here, before
+              Save, so an edit never feels lost afterwards. */}
+          <p className="text-[13px] leading-snug text-muted-foreground">
+            {CHUNK_SHEET_COPY.editorNextTakeNote}
+          </p>
           {failed ? (
             <p className="text-[12px] text-destructive">
               Couldn&apos;t save this slide. Your edits are still here.

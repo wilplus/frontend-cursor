@@ -246,6 +246,13 @@ export const CHUNK_SHEET_COPY = {
   historyPraised: "Praised",
   historyFromPractice: "From your practice",
   historyHowItChanged: "How this changed",
+  /* Founder 2026-09-26 (Ideal Text redesign, L6): the one new string. Heads
+     the folded rows of earlier Takes under the current one, so history reads
+     as history. */
+  historyEarlierTakes: "Earlier Takes",
+  /* Under the slide editor (founder 2026-09-26, J11). */
+  editorNextTakeNote:
+    "Your next Take rewrites this from what you say. This version stays in the history.",
   historyTake: "Take",
   historyHelperWords: "Helper words",
   /* --- Back / Next across the bookmarks (founder 2026-09-25, Q31 B / Q32 A) -
