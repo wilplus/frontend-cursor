@@ -1441,6 +1441,17 @@ export default function DeckChunkModal({
          this screen (the offer's `passage` is deliberately not drawn), so the
          screen carries no orange at all. */
       <div data-testid="practice-offer" className="flex flex-col gap-3">
+        {/* ALREADY DONE (founder 2026-09-26, Q44 / Q45 A, contract 35d): a
+            little green label on the offer only, so a repeat is never a
+            surprise. A flag, never a count or a date. */}
+        {exerciseItem.practiceExercise.doneBefore ? (
+          <span
+            data-testid="exercise-done-label"
+            className="self-start rounded-full bg-success/10 px-2.5 py-0.5 text-[12px] font-semibold text-success"
+          >
+            {COPY.exerciseDone}
+          </span>
+        ) : null}
         {exerciseItem.practiceExercise.explanationVideoRef ? (
           <div className="overflow-hidden rounded-2xl bg-black">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
