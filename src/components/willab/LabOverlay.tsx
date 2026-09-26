@@ -1507,7 +1507,6 @@ export default function LabOverlay({
                 snippets: [],
                 feedbackItems: [],
                 overallMessage: null,
-                videoRef: null,
                 presentationRef: null,
                 slides: [],
                 slideTranscripts: [],

@@ -8,6 +8,11 @@ import DeckChunkModal, {
   type LockResult,
 } from "@/components/willab/DeckChunkModal";
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
+import {
+  buildBookmarks,
+  useFeedbackPager,
+  type Bookmark,
+} from "@/components/willab/feedbackPager";
 import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
 import {
   headlineFor,
@@ -206,6 +211,7 @@ export default function TranscriptReviewDeck({
   confidentMomentSummary = null,
   confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
+  openFeedback = false,
   feedbackPending = false,
   takeCount = null,
 }: {
@@ -277,6 +283,9 @@ export default function TranscriptReviewDeck({
    *  letting the marks arrive late and move the words. */
   feedbackPending?: boolean;
   onConfidentMomentChanged?: () => void;
+  /** Open on the coach's feedback once the deck is ready: the email link and
+   *  the chat bubble (founder 2026-09-25, Q28 A). */
+  openFeedback?: boolean;
 }) {
   const confidentMoments = useConfidentMomentBundle({
     projectId: arcId,
@@ -291,7 +300,6 @@ export default function TranscriptReviewDeck({
     }
     return grouped;
   }, [confidentMomentSummary]);
-  const [paragraphBundleCursor, setParagraphBundleCursor] = useState<Record<string, number>>({});
   const openBundle = openBundleId
     ? confidentMoments.projection?.bundles.find((item) => item.bundleId === openBundleId) ?? null
     : null;
@@ -466,6 +474,49 @@ export default function TranscriptReviewDeck({
   const openChunk = resolveOpenChunk(chunks, openPart);
   const headlines = useSlideHeadlines(arcId, doc, openPart !== null);
   const openState = openChunk ? stateOf(openChunk) : null;
+
+  /* BACK / NEXT ACROSS THE BOOKMARKS (founder 2026-09-25, Q29 A–Q32 A). Every
+     bookmark of the Take in text order; a coach moment opens the coaching
+     sheet, everything else the paragraph's own sheet. */
+  const bookmarks = useMemo(
+    () =>
+      buildBookmarks(
+        chunks,
+        (c) => {
+          const st = stateOf(c);
+          return { pending: st.pending.length, decided: st.decided.length };
+        },
+        (id) => summaryByParagraph.get(id),
+      ),
+    [chunks, stateOf, summaryByParagraph],
+  );
+  const openBookmark = useCallback(
+    (bookmark: Bookmark) => {
+      if (bookmark.bundleId) {
+        setOpenPart(null);
+        setOpenBundleId(bookmark.bundleId);
+        return;
+      }
+      setOpenBundleId(null);
+      openParagraph(bookmark.chunk);
+    },
+    [openParagraph],
+  );
+  const closeSheets = useCallback(() => {
+    setOpenPart(null);
+    setOpenBundleId(null);
+  }, []);
+  const walk = useFeedbackPager({
+    bookmarks,
+    open: openBookmark,
+    closeAll: closeSheets,
+    openFeedback,
+    ready: deckReady,
+  });
+  const closeWalk = useCallback(() => {
+    walk.stop();
+    closeSheets();
+  }, [walk, closeSheets]);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -1076,9 +1127,9 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      {...paragraphTap(!unsettled && opensParagraphSheet(st), () =>
-                        openParagraph(c),
-                      )}
+                      {...paragraphTap(!unsettled && opensParagraphSheet(st), () => {
+                        if (!walk.openPart(c.part.id)) openParagraph(c);
+                      })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
                       className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
@@ -1140,15 +1191,8 @@ export default function TranscriptReviewDeck({
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
                         onClick={() => {
-                          const markers = summaryByParagraph.get(c.part.id) ?? [];
-                          if (markers.length > 0) {
-                            const index = paragraphBundleCursor[c.part.id] ?? 0;
-                            setOpenBundleId(markers[index % markers.length].bundleId);
-                            setParagraphBundleCursor((current) => ({
-                              ...current,
-                              [c.part.id]: (index + 1) % markers.length,
-                            }));
-                          } else openParagraph(c);
+                          // Joins the walk at this bookmark (Q29 A).
+                          if (!walk.openPart(c.part.id)) openParagraph(c);
                         }}
                         // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
                         // 2026-08-11). The same join the modal already runs,
@@ -1323,7 +1367,8 @@ export default function TranscriptReviewDeck({
             const result = await onLockPart(openChunk, openChunk.part.text);
             return result.outcome === "ok";
           }}
-          onClose={() => setOpenPart(null)}
+          onClose={closeWalk}
+          pager={walk.pager}
           renderSheet={(practiseAgain) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}
@@ -1351,7 +1396,8 @@ export default function TranscriptReviewDeck({
           }}
           onSetRootPhrase={(phrase) => onSetRootPhrase(openChunk, phrase)}
           onDocumentChanged={onConfidentMomentChanged}
-          onClose={() => setOpenPart(null)}
+          onClose={closeWalk}
+          pager={walk.pager}
           onApplyStyle={onApplyStyle}
           arcId={arcId}
           firstTake={takeCount === 1}
@@ -1379,14 +1425,17 @@ export default function TranscriptReviewDeck({
       ) : null}
       {openBundle ? (
         <ConfidentMomentCoachingBundle
+          key={openBundle.bundleId}
           bundle={openBundle}
+          pager={walk.pager}
+          history={bundleHistory(openBundle.paragraphId, chunks, arcId, headlines, groups)}
           documentSnapshotId={confidentMoments.projection!.documentSnapshotId}
           ownerEdit={confidentMomentOwnerEdit}
           onChanged={() => {
             confidentMoments.refresh();
             onConfidentMomentChanged?.();
           }}
-          onClose={() => setOpenBundleId(null)}
+          onClose={closeWalk}
         />
       ) : null}
     </div>
@@ -1536,4 +1585,23 @@ function headlineOfChunk(
   return group && group.slideIndex !== null
     ? (headlines.get(group.slideIndex) ?? null)
     : null;
+}
+
+/** What the coaching sheet shows under the coach's work once the moment is
+ *  answered (founder 2026-09-25): the paragraph's own history. */
+function bundleHistory(
+  paragraphId: string,
+  chunks: readonly DeckChunk[],
+  arcId: string | null,
+  headlines: Map<number, string>,
+  groups: readonly { slideIndex: number | null; chunks: readonly DeckChunk[] }[],
+): { arcId: string | null; partId: string; text: string; headline: string | null } | null {
+  const chunk = chunks.find((c) => c.part.id === paragraphId);
+  if (!chunk) return null;
+  return {
+    arcId,
+    partId: chunk.part.id,
+    text: chunk.part.text,
+    headline: headlineOfChunk(headlines, groups, chunk.part.id),
+  };
 }

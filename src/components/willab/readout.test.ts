@@ -101,7 +101,8 @@ describe("mapReadoutPayload", () => {
       snippets: [{ id: "piece-1" }],
     });
     expect(p.overallMessage).toBe("Strong session.");
-    expect(p.videoRef).toBe("https://cdn/coach.mp4");
+    // The coach's Take video is gone (founder 2026-09-25).
+    expect("videoRef" in p).toBe(false);
     expect(p.feedbackItems).toHaveLength(1);
     expect(p.feedbackItems[0]?.family).toBe("rewrite_for_clarity");
     expect(p.feedbackItems[0]?.evidence.pieceId).toBe("piece-1");

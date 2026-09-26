@@ -35,6 +35,9 @@ export interface TrainingArc {
   coverRef: string | null;
   /** An open deletion request (P1, N8): the project is locked while set. */
   deletion: ProjectDeletion | null;
+  /** Archived by its owner (N14): hidden from the project list, listed in
+   *  Data & consent. Only sent when archived projects were asked for. */
+  archived: boolean;
 }
 
 function mapTake(raw: unknown): TrainingTake | null {
@@ -86,21 +89,29 @@ function mapArc(raw: unknown): TrainingArc | null {
           ? r.presentation_ref
           : null,
     deletion: mapProjectDeletion(r.deletion),
+    archived: r.archived === true,
   };
 }
 
 /** Fetch the arc-grouped trainings. null = endpoint missing / error → the
  *  caller falls back to the legacy strengths-fed view. */
-export async function fetchTrainings(): Promise<TrainingArc[] | null> {
+export async function fetchTrainings(
+  { includeArchived = false }: { includeArchived?: boolean } = {},
+): Promise<TrainingArc[] | null> {
   const token = await getAuthToken();
   if (!token) return null;
 
   let res: Response;
   try {
-    res = await fetch("/api/v2/user/trainings", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    res = await fetch(
+      includeArchived
+        ? "/api/v2/user/trainings?include_archived=1"
+        : "/api/v2/user/trainings",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      },
+    );
   } catch {
     return null;
   }

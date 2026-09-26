@@ -285,7 +285,7 @@ function IdealTextUnconfirmedCard({
 function renderIdealTextReportCard(
   message: LoungeMessage,
   options: {
-    onOpenIdealText?: (arcId: string) => void;
+    onOpenIdealText?: (arcId: string, mode?: "feedback") => void;
     onRetryIdealText?: (
       target: IdealTextRetryTarget,
     ) => boolean | Promise<boolean>;
@@ -337,10 +337,14 @@ function renderIdealTextReportCard(
     );
   }
   if (variant === "coach_feedback_published") {
+    // Q28 A (founder 2026-09-25): the one bubble opens exactly what the
+    // email opens — the sheet on the coach's first reviewed moment.
     return (
       <CoachFeedbackPublishedCard
         body={message.body}
-        onOpen={openable ? open : null}
+        onOpen={
+          openable ? () => onOpenIdealText?.(arcId as string, "feedback") : null
+        }
       />
     );
   }
@@ -567,7 +571,7 @@ export default function ReportCard({
   /** Delivery layer — the purple bubble opens the ideal-text notebook.
    *  ALWAYS the live, editable document — version bubbles are history markers,
    *  not frozen read-only destinations (founder 2026-07-29). */
-  onOpenIdealText?: (arcId: string) => void;
+  onOpenIdealText?: (arcId: string, mode?: "feedback") => void;
 }) {
   const [retryingIdealText, setRetryingIdealText] = useState(false);
   if (message.kind === "feedback") {

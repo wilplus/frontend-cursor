@@ -41,15 +41,15 @@ describe("Confident Moment user boundary", () => {
     expect(source).toContain('sourcePlayback[item.bundleAttachmentId] === "terminal"');
   });
 
-  it("places all five confidence responses before the coaching comment", () => {
-    const yes = source.indexOf('["Yes", "yes"]');
+  it("places the five confidence answers before the coaching comment", () => {
+    // Q36 A (founder 2026-09-25): the same five chips as everywhere else —
+    // the one judgement instrument, owner wording — not a second set.
+    const chips = source.indexOf("<ConfidenceLabelChips");
     const passage = source.indexOf("<blockquote");
-    expect(yes).toBeGreaterThan(-1);
-    expect(passage).toBeGreaterThan(yes);
-    for (const value of ["in_between", "no", "not_sure", "audio_unclear"]) {
-      expect(source.indexOf(`"${value}"`)).toBeGreaterThan(yes);
-      expect(source.indexOf(`"${value}"`)).toBeLessThan(passage);
-    }
+    expect(chips).toBeGreaterThan(-1);
+    expect(passage).toBeGreaterThan(chips);
+    expect(source).toMatch(/<ConfidenceLabelChips[\s\S]{0,400}?ownerWording/);
+    expect(source).not.toContain("In between");
     expect(source).toContain('item.feedbackFamily !== "confident_voice" || responses[item.bundleAttachmentId]');
     expect(source).toContain("const visibleItems = confidenceAnswered || !confidenceItem ? items : [confidenceItem]");
   });

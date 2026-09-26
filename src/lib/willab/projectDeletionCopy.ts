@@ -3,10 +3,11 @@
 /*  (backend decisions log N8: "Copy approved as written"). Change a word     */
 /*  only with sign-off.                                                       */
 /*                                                                            */
-/*  PROJECT_DELETE_ENABLED keeps the ⋯ menu off the project rows until the    */
-/*  real delete ships (founder 2026-09-26: "Show it when the delete works").  */
-/*  The confirm promises "We'll finish within 7 days", so it turns on in the  */
-/*  same change as the operator's confirm and the one-project purge.          */
+/*  Delete lives in Data & consent's project list (N14, 2026-09-26), never    */
+/*  on the project picker. PROJECT_DELETE_ENABLED keeps it off until a       */
+/*  deletion can actually finish: the confirm promises "We'll finish within  */
+/*  7 days", and today a real one stops for review (N14.3; the founder kept  */
+/*  the four append-only feedback records as they are).                      */
 /* -------------------------------------------------------------------------- */
 
 export const PROJECT_DELETE_ENABLED = false;

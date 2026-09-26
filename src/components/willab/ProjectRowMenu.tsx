@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
 /*  ProjectRowMenu — the ⋯ on the right of a row in the project picker        */
-/*  (founder 2026-09-25). One action, usually behind a confirmation: a draft  */
-/*  row's Delete, a project row's Delete (a deletion REQUEST, N8), or a       */
-/*  pending project's Cancel deletion, which needs no confirmation.           */
+/*  (founder 2026-09-25). One action: a draft row's Delete, behind a          */
+/*  confirmation, or a project row's Archive (N14, 2026-09-26), which needs   */
+/*  none. Deleting a project lives in Data & consent, never here.             */
 /*                                                                            */
 /*  The confirmation owns the delete so the row cannot vanish before it       */
 /*  landed: on failure the dialog stays open and says so.                     */
@@ -32,6 +32,7 @@ export default function ProjectRowMenu({
   onDelete,
   actionLabel = "Delete",
   confirm = DRAFT_CONFIRM,
+  failedLabel = "Couldn't save that. Try again.",
 }: {
   /** The row's visible title, for the menu's accessible name. */
   label: string;
@@ -41,6 +42,8 @@ export default function ProjectRowMenu({
   actionLabel?: string;
   /** The confirmation's words; null runs the action straight away. */
   confirm?: ConfirmCopy | null;
+  /** Said when an action without a confirmation fails. */
+  failedLabel?: string;
 }) {
   const [failedDirect, setFailedDirect] = useState(false);
   const [open, setOpen] = useState(false);
@@ -108,7 +111,7 @@ export default function ProjectRowMenu({
           role="alert"
           className="absolute right-0 top-full mt-1 whitespace-nowrap text-[12px] text-record"
         >
-          Couldn&apos;t save that. Try again.
+          {failedLabel}
         </p>
       ) : null}
       {confirming && confirm ? (
@@ -122,7 +125,7 @@ export default function ProjectRowMenu({
   );
 }
 
-function ConfirmDelete({
+export function ConfirmDelete({
   copy,
   onCancel,
   onDelete,

@@ -113,6 +113,7 @@ import {
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -163,6 +164,8 @@ interface DeckChunkModalProps {
    *  the sheet opens on this item's exercise step, carrying the answer the
    *  owner already gave, and the ladder continues from there as usual. */
   practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
+  /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
+  pager?: Pager | null;
 }
 
 /** The inventory the sheet opens with: the answered item being practised
@@ -285,6 +288,7 @@ export default function DeckChunkModal({
   firstTake = false,
   onDocumentChanged,
   practiseAgain = null,
+  pager = null,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -1870,6 +1874,9 @@ export default function DeckChunkModal({
             </button>
           ))}
         </div>
+        {/* Q35 A: the step's own button stays above; Back / Next is the
+            bottom bar and never changes place. */}
+        <FeedbackPagerBar pager={pager} />
       </div>
     </div>
   );

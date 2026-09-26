@@ -117,7 +117,13 @@ import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBund
 /*  working.                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export type IdealTextLaunchMode = "notebook" | "presentation" | "export";
+/** "feedback" (founder 2026-09-25): the notebook, opened with the sheet on
+ *  the coach's first reviewed moment — the email link and the chat bubble. */
+export type IdealTextLaunchMode =
+  | "notebook"
+  | "presentation"
+  | "export"
+  | "feedback";
 
 export default function IdealTextOverlay({
   arcId,
@@ -1055,6 +1061,7 @@ export default function IdealTextOverlay({
             </p>
           ) : null}
           <TranscriptReviewDeck
+            openFeedback={initialMode === "feedback"}
             chrome="stage"
             document={displayText}
             parts={sd.parts}

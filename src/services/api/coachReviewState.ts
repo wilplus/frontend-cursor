@@ -27,7 +27,6 @@ export interface CoachPublishPayload {
   sessionId: string;
   overallMessage: string | null;
   feedbackItems: Record<string, unknown>[];
-  shareVideo: boolean;
 }
 
 /** Why publish is blocked. Only ONE thing blocks now (founder 2026-08-14:
@@ -116,7 +115,6 @@ function pickTake(raw: unknown): ReviewStateTake | null {
               (item): item is Record<string, unknown> =>
                 !!item && typeof item === "object" && !Array.isArray(item)
             ),
-            shareVideo: p.share_video === true,
           }
         : null,
   };
