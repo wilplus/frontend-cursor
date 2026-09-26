@@ -368,8 +368,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // FOUNDER 2026-09-25 (Q24 B / Q25 B): no Lock screen on any answer. The
     // helper words lock on the emphasis step; everything else just closes.
     expect(MODAL).toMatch(/canLock: feedbackInventory\.length === 0,/);
-    // And the ladder running out is now a real branch, which is the close.
-    expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*onClose\(\);/);
+    // And the ladder running out is now a real branch: the sheet finishes on
+    // its own, and the host moves on to the next moment (founder 2026-09-26).
+    expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*finishSheet\(onDone, onClose\);/);
     // THE ANSWER REACHES IT UNCOLLAPSED. `closesLock` puts "No" and
     // "In-between" on opposite sides of the yes/other collapse (F-4), so a
     // sheet that forgets which of the five was tapped cannot obey the rule.

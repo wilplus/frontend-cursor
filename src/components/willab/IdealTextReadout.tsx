@@ -955,6 +955,27 @@ export default function IdealTextReadout({
     );
   }
 
+  /** The loop's next step — the bottom bar, and the card after the last
+   *  moment of the walk (founder 2026-09-26), from one place. */
+  function nextStep(waiting: boolean): React.ReactNode {
+    if (!sd || !arcId || !onReRead) return null;
+    return (
+      <IdealTextActions
+        arcId={arcId}
+        canRecordTake={sd.canRecordTake}
+        takeCount={sd.takeCount}
+        journeyNextStepsSeen={sd.journeyNextStepsSeen}
+        reviewWaiting={waiting}
+        onReview={() => setReviewRequest((n) => n + 1)}
+        onNewTake={onReRead}
+        onSeeNextSteps={() => {
+          void reloadLounge();
+          onClose?.();
+        }}
+      />
+    );
+  }
+
   return (
     // `min-h-0` so the deck below can shrink into the space the header and
     // the actions leave — without it a flex child refuses to go under its
@@ -1040,6 +1061,7 @@ export default function IdealTextReadout({
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
             onReviewWaiting={setReviewWaiting}
+            renderNextStep={() => nextStep(false)}
             chrome="stage"
             document={text}
             parts={partsRef.current ?? sd.parts}
@@ -1126,19 +1148,7 @@ export default function IdealTextReadout({
         // 2026-08-05). The take nudge that sat under this went with it:
         // "not text that it really lands on the 3rd time; on the bubble
         // never" — and it was no better as a standing line on the document.
-        <IdealTextActions
-          arcId={arcId}
-          canRecordTake={sd.canRecordTake}
-          takeCount={sd.takeCount}
-          journeyNextStepsSeen={sd.journeyNextStepsSeen}
-          reviewWaiting={reviewWaiting}
-          onReview={() => setReviewRequest((n) => n + 1)}
-          onNewTake={onReRead}
-          onSeeNextSteps={() => {
-            void reloadLounge();
-            onClose?.();
-          }}
-        />
+        nextStep(reviewWaiting)
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">

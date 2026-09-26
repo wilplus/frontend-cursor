@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Lock, Pencil } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -73,11 +73,14 @@ function SheetFrame({
   onClose,
   children,
   footer = null,
+  nav = null,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** The walk's ‹ position › header, above the title (founder 2026-09-26). */
+  nav?: ReactNode;
 }) {
   return (
     <div
@@ -95,6 +98,7 @@ function SheetFrame({
         className="flex h-[97dvh] max-h-[97dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:h-[94vh] sm:max-h-[94vh] sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
+        {nav ? <div className="shrink-0 pt-3">{nav}</div> : null}
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
           <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
             {title}
@@ -284,11 +288,7 @@ function HelperWordsPicker({
           onClick={() => void use()}
           className="flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
         >
-          {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <Lock className="h-4 w-4" aria-hidden />
-          )}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           {COPY.pillEmphasise}
         </button>
       }
@@ -449,7 +449,7 @@ export default function ParagraphSheet({
     <SheetFrame
       title={COPY.titleFeedback}
       onClose={onClose}
-      footer={pager ? <FeedbackPagerBar pager={pager} /> : null}
+      nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
     >
       <NowCard
         headline={headline}

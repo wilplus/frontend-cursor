@@ -966,6 +966,28 @@ export default function IdealTextOverlay({
     });
   }
 
+  /** The loop's next step — the bottom bar, and the card after the last
+   *  moment of the walk (founder 2026-09-26), from one place so the two can
+   *  never offer different next steps. */
+  function nextStep(waiting: boolean): React.ReactNode {
+    if (!sd || !onReadAloud) return null;
+    return (
+      <IdealTextActions
+        arcId={arcId}
+        canRecordTake={sd.canRecordTake}
+        takeCount={sd.takeCount}
+        journeyNextStepsSeen={sd.journeyNextStepsSeen}
+        reviewWaiting={waiting}
+        onReview={() => setReviewRequest((n) => n + 1)}
+        onNewTake={() => onReadAloud(sd.version)}
+        onSeeNextSteps={() => {
+          void reloadLounge();
+          onClose();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       data-ideal-text-wheel-owner
@@ -1024,6 +1046,7 @@ export default function IdealTextOverlay({
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
             onReviewWaiting={setReviewWaiting}
+            renderNextStep={() => nextStep(false)}
             openFeedback={initialMode === "feedback"}
             chrome="stage"
             document={displayText}
@@ -1165,19 +1188,7 @@ export default function IdealTextOverlay({
       {status === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
           {/* MASTER DOCUMENT — Save, then the next official take. */}
-          <IdealTextActions
-            arcId={arcId}
-            canRecordTake={sd.canRecordTake}
-            takeCount={sd.takeCount}
-            journeyNextStepsSeen={sd.journeyNextStepsSeen}
-            reviewWaiting={reviewWaiting}
-            onReview={() => setReviewRequest((n) => n + 1)}
-            onNewTake={() => onReadAloud(sd.version)}
-            onSeeNextSteps={() => {
-              void reloadLounge();
-              onClose();
-            }}
-          />
+          {nextStep(reviewWaiting)}
         </div>
       ) : null}
 

@@ -248,7 +248,7 @@ describe("a locked paragraph chooses new helper words (Q27 B)", () => {
     expect(sheet?.textContent).toContain("Choose your helper words");
     expect(sheet?.textContent).toContain("ship it now");
     const pill = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "Use this phrase",
+      (b) => b.textContent?.trim() === "Use these helper words",
     );
     expect(pill?.disabled).toBe(true);
     const tokens = container.querySelectorAll('[data-testid="picker-tokens"] button');

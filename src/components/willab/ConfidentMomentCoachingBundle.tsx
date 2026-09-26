@@ -426,6 +426,13 @@ export default function ConfidentMomentCoachingBundle({
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-label="Confident moment coaching">
       <section className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-background p-6 shadow-2xl">
         <OverlayCloseButton onClick={onClose} />
+        {/* The walk's header at the top, as on every sheet (founder
+            2026-09-26): ‹ Slide 2 · moment 1 of 4 ›. */}
+        {pager ? (
+          <div className="-mx-3 -mt-3 mb-3 pr-10">
+            <FeedbackPagerBar pager={pager} />
+          </div>
+        ) : null}
         <div className="space-y-6 pr-8">
           {visibleItems.map((item) => (
             <article key={item.bundleAttachmentId} className="space-y-3 rounded-2xl border border-border p-4">
@@ -540,11 +547,6 @@ export default function ConfidentMomentCoachingBundle({
             <ParagraphHistoryBlock {...history} />
           ) : null}
         </div>
-        {pager ? (
-          <div className="sticky bottom-0 -mx-6 -mb-6 mt-6 bg-background">
-            <FeedbackPagerBar pager={pager} />
-          </div>
-        ) : null}
       </section>
     </div>
   );

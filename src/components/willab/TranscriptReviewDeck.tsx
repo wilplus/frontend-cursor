@@ -9,6 +9,8 @@ import DeckChunkModal, {
 } from "@/components/willab/DeckChunkModal";
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
 import DeckSlideThumb from "@/components/willab/DeckSlideThumb";
+import { WalkEndLayer } from "@/components/willab/WalkEnd";
+import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import {
   buildBookmarks,
   useFeedbackPager,
@@ -217,6 +219,7 @@ export default function TranscriptReviewDeck({
   openFeedback = false,
   reviewRequest = 0,
   onReviewWaiting,
+  renderNextStep,
   feedbackPending = false,
   takeCount = null,
 }: {
@@ -297,6 +300,10 @@ export default function TranscriptReviewDeck({
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   onReviewWaiting?: (waiting: boolean) => void;
+  /** The host's next step (the next take, or See next steps), drawn on the
+   *  card after the last moment of the walk. Absent → the card offers only
+   *  the way back to the text. */
+  renderNextStep?: () => React.ReactNode;
 }) {
   const confidentMoments = useConfidentMomentBundle({
     projectId: arcId,
@@ -517,17 +524,46 @@ export default function TranscriptReviewDeck({
     setOpenPart(null);
     setOpenBundleId(null);
   }, []);
+  /* AFTER THE LAST MOMENT (founder 2026-09-26): the end card, and a short
+     "saved" line each time a sheet finishes on its own. */
+  const [endCard, setEndCard] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const helperSavedRef = useRef(false);
+  const finishWalk = useCallback(() => {
+    closeSheets();
+    setEndCard(true);
+  }, [closeSheets]);
+  const labelOf = useCallback(
+    (bookmark: Bookmark) => slideLabelOf(groups, bookmark.partId),
+    [groups],
+  );
   const walk = useFeedbackPager({
     bookmarks,
     open: openBookmark,
-    closeAll: closeSheets,
+    closeAll: finishWalk,
     openFeedback,
     ready: deckReady,
+    labelOf,
   });
   const closeWalk = useCallback(() => {
     walk.stop();
     closeSheets();
   }, [walk, closeSheets]);
+
+  /* A SHEET THAT FINISHES ON ITS OWN MOVES ON (founder 2026-09-26). The
+     helper words saved, or the moment's steps ran out: say so for a moment,
+     then open the next moment — or the end card after the last. Closing with
+     the ✕ still just closes. */
+  const sheetDone = useCallback(() => {
+    setToast(
+      helperSavedRef.current
+        ? CHUNK_SHEET_COPY.toastHelperWordsSaved
+        : CHUNK_SHEET_COPY.toastAnswerSaved,
+    );
+    helperSavedRef.current = false;
+    if (walk.pager) walk.pager.onNext();
+    else closeSheets();
+  }, [walk.pager, closeSheets]);
 
   /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
      moments from the first one in text order — the same walk a tap on a
@@ -1290,6 +1326,7 @@ export default function TranscriptReviewDeck({
             // Q24 B / Q27 B: the new words are saved, then locked, at once.
             if (!(await onSetRootPhrase(openChunk, span))) return false;
             const result = await onLockPart(openChunk, openChunk.part.text);
+            if (result.outcome === "ok") setToast(CHUNK_SHEET_COPY.toastHelperWordsSaved);
             return result.outcome === "ok";
           }}
           onClose={closeWalk}
@@ -1306,6 +1343,7 @@ export default function TranscriptReviewDeck({
           onLockIn={async (text: string): Promise<LockResult> => {
             const result = await onLockPart(openChunk, text);
             if (result.outcome === "ok") {
+              helperSavedRef.current = true;
               // Founder 2026-09-17: after a lock, return to the slide,
               // scrolled to that paragraph. Requested by id — the lock
               // reassembles the document, so where it lands is only known
@@ -1319,9 +1357,14 @@ export default function TranscriptReviewDeck({
             }
             return result;
           }}
-          onSetRootPhrase={(phrase) => onSetRootPhrase(openChunk, phrase)}
+          onSetRootPhrase={async (phrase) => {
+            const ok = await onSetRootPhrase(openChunk, phrase);
+            if (ok && phrase) helperSavedRef.current = true;
+            return ok;
+          }}
           onDocumentChanged={onConfidentMomentChanged}
           onClose={closeWalk}
+          onDone={sheetDone}
           pager={walk.pager}
           onApplyStyle={onApplyStyle}
           arcId={arcId}
@@ -1363,6 +1406,13 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
         />
       ) : null}
+      <WalkEndLayer
+        endCard={endCard}
+        renderNextStep={renderNextStep}
+        onCloseEndCard={() => setEndCard(false)}
+        toast={toast}
+        onToastGone={() => setToast(null)}
+      />
     </div>
   );
 }
@@ -1460,6 +1510,16 @@ function SlideEditor({
       </div>
     </div>
   );
+}
+
+/** "Slide 2" for the walk's header, from the slide the paragraph sits on. */
+function slideLabelOf(
+  groups: readonly { slideIndex: number | null; chunks: readonly DeckChunk[] }[],
+  partId: string,
+): string | null {
+  const group = groups.find((g) => g.chunks.some((c) => c.part.id === partId));
+  if (!group) return null;
+  return group.slideIndex === null ? "Your talk" : `Slide ${group.slideIndex + 1}`;
 }
 
 /** The first bookmark, in text order, whose paragraph still waits. -1 when

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 
@@ -32,6 +32,8 @@ export interface Bookmark {
 export interface Pager {
   index: number;
   total: number;
+  /** Where the open bookmark sits ("Slide 2"), for the header. */
+  label?: string | null;
   onBack: () => void;
   onNext: () => void;
 }
@@ -71,34 +73,43 @@ export function landingIndex(bookmarks: readonly Bookmark[]): number {
   return coach >= 0 ? coach : bookmarks.findIndex((b) => b.bundleId !== null);
 }
 
-/** The bar, copied from the coach panel's footer (CoachJudgementQueue). */
+/** ONE NAVIGATION, AT THE TOP (founder 2026-09-26, Ideal Text redesign B).
+ *  It used to be an outlined Back and a black Next at the bottom of every
+ *  sheet, under the step's own black button — two black buttons stacked, and
+ *  the reader could not tell which one moved on. Now the step's button is
+ *  the only black one, and the walk is a slim header: ‹ Slide 2 · moment 1
+ *  of 4 ›. Back is off on the first; on the last the › is Done (Q32 A). */
 export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined }) {
   if (!pager) return null;
   const last = pager.index >= pager.total - 1;
+  const position = `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
   return (
-    <div
+    <nav
       data-testid="feedback-pager"
-      className="shrink-0 border-t border-border px-4 py-3"
+      aria-label={position}
+      className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1"
     >
-      <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
-        <button
-          type="button"
-          onClick={pager.onBack}
-          disabled={pager.index === 0}
-          className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-border text-[15px] text-foreground disabled:opacity-40"
-        >
-          <ArrowLeft className="h-[17px] w-[17px]" aria-hidden />
-          {COPY.pagerBack}
-        </button>
-        <button
-          type="button"
-          onClick={pager.onNext}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-foreground text-[15px] font-semibold text-background"
-        >
-          {last ? COPY.pagerDone : COPY.pagerNext}
-        </button>
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={pager.onBack}
+        disabled={pager.index === 0}
+        aria-label={COPY.pagerBack}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+      >
+        <ChevronLeft className="h-5 w-5" aria-hidden />
+      </button>
+      <p className="min-w-0 truncate text-[13px] font-semibold text-foreground">
+        {pager.label ? `${pager.label} · ${position}` : position}
+      </p>
+      <button
+        type="button"
+        onClick={pager.onNext}
+        aria-label={last ? COPY.pagerDone : COPY.pagerNext}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <ChevronRight className="h-5 w-5" aria-hidden />
+      </button>
+    </nav>
   );
 }
 
@@ -112,13 +123,15 @@ export function useFeedbackPager(args: {
    *  the chat bubble). */
   openFeedback: boolean;
   ready: boolean;
+  /** Where a bookmark sits ("Slide 2"), shown in the header. */
+  labelOf?: (bookmark: Bookmark) => string | null;
 }): {
   pager: Pager | null;
   openAt: (index: number) => void;
   openPart: (partId: string) => boolean;
   stop: () => void;
 } {
-  const { bookmarks, open, closeAll, openFeedback, ready } = args;
+  const { bookmarks, open, closeAll, openFeedback, ready, labelOf } = args;
   const [at, setAt] = useState<number | null>(null);
   const landed = useRef(false);
 
@@ -155,9 +168,11 @@ export function useFeedbackPager(args: {
 
   const pager = useMemo<Pager | null>(() => {
     if (at === null || bookmarks.length === 0) return null;
+    const bookmark = bookmarks[at];
     return {
       index: at,
       total: bookmarks.length,
+      label: bookmark && labelOf ? labelOf(bookmark) : null,
       onBack: () => openAt(Math.max(0, at - 1)),
       onNext: () => {
         if (at >= bookmarks.length - 1) {
@@ -168,7 +183,7 @@ export function useFeedbackPager(args: {
         openAt(at + 1);
       },
     };
-  }, [at, bookmarks.length, openAt, closeAll]);
+  }, [at, bookmarks, openAt, closeAll, labelOf]);
 
   return { pager, openAt, openPart, stop };
 }

@@ -118,7 +118,7 @@ export const CHUNK_SHEET_COPY = {
      step is not built at all, so "lock it" would be an instruction they cannot
      follow. */
   emphasisFirstTakeNote:
-    "Once locked, these words show while you record your next take",
+    "These words show while you record your next take",
   titleLock: "Lock",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
   titleEditChunk: "Edit this chunk",
@@ -133,7 +133,11 @@ export const CHUNK_SHEET_COPY = {
      the deleted root face's "Make this phrase orange" — and the founder's
      answer was that the two were always the same action. So it lands here, on
      the step that picks the phrase and hands it to the lock to promote. */
-  pillEmphasise: "Use this phrase",
+  /* Founder 2026-09-26 (Ideal Text redesign, decision 1: "Use these helper
+     words" replaces Lock). The same tap saves and locks the words; the word
+     "lock" said the paragraph was frozen, and the next take rewrites it
+     (clause 8). No icon on the button. */
+  pillEmphasise: "Use these helper words",
   pillChooseWords: "Choose different words",
   pillLock: "Lock",
   /* The exercise step's two pills. They differ by one word on purpose:
@@ -211,7 +215,7 @@ export const CHUNK_SHEET_COPY = {
   failApply: "Your choice is safe, but the text update needs another try.",
   failKeep: "Your choice is safe. Refresh to continue.",
   failLockBlocked: "Decide every suggestion on this chunk first.",
-  failLock: "Couldn't lock this in. Try again.",
+  failLock: "Couldn't save your helper words. Try again.",
   failEmphasis: "Couldn't apply that. Try again.",
   failRoot: "Couldn't save those words. Try again.",
   /* A DIFFERENT FAILURE NEEDS A DIFFERENT SENTENCE. `failRoot` ends in "Try
@@ -251,5 +255,17 @@ export const CHUNK_SHEET_COPY = {
   pagerBack: "Back",
   pagerNext: "Next",
   pagerDone: "Done",
+  /* Founder 2026-09-26 (Ideal Text redesign, accepted screens): the walk's
+     position in the sheet header, "Slide 2 · moment 1 of 4". It counts
+     positions in the walk, as Back / Next always did — never problems found
+     (AC-9). */
+  pagerMoment: "moment",
+  pagerOf: "of",
+  /* Shown for a moment after a sheet finishes, then the next moment opens. */
+  toastHelperWordsSaved: "Helper words saved",
+  toastAnswerSaved: "Answer saved",
+  /* After the last moment of the walk. */
+  endCardTitle: "That's every moment for this Take",
+  endCardBack: "Back to the text",
   historyNow: "Now",
 } as const;

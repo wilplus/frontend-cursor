@@ -67,10 +67,23 @@ afterEach(async () => {
 
 const buttons = () =>
   Array.from(container.querySelectorAll("button")).map((b) => ({
-    label: (b.textContent ?? "").trim(),
+    // The walk's controls are chevrons named by their aria-label (founder
+    // 2026-09-26: one slim header, ‹ position ›); other buttons by their text.
+    label: (b.getAttribute("aria-label") ?? b.textContent ?? "").trim(),
     disabled: b.disabled,
     el: b,
   }));
+
+describe("the walk's header (founder 2026-09-26)", () => {
+  it("shows where you are as words, never a tally of problems", async () => {
+    await act(async () =>
+      root.render(createElement(FeedbackPagerBar, {
+        pager: { index: 0, total: 4, label: "Slide 2", onBack: vi.fn(), onNext: vi.fn() },
+      })),
+    );
+    expect(container.textContent).toBe("Slide 2 · moment 1 of 4");
+  });
+});
 
 describe("the bar, copied from the coach panel", () => {
   it("Back is off on the first; Next is always Next, and Done on the last", async () => {
