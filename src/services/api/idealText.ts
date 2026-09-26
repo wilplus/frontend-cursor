@@ -212,6 +212,8 @@ export interface ConfidentVoicePracticeOffer {
   passage: string;
   practiceId: string | null;
   resume: boolean;
+  /** Completed on an earlier Take (contract 35d): a flag, never a count. */
+  doneBefore: boolean;
 }
 
 export interface DocumentSuggestion {
@@ -577,6 +579,7 @@ function mapPracticeExercise(
     practiceId:
       typeof practice.practice_id === "string" ? practice.practice_id : null,
     resume: practice.resume === true,
+    doneBefore: practice.done_before === true,
   };
 }
 

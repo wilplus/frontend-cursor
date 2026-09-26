@@ -142,6 +142,9 @@ export const CHUNK_SHEET_COPY = {
      one already judged. A pill that still read "Practise" there would make a
      fresh recording look like a return to the last one. */
   pillPractise: "Practise",
+  /* The green label on an exercise already completed on an earlier Take
+     (founder 2026-09-26, Q44: "just add a little green label 'done'"). */
+  exerciseDone: "Done",
   pillPractiseAgain: "Practise again",
   /* NOT a new string. §3 says "Practise records in place" and the screen table
      has no stop state, but a recording still has to be endable — so this is

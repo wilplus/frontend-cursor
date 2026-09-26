@@ -318,6 +318,7 @@ describe("Confident Voice micro-practice mapping", () => {
         passage: "Give every word enough space.",
         practice_id: null,
         resume: false,
+        done_before: true,
       },
     }] as never)?.[0];
     expect(c?.feedbackFamily).toBe("confident_voice");
@@ -326,6 +327,7 @@ describe("Confident Voice micro-practice mapping", () => {
       title: "Hear every word",
       passage: "Give every word enough space.",
       resume: false,
+      doneBefore: true,
       yesIntroduction: "This already sounds confident. Try this optional refinement to make the words clearer.",
       noIntroduction: "You’re close. Try this exercise and see whether slowing down makes the confidence easier to hear.",
     });

@@ -1022,6 +1022,47 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
  * separate work the speaker may decline; declining it says nothing about
  * which words the paragraph turns on.
  */
+describe("the green Done label on an exercise done before (Q44, Q45 A)", () => {
+  async function openOffer(doneBefore: boolean) {
+    const item = suggestion({
+      id: `s-cv-done-${doneBefore}`,
+      feedbackFamily: "confident_voice",
+      source: "confident_voice",
+      snippetId: "snip-done",
+      takeSessionId: "take-1",
+      practiceExercise: { id: "ex-1", instruction: "Say it again.", doneBefore },
+      evidence: {
+        projectId: "arc-1", takeSessionId: "take-1", slideIndex: 0,
+        paragraphIndex: 0, start: 0, end: 21,
+      },
+    } as unknown as Partial<DocumentSuggestion>);
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [item.id] } as DeckChunk,
+            { document: TEXT, suggestions: [item] },
+          ),
+        }),
+      );
+    });
+    await click("In-between");
+    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
+    return container.querySelector('[data-testid="exercise-done-label"]');
+  }
+
+  it("shows Done, in green, when completed on an earlier Take", async () => {
+    const label = await openOffer(true);
+    expect(label?.textContent).toBe("Done");
+    expect(label?.className).toContain("text-success");
+  });
+
+  it("shows nothing on a new exercise", async () => {
+    expect(await openOffer(false)).toBeNull();
+  });
+});
+
 describe("declining the exercise keeps the emphasis step", () => {
   const withPractice = suggestion({
     id: "s-cv-drill",
