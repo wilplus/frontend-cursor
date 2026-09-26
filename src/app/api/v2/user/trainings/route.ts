@@ -19,10 +19,15 @@ const FAILURES: Failures = {
 };
 const RELAY = relayStrict({ empty: "bare" });
 
-export async function GET(_req: NextRequest) {
-  return callBackend("/v2/user/trainings", {
-    method: "GET",
-    failures: FAILURES,
-    relay: RELAY,
-  });
+export async function GET(req: NextRequest) {
+  // Data & consent lists archived projects too (N14); nothing else is sent on.
+  const archived = req.nextUrl.searchParams.get("include_archived") === "1";
+  return callBackend(
+    archived ? "/v2/user/trainings?include_archived=1" : "/v2/user/trainings",
+    {
+      method: "GET",
+      failures: FAILURES,
+      relay: RELAY,
+    },
+  );
 }

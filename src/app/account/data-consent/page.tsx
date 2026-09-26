@@ -16,6 +16,7 @@ import Link from "next/link";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DataConsentChoices from "@/components/account/DataConsentChoices";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
+import ProjectsCard from "@/components/account/ProjectsCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 export default function DataConsentPage() {
@@ -33,6 +34,7 @@ export default function DataConsentPage() {
         <div className="mt-6">
           <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
+        <ProjectsCard />
         <p className="mt-8 text-sm text-muted-foreground">
           <Link href="/privacy" className="underline underline-offset-4">
             Privacy Policy

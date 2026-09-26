@@ -8,14 +8,9 @@ import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import ProjectRowMenu from "./ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
-import {
-  cancelProjectDeletion,
-  requestProjectDeletion,
-} from "@/services/api/projectDeletion";
-import {
-  PROJECT_DELETE_ENABLED,
-  PROJECT_DELETION_COPY,
-} from "@/lib/willab/projectDeletionCopy";
+import { archiveProject } from "@/services/api/projectArchive";
+import { PROJECT_DELETION_COPY } from "@/lib/willab/projectDeletionCopy";
+import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 import {
   deleteSetupDraft,
   listSetupDrafts,
@@ -37,11 +32,11 @@ import {
 /*                                                                            */
 /*  2026-09-25 — an interrupted new-project setup is listed first as a Draft   */
 /*  that resumes where it stopped (this device only); its ⋯ menu deletes it.   */
-/*  A project's ⋯ menu ASKS for its deletion (N8): nothing is deleted on tap.  */
-/*  An operator confirms within 7 days through the governed purge; until then  */
-/*  the row says "Deletion pending", cannot be opened, and can be cancelled.   */
-/*  Off until the real delete ships (PROJECT_DELETE_ENABLED, founder           */
-/*  2026-09-26).                                                              */
+/*  2026-09-26 (N14) — a project's ⋯ menu offers Archive: the project leaves  */
+/*  this list and nothing is deleted; Data & consent lists it and brings it   */
+/*  back. Deleting a project lives in Data & consent, never here. A project   */
+/*  with an open deletion request says "Deletion pending" and cannot be       */
+/*  opened.                                                                   */
 /*                                                                            */
 /*  One row identifies one immutable project and its Ideal Text. Picking it    */
 /*  continues exactly that project; visible names are never identity.          */
@@ -93,24 +88,10 @@ export default function ProjectPicker({
     setDrafts(listSetupDrafts(ownerId));
   }, [ownerId]);
 
-  function setDeletion(arcId: string, deletion: TrainingArc["deletion"]) {
-    setArcs((list) =>
-      list.map((a) => (a.arcId === arcId ? { ...a, deletion } : a))
-    );
-  }
-
-  async function requestDelete(arc: TrainingArc): Promise<boolean> {
-    const result = await requestProjectDeletion(arc.arcId);
-    if (result.ok) {
-      setDeletion(arc.arcId, result.deletion ?? { state: "pending", dueAt: null });
-    }
-    return result.ok;
-  }
-
-  async function cancelDelete(arc: TrainingArc): Promise<boolean> {
-    const result = await cancelProjectDeletion(arc.arcId);
-    if (result.ok) setDeletion(arc.arcId, null);
-    return result.ok;
+  async function archive(arc: TrainingArc): Promise<boolean> {
+    const ok = await archiveProject(arc.arcId);
+    if (ok) setArcs((list) => list.filter((a) => a.arcId !== arc.arcId));
+    return ok;
   }
 
   async function deleteDraft(draft: SetupDraft): Promise<boolean> {
@@ -243,8 +224,7 @@ export default function ProjectPicker({
                       key={a.arcId}
                       arc={a}
                       onOpen={() => onContinue(a)}
-                      onRequestDelete={() => requestDelete(a)}
-                      onCancelDelete={() => cancelDelete(a)}
+                      onArchive={() => archive(a)}
                     />
                   ))
                 : null}
@@ -289,26 +269,19 @@ function PickerRow({
   );
 }
 
-/** A project row. With the delete switched on it carries the ⋯ menu; while a
- *  deletion is pending it is locked (not openable) and offers the cancel. A
- *  confirmed deletion can no longer be cancelled, so it has no menu. */
+/** A project row: tap to open, ⋯ to archive (N14). While a deletion is
+ *  pending or confirmed it is locked (not openable) and has no menu; the
+ *  request is managed in Data & consent. */
 function ProjectRow({
   arc,
   onOpen,
-  onRequestDelete,
-  onCancelDelete,
+  onArchive,
 }: {
   arc: TrainingArc;
   onOpen: () => void;
-  onRequestDelete: () => Promise<boolean>;
-  onCancelDelete: () => Promise<boolean>;
+  onArchive: () => Promise<boolean>;
 }) {
-  const copy = PROJECT_DELETION_COPY;
-  const deletion = PROJECT_DELETE_ENABLED ? arc.deletion : null;
-  if (!PROJECT_DELETE_ENABLED) {
-    return <PickerRow label={arc.topic} onOpen={onOpen} />;
-  }
-  if (deletion) {
+  if (arc.deletion) {
     return (
       <div className="flex items-center gap-1 rounded-xl">
         <div
@@ -316,16 +289,10 @@ function ProjectRow({
           className="flex min-w-0 flex-1 items-baseline gap-2 px-3 py-3 text-left text-[16px] leading-snug text-muted-foreground"
         >
           <span className="min-w-0 break-words">{arc.topic}</span>
-          <span className="shrink-0 text-[13px]">{copy.pending}</span>
+          <span className="shrink-0 text-[13px]">
+            {PROJECT_DELETION_COPY.pending}
+          </span>
         </div>
-        {deletion.state === "pending" ? (
-          <ProjectRowMenu
-            label={arc.topic}
-            actionLabel={copy.cancel}
-            confirm={null}
-            onDelete={onCancelDelete}
-          />
-        ) : null}
       </div>
     );
   }
@@ -340,12 +307,10 @@ function ProjectRow({
       </button>
       <ProjectRowMenu
         label={arc.topic}
-        confirm={{
-          title: copy.title(arc.topic),
-          body: copy.body,
-          confirmLabel: copy.confirm,
-        }}
-        onDelete={onRequestDelete}
+        actionLabel={PROJECT_ARCHIVE_COPY.archive}
+        confirm={null}
+        failedLabel={PROJECT_ARCHIVE_COPY.archiveFailed}
+        onDelete={onArchive}
       />
     </div>
   );
