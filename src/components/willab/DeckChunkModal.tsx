@@ -813,6 +813,49 @@ export default function DeckChunkModal({
     if (busy) return;
     const source = tapSource(draft, practiceWords);
     const chosen = selectionText(source, phraseTokens(source), phraseRun);
+    /* BOTH SAVES AT ONCE (founder 2026-09-26, "improve the waiting time …
+       Use this phrase", option B). The button used to wait for the helper
+       words to save and only then start the lock: two server trips back to
+       back, felt as a spinner on every tap.
+
+       When the paragraph is untouched, neither write depends on the other:
+       the words go to root_*, the lock to locked_at, and a lock never clears
+       root_* (only an unlock does). So they run side by side.
+
+       NOT when the speaker edited the paragraph (dirtyRef): the lock saves
+       the new text first and the words must be re-anchored to it, which is
+       an order. Nor on the practice path, whose words go to the Slide
+       through the practice rather than onto this paragraph. Both keep the
+       sequential path below, unchanged.
+
+       If only the words fail, the sheet stays open on the same error as
+       before and one more tap completes it; locking an already locked
+       paragraph again is harmless. */
+    const parallel =
+      !dirtyRef.current && tapSource(draft, practiceWords) === draft;
+    if (parallel) {
+      setBusy(true);
+      setError(null);
+      const [saved, result] = await Promise.all([
+        saveEmphasis(chosen),
+        onLockIn(draft.trim()),
+      ]);
+      if (!saved) {
+        setBusy(false);
+        return;
+      }
+      setPromotedQuote(chosen);
+      if (result.outcome !== "ok") {
+        setBusy(false);
+        setError(
+          result.outcome === "blocked" ? COPY.failLockBlocked : COPY.failLock,
+        );
+        return;
+      }
+      setBusy(false);
+      onClose();
+      return;
+    }
     setBusy(true);
     setError(null);
     const saved = await saveEmphasis(chosen);

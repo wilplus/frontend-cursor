@@ -621,6 +621,46 @@ describe("the ladder", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
+  /** The founder's screenshot path: pick your own words, then "Use this
+   *  phrase". */
+  async function tapOwnWordsAndUse() {
+    await renderLadder({ style: emphasis, pending: [confidentVoice] });
+    await click("Yes — Confident");
+    await click("Choose different words");
+    const word = Array.from(container.querySelectorAll("button")).find(
+      (b) => (b.textContent ?? "").trim() === "now",
+    )!;
+    await act(async () => {
+      word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await click("Use this phrase");
+  }
+
+  it("starts the lock without waiting for the helper words to save (option B)", async () => {
+    // Founder 2026-09-26: the spinner on "Use this phrase" was two server
+    // trips back to back. On an untouched paragraph they now run together.
+    vi.mocked(props.onLockIn).mockClear();
+    vi.mocked(props.onClose).mockClear();
+    let finishWords: (ok: boolean) => void = () => {};
+    vi.mocked(props.onSetRootPhrase).mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => { finishWords = resolve; }),
+    );
+    await tapOwnWordsAndUse();
+    // The words are still saving, and the lock has already been asked for.
+    expect(props.onLockIn).toHaveBeenCalledTimes(1);
+    expect(props.onClose).not.toHaveBeenCalled();
+    await act(async () => { finishWords(true); });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the sheet open when only the helper words fail to save", async () => {
+    vi.mocked(props.onClose).mockClear();
+    vi.mocked(props.onSetRootPhrase).mockImplementationOnce(async () => false);
+    await tapOwnWordsAndUse();
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Use this phrase");
+  });
+
   it("an accepted proposed emphasis locks the STYLED words and re-anchors on them (Q24 B)", async () => {
     // Locking in the same tap as the style: `draft` in scope is still the
     // pre-style text, so the lock must be handed the styled words, or it
