@@ -27,6 +27,7 @@ export function RichText({
   text,
   srcOffset = 0,
   tint,
+  accent = true,
 }: {
   text: string;
   /** FE-7 — where `text` begins inside the WHOLE served document. Callers that
@@ -39,6 +40,10 @@ export function RichText({
    *  SAME orange {{orange:…}} uses: there is one accent colour in the product,
    *  and a key point is a qualitative cue, never a rank. */
   tint?: Array<[number, number]>;
+  /** false draws orange words in the paragraph's own colour (founder
+   *  2026-09-26: the helper words are orange in the bold headline only, never
+   *  inside the running text). The words themselves are untouched. */
+  accent?: boolean;
 }) {
   const segments = useMemo(() => parseRichSpans(text), [text]);
   return (
@@ -50,7 +55,7 @@ export function RichText({
           seg.underline ? "underline underline-offset-2" : "",
           // Orange means one thing only: an accepted anchor. A neutral moment
           // is feedback evidence, not automatic praise or styling.
-          seg.highlight ? "text-primary" : "",
+          seg.highlight && accent ? "text-primary" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -59,7 +64,7 @@ export function RichText({
             <Spaced
               text={seg.text}
               absStart={srcOffset + seg.srcStart}
-              tint={tint}
+              tint={accent ? tint : undefined}
             />
           </span>
         );
