@@ -100,13 +100,10 @@ describe("nextSelection", () => {
     expect(nextSelection(null, 3)).toEqual({ from: 3, to: 3 });
   });
 
-  it("extends on an adjacent tap, either side", () => {
+  it("the second tap marks every word in between, either direction (founder 2026-09-26)", () => {
+    expect(nextSelection({ from: 0, to: 0 }, 3)).toEqual({ from: 0, to: 3 });
     expect(nextSelection({ from: 3, to: 3 }, 4)).toEqual({ from: 3, to: 4 });
-    expect(nextSelection({ from: 3, to: 4 }, 2)).toEqual({ from: 2, to: 4 });
-  });
-
-  it("shortens when the tap lands inside the run", () => {
-    expect(nextSelection({ from: 2, to: 6 }, 4)).toEqual({ from: 2, to: 4 });
+    expect(nextSelection({ from: 6, to: 6 }, 2)).toEqual({ from: 2, to: 6 });
   });
 
   it("clears when the only selected word is tapped again", () => {
@@ -114,30 +111,29 @@ describe("nextSelection", () => {
     expect(nextSelection({ from: 3, to: 3 }, 3)).toBeNull();
   });
 
-  it("fills every word in between on a tap further along (founder 2026-09-26)", () => {
-    expect(nextSelection({ from: 0, to: 0 }, 3)).toEqual({ from: 0, to: 3 });
-    expect(nextSelection({ from: 2, to: 3 }, 9)).toEqual({ from: 2, to: 9 });
+  it("the third tap starts a new phrase instead of stretching the first", () => {
+    expect(nextSelection({ from: 0, to: 12 }, 20)).toEqual({ from: 20, to: 20 });
+    expect(nextSelection({ from: 2, to: 6 }, 4)).toEqual({ from: 4, to: 4 });
+    expect(nextSelection({ from: 2, to: 6 }, 1)).toEqual({ from: 1, to: 1 });
   });
 
-  it("fills backwards too", () => {
-    expect(nextSelection({ from: 6, to: 6 }, 2)).toEqual({ from: 2, to: 6 });
-  });
-
-  it("starts somewhere else by shrinking to the first word, then clearing", () => {
-    let selection = nextSelection({ from: 2, to: 6 }, 2);
-    expect(selection).toEqual({ from: 2, to: 2 });
-    selection = nextSelection(selection, 2);
-    expect(selection).toBeNull();
-    expect(nextSelection(selection, 9)).toEqual({ from: 9, to: 9 });
+  it("tap, tap, tap, tap: the second phrase replaces the first", () => {
+    let selection = nextSelection(null, 0);
+    selection = nextSelection(selection, 12);
+    expect(selection).toEqual({ from: 0, to: 12 });
+    selection = nextSelection(selection, 20);
+    selection = nextSelection(selection, 22);
+    expect(selection).toEqual({ from: 20, to: 22 });
   });
 
   it("can only ever select one run, so the exactly-once rule holds", () => {
     // The retired text field let a speaker type a phrase that appeared twice,
     // which needed an error path. Pointing at one occurrence cannot.
     let selection = nextSelection(null, 1);
-    selection = nextSelection(selection, 2);
     selection = nextSelection(selection, 3);
     expect(selection).toEqual({ from: 1, to: 3 });
+    selection = nextSelection(selection, 5);
+    expect(selection).toEqual({ from: 5, to: 5 });
   });
 });
 
