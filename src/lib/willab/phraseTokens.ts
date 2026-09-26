@@ -129,6 +129,11 @@ export function tokensWithinFragment(
  *
  *  `null` means nothing is selected. Tapping the only selected word clears it,
  *  so a speaker can always get back to "no phrase" without a separate control.
+ *
+ *  A TAP OUTSIDE THE RUN FILLS THE GAP (founder 2026-09-26): tap "But", then
+ *  tap "I" three words on, and every word in between is marked too. It works
+ *  in both directions. To start somewhere else, tap the run's first word (the
+ *  run shrinks to it) and tap it again (the run clears).
  */
 export function nextSelection(
   selection: PhraseSelection | null,
@@ -136,14 +141,11 @@ export function nextSelection(
 ): PhraseSelection | null {
   if (!selection) return { from: index, to: index };
   const { from, to } = selection;
-  if (index === to + 1) return { from, to: index };
-  if (index === from - 1) return { from: index, to };
-  if (index >= from && index <= to) {
-    if (from === to) return null;
-    // Tapping inside shortens: the run now ends where the finger landed.
-    return { from, to: index };
-  }
-  return { from: index, to: index };
+  if (index > to) return { from, to: index };
+  if (index < from) return { from: index, to };
+  if (from === to) return null;
+  // Tapping inside shortens: the run now ends where the finger landed.
+  return { from, to: index };
 }
 
 /** The selected run as the span the backend stores.
