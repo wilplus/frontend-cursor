@@ -36,6 +36,16 @@ function code(path: string): string {
 
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
 
+/** One step renderer's body: from its declaration to the next sibling
+ *  declaration at the component's own indentation. */
+function renderer(name: string): string {
+  const start = MODAL.indexOf(`function ${name}(): React.ReactNode {`);
+  expect(start, `${name} is not declared`).toBeGreaterThan(-1);
+  const rest = MODAL.slice(start + 1);
+  const end = rest.search(/\n {2}(?:function |const )/);
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
 /** The BE's closed vocabulary (services/delivery_cues.py CUE_KEYS). */
 const BE_CUE_KEYS = [
   "even_pitch",
@@ -123,12 +133,13 @@ describe("praiseLines", () => {
 describe("the modal renders praise as evidence, not as a verdict", () => {
   it("plays the recording of the moment", () => {
     // The claim is about how it SOUNDED — the one claim this product makes
-    // that a student cannot check by reading. renderFeedbackStep (audit
-    // Q-C7 dedup) is the feedback step's own render function, gated on
-    // step.kind === "feedback" by its one caller.
-    expect(MODAL).toMatch(
-      /function renderFeedbackStep\(\)[\s\S]{0,600}MediaPlayer/,
-    );
+    // that a student cannot check by reading. Since #370 the feedback step
+    // has its own renderer: reached only on its own step, drawn only with a
+    // suggestion in hand, and carrying the player.
+    expect(MODAL).toMatch(/step\.kind === "feedback" \? renderFeedbackStep\(\)/);
+    const feedback = renderer("renderFeedbackStep");
+    expect(feedback).toMatch(/^[^{]*\{\s*if \(!suggestion\) return null;/);
+    expect(feedback).toMatch(/MediaPlayer/);
   });
 
   it("is read, not rated (founder 2026-09-15)", () => {
@@ -145,12 +156,20 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
 
   it("shows no 'Suggested' block, because nothing is suggested", () => {
     // Praise has its own step now; the rewrite cards render only on theirs.
-    // renderPraiseStep and renderSuggestionStep (audit Q-C7 dedup) are
-    // separate render functions, so praise never falls through to the
-    // suggestion step's rewrite card.
-    expect(MODAL).toMatch(/function renderPraiseStep\(\)/);
-    expect(MODAL).toMatch(/function renderSuggestionStep\(\)/);
-    expect(MODAL).toMatch(/cardClearerVersion/);
+    // Each step dispatches to its own renderer, both need a suggestion in
+    // hand, and the "clearer version" card lives in the suggestion renderer
+    // alone — never in praise.
+    expect(MODAL).toMatch(/step\.kind === "praise" \? renderPraiseStep\(\)/);
+    expect(MODAL).toMatch(
+      /step\.kind === "suggestion" \? renderSuggestionStep\(\)/,
+    );
+    const praise = renderer("renderPraiseStep");
+    const rewrite = renderer("renderSuggestionStep");
+    for (const body of [praise, rewrite]) {
+      expect(body).toMatch(/^[^{]*\{\s*if \(!suggestion\) return null;/);
+    }
+    expect(praise).not.toMatch(/cardClearerVersion/);
+    expect(rewrite).toMatch(/cardClearerVersion/);
   });
 
   it("does not stack a generic reason line on top of the praise", () => {
