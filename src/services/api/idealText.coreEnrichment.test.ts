@@ -80,6 +80,22 @@ describe("Ideal Text core-first transport", () => {
     expect(result.ideal.text).toBe("Machine document.");
   });
 
+  it("a failed read (503) is retried through the composing read, never shown as missing", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("/ideal-text/core")
+        ? new Response(JSON.stringify({ code: "IDEAL_TEXT_READ_FAILED" }), { status: 503 })
+        : response({ status: "unverified", text: "Machine document.", pieces: [], parts: null }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const pending = fetchIdealTextCore("arc-read-failed");
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await pending;
+    vi.useRealTimers();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.kind).toBe("single");
+  });
+
   it("preserves the canonical valid-empty owner edit state", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response({
       status: "unverified",

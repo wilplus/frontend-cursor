@@ -1845,6 +1845,13 @@ export async function fetchIdealTextCore(
   }
   recordIdealTextReadTiming("willab.ideal_text.core", startedAt);
   if (response.status === 404) return fetchIdealText(arcId);
+  // 503 IDEAL_TEXT_READ_FAILED (founder 2026-09-26): the read FAILED — a
+  // dropped database connection — which is not "no document". Wait the
+  // server's Retry-After, then read through the composing lane.
+  if (response.status === 503) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return fetchIdealText(arcId);
+  }
   if (!response.ok) return { kind: "error" };
   const body = (await response.json().catch(() => null)) as Record<
     string,
