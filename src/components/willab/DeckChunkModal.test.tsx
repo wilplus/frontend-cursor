@@ -610,8 +610,8 @@ describe("the ladder", () => {
     await click("Keep wording");        // suggestion
     await click("Continue");            // good job
     expect(container.textContent).toContain("With emphasis");
-    await click("Use this phrase");
-    // "Use this phrase" locks at once and closes (Q24 B): no Lock screen and
+    await click("Use these helper words");
+    // "Use these helper words" locks at once and closes (Q24 B): no Lock screen and
     // no rooting-phrase screen behind it. They already said which words matter.
     expect(container.textContent).not.toContain("Tap the words");
     expect(props.onLockIn).toHaveBeenCalled();
@@ -633,11 +633,11 @@ describe("the ladder", () => {
     await act(async () => {
       word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    await click("Use this phrase");
+    await click("Use these helper words");
   }
 
   it("starts the lock without waiting for the helper words to save (option B)", async () => {
-    // Founder 2026-09-26: the spinner on "Use this phrase" was two server
+    // Founder 2026-09-26: the spinner on "Use these helper words" was two server
     // trips back to back. On an untouched paragraph they now run together.
     vi.mocked(props.onLockIn).mockClear();
     vi.mocked(props.onClose).mockClear();
@@ -658,7 +658,7 @@ describe("the ladder", () => {
     vi.mocked(props.onSetRootPhrase).mockImplementationOnce(async () => false);
     await tapOwnWordsAndUse();
     expect(props.onClose).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Use this phrase");
+    expect(container.textContent).toContain("Use these helper words");
   });
 
   it("an accepted proposed emphasis locks the STYLED words and re-anchors on them (Q24 B)", async () => {
@@ -684,7 +684,7 @@ describe("the ladder", () => {
       );
     });
     await click("Yes — Confident");
-    await click("Use this phrase");
+    await click("Use these helper words");
     expect(onApplyStyle).toHaveBeenCalledTimes(1);
     const locked = vi.mocked(props.onLockIn).mock.calls[0][0];
     expect(locked).toContain("{{orange:the team is ready}}");
@@ -713,7 +713,7 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
     await click("Yes — Confident");
     expect(container.textContent).toContain("With emphasis");
-    await click("Use this phrase"); // locks at once (Q24 B)
+    await click("Use these helper words"); // locks at once (Q24 B)
     expect(props.onLockIn).toHaveBeenCalled();
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
     expect(calls).toHaveLength(1);
@@ -764,7 +764,7 @@ describe("the ladder", () => {
     expect(word.getAttribute("aria-pressed")).toBe("true");
     expect(word.className).toContain("text-primary");
 
-    await click("Use this phrase"); // locks at once (Q24 B)
+    await click("Use these helper words"); // locks at once (Q24 B)
     const lockedText = vi.mocked(props.onLockIn).mock.calls[0][0];
     expect(lockedText).not.toContain("{{orange:");
     expect(lockedText).not.toContain("**");
@@ -787,7 +787,7 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis });
     await click("No — Not confident");
     expect(container.textContent).not.toContain("With emphasis");
-    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).not.toContain("Use these helper words");
     expect(buttonLabels()).not.toContain("Lock");
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
   });
@@ -799,7 +799,7 @@ describe("the ladder", () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis, pending: [] });
     expect(container.textContent).not.toContain("With emphasis");
-    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).not.toContain("Use these helper words");
     await click("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
@@ -909,7 +909,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
     await click("Continue");
     // No judgement was recorded, so no helper-words step, and with no Lock
     // screen any more (Q25 B) the sheet simply closes.
-    expect(buttonLabels()).not.toContain("Use this phrase");
+    expect(buttonLabels()).not.toContain("Use these helper words");
     expect(buttonLabels()).not.toContain("Lock");
     expect(props.onClose).toHaveBeenCalled();
 
@@ -961,7 +961,7 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     await act(async () => {
       word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    await click("Use this phrase");
+    await click("Use these helper words");
   }
 
   it("No — Not confident: no helper words, no Lock, and the sheet is done", async () => {
@@ -973,7 +973,7 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
 
     expect(container.textContent).not.toContain("Tap the words");
     const labels = buttonLabels();
-    expect(labels).not.toContain("Use this phrase");
+    expect(labels).not.toContain("Use these helper words");
     expect(labels).not.toContain("Lock");
     expect(labels).not.toContain("Keep evolving");
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
@@ -992,7 +992,7 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     await renderLadder({ pending: [confidentVoice] });
     await click("Not sure");
     await tapAWordAndCommit();
-    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    // No Lock screen: "Use these helper words" locked the words (Q24 B).
     expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
@@ -1003,7 +1003,7 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     await renderLadder({ pending: [confidentVoice] });
     await click("In-between");
     await tapAWordAndCommit();
-    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    // No Lock screen: "Use these helper words" locked the words (Q24 B).
     expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
@@ -1013,7 +1013,7 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     await renderLadder({ pending: [confidentVoice] });
     await click("Yes — Confident");
     await tapAWordAndCommit();
-    // No Lock screen: "Use this phrase" locked the words (Q24 B).
+    // No Lock screen: "Use these helper words" locked the words (Q24 B).
     expect(buttonLabels()).not.toContain("Lock");
     expect(props.onLockIn).toHaveBeenCalled();
   });
@@ -1142,7 +1142,7 @@ describe("declining the exercise keeps the emphasis step", () => {
     // THE DEFECT, on the answer where it was visible.
     await openOnTheDrill("Yes — Confident");
     expect(container.textContent).toContain("Tap the words");
-    expect(buttonLabels()).toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Use these helper words");
   });
 
   it("No then Not now ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
@@ -1168,9 +1168,9 @@ describe("declining the exercise keeps the emphasis step", () => {
     await act(async () => {
       word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    await click("Use this phrase");
+    await click("Use these helper words");
     expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
-    // In-between keeps its lock: "Use this phrase" locked the words.
+    // In-between keeps its lock: "Use these helper words" locked the words.
     expect(props.onLockIn).toHaveBeenCalled();
   });
 });
@@ -1201,7 +1201,7 @@ describe("an emphasis phrase that cannot be anchored", () => {
     await renderLadder({ style: strayEmphasis, pending: [confidentVoice] });
     await click("Yes — Confident");
     expect(container.textContent).toContain("With emphasis");
-    await click("Use this phrase");
+    await click("Use these helper words");
 
     // Nothing was sent — there was no span to send.
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();

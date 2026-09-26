@@ -14,6 +14,9 @@ interface MediaPlayerProps {
   /** Slice length (ms). Drives the visible duration label and the
    *  hard pause-at-end clamp. */
   durationMs?: number;
+  /** A slimmer row, for the judgement screen, where the answers — not the
+   *  player — are the main thing (founder 2026-09-26). */
+  compact?: boolean;
 }
 
 /**
@@ -40,6 +43,7 @@ export default function MediaPlayer({
   src,
   startOffsetMs = 0,
   durationMs,
+  compact = false,
 }: MediaPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -137,7 +141,12 @@ export default function MediaPlayer({
   const disabled = !src || errored;
 
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-3">
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-xl bg-muted/60",
+        compact ? "px-2.5 py-2" : "p-3",
+      )}
+    >
       <button
         type="button"
         onClick={togglePlay}
@@ -145,7 +154,8 @@ export default function MediaPlayer({
         aria-label={playing ? "Pause snippet" : "Play snippet"}
         aria-pressed={playing}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-primary-foreground transition-transform hover:scale-105",
+          "flex items-center justify-center rounded-full bg-foreground text-primary-foreground transition-transform hover:scale-105",
+          compact ? "h-8 w-8" : "h-10 w-10",
           disabled && "cursor-not-allowed opacity-50 hover:scale-100"
         )}
       >

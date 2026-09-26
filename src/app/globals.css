@@ -313,3 +313,10 @@ body.no-scroll {
 }
 
 /* Strength/pace wheel: on narrow viewports scale the 533px row to fit so it’s visibly big on mobile */
+/* Ideal Text — the one loading line under the header while the Manager's
+   feedback is still arriving (founder 2026-09-26). A short bar that travels
+   left to right; still under prefers-reduced-motion (motion-safe). */
+@keyframes feedback-line {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}

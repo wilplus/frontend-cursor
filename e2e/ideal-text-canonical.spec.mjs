@@ -186,7 +186,7 @@ check(
   // protected one below — so the step opens straight into tap-to-select.
   "with nothing proposed, the emphasis step opens straight into choosing",
   (await dialog(page).locator("text=TAP THE WORDS").count()) === 1 &&
-    (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Use these helper words$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0
 );
 // Two taps make the phrase (founder 2026-09-26): the first word, then the
@@ -198,16 +198,22 @@ check(
   "tapped words preview in the accent, which is how a rooting phrase records",
   (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3
 );
-// ONE SCREEN (founder 2026-09-25, Q24 B): "Use this phrase" locks the words
+// ONE SCREEN (founder 2026-09-25, Q24 B): "Use these helper words" locks the words
 // at once and the sheet closes. There is no Lock screen after it, and no
 // "Keep evolving" anywhere.
-await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).click();
+await dialog(page).locator("button", { hasText: /^Use these helper words$/ }).click();
 await page.waitForTimeout(700);
+// That was the walk's only moment, so the sheet hands over to the end card
+// (founder 2026-09-26): "That's every moment for this Take", then back to the
+// text.
 check(
-  "choosing the helper words locks them and closes the sheet, with no Lock screen",
-  (await page.locator('[role="dialog"]').count()) === 0 &&
+  "choosing the helper words locks them and moves on, with no Lock screen",
+  (await page.locator('[role="dialog"][aria-label="That\'s every moment for this Take"]').count()) === 1 &&
+    (await page.locator('[role="dialog"]').count()) === 1 &&
     (await page.locator("button", { hasText: /^Keep evolving$/ }).count()) === 0
 );
+await page.locator("button", { hasText: /^Back to the text$/ }).click();
+await page.waitForTimeout(300);
 writes = await calls(page);
 const lockWrites = writes.filter((entry) => entry.url.includes("/lock"));
 check(
@@ -362,8 +368,11 @@ check(
 );
 await fresh.close();
 
+// ONE ⋯ (founder 2026-09-26): Presentation Mode, Export and Copy live in
+// the header's menu now. Open it, then read the same labels.
+await page.locator('button[aria-label="More"]').first().click();
 check(
-  "the top bar has presentation, export, copy, and close—but no edit control",
+  "the top bar's ⋯ holds presentation, export and copy—and there is no edit control",
   await page.evaluate(() => {
     const labels = [...document.querySelectorAll("button[aria-label]")].map(
       (button) => button.getAttribute("aria-label") ?? ""

@@ -315,13 +315,13 @@ describe("a served answer advances the ladder by itself", () => {
     expect(buttonLabels()).not.toContain("Done");
     // A Yes is what opens the orange-phrase step (§4); nothing was proposed,
     // so the step opens in tap-to-choose mode with its one pill.
-    expect(buttonLabels()).toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Use these helper words");
   });
 
   it("Not sure reaches the helper words and keeps the Lock (founder 2026-09-25, Q1 B)", async () => {
     await render(served);
     await click("Not sure");
-    expect(buttonLabels()).toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Use these helper words");
   });
 
   it("No and Audio unclear offer no helper words and no Lock (founder 2026-09-25)", async () => {
@@ -332,7 +332,7 @@ describe("a served answer advances the ladder by itself", () => {
     for (const answer of ["No — Not confident", "Audio unclear"]) {
       await render(served);
       await click(answer);
-      expect(buttonLabels()).not.toContain("Use this phrase");
+      expect(buttonLabels()).not.toContain("Use these helper words");
       expect(buttonLabels()).not.toContain("Lock");
       expect(buttonLabels()).not.toContain("Keep evolving");
     }
@@ -354,7 +354,7 @@ describe("a served answer advances the ladder by itself", () => {
     // Not now is a way on, and the emphasis rung is still there behind it.
     await click("Not now");
     expect(container.querySelector('[data-testid="service-exercise"]')).toBeNull();
-    expect(buttonLabels()).toContain("Use this phrase");
+    expect(buttonLabels()).toContain("Use these helper words");
   });
 
   it("never offers the exercise rung when the server refused one", async () => {

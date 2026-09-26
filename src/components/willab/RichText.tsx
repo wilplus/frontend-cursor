@@ -28,6 +28,7 @@ export function RichText({
   srcOffset = 0,
   tint,
   accent = true,
+  tintClass = "text-primary",
 }: {
   text: string;
   /** FE-7 — where `text` begins inside the WHOLE served document. Callers that
@@ -44,6 +45,11 @@ export function RichText({
    *  2026-09-26: the helper words are orange in the bold headline only, never
    *  inside the running text). The words themselves are untouched. */
   accent?: boolean;
+  /** How a `tint` range is drawn. The accent by default; the deck passes
+   *  "italic" for the helper words inside the running text (founder
+   *  2026-09-26: orange in the headline only, italic in the paragraph, same
+   *  colour and font). A non-accent class draws even when `accent` is false. */
+  tintClass?: string;
 }) {
   const segments = useMemo(() => parseRichSpans(text), [text]);
   return (
@@ -64,7 +70,8 @@ export function RichText({
             <Spaced
               text={seg.text}
               absStart={srcOffset + seg.srcStart}
-              tint={accent ? tint : undefined}
+              tint={accent || tintClass !== "text-primary" ? tint : undefined}
+              tintClass={tintClass}
             />
           </span>
         );
@@ -91,21 +98,28 @@ function Spaced({
   text,
   absStart,
   tint,
+  tintClass,
 }: {
   text: string;
   absStart: number;
   tint?: Array<[number, number]>;
+  tintClass?: string;
 }) {
   const blocks = readingBlocks(text);
   if (blocks.length <= 1) {
-    return <Tinted text={text} absStart={absStart} tint={tint} />;
+    return <Tinted text={text} absStart={absStart} tint={tint} tintClass={tintClass} />;
   }
   return (
     <>
       {blocks.map((b, i) => (
         <Fragment key={i}>
           {i > 0 ? "\n\n" : null}
-          <Tinted text={b.text} absStart={absStart + b.offset} tint={tint} />
+          <Tinted
+            text={b.text}
+            absStart={absStart + b.offset}
+            tint={tint}
+            tintClass={tintClass}
+          />
         </Fragment>
       ))}
     </>
@@ -126,10 +140,12 @@ function Tinted({
   text,
   absStart,
   tint,
+  tintClass = "text-primary",
 }: {
   text: string;
   absStart: number;
   tint?: Array<[number, number]>;
+  tintClass?: string;
 }) {
   if (!tint || tint.length === 0) return <>{text}</>;
   const end = absStart + text.length;
@@ -145,7 +161,7 @@ function Tinted({
     if (to <= at) return; // fully consumed by an earlier, overlapping cue
     if (from > at) out.push(<Fragment key={`p${k}`}>{text.slice(at, from)}</Fragment>);
     out.push(
-      <span key={`t${k}`} className="text-primary">
+      <span key={`t${k}`} className={tintClass}>
         {text.slice(Math.max(at, from), to)}
       </span>
     );

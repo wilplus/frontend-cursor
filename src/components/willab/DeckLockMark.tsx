@@ -1,6 +1,5 @@
 "use client";
 
-import { Bookmark } from "lucide-react";
 import type { ChunkStatus } from "@/lib/willab/deckChunks";
 import { motionClasses } from "@/lib/willab/bookmarkMotion";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
@@ -162,40 +161,27 @@ export default function DeckLockMark({
       data-tier={tier ?? undefined}
       onClick={onClick}
       disabled={disabled}
-      className={`relative ml-1.5 inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-1 align-[0.05em] transition-transform hover:scale-[1.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
+      className={`absolute bottom-0 left-0 top-0 flex w-4 justify-start rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
     >
-      {/* FILL IS THE SIGNAL NOW, and it was meant to be from the moment the
-          ring went (founder 2026-09-20: "the role of solid bookmark is taken
-          by just black text. There is just fill and motion").
-
-          That ruling had two halves and #418 shipped one. The ring went, and
-          fill stayed tied to `flagship` — which is only true when a rooting
-          phrase is live. So on an UNDECIDED paragraph, the one state the mark
-          exists to announce, the glyph had no ring, no fill and no motion:
-          a hairline outline at the end of a line of grey text. The founder
-          looked at a screen with three correct bookmarks on it and reported
-          no bookmarks, four times, and he was describing exactly what was
-          there to see.
-
-          So fill carries attention, which is what the ring carried. The
-          rooting phrase is not lost with it — it is drawn in the paragraph
-          itself, which is the half of the ruling that made this possible:
-          "taken by just black text". One device per fact, and this is the
-          fact the mark is for. */}
-      <Bookmark
-        className="h-5 w-5"
-        strokeWidth={2.1}
-        fill={attention ? "currentColor" : "none"}
+      {/* A BAR IN THE LEFT MARGIN (founder 2026-09-26, Ideal Text redesign
+          B), replacing the bookmark at the end of the paragraph. At the end
+          of a long paragraph the bookmark could land on the next screen and
+          moved with every line length; the bar stands level with the first
+          line, in the same place every time, and the words keep their full
+          colour. The whole paragraph is the tap target too. The bar sits
+          INSIDE the paragraph's left padding (every paragraph carries it, so
+          text never shifts as a bar comes and goes): outside the box, the
+          slide's scroller clipped it and swallowed the tap. Tier colour and
+          motion, the accessible label and every data-* attribute are
+          unchanged — the bar is the old mark's position, not a new signal. */}
+      <span
         aria-hidden
+        data-gutter-bar
+        className="block h-full w-[3px] rounded-full bg-current"
       />
-      {reviewStatus === "pending_coach_review" ? (
-        <span className="pr-1 text-[10px] font-semibold uppercase tracking-[0.08em]">
-          Pending
-        </span>
-      ) : null}
       {hasCoach ? (
         <span
-          className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${hasUnreadCoachUpdate ? "bg-primary motion-safe:animate-pulse" : "bg-muted-foreground"}`}
+          className={`absolute left-[1.5px] top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-background ${hasUnreadCoachUpdate ? "bg-primary motion-safe:animate-pulse" : "bg-muted-foreground"}`}
           aria-hidden
         />
       ) : null}

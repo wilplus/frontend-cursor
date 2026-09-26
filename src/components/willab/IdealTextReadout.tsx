@@ -68,6 +68,7 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealTextActions from "./IdealTextActions";
+import IdealTextMenu from "./IdealTextMenu";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { ReadoutPayload } from "./readout";
 import type {
@@ -158,6 +159,10 @@ export default function IdealTextReadout({
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [copied, setCopied] = useState(false);
+  /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
+     still waits; the bottom button bumps the request that opens the walk. */
+  const [reviewWaiting, setReviewWaiting] = useState(false);
+  const [reviewRequest, setReviewRequest] = useState(0);
   const firedRef = useRef(false);
   // #214 — edit persistence: armed once the SD GET confirms the contract and
   // hands us the current version. Until then (flag OFF / guest) edits are
@@ -950,6 +955,27 @@ export default function IdealTextReadout({
     );
   }
 
+  /** The loop's next step — the bottom bar, and the card after the last
+   *  moment of the walk (founder 2026-09-26), from one place. */
+  function nextStep(waiting: boolean): React.ReactNode {
+    if (!sd || !arcId || !onReRead) return null;
+    return (
+      <IdealTextActions
+        arcId={arcId}
+        canRecordTake={sd.canRecordTake}
+        takeCount={sd.takeCount}
+        journeyNextStepsSeen={sd.journeyNextStepsSeen}
+        reviewWaiting={waiting}
+        onReview={() => setReviewRequest((n) => n + 1)}
+        onNewTake={onReRead}
+        onSeeNextSteps={() => {
+          void reloadLounge();
+          onClose?.();
+        }}
+      />
+    );
+  }
+
   return (
     // `min-h-0` so the deck below can shrink into the space the header and
     // the actions leave — without it a flex child refuses to go under its
@@ -967,44 +993,46 @@ export default function IdealTextReadout({
           hands its ✕ down here rather than drawing a second one above (the
           same "it moves, it does not duplicate" rule as the setup flow). */}
       <div className="flex items-center justify-between gap-2">
-        <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
+        {/* Article 50(2) as a caption under the name (founder 2026-09-26),
+            the same head the notebook wears. */}
+        <div className="flex min-w-0 flex-col">
+          <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
+          <AiGeneratedNote kind="ideal-text" name={sd?.title} />
+        </div>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              // Article 50(2) — same marked copy as the overlay's button, from
-              // the one module, so the two cannot export differently.
-              void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
-                name: sd?.title,
-              }).then((ok) => {
-                if (!ok) return;
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1600);
-              });
-            }}
-            aria-label={copied ? "Copied" : "Copy the text"}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-success" aria-hidden />
-            ) : (
-              <Copy className="h-4 w-4" aria-hidden />
-            )}
-          </button>
-          {/* NO EDIT PENCIL (founder 2026-08-11: "The edits should not be in
-              the top bar"). This screen heads itself like the notebook does,
-              and the notebook's pencils are gone: editing is a CHUNK act —
-              click the chunk's lock, edit it in the modal. */}
+          {/* ONE ⋯ (founder 2026-09-26): Copy and Save the ideal text, the
+              same menu as the notebook. Same marked copy from the one
+              module, so the two cannot export differently. No edit control
+              in the top bar (founder 2026-08-11). */}
+          {sd && arcId ? (
+            <IdealTextMenu
+              arcId={arcId}
+              saved={sd.saved}
+              onBeforeSave={flushEdits}
+              onSaved={() => {
+                // The server now holds the student's newest words AND has
+                // frozen them — release the local edit lane or the refetch
+                // refuses to adopt the served text.
+                markDirty(false);
+                savedTextRef.current = null;
+                setSdNonce((n) => n + 1);
+              }}
+              onCopy={() => {
+                void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
+                  name: sd?.title,
+                }).then((ok) => {
+                  if (!ok) return;
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1600);
+                });
+              }}
+              copied={copied}
+            />
+          ) : null}
           {onClose ? (
             <OverlayCloseButton onClick={onClose} className="ml-1" />
           ) : null}
         </div>
-      </div>
-
-      {/* Article 50(2). Mounted here, above every body branch, for the reason
-          the overlay mounts it above its own. */}
-      <div>
-        <AiGeneratedNote kind="ideal-text" name={sd?.title} />
       </div>
 
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
@@ -1031,6 +1059,9 @@ export default function IdealTextReadout({
         // the screen a second scroll (founder 2026-08-11).
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TranscriptReviewDeck
+            reviewRequest={reviewRequest}
+            onReviewWaiting={setReviewWaiting}
+            renderNextStep={() => nextStep(false)}
             chrome="stage"
             document={text}
             parts={partsRef.current ?? sd.parts}
@@ -1117,28 +1148,7 @@ export default function IdealTextReadout({
         // 2026-08-05). The take nudge that sat under this went with it:
         // "not text that it really lands on the 3rd time; on the bubble
         // never" — and it was no better as a standing line on the document.
-        <IdealTextActions
-          arcId={arcId}
-          canRecordTake={sd.canRecordTake}
-          takeCount={sd.takeCount}
-          journeyNextStepsSeen={sd.journeyNextStepsSeen}
-          saved={sd.saved}
-          // The freeze waits for the edit lane (R-md1).
-          onBeforeSave={flushEdits}
-          onSaved={() => {
-            // The server now holds the student's newest words AND has
-            // frozen them, so the local edit lane is settled — release it
-            // or the refetch below refuses to adopt the served text.
-            markDirty(false);
-            savedTextRef.current = null;
-            setSdNonce((n) => n + 1);
-          }}
-          onNewTake={onReRead}
-          onSeeNextSteps={() => {
-            void reloadLounge();
-            onClose?.();
-          }}
-        />
+        nextStep(reviewWaiting)
       ) : onReRead ? (
         // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">

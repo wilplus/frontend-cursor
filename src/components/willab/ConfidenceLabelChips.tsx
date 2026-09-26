@@ -119,7 +119,7 @@ export default function ConfidenceLabelChips({
               aria-pressed={active}
               disabled={disabled}
               onClick={() => onPick(option.value)}
-              className={`flex min-h-9 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 active
                   ? "border-foreground bg-muted text-foreground"
                   : "border-border/80 text-muted-foreground hover:border-foreground/40 hover:text-foreground"

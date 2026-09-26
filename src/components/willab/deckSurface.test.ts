@@ -167,7 +167,10 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // settled. The outline is the stable paragraph control; later state may
     // change its fill or attention treatment, never its presence.
     expect(MARK).not.toMatch(/if \(!flagship && !unresolved\) return null/);
-    expect(MARK).toMatch(/<Bookmark/);
+    // Founder 2026-09-26: the mark is a bar in the left margin, level with
+    // the paragraph, instead of a bookmark glyph at its end.
+    expect(MARK).toMatch(/data-gutter-bar/);
+    expect(MARK).not.toMatch(/<Bookmark/);
   });
 
   it("the deck has no footer — no review count, no position, no word count", () => {
@@ -351,9 +354,11 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).toMatch(/if \(reAnchor\) await onSetRootPhrase\(reAnchor\)/);
   });
 
-  it("a settled paragraph that was answered or locked opens its own sheet when tapped (Q26 B)", () => {
+  it("a paragraph with a waiting bar, or answered or locked, opens on a tap (Q26 B, 2026-09-26)", () => {
     const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
-    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(!unsettled && opensParagraphSheet\(st\)/);
+    // The whole paragraph is the waiting bar's tap target too (founder
+    // 2026-09-26); a settled answered/locked one still opens its own sheet.
+    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(unsettled \|\| opensParagraphSheet\(st\)/);
   });
 
   it("no sheet ends on a Lock screen any more", () => {
@@ -363,8 +368,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // FOUNDER 2026-09-25 (Q24 B / Q25 B): no Lock screen on any answer. The
     // helper words lock on the emphasis step; everything else just closes.
     expect(MODAL).toMatch(/canLock: feedbackInventory\.length === 0,/);
-    // And the ladder running out is now a real branch, which is the close.
-    expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*onClose\(\);/);
+    // And the ladder running out is now a real branch: the sheet finishes on
+    // its own, and the host moves on to the next moment (founder 2026-09-26).
+    expect(MODAL).toMatch(/if \(!next\) \{\s*\n\s*finishSheet\(onDone, onClose\);/);
     // THE ANSWER REACHES IT UNCOLLAPSED. `closesLock` puts "No" and
     // "In-between" on opposite sides of the yes/other collapse (F-4), so a
     // sheet that forgets which of the five was tapped cannot obey the rule.

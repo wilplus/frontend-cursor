@@ -1,14 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  Copy,
-  Download,
-  Lock,
-  Presentation,
-  Sparkles,
-} from "lucide-react";
+import { Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
@@ -63,7 +56,6 @@ import {
 import {
   BlockVariantSheet,
   RevisionTimelineSheet,
-  TimelineEntryButton,
 } from "./BlockVariantPicker";
 import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
@@ -79,6 +71,7 @@ import {
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
+import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -313,6 +306,10 @@ export default function IdealTextOverlay({
   // Saves run one at a time (same rule as the readout's edit lane).
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   const [copied, setCopied] = useState(false);
+  /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
+     still waits; the bottom button bumps the request that opens the walk. */
+  const [reviewWaiting, setReviewWaiting] = useState(false);
+  const [reviewRequest, setReviewRequest] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -969,79 +966,65 @@ export default function IdealTextOverlay({
     });
   }
 
+  /** The loop's next step — the bottom bar, and the card after the last
+   *  moment of the walk (founder 2026-09-26), from one place so the two can
+   *  never offer different next steps. */
+  function nextStep(waiting: boolean): React.ReactNode {
+    if (!sd || !onReadAloud) return null;
+    return (
+      <IdealTextActions
+        arcId={arcId}
+        canRecordTake={sd.canRecordTake}
+        takeCount={sd.takeCount}
+        journeyNextStepsSeen={sd.journeyNextStepsSeen}
+        reviewWaiting={waiting}
+        onReview={() => setReviewRequest((n) => n + 1)}
+        onNewTake={() => onReadAloud(sd.version)}
+        onSeeNextSteps={() => {
+          void reloadLounge();
+          onClose();
+        }}
+      />
+    );
+  }
+
   return (
     <div
       data-ideal-text-wheel-owner
       {...aiGeneratedAttrs("ideal-text")}
       className="fixed inset-0 z-40 flex flex-col overscroll-none bg-background"
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-        {/* The project's name and its verification state, both from the shared
-            head — the post-recording readout mounts the SAME one, so the two
-            ideal-text screens cannot head themselves differently again. */}
-        <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-        <div className="flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
+        {/* The project's name and its verification state, from the shared
+            head, with the Article 50(2) notice as a caption under it
+            (founder 2026-09-26: it keeps its mark on every branch, but it no
+            longer spends a full-width row of its own). */}
+        <div className="flex min-w-0 flex-col">
+          <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
+          <AiGeneratedNote kind="ideal-text" name={sd?.title} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version
+              history, Copy and Save the ideal text. None of them is part of
+              the review loop, and on a phone their five icons read as a row
+              of unlabelled circles. No edit control here (founder
+              2026-08-11: "The edits should not be in the top bar"). */}
           {status === "ready" && sd ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setPresenting(true)}
-                aria-label="Use Presentation Mode"
-                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Presentation className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Presentation Mode</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setExportChooserOpen(true)}
-                aria-label="Export"
-                className="flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-            </>
+            <IdealTextMenu
+              arcId={arcId}
+              saved={sd.saved}
+              onSaved={() => setRefetchNonce((n) => n + 1)}
+              onPresent={() => setPresenting(true)}
+              onExport={() => setExportChooserOpen(true)}
+              onHistory={revisions?.length ? () => setTimelineOpen(true) : null}
+              onCopy={copyText}
+              copied={copied}
+            />
           ) : null}
-          {/* BLOCK_VARIANTS — the timeline entry (§8.2). Only when the
-              timeline has rows: an empty list is a real state (pre-migration
-              arc) and hides it entirely (§4.3). */}
-          {status === "ready" && sd && revisions && revisions.length > 0 ? (
-            <TimelineEntryButton onOpen={() => setTimelineOpen(true)} />
-          ) : null}
-          {status === "ready" || status === "instant" ? (
-            <button
-              type="button"
-              onClick={copyText}
-              aria-label={copied ? "Copied" : "Copy the text"}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              {copied ? (
-                <Check className="h-4 w-4 text-success" aria-hidden />
-              ) : (
-                <Copy className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          ) : null}
-          {/* NO EDIT PENCIL (founder 2026-08-11, verbatim: "The edits should
-              not be in the top bar"). Editing a chunk is a CHUNK act now: you
-              click the chunk's lock and edit it in the modal that opens, in
-              front of the words you are changing. The two pencils that used to
-              sit here — the chunked editor and the legacy personal-notes
-              editor — opened a whole-document mode from a header button, which
-              is a second, competing edit lane over the same text. Both are
-              gone, and with them every branch they were the only entry to. */}
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
-
-      {/* Article 50(2) — "detectable as artificially generated". Under the
-          head rather than inside a branch, so it holds for the instant draft,
-          the deck and the plain fallback alike: a per-branch label is how one
-          of them quietly stops saying it. */}
-      <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-1.5">
-        <AiGeneratedNote kind="ideal-text" name={sd?.title} />
-      </div>
+      <FeedbackLoadingLine active={status === "ready" && feedbackPending} />
 
       {status === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
@@ -1061,6 +1044,9 @@ export default function IdealTextOverlay({
             </p>
           ) : null}
           <TranscriptReviewDeck
+            reviewRequest={reviewRequest}
+            onReviewWaiting={setReviewWaiting}
+            renderNextStep={() => nextStep(false)}
             openFeedback={initialMode === "feedback"}
             chrome="stage"
             document={displayText}
@@ -1202,19 +1188,7 @@ export default function IdealTextOverlay({
       {status === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
           {/* MASTER DOCUMENT — Save, then the next official take. */}
-          <IdealTextActions
-            arcId={arcId}
-            canRecordTake={sd.canRecordTake}
-            takeCount={sd.takeCount}
-            journeyNextStepsSeen={sd.journeyNextStepsSeen}
-            saved={sd.saved}
-            onSaved={() => setRefetchNonce((n) => n + 1)}
-            onNewTake={() => onReadAloud(sd.version)}
-            onSeeNextSteps={() => {
-              void reloadLounge();
-              onClose();
-            }}
-          />
+          {nextStep(reviewWaiting)}
         </div>
       ) : null}
 

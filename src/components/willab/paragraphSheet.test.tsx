@@ -133,28 +133,35 @@ function render(s = state()) {
 }
 
 describe("the answered bookmark", () => {
-  it("opens on one screen: helper words and now, exercise, answer, one timeline", async () => {
+  it("opens as the Take stack: helper words, the current Take with its answer, then earlier Takes", async () => {
+    // Founder 2026-09-26 (locked L3/L3b): the answer sentence sits inside the
+    // Take it is about, and earlier Takes are headed as such.
     await render();
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
     expect(sheet).not.toBeNull();
     const text = sheet?.textContent ?? "";
+    const helper = container.querySelector('[data-testid="paragraph-helper-card"]')?.textContent ?? "";
+    expect(helper).toContain("Helper words");
+    expect(helper).toContain("ship it now");
     const now = container.querySelector('[data-testid="paragraph-now"]')?.textContent ?? "";
-    expect(now).toContain("Helper words");
-    expect(now).toContain("ship it now");
+    expect(now).toContain("Take 2 · Now");
     expect(now).toContain(TEXT);
-    expect(text).toContain("Say it again, slower.");
-    expect(text).toContain("You were not sure how to judge this one");
-    expect(text).toContain("How this changed");
+    expect(now).toContain("You were not sure how to judge this one");
+    expect(now).toContain("Say it again, slower.");
+    expect(text).toContain("Earlier Takes");
     expect(text.indexOf("Take 2")).toBeLessThan(text.indexOf("Take 1"));
     expect(text).not.toMatch(/\d+\s*%|\bscore\b/i);
   });
 
-  it("the helper words are not a button on a paragraph that is not locked", async () => {
+  it("an answer that opens helper words lets them be chosen before any lock (J7)", async () => {
+    // Founder 2026-09-26: answered Yes, In-between or Not sure but closed the
+    // sheet before choosing — the paragraph sheet offers the choice instead
+    // of locking the speaker out for the Take.
     await render();
     const words = container.querySelector<HTMLButtonElement>(
       '[data-testid="paragraph-helper-words"]',
     );
-    expect(words?.disabled).toBe(true);
+    expect(words?.disabled).toBe(false);
   });
 
   it("Practise opens the judgement sheet on its exercise step", async () => {
@@ -248,7 +255,7 @@ describe("a locked paragraph chooses new helper words (Q27 B)", () => {
     expect(sheet?.textContent).toContain("Choose your helper words");
     expect(sheet?.textContent).toContain("ship it now");
     const pill = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "Use this phrase",
+      (b) => b.textContent?.trim() === "Use these helper words",
     );
     expect(pill?.disabled).toBe(true);
     const tokens = container.querySelectorAll('[data-testid="picker-tokens"] button');

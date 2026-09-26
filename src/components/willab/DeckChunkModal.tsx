@@ -17,6 +17,7 @@ import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
 import MomentStory from "./MomentStory";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import MomentPlayer from "./MomentPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
@@ -135,6 +136,11 @@ interface DeckChunkModalProps {
   /** Post-lock orange metadata; null is an explicit Skip. */
   onSetRootPhrase: (phrase: RootPhraseSpan | null) => Promise<boolean>;
   onClose: () => void;
+  /** The sheet finished on its own — the helper words were saved, or the
+   *  moment's steps ran out (founder 2026-09-26). The host says so and opens
+   *  the next moment. Absent → the sheet simply closes, as before. The ✕,
+   *  Escape and the backdrop still call onClose. */
+  onDone?: () => void;
   /** Apply a legacy style proposal (`state.style`); new roots use
    *  onSetRootPhrase. */
   onApplyStyle?: (s: DocumentSuggestion) => Promise<boolean>;
@@ -273,6 +279,13 @@ function supersededFooter(advance: () => void): {
   return { pill: COPY.pillContinue, icon: null, onPill: advance, links: [] };
 }
 
+/** Finish on the sheet's own accord: the host's onDone when it has one,
+ *  else a plain close. Module scope so the grandfathered sheet gains no
+ *  branch. */
+function finishSheet(done: (() => void) | undefined, close: () => void): void {
+  (done ?? close)();
+}
+
 export default function DeckChunkModal({
   state,
   onAccept,
@@ -281,6 +294,7 @@ export default function DeckChunkModal({
   onLockIn,
   onSetRootPhrase,
   onClose,
+  onDone,
   onApplyStyle,
   onJudged,
   arcId = null,
@@ -491,7 +505,7 @@ export default function DeckChunkModal({
        rooting phrase was written on the emphasis step itself, which is the
        point of moving it there. */
     if (!next) {
-      onClose();
+      finishSheet(onDone, onClose);
       return;
     }
     setStepId(next.id);
@@ -694,7 +708,7 @@ export default function DeckChunkModal({
         : null;
     if (reAnchor) await onSetRootPhrase(reAnchor);
     setBusy(false);
-    onClose();
+    finishSheet(onDone, onClose);
   }
 
 
@@ -853,7 +867,7 @@ export default function DeckChunkModal({
         return;
       }
       setBusy(false);
-      onClose();
+      finishSheet(onDone, onClose);
       return;
     }
     setBusy(true);
@@ -1338,7 +1352,8 @@ export default function DeckChunkModal({
       const tapping = emphasisTap || !styleSuggestion;
       return {
         pill: COPY.pillEmphasise,
-        icon: <Sparkles className="h-4 w-4" aria-hidden />,
+        // No icon (founder 2026-09-26): one label, the same in both sheets.
+        icon: null,
         pillDisabled: tapping && phraseRun === null,
         onPill: tapping
           ? () => void emphasiseChosen()
@@ -1392,6 +1407,7 @@ export default function DeckChunkModal({
             src={suggestion.snippetAudioRef}
             startOffsetMs={suggestion.startOffsetMs ?? 0}
             durationMs={suggestion.durationMs ?? 0}
+            compact
           />
         ) : null}
         {mlc3FirstClientPresentationEnabled &&
@@ -1521,6 +1537,22 @@ export default function DeckChunkModal({
             </p>
           </div>
         ) : null}
+        {/* YOUR RECORDING, ATTACHED TO THE COACH'S (founder 2026-09-26,
+            locked L2). Every coach message is an exercise, and advice about
+            HOW something was said needs the speaker's own clip right under
+            it: what was said, and Play this moment. This supersedes the
+            2026-09-24 "no what-you-said box" on this screen. The words
+            lighting up while it plays waits for word timings on the
+            frontend. */}
+        <div data-testid="exercise-your-recording" className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardWhatYouSaid}
+          </p>
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {exerciseItem.quote || chunk.part.text}
+          </p>
+          <MomentPlayer item={exerciseItem} />
+        </div>
         {exercise.error ? (
           <p className="rounded-xl border border-border p-3 text-[13px] text-destructive">
             {exercise.error}
@@ -1571,6 +1603,14 @@ export default function DeckChunkModal({
           <p className="mt-2 text-[15px] leading-relaxed text-foreground">
             {suggestion.quote || chunk.part.text}
           </p>
+          {/* PLAY THIS MOMENT on every screen about what you said (founder
+              2026-09-26, L4). */}
+          <div className="mt-3">
+            <MomentPlayer
+              item={suggestion}
+              fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+            />
+          </div>
         </div>
         <div className="rounded-2xl border border-border p-4">
           <p className="text-[15px] leading-relaxed text-foreground">
@@ -1593,6 +1633,13 @@ export default function DeckChunkModal({
           <p className="mt-2 text-[15px] leading-relaxed text-foreground">
             {suggestion.quote || chunk.part.text}
           </p>
+          {/* Hear it before you Apply (founder 2026-09-26, L4). */}
+          <div className="mt-3">
+            <MomentPlayer
+              item={suggestion}
+              fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+            />
+          </div>
         </div>
         <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
           <div className="flex items-start justify-between gap-3">
@@ -1808,6 +1855,10 @@ export default function DeckChunkModal({
             aria-hidden
           />
         </button>
+        {/* ONE NAVIGATION, AT THE TOP (founder 2026-09-26): ‹ Slide 2 ·
+            moment 1 of 4 ›. The step's own button below is the only black
+            one; it does the step and then moves on. */}
+        <FeedbackPagerBar pager={pager} />
 
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-2">
           <button
@@ -1840,18 +1891,18 @@ export default function DeckChunkModal({
             full-width segment would be decoration. */}
         {steps.length > 1 ? (
           <div
-            className="flex shrink-0 gap-1.5 px-5 pb-1 pt-1"
+            className="flex shrink-0 gap-1 px-5 pb-1 pt-1"
             aria-hidden
           >
             {steps.map((entry, index) => (
               <span
                 key={entry.id}
-                className={`h-1 flex-1 rounded-full ${
+                className={`h-1 rounded-full ${
                   index < progress.current
-                    ? "bg-foreground/25"
+                    ? "w-1.5 bg-foreground/25"
                     : index === progress.current
-                      ? "bg-foreground"
-                      : "bg-muted"
+                      ? "w-4 bg-foreground"
+                      : "w-1.5 bg-muted-foreground/30"
                 }`}
               />
             ))}
@@ -1928,9 +1979,7 @@ export default function DeckChunkModal({
             </button>
           ))}
         </div>
-        {/* Q35 A: the step's own button stays above; Back / Next is the
-            bottom bar and never changes place. */}
-        <FeedbackPagerBar pager={pager} />
+
       </div>
     </div>
   );
