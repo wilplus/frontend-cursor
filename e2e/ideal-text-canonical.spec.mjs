@@ -189,7 +189,9 @@ check(
     (await dialog(page).locator("button", { hasText: /^Use this phrase$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0
 );
-for (const word of ["trusted", "the", "figures"]) {
+// Two taps make the phrase (founder 2026-09-26): the first word, then the
+// last one, and every word in between is marked.
+for (const word of ["trusted", "figures"]) {
   await dialog(page).locator("button", { hasText: new RegExp(`^${word}$`) }).first().click();
 }
 check(
