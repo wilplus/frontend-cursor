@@ -7,6 +7,7 @@ import {
   fetchAuthorization,
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
+import { takeAuthorization } from "@/services/api/bootPrefetch";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 boundary, as a gate (Task 5).                                  */
@@ -64,7 +65,11 @@ export default function Phase1AcceptanceGate({
   useEffect(() => {
     active.current = true;
     setState({ kind: "checking" });
-    void fetchAuthorization().then((status) => {
+    // The first check reuses the boot prefetch (bootPrefetch.ts) so this gate
+    // does not wait its turn behind the ones above it; a stale-policy retry
+    // always reads fresh.
+    const load = attempt === 0 ? takeAuthorization : fetchAuthorization;
+    void load().then((status) => {
       if (!active.current) return;
       setState(
         status.kind === "acceptance_required"

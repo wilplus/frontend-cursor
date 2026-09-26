@@ -16,6 +16,7 @@ import {
   readLocalLoungeThread,
 } from "@/lib/funnel/loungeLocalThread";
 import { announceDiscoveriesFromPersistedMessages } from "@/lib/productDiscovery";
+import { takeLoungeHistory } from "@/services/api/bootPrefetch";
 
 /* -------------------------------------------------------------------------- */
 /*  useLoungeThread — the willab Lounge's persistent chat history (§3/§11)    */
@@ -68,7 +69,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     (async () => {
       setLoading(true);
       if (signedIn) {
-        const page = await fetchLoungeHistory();
+        // Usually already in flight since mount (bootPrefetch.ts).
+        const page = await takeLoungeHistory();
         if (cancelled) return;
         announceDiscoveriesFromPersistedMessages(page.messages);
         setMessages(page.messages);
