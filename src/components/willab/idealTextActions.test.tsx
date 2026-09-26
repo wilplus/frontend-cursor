@@ -108,3 +108,27 @@ describe("the next-step decision", () => {
     expect(host.textContent).not.toContain("Record Take 2");
   });
 });
+
+describe("one next step at the bottom (founder 2026-09-26)", () => {
+  it("offers Review feedback while a moment waits, with the next take still one tap away", () => {
+    const onReview = vi.fn();
+    render({ takeCount: 4, journeyNextStepsSeen: true, reviewWaiting: true, onReview });
+    const buttons = [...host.querySelectorAll("button")].map((b) => b.textContent);
+    expect(buttons[0]).toBe("Review feedback");
+    // The loop never waits on feedback: the record entry stays.
+    expect(buttons.some((t) => t?.includes("Record again"))).toBe(true);
+    act(() => (host.querySelector("button") as HTMLButtonElement).click());
+    expect(onReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("makes the next take the main button once nothing waits", () => {
+    render({ takeCount: 1, journeyNextStepsSeen: true, reviewWaiting: false, onReview: vi.fn() });
+    expect(host.textContent).not.toContain("Review feedback");
+    expect(host.querySelector("button")?.textContent).toContain("Record Take 2");
+  });
+
+  it("no longer offers Save at the bottom — it lives in the header menu", () => {
+    render({ takeCount: 4, journeyNextStepsSeen: true });
+    expect(host.textContent).not.toContain("Save the ideal text");
+  });
+});

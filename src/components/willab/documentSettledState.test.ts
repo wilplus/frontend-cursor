@@ -36,17 +36,18 @@ const open = (over: Partial<DeckSuggestionLite> = {}): DeckSuggestionLite => ({
 });
 
 describe("settled text is ordinary, never grey", () => {
-  it("softens a block with an undecided judgement on it, and an untouched one", () => {
-    // ONE condition for the mark (founder 2026-09-18: "the grey should be
-    // when there is a mark"). Keyed on `status === "waiting"` alone, grey and
-    // the bookmark could disagree and leave grey text with nothing to tap.
-    // Since 2026-09-21 the untouched block shares the grey and, by design,
-    // has no mark: there is nothing to tap because nothing was ever asked.
+  it("draws every block in the full text colour (founder 2026-09-26)", () => {
+    // Ideal Text redesign B, amending 24g-1: grey meant two things (a
+    // judgement waiting, and words nobody touched) and at 55% it read as
+    // disabled on the speaker's own speech. The waiting judgement is now the
+    // orange bar in the left margin; the words always keep their colour.
+    // `unsettled` keeps its one condition — it now drives only the bar.
     expect(DECK).toContain("const unsettled =");
     expect(DECK).toContain('c.status === "waiting" &&');
-    expect(DECK).toContain('unsettled || c.status === "untouched"');
-    expect(DECK).toContain('? "text-foreground/55"');
-    expect(DECK).toContain(': "text-foreground"');
+    expect(DECK).not.toContain("text-foreground/55");
+    expect(DECK).toContain(
+      'className="relative text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"',
+    );
   });
 
   it("an untouched block is grey with no mark; a reviewed one is neither", () => {
@@ -102,15 +103,11 @@ describe("settled text is ordinary, never grey", () => {
 });
 
 describe("the two signals, and no others", () => {
-  it("colours the whole block, never part of a word", () => {
-    // ONE place, and it is the paragraph element. Grey applied anywhere else
-    // in this file would be grey applied to something smaller than a block —
-    // a span, a sentence, a word — which is what 24g-1 forbids, because a
-    // colour that starts midway through a line is a gap the eye reads as
-    // damage. Counting is the robust form: asserting POSITION inside JSX
-    // measures how the file happens to be wrapped, not what it renders.
-    const occurrences = DECK.split("text-foreground/55").length - 1;
-    expect(occurrences).toBe(1);
+  it("colours no part of the text grey", () => {
+    // The old rule was "grey only at block level, never part of a word". With
+    // grey gone entirely (founder 2026-09-26) the strongest form of it holds:
+    // no grey text class anywhere in the deck.
+    expect(DECK.split("text-foreground/55").length - 1).toBe(0);
   });
 
   it("adds no underline, highlight or badge to the text", () => {

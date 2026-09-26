@@ -44,6 +44,7 @@ export default function DeckSlidePreview({
   presentationRef,
   pageIndex,
   className = "mt-3",
+  size = "full",
 }: {
   /** The uploaded deck's PDF, or null for a deckless project — which falls to
    *  that page's canonical mock slide. */
@@ -53,6 +54,10 @@ export default function DeckSlidePreview({
    *  Only the margin — the frame and the bound belong to this component, so
    *  both callers are held to the same size. */
   className?: string;
+  /** "thumb" is the compact picture beside the slide kicker (founder
+   *  2026-09-26): a small 16:9 tile, so the speaker's words start near the
+   *  top of the screen instead of under a picture a third of its height. */
+  size?: "full" | "thumb";
 }) {
   const [failed, setFailed] = useState(false);
   // A new deck source, or a different page, gets a fresh chance.
@@ -70,8 +75,10 @@ export default function DeckSlidePreview({
      On a phone the width cap is larger than the screen, so w-full wins and
      the slide is full-width as before. */
   const frame =
-    "mx-auto aspect-video max-h-[38vh] w-full max-w-[67vh]" +
-    " overflow-hidden rounded-xl border border-border bg-muted";
+    size === "thumb"
+      ? "aspect-video w-24 overflow-hidden rounded-md border border-border bg-muted"
+      : "mx-auto aspect-video max-h-[38vh] w-full max-w-[67vh]" +
+        " overflow-hidden rounded-xl border border-border bg-muted";
 
   /* THE DECKLESS LANE. No PDF means the canonical mock slide for this page,
      in the same box at the same bound. A page the default deck does not have
@@ -99,7 +106,7 @@ export default function DeckSlidePreview({
         <div
           className={`${frame} flex items-center justify-center text-[13px] text-muted-foreground`}
         >
-          Slide preview unavailable
+          {size === "thumb" ? null : "Slide preview unavailable"}
         </div>
       </div>
     );

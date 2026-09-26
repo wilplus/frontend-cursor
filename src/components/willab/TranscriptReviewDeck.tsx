@@ -8,6 +8,7 @@ import DeckChunkModal, {
   type LockResult,
 } from "@/components/willab/DeckChunkModal";
 import OpenChunkSheet from "@/components/willab/OpenChunkSheet";
+import DeckSlideThumb from "@/components/willab/DeckSlideThumb";
 import {
   buildBookmarks,
   useFeedbackPager,
@@ -214,6 +215,8 @@ export default function TranscriptReviewDeck({
   confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
   openFeedback = false,
+  reviewRequest = 0,
+  onReviewWaiting,
   feedbackPending = false,
   takeCount = null,
 }: {
@@ -288,6 +291,12 @@ export default function TranscriptReviewDeck({
   /** Open on the coach's feedback once the deck is ready: the email link and
    *  the chat bubble (founder 2026-09-25, Q28 A). */
   openFeedback?: boolean;
+  /** Bumped by the host's "Review feedback" button: open the walk at the
+   *  first waiting moment in text order (founder 2026-09-26). */
+  reviewRequest?: number;
+  /** Whether any moment still waits for the speaker — the host's bottom
+   *  button reads it to offer Review feedback or the next take. */
+  onReviewWaiting?: (waiting: boolean) => void;
 }) {
   const confidentMoments = useConfidentMomentBundle({
     projectId: arcId,
@@ -519,6 +528,28 @@ export default function TranscriptReviewDeck({
     walk.stop();
     closeSheets();
   }, [walk, closeSheets]);
+
+  /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
+     moments from the first one in text order — the same walk a tap on a
+     bar joins, the same sheets. "Waiting" is exactly the bar's condition, so
+     the button can never offer a review the page shows no mark for. */
+  const firstWaiting = useMemo(
+    () =>
+      firstWaitingBookmark(bookmarks, (c) =>
+        c.status === "waiting" &&
+        markWorthShowing(stateOf(c).pending, summaryByParagraph.get(c.part.id)),
+      ),
+    [bookmarks, stateOf, summaryByParagraph],
+  );
+  useEffect(() => {
+    onReviewWaiting?.(deckReady && firstWaiting >= 0);
+  }, [deckReady, firstWaiting, onReviewWaiting]);
+  const reviewSeenRef = useRef(reviewRequest);
+  useEffect(() => {
+    if (reviewRequest === reviewSeenRef.current) return;
+    reviewSeenRef.current = reviewRequest;
+    if (firstWaiting >= 0) walk.openAt(firstWaiting);
+  }, [reviewRequest, firstWaiting, walk]);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -980,64 +1011,31 @@ export default function TranscriptReviewDeck({
               // makes.
               className="flex h-full flex-col gap-4 px-6 py-8 sm:px-10"
             >
-              <div className="shrink-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  {kickerFor(g.slideIndex, gi)}
-                </p>
-                {/* NO SLIDE TITLE HEADING (founder 2026-09-17: "delete the
-                    header marked on the photo from each slide display; too
-                    much is going on this screen when we have the slide and
-                    the title"). The picture of the slide IS the title — it
-                    is printed on it, usually in the deck's own type — so the
-                    heading restated it directly above, in a second typeface,
-                    at display size. Two of the four things on screen said the
-                    same word, and the speaker's own sentences were the ones
-                    pushed down for it.
-
-                    The kicker above ("Slide 1") stays: it says WHERE you are,
-                    which the picture cannot. The title is still carried
-                    everywhere it is not redundant — the slide editor's
-                    header, and the deck's copy output, where there is no
-                    picture to read it from. */}
-                {/* THE SLIDE REPEATS ON EVERY SCREEN IT SPANS (founder
-                    2026-09-19: "it should just repeat the slide and render
-                    the rest of the text there"). It used to draw only on
-                    `screenOfSlide === 0`, which meant the continuation of a
-                    long slide showed words with no picture above them — the
-                    reader lost the thing the words are about halfway through
-                    reading them.
-
-                    It is also what makes the measurement honest: with the
-                    picture on screen 0 only, a first screen and a
-                    continuation had different amounts of room, and one
-                    measured budget could not be right for both. Same header
-                    everywhere, one budget, and `tightestFit` to catch it if
-                    that ever stops being true.
-
-                    The document is unchanged by this: `screensInSlide` and
-                    the kicker already say "Slide N" on each screen, so no
-                    new copy is surfaced.
-
-                    NO `presentationRef` GUARD (founder 2026-09-19). A
-                    deckless project owns the canonical mock slides, and
-                    `DeckSlidePreview` serves both kinds; gating here was
-                    what made the same document read two different ways
-                    depending on whether a PDF had been uploaded. */}
+              {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
+                  B): the slide as a small tile, its kicker, and the pencil.
+                  The picture used to stand up to 38% of the screen high on
+                  every screen of the slide, so the speaker's own words began
+                  under it. The tile enlarges on a tap. No slide title heading
+                  (founder 2026-09-17): the picture carries the title. The
+                  deckless lane uses the same tile (founder 2026-09-19). */}
+              <div className="flex shrink-0 items-center gap-3">
                 {g.slideIndex !== null ? (
-                  <DeckSlidePreview
+                  <DeckSlideThumb
                     presentationRef={presentationRef}
                     pageIndex={g.slideIndex}
+                    label={kickerFor(g.slideIndex, gi)}
                   />
                 ) : null}
-                {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26): a
-                    stroked square with no fill. The words stay as its
-                    accessible name. */}
+                <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  {kickerFor(g.slideIndex, gi)}
+                </p>
+                {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26). */}
                 <button
                   type="button"
                   onClick={() => setEditingSlideIndex(g.slideIndex)}
                   aria-label="Edit the text"
                   title="Edit the text"
-                  className="mt-3 flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
                 </button>
@@ -1089,38 +1087,17 @@ export default function TranscriptReviewDeck({
                 <div className="flex flex-col gap-4">
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
-                    /* DOCUMENT STATE (contract 24g-1). A block holding an
-                       UNSETTLED judgement is softened; a settled one — locked
-                       or clean alike — is the ordinary text colour with no
-                       mark at all. There is no third "done" state: the clean
-                       text IS the settled state, so the document empties as
-                       the speaker works instead of accumulating marks.
-
-                       GREY FOLLOWS THE MARK, one condition for both (founder
-                       2026-09-18: "the grey should be when there is a mark").
-                       Keyed on `status === "waiting"` these could disagree —
-                       the mark is drawn only for a Confident Voice judgement
-                       (2026-09-17: a column of identical marks down a talk
-                       teaches the eye to skip them), while any undecided item
-                       greys the block. That gap is grey text with nothing to
-                       tap.
-
-                       It is also unreachable by design, which is why one
-                       condition is safe rather than a narrowing: 24f anchors
-                       the rewrite and the praise TO a Confident Voice item
-                       instead of standing them up as their own cards, so a
-                       block cannot hold a rewrite without the judgement that
-                       carries it. Founder: "the rewrite only happens after the
-                       judgement". Sharing the condition makes that structural
-                       fact impossible to contradict on screen.
-
-                       AT BLOCK LEVEL, NEVER AT WORD LEVEL. The class sits on
-                       the whole paragraph element, so no sentence changes
-                       colour midway and no gap can open inside a word.
-
-                       The two signals are the softened block and the
-                       bookmark, and nothing else: no underline, no highlight,
-                       no badge on the text. */
+                    /* DOCUMENT STATE (founder 2026-09-26, Ideal Text
+                       redesign B, amending contract 24g-1). Every paragraph
+                       reads in the full text colour: grey meant two things
+                       (a judgement waiting, and words nobody touched) and at
+                       55% it read as disabled on the speaker's own speech.
+                       A waiting judgement is now the one orange bar in the
+                       left margin, and the whole paragraph is its tap target.
+                       `unsettled` keeps its one condition — the bar is drawn
+                       exactly where the old mark was, so a paragraph can
+                       never hold a rewrite or praise without the judgement
+                       that carries it (24f). */
                     const unsettled =
                       c.status === "waiting" &&
                       markWorthShowing(
@@ -1131,20 +1108,12 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      {...paragraphTap(!unsettled && opensParagraphSheet(st), () => {
+                      {...paragraphTap(unsettled || opensParagraphSheet(st), () => {
                         if (!walk.openPart(c.part.id)) openParagraph(c);
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className={`text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] ${
-                        /* UNTOUCHED READS GREY TOO (founder 2026-09-21), and
-                           without a mark: nothing was ever done with these
-                           words, and the page says so instead of drawing
-                           them like a reviewed paragraph. */
-                        unsettled || c.status === "untouched"
-                          ? "text-foreground/55"
-                          : "text-foreground"
-                      }`}
+                      className="relative text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
@@ -1216,47 +1185,6 @@ export default function TranscriptReviewDeck({
                         // run per chunk here, it costs one span comparison.
                         hasStyle={st.style !== null}
                       />
-                      ) : feedbackPending ? (
-                        /* THE SLOT IS RESERVED WHILE FEEDBACK IS STILL COMING
-                           (founder 2026-09-17: "when it comes to delayed
-                           appearance, please fix it too, it's very
-                           important").
-
-                           The page paints from the core read, then asks for
-                           feedback in a SECOND request — and a third while the
-                           server settles it. So a finished-looking talk stood
-                           with no marks on it, and the marks then appeared and
-                           shoved the words sideways. Two separate problems in
-                           one: the page looked complete when it was not, and
-                           the layout moved under the reader's eye.
-
-                           This fixes the second and is honest about the first:
-                           an empty box of exactly the mark's footprint holds
-                           the place, so the real mark fades into a space
-                           already made for it and no text moves. It is not a
-                           mark — it carries no state, no ring and no tap, and
-                           it cannot say whether this paragraph will get one,
-                           because at this moment nothing knows. It says only
-                           "not finished here yet", which is true. */
-                        /* IT SPINS (founder 2026-09-22: "can we make it
-                           spin?"). A pulsing disc reads as a mark that has
-                           not finished fading in — something about to be
-                           there. A rotating arc reads as work in progress,
-                           which is what this actually is: the Manager has
-                           not answered for this paragraph yet.
-
-                           Same 28px footprint and the same place in the
-                           line, so it still holds the mark's space exactly
-                           and the words do not move when the real mark
-                           lands. It remains aria-hidden and untappable —
-                           it carries no state and cannot say whether this
-                           paragraph will get a mark at all. Under
-                           `prefers-reduced-motion` it simply sits still. */
-                        <span
-                          aria-hidden
-                          data-feedback-slot
-                          className="ml-1.5 inline-block h-7 w-7 shrink-0 rounded-full border-2 border-muted/30 border-t-muted-foreground/45 align-middle motion-safe:animate-spin [animation-duration:1.1s]"
-                        />
                       ) : null}
                     </p>
                     );
@@ -1532,6 +1460,15 @@ function SlideEditor({
       </div>
     </div>
   );
+}
+
+/** The first bookmark, in text order, whose paragraph still waits. -1 when
+ *  nothing waits. Pure, so the deck gains no branch. */
+function firstWaitingBookmark(
+  bookmarks: readonly Bookmark[],
+  waiting: (chunk: DeckChunk) => boolean,
+): number {
+  return bookmarks.findIndex((b) => waiting(b.chunk));
 }
 
 /** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
