@@ -1500,6 +1500,20 @@ export default function DeckChunkModal({
          this screen (the offer's `passage` is deliberately not drawn), so the
          screen carries no orange at all. */
       <div data-testid="practice-offer" className="flex flex-col gap-3">
+        {/* A REFUSED ATTEMPT SAYS WHY, AT THE TOP (founder 2026-09-26: "the
+            recording was not registered"). The server's own sentence — too
+            short, not heard, not the passage — used to sit at the bottom of
+            the sheet, under the video and the recording, where nobody saw
+            it after tapping Stop. */}
+        {exercise.error ? (
+          <p
+            role="alert"
+            data-testid="exercise-error"
+            className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-[14px] font-medium text-destructive"
+          >
+            {exercise.error}
+          </p>
+        ) : null}
         {/* ALREADY DONE (founder 2026-09-26, Q44 / Q45 A, contract 35d): a
             little green label on the offer only, so a repeat is never a
             surprise. A flag, never a count or a date. */}
@@ -1549,15 +1563,13 @@ export default function DeckChunkModal({
             {COPY.cardWhatYouSaid}
           </p>
           <p className="text-[15px] leading-relaxed text-foreground">
-            {exerciseItem.quote || chunk.part.text}
+            {/* The exact passage the practice is checked against (the
+                server refuses an attempt that does not say it), so the words
+                to say are on the screen — the moment's own words. */}
+            {exerciseItem.practiceExercise.passage || exerciseItem.quote || chunk.part.text}
           </p>
           <MomentPlayer item={exerciseItem} />
         </div>
-        {exercise.error ? (
-          <p className="rounded-xl border border-border p-3 text-[13px] text-destructive">
-            {exercise.error}
-          </p>
-        ) : null}
         {/* THE STORY BEHIND THIS MOMENT (founder 2026-09-25): "the album
             shows your confident moments, not any moments." It sits INSIDE
             this step rather than taking a step of its own, because
