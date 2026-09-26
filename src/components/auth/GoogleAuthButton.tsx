@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
+import { rememberOAuthStart } from "@/lib/auth/oauthRetry";
+import { startOAuth } from "@/lib/auth/startOAuth";
 
 /**
  * Google OAuth sign-in button.
@@ -31,46 +31,18 @@ export default function GoogleAuthButton({
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      const supabase = createClient();
+      // Remembered so LoginForm can restart this sign-in once if Supabase
+      // refuses a replayed state (see src/lib/auth/oauthRetry.ts).
+      rememberOAuthStart("google");
+      const failure = await startOAuth("google");
+      if (!failure) return; // navigating to Google
 
-      // Clear any stale session so the OAuth flow starts fresh (mirrors LinkedIn).
-      await supabase.auth.signOut();
-
-      // If we're launching OAuth from the installed PWA, drop a marker cookie so
-      // the callback page (which can land in a separate browser tab) can tell
-      // the user they can head back to the app. No-op for plain web sign-in.
-      if (isStandalonePwa()) markOAuthFromPwa();
-
-      // No query string on the callback — Supabase's redirect allow-list can drop
-      // query strings even with wildcards; /auth/callback defaults `next` to
-      // /results when missing. (Same rationale as LinkedInAuthButton.)
-      const origin = window.location.origin;
-      const callbackUrl = `${origin}/auth/callback`;
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: callbackUrl,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        console.error("Google OAuth error:", error);
-        toast.error(error.message || "Failed to connect with Google");
-        setLoading(false);
-        return;
-      }
-
-      if (!data?.url) {
-        console.error("Google OAuth: no redirect URL returned");
+      if (failure.error === "provider") {
+        toast.error(failure.message || "Failed to connect with Google");
+      } else {
         toast.error("Failed to start Google sign-in. Please try again.");
-        setLoading(false);
-        return;
       }
-
-      console.log("[Google OAuth] Redirecting to:", data.url);
-      window.location.href = data.url;
+      setLoading(false);
     } catch (err) {
       console.error("Google OAuth exception:", err);
       toast.error("Something went wrong. Please try again.");
