@@ -1537,6 +1537,22 @@ export default function DeckChunkModal({
             </p>
           </div>
         ) : null}
+        {/* YOUR RECORDING, ATTACHED TO THE COACH'S (founder 2026-09-26,
+            locked L2). Every coach message is an exercise, and advice about
+            HOW something was said needs the speaker's own clip right under
+            it: what was said, and Play this moment. This supersedes the
+            2026-09-24 "no what-you-said box" on this screen. The words
+            lighting up while it plays waits for word timings on the
+            frontend. */}
+        <div data-testid="exercise-your-recording" className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardWhatYouSaid}
+          </p>
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {exerciseItem.quote || chunk.part.text}
+          </p>
+          <MomentPlayer item={exerciseItem} />
+        </div>
         {exercise.error ? (
           <p className="rounded-xl border border-border p-3 text-[13px] text-destructive">
             {exercise.error}

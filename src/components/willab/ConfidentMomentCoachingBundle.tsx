@@ -443,8 +443,10 @@ export default function ConfidentMomentCoachingBundle({
               <h2 className="text-lg font-semibold">{titleFor(item)}</h2>
               {item.feedbackFamily === "confident_voice" ? (
                 <div className="space-y-3">
-                  {!responses[item.bundleAttachmentId] ? (
-                    sourcePlayback[item.bundleAttachmentId] === "loading" ? (
+                  {/* PLAY THIS MOMENT STAYS after the answer (founder
+                      2026-09-26, locked L4): replaying yourself never
+                      disappears. */}
+                  {sourcePlayback[item.bundleAttachmentId] === "loading" ? (
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span>Loading your recording…</span>
                         <Button variant="ghost" onClick={() => cancelSourcePlayback(item.bundleAttachmentId)}>Cancel</Button>
@@ -472,8 +474,7 @@ export default function ConfidentMomentCoachingBundle({
                       <Button variant="outline" onClick={() => void loadSourcePlayback(item)}>
                         {sourcePlayback[item.bundleAttachmentId] === "failed" ? "Try playback again" : "Play this moment"}
                       </Button>
-                    )
-                  ) : null}
+                    )}
                   {/* THE SAME FIVE ANSWERS AS EVERYWHERE ELSE (founder
                       2026-09-25, Q36 A): the owner wording of the one
                       judgement instrument, not a second set of labels. */}
