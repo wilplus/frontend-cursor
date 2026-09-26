@@ -538,3 +538,19 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(mount).not.toMatch(/\bh-\[\d+vh\]/);
   });
 });
+
+describe("a refused practice attempt says why where it is seen (founder 2026-09-26)", () => {
+  it("draws the server's reason first on the exercise offer, before the video", () => {
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    const offer = MODAL.slice(MODAL.indexOf('data-testid="practice-offer"'));
+    expect(offer.indexOf('data-testid="exercise-error"')).toBeGreaterThan(0);
+    expect(offer.indexOf('data-testid="exercise-error"')).toBeLessThan(
+      offer.indexOf("explanationVideoRef"),
+    );
+  });
+
+  it("shows the exact passage the attempt is checked against", () => {
+    const MODAL = code("src/components/willab/DeckChunkModal.tsx");
+    expect(MODAL).toContain("exerciseItem.practiceExercise.passage ||");
+  });
+});
