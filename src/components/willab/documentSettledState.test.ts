@@ -46,7 +46,7 @@ describe("settled text is ordinary, never grey", () => {
     expect(DECK).toContain('c.status === "waiting" &&');
     expect(DECK).not.toContain("text-foreground/55");
     expect(DECK).toContain(
-      'className="relative text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"',
+      'className="relative pl-4 text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"',
     );
   });
 

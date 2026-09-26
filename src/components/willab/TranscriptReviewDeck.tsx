@@ -1149,7 +1149,7 @@ export default function TranscriptReviewDeck({
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
+                      className="relative pl-4 text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
