@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
@@ -60,8 +60,7 @@ import {
   measureScreenFit,
   tightestFit,
 } from "@/lib/willab/measureScreenFit";
-import { partRootTint, type Part } from "@/lib/willab/documentParts";
-import { bundleRootTint } from "@/lib/willab/rootPhraseLayer";
+import { type Part } from "@/lib/willab/documentParts";
 import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
@@ -1027,12 +1026,17 @@ export default function TranscriptReviewDeck({
                     pageIndex={g.slideIndex}
                   />
                 ) : null}
+                {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26): a
+                    stroked square with no fill. The words stay as its
+                    accessible name. */}
                 <button
                   type="button"
                   onClick={() => setEditingSlideIndex(g.slideIndex)}
-                  className="mt-3 text-[13px] font-medium text-primary transition-opacity hover:opacity-70"
+                  aria-label="Edit the text"
+                  title="Edit the text"
+                  className="mt-3 flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Edit the text
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
                 </button>
               </div>
               {/* The INNER chunk scroller: overscroll-contained so the
@@ -1147,27 +1151,12 @@ export default function TranscriptReviewDeck({
                           several. Only the words on THIS screen are drawn;
                           `c.part.text` — what every control acts on — is
                           untouched. */}
+                      {/* HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY
+                          (founder 2026-09-26): inside the running text they
+                          read in the paragraph's own colour. */}
                       <RichText
                         text={c.displayText ?? c.part.text}
-                        tint={
-                          partRootTint(c.part) ?? (() => {
-                            const marker = summaryByParagraph.get(c.part.id)?.[0];
-                            const bundle = marker
-                              ? confidentMoments.projection?.bundles.find(
-                                  (candidate) => candidate.bundleId === marker.bundleId,
-                                )
-                              : null;
-                            return bundle
-                              ? bundleRootTint(
-                                  c.part.text,
-                                  bundle.root,
-                                  bundle.feedbackLanguageItems
-                                    .filter((item) => item.attachedCandidateId === bundle.bundleId)
-                                    .map((item) => item.sourcePassage.text),
-                                )
-                              : undefined;
-                          })()
-                        }
+                        accent={false}
                       />
                       {/* THE MARK IS FOR THE CONFIDENT VOICE QUESTION
                           (founder 2026-09-17: "show it only when there is a

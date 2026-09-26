@@ -52,8 +52,12 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // are drawn. Still no wrapper — the text goes straight into RichText, and
     // `part.text` remains what every control acts on.
     expect(DECK).toMatch(/<RichText\s+text=\{c\.displayText \?\? c\.part\.text\}/);
-    expect(DECK).toMatch(/partRootTint\(c\.part\) \?\?/);
-    expect(DECK).toMatch(/bundleRootTint\(/);
+    // HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY (founder 2026-09-26): the
+    // running text draws them in the paragraph's own colour, so the body
+    // RichText is told not to paint the accent and carries no tint.
+    expect(DECK).toMatch(/<RichText\s+text=\{c\.displayText \?\? c\.part\.text\}\s+accent=\{false\}/);
+    expect(DECK).not.toMatch(/partRootTint\(c\.part\)/);
+    expect(DECK).not.toMatch(/bundleRootTint\(/);
     // The mark still sits BESIDE the words, inside the same <p> — but behind
     // the `markWorthShowing` gate since 2026-09-17, so the two are no longer
     // textually adjacent. What must hold is that nothing wraps the words

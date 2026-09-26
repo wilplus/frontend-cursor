@@ -297,9 +297,9 @@ await page.waitForTimeout(200);
 /* -------------------------- slide-scoped editing -------------------------- */
 check(
   "editing is explicit and slide-scoped, separate from bookmarks",
-  (await page.locator("button", { hasText: /^Edit the text$/ }).count()) === 2
+  (await page.locator('button[aria-label="Edit the text"]').count()) === 2
 );
-await page.locator("button", { hasText: /^Edit the text$/ }).first().click();
+await page.locator('button[aria-label="Edit the text"]').first().click();
 await page.waitForSelector('[role="dialog"][aria-label="Edit the text"]');
 const editors = dialog(page).locator('[role="textbox"][contenteditable]');
 check(
@@ -337,7 +337,7 @@ const fresh = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await fresh.emulateMedia({ reducedMotion: "reduce" });
 await fresh.goto(`${BASE}?noparts=1`, { waitUntil: "networkidle" });
 await fresh.waitForSelector("text=Garage pitch");
-await fresh.locator("button", { hasText: /^Edit the text$/ }).first().click();
+await fresh.locator('button[aria-label="Edit the text"]').first().click();
 await fresh.waitForSelector('[role="dialog"][aria-label="Edit the text"]');
 const freshEditor = fresh.locator(
   '[role="dialog"] [role="textbox"][contenteditable]'
@@ -372,7 +372,9 @@ check(
       labels.includes("Use Presentation Mode") &&
       labels.includes("Export") &&
       labels.includes("Copy the text") &&
-      !labels.some((label) => /edit/i.test(label))
+      // The per-slide pencil under each slide is named "Edit the text"
+      // (founder 2026-09-26); it is not a top-bar control.
+      !labels.some((label) => /edit/i.test(label) && label !== "Edit the text")
     );
   })
 );
