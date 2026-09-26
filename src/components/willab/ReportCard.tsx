@@ -292,9 +292,12 @@ function renderIdealTextReportCard(
     onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
     retryingIdealText: boolean;
     setRetryingIdealText: (value: boolean) => void;
+    /** The project's latest Ideal Text bubble (the dot's home, Q39 B). */
+    latest?: boolean;
   },
 ): React.ReactNode {
   const {
+    latest = false,
     onOpenIdealText,
     onRetryIdealText,
     onOpenFeedback,
@@ -409,6 +412,10 @@ function renderIdealTextReportCard(
       // founder 2026-08-05 cut it to "just the title, date and the CTA".
       date={reportDateLabel(message.client_created_at)}
       onOpen={openable ? open : null}
+      latest={latest}
+      onOpenFeedback={
+        openable ? () => onOpenIdealText?.(arcId as string, "feedback") : null
+      }
     />
   );
 }
@@ -556,7 +563,10 @@ export default function ReportCard({
   onOpenFeedback,
   onOpenIdealText,
   onRetryIdealText,
+  latestForArc = false,
 }: {
+  /** This bubble is its project's latest Ideal Text bubble (Q39 B). */
+  latestForArc?: boolean;
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
@@ -579,6 +589,7 @@ export default function ReportCard({
   }
   if (message.kind === "ideal_text") {
     return renderIdealTextReportCard(message, {
+      latest: latestForArc,
       onOpenIdealText,
       onRetryIdealText,
       onOpenFeedback,
@@ -652,6 +663,21 @@ export function IdealTextHeroCard({
  *  as an artifact. Colours map to theme tokens (success = verified); the app has
  *  no amber token, so the unverified pill uses a dark-safe amber (informational,
  *  never red). Presentation only — the caller owns all data + the open handler. */
+/** THE UNREAD-FEEDBACK DOT (founder 2026-09-25): like WhatsApp — an orange
+ *  dot with a white number, on the top-right corner of the bubble's edge.
+ *  The number counts coach moments not opened yet; 0 draws nothing. */
+export function UnreadDot({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      data-testid="unread-feedback-dot"
+      className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-[12px] font-semibold leading-none text-white ring-2 ring-background"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 function IdealRecordingCard({
   title,
   meta,
@@ -659,7 +685,10 @@ function IdealRecordingCard({
   verified,
   ctaLabel,
   onOpen,
+  unread = 0,
 }: {
+  /** The orange dot's number; 0 hides the dot (Q42 A). */
+  unread?: number;
   title: string;
   /** The DATE line under the title. null hides it.
    *
@@ -676,7 +705,8 @@ function IdealRecordingCard({
   onOpen: (() => void) | null;
 }) {
   return (
-    <div className="my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]">
+    <div className="relative my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]">
+      <UnreadDot count={unread} />
       {/* Header: icon tile + title/date + version chip. The uppercase
           "IDEAL RECORDING" attachment label sat above this; it went with the
           minimisation — the icon tile already says "artifact, not chat", and
@@ -741,6 +771,26 @@ interface LiveIdealDoc {
   title: string | null;
   status: "unverified" | "verified" | null;
   version: number | null;
+  /** Coach moments with feedback not opened yet (founder 2026-09-25, Q40 B):
+   *  the number in the orange dot. A count, never a score (AC-9). */
+  unread: number;
+}
+
+/** Cards that want to hear when an arc's live document changed. */
+const liveDocListeners = new Map<string, Set<() => void>>();
+
+/** Forget an arc's cached document and tell its cards to read it again —
+ *  called when the Ideal Text closes, so the dot follows what was opened. */
+export function refreshLiveIdealDoc(arcId: string): void {
+  liveDocCache.delete(arcId);
+  for (const listener of liveDocListeners.get(arcId) ?? []) listener();
+}
+
+/** The number in the dot: coach moments whose feedback is not opened yet. */
+export function unreadCoachFeedback(
+  summary: { items: readonly { hasUnreadCoachUpdate: boolean }[] } | null | undefined,
+): number {
+  return (summary?.items ?? []).filter((item) => item.hasUnreadCoachUpdate).length;
 }
 
 const liveDocCache = new Map<
@@ -756,7 +806,12 @@ function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
     // document. Make it available to an immediate Open action once.
     primeIdealTextDisplay(arcId, r);
     return r.kind === "single"
-      ? { title: r.title, status: r.status, version: r.version }
+      ? {
+          title: r.title,
+          status: r.status,
+          version: r.version,
+          unread: unreadCoachFeedback(r.confidentMomentSummary),
+        }
       : null;
   });
   liveDocCache.set(arcId, { at: Date.now(), promise });
@@ -770,7 +825,13 @@ function LiveStatusIdealTextCard({
   frozenVerified,
   date,
   onOpen,
+  latest = false,
+  onOpenFeedback = null,
 }: {
+  /** This is the project's latest Ideal Text bubble: the one that wears the
+   *  unread-feedback dot (founder 2026-09-25, Q39 B). */
+  latest?: boolean;
+  onOpenFeedback?: (() => void) | null;
   arcId: string | null;
   /** The project name the BE stamped on this row at write time. Null on rows
    *  written before 2026-08-15 — the cache and then the generic cover those. */
@@ -809,16 +870,26 @@ function LiveStatusIdealTextCard({
   useEffect(() => {
     if (!arcId) return;
     let active = true;
-    void fetchLiveIdealDoc(arcId).then((d) => {
-      // Remembered even if this card unmounted mid-flight: the answer is about
-      // the ARC, and the next bubble to mount should not have to ask again.
-      rememberIdealTitle(arcId, d?.title);
-      if (active) setLive(d);
-    });
+    const read = () =>
+      void fetchLiveIdealDoc(arcId).then((d) => {
+        // Remembered even if this card unmounted mid-flight: the answer is
+        // about the ARC, and the next bubble to mount should not have to ask.
+        rememberIdealTitle(arcId, d?.title);
+        if (active) setLive(d);
+      });
+    read();
+    // Read again when the Ideal Text closes, so the dot follows what was
+    // opened (founder 2026-09-25, Q40 B / Q42 A).
+    const listeners = liveDocListeners.get(arcId) ?? new Set<() => void>();
+    listeners.add(read);
+    liveDocListeners.set(arcId, listeners);
     return () => {
       active = false;
+      listeners.delete(read);
     };
   }, [arcId]);
+  // The dot sits only on the project's latest Ideal Text bubble (Q39 B).
+  const unread = latest ? (live?.unread ?? 0) : 0;
   // The status pill is the one mutable thing: a pending bubble flips to
   // reviewed once the live document verifies THIS version.
   const verified =
@@ -842,7 +913,10 @@ function LiveStatusIdealTextCard({
       badge={version !== null ? `${version}.0` : null}
       verified={verified}
       ctaLabel="Open your ideal text"
-      onOpen={onOpen}
+      unread={unread}
+      // While feedback waits, the bubble opens it (the same place as the
+      // email's link); otherwise the notebook, as always.
+      onOpen={unread > 0 && onOpenFeedback ? onOpenFeedback : onOpen}
     />
   );
 }
