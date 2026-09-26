@@ -23,7 +23,14 @@ export function isRetiredLoungeMessage(
     ((message.kind === "cadence" && message.metadata?.beat === 0) ||
       (message.kind === "text" && message.metadata?.note === "human_check") ||
       (message.kind === "ideal_text" &&
-        message.metadata?.variant === "take_processed"))
+        message.metadata?.variant === "take_processed") ||
+      // The feedback bubble is deleted (founder 2026-09-25): the project's
+      // own Ideal Text bubble carries the unread-feedback dot instead. The
+      // coach's shared-video card went with the coach Take video.
+      (message.kind === "ideal_text" &&
+        message.metadata?.variant === "coach_feedback_published") ||
+      (message.kind === "text" &&
+        message.metadata?.note === "coach_video_shared"))
   );
 }
 

@@ -11,7 +11,9 @@ import {
   useFeedbackPager,
   type Bookmark,
 } from "./feedbackPager";
-import ReportCard from "./ReportCard";
+import { UnreadDot, unreadCoachFeedback } from "./ReportCard";
+import { latestIdealBubbleIds } from "./unreadFeedback";
+import { isRetiredLoungeMessage } from "./willabHelpers";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { momentsLine } from "../../../emails/PostSessionResultsEmail";
 import { buildPostSessionResultsText } from "../../../emails/postSessionResultsText";
@@ -159,25 +161,48 @@ describe("the walk", () => {
   });
 });
 
-describe("the one chat bubble (Q34 B)", () => {
-  it("opens the same thing as the email: the feedback", async () => {
-    const onOpenIdealText = vi.fn();
-    await act(async () =>
-      root.render(createElement(ReportCard, {
-        message: {
-          client_id: "m1",
-          role: "assistant",
-          kind: "ideal_text",
-          body: "Your coach's feedback is in.",
-          metadata: { variant: "coach_feedback_published", arc_id: "arc-1" },
-          client_created_at: "2026-09-25T00:00:00Z",
-        } as never,
-        onOpenIdealText,
-      })),
-    );
-    const open = buttons().find((b) => b.label === "See the feedback");
-    await act(async () => open!.el.click());
-    expect(onOpenIdealText).toHaveBeenCalledWith("arc-1", "feedback");
+describe("the unread-feedback dot (Q39 B, Q40 B, Q42 A)", () => {
+  it("the feedback bubble is deleted: old rows stay hidden", () => {
+    expect(isRetiredLoungeMessage({
+      client_id: "m1", role: "bot", kind: "ideal_text", body: "b",
+      metadata: { variant: "coach_feedback_published", arc_id: "arc-1" },
+      client_created_at: "t",
+    } as never)).toBe(true);
+  });
+
+  it("counts coach moments whose feedback is not opened yet", () => {
+    expect(unreadCoachFeedback(null)).toBe(0);
+    expect(unreadCoachFeedback({ items: [
+      { hasUnreadCoachUpdate: true },
+      { hasUnreadCoachUpdate: false },
+      { hasUnreadCoachUpdate: true },
+    ] })).toBe(2);
+  });
+
+  it("shows a white number on the dot, and nothing at zero", async () => {
+    await act(async () => root.render(createElement(UnreadDot, { count: 3 })));
+    const dot = container.querySelector('[data-testid="unread-feedback-dot"]');
+    expect(dot?.textContent).toBe("3");
+    expect(dot?.className).toContain("bg-primary");
+    expect(dot?.className).toContain("text-white");
+    expect(dot?.className).toContain("-right-2 -top-2");
+    await act(async () => root.render(createElement(UnreadDot, { count: 0 })));
+    expect(container.querySelector('[data-testid="unread-feedback-dot"]')).toBeNull();
+  });
+
+  it("sits only on each project's latest version bubble", () => {
+    const msg = (id: string, arc: string, variant: string) => ({
+      kind: "message",
+      message: { client_id: id, kind: "ideal_text", metadata: { arc_id: arc, variant } },
+    }) as never;
+    const ids = latestIdealBubbleIds([
+      msg("a1", "arc-a", "ready"),
+      msg("b1", "arc-b", "ready"),
+      msg("a2", "arc-a", "verified"),
+      msg("a3", "arc-a", "instant"),
+      msg("b2", "arc-b", "coach_feedback_published"),
+    ]);
+    expect([...ids].sort()).toEqual(["a2", "b1"]);
   });
 });
 

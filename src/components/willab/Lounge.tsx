@@ -45,9 +45,11 @@ import {
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, {
+  refreshLiveIdealDoc,
   type FeedbackBubbleTarget,
   type IdealTextRetryTarget,
 } from "./ReportCard";
+import { latestIdealBubbleIds } from "./unreadFeedback";
 import { idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
@@ -381,6 +383,9 @@ export default function Lounge({
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
   }, [messages, isCoach, reviewGroups]);
+  // Each project's latest Ideal Text bubble wears the unread-feedback dot
+  // (founder 2026-09-25, Q39 B).
+  const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -1413,6 +1418,7 @@ export default function Lounge({
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
                 onOpenIdealText={openIdealText}
+                latestForArc={latestIdealIds.has(item.message.client_id)}
                 onRetryIdealText={retryIdealTextFromCard}
                 onOpenConfidencePractice={setConfidencePracticeId}
                 onContinueProject={continueJourneyProject}
@@ -1696,6 +1702,8 @@ export default function Lounge({
           // that lands while the student is READING arrives in place too.
           analysisPending={takeInFlight}
           onClose={() => {
+            // The dot follows what was opened (Q40 B, Q42 A).
+            refreshLiveIdealDoc(idealTextArcId);
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
           }}
@@ -2064,8 +2072,11 @@ function Bubble({
   activeOffer,
   onOpenOffer,
   animate = false,
+  latestForArc = false,
 }: {
   message: LoungeMessage;
+  /** The project's latest Ideal Text bubble: it wears the dot (Q39 B). */
+  latestForArc?: boolean;
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
@@ -2118,6 +2129,7 @@ function Bubble({
         onOpenFeedback={onOpenFeedback}
         onOpenIdealText={onOpenIdealText}
         onRetryIdealText={onRetryIdealText}
+        latestForArc={latestForArc}
       />
     );
   }
