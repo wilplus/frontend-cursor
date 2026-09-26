@@ -966,6 +966,17 @@ export default function IdealTextOverlay({
     });
   }
 
+  /** While no document exists yet, ask again quietly and reload only once
+   *  it does (founder 2026-09-26): a refetch through the effect would flash
+   *  the loader over the waiting screen on every tick. */
+  const retryWhilePending = useCallback(() => {
+    void fetchIdealTextCore(arcId).then((r) => {
+      if (r.kind === "single" || r.kind === "ready" || r.kind === "instant") {
+        setRefetchNonce((n) => n + 1);
+      }
+    });
+  }, [arcId]);
+
   /** The loop's next step — the bottom bar, and the card after the last
    *  moment of the walk (founder 2026-09-26), from one place so the two can
    *  never offer different next steps. */
@@ -1121,7 +1132,10 @@ export default function IdealTextOverlay({
                 <LoadingState placement="surface" />
               )
             ) : status === "pending" ? (
-              <IdealTextPendingCoach onReadAloud={onReadAloud} />
+              <IdealTextPendingCoach
+                onReadAloud={onReadAloud}
+                onRetry={retryWhilePending}
+              />
             ) : status === "error" ? (
               <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
                 Couldn&apos;t load your ideal text. Try again in a moment.

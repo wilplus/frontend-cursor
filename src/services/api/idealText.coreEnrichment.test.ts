@@ -61,6 +61,41 @@ describe("Ideal Text core-first transport", () => {
     expect(result.learningExposures).toEqual([]);
   });
 
+  it("a missing snapshot is not a coach gate: 404 falls back to the composing read", async () => {
+    // Founder 2026-09-26: "why is my ideal text gated behind this?" A 404
+    // here means no prepared snapshot yet, not an unapproved document.
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("/ideal-text/core")
+        ? new Response(JSON.stringify({ code: "IDEAL_TEXT_DOCUMENT_PENDING" }), { status: 404 })
+        : response({ status: "unverified", text: "Machine document.", pieces: [], parts: null }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await fetchIdealTextCore("arc-no-snapshot");
+    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toEqual([
+      "/api/v2/explore/arc/arc-no-snapshot/ideal-text/core",
+      "/api/v2/explore/arc/arc-no-snapshot/ideal-text",
+    ]);
+    expect(result.kind).toBe("single");
+    if (result.kind !== "single") return;
+    expect(result.ideal.text).toBe("Machine document.");
+  });
+
+  it("a failed read (503) is retried through the composing read, never shown as missing", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("/ideal-text/core")
+        ? new Response(JSON.stringify({ code: "IDEAL_TEXT_READ_FAILED" }), { status: 503 })
+        : response({ status: "unverified", text: "Machine document.", pieces: [], parts: null }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const pending = fetchIdealTextCore("arc-read-failed");
+    await vi.advanceTimersByTimeAsync(2000);
+    const result = await pending;
+    vi.useRealTimers();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.kind).toBe("single");
+  });
+
   it("preserves the canonical valid-empty owner edit state", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response({
       status: "unverified",

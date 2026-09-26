@@ -44,12 +44,16 @@ describe("the loop never waits for a coach", () => {
     // to record and could not, until a human acted — the live-loop fence, not
     // a rough edge.
     const screen = code("IdealTextPendingCoach.tsx");
-    expect(screen).toContain("still shaping your ideal text");
+    // Founder 2026-09-26: no coach gate, in words or in fact. The screen is
+    // the ordinary document wait, it asks again, and recording stays open.
+    expect(screen).not.toContain("still shaping your ideal text");
+    expect(screen).not.toMatch(/coach is/i);
+    expect(screen).toContain('phase="document"');
     expect(screen).toContain("onReadAloud(null)");
     expect(screen).toContain("Record the next take");
-    // And the overlay actually mounts it on that branch.
-    expect(code("IdealTextOverlay.tsx")).toContain(
-      "<IdealTextPendingCoach onReadAloud={onReadAloud} />",
+    // And the overlay actually mounts it on that branch, with a retry.
+    expect(code("IdealTextOverlay.tsx")).toMatch(
+      /<IdealTextPendingCoach\s+onReadAloud=\{onReadAloud\}\s+onRetry=\{retryWhilePending\}/,
     );
   });
 
@@ -70,12 +74,13 @@ describe("the loop never waits for a coach", () => {
     // L1: the coach's unapproved document is not read, rebuilt or edited here.
     expect(screen).not.toContain("setDraft");
     expect(screen).not.toContain("onLockIn");
-    // BLIND COACH: the screen takes ONE prop and it is the way out. It cannot
-    // surface a verdict, a guess or a review state because it is never handed
-    // one. (Asserting the word "approved" is absent would be wrong — the
-    // signed-off sentence itself says "the moment it's approved".)
+    // BLIND COACH: the screen takes the way out and a retry, nothing else. It
+    // cannot surface a verdict, a guess or a review state because it is never
+    // handed one — and since 2026-09-26 it does not mention a coach at all.
     expect(screen).not.toContain("reviewStatus");
-    expect(screen).toMatch(/\}: \{\s*onReadAloud\?: \(version: number \| null\) => void;\s*\}/);
+    expect(screen).not.toContain("approved");
+    expect(screen).toMatch(/onReadAloud\?: \(version: number \| null\) => void;/);
+    expect(screen).toMatch(/onRetry\?: \(\) => void;/);
   });
 });
 

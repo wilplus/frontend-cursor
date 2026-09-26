@@ -1818,7 +1818,14 @@ function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | n
   };
 }
 
-/** Fast, strict document read. It never triggers composition or enrichment. */
+/** Fast, strict document read. It never triggers composition or enrichment —
+ *  EXCEPT when there is no prepared snapshot yet (404), where it falls back to
+ *  the composing read below (founder 2026-09-26: "why is my ideal text gated
+ *  behind this?"). A missing snapshot — publication still queued, or a retry
+ *  that never landed — is not "the coach is still shaping it": the text
+ *  exists, and the composing read serves it straight from the source row and
+ *  publishes the snapshot on the way. The live loop never waits on a
+ *  snapshot, and never on a coach. */
 export async function fetchIdealTextCore(
   arcId: string,
 ): Promise<IdealTextResult> {
@@ -1837,7 +1844,14 @@ export async function fetchIdealTextCore(
     return { kind: "error" };
   }
   recordIdealTextReadTiming("willab.ideal_text.core", startedAt);
-  if (response.status === 404) return { kind: "pending" };
+  if (response.status === 404) return fetchIdealText(arcId);
+  // 503 IDEAL_TEXT_READ_FAILED (founder 2026-09-26): the read FAILED — a
+  // dropped database connection — which is not "no document". Wait the
+  // server's Retry-After, then read through the composing lane.
+  if (response.status === 503) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return fetchIdealText(arcId);
+  }
   if (!response.ok) return { kind: "error" };
   const body = (await response.json().catch(() => null)) as Record<
     string,
