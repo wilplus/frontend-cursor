@@ -74,6 +74,7 @@ import {
 import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
+import { finishActiveSetupDraft } from "@/lib/willab/setupDraft";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 
 /* -------------------------------------------------------------------------- */
@@ -741,6 +742,7 @@ export default function LabOverlay({
           setArcId(carried.returnedArcId);
           setArcTakeIndex(carried.nextIdx);
         }
+        finishActiveSetupDraft(userId); // accepted: the draft is a project now
         appendRecordingSummary(result.sessionId);
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
@@ -780,6 +782,7 @@ export default function LabOverlay({
         // Synchronous execution reached the same locked Take 1 boundary as
         // queue/daemon mode. The take and feedback stay addressable; return to
         // the Lounge only after its idempotent terminal card is present.
+        finishActiveSetupDraft(userId); // accepted: the draft is a project now
         appendRecordingSummary(result.sessionId);
         setLabSessionId(result.sessionId);
         await publishIdealTextUnconfirmed({
@@ -798,6 +801,7 @@ export default function LabOverlay({
         pendingCarryRef.current = carried
           ? { ...carried, sessionId: result.sessionId }
           : null;
+        finishActiveSetupDraft(userId); // accepted: the draft is a project now
         appendRecordingSummary(result.sessionId);
         setLabSessionId(result.sessionId);
         setUploadError(null);

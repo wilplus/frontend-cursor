@@ -14,6 +14,11 @@
  * stored, so it has to be attached again; an uploaded slide PDF is a served
  * ref and survives.
  *
+ * 2026-09-26 — the draft outlives "Start recording". It is removed only once
+ * the server has ACCEPTED Take 1 (finishActiveSetupDraft), so leaving during
+ * the recording, a too-short take or a failed upload still finds it in the
+ * picker.
+ *
  * "Active" is which draft the setup flow currently writes to. It is set ONLY
  * by the new-project entries (start a new project / resume a draft) and
  * cleared by everything else, so a continued take of an existing project can
@@ -175,12 +180,20 @@ export function saveSetupDraft(
   write(ownerId, { active: store.active, drafts });
 }
 
-/** Delete a draft — from the picker's menu, or because Take 1 was submitted
- *  and the draft became a real project. */
+/** Delete a draft from the picker's menu. */
 export function deleteSetupDraft(ownerId: string | null, id: string): void {
   const store = read(ownerId);
   write(ownerId, {
     active: store.active === id ? null : store.active,
     drafts: store.drafts.filter((d) => d.id !== id),
   });
+}
+
+/** Take 1 was accepted by the server: the draft being recorded is a real
+ *  project now and leaves the list. No active draft (a continued take) →
+ *  nothing happens. */
+export function finishActiveSetupDraft(ownerId: string | null): void {
+  const store = read(ownerId);
+  if (!store.active) return;
+  deleteSetupDraft(ownerId, store.active);
 }

@@ -4,6 +4,7 @@ import {
   beginSetupDraft,
   clearActiveSetupDraft,
   deleteSetupDraft,
+  finishActiveSetupDraft,
   isDraftWorthKeeping,
   listSetupDrafts,
   readActiveSetupDraft,
@@ -93,5 +94,23 @@ describe("setup drafts", () => {
     saveSetupDraft("u1", activeId("u1"), { ...BLANK, topic: "mine" });
     expect(listSetupDrafts("u2")).toEqual([]);
     expect(listSetupDrafts(null)).toEqual([]);
+  });
+
+  it("finishing removes only the active draft, once Take 1 is accepted", () => {
+    beginSetupDraft("u1");
+    saveSetupDraft("u1", activeId("u1"), { ...BLANK, topic: "older" });
+    beginSetupDraft("u1");
+    saveSetupDraft("u1", activeId("u1"), { ...BLANK, topic: "recorded" });
+    finishActiveSetupDraft("u1");
+    expect(listSetupDrafts("u1").map((d) => d.topic)).toEqual(["older"]);
+    expect(readActiveSetupDraft("u1")).toBeNull();
+  });
+
+  it("finishing with no active draft (a continued take) keeps every draft", () => {
+    beginSetupDraft("u1");
+    saveSetupDraft("u1", activeId("u1"), { ...BLANK, topic: "kept" });
+    clearActiveSetupDraft("u1");
+    finishActiveSetupDraft("u1");
+    expect(listSetupDrafts("u1").map((d) => d.topic)).toEqual(["kept"]);
   });
 });

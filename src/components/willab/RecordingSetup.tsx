@@ -17,7 +17,6 @@ import {
 import { fetchRecordingConfig } from "@/services/api/recordingConfig";
 import RecordPriceNote from "@/components/tokens/RecordPriceNote";
 import {
-  deleteSetupDraft,
   readActiveSetupDraft,
   saveSetupDraft,
 } from "@/lib/willab/setupDraft";
@@ -273,10 +272,8 @@ export default function RecordingSetup({
     ]
       .filter((line): line is string => Boolean(line))
       .join("\n");
-    // Take 1 is starting: the draft becomes a real project and leaves the list.
-    if (draftId !== null && draftOwnerId !== undefined) {
-      deleteSetupDraft(draftOwnerId, draftId);
-    }
+    // The draft stays until the server accepts Take 1 (LabOverlay), so an
+    // interrupted recording can still be resumed from the picker.
     onSubmit(
       {
         topic: t,
