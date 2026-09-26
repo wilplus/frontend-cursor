@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoadingState from "@/components/willab/LoadingState";
+import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { consumeOAuthFromPwa, isStandalonePwa } from "@/lib/pwa";
 
@@ -71,31 +72,36 @@ function OAuthCompleteInner() {
 
       const supabase = createClient();
 
-      // Browser-side exchange — uses the PKCE verifier stored in
-      // localStorage during OAuth init.
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      // ONE exchange, not two (2026-09-26). The browser client exchanges the
+      // `?code=` by itself while it starts up — @supabase/ssr forces
+      // `detectSessionInUrl` on — so calling exchangeCodeForSession here as
+      // well made a second exchange racing the first. Whichever lost reported
+      // "PKCE code verifier not found in storage", because supabase-js deletes
+      // the verifier after its first attempt even when that attempt only lost
+      // the network. So wait for the client's own exchange and read its result.
+      const { error: initError } = await supabase.auth.initialize();
+      let error = initError;
+      let effectiveSession: Session | null = null;
+      try {
+        const { data: probe } = await supabase.auth.getSession();
+        effectiveSession = probe?.session ?? null;
+      } catch {
+        /* non-fatal — fall through to error path below */
+      }
 
-      // Defence in depth: even with the run-once ref above, an error
-      // from this call doesn't mean the session wasn't established.
-      // Always probe getSession() before treating an exchange error
-      // as fatal — if a session exists, the user IS signed in and we
-      // should proceed.
-      let effectiveSession = data?.session ?? null;
-      if (!effectiveSession) {
-        try {
-          const { data: probe } = await supabase.auth.getSession();
-          effectiveSession = probe?.session ?? null;
-        } catch {
-          /* non-fatal — fall through to error path below */
-        }
+      // Start-up only exchanges when it found the verifier. When it did not
+      // try at all, exchange here so the person gets the real reason.
+      if (!effectiveSession && !initError) {
+        const { data, error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
+        effectiveSession = data?.session ?? null;
+        error = exchangeError;
       }
 
       // eslint-disable-next-line no-console
       console.log("[oauth-complete] exchange:", {
         hasError: !!error,
         errorMessage: error?.message,
-        hasSessionFromExchange: !!data?.session,
-        hasSessionFromProbe: !!effectiveSession && !data?.session,
         proceeding: !!effectiveSession,
       });
 
