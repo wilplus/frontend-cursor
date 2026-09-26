@@ -195,7 +195,9 @@ export default function NewContentClient({ path }: { path: string[] }) {
   const go = useCallback(
     (to: number) => {
       if (!lane) return;
-      router.push(`/cms/new/${lane}/${to}`);
+      // Keep `?returnTo=`: dropping it here meant a coach who came from a
+      // review lost the way back after step 1 (founder 2026-09-26).
+      router.push(`/cms/new/${lane}/${to}${window.location.search}`);
     },
     [lane, router],
   );
@@ -395,7 +397,12 @@ export default function NewContentClient({ path }: { path: string[] }) {
       step={step}
       total={steps.length}
       dark={dark}
-      onBack={() => (step > 1 ? go(step - 1) : router.push("/cms/new"))}
+      /* Back from the first step returns to where the author came from: the
+         coach's review, on the same moment (founder 2026-09-26). An author
+         who started in the catalogue still goes back to the fork. */
+      onBack={() =>
+        step > 1 ? go(step - 1) : router.push(authoringReturnTo() ?? "/cms/new")
+      }
       onClose={() => router.push("/cms")}
       // The camera screen deliberately has no CTA, so Enter has nothing to do
       // there. Everywhere else Enter is the CTA — literally the same call, so
