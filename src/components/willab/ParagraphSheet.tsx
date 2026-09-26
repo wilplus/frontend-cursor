@@ -36,7 +36,7 @@ import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 /*    1. At the top: the Slide's helper words (tap them to choose new ones)   */
 /*       and the paragraph as it is now.                                      */
 /*    2. The exercise, if the moment has one, with Practise.                  */
-/*    3. "You said: <answer>", and what happened in one or two boxes.         */
+/*    3. "You have judged this as your …", and what happened in one or two boxes.         */
 /*    4. One timeline, newest Take first: what was said, and under it the     */
 /*       helper words that were locked while it stood (Q26 B).                */
 /*                                                                            */
@@ -466,7 +466,6 @@ export default function ParagraphSheet({
       ) : null}
       {view.youSaid ? (
         <p data-testid="answered-you-said" className="text-[15px] text-foreground">
-          <span className="text-muted-foreground">{COPY.historyYouSaid}: </span>
           {view.youSaid}
         </p>
       ) : null}

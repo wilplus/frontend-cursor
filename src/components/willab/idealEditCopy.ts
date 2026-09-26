@@ -229,7 +229,15 @@ export const CHUNK_SHEET_COPY = {
      words and helper words changed. "Before" is gone with the two-list
      layout: the timeline shows each Take with its own helper words (Q26 B). Words only — no score (AC-9). "Exercise"
      and "Practise" reuse titleExercise and pillPractise above. */
-  historyYouSaid: "You said",
+  /* --- "You have judged this as your …" (founder 2026-09-26) -------------
+     SIGNED OFF as written, replacing "You said: <chip>". The answered sheet
+     says the owner's own judgement back as one sentence, one per answer.
+     Words only — the answer is the owner's self-report, never a score. */
+  historyJudgedYes: "You have judged this as your confident moment",
+  historyJudgedInBetween: "You have judged this as your moment in-between",
+  historyJudgedNo: "You have judged this as your not-so-much confident moment",
+  historyJudgedAudioUnclear: "You have judged this as your unclear audio",
+  historyJudgedNotSure: "You have judged this as your hard to judge",
   historyCorrectionAccepted: "Correction accepted",
   historyPraised: "Praised",
   historyFromPractice: "From your practice",

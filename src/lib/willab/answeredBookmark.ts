@@ -3,7 +3,7 @@
  * An unanswered bookmark opens on the judgement, as it always has. An
  * answered one opens on ONE screen, top to bottom:
  *   1. the exercise, if the moment has one;
- *   2. "You said: <answer>" in one line;
+ *   2. "You have judged this as your <moment>" in one line;
  *   3. what happened to the moment, in one or two small boxes;
  *   4. the rest of the history — the Slide's words Take by Take, and its
  *      helper words, now and before.
@@ -17,14 +17,23 @@ import type {
   ParagraphHistory,
 } from "@/services/api/bookmarkHistory";
 
-/** The five answers, labelled exactly as the judgement chips label them. */
-const ANSWER_LABELS: Record<string, string> = {
-  yes: "Yes",
-  in_between: "In-between",
-  no: "No",
-  not_sure: "Not sure",
-  audio_unclear: "Audio unclear",
-};
+/** The five answers, each said back as its own sentence. */
+function judgedSentence(response: string, copy: AnsweredCopy): string | undefined {
+  switch (response) {
+    case "yes":
+      return copy.historyJudgedYes;
+    case "in_between":
+      return copy.historyJudgedInBetween;
+    case "no":
+      return copy.historyJudgedNo;
+    case "not_sure":
+      return copy.historyJudgedNotSure;
+    case "audio_unclear":
+      return copy.historyJudgedAudioUnclear;
+    default:
+      return undefined;
+  }
+}
 
 export interface DecidedItemLite {
   id: string;
@@ -35,6 +44,11 @@ export interface DecidedItemLite {
 }
 
 export interface AnsweredCopy {
+  historyJudgedYes: string;
+  historyJudgedInBetween: string;
+  historyJudgedNo: string;
+  historyJudgedNotSure: string;
+  historyJudgedAudioUnclear: string;
   historyCorrectionAccepted: string;
   historyPraised: string;
   historyFromPractice: string;
@@ -79,15 +93,17 @@ export function slideHeadlines(
   return out;
 }
 
-/** "You said: …" — the owner's answer on this moment's Confident Voice item. */
+/** "You have judged this as your …" — the owner's answer on this moment's
+ *  Confident Voice item, said back as one sentence. */
 function youSaidOf(
   items: readonly DecidedItemLite[],
   answers: readonly OwnerAnswer[],
+  copy: AnsweredCopy,
 ): string | null {
   for (const item of items) {
     if (item.feedbackFamily !== "confident_voice") continue;
     const answer = answers.find((a) => a.feedbackId === item.id);
-    const label = answer ? ANSWER_LABELS[answer.response] : undefined;
+    const label = answer ? judgedSentence(answer.response, copy) : undefined;
     if (label) return label;
   }
   return null;
@@ -183,7 +199,7 @@ export function answeredView(args: {
   copy: AnsweredCopy;
 }): AnsweredView {
   return {
-    youSaid: youSaidOf(args.items, args.answers),
+    youSaid: youSaidOf(args.items, args.answers, args.copy),
     boxes: boxesOf(args.items, args.history, args.copy),
     timeline: timelineOf(args.history, args.copy),
   };

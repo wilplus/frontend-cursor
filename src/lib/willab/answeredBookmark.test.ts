@@ -44,14 +44,14 @@ const history: ParagraphHistory = {
 };
 
 describe("the answered bookmark (Q19 A)", () => {
-  it("says the owner's own answer in the chips' words", () => {
+  it("says the owner's own answer back as one sentence", () => {
     const view = answeredView({
       items: [cv],
       answers: [{ feedbackId: "cv", response: "in_between" }],
       history: null,
       copy: COPY,
     });
-    expect(view.youSaid).toBe("In-between");
+    expect(view.youSaid).toBe("You have judged this as your moment in-between");
   });
 
   it("draws no answer it does not have", () => {
