@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import { claimOAuthRetry, isStateReplayError } from "@/lib/auth/oauthRetry";
+import { startOAuth } from "@/lib/auth/startOAuth";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -26,7 +28,26 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "oauth_failed") {
-      console.error("[OAuth] failed:", params.get("detail"));
+      const detail = params.get("detail");
+      console.error("[OAuth] failed:", detail);
+
+      // The provider's answer reached Supabase twice and the second was
+      // refused. Start the same sign-in over once, silently — see
+      // src/lib/auth/oauthRetry.ts. A second refusal lands here again with
+      // the restart already claimed and shows the ordinary toast.
+      if (isStateReplayError(params.get("error_code"), detail)) {
+        const provider = claimOAuthRetry();
+        if (provider) {
+          console.warn("[OAuth] replayed state — restarting sign-in once:", provider);
+          void startOAuth(provider)
+            .then((failure) => {
+              if (failure) toast.error("Sign-in failed. Please try again.");
+            })
+            .catch(() => toast.error("Sign-in failed. Please try again."));
+          return;
+        }
+      }
+
       toast.error("Sign-in failed. Please try again.");
     }
   }, []);

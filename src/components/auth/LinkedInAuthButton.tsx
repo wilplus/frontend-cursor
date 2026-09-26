@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
+import { rememberOAuthStart } from "@/lib/auth/oauthRetry";
+import { startOAuth } from "@/lib/auth/startOAuth";
 
 /**
  * LinkedIn OIDC sign-in button.
@@ -27,61 +27,18 @@ export default function LinkedInAuthButton({
   const handleLinkedIn = async () => {
     setLoading(true);
     try {
-      const supabase = createClient();
+      // Remembered so LoginForm can restart this sign-in once if Supabase
+      // refuses a replayed state (see src/lib/auth/oauthRetry.ts).
+      rememberOAuthStart("linkedin_oidc");
+      const failure = await startOAuth("linkedin_oidc");
+      if (!failure) return; // navigating to LinkedIn
 
-      // Clear any existing session so OAuth flow starts fresh
-      // (prevents instant redirect when user already has a stale session)
-      await supabase.auth.signOut();
-
-      // If we're launching OAuth from the installed PWA, drop a marker cookie so
-      // the callback page (which can land in a separate browser tab) can tell
-      // the user they can head back to the app. No-op for plain web sign-in.
-      if (isStandalonePwa()) markOAuthFromPwa();
-
-      // Build the callback URL — after OAuth, Supabase redirects here.
-      //
-      // No query string deliberately. Supabase's redirect-URL allow-list
-      // matcher in some project configurations does NOT accept query
-      // strings even with `**` wildcards — so `?next=/results` was making
-      // Supabase silently fall back to Site URL (`https://...com/`) and
-      // the OAuth code landed on the homepage, never reaching this
-      // route handler.
-      //
-      // The /auth/callback route handler defaults `next` to "/results"
-      // when missing (see src/app/auth/callback/route.ts), so dropping
-      // the query string here is functionally identical for the user
-      // but bulletproof against allow-list matching quirks.
-      const origin = window.location.origin;
-      const callbackUrl = `${origin}/auth/callback`;
-
-      // Use skipBrowserRedirect to get the URL and validate it before redirecting
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "linkedin_oidc",
-        options: {
-          redirectTo: callbackUrl,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        console.error("LinkedIn OAuth error:", error);
-        toast.error(error.message || "Failed to connect with LinkedIn");
-        setLoading(false);
-        return;
-      }
-
-      // Validate we got a proper OAuth URL pointing to Supabase/LinkedIn
-      if (!data?.url) {
-        console.error("LinkedIn OAuth: no redirect URL returned");
+      if (failure.error === "provider") {
+        toast.error(failure.message || "Failed to connect with LinkedIn");
+      } else {
         toast.error("Failed to start LinkedIn sign-in. Please try again.");
-        setLoading(false);
-        return;
       }
-
-      console.log("[LinkedIn OAuth] Redirecting to:", data.url);
-
-      // Redirect to the OAuth provider
-      window.location.href = data.url;
+      setLoading(false);
     } catch (err) {
       console.error("LinkedIn OAuth exception:", err);
       toast.error("Something went wrong. Please try again.");

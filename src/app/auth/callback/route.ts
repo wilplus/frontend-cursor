@@ -154,6 +154,10 @@ export async function GET(req: NextRequest) {
     const errorUrl = new URL("/login", req.url);
     errorUrl.searchParams.set("error", "oauth_failed");
     errorUrl.searchParams.set("detail", detail.slice(0, 200));
+    // Supabase's machine-readable reason (e.g. `flow_state_already_used`),
+    // which LoginForm uses to restart a replayed sign-in once.
+    const errorCode = requestUrl.searchParams.get("error_code");
+    if (errorCode) errorUrl.searchParams.set("error_code", errorCode.slice(0, 64));
     console.error("[Auth Callback] OAuth provider error:", oauthError, detail);
     return NextResponse.redirect(errorUrl);
   }
