@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { createRetryingFetch } from "@/lib/supabase/retryingFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  The browser Supabase client.                                              */
@@ -49,5 +50,9 @@ export function createClient() {
     );
   }
 
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  // The OAuth code exchange survives one dropped connection — see
+  // retryingFetch.ts. Every other request passes through untouched.
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: createRetryingFetch() },
+  });
 }
