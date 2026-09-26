@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
@@ -57,6 +58,9 @@ export default function RecordingRoadmap({
   const currentSlideRef = useRef(currentSlide);
   const directionRef = useRef<1 | -1>(1);
   const onSlideChangeRef = useRef(onSlideChange);
+  /** The speaker has moved to another slide once (founder 2026-09-26): the
+   *  hint has done its job and goes for the rest of the take. */
+  const [movedOnce, setMovedOnce] = useState(false);
 
   const currentRoots = useMemo(
     () => roots.filter((root) => root.slideIndex === currentSlide),
@@ -83,6 +87,7 @@ export default function RecordingRoadmap({
       if (slides.length === 0 || next === currentSlideRef.current) return;
       directionRef.current = next < currentSlideRef.current ? -1 : 1;
       currentSlideRef.current = next;
+      setMovedOnce(true);
       onSlideChangeRef.current(next);
     },
     [slides.length]
@@ -164,9 +169,12 @@ export default function RecordingRoadmap({
   }, [goToSlide]);
 
   // First take: no Ideal Text yet, so no anchors fill the space under the
-  // slide. Show how to move on instead — until the last slide.
+  // slide. Show how to move on instead — ANIMATED, and only until the first
+  // move (founder 2026-09-26: "an animation that shows you to scroll … after
+  // the first scroll it should disappear, just a guide for first time
+  // users").
   const showNextHint =
-    roots.length === 0 && currentSlide < slides.length - 1;
+    roots.length === 0 && currentSlide < slides.length - 1 && !movedOnce;
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const scroller = scrollRef.current;
@@ -288,7 +296,10 @@ function NextSlideHint({
         <span className="text-[clamp(1.6rem,6vw,2.2rem)] font-semibold leading-tight">
           Scroll down
         </span>
-        <ChevronDown className="h-10 w-10" aria-hidden />
+        <ChevronDown
+          className="h-10 w-10 motion-safe:animate-bounce"
+          aria-hidden
+        />
       </button>
       <div className="flex flex-col items-center gap-4 [@media(pointer:coarse)]:hidden">
         <div className="grid grid-cols-3 gap-1.5">
@@ -303,6 +314,7 @@ function NextSlideHint({
           <ArrowKey
             icon={ChevronDown}
             active
+            pulse
             onClick={onNext}
             label="Next slide"
           />
@@ -321,11 +333,14 @@ function NextSlideHint({
 function ArrowKey({
   icon: Icon,
   active = false,
+  pulse = false,
   onClick,
   label,
 }: {
   icon: LucideIcon;
   active?: boolean;
+  /** The key to press, drawn moving (motion-safe) so the eye finds it. */
+  pulse?: boolean;
   onClick?: () => void;
   label?: string;
 }) {
@@ -333,7 +348,7 @@ function ArrowKey({
     active
       ? "border-primary text-primary"
       : "border-muted-foreground/40 text-muted-foreground"
-  }`;
+  }${pulse ? " motion-safe:animate-bounce" : ""}`;
   if (!onClick) {
     return (
       <span className={className} aria-hidden>
