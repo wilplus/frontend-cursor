@@ -143,7 +143,7 @@ describe("the answered bookmark", () => {
     expect(now).toContain("ship it now");
     expect(now).toContain(TEXT);
     expect(text).toContain("Say it again, slower.");
-    expect(text).toContain("You have judged this as your hard to judge");
+    expect(text).toContain("You were not sure how to judge this one");
     expect(text).toContain("How this changed");
     expect(text.indexOf("Take 2")).toBeLessThan(text.indexOf("Take 1"));
     expect(text).not.toMatch(/\d+\s*%|\bscore\b/i);
