@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   answeredView,
   opensParagraphSheet,
-  slideHeadlines,
+  helperWordRanges,
+  paragraphHeadlines,
   type DecidedItemLite,
 } from "./answeredBookmark";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
@@ -104,16 +105,28 @@ describe("the answered bookmark (Q19 A)", () => {
   });
 });
 
-describe("one headline per slide (Q20 A)", () => {
-  it("joins a slide's helper words in pick order", () => {
-    const map = slideHeadlines([
-      { slideIndex: 1, text: "nine days to two" },
-      { slideIndex: 0, text: "hello" },
-      { slideIndex: 1, text: " first week " },
-      { slideIndex: 1, text: "first week" },
+describe("one headline per paragraph (founder 2026-09-26)", () => {
+  it("keys helper words by the paragraph they came from, in pick order", () => {
+    const map = paragraphHeadlines([
+      { partId: "p2", text: "nine days to two" },
+      { partId: "p1", text: "hello" },
+      { partId: "p2", text: " first week " },
+      { partId: "p2", text: "first week" },
     ]);
-    expect(map.get(1)).toBe("nine days to two · first week");
-    expect(map.get(0)).toBe("hello");
-    expect(map.has(2)).toBe(false);
+    expect(map.get("p2")).toBe("nine days to two · first week");
+    expect(map.get("p1")).toBe("hello");
+    expect(map.has("p3")).toBe(false);
+  });
+});
+
+describe("helper words inside the running text", () => {
+  it("finds each phrase by its words, ignoring case", () => {
+    expect(
+      helperWordRanges("We think The Timing matters, and the window.", "the timing matters · window"),
+    ).toEqual([[9, 27], [37, 43]]);
+  });
+  it("marks nothing when the Take did not say them", () => {
+    expect(helperWordRanges("Something else entirely.", "the timing matters")).toBeUndefined();
+    expect(helperWordRanges("Anything.", null)).toBeUndefined();
   });
 });

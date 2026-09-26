@@ -75,22 +75,46 @@ export interface AnsweredView {
   timeline: TimelineEntry[];
 }
 
-/** One headline per Slide: all its helper words, in pick order (Q12 A,
- *  Q20 A). Slides without helper words get no entry and draw no headline. */
-export function slideHeadlines(
-  roots: readonly { slideIndex: number; text: string }[],
-): Map<number, string> {
-  const bySlide = new Map<number, string[]>();
+/** One headline per PARAGRAPH (founder 2026-09-26, superseding Q12 A's one
+ *  headline per Slide): the helper words sit directly above the paragraph
+ *  they came from, like a newspaper headline over its own article (contract
+ *  clause 20, "above the Paragraph"). A paragraph with more than one set joins
+ *  them in pick order. Paragraphs without helper words get no entry. */
+export function paragraphHeadlines(
+  roots: readonly { partId: string; text: string }[],
+): Map<string, string> {
+  const byPart = new Map<string, string[]>();
   for (const root of roots) {
     const text = root.text.trim();
     if (!text) continue;
-    const list = bySlide.get(root.slideIndex) ?? [];
+    const list = byPart.get(root.partId) ?? [];
     if (!list.includes(text)) list.push(text);
-    bySlide.set(root.slideIndex, list);
+    byPart.set(root.partId, list);
   }
-  const out = new Map<number, string>();
-  for (const [slide, list] of bySlide) out.set(slide, list.join(" · "));
+  const out = new Map<string, string>();
+  for (const [part, list] of byPart) out.set(part, list.join(" · "));
   return out;
+}
+
+/** Where a paragraph's helper words stand in its own text, for the italic
+ *  inside the running text (founder 2026-09-26). Matched by their words,
+ *  ignoring case, because helper words are stored as text rather than as a
+ *  position (clause 14) — and a later Take need not say them at all, in which
+ *  case there is simply nothing to mark. First occurrence of each phrase. */
+export function helperWordRanges(
+  text: string,
+  headline: string | null | undefined,
+): Array<[number, number]> | undefined {
+  if (!headline) return undefined;
+  const hay = text.toLowerCase();
+  const out: Array<[number, number]> = [];
+  for (const phrase of headline.split(" · ")) {
+    const needle = phrase.trim().toLowerCase();
+    if (!needle) continue;
+    const at = hay.indexOf(needle);
+    if (at >= 0) out.push([at, at + needle.length]);
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** "You have judged this as your …" — the owner's answer on this moment's

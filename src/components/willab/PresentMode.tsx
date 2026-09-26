@@ -15,6 +15,7 @@ import {
   type PresentationExportFormat,
 } from "@/lib/willab/presentationDocument";
 import { buildRootPhraseLayer } from "@/lib/willab/rootPhraseLayer";
+import { helperWordRanges } from "@/lib/willab/answeredBookmark";
 
 /* -------------------------------------------------------------------------- */
 /*  PresentMode — the ideal text, fullscreen, for actually presenting it.      */
@@ -190,39 +191,35 @@ export default function PresentMode({
                 </div>
               ) : null}
 
-              {/* Root layer: explicit locked-orange phrases only. No accepted
-                  root means no prompt for that paragraph. */}
-              <div className="flex flex-col gap-3 py-1">
-                {buildRootPhraseLayer(
-                  slide.rows.map((row) => ({
-                    key: row.key,
-                    rootPhrase: row.rootPhrase,
-                    rootType: row.rootType,
-                  })),
-                  { includeNeutral: false },
-                ).map((root) => (
-                  <p
-                    key={`root-${root.key}`}
-                    className={
-                      root.type === "flagship"
-                        ? "text-[clamp(1.55rem,4vw,2.25rem)] font-semibold leading-tight text-primary"
-                        : "text-[clamp(1.55rem,4vw,2.25rem)] font-medium leading-tight text-muted-foreground"
-                    }
-                  >
-                    {root.text}
-                  </p>
-                ))}
-              </div>
-
-              {/* The normal Ideal Text is the only detailed text layer. Its
-                  accepted span remains orange in place; there is no separate
-                  duplicated flagship sentence. */}
+              {/* HELPER WORDS OVER THEIR OWN PARAGRAPH (founder 2026-09-26,
+                  the same rule as the Ideal Text): a bold orange headline
+                  directly above the paragraph they came from, and the same
+                  words italic — never orange — inside the running text. Only
+                  locked flagship phrases; no root means no headline. */}
               <div className="flex flex-col gap-5 text-[17px] leading-[1.7] text-foreground">
-                {slide.rows.map((row) => (
-                  <p key={`text-${row.key}`}>
-                    <RichText text={row.idealText} />
-                  </p>
-                ))}
+                {slide.rows.map((row) => {
+                  const root = buildRootPhraseLayer(
+                    [{ key: row.key, rootPhrase: row.rootPhrase, rootType: row.rootType }],
+                    { includeNeutral: false },
+                  )[0];
+                  return (
+                    <div key={`text-${row.key}`} className="flex flex-col gap-1">
+                      {root ? (
+                        <p className="text-[clamp(1.55rem,4vw,2.25rem)] font-semibold leading-tight text-primary">
+                          {root.text}
+                        </p>
+                      ) : null}
+                      <p>
+                        <RichText
+                          text={row.idealText}
+                          accent={false}
+                          tint={helperWordRanges(row.idealText, root?.text)}
+                          tintClass="italic"
+                        />
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ))}

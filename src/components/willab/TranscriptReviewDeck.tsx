@@ -13,10 +13,13 @@ import {
   useFeedbackPager,
   type Bookmark,
 } from "@/components/willab/feedbackPager";
-import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
+import {
+  helperWordRanges,
+  opensParagraphSheet,
+} from "@/lib/willab/answeredBookmark";
 import {
   headlineFor,
-  useSlideHeadlines,
+  useParagraphHeadlines,
 } from "@/components/willab/useSlideHeadlines";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
@@ -471,7 +474,7 @@ export default function TranscriptReviewDeck({
     setEditingSlideIndex(undefined);
   }, [deckReady]);
   const openChunk = resolveOpenChunk(chunks, openPart);
-  const headlines = useSlideHeadlines(arcId, doc, openPart !== null);
+  const headlines = useParagraphHeadlines(arcId, doc, openPart !== null);
   const openState = openChunk ? stateOf(openChunk) : null;
 
   /* BACK / NEXT ACROSS THE BOOKMARKS (founder 2026-09-25, Q29 A–Q32 A). Every
@@ -1084,9 +1087,6 @@ export default function TranscriptReviewDeck({
                     constant: it is always directly under the header, on every
                     screen, whatever is or is not above it. */}
                 <div className="flex flex-col gap-4">
-                  <SlideHeadline
-                    text={headlineFor(headlines, g.slideIndex, g.screenOfSlide)}
-                  />
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
                     /* DOCUMENT STATE (contract 24g-1). A block holding an
@@ -1154,9 +1154,17 @@ export default function TranscriptReviewDeck({
                       {/* HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY
                           (founder 2026-09-26): inside the running text they
                           read in the paragraph's own colour. */}
+                      <ParagraphHeadline
+                        text={headlineFor(headlines, c.part.id, c.sliceIndex)}
+                      />
                       <RichText
                         text={c.displayText ?? c.part.text}
                         accent={false}
+                        tint={helperWordRanges(
+                          c.displayText ?? c.part.text,
+                          headlines.get(c.part.id),
+                        )}
+                        tintClass="italic"
                       />
                       {/* THE MARK IS FOR THE CONFIDENT VOICE QUESTION
                           (founder 2026-09-17: "show it only when there is a
@@ -1349,7 +1357,7 @@ export default function TranscriptReviewDeck({
           state={openState}
           arcId={arcId}
           takeSessionId={takeSessionId}
-          headline={headlineOfChunk(headlines, groups, openChunk.part.id)}
+          headline={headlineOfChunk(headlines, openChunk.part.id)}
           onUseHelperWords={async (span) => {
             // Q24 B / Q27 B: the new words are saved, then locked, at once.
             if (!(await onSetRootPhrase(openChunk, span))) return false;
@@ -1417,7 +1425,7 @@ export default function TranscriptReviewDeck({
           key={openBundle.bundleId}
           bundle={openBundle}
           pager={walk.pager}
-          history={bundleHistory(openBundle.paragraphId, chunks, arcId, headlines, groups)}
+          history={bundleHistory(openBundle.paragraphId, chunks, arcId, headlines)}
           documentSnapshotId={confidentMoments.projection!.documentSnapshotId}
           ownerEdit={confidentMomentOwnerEdit}
           onChanged={() => {
@@ -1526,19 +1534,22 @@ function SlideEditor({
   );
 }
 
-/** THE SLIDE'S HEADLINE (founder 2026-09-25, Q20 A): all of the Slide's
- *  helper words on one line, joined " · ", bold orange, above its
- *  paragraphs — like a newspaper headline over the article that repeats its
- *  words in ordinary type. Its own component so the deck gains no branch. */
-function SlideHeadline({ text }: { text: string | null }) {
+/** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
+ *  line per Slide): its own helper words, bold orange, directly above it —
+ *  like a newspaper headline over the article that repeats its words. Inside
+ *  the running text the same words are italic, in the paragraph's own colour
+ *  and font; the headline is the only orange. A block span inside the
+ *  paragraph element, so the tap target and the screen packing still see one
+ *  paragraph. Its own component so the deck gains no branch. */
+function ParagraphHeadline({ text }: { text: string | null }) {
   if (!text) return null;
   return (
-    <p
-      data-slide-headline
-      className="text-[clamp(1.1rem,2.8vw,1.35rem)] font-bold leading-snug text-primary"
+    <span
+      data-paragraph-headline
+      className="mb-1 block text-[clamp(1.1rem,2.8vw,1.35rem)] font-bold not-italic leading-snug text-primary"
     >
       {text}
-    </p>
+    </span>
   );
 }
 
@@ -1564,16 +1575,12 @@ function paragraphTap(
   };
 }
 
-/** The open paragraph's Slide headline, from the same map the page draws. */
+/** The open paragraph's own helper words, from the same map the page draws. */
 function headlineOfChunk(
-  headlines: Map<number, string>,
-  groups: readonly { slideIndex: number | null; chunks: readonly DeckChunk[] }[],
+  headlines: Map<string, string>,
   partId: string,
 ): string | null {
-  const group = groups.find((g) => g.chunks.some((c) => c.part.id === partId));
-  return group && group.slideIndex !== null
-    ? (headlines.get(group.slideIndex) ?? null)
-    : null;
+  return headlines.get(partId) ?? null;
 }
 
 /** What the coaching sheet shows under the coach's work once the moment is
@@ -1582,8 +1589,7 @@ function bundleHistory(
   paragraphId: string,
   chunks: readonly DeckChunk[],
   arcId: string | null,
-  headlines: Map<number, string>,
-  groups: readonly { slideIndex: number | null; chunks: readonly DeckChunk[] }[],
+  headlines: Map<string, string>,
 ): { arcId: string | null; partId: string; text: string; headline: string | null } | null {
   const chunk = chunks.find((c) => c.part.id === paragraphId);
   if (!chunk) return null;
@@ -1591,6 +1597,6 @@ function bundleHistory(
     arcId,
     partId: chunk.part.id,
     text: chunk.part.text,
-    headline: headlineOfChunk(headlines, groups, chunk.part.id),
+    headline: headlineOfChunk(headlines, chunk.part.id),
   };
 }

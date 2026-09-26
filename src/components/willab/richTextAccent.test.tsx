@@ -36,4 +36,19 @@ describe("RichText accent", () => {
     expect(container.querySelector(".text-primary")).toBeNull();
     expect(container.textContent).toContain("gotta do");
   });
+
+  it("tintClass=\"italic\" marks the helper words italic in the paragraph's own colour", async () => {
+    await act(async () =>
+      root.render(
+        createElement(RichText, {
+          text: "We think the timing matters here.",
+          accent: false,
+          tint: [[9, 27]],
+          tintClass: "italic",
+        }),
+      ),
+    );
+    expect(container.querySelector(".text-primary")).toBeNull();
+    expect(container.querySelector(".italic")?.textContent).toBe("the timing matters");
+  });
 });
