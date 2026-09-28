@@ -300,6 +300,19 @@ export default function LabOverlay({
   // (initArc.deck) and is backfilled from the server below when the cache lost
   // it, so take 2+ restores its slides instead of dead-ending / going deckless.
   const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(null);
+  /* THE PROJECT'S SETUP IS STILL ON ITS WAY (founder 2026-09-28: "it asks me
+     to go through this again with prefilled correctly — I want to just skip
+     it and record right away"). The arc setup below is fetched after the
+     overlay opens. A "Start recording" tap that beat it found no setup, fell
+     to `setup_needed` and showed the whole form, already filled in by the
+     answer that landed a moment later. The button waits for that answer now,
+     so a continued Take goes straight to recording. Bounded: a slow or failed
+     read releases it after a few seconds and the form fallback still works. */
+  const [setupArriving, setSetupArriving] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setSetupArriving(false), 6000);
+    return () => clearTimeout(timer);
+  }, []);
   const [recordingRoots, setRecordingRoots] = useState<
     Array<{ slideIndex: number; text: string; type: "flagship" | "neutral" }>
   >([]);
@@ -312,6 +325,10 @@ export default function LabOverlay({
     setArcTakeIndex(cached?.nextTakeIndex ?? 1);
     setExploreEnabled(!!cached);
     setPreloadDeck(cached?.deck ?? null);
+    // Nothing more to wait for unless the arc setup read below will run.
+    if (cached?.deck || !cached?.arcId || signedIn !== true) {
+      setSetupArriving(false);
+    }
   }, [signedIn, userId]);
 
   // Take 1 intentionally has no roadmap. Every later recording entry reads
@@ -360,16 +377,20 @@ export default function LabOverlay({
     const aid = initArc?.arcId;
     if (!aid || preloadDeck || signedIn !== true) return;
     let active = true;
-    void fetchArcSetup(aid).then((setup) => {
-      if (!active || !setup) return;
-      setPreloadDeck({
-        topic: setup.topic,
-        audience: setup.audience,
-        presentationRef: setup.presentationRef,
-        slides: setup.slides,
-        targetLengthSeconds: setup.targetLengthSeconds,
+    void fetchArcSetup(aid)
+      .then((setup) => {
+        if (!active || !setup) return;
+        setPreloadDeck({
+          topic: setup.topic,
+          audience: setup.audience,
+          presentationRef: setup.presentationRef,
+          slides: setup.slides,
+          targetLengthSeconds: setup.targetLengthSeconds,
+        });
+      })
+      .finally(() => {
+        if (active) setSetupArriving(false);
       });
-    });
     return () => {
       active = false;
     };
@@ -1288,7 +1309,11 @@ export default function LabOverlay({
             <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
               Your slides and speaking anchors are ready.
             </p>
-            <Button onClick={startContinuedTake} className="rounded-full px-7">
+            <Button
+              onClick={startContinuedTake}
+              disabled={setupArriving}
+              className="rounded-full px-7"
+            >
               Start recording
             </Button>
           </div>
