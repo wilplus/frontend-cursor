@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 export type LearningSurface =
   | "confidence_classification"
@@ -85,28 +86,21 @@ export async function acknowledgeVisibleLearningExposures(
   const renderedAt = new Date().toISOString();
   const results = await Promise.all(
     handles.map(async (handle) => {
-      try {
-        const response = await fetch("/api/v2/learning-exposures/ack", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          cache: "no-store",
-          body: JSON.stringify({
-            presentation_id: handle.presentationId,
-            acknowledgement_token: handle.acknowledgementToken,
-            actor_role: actorRole,
-            render_instance_id: renderInstanceId,
-            client_rendered_at: renderedAt,
-          }),
-        });
-        if (response.status === 404) warnProxyMissing();
-        return response.ok;
-      } catch {
-        return false;
-      }
+      const result = await bffFetch("/api/v2/learning-exposures/ack", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        json: {
+          presentation_id: handle.presentationId,
+          acknowledgement_token: handle.acknowledgementToken,
+          actor_role: actorRole,
+          render_instance_id: renderInstanceId,
+          client_rendered_at: renderedAt,
+        },
+      });
+      if (result.kind !== "response") return false;
+      if (result.status === 404) warnProxyMissing();
+      return result.ok;
     }),
   );
   return results.every(Boolean);
