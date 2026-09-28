@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  chatSessionState — seam 8 client fetcher                                  */
@@ -14,25 +14,15 @@ export type SessionStateValue =
   | "REVIEW_LOOP";
 
 export async function fetchSessionState(): Promise<SessionStateValue | null> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  try {
-    const res = await fetch("/api/v2/chat/session-state", {
-      headers,
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const body = (await res.json().catch(() => null)) as Record<
-      string,
-      unknown
-    > | null;
-    const v = body?.state;
-    if (v === "NO_SESSION" || v === "PENDING_COACH" || v === "REVIEW_LOOP")
-      return v;
-    return null;
-  } catch {
-    return null;
-  }
+  // @optional_auth: an anonymous read is valid (the answer is NO_SESSION).
+  const result = await bffFetch("/api/v2/chat/session-state", {
+    auth: "optional",
+    cache: "no-store",
+  });
+  if (result.kind !== "response" || !result.ok) return null;
+  const body = result.body as Record<string, unknown> | null;
+  const v = body?.state;
+  if (v === "NO_SESSION" || v === "PENDING_COACH" || v === "REVIEW_LOOP")
+    return v;
+  return null;
 }
