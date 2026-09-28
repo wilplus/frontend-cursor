@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  coachReviewState — the coach wrap-up screen's single read (FE-2 / PR #206) */
@@ -174,18 +174,10 @@ export function mapCoachReviewState(raw: unknown): CoachReviewState | null {
 export async function fetchCoachReviewState(
   arcId: string
 ): Promise<CoachReviewState | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/arc/${encodeURIComponent(arcId)}/review-state`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as unknown;
-  return mapCoachReviewState(body);
+  const result = await bffFetch(
+    `/api/v2/coach/arc/${encodeURIComponent(arcId)}/review-state`,
+    { cache: "no-store" }
+  );
+  if (result.kind !== "response" || !result.ok) return null;
+  return mapCoachReviewState(result.body);
 }

@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { CoachPublishPayload } from "@/services/api/coachReviewState";
 
 /* -------------------------------------------------------------------------- */
@@ -23,38 +23,30 @@ export async function publishArc(
   arcId: string,
   reviews: CoachPublishPayload[]
 ): Promise<PublishArcResult> {
-  const token = await getAuthToken();
-  if (!token) {
+  const result = await bffFetch(`/api/v2/coach/arc/${encodeURIComponent(arcId)}/publish`, {
+    method: "POST",
+    json: {
+      reviews: reviews.map((review) => ({
+        session_id: review.sessionId,
+        idempotency_key:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${review.sessionId}:${Date.now()}`,
+        overall_message: review.overallMessage,
+        feedback_items: review.feedbackItems,
+      })),
+    },
+  });
+  if (result.kind === "unauthenticated") {
     return { kind: "error", status: 401, message: "Sign in as a coach to publish." };
   }
-
-  let res: Response;
-  try {
-    res = await fetch(`/api/v2/coach/arc/${encodeURIComponent(arcId)}/publish`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        reviews: reviews.map((review) => ({
-          session_id: review.sessionId,
-          idempotency_key:
-            typeof crypto !== "undefined" && "randomUUID" in crypto
-              ? crypto.randomUUID()
-              : `${review.sessionId}:${Date.now()}`,
-          overall_message: review.overallMessage,
-          feedback_items: review.feedbackItems,
-        })),
-      }),
-    });
-  } catch {
+  if (result.kind === "network") {
     return { kind: "error", status: 0, message: "Couldn't reach the server. Try again." };
   }
 
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = result.body as Record<string, unknown> | null;
 
-  if (!res.ok) {
+  if (!result.ok) {
     // The BE's 409s are code-shaped (TAKES_NOT_SAVED / IDEAL_TEXT_NOT_APPROVED)
     // and may carry the human text under message/detail rather than error —
     // try each, then map the bare code, before the generic fallback.
@@ -71,8 +63,8 @@ export async function publishArc(
     const msg =
       firstString(body?.error, body?.message, body?.detail) ??
       codeCopy ??
-      `Publish failed (HTTP ${res.status}).`;
-    return { kind: "error", status: res.status, message: msg };
+      `Publish failed (HTTP ${result.status}).`;
+    return { kind: "error", status: result.status, message: msg };
   }
   return {
     kind: "ok",
