@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  starVerdicts — the coach's judgment on machine-fired stars (2026-07-27)    */
@@ -318,20 +318,12 @@ export function buildVerdictBody(
 export async function fetchCoachArcStars(
   arcId: string
 ): Promise<ArcStars | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  let res: Response;
-  try {
-    res = await fetch(`/api/v2/coach/arc/${encodeURIComponent(arcId)}/stars`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as unknown;
-  return mapArcStars(body);
+  const result = await bffFetch(
+    `/api/v2/coach/arc/${encodeURIComponent(arcId)}/stars`,
+    { cache: "no-store" }
+  );
+  if (result.kind !== "response" || !result.ok) return null;
+  return mapArcStars(result.body);
 }
 
 export type SaveVerdictResult = { ok: true } | { ok: false; error: string | null };
@@ -344,29 +336,12 @@ export async function saveStarVerdict(
   snippetId: string,
   body: StarVerdictBody
 ): Promise<SaveVerdictResult> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, error: null };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/star-verdict`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return { ok: false, error: null };
-  }
-  if (res.ok) return { ok: true };
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const result = await bffFetch(
+    `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/star-verdict`,
+    { method: "PUT", json: body, cache: "no-store" }
+  );
+  if (result.kind !== "response") return { ok: false, error: null };
+  if (result.ok) return { ok: true };
+  const data = result.body as Record<string, unknown> | null;
   return { ok: false, error: strOrNull(data?.error) };
 }
