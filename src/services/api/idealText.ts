@@ -214,6 +214,10 @@ export interface ConfidentVoicePracticeOffer {
   resume: boolean;
   /** Completed on an earlier Take (contract 35d): a flag, never a count. */
   doneBefore: boolean;
+  /** A coach picked this exercise for this exact moment (backend 2026-09-28).
+   *  Arrives on a later poll. Whether an exercise was a trial is never in the
+   *  payload and is never inferred; neither is any matching number (AC-9). */
+  chosenByCoach: boolean;
 }
 
 export interface DocumentSuggestion {
@@ -580,6 +584,7 @@ function mapPracticeExercise(
       typeof practice.practice_id === "string" ? practice.practice_id : null,
     resume: practice.resume === true,
     doneBefore: practice.done_before === true,
+    chosenByCoach: practice.chosen_by_coach === true,
   };
 }
 

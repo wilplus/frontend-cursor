@@ -10,6 +10,7 @@ import {
 } from "@/services/api/speakingErrors";
 import type { LaneDraft } from "./laneDraft";
 import { slugify } from "./laneDraft";
+import MainTargetPicker, { keptMainTarget } from "../MainTargetPicker";
 import { LANE_INPUT, LaneField } from "./LaneShell";
 
 /* -------------------------------------------------------------------------- */
@@ -168,13 +169,12 @@ export function TagStep({ draft, patch, errors }: {
               key={item.errorId}
               type="button"
               aria-pressed={on}
-              onClick={() =>
-                patch({
-                  tags: on
-                    ? draft.tags.filter((t) => t !== item.errorId)
-                    : [...draft.tags, item.errorId],
-                })
-              }
+              onClick={() => {
+                const tags = on
+                  ? draft.tags.filter((t) => t !== item.errorId)
+                  : [...draft.tags, item.errorId];
+                patch({ tags, primaryTag: keptMainTarget(tags, draft.primaryTag) });
+              }}
               className={`rounded-full border px-4 py-3 text-[14px] ${
                 on
                   ? "border-foreground bg-foreground text-background"
@@ -209,6 +209,13 @@ export function TagStep({ draft, patch, errors }: {
           </div>
         </div>
       ) : null}
+      <MainTargetPicker
+        tags={draft.tags}
+        labels={new Map(errors.map((e) => [e.errorId, e.label]))}
+        value={draft.primaryTag}
+        onChange={(primaryTag) => patch({ primaryTag })}
+        size="lg"
+      />
       <NameAnErrorBox />
     </div>
   );

@@ -6,8 +6,11 @@ import {
   adminListDiagnosticExercises,
   adminListSpeakingErrors,
   adminSaveDiagnosticExercise,
+  criteriaForMainTarget,
+  mainTargetOf,
   type AdminSpeakingError,
 } from "@/services/api/journalAdmin";
+import MainTargetPicker, { keptMainTarget } from "./MainTargetPicker";
 
 const INPUT =
   "mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30";
@@ -49,6 +52,9 @@ export default function DiagnosticExerciseSection({
   const [known, setKnown] = useState<string[]>([]);
   const [errors, setErrors] = useState<AdminSpeakingError[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [primary, setPrimary] = useState<string | null>(null);
+  /** The stored criteria, so naming a main target keeps the rest of them. */
+  const [criteria, setCriteria] = useState<Record<string, unknown> | null>(null);
   const [active, setActive] = useState(false);
   const [title, setTitle] = useState("");
   const [instruction, setInstruction] = useState("");
@@ -85,6 +91,8 @@ export default function DiagnosticExerciseSection({
       setConfidentIntro(mine.confidentIntroductionCopy || "");
       setVideoUrl(mine.explanationVideoUrl || "");
       setTags(mine.acousticProblemTags);
+      setCriteria(mine.matchingCriteria);
+      setPrimary(mainTargetOf(mine.matchingCriteria));
     });
     return () => { alive = false; };
   }, [password, postId]);
@@ -126,6 +134,7 @@ export default function DiagnosticExerciseSection({
       confidentIntroductionCopy: confidentIntro.trim(),
       explanationVideoUrl: videoUrl.trim(),
       acousticProblemTags: tags,
+      matchingCriteria: criteriaForMainTarget(criteria, keptMainTarget(tags, primary)),
       active,
     });
     setSaving(false);
@@ -134,6 +143,7 @@ export default function DiagnosticExerciseSection({
       return;
     }
     setActive(result.data.active);
+    setCriteria(result.data.matchingCriteria);
     setMessage(result.data.active ? "Exercise is live." : "Saved, not live.");
   }
 
@@ -248,6 +258,12 @@ export default function DiagnosticExerciseSection({
           <p className="mt-2 text-[11px] font-normal text-muted-foreground">
             Claim all of them and this is never picked over another exercise.
           </p>
+          <MainTargetPicker
+            tags={tags}
+            labels={new Map(errors.map((e) => [e.errorId, e.label]))}
+            value={primary}
+            onChange={setPrimary}
+          />
         </div>
 
         <label className="text-xs font-medium text-foreground">

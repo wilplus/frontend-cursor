@@ -9,11 +9,13 @@ import {
   adminListSpeakingErrors,
   adminPresign,
   adminSaveDiagnosticExercise,
+  criteriaForMainTarget,
   adminSetPublished,
   adminUpdatePost,
   uploadToStorage,
   type AdminSpeakingError,
 } from "@/services/api/journalAdmin";
+import { keptMainTarget } from "../MainTargetPicker";
 import type { JournalCategory, JournalCoverKind } from "@/services/api/journal";
 import {
   blankDraft,
@@ -287,6 +289,8 @@ export default function NewContentClient({ path }: { path: string[] }) {
         confidentIntroductionCopy: "",
         explanationVideoUrl: draft.videoUrl,
         acousticProblemTags: draft.tags,
+        matchingCriteria: criteriaForMainTarget(
+          null, keptMainTarget(draft.tags, draft.primaryTag)),
         active: publish,
         avatarTrainingEligible: draft.avatarEligible,
         avatarSetupLabel: draft.avatarSetupLabel.trim(),
