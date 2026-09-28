@@ -180,6 +180,8 @@ export const CHUNK_SHEET_COPY = {
   cardCorrectedVersion: "Corrected version",
   /** The practice judgement's player label (accepted screen L1, 2026-09-26). */
   practiceAttemptLabel: (n: number) => `Your practice · attempt ${n}`,
+  /** The live practice recording (accepted coach journey, 2026-09-26). */
+  practiceAttemptRecording: (n: number) => `Attempt ${n}`,
   /* An INSTRUCTION for the interaction rather than a label for the content,
      which is why it does not read "With emphasis" like its sibling. Founder
      left it deliberately (handoff, "one note"). */
