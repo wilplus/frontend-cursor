@@ -18,6 +18,7 @@ import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
+import type { BehindOutcome } from "./saveBehind";
 import { PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -153,7 +154,13 @@ const props = {
   // the span that was stored, not merely that something was.
   onSetRootPhrase: vi.fn(async (_phrase: RootPhraseSpan | null) => true),
   onClose: vi.fn(),
+  // Tap and go (founder 2026-09-28): the host runs the writes the sheet no
+  // longer waits for. The spy runs each one and keeps what it came to.
+  saveBehind: vi.fn((task: () => Promise<BehindOutcome>, failText: string) => {
+    behind.push({ failText, done: task() });
+  }),
 };
+const behind: { failText: string; done: Promise<BehindOutcome> }[] = [];
 
 /** AC-9: what a user must never read on this surface. */
 const SCORE_LIKE = [
@@ -566,11 +573,15 @@ const emphasis = suggestion({
   takeSessionId: "take-1",
 });
 
-async function renderLadder(over: Record<string, unknown> = {}) {
+async function renderLadder(
+  over: Record<string, unknown> = {},
+  extra: Record<string, unknown> = {},
+) {
   await act(async () => {
     root.render(
       createElement(DeckChunkModal, {
         ...props,
+        ...extra,
         state: {
           ...chunkStateFor(
             { ...chunk(), pendingIds: inventory.map((s) => s.id) } as DeckChunk,
@@ -636,29 +647,38 @@ describe("the ladder", () => {
     await click("Use these helper words");
   }
 
-  it("starts the lock without waiting for the helper words to save (option B)", async () => {
-    // Founder 2026-09-26: the spinner on "Use these helper words" was two server
-    // trips back to back. On an untouched paragraph they now run together.
+  it("closes at once while the helper words and the lock save behind it (tap and go)", async () => {
+    // Founder 2026-09-26 ran the two writes together; 2026-09-28 stopped
+    // waiting for them at all. The sheet finishes on the tap, and both writes
+    // are already in flight behind it.
     vi.mocked(props.onLockIn).mockClear();
     vi.mocked(props.onClose).mockClear();
+    behind.length = 0;
     let finishWords: (ok: boolean) => void = () => {};
     vi.mocked(props.onSetRootPhrase).mockImplementationOnce(
       () => new Promise<boolean>((resolve) => { finishWords = resolve; }),
     );
     await tapOwnWordsAndUse();
-    // The words are still saving, and the lock has already been asked for.
-    expect(props.onLockIn).toHaveBeenCalledTimes(1);
-    expect(props.onClose).not.toHaveBeenCalled();
-    await act(async () => { finishWords(true); });
     expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onLockIn).toHaveBeenCalledTimes(1);
+    expect(props.onSetRootPhrase).toHaveBeenCalled();
+    await act(async () => { finishWords(true); });
+    expect(await behind[behind.length - 1].done).toBe("ok");
   });
 
-  it("keeps the sheet open when only the helper words fail to save", async () => {
+  it("a failed helper-words save is reported behind the sheet, retryable", async () => {
     vi.mocked(props.onClose).mockClear();
+    behind.length = 0;
     vi.mocked(props.onSetRootPhrase).mockImplementationOnce(async () => false);
     await tapOwnWordsAndUse();
-    expect(props.onClose).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Use these helper words");
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    // Two writes ran behind the sheet: the Yes, then the words.
+    expect(behind.map((b) => b.failText)).toEqual([
+      "Couldn't save your answer.",
+      "Couldn't save those words.",
+    ]);
+    expect(await behind[0].done).toBe("ok");
+    expect(await behind[1].done).toBe("failed");
   });
 
   it("an accepted proposed emphasis locks the STYLED words and re-anchors on them (Q24 B)", async () => {
@@ -777,6 +797,40 @@ describe("the ladder", () => {
     expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe("now");
   });
 
+  it("saves the words tapped in a fragment that starts mid-paragraph, in either order", async () => {
+    // Founder 2026-09-28: tapping a later word, then an earlier one, "throws
+    // an error". The picker numbers the FRAGMENT's words from 0, and the save
+    // read those numbers against the WHOLE paragraph, so any fragment that did
+    // not open the paragraph saved other words, or none that resolved.
+    const lateVoice = {
+      ...confidentVoice,
+      start: 34,
+      end: 70,
+      quote: "data is clear and the team is ready",
+    } as DocumentSuggestion;
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [lateVoice] });
+    await click("Yes — Confident");
+    await click("Choose different words");
+    const tap = async (text: string) => {
+      const word = Array.from(container.querySelectorAll("button")).find(
+        (b) => (b.textContent ?? "").trim() === text,
+      )!;
+      await act(async () => {
+        word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+    };
+    await tap("team");
+    await tap("clear");
+    await click("Use these helper words");
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toBe("clear and the team");
+    expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe(
+      "clear and the team",
+    );
+  });
+
   it("a No has no helper-words step and no Lock (founder 2026-09-25)", async () => {
     // REVERSED AGAIN, by the founder: "if they choose judgment no or unclear,
     // then they should have no option to root that. Just close the overlay."
@@ -872,50 +926,27 @@ describe("a superseded Take is read-only, not a dead end", () => {
     reason: "superseded" as const,
   };
 
-  it("turns the refusal into a notice and a way on, with the question still visible", async () => {
+  it("an answer a newer Take refused is reported without Retry, and the document re-read", async () => {
+    // Tap and go (founder 2026-09-28): the sheet has moved on by the time the
+    // refusal lands, so the read-only notice cannot appear in it. A retry of
+    // the same answer would be refused again, so the outcome is final, and
+    // the host re-reads the document to show the newer Take.
     const { saveTakeFeedbackResponse } = await import(
       "@/services/api/takeFeedback"
     );
     const saved = vi.mocked(saveTakeFeedbackResponse);
     saved.mockClear();
     saved.mockResolvedValueOnce(supersededRefusal);
-    vi.mocked(props.onAccept).mockClear();
-    vi.mocked(props.onKeepMine).mockClear();
-
-    await renderLadder();
+    behind.length = 0;
+    const changed = vi.fn();
+    await renderLadder({}, { onDocumentChanged: changed });
     await click("Yes — Confident");
-
-    // Not a failure: no red alert, and the server's sentence never reaches
-    // the speaker.
-    expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).not.toContain("frozen set");
-    // The question is still on screen — quiet, not gone.
-    expect(container.textContent).toContain("Does this sound confident to you?");
-    const yes = Array.from(container.querySelectorAll("button")).find((b) =>
-      (b.textContent ?? "").trim().startsWith("Yes"),
-    );
-    expect(yes?.hasAttribute("disabled")).toBe(true);
-    expect(container.querySelector('[data-testid="superseded-notice"]')).not.toBeNull();
-    // The one move.
-    expect(buttonLabels()).toContain("Continue");
-
-    // The rest of the Take's feedback is read-only too: the rewrite offers no
-    // Apply / Keep wording, the praise still reads, and nothing writes.
-    await click("Continue");
-    expect(container.textContent).toContain("Clearer version");
-    expect(buttonLabels()).not.toContain("Apply");
-    expect(buttonLabels()).not.toContain("Keep wording");
-    await click("Continue");
-    await click("Continue");
-    // No judgement was recorded, so no helper-words step, and with no Lock
-    // screen any more (Q25 B) the sheet simply closes.
-    expect(buttonLabels()).not.toContain("Use these helper words");
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onClose).toHaveBeenCalled();
-
+    // The ladder moved on without waiting: the question is gone.
+    expect(container.textContent).not.toContain("Does this sound confident to you?");
+    expect(await behind[0].done).toBe("final");
+    expect(behind[0].failText).toBe("Couldn't save your answer.");
+    expect(changed).toHaveBeenCalledTimes(1);
     expect(saved).toHaveBeenCalledTimes(1);
-    expect(props.onAccept).not.toHaveBeenCalled();
-    expect(props.onKeepMine).not.toHaveBeenCalled();
   });
 
   it("still treats any other refusal as the retryable failure it is", async () => {
@@ -925,14 +956,15 @@ describe("a superseded Take is read-only, not a dead end", () => {
     const saved = vi.mocked(saveTakeFeedbackResponse);
     saved.mockClear();
     saved.mockResolvedValueOnce({ ok: false, error: "Couldn't save that response. Try again." });
+    behind.length = 0;
 
     await renderLadder();
     await click("Yes — Confident");
 
-    expect(container.textContent).toContain("Couldn't save that response. Try again.");
+    expect(await behind[0].done).toBe("failed");
     expect(container.querySelector('[data-testid="superseded-notice"]')).toBeNull();
-    expect(buttonLabels()).not.toContain("Continue");
   });
+
 });
 
 /* ── THE ANSWER DECIDES WHETHER THERE IS A LOCK AT ALL ────────────────────
@@ -1035,18 +1067,21 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     );
   });
 
-  it("a phrase that fails to save keeps the speaker on the step", async () => {
-    // Advancing past a failed write would lose the words silently.
+  it("a phrase that fails to save is reported, not lost", async () => {
+    // Tap and go: the sheet finishes, and the failure reaches the host's
+    // notice with Retry, so the words are never dropped silently.
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onSetRootPhrase).mockResolvedValueOnce(false);
     vi.mocked(props.onClose).mockClear();
+    behind.length = 0;
     await renderLadder({ pending: [confidentVoice] });
     await click("In-between");
     await tapAWordAndCommit();
-    expect(container.textContent).toContain("Tap the words");
-    expect(container.textContent).toContain("Couldn't save those words");
-    expect(props.onClose).not.toHaveBeenCalled();
+    const words = behind.find((b) => b.failText === "Couldn't save those words.");
+    expect(words).toBeTruthy();
+    expect(await words!.done).toBe("failed");
   });
+
 });
 
 /* ── DECLINING A DRILL MUST NOT COST THE ROOTING PHRASE ───────────────────

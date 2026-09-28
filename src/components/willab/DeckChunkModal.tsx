@@ -115,6 +115,7 @@ import {
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
+import type { SaveBehind } from "./saveBehind";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -172,6 +173,10 @@ interface DeckChunkModalProps {
   practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
+  /** Tap and go (founder 2026-09-28): the host runs a write the sheet no
+   *  longer waits for, and reports a failure after the sheet has moved on.
+   *  Without one, a failure shows in the sheet's own error line. */
+  saveBehind?: SaveBehind;
 }
 
 /** The inventory the sheet opens with: the answered item being practised
@@ -291,6 +296,23 @@ function supersededFooter(advance: () => void): {
 /** Finish on the sheet's own accord: the host's onDone when it has one,
  *  else a plain close. Module scope so the grandfathered sheet gains no
  *  branch. */
+/** The host's tap-and-go runner, or — with no host — one that reports a
+ *  failure in the sheet's own error line. Outside the component for the
+ *  complexity ratchet. */
+function behindRunner(
+  host: SaveBehind | undefined,
+  setError: (text: string) => void,
+): SaveBehind {
+  return (
+    host ??
+    ((task, failText) => {
+      void task().then((outcome) => {
+        if (outcome !== "ok") setError(failText);
+      });
+    })
+  );
+}
+
 function finishSheet(done: (() => void) | undefined, close: () => void): void {
   (done ?? close)();
 }
@@ -310,6 +332,7 @@ export default function DeckChunkModal({
   rootingPhraseRoutingState = null,
   firstTake = false,
   onDocumentChanged,
+  saveBehind,
   practiseAgain = null,
   pager = null,
 }: DeckChunkModalProps) {
@@ -466,6 +489,7 @@ export default function DeckChunkModal({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const runBehind = behindRunner(saveBehind, setError);
   /** THE SUPERSEDED TAKE (backend #597). The server refused the answer with
    *  `not_member`: this Take's frozen set predates the items on screen and
    *  cannot be repaired, so every feedback screen on it is read-only. Not an
@@ -839,7 +863,14 @@ export default function DeckChunkModal({
   async function emphasiseChosen() {
     if (busy) return;
     const source = tapSource(draft, practiceWords);
-    const chosen = selectionText(source, phraseTokens(source), phraseRun);
+    // The SAME list the picker numbered. `phraseRun` indexes the fragment's
+    // words, so reading it against every word of the paragraph saved other
+    // words whenever the fragment did not open it (founder 2026-09-28).
+    const chosen = selectionText(
+      source,
+      tapTokens(draft, practiceWords, confidentFragmentOf(feedbackInventory)),
+      phraseRun,
+    );
     /* BOTH SAVES AT ONCE (founder 2026-09-26, "improve the waiting time …
        Use this phrase", option B). The button used to wait for the helper
        words to save and only then start the lock: two server trips back to
@@ -861,25 +892,28 @@ export default function DeckChunkModal({
     const parallel =
       !dirtyRef.current && tapSource(draft, practiceWords) === draft;
     if (parallel) {
-      setBusy(true);
-      setError(null);
-      const [saved, result] = await Promise.all([
-        saveEmphasis(chosen),
-        onLockIn(draft.trim()),
-      ]);
-      if (!saved) {
-        setBusy(false);
+      /* AND NOW WITHOUT WAITING AT ALL (founder 2026-09-28, tap and go).
+         Words that cannot be anchored are still refused here, on the sheet,
+         before anything is sent: that answer needs no server. Everything
+         after it is an acknowledgement, so the sheet finishes now and the
+         two writes run in the deck. A failure is one notice with Retry,
+         which sends both again; a lock the server blocks cannot be retried
+         away. */
+      const anchor = chosen ? quoteSpan(draft, chosen) : null;
+      if (chosen && !anchor) {
+        setError(COPY.failRootStale);
         return;
       }
+      const text = draft.trim();
+      runBehind(async () => {
+        const [saved, result] = await Promise.all([
+          anchor ? onSetRootPhrase(anchor) : Promise.resolve(true),
+          onLockIn(text),
+        ]);
+        if (result.outcome === "blocked") return "final";
+        return saved && result.outcome === "ok" ? "ok" : "failed";
+      }, COPY.failWordsBehind);
       setPromotedQuote(chosen);
-      if (result.outcome !== "ok") {
-        setBusy(false);
-        setError(
-          result.outcome === "blocked" ? COPY.failLockBlocked : COPY.failLock,
-        );
-        return;
-      }
-      setBusy(false);
       finishSheet(onDone, onClose);
       return;
     }
@@ -1004,76 +1038,70 @@ export default function DeckChunkModal({
   const isConfidentVoice =
     suggestion !== null && isConfidentVoiceFeedback(suggestion);
   const [agreeValue, setAgreeValue] = useState<ConfidenceRatingValue | null>(null);
-  const [agreeSaving, setAgreeSaving] = useState(false);
   const [agreeError, setAgreeError] = useState<string | null>(null);
   const [agreeSaved, setAgreeSaved] = useState(false);
 
-  async function sendAgreement(value: ConfidenceRatingValue) {
+  function sendAgreement(value: ConfidenceRatingValue) {
     const snippetId = suggestion?.snippetId;
     const takeSessionId = suggestion?.takeSessionId;
-    if (!suggestion || !snippetId || !takeSessionId || agreeSaving) return;
-    setAgreeSaving(true);
+    if (!suggestion || !snippetId || !takeSessionId) return;
     setAgreeError(null);
     setAgreeValue(value);
-    const r = await saveTakeFeedbackResponse({
+    setAgreeSaved(true);
+    /* TAP AND GO (founder 2026-09-28). The answer used to wait here for the
+       server, under "Saving…", before the ladder moved. The server's reply
+       carries nothing the next screen needs (only a refusal), so the sheet
+       moves on now and the write runs in the deck, which outlives the sheet.
+       A failure there is one notice with Retry, and Retry sends this same
+       answer again. A newer Take having replaced this one cannot be retried
+       away: the host re-reads the document and the notice has no Retry. */
+    const request = {
       takeSessionId,
       feedbackId: suggestion.id,
-      feedbackFamily: "confident_voice",
+      feedbackFamily: "confident_voice" as const,
       response: value,
       candidateId: suggestion.candidateId,
       feedbackMembershipId: suggestion.feedbackMembershipId,
       feedbackExposureId: suggestion.feedbackExposureId,
-    });
-    setAgreeSaving(false);
-    if (r.ok) {
-      setAgreeSaved(true);
-      /* THE PARAGRAPH'S JUDGEMENT, kept where advanceStep's per-item reset
-         cannot reach it — and kept WHOLE.
- 
-         It used to be collapsed to `yes | other` right here, before any gate
-         saw it (audit finding F-4). That was survivable while the only
-         question was "does emphasis open", which every answer now does. It is
-         not survivable now: `closesLock` puts "No" and "In-between" on
-         opposite sides of the same collapse, so a sheet that forgets which of
-         the five was tapped cannot obey the founder's rule at all. The row
-         STATUS stays collapsed, because "did they accept this suggestion"
-         really is a yes-or-not question; the judgement itself does not. */
-      const answered = value === "yes" ? "yes" : "other";
-      setJudgement(value);
-      reportJudged(suggestion, answered);
-      /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
-       *
-       * Answering WAS the decision; the screen that followed held a thank-you
-       * and a button whose only job was to admit it. The answer is already
-       * saved by the call above, so the tap bought nothing and cost a screen.
-       * Now the answer advances straight to the next feedback, or closes the
-       * review when it was the last one.
-       *
-       * The practice offer used to stop the advance here, because this
-       * post-answer screen was the only place it could live. It has its own
-       * step now (§3), which is what that guard was waiting for — so the
-       * answer advances, and the next screen IS the exercise.
-       *
-       * No second write: `saveTakeFeedbackResponse` above already recorded
-       * this answer, and the retired Done button called it AGAIN through
-       * resolveObservedFeedback with the same id and value.
-       *
-       * IT ADVANCES ON THE RAW ANSWER, for the same reason `judgement` now
-       * holds it: React has not re-rendered, so the list this builds is the
-       * only one that sees the answer just given — hand it the collapsed
-       * `answered` and the ladder keeps a Lock step the founder's rule has
-       * just removed, on the one advance where it matters. */
-      advanceStep(value);
-      return;
-    }
-    // Roll the chip back rather than leaving it lit over a row the server
-    // never took — the same rule the style apply follows.
-    setAgreeValue(null);
-    if (r.reason === "superseded") {
-      setSuperseded(true);
-      return;
-    }
-    setAgreeError(r.error ?? COPY.failResponse);
+    };
+    runBehind(async () => {
+      const r = await saveTakeFeedbackResponse(request);
+      if (r.ok) return "ok";
+      if (r.reason !== "superseded") return "failed";
+      onDocumentChangedRef.current?.();
+      return "final";
+    }, COPY.failAnswerBehind);
+    /* THE PARAGRAPH'S JUDGEMENT, kept where advanceStep's per-item reset
+       cannot reach it — and kept WHOLE.
+
+       It used to be collapsed to `yes | other` right here, before any gate
+       saw it (audit finding F-4). That was survivable while the only
+       question was "does emphasis open", which every answer now does. It is
+       not survivable now: `closesLock` puts "No" and "In-between" on
+       opposite sides of the same collapse, so a sheet that forgets which of
+       the five was tapped cannot obey the founder's rule at all. The row
+       STATUS stays collapsed, because "did they accept this suggestion"
+       really is a yes-or-not question; the judgement itself does not. */
+    const answered = value === "yes" ? "yes" : "other";
+    setJudgement(value);
+    reportJudged(suggestion, answered);
+    /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
+     *
+     * Answering WAS the decision; the screen that followed held a thank-you
+     * and a button whose only job was to admit it. Now the answer advances
+     * straight to the next feedback, or closes the review when it was the
+     * last one. The practice offer has its own step (§3), so the next
+     * screen IS the exercise.
+     *
+     * One write: the retired Done button called it AGAIN through
+     * resolveObservedFeedback with the same id and value.
+     *
+     * IT ADVANCES ON THE RAW ANSWER, for the same reason `judgement` now
+     * holds it: React has not re-rendered, so the list this builds is the
+     * only one that sees the answer just given — hand it the collapsed
+     * `answered` and the ladder keeps a Lock step the founder's rule has
+     * just removed, on the one advance where it matters. */
+    advanceStep(value);
   }
 
   /** THE V3 ANSWER, handed back by the question screen (founder 2026-09-21,
@@ -1434,8 +1462,8 @@ export default function DeckChunkModal({
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
             value={agreeValue}
-            disabled={agreeSaving || superseded}
-            saving={agreeSaving}
+            disabled={superseded}
+            saving={false}
             error={agreeError}
             ownerWording
             onPick={(value) => void sendAgreement(value)}

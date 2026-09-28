@@ -273,6 +273,12 @@ export const CHUNK_SHEET_COPY = {
   /* Shown for a moment after a sheet finishes, then the next moment opens. */
   toastHelperWordsSaved: "Helper words saved",
   toastAnswerSaved: "Answer saved",
+  /* Tap and go (founder 2026-09-28): a save that failed after the sheet had
+     already moved on. The answer notice was signed off with its Retry; the
+     words notice is the first sentence of the signed `failRoot`. */
+  failAnswerBehind: "Couldn't save your answer.",
+  failWordsBehind: "Couldn't save those words.",
+  retryBehind: "Retry",
   /* After the last moment of the walk. */
   endCardTitle: "That's every moment for this Take",
   endCardBack: "Back to the text",
