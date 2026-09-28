@@ -13,14 +13,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const ctx: { headerToken: string | null; cookieToken: string | null } = {
+const ctx: {
+  headerToken: string | null;
+  cookieToken: string | null;
+  incomingRequestId?: string | null;
+} = {
   headerToken: "hdr-token",
   cookieToken: null,
 };
 
+/** Every upstream call now carries exactly one request id (audit A1). */
+const RID = { "X-Request-Id": expect.stringMatching(/^[0-9a-f]{12}$/) };
+
 vi.mock("next/headers", () => ({
   headers: async () =>
-    new Headers(ctx.headerToken ? { Authorization: `Bearer ${ctx.headerToken}` } : {}),
+    new Headers({
+      ...(ctx.headerToken ? { Authorization: `Bearer ${ctx.headerToken}` } : {}),
+      ...(ctx.incomingRequestId ? { "X-Request-Id": ctx.incomingRequestId } : {}),
+    }),
   cookies: async () => ({ getAll: () => [], set: () => {} }),
 }));
 
@@ -84,7 +94,7 @@ describe("backendFetch — the single construction point", () => {
     await backendFetch("/v2/x", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     expect(calls[0].url).toBe("http://backend.test/v2/x");
     expect(calls[0].init.method).toBe("POST");
-    expect(calls[0].init.headers).toEqual({
+    expect(calls[0].init.headers).toEqual({ ...RID, 
       Accept: "application/json",
       "Content-Type": "application/json",
       Authorization: "Bearer hdr-token",
@@ -105,14 +115,14 @@ describe("backendFetch — the single construction point", () => {
     const { backendFetch } = await load();
     const calls = stubFetch(() => json({}));
     await backendFetch("/v2/x", { token: null });
-    expect(calls[0].init.headers).toEqual({ Accept: "application/json" });
+    expect(calls[0].init.headers).toEqual({ ...RID,  Accept: "application/json" });
   });
 
   it("a route's own Accept wins over the default", async () => {
     const { backendFetch } = await load();
     const calls = stubFetch(() => json({}));
     await backendFetch("/v2/x", { headers: { Accept: "text/event-stream" } });
-    expect(calls[0].init.headers).toEqual({
+    expect(calls[0].init.headers).toEqual({ ...RID, 
       Accept: "text/event-stream",
       Authorization: "Bearer hdr-token",
     });
@@ -158,7 +168,7 @@ describe("callBackend — defaults (the pre-Q-A8 contract, unchanged)", () => {
     const calls = stubFetch(() => json({ ok: 1 }));
     const res = await callBackend("/v2/x", { requireAuth: false });
     expect(res.status).toBe(200);
-    expect(calls[0].init.headers).toEqual({ Accept: "application/json" });
+    expect(calls[0].init.headers).toEqual({ ...RID,  Accept: "application/json" });
   });
 
   it("502 BACKEND_UNAVAILABLE with no base URL", async () => {
@@ -283,9 +293,9 @@ describe("callBackend — route-owned envelopes", () => {
     const { callBackend } = await load();
     const calls = stubFetch(() => json({}));
     await callBackend("/v2/x", { token: "pre-resolved" });
-    expect(calls[0].init.headers).toEqual({ Accept: "application/json", Authorization: "Bearer pre-resolved" });
+    expect(calls[0].init.headers).toEqual({ ...RID,  Accept: "application/json", Authorization: "Bearer pre-resolved" });
     await callBackend("/v2/x", { token: null, requireAuth: false });
-    expect(calls[1].init.headers).toEqual({ Accept: "application/json" });
+    expect(calls[1].init.headers).toEqual({ ...RID,  Accept: "application/json" });
     const res = await callBackend("/v2/x", { token: null });
     expect(res.status).toBe(401);
   });
@@ -297,7 +307,7 @@ describe("callBackend — route-owned envelopes", () => {
     form.append("file", new Blob(["abc"]), "a.txt");
     await callBackend("/v2/x", { method: "POST", body: form });
     expect(calls[0].init.body).toBe(form);
-    expect(calls[0].init.headers).toEqual({ Accept: "application/json", Authorization: "Bearer hdr-token" });
+    expect(calls[0].init.headers).toEqual({ ...RID,  Accept: "application/json", Authorization: "Bearer hdr-token" });
   });
 
   it("the caller's signal is forwarded", async () => {
@@ -383,5 +393,51 @@ describe("relays", () => {
     const r8 = await relay(new Response(null, { status: 204 }));
     expect(r8.status).toBe(500);
     expect((await r8.json()).code).toBe("FETCH_ERROR");
+  });
+});
+
+describe("request id — one per BFF hop (audit A1)", () => {
+  afterEach(() => {
+    ctx.incomingRequestId = null;
+  });
+
+  it("mints one when nobody supplied one", async () => {
+    const { backendFetch } = await load();
+    const calls = stubFetch(() => json({}));
+    await backendFetch("/v2/x");
+    expect(calls[0].init.headers?.["X-Request-Id"]).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it("keeps a caller's well-formed id, whatever its casing, and sends it once", async () => {
+    const { backendFetch } = await load();
+    const calls = stubFetch(() => json({}));
+    await backendFetch("/v2/x", { headers: { "x-request-id": "caller-id-01" } });
+    const sent = calls[0].init.headers ?? {};
+    expect(sent["X-Request-Id"]).toBe("caller-id-01");
+    expect(Object.keys(sent).filter((k) => k.toLowerCase() === "x-request-id")).toHaveLength(1);
+  });
+
+  it("replaces a malformed id instead of forwarding it", async () => {
+    const { backendFetch } = await load();
+    const calls = stubFetch(() => json({}));
+    await backendFetch("/v2/x", { headers: { "X-Request-Id": "has spaces <b>" } });
+    expect(calls[0].init.headers?.["X-Request-Id"]).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it("reuses a well-formed id the incoming request carries", async () => {
+    ctx.incomingRequestId = "browser-req-7";
+    const { backendFetch } = await load();
+    const calls = stubFetch(() => json({}));
+    await backendFetch("/v2/x");
+    expect(calls[0].init.headers?.["X-Request-Id"]).toBe("browser-req-7");
+  });
+
+  it("callBackend sends one id upstream and echoes the same id to the browser", async () => {
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ ok: true }));
+    const res = await callBackend("/v2/x");
+    const sent = calls[0].init.headers?.["X-Request-Id"];
+    expect(sent).toMatch(/^[0-9a-f]{12}$/);
+    expect(res.headers.get("X-Request-Id")).toBe(sent);
   });
 });
