@@ -87,6 +87,15 @@ describe("reading the policy", () => {
     expect(status.policy.minimumAge).toBe(18);
   });
 
+  it("says when a newer policy replaced the one accepted (0358)", async () => {
+    stubFetch(() => policyRow({ reacceptance_required: true }));
+    const status = await fetchAuthorization();
+    expect(status.kind === "acceptance_required" && status.acceptedEarlierVersion).toBe(true);
+    stubFetch(() => policyRow());
+    const first = await fetchAuthorization();
+    expect(first.kind === "acceptance_required" && first.acceptedEarlierVersion).toBe(false);
+  });
+
   it("maps an accepted principal", async () => {
     stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_AUTHORIZED" }));
     expect((await fetchAuthorization()).kind).toBe("authorized");

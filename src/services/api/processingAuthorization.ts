@@ -48,8 +48,8 @@ export type AuthorizationStatus =
   | { kind: "authorized"; policy: ProcessingPolicy }
   /** A policy is active and acceptance is what is missing. Render the screen.
    *  `acceptedEarlierVersion`: this person agreed to an earlier version that a
-   *  newer policy replaced (founder 2026-09-28, decision 21) — the Data page
-   *  then offers "Accept the update". */
+   *  newer policy replaced — the server's `reacceptance_required` (0358). The
+   *  Data page then offers "Accept the update" (founder 2026-09-28, 21). */
   | {
       kind: "acceptance_required";
       policy: ProcessingPolicy;
@@ -150,7 +150,7 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
         kind: "acceptance_required",
         policy,
         code,
-        acceptedEarlierVersion: row.accepted_earlier_version === true,
+        acceptedEarlierVersion: row.reacceptance_required === true,
       };
 }
 
