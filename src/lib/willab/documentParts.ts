@@ -1,4 +1,5 @@
 import { splitSegments } from "./documentSegments";
+import { isUuid } from "@/lib/uuid";
 
 /* -------------------------------------------------------------------------- */
 /*  documentParts — the ideal text as an ordered list of parts with STABLE ids  */
@@ -362,9 +363,6 @@ export function removePart(parts: Part[], at: number): Part[] {
  *  while silently dropping others — which is harder to see than losing all of
  *  them. Anything short of a complete, usable set returns null and the caller
  *  keeps today's behaviour. */
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export function partsFromCorePieces(
   pieces: ReadonlyArray<{ partId?: string | null; text: string }> | null,
 ): Part[] | null {
@@ -373,7 +371,7 @@ export function partsFromCorePieces(
   for (const piece of pieces) {
     const id = (piece?.partId ?? "").trim();
     const text = (piece?.text ?? "").trim();
-    if (!UUID_RE.test(id) || !text) return null;
+    if (!isUuid(id) || !text) return null;
     out.push({ id, text });
   }
   // A repeated id is not identity, and the slot index would collide on write.

@@ -1,4 +1,5 @@
 import { mapReadoutFeatures, type ReadoutFeatures } from "@/components/willab/readout";
+import { isCanonicalUuid } from "@/lib/uuid";
 
 /** Presentation-only switch. The API still requires its independent master
  * gate and rollout-aware database enrollment, so this cannot authorize a
@@ -149,8 +150,6 @@ function optionalText(value: unknown): string | null {
   return valueText ? valueText : null;
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function exactKeys(
@@ -164,7 +163,7 @@ function exactKeys(
 }
 
 function canonicalUuid(value: unknown): string | null {
-  return typeof value === "string" && UUID_RE.test(value) ? value : null;
+  return isCanonicalUuid(value) ? value : null;
 }
 
 function mapAuthoringTargetSourcePassage(

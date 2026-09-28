@@ -16,6 +16,7 @@ import {
   type ConfidentMomentOwnerEdit,
   type ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
+import { isCanonicalUuid } from "@/lib/uuid";
 
 /* -------------------------------------------------------------------------- */
 /*  idealText — the Project's one canonical presentation document              */
@@ -1750,8 +1751,7 @@ function mapConfidentMomentOwnerEditPart(
   const part = rawPart as Record<string, unknown>;
   if (Object.keys(part).sort().join("|") !== ["id", "ord", "text", "locked", "current_part_revision_id"].sort().join("|")) return null;
   if (
-    typeof part.id !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(part.id) ||
+    !isCanonicalUuid(part.id) ||
     part.ord !== position || typeof part.text !== "string" ||
     typeof part.locked !== "boolean" ||
     (part.current_part_revision_id !== null &&
@@ -1769,11 +1769,10 @@ function mapConfidentMomentTextUpdateBinding(
   const binding = bindingRaw as Record<string, unknown>;
   const bindingKeys = ["binding_id", "bundle_id", "attachment_id", "source_document_version", "result_user_text_revision", "result_user_text_sha256", "result_part_revision_id"];
   if (Object.keys(binding).sort().join("|") !== bindingKeys.sort().join("|")) return null;
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   if (
-    typeof binding.binding_id !== "string" || !uuidPattern.test(binding.binding_id) ||
-    typeof binding.bundle_id !== "string" || !uuidPattern.test(binding.bundle_id) ||
-    typeof binding.attachment_id !== "string" || !uuidPattern.test(binding.attachment_id) ||
+    !isCanonicalUuid(binding.binding_id) ||
+    !isCanonicalUuid(binding.bundle_id) ||
+    !isCanonicalUuid(binding.attachment_id) ||
     binding.source_document_version !== value.source_document_version ||
     binding.result_user_text_revision !== value.user_text_revision ||
     binding.result_user_text_sha256 !== value.user_text_sha256 ||

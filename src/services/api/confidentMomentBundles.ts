@@ -1,11 +1,11 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { isCanonicalUuid } from "@/lib/uuid";
 
 export const CONFIDENT_MOMENT_CONTRACT =
   "confident-moment-coaching-bundle-v2" as const;
 export const CONFIDENT_MOMENT_SUMMARY_CONTRACT =
   "confident-moment-core-summary-v1" as const;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 
 export type FeedbackFamily =
@@ -178,7 +178,7 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
 }
 
 function uuid(value: unknown): string | null {
-  return typeof value === "string" && UUID.test(value) ? value : null;
+  return isCanonicalUuid(value) ? value : null;
 }
 
 function sha(value: unknown): string | null {
