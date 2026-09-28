@@ -59,8 +59,9 @@ export default function RecordingRoadmap({
   const directionRef = useRef<1 | -1>(1);
   const onSlideChangeRef = useRef(onSlideChange);
   /** The speaker has moved to another slide once (founder 2026-09-26): the
-   *  hint has done its job and goes for the rest of the take. */
-  const [movedOnce, setMovedOnce] = useState(false);
+   *  hint has done its job. Since 2026-09-28 (9A) that is remembered on the
+   *  device, so the hint is for the very first recording only. */
+  const [movedOnce, setMovedOnce] = useState(scrollHintSeen);
 
   const currentRoots = useMemo(
     () => roots.filter((root) => root.slideIndex === currentSlide),
@@ -88,6 +89,7 @@ export default function RecordingRoadmap({
       directionRef.current = next < currentSlideRef.current ? -1 : 1;
       currentSlideRef.current = next;
       setMovedOnce(true);
+      rememberScrollHintSeen();
       onSlideChangeRef.current(next);
     },
     [slides.length]
@@ -173,8 +175,7 @@ export default function RecordingRoadmap({
   // move (founder 2026-09-26: "an animation that shows you to scroll … after
   // the first scroll it should disappear, just a guide for first time
   // users").
-  const showNextHint =
-    roots.length === 0 && currentSlide < slides.length - 1 && !movedOnce;
+  const showNextHint = currentSlide < slides.length - 1 && !movedOnce;
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const scroller = scrollRef.current;
@@ -366,4 +367,25 @@ function ArrowKey({
       <Icon className="h-5 w-5" aria-hidden />
     </button>
   );
+}
+
+/** The first-recording scroll hint, once per device (founder 2026-09-28, 9A:
+ *  "only your very first recording ever"). Browser storage can be missing or
+ *  refuse; then the hint simply shows until the first move, as before. */
+const SCROLL_HINT_KEY = "willab.recording.scrollHintSeen";
+
+function scrollHintSeen(): boolean {
+  try {
+    return window.localStorage.getItem(SCROLL_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberScrollHintSeen(): void {
+  try {
+    window.localStorage.setItem(SCROLL_HINT_KEY, "1");
+  } catch {
+    /* the hint shows again next time; nothing else depends on it */
+  }
 }

@@ -209,6 +209,7 @@ export async function saveCoachConfidencePractice(
         instruction: string;
         explanationVideoUrl?: string;
       },
+  options: { ownWording?: boolean } = {},
 ): Promise<CoachConfidencePractice | null> {
   try {
     const res = await fetch(
@@ -230,6 +231,7 @@ export async function saveCoachConfidencePractice(
             : undefined,
           explanation_video_url: selection.explanationVideoUrl || undefined,
           share_with_user: shareWithUser,
+          own_wording: options.ownWording === true ? true : undefined,
         }),
       },
     );

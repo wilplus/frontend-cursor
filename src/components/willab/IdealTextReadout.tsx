@@ -158,7 +158,6 @@ export default function IdealTextReadout({
   const { reload: reloadLounge } = useLoungeThreadCtx();
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
-  const [copied, setCopied] = useState(false);
   /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
      still waits; the bottom button bumps the request that opens the walk. */
   const [reviewWaiting, setReviewWaiting] = useState(false);
@@ -1004,31 +1003,21 @@ export default function IdealTextReadout({
               same menu as the notebook. Same marked copy from the one
               module, so the two cannot export differently. No edit control
               in the top bar (founder 2026-08-11). */}
-          {sd && arcId ? (
-            <IdealTextMenu
-              arcId={arcId}
-              saved={sd.saved}
-              onBeforeSave={flushEdits}
-              onSaved={() => {
-                // The server now holds the student's newest words AND has
-                // frozen them — release the local edit lane or the refetch
-                // refuses to adopt the served text.
-                markDirty(false);
-                savedTextRef.current = null;
-                setSdNonce((n) => n + 1);
-              }}
-              onCopy={() => {
-                void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
-                  name: sd?.title,
-                }).then((ok) => {
-                  if (!ok) return;
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1600);
-                });
-              }}
-              copied={copied}
-            />
-          ) : null}
+          <ReadoutMenu
+            text={text}
+            arcId={arcId}
+            saved={sd?.saved}
+            title={sd?.title}
+            onBeforeSave={flushEdits}
+            onSaved={() => {
+              // The server now holds the student's newest words AND has
+              // frozen them — release the local edit lane or the refetch
+              // refuses to adopt the served text.
+              markDirty(false);
+              savedTextRef.current = null;
+              setSdNonce((n) => n + 1);
+            }}
+          />
           {onClose ? (
             <OverlayCloseButton onClick={onClose} className="ml-1" />
           ) : null}
@@ -1217,5 +1206,47 @@ export default function IdealTextReadout({
         onClose={() => setPickerBlock(null)}
       />
     </div>
+  );
+}
+
+/** The header's ⋯ (founder 2026-09-26), on the first draft too (2026-09-28,
+ *  8B): Copy lives in the menu everywhere. Before the served document
+ *  arrives there is nothing to save, so that item is withheld (saved =
+ *  null) and Copy takes the draft's words. Same marked copy from the one
+ *  module as the notebook, so the two cannot export differently. */
+function ReadoutMenu({
+  text,
+  arcId,
+  saved,
+  title,
+  onBeforeSave,
+  onSaved,
+}: {
+  text: string;
+  arcId: string | null | undefined;
+  saved: boolean | null | undefined;
+  title: string | null | undefined;
+  onBeforeSave: () => Promise<boolean>;
+  onSaved: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  if (!text) return null;
+  return (
+    <IdealTextMenu
+      arcId={arcId ?? ""}
+      saved={saved ?? null}
+      onBeforeSave={onBeforeSave}
+      onSaved={onSaved}
+      onCopy={() => {
+        void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
+          name: title ?? undefined,
+        }).then((ok) => {
+          if (!ok) return;
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      copied={copied}
+    />
   );
 }

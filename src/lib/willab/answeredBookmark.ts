@@ -67,6 +67,10 @@ export interface TimelineEntry {
   label: string | null;
   text: string;
   helperWords: string | null;
+  /** That Take's recording of this Slide, when it can play (decision 5). */
+  clip?: { audioRef: string; startOffsetMs: number; durationMs: number } | null;
+  /** The owner's answer on it, said back as its sentence. */
+  judged?: string | null;
 }
 
 export interface AnsweredView {
@@ -193,11 +197,27 @@ function helperWordsBefore(
   return current.length > 0 ? current.join(" · ") : null;
 }
 
+/** That Take's recording and the owner's answer sentence, only when they
+ *  exist (decision 5) — a row without them keeps its old shape. */
+function earlierTakeExtras(
+  version: ParagraphHistory["versions"][number],
+  copy: Partial<AnsweredCopy>,
+): Pick<TimelineEntry, "clip" | "judged"> {
+  const out: Pick<TimelineEntry, "clip" | "judged"> = {};
+  if (version.clip) out.clip = version.clip;
+  const judged =
+    version.answer && copy.historyJudgedYes
+      ? judgedSentence(version.answer, copy as AnsweredCopy)
+      : undefined;
+  if (judged) out.judged = judged;
+  return out;
+}
+
 /** One timeline, newest Take first (Q26 B): each Take's words and, under
  *  them, the helper words that were locked while they stood. */
 export function timelineOf(
   history: ParagraphHistory | null,
-  copy: Pick<AnsweredCopy, "historyTake">,
+  copy: Pick<AnsweredCopy, "historyTake"> & Partial<AnsweredCopy>,
 ): TimelineEntry[] {
   if (!history) return [];
   const versions = history.versions.filter((v) =>
@@ -212,6 +232,7 @@ export function timelineOf(
         ? time(versions[i + 1].at)
         : Number.POSITIVE_INFINITY,
     ),
+    ...earlierTakeExtras(v, copy),
   }));
   return out.reverse();
 }

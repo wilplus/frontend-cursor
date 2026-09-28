@@ -68,14 +68,38 @@ export default function ConfidenceLabelChips({
   const primaryOptions = ownerWording
     ? OWNER_PRIMARY_RATING_OPTIONS
     : PRIMARY_RATING_OPTIONS;
+  const questionLine =
+    question !== null ? (
+      <p className="text-sm font-semibold text-foreground">
+        {question}
+        {eyebrow}
+      </p>
+    ) : null;
+  const status = (
+    <>
+      {saving ? (
+        <p className="mt-1 text-[12px] text-muted-foreground">Saving…</p>
+      ) : null}
+      {error ? <CoachErrorLine>{error}</CoachErrorLine> : null}
+    </>
+  );
+  if (ownerWording) {
+    return (
+      <div>
+        {questionLine}
+        <OwnerAnswers
+          options={primaryOptions}
+          selected={selected}
+          disabled={disabled}
+          onPick={onPick}
+        />
+        {status}
+      </div>
+    );
+  }
   return (
     <div>
-      {question !== null ? (
-        <p className="text-sm font-semibold text-foreground">
-          {question}
-          {eyebrow}
-        </p>
-      ) : null}
+      {questionLine}
       <div className="mt-3 grid grid-cols-3 gap-2">
         {primaryOptions.map((option) => {
           const Icon = option.icon;
@@ -131,10 +155,57 @@ export default function ConfidenceLabelChips({
           );
         })}
       </div>
-      {saving ? (
-        <p className="mt-1 text-[12px] text-muted-foreground">Saving…</p>
-      ) : null}
-      {error ? <CoachErrorLine>{error}</CoachErrorLine> : null}
+      {status}
+    </div>
+  );
+}
+
+/** The owner's own judgement (founder 2026-09-26, accepted screen L1: "a
+ *  compact player row, then the question and five taller answer buttons").
+ *  Stacked full-width answers with no icons and no "Other" divider: the
+ *  answers are the main thing on the screen. The two secondary answers stay
+ *  distinct stored values, side by side under the three. The blind-rater
+ *  lanes keep the grid above. */
+function OwnerAnswers({
+  options,
+  selected,
+  disabled,
+  onPick,
+}: {
+  options: RatingOption[];
+  selected: ConfidenceRatingValue | null;
+  disabled: boolean;
+  onPick: (value: ConfidenceRatingValue) => void;
+}) {
+  const answer = (option: RatingOption, extra: string) => {
+    const active = selected === option.value;
+    return (
+      <button
+        key={option.value}
+        type="button"
+        aria-pressed={active}
+        disabled={disabled}
+        onClick={() => onPick(option.value)}
+        className={`flex items-center justify-center rounded-full border px-4 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${extra} ${
+          active
+            ? "border-foreground bg-foreground text-background"
+            : "border-border bg-background text-foreground hover:border-foreground/50 hover:bg-muted/40"
+        }`}
+      >
+        {option.label}
+      </button>
+    );
+  };
+  return (
+    <div data-owner-answers className="mt-3 flex flex-col gap-2">
+      {options.map((option) =>
+        answer(option, "min-h-14 text-[15px] font-semibold"),
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        {SECONDARY_RATING_OPTIONS.map((option) =>
+          answer(option, "min-h-12 text-sm font-medium"),
+        )}
+      </div>
     </div>
   );
 }

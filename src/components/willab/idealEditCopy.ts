@@ -178,6 +178,8 @@ export const CHUNK_SHEET_COPY = {
      playback is gone from it, so this eyebrow is the only thing naming which
      recording is in the orange card. */
   cardCorrectedVersion: "Corrected version",
+  /** The practice judgement's player label (accepted screen L1, 2026-09-26). */
+  practiceAttemptLabel: (n: number) => `Your practice · attempt ${n}`,
   /* An INSTRUCTION for the interaction rather than a label for the content,
      which is why it does not read "With emphasis" like its sibling. Founder
      left it deliberately (handoff, "one note"). */

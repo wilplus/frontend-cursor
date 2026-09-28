@@ -4,6 +4,7 @@ import {
   opensParagraphSheet,
   helperWordRanges,
   paragraphHeadlines,
+  timelineOf,
   type DecidedItemLite,
 } from "./answeredBookmark";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
@@ -129,5 +130,36 @@ describe("helper words inside the running text", () => {
   it("marks nothing when the Take did not say them", () => {
     expect(helperWordRanges("Something else entirely.", "the timing matters")).toBeUndefined();
     expect(helperWordRanges("Anything.", null)).toBeUndefined();
+  });
+});
+
+describe("an earlier Take's recording and answer (decision 5)", () => {
+  it("rides on the Take's row when the history carries them", () => {
+    const rows = timelineOf(
+      {
+        slideIndex: 1,
+        versions: [
+          {
+            takeIndex: 1,
+            paragraphs: ["We cut onboarding."],
+            at: "2026-09-01T00:00:00Z",
+            clip: { audioRef: "https://a/t1.webm", startOffsetMs: 1000, durationMs: 3500 },
+            answer: "yes",
+          },
+        ],
+        helperWords: [],
+        practice: [],
+      },
+      {
+        historyTake: "Take",
+        historyJudgedYes: "You have judged this as your confident moment",
+        historyJudgedInBetween: "",
+        historyJudgedNo: "",
+        historyJudgedNotSure: "",
+        historyJudgedAudioUnclear: "",
+      },
+    );
+    expect(rows[0].clip?.audioRef).toBe("https://a/t1.webm");
+    expect(rows[0].judged).toBe("You have judged this as your confident moment");
   });
 });

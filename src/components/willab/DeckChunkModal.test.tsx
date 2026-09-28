@@ -1213,3 +1213,71 @@ describe("an emphasis phrase that cannot be anchored", () => {
     expect(props.onClose).not.toHaveBeenCalled();
   });
 });
+
+/* ── A COACH MOMENT OPENS ON THE EXERCISE (founder 2026-09-28, 2A) ─────────
+ * Every coach message is an exercise. When the coach's review has arrived,
+ * the moment opens on the coach's video with your recording attached; the
+ * confidence question comes after practising, about the practice attempt. */
+describe("a coach-reviewed moment", () => {
+  const drill = suggestion({
+    id: "s-cv-coach",
+    feedbackFamily: "confident_voice",
+    source: "confident_voice",
+    snippetId: "snip-coach",
+    takeSessionId: "take-1",
+    quote: "shipped it",
+    practiceExercise: { id: "ex-1", instruction: "Slow down on the last word." },
+    evidence: {
+      projectId: "arc-1",
+      takeSessionId: "take-1",
+      slideIndex: 0,
+      paragraphIndex: 0,
+      start: 0,
+      end: 21,
+    },
+  } as unknown as Partial<DocumentSuggestion>);
+
+  async function open(reviewStatus: "coach_reviewed" | "pending_coach_review") {
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [drill.id] } as DeckChunk,
+            {
+              document: TEXT,
+              suggestions: [drill],
+              coachMoments: [
+                { snippetId: "snip-coach", anchor: TEXT.slice(0, 12), reviewStatus },
+              ],
+            },
+          ),
+        }),
+      );
+    });
+  }
+
+  it("opens on the exercise, with no confidence question on it", async () => {
+    await open("coach_reviewed");
+    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Does this sound confident to you?");
+  });
+
+  it("still asks first while the coach's review is pending", async () => {
+    await open("pending_coach_review");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+    expect(buttonLabels()).toContain("Yes — Confident");
+  });
+});
+
+/* ── THE OWNER'S JUDGEMENT: STACKED, TALL, NO ICONS (screen L1) ──────────── */
+describe("the owner's answers", () => {
+  it("stack as five tall answers with no divider", async () => {
+    await render(confidentVoice);
+    const answers = container.querySelector("[data-owner-answers]");
+    expect(answers).not.toBeNull();
+    expect(answers?.querySelectorAll("button").length).toBe(5);
+    expect(answers?.querySelector("svg")).toBeNull();
+    expect(container.textContent).not.toContain("Other");
+  });
+});

@@ -191,15 +191,24 @@ function initialInventory(
     .slice(0, 3);
 }
 
-/** The first screen: the exercise when practising again, else the top of
- *  the ladder. Pure, for the complexity ratchet. */
+/** The first screen: the exercise when practising again or when the coach's
+ *  exercise has arrived, else the top of the ladder. Pure, for the
+ *  complexity ratchet.
+ *
+ *  A COACH MOMENT OPENS ON THE EXERCISE (founder 2026-09-26, accepted coach
+ *  journey; decided again 2026-09-28): every coach message is an exercise, so
+ *  the moment opens on the coach's video with your recording attached, and
+ *  the confidence question comes after practising, about the practice
+ *  attempt (29a). Asking it first put a question on the coach's screen. */
 function firstStepId(
   steps: readonly ChunkStep[],
   practiseAgain: DeckChunkModalProps["practiseAgain"],
+  coachDelivered = false,
 ): string {
-  const exercise = practiseAgain
-    ? steps.find((entry) => entry.kind === "exercise")
-    : undefined;
+  const exercise =
+    practiseAgain || coachDelivered
+      ? steps.find((entry) => entry.kind === "exercise")
+      : undefined;
   return (exercise ?? steps[0])?.id ?? "lock";
 }
 
@@ -439,7 +448,11 @@ export default function DeckChunkModal({
   );
   const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
   const [stepId, setStepId] = useState<string>(() =>
-    firstStepId(buildSteps(practiseAgain?.answer ?? null), practiseAgain),
+    firstStepId(
+      buildSteps(practiseAgain?.answer ?? null),
+      practiseAgain,
+      coachReviewStatus === "coach_reviewed",
+    ),
   );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
@@ -1401,7 +1414,7 @@ export default function DeckChunkModal({
   function renderFeedbackStep(): React.ReactNode {
     if (!suggestion) return null;
     return (
-      <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+      <div className="flex flex-col gap-4">
         {suggestion.snippetAudioRef ? (
           <MediaPlayer
             src={suggestion.snippetAudioRef}
@@ -1445,28 +1458,21 @@ export default function DeckChunkModal({
     if (!exerciseItem?.practiceExercise) return null;
     return exercise.screen === "judgement" ? (
       <>
-        {/* The corrected take ALONE — the original playback is gone on
+        {/* The practice attempt ALONE — the original playback is gone on
             purpose, so the question is about what they just did rather
-            than a comparison. Orange, because this is the third and
-            last place orange is allowed (§9). */}
-        <div className="relative rounded-2xl border border-primary/30 bg-primary/[0.07] p-4">
-          <span className="absolute right-4 top-4 text-primary" aria-hidden>
-            <Mic className="h-4 w-4" />
-          </span>
-          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-            {COPY.cardCorrectedVersion}
-          </p>
+            than a comparison. The same screen as every judgement
+            (accepted screen L1, 29a): a compact player whose label says
+            which recording is being judged, then the tall answers. */}
+        <div data-practice-judgement className="flex flex-col gap-4">
           {exercise.corrected?.audioRef ? (
-            <div className="mt-2.5">
-              <MediaPlayer
-                src={exercise.corrected.audioRef}
-                startOffsetMs={0}
-                durationMs={exercise.corrected.durationMs}
-              />
-            </div>
+            <MediaPlayer
+              src={exercise.corrected.audioRef}
+              startOffsetMs={0}
+              durationMs={exercise.corrected.durationMs}
+              compact
+              label={COPY.practiceAttemptLabel(exercise.corrected.attemptIndex)}
+            />
           ) : null}
-        </div>
-        <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
             value={practiceChipValue(judgement)}

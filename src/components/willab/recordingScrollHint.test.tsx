@@ -28,6 +28,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  window.localStorage.clear();
 });
 
 const SLIDES = [0, 1, 2].map((i) => ({ title: `Slide ${i + 1}`, body: "" })) as never[];
@@ -51,6 +52,19 @@ describe("the first-take scroll hint", () => {
     expect(host.innerHTML).toContain("motion-safe:animate-bounce");
     act(() => (hint()[0] as HTMLButtonElement).click());
     // Slide 2 of 3 is not the last, and still no hint: it did its job.
+    expect(hint().length).toBe(0);
+  });
+
+  it("never shows again on this device once the speaker has scrolled", () => {
+    act(() => root.render(createElement(Harness)));
+    const hint = () => host.querySelectorAll('button[aria-label="Next slide"]');
+    act(() => (hint()[0] as HTMLButtonElement).click());
+    act(() => root.unmount());
+    act(() => {
+      root = createRoot(host);
+    });
+    // A later recording, even one with no helper words yet: no hint.
+    act(() => root.render(createElement(Harness)));
     expect(hint().length).toBe(0);
   });
 });

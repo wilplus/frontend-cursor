@@ -45,6 +45,9 @@ export default function CoachConfidencePracticeReview({
   const [customTitle, setCustomTitle] = useState("");
   const [customInstruction, setCustomInstruction] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  /** The exercise asks for different words than the ones said (founder
+   *  2026-09-28, 14B): the speaker's practice is then not held to them. */
+  const [ownWording, setOwnWording] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [saving, setSaving] = useState<"private" | "share" | null>(null);
@@ -111,6 +114,7 @@ export default function CoachConfidencePracticeReview({
             exerciseId: exerciseId || practice.exercise.exerciseId,
             explanationVideoUrl: videoUrl.trim() || undefined,
           },
+      { ownWording },
     );
     setSaving(null);
     if (!updated) {
@@ -386,6 +390,18 @@ export default function CoachConfidencePracticeReview({
               />
             </label>
           </div>
+          <label className="flex items-start gap-2 text-[13px] text-foreground">
+            <input
+              type="checkbox"
+              checked={ownWording}
+              onChange={(event) => setOwnWording(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              This exercise asks for different words. Don&apos;t require the
+              speaker to repeat what they said.
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
