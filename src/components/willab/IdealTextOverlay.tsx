@@ -96,6 +96,7 @@ import type {
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
+import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -994,6 +995,7 @@ export default function IdealTextOverlay({
         onNewTake={() => onReadAloud(sd.version)}
         onSeeNextSteps={() => {
           void reloadLounge();
+          notifyThreadToLatest();
           onClose();
         }}
       />

@@ -14,3 +14,13 @@ export function notifyTokensSpent(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(WILLAB_TOKENS_SPENT_EVENT));
 }
+
+/** Dispatched when the speaker leaves a surface for the chat on purpose (the
+ *  Ideal Text's "See next steps"), so the Lounge lands on the newest bubble
+ *  rather than wherever the thread was left (founder 2026-09-28). */
+export const WILLAB_THREAD_TO_LATEST_EVENT = "willab:thread-to-latest";
+
+export function notifyThreadToLatest(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WILLAB_THREAD_TO_LATEST_EVENT));
+}
