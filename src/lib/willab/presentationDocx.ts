@@ -14,6 +14,7 @@ import {
   aiGeneratedAssertion,
 } from "@/lib/willab/aiGeneratedMark";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
+import { helperWordRanges } from "@/lib/willab/answeredBookmark";
 import {
   loadPresentationPdf,
   presentationCanvasJpegBytes,
@@ -25,13 +26,47 @@ const ORANGE = "E56F2D";
 const INK = "191919";
 const MUTED = "666666";
 
-function idealTextRuns(text: string): TextRun[] {
-  return parseRichSpans(text).map(
+/** One paragraph's runs. The helper words are italic in the paragraph's own
+ *  colour and font (founder 2026-09-26, clause 20; export 2026-09-28, 6A):
+ *  orange belongs to the headline above the paragraph, so two orange marks
+ *  never compete. */
+export function idealTextSegments(
+  text: string,
+  headline: string | null | undefined,
+): Array<{ text: string; bold: boolean; italics: boolean }> {
+  const spans = parseRichSpans(text);
+  const plain = spans.map((span) => span.text).join("");
+  const ranges = helperWordRanges(plain, headline) ?? [];
+  const inRange = (at: number) =>
+    ranges.some(([start, end]) => at >= start && at < end);
+  const out: Array<{ text: string; bold: boolean; italics: boolean }> = [];
+  let offset = 0;
+  for (const span of spans) {
+    let run = "";
+    let italics = inRange(offset);
+    for (let i = 0; i < span.text.length; i += 1) {
+      const next = inRange(offset + i);
+      if (next !== italics && run) {
+        out.push({ text: run, bold: span.bold, italics });
+        run = "";
+      }
+      italics = next;
+      run += span.text[i];
+    }
+    if (run) out.push({ text: run, bold: span.bold, italics });
+    offset += span.text.length;
+  }
+  return out;
+}
+
+function idealTextRuns(text: string, headline: string | null): TextRun[] {
+  return idealTextSegments(text, headline).map(
     (segment) =>
       new TextRun({
         text: segment.text,
         bold: segment.bold,
-        color: segment.highlight ? ORANGE : INK,
+        italics: segment.italics,
+        color: INK,
         size: 22,
       })
   );
@@ -103,26 +138,32 @@ export async function downloadPresentationDocx({
       );
     }
 
+    // Each headline over its OWN paragraph, like a newspaper headline over
+    // its article (clause 20) — not every headline first and the text after.
     for (const row of slide.rows) {
+      const flagship = row.rootType === "flagship";
+      if (row.rootPhrase) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 120, after: 60 },
+            children: [
+              new TextRun({
+                text: row.rootPhrase,
+                bold: flagship,
+                color: flagship ? ORANGE : MUTED,
+                size: 32,
+              }),
+            ],
+          })
+        );
+      }
       children.push(
         new Paragraph({
-          spacing: { before: 120, after: 120 },
-          children: [
-            new TextRun({
-              text: row.rootPhrase,
-              bold: row.rootType === "flagship",
-              color: row.rootType === "flagship" ? ORANGE : MUTED,
-              size: 32,
-            }),
-          ],
-        })
-      );
-    }
-    for (const row of slide.rows) {
-      children.push(
-        new Paragraph({
-          spacing: { before: 120, after: 180, line: 360 },
-          children: idealTextRuns(row.idealText),
+          spacing: { before: 60, after: 180, line: 360 },
+          children: idealTextRuns(
+            row.idealText,
+            flagship ? row.rootPhrase : null,
+          ),
         })
       );
     }

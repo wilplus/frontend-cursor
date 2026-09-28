@@ -17,6 +17,10 @@ export interface ParagraphVersion {
   takeIndex: number | null;
   paragraphs: string[];
   at: string | null;
+  /** That Take's own recording of this Slide (founder 2026-09-28, 5). */
+  clip?: { audioRef: string; startOffsetMs: number; durationMs: number } | null;
+  /** The owner's own answer on it, when they gave one. */
+  answer?: string | null;
 }
 
 export interface HelperWordsSet {
@@ -67,6 +71,32 @@ function takeIndexOf(value: unknown): number | null {
     : null;
 }
 
+function clipOf(value: unknown): ParagraphVersion["clip"] {
+  if (!value || typeof value !== "object") return null;
+  const c = value as Record<string, unknown>;
+  const audioRef = str(c.snippet_audio_ref);
+  if (!audioRef) return null;
+  const n = (x: unknown) => (typeof x === "number" && x >= 0 ? x : 0);
+  return {
+    audioRef,
+    startOffsetMs: n(c.start_offset_ms),
+    durationMs: n(c.duration_ms),
+  };
+}
+
+/** That Take's clip and the owner's answer, only when the server sent them
+ *  (decision 5) — a version without them keeps its old shape. */
+function earlierTakeFields(
+  v: Record<string, unknown>,
+): Pick<ParagraphVersion, "clip" | "answer"> {
+  const out: Pick<ParagraphVersion, "clip" | "answer"> = {};
+  const clip = clipOf(v.clip);
+  if (clip) out.clip = clip;
+  const answer = str(v.answer);
+  if (answer) out.answer = answer;
+  return out;
+}
+
 export function mapParagraphHistory(body: unknown): ParagraphHistory | null {
   if (!body || typeof body !== "object") return null;
   const row = body as Record<string, unknown>;
@@ -77,6 +107,7 @@ export function mapParagraphHistory(body: unknown): ParagraphHistory | null {
       takeIndex: takeIndexOf(v.take_index),
       paragraphs: strings(v.paragraphs),
       at: str(v.at),
+      ...earlierTakeFields(v),
     })),
     helperWords: rows(row.helper_words).map((h) => ({
       phrases: strings(h.phrases),

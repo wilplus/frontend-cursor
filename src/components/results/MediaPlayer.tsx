@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,9 @@ interface MediaPlayerProps {
   /** A slimmer row, for the judgement screen, where the answers — not the
    *  player — are the main thing (founder 2026-09-26). */
   compact?: boolean;
+  /** Compact only: a small label above the waveform naming which recording
+   *  this is ("Your practice · attempt 1", screen L1). */
+  label?: string | null;
 }
 
 /**
@@ -44,6 +47,7 @@ export default function MediaPlayer({
   startOffsetMs = 0,
   durationMs,
   compact = false,
+  label = null,
 }: MediaPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -139,14 +143,49 @@ export default function MediaPlayer({
   // button visually disabled. Keeps the row height stable so the page
   // doesn't reflow when audio_url is null.
   const disabled = !src || errored;
+  const audio = src ? (
+    <audio
+      ref={audioRef}
+      src={src}
+      preload="metadata"
+      className="hidden"
+      onLoadedMetadata={handleLoadedMetadata}
+      onPlay={handlePlay}
+      onPause={handlePause}
+      onTimeUpdate={handleTimeUpdate}
+      onEnded={handleEnded}
+      onError={() => {
+        setErrored(true);
+        setPlaying(false);
+      }}
+    />
+  ) : null;
+
+  if (compact) {
+    return (
+      <CompactRow
+        label={label}
+        playing={playing}
+        disabled={disabled}
+        onToggle={togglePlay}
+        progress={clipDuration > 0 ? sliceCurrent / clipDuration : 0}
+        clock={
+          errored
+            ? "audio unavailable"
+            : playing
+            ? fmtClock(sliceCurrent)
+            : clipDuration > 0
+            ? fmtClock(clipDuration)
+            : null
+        }
+      >
+        {audio}
+      </CompactRow>
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 rounded-xl bg-muted/60",
-        compact ? "px-2.5 py-2" : "p-3",
-      )}
-    >
+    <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-3">
       <button
         type="button"
         onClick={togglePlay}
@@ -154,8 +193,7 @@ export default function MediaPlayer({
         aria-label={playing ? "Pause snippet" : "Play snippet"}
         aria-pressed={playing}
         className={cn(
-          "flex items-center justify-center rounded-full bg-foreground text-primary-foreground transition-transform hover:scale-105",
-          compact ? "h-8 w-8" : "h-10 w-10",
+          "flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-primary-foreground transition-transform hover:scale-105",
           disabled && "cursor-not-allowed opacity-50 hover:scale-100"
         )}
       >
@@ -203,23 +241,82 @@ export default function MediaPlayer({
         ))}
       </div>
 
-      {src && (
-        <audio
-          ref={audioRef}
-          src={src}
-          preload="metadata"
-          className="hidden"
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          onError={() => {
-            setErrored(true);
-            setPlaying(false);
-          }}
+      {audio}
+    </div>
+  );
+}
+
+const COMPACT_BARS = [
+  5, 9, 6, 12, 8, 14, 7, 11, 5, 9, 13, 6, 10, 8, 12, 5, 9, 7, 11, 6, 10, 8,
+];
+
+/** The judgement screen's player (founder 2026-09-26, accepted screen L1):
+ *  one row — the play button, a waveform that fills as it plays, and "Play
+ *  this moment · 0:09" under it. Nothing to read; the answers below are the
+ *  main thing on the screen. */
+function CompactRow({
+  label,
+  playing,
+  disabled,
+  onToggle,
+  progress,
+  clock,
+  children,
+}: {
+  label: string | null;
+  playing: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  progress: number;
+  clock: string | null;
+  children: ReactNode;
+}) {
+  const Icon = playing ? Pause : Play;
+  const lit = Math.round(Math.min(1, Math.max(0, progress)) * COMPACT_BARS.length);
+  return (
+    <div
+      data-compact-player
+      className="flex items-center gap-3 rounded-2xl border border-border bg-background px-3 py-2.5"
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-label={playing ? "Pause snippet" : "Play snippet"}
+        aria-pressed={playing}
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-primary-foreground",
+          disabled && "cursor-not-allowed opacity-50",
+        )}
+      >
+        <Icon
+          aria-hidden
+          className={cn("h-4 w-4 fill-current", !playing && "translate-x-[1px]")}
         />
-      )}
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {label ? (
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            {label}
+          </span>
+        ) : null}
+        <div className="flex h-4 items-center gap-[3px]" aria-hidden>
+          {COMPACT_BARS.map((h, i) => (
+            <span
+              key={i}
+              className={cn(
+                "w-[2px] rounded-full",
+                i < lit ? "bg-primary" : "bg-foreground/25",
+              )}
+              style={{ height: `${h}px` }}
+            />
+          ))}
+        </div>
+        <span className="text-[12px] tabular-nums text-muted-foreground">
+          Play this moment{clock ? ` · ${clock}` : ""}
+        </span>
+      </div>
+      {children}
     </div>
   );
 }

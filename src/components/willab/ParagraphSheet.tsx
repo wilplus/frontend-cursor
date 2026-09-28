@@ -23,6 +23,7 @@ import {
   type RootGateAnswer,
 } from "@/lib/willab/chunkSteps";
 import MomentPlayer from "./MomentPlayer";
+import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   nextSelection,
   phraseTokens,
@@ -374,6 +375,7 @@ function EarlierTakes({ entries }: { entries: TimelineEntry[] }) {
                   <span className="font-semibold text-primary">{entry.helperWords}</span>
                 </p>
               ) : null}
+              <EarlierTakeRecording entry={entry} />
               <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground group-[:not([open])]:hidden">
                 {entry.text}
               </p>
@@ -382,6 +384,31 @@ function EarlierTakes({ entries }: { entries: TimelineEntry[] }) {
         ))}
       </ol>
     </section>
+  );
+}
+
+/** An earlier Take's own recording of this Slide and the owner's answer on
+ *  it (founder 2026-09-28, decision 5; accepted Take stack). Shown only when
+ *  the row is open, like its words. Nothing when neither exists. */
+function EarlierTakeRecording({ entry }: { entry: TimelineEntry }) {
+  if (!entry.clip && !entry.judged) return null;
+  return (
+    <div
+      data-testid="earlier-take-recording"
+      className="mt-2 flex flex-col gap-2 group-[:not([open])]:hidden"
+    >
+      {entry.clip ? (
+        <MediaPlayer
+          src={entry.clip.audioRef}
+          startOffsetMs={entry.clip.startOffsetMs}
+          durationMs={entry.clip.durationMs}
+          compact
+        />
+      ) : null}
+      {entry.judged ? (
+        <p className="text-[13px] text-foreground">{entry.judged}</p>
+      ) : null}
+    </div>
   );
 }
 
