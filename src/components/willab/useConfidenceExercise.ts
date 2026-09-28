@@ -110,7 +110,8 @@ export function useConfidenceExercise(args: {
   snippetId: string | null;
   offer: ConfidentVoicePracticeOffer | null;
   evidence: Evidence | null;
-  originalUserAnswer: "yes" | "no";
+  /** The speaker's answer about the original clip, as given: all five. */
+  originalUserAnswer: PracticeAnswer;
   /** Called once the practice row closes, so the ladder can advance. */
   onFinished: (
     answer: PracticeAnswer | null,
