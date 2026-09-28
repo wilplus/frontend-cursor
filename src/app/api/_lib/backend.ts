@@ -52,6 +52,13 @@ export function getBackendUrl(): string {
   return BACKEND_URL;
 }
 
+/** Whether a backend base URL is configured, without handing the URL to the
+ *  route. For a route that must answer 502 BACKEND_UNAVAILABLE before it
+ *  opens a stream (the lab progress SSE bridge). */
+export function backendConfigured(): boolean {
+  return Boolean(getBackendUrl());
+}
+
 /** Thrown by backendFetch when no backend URL is configured; callBackend maps
  *  it to the 502 BACKEND_UNAVAILABLE envelope routes have always returned. */
 export class BackendNotConfiguredError extends Error {

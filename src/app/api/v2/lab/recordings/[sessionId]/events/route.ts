@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest } from "next/server";
-import { backendFetch, failure, getAccessToken, getBackendUrl } from "@/app/api/_lib/backend";
+import { backendConfigured, backendFetch, failure, getAccessToken } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,7 +81,7 @@ export async function GET(
   // No backend URL is the one failure this route reports; anything else is
   // retried by the bridge's per-tick fetches, the same behavior the client's
   // own poll had.
-  if (!getBackendUrl()) return failure(NOT_CONFIGURED);
+  if (!backendConfigured()) return failure(NOT_CONFIGURED);
 
   const encoder = new TextEncoder();
   let cancelled = false;
