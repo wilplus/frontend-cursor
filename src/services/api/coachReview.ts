@@ -80,13 +80,6 @@ export interface CoachReviewSnippet {
   /** The slide on screen when this snippet started (BE-mapped from the tap
    *  timeline) — coach reference, same slide the user sees. null when no deck. */
   slide: ReadoutSlide | null;
-  /** AI-Commentator draft (§C1 / BE Prompt 2). Generated at process time,
-   *  frozen — never overwritten by coach edits so the (draft,final) diff
-   *  survives for the comment-clone corpus. null = AI didn't produce one. */
-  aiDraftNote: string | null;
-  /** A neutral, within-take acoustic observation when one was generated.
-   *  It never carries a psychological state or surfaced score. */
-  autoComment: string | null;
   /** #191 — whether this snippet is the spoken take ("spoken") or a re-read of a
    *  piece's corrected text ("read"). Labels the coach card. null = unknown
    *  (older packets) → treated as spoken. */
@@ -230,15 +223,6 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
         ? mapReadoutFeatures(r.features)
         : null,
     slide: mapReadoutSlide(r.slide),
-    aiDraftNote: (() => {
-      const coachStateRaw = (r.coach_state ?? {}) as Record<string, unknown>;
-      const v = coachStateRaw.ai_draft_coach_note;
-      return typeof v === "string" && v.length > 0 ? v : null;
-    })(),
-    autoComment:
-      typeof r.auto_comment === "string" && r.auto_comment.length > 0
-        ? r.auto_comment
-        : null,
     // #191 — spoken take vs re-read; anything but "read" → spoken.
     recordingKind:
       r.recording_kind === "read"

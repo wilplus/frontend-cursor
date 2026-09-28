@@ -479,8 +479,12 @@ describe("mapCoachReviewSession — features (C1 / §B.1)", () => {
   });
 });
 
-describe("mapCoachReviewSession — neutral auto_comment", () => {
-  it("maps a neutral observation without interpreting legacy acoustic reads", () => {
+describe("mapCoachReviewSession — no auto-comment or AI draft fields", () => {
+  it("does not carry fields the coach packet never sends", () => {
+    // The backend's coach snippet (routes/v2/coach.py
+    // _shape_coach_review_snippet) is an explicit field list with neither
+    // `auto_comment` nor an AI-draft note, and no component read the mapped
+    // fields (audit 2026-09-26, glue finding 11). A stray value is ignored.
     const s = mapCoachReviewSession({
       session_id: "s",
       snippets: [
@@ -488,22 +492,13 @@ describe("mapCoachReviewSession — neutral auto_comment", () => {
           id: "n1",
           acoustic_read: { potentiometer: 1.8, outside_normal_range: true },
           auto_comment: "The pace was steadier than nearby moments.",
+          coach_state: { ai_draft_coach_note: "draft" },
         },
       ],
     });
-    expect(s?.snippets[0].autoComment).toBe(
-      "The pace was steadier than nearby moments.",
-    );
+    expect(s?.snippets[0]).not.toHaveProperty("autoComment");
+    expect(s?.snippets[0]).not.toHaveProperty("aiDraftNote");
     expect(s?.snippets[0]).not.toHaveProperty("acousticRead");
-  });
-
-  it("nulls auto_comment when absent or malformed", () => {
-    const s = mapCoachReviewSession({
-      session_id: "s",
-      snippets: [{ id: "n1" }, { id: "n2", auto_comment: 12 }],
-    });
-    expect(s?.snippets[0].autoComment).toBeNull();
-    expect(s?.snippets[1].autoComment).toBeNull();
   });
 });
 

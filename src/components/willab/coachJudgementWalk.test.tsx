@@ -79,7 +79,6 @@ function snippet(id: string) {
     stickiness: { composite: null, comment: null },
     features: null,
     slide: null,
-    aiDraftNote: null,
     autoComment: null,
     recordingKind: "spoken" as const,
     takeSessionId: null,

@@ -84,11 +84,11 @@ export const SCENARIOS: Scenario[] = [
 ];
 
 /** The SSE bridge polls for up to 55 s unless the request is gone or the job
- *  is terminal, so it runs the matrix with an aborted request and gets two
- *  scenarios of its own. */
+ *  is terminal, so it runs the matrix with an aborted request and gets a
+ *  scenario of its own. (The native-SSE passthrough scenario went with the
+ *  passthrough itself: the backend never served that endpoint.) */
 export const LAB_EVENTS_FILE = "src/app/api/v2/lab/recordings/[sessionId]/events/route.ts";
 export const LAB_EVENTS_SCENARIOS: Scenario[] = [
-  { name: "sse_passthrough", headerToken: "hdr-tok", cookieToken: null, backendUrl: "http://backend.test", upstream: { status: 200, body: "event: status\ndata: {}\n\n", headers: { "content-type": "text/event-stream" } } },
   { name: "bridge_terminal", headerToken: "hdr-tok", cookieToken: null, backendUrl: "http://backend.test", upstream: { status: 200, body: '{"state":"ready"}', headers: { "content-type": "application/json" } } },
 ];
 

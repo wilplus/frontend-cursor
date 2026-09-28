@@ -101,3 +101,16 @@ describe("BFF envelopes are the ones each route shipped with", () => {
     }, 60_000);
   }
 });
+
+describe("the lab progress stream only polls the readout", () => {
+  it("never calls the native-SSE endpoint the backend never served", async () => {
+    const scenario = SCENARIO_BY_NAME.get("bridge_terminal")!;
+    const spec: RouteSpec = { file: LAB_EVENTS_FILE, handler: "GET", bodyKind: "none" };
+    const outcome = await runScenario(ctx, spec, scenario, importRoute);
+    expect(outcome.status).toBe(200);
+    expect(outcome.upstream.length).toBeGreaterThan(0);
+    for (const call of outcome.upstream) {
+      expect(call.url).toMatch(/\/v2\/lab\/recordings\/[^/]+\/readout$/);
+    }
+  }, 60_000);
+});
