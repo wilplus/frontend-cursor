@@ -127,6 +127,49 @@ export async function getAccessToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+/** The header that joins a BFF hop to the backend's log lines, Sentry events
+ *  and queued jobs (audit A1). Flask binds it for the request and echoes it. */
+export const REQUEST_ID_HEADER = "X-Request-Id";
+const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
+
+function newRequestId(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+}
+
+/** A well-formed id the incoming request already carries, or null. */
+async function incomingRequestId(): Promise<string | null> {
+  try {
+    const value = (await headers()).get(REQUEST_ID_HEADER);
+    return value && REQUEST_ID.test(value) ? value : null;
+  } catch {
+    return null; // outside a request scope
+  }
+}
+
+/** Split a caller's own request id (any casing) off its other headers, so
+ *  exactly one X-Request-Id goes upstream. A malformed one is dropped. */
+function splitRequestId(
+  headerMap: Record<string, string> | undefined
+): [Record<string, string>, string | null] {
+  const others: Record<string, string> = {};
+  let id: string | null = null;
+  for (const [key, value] of Object.entries(headerMap ?? {})) {
+    if (key.toLowerCase() === REQUEST_ID_HEADER.toLowerCase()) {
+      if (REQUEST_ID.test(value)) id = value;
+    } else {
+      others[key] = value;
+    }
+  }
+  return [others, id];
+}
+
+async function resolveRequestId(
+  headerMap: Record<string, string> | undefined
+): Promise<[Record<string, string>, string]> {
+  const [others, own] = splitRequestId(headerMap);
+  return [others, own ?? (await incomingRequestId()) ?? newRequestId()];
+}
+
 /** Raw authorized fetch to the backend — the single construction point for
  *  base URL + Authorization. For routes that must own their response handling
  *  (streaming uploads with abort ladders, SSE passthrough). Everything else
@@ -146,11 +189,13 @@ export async function backendFetch(
   if (!base) throw new BackendNotConfiguredError();
   const token =
     tokenOverride !== undefined ? tokenOverride : await getAccessToken();
+  const [otherHeaders, requestId] = await resolveRequestId(extraHeaders);
   return fetch(`${base}${path}`, {
     ...rest,
     headers: {
       Accept: "application/json",
-      ...(extraHeaders ?? {}),
+      ...otherHeaders,
+      [REQUEST_ID_HEADER]: requestId,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
@@ -197,9 +242,14 @@ export async function callBackend(
     return failure(failures.unauthenticated ?? DEFAULT_FAILURES.unauthenticated);
   }
 
+  const [otherHeaders, requestId] = await resolveRequestId(rest.headers);
   let upstream: Response;
   try {
-    upstream = await backendFetch(path, { ...rest, token });
+    upstream = await backendFetch(path, {
+      ...rest,
+      headers: { ...otherHeaders, [REQUEST_ID_HEADER]: requestId },
+      token,
+    });
   } catch (err) {
     if (err instanceof BackendNotConfiguredError) {
       return failure(failures.notConfigured ?? DEFAULT_FAILURES.notConfigured);
@@ -215,5 +265,8 @@ export async function callBackend(
     );
   }
 
-  return relay(upstream);
+  // The id goes back to the browser too, so a bug report can quote it.
+  const response = await relay(upstream);
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
 }
