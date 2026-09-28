@@ -77,6 +77,7 @@ import type {
 } from "@/services/api/confidentMomentBundles";
 import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
 import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
+import { helperWordsBehind, useSaveBehind } from "./saveBehind";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -528,6 +529,11 @@ export default function TranscriptReviewDeck({
      "saved" line each time a sheet finishes on its own. */
   const [endCard, setEndCard] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const {
+    saveBehind,
+    notice: behindNotice,
+    dismiss: dismissBehind,
+  } = useSaveBehind();
   const helperSavedRef = useRef(false);
   const finishWalk = useCallback(() => {
     closeSheets();
@@ -1323,11 +1329,17 @@ export default function TranscriptReviewDeck({
           takeSessionId={takeSessionId}
           headline={headlineOfChunk(headlines, openChunk.part.id)}
           onUseHelperWords={async (span) => {
-            // Q24 B / Q27 B: the new words are saved, then locked, at once.
-            if (!(await onSetRootPhrase(openChunk, span))) return false;
-            const result = await onLockPart(openChunk, openChunk.part.text);
-            if (result.outcome === "ok") setToast(CHUNK_SHEET_COPY.toastHelperWordsSaved);
-            return result.outcome === "ok";
+            // Q24 B / Q27 B: the new words are saved and locked. Tap and go
+            // (founder 2026-09-28): both writes run together, behind the
+            // sheet, which closes now. The paragraph is untouched here, so
+            // neither write depends on the other (see emphasiseChosen).
+            const chunk = openChunk;
+            saveBehind(
+              () => helperWordsBehind(onSetRootPhrase, onLockPart, chunk, span),
+              CHUNK_SHEET_COPY.failWordsBehind,
+            );
+            setToast(CHUNK_SHEET_COPY.toastHelperWordsSaved);
+            return true;
           }}
           onClose={closeWalk}
           pager={walk.pager}
@@ -1358,10 +1370,14 @@ export default function TranscriptReviewDeck({
             return result;
           }}
           onSetRootPhrase={async (phrase) => {
+            // Set BEFORE the write: on tap and go the sheet finishes while
+            // this is still in flight, and the "saved" line reads it then.
+            helperSavedRef.current = Boolean(phrase);
             const ok = await onSetRootPhrase(openChunk, phrase);
-            if (ok && phrase) helperSavedRef.current = true;
+            if (!ok) helperSavedRef.current = false;
             return ok;
           }}
+          saveBehind={saveBehind}
           onDocumentChanged={onConfidentMomentChanged}
           onClose={closeWalk}
           onDone={sheetDone}
@@ -1412,6 +1428,8 @@ export default function TranscriptReviewDeck({
         onCloseEndCard={() => setEndCard(false)}
         toast={toast}
         onToastGone={() => setToast(null)}
+        notice={behindNotice}
+        onNoticeGone={dismissBehind}
       />
     </div>
   );

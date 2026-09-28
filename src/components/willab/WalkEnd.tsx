@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import type { BehindNotice } from "./saveBehind";
 
 /* -------------------------------------------------------------------------- */
 /*  The walk's two closing signals (founder 2026-09-26, Ideal Text redesign   */
@@ -39,6 +40,44 @@ export function SheetToast({
       <span className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background shadow-lg">
         {text}
       </span>
+    </div>
+  );
+}
+
+/** A save that failed after its sheet moved on (tap and go, founder
+ *  2026-09-28). It stays up for eight seconds, just above the "saved" line,
+ *  and Retry sends the same write again. */
+export function SaveBehindNotice({
+  notice,
+  onGone,
+}: {
+  notice: BehindNotice | null;
+  onGone: () => void;
+}) {
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(onGone, 8000);
+    return () => clearTimeout(timer);
+  }, [notice, onGone]);
+  if (!notice) return null;
+  return (
+    <div
+      role="alert"
+      data-save-behind
+      className="fixed inset-x-0 bottom-36 z-[71] flex justify-center px-4"
+    >
+      <div className="flex w-full max-w-sm items-center justify-between gap-4 rounded-2xl bg-foreground px-4 py-3 text-[14px] text-background shadow-lg">
+        <span>{notice.text}</span>
+        {notice.retry ? (
+          <button
+            type="button"
+            onClick={notice.retry}
+            className="shrink-0 font-semibold text-primary"
+          >
+            {COPY.retryBehind}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -87,12 +126,16 @@ export function WalkEndLayer({
   onCloseEndCard,
   toast,
   onToastGone,
+  notice = null,
+  onNoticeGone = () => {},
 }: {
   endCard: boolean;
   renderNextStep?: () => ReactNode;
   onCloseEndCard: () => void;
   toast: string | null;
   onToastGone: () => void;
+  notice?: BehindNotice | null;
+  onNoticeGone?: () => void;
 }) {
   return (
     <>
@@ -100,6 +143,7 @@ export function WalkEndLayer({
         <WalkEndCard nextStep={renderNextStep?.() ?? null} onClose={onCloseEndCard} />
       ) : null}
       <SheetToast text={toast} onGone={onToastGone} />
+      <SaveBehindNotice notice={notice} onGone={onNoticeGone} />
     </>
   );
 }
