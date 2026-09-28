@@ -557,33 +557,25 @@ function groupingError(
   return { ok: false, error, paragraphIndex };
 }
 
-/** Group chunks into real slide sections using the exact pieces zip.
- *
- *  The deck count is authority. Paragraph ORDINAL is never a slide identity:
- *  a null slide index inherits the nearest preceding real slide and therefore
- *  remains in that slide's group (where buildScreens may make a continuation
- *  screen if the words do not fit). A leading null, an invalid/out-of-range
- *  explicit index, a backwards mapping, or a broken zip is an explicit
- *  recoverable error — never a fabricated slide.
- *
- *  A null slideCount is the safe-ahead older-payload case. Explicit mappings
- *  can still be used, but no upper bound is invented. With no mapping and no
- *  known deck, the document remains one untitled talk section. */
-export function groupChunksBySlide(
-  chunks: readonly DeckChunk[],
-  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
-  slideCount: number | null,
-  piecePartIds?: readonly (string | null)[] | null
-): DeckSlideGroupingResult {
-  if (chunks.length === 0) return { ok: true, groups: [] };
-
-  const canonicalSlideCount =
-    typeof slideCount === "number" &&
+/** The deck's slide count when it is a known non-negative integer. */
+function canonicalDeckCount(slideCount: number | null): number | null {
+  return typeof slideCount === "number" &&
     Number.isInteger(slideCount) &&
     slideCount >= 0
-      ? slideCount
-      : null;
+    ? slideCount
+    : null;
+}
 
+/** The result decided before any chunk is walked, or null to walk them:
+ *  no mapping (one untitled section, unless a real deck needs one), a
+ *  mapping or id list of the wrong length, and a zero-slide deck (one
+ *  untitled section, unless something claims a slide). */
+function ungroupedResult(
+  chunks: readonly DeckChunk[],
+  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
+  canonicalSlideCount: number | null,
+  piecePartIds: readonly (string | null)[] | null | undefined
+): DeckSlideGroupingResult | null {
   if (pieceSlideIndexes == null) {
     if (canonicalSlideCount !== null && canonicalSlideCount > 0) {
       return groupingError("missing_slide_mapping");
@@ -611,6 +603,68 @@ export function groupChunksBySlide(
       groups: [{ slideIndex: null, chunks: [...chunks] }],
     };
   }
+  return null;
+}
+
+/** The slide chunk `i` belongs to, or the error that makes it unprovable.
+ *  A null mapping inherits the nearest preceding real slide. */
+function chunkSlide(
+  mappedSlide: number | null,
+  previousSlide: number | null,
+  canonicalSlideCount: number | null,
+  i: number
+): number | DeckSlideGroupingResult {
+  let slide: number;
+  if (mappedSlide === null) {
+    if (previousSlide === null) {
+      return groupingError("missing_parent_slide", i);
+    }
+    slide = previousSlide;
+  } else {
+    if (
+      !Number.isInteger(mappedSlide) ||
+      mappedSlide < 0 ||
+      !Number.isFinite(mappedSlide)
+    ) {
+      return groupingError("invalid_slide_index", i);
+    }
+    if (canonicalSlideCount !== null && mappedSlide >= canonicalSlideCount) {
+      return groupingError("slide_out_of_range", i);
+    }
+    if (previousSlide !== null && mappedSlide < previousSlide) {
+      return groupingError("slide_order_regression", i);
+    }
+    slide = mappedSlide;
+  }
+  return slide;
+}
+
+/** Group chunks into real slide sections using the exact pieces zip.
+ *
+ *  The deck count is authority. Paragraph ORDINAL is never a slide identity:
+ *  a null slide index inherits the nearest preceding real slide and therefore
+ *  remains in that slide's group (where buildScreens may make a continuation
+ *  screen if the words do not fit). A leading null, an invalid/out-of-range
+ *  explicit index, a backwards mapping, or a broken zip is an explicit
+ *  recoverable error — never a fabricated slide.
+ *
+ *  A null slideCount is the safe-ahead older-payload case. Explicit mappings
+ *  can still be used, but no upper bound is invented. With no mapping and no
+ *  known deck, the document remains one untitled talk section. */
+export function groupChunksBySlide(
+  chunks: readonly DeckChunk[],
+  pieceSlideIndexes: readonly (number | null)[] | null | undefined,
+  slideCount: number | null,
+  piecePartIds?: readonly (string | null)[] | null
+): DeckSlideGroupingResult {
+  if (chunks.length === 0) return { ok: true, groups: [] };
+
+  const canonicalSlideCount = canonicalDeckCount(slideCount);
+  const early = ungroupedResult(
+    chunks, pieceSlideIndexes, canonicalSlideCount, piecePartIds
+  );
+  if (early) return early;
+  const mapping = pieceSlideIndexes as readonly (number | null)[];
 
   const groups: DeckSlideGroup[] = [];
   let previousSlide: number | null = null;
@@ -619,32 +673,8 @@ export function groupChunksBySlide(
     if (expectedPartId !== null && expectedPartId !== chunks[i].part.id) {
       return groupingError("piece_identity_mismatch", i);
     }
-    const mappedSlide = pieceSlideIndexes[i];
-    let slide: number;
-    if (mappedSlide === null) {
-      if (previousSlide === null) {
-        return groupingError("missing_parent_slide", i);
-      }
-      slide = previousSlide;
-    } else {
-      if (
-        !Number.isInteger(mappedSlide) ||
-        mappedSlide < 0 ||
-        !Number.isFinite(mappedSlide)
-      ) {
-        return groupingError("invalid_slide_index", i);
-      }
-      if (
-        canonicalSlideCount !== null &&
-        mappedSlide >= canonicalSlideCount
-      ) {
-        return groupingError("slide_out_of_range", i);
-      }
-      if (previousSlide !== null && mappedSlide < previousSlide) {
-        return groupingError("slide_order_regression", i);
-      }
-      slide = mappedSlide;
-    }
+    const slide = chunkSlide(mapping[i], previousSlide, canonicalSlideCount, i);
+    if (typeof slide !== "number") return slide;
 
     const last = groups[groups.length - 1];
     if (last && last.slideIndex === slide) last.chunks.push(chunks[i]);
