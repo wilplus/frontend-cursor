@@ -226,6 +226,13 @@ export default function RecordingRoadmap({
                 onNext={() => goToSlide(currentSlide + 1)}
               />
             ) : null}
+            {currentRoots.some((root) => root.type === "flagship") ? (
+              // The words you chose, named as such (founder 2026-09-28,
+              // option 1 of the recording screen).
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Helper words
+              </p>
+            ) : null}
             {currentRoots.map((root, rootIndex) => (
               <p
                 key={`${rootIndex}-${root.text}`}

@@ -1388,6 +1388,7 @@ export default function LabOverlay({
         {state === "lab_recording" && (
           <RecordingPhase
             micState={mic.state}
+            takeNumber={arcTakeIndex}
             elapsed={elapsed}
             targetSec={context?.target_length_seconds ?? null}
             rejectedMsg={rejectedMsg}
@@ -1627,6 +1628,7 @@ export default function LabOverlay({
  *  used to go unchecked. */
 export function RecordingPhase({
   micState,
+  takeNumber = null,
   elapsed,
   targetSec,
   rejectedMsg,
@@ -1640,6 +1642,9 @@ export function RecordingPhase({
   onSlideChange,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
+  /** The Take being recorded, for "Take 2 · Slide 1 of 6" (founder
+   *  2026-09-28, option 1). Absent in the /dev harness. */
+  takeNumber?: number | null;
   elapsed: number;
   /** R5 — the target length from setup (seconds, may arrive as a string). The
    *  clock counts DOWN to it, then UP as a red negative overrun; null/invalid →
@@ -1833,6 +1838,11 @@ export function RecordingPhase({
      the one anchor scroller, not a second navigation dock. */
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
+      <RecordingWhere
+        takeNumber={takeNumber}
+        slide={currentSlide}
+        slideCount={slides.length}
+      />
       {/* The preview stays visible while one native scroller carries the
           current slide's roots. Reaching its edge selects the adjacent slide
           and timestamps the same timeline as the retired buttons. */}
@@ -1848,6 +1858,32 @@ export function RecordingPhase({
         {strip}
       </div>
     </div>
+  );
+}
+
+/** Where you are while recording (founder 2026-09-28, option 1 of the
+ *  recording screen): "Take 2 · Slide 3 of 6", one quiet line above the
+ *  slide. The bottom strip — clock, bar, Finish take — is unchanged. */
+function RecordingWhere({
+  takeNumber,
+  slide,
+  slideCount,
+}: {
+  takeNumber: number | null;
+  slide: number;
+  slideCount: number;
+}) {
+  const parts = [
+    takeNumber ? `Take ${takeNumber}` : null,
+    `Slide ${slide + 1} of ${slideCount}`,
+  ].filter(Boolean);
+  return (
+    <p
+      data-testid="recording-where"
+      className="shrink-0 pb-2 text-[13px] font-semibold tabular-nums text-muted-foreground"
+    >
+      {parts.join(" · ")}
+    </p>
   );
 }
 
