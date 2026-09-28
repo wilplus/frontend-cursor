@@ -214,3 +214,66 @@ describe("mockReadout", () => {
     expect(a.snippets[0]?.features.speechRate).not.toBeNull();
   });
 });
+
+/* Pinned when mapFeedbackItem was split into named stages (audit W1,
+ * 2026-09-28): the exact item, its defaults and every refusal. */
+describe("feedback item mapping", () => {
+  const evidence = {
+    project_id: "p", take_id: "t", slide_index: 2, paragraph_index: 0,
+    piece_id: "pc", evidence_span: { start: 3, end: 9, text: "words" },
+    audio_interval: { start_ms: 100, end_ms: 250 },
+  };
+  const item = {
+    id: "f1", family: "confident_voice", message: "Nice.",
+    review_state: "material_correction", replacement_text: "Better",
+    application_guidance: "Try it", examples: ["a", "", 3, "b"],
+    user_decision: "rejected", evidence,
+  };
+  const one = (raw: unknown) =>
+    mapReadoutPayload({ feedback_items: [raw] }).feedbackItems;
+
+  it("maps every field exactly", () => {
+    expect(one(item)).toEqual([{
+      id: "f1", family: "confident_voice", message: "Nice.",
+      reviewState: "material_correction", replacementText: "Better",
+      applicationGuidance: "Try it", examples: ["a", "b"],
+      userDecision: "rejected",
+      evidence: {
+        projectId: "p", takeId: "t", slideIndex: 2, paragraphIndex: 0,
+        pieceId: "pc", evidenceSpan: { start: 3, end: 9, text: "words" },
+        audioInterval: { startMs: 100, endMs: 250 },
+      },
+    }]);
+  });
+
+  it("defaults the optional fields", () => {
+    const [mapped] = one({
+      ...item, review_state: "later", replacement_text: "",
+      application_guidance: 5, examples: "x", user_decision: "maybe",
+      evidence: { ...evidence, piece_id: "", evidence_span: { start: 3, end: 9 },
+                  audio_interval: { start_ms: 250, end_ms: 250 } },
+    });
+    expect(mapped).toMatchObject({
+      reviewState: null, replacementText: null, applicationGuidance: null,
+      examples: [], userDecision: "pending",
+    });
+    expect(mapped?.evidence).toMatchObject({
+      pieceId: null, evidenceSpan: { start: 3, end: 9, text: "" },
+      audioInterval: null,
+    });
+  });
+
+  it("drops an item it cannot place exactly", () => {
+    const refusals: unknown[] = [
+      null, { ...item, id: 1 }, { ...item, message: undefined },
+      { ...item, family: "praise" }, { ...item, evidence: "x" },
+      { ...item, evidence: { ...evidence, project_id: 1 } },
+      { ...item, evidence: { ...evidence, take_id: undefined } },
+      { ...item, evidence: { ...evidence, slide_index: -1 } },
+      { ...item, evidence: { ...evidence, paragraph_index: 1.5 } },
+      { ...item, evidence: { ...evidence, evidence_span: { start: 9, end: 9 } } },
+      { ...item, evidence: { ...evidence, evidence_span: { start: "3", end: 9 } } },
+    ];
+    for (const raw of refusals) expect(one(raw)).toEqual([]);
+  });
+});

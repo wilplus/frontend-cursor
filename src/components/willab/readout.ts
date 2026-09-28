@@ -490,21 +490,37 @@ function nonNegativeInteger(value: unknown): number | null {
     : null;
 }
 
-function mapFeedbackItem(raw: unknown): ReadoutFeedbackItem | null {
-  const item = obj(raw);
-  const evidence = obj(item.evidence);
+function isFeedbackFamily(value: unknown): value is FeedbackFamily {
+  return (
+    value === "confident_voice" ||
+    value === "great_formulation" ||
+    value === "rewrite_for_clarity"
+  );
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function feedbackReviewState(value: unknown): ReadoutFeedbackItem["reviewState"] {
+  return value === "reviewed" ||
+    value === "refined" ||
+    value === "material_correction" ||
+    value === "not_confirmed"
+    ? value
+    : null;
+}
+
+/** The evidence a feedback item points at, or null when any part of the
+ *  exact location is missing or the span is empty. */
+function mapFeedbackEvidence(raw: unknown): FeedbackEvidence | null {
+  const evidence = obj(raw);
   const span = obj(evidence.evidence_span);
   const slideIndex = nonNegativeInteger(evidence.slide_index);
   const paragraphIndex = nonNegativeInteger(evidence.paragraph_index);
   const start = nonNegativeInteger(span.start);
   const end = nonNegativeInteger(span.end);
-  const family = item.family;
   if (
-    typeof item.id !== "string" ||
-    typeof item.message !== "string" ||
-    (family !== "confident_voice" &&
-      family !== "great_formulation" &&
-      family !== "rewrite_for_clarity") ||
     typeof evidence.project_id !== "string" ||
     typeof evidence.take_id !== "string" ||
     slideIndex === null ||
@@ -518,28 +534,40 @@ function mapFeedbackItem(raw: unknown): ReadoutFeedbackItem | null {
   const rawAudio = obj(evidence.audio_interval);
   const audioStart = nonNegativeInteger(rawAudio.start_ms);
   const audioEnd = nonNegativeInteger(rawAudio.end_ms);
-  const reviewState = item.review_state;
+  return {
+    projectId: evidence.project_id,
+    takeId: evidence.take_id,
+    slideIndex,
+    paragraphIndex,
+    pieceId: nonEmptyString(evidence.piece_id),
+    evidenceSpan: { start, end, text: str(span.text) },
+    audioInterval:
+      audioStart !== null && audioEnd !== null && audioEnd > audioStart
+        ? { startMs: audioStart, endMs: audioEnd }
+        : null,
+  };
+}
+
+function mapFeedbackItem(raw: unknown): ReadoutFeedbackItem | null {
+  const item = obj(raw);
+  const family = item.family;
+  if (
+    typeof item.id !== "string" ||
+    typeof item.message !== "string" ||
+    !isFeedbackFamily(family)
+  ) {
+    return null;
+  }
+  const evidence = mapFeedbackEvidence(item.evidence);
+  if (!evidence) return null;
   const userDecision = item.user_decision;
   return {
     id: item.id,
     family,
     message: item.message,
-    reviewState:
-      reviewState === "reviewed" ||
-      reviewState === "refined" ||
-      reviewState === "material_correction" ||
-      reviewState === "not_confirmed"
-        ? reviewState
-        : null,
-    replacementText:
-      typeof item.replacement_text === "string" && item.replacement_text.length > 0
-        ? item.replacement_text
-        : null,
-    applicationGuidance:
-      typeof item.application_guidance === "string" &&
-      item.application_guidance.length > 0
-        ? item.application_guidance
-        : null,
+    reviewState: feedbackReviewState(item.review_state),
+    replacementText: nonEmptyString(item.replacement_text),
+    applicationGuidance: nonEmptyString(item.application_guidance),
     examples: Array.isArray(item.examples)
       ? item.examples.filter(
           (example): example is string =>
@@ -550,21 +578,7 @@ function mapFeedbackItem(raw: unknown): ReadoutFeedbackItem | null {
       userDecision === "accepted" || userDecision === "rejected"
         ? userDecision
         : "pending",
-    evidence: {
-      projectId: evidence.project_id,
-      takeId: evidence.take_id,
-      slideIndex,
-      paragraphIndex,
-      pieceId:
-        typeof evidence.piece_id === "string" && evidence.piece_id.length > 0
-          ? evidence.piece_id
-          : null,
-      evidenceSpan: { start, end, text: str(span.text) },
-      audioInterval:
-        audioStart !== null && audioEnd !== null && audioEnd > audioStart
-          ? { startMs: audioStart, endMs: audioEnd }
-          : null,
-    },
+    evidence,
   };
 }
 

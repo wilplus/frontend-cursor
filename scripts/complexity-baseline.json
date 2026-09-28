@@ -16,7 +16,6 @@
   "src/components/willab/LabOverlay.tsx:Function 'LabOverlay'": 26,
   "src/components/willab/Lounge.tsx:Function 'Bubble'": 30,
   "src/components/willab/Lounge.tsx:Function 'Lounge'": 38,
-  "src/components/willab/readout.ts:Function 'mapFeedbackItem'": 29,
   "src/lib/willab/deckChunks.ts:Function 'groupChunksBySlide'": 28,
   "src/middleware.ts:Async function 'middleware'": 29,
   "src/services/api/idealText.ts:Function 'mapKeyMoment'": 28
