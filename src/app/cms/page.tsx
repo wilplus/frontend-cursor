@@ -713,6 +713,13 @@ export default function JournalAdminPage() {
             </button>
             <button
               type="button"
+              onClick={() => router.push("/cms/gaps")}
+              className={BTN_GHOST}
+            >
+              Exercise gaps
+            </button>
+            <button
+              type="button"
               onClick={() => router.push("/cms/new")}
               className={BTN_PRIMARY}
             >

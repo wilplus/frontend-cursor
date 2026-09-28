@@ -14,6 +14,7 @@ import {
   useExerciseChoice,
 } from "./coachExercisePicking";
 import { LibraryTeachings, MomentErrors, SpeakerPracticeOffNote } from "./coachMomentErrors";
+import { MachinePickReasons, titlesFrom } from "./MachinePickReasons";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import {
   newUploadKey,
@@ -168,6 +169,12 @@ export default function CoachConfidencePracticeReview({
               {practice.exercise.instruction}
             </p>
           </div>
+          {/* What the machine picked and why (backend 2026-09-28): this
+              sheet only loads after the coach's own rating is saved. */}
+          <MachinePickReasons
+            pick={practice.machinePick}
+            titles={titlesFrom([practice.exercise], practice.availableExercises)}
+          />
           <div className="rounded-xl border border-border bg-background p-3">
             <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Exact passage

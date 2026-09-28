@@ -767,6 +767,9 @@ export interface AdminSpeakingError {
    *  treated as false: showing a named-only error as detectable would invite
    *  an author to tag something that silently routes nothing. */
   detected: boolean;
+  /** A detector is being tested silently (backend 2026-09-28). It cannot be
+   *  chosen as an exercise tag: the save refuses it. */
+  beingTested: boolean;
 }
 
 export function adminListSpeakingErrors(password: string) {
@@ -785,8 +788,97 @@ export function adminListSpeakingErrors(password: string) {
           errorId: r.error_id,
           label: r.label,
           detected: r.status === "detected",
+          beingTested: r.status === "shadow",
         };
       })
       .filter((item): item is AdminSpeakingError => item !== null);
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  The gap view (backend 2026-09-28, step 5)                                  */
+/*                                                                            */
+/*  Which patterns most need an exercise filmed. Read-only, internal: the      */
+/*  numbers here are about the library, never shown to a speaker. A source     */
+/*  the backend could not read is listed in `unavailable`, and its numbers are */
+/*  unknown rather than zero.                                                  */
+/* -------------------------------------------------------------------------- */
+
+export type GapCoverage =
+  | "no_exercise"
+  | "trial_only"
+  | "covered"
+  | "being_tested"
+  | "not_detectable_yet";
+
+export type GapSource = "match_traces" | "coach_requests" | "shadow_observations";
+
+export interface ExerciseGapPattern {
+  errorId: string;
+  label: string;
+  coverage: GapCoverage;
+  spotted: number;
+  openCoachRequests: number;
+  mainExercises: string[];
+  secondaryExercises: string[];
+  /** Being tested only: clips the silent detector measured, and fired on. */
+  shadow: { clipsMeasured: number; clipsFired: number } | null;
+}
+
+export interface ExerciseGaps {
+  days: number;
+  patterns: ExerciseGapPattern[];
+  nothingSpottedOpenRequests: number;
+  unavailable: GapSource[];
+}
+
+const COVERAGES: readonly string[] = [
+  "no_exercise", "trial_only", "covered", "being_tested", "not_detectable_yet",
+];
+const SOURCES: readonly string[] = ["match_traces", "coach_requests", "shadow_observations"];
+
+function count(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function ids(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function mapGapPattern(raw: unknown): ExerciseGapPattern | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.error_id !== "string") return null;
+  const shadow = r.shadow && typeof r.shadow === "object"
+    ? r.shadow as Record<string, unknown> : null;
+  return {
+    errorId: r.error_id,
+    label: typeof r.label === "string" && r.label ? r.label : r.error_id,
+    coverage: typeof r.coverage === "string" && COVERAGES.includes(r.coverage)
+      ? r.coverage as GapCoverage : "not_detectable_yet",
+    spotted: count(r.spotted),
+    openCoachRequests: count(r.open_coach_requests),
+    mainExercises: ids(r.main_exercises),
+    secondaryExercises: ids(r.secondary_exercises),
+    shadow: shadow
+      ? { clipsMeasured: count(shadow.clips_measured), clipsFired: count(shadow.clips_fired) }
+      : null,
+  };
+}
+
+export function mapExerciseGaps(data: unknown): ExerciseGaps {
+  const d = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  return {
+    days: count(d.days) || 30,
+    // Already in the order to show; kept as it arrives.
+    patterns: (Array.isArray(d.patterns) ? d.patterns : [])
+      .map(mapGapPattern)
+      .filter((p): p is ExerciseGapPattern => p !== null),
+    nothingSpottedOpenRequests: count(d.nothing_spotted_open_requests),
+    unavailable: ids(d.unavailable).filter((v): v is GapSource => SOURCES.includes(v)),
+  };
+}
+
+export function adminExerciseGaps(password: string, days = 30) {
+  return post("exercise-gaps", password, { days }, mapExerciseGaps);
 }

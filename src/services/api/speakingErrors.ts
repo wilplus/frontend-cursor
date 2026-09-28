@@ -10,6 +10,8 @@
 /*    observed — a human named the pattern and wrote down what it is. No code  */
 /*               can find it yet. This is the engineering backlog.             */
 /*    detected — code can find it in audio. ONLY these route exercises.        */
+/*    shadow   — a detector is being tested silently (backend 2026-09-28, D3). */
+/*               It routes nothing yet, and the form cannot edit it.           */
 /*                                                                            */
 /*  A coach writes `observed` and nothing else. Marking one detected needs a   */
 /*  detector in code, so it is set by the migration that adds one — never by   */
@@ -17,7 +19,7 @@
 /*  not offer it.                                                             */
 /* -------------------------------------------------------------------------- */
 
-export type SpeakingErrorStatus = "observed" | "detected";
+export type SpeakingErrorStatus = "observed" | "detected" | "shadow";
 
 export interface SpeakingError {
   errorId: string;
@@ -63,9 +65,10 @@ export function mapSpeakingError(raw: unknown): SpeakingError | null {
     label: r.label,
     definition: r.definition,
     asks: r.asks,
-    // Anything that is not literally "detected" is treated as observed. A row
-    // whose status we cannot read must never be shown as routing exercises.
-    status: r.status === "detected" ? "detected" : "observed",
+    // Anything that is not literally "detected" or "shadow" is treated as
+    // observed. A row whose status we cannot read must never be shown as
+    // routing exercises.
+    status: r.status === "detected" || r.status === "shadow" ? r.status : "observed",
     detectorRef: typeof r.detector_ref === "string" ? r.detector_ref : null,
     observedBy: typeof r.observed_by === "string" ? r.observed_by : null,
     active: r.active !== false,

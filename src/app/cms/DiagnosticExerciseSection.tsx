@@ -249,7 +249,7 @@ export default function DiagnosticExerciseSection({
                     className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-[12px] font-normal text-muted-foreground opacity-60"
                   >
                     <Lock className="h-2.5 w-2.5" aria-hidden />
-                    {item.label}
+                    {item.label}{item.beingTested ? " · being tested" : ""}
                   </span>
                 ))}
               </div>

@@ -1,3 +1,5 @@
+import { mapMachinePick, type MachinePick } from "./machinePick";
+
 export interface CoachPracticeAttempt {
   id: string;
   attemptIndex: number;
@@ -51,6 +53,9 @@ export interface CoachConfidencePractice {
   attempts: CoachPracticeAttempt[];
   namedErrors: CoachNamedError[];
   libraryTeachings: CoachLibraryTeaching[];
+  /** What the machine picked and why (backend 2026-09-28). Null when the
+   *  moment had no automatic pick: a coach-shared exercise, or an older Take. */
+  machinePick: MachinePick | null;
 }
 
 function answer(value: unknown): "yes" | "no" | null {
@@ -167,6 +172,7 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
     attempts,
     namedErrors: mapNamedErrors(r.named_errors),
     libraryTeachings: mapLibraryTeachings(r.library_teachings),
+    machinePick: mapMachinePick(r.machine_pick),
   };
 }
 

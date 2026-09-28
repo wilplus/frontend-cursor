@@ -59,12 +59,51 @@ const BLANK: SpeakingErrorDraft = {
 const INPUT =
   "mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground/30";
 
+/** A detector under silent test (backend 2026-09-28, D3). Locked like a
+ *  detected one: the backend refuses to edit it (409 ALREADY_IN_SHADOW). */
+const BEING_TESTED_NOTE =
+  "Being tested silently. It routes nothing yet, and can’t be edited here.";
+
+function EntryBadge({ status }: { status: SpeakingError["status"] }) {
+  if (status === "observed") {
+    return (
+      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+        Observed
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-background">
+      <Lock className="h-2.5 w-2.5" />
+      {status === "detected" ? "Detected" : "Being tested"}
+    </span>
+  );
+}
+
+function EntryNote({ entry }: { entry: SpeakingError }) {
+  if (entry.status === "detected") {
+    return (
+      <p className="mt-2.5 text-[11px] text-muted-foreground">
+        Routes exercises. Detected by{" "}
+        <code className="text-foreground/70">{entry.detectorRef}</code>
+      </p>
+    );
+  }
+  return (
+    <p className="mt-2.5 text-[11px] text-muted-foreground">
+      {entry.status === "shadow"
+        ? BEING_TESTED_NOTE
+        : "Named, not yet detectable — it routes nothing until a detector is written for it."}
+    </p>
+  );
+}
+
 function EntryCard({ entry }: { entry: SpeakingError }) {
-  const detected = entry.status === "detected";
+  const locked = entry.status !== "observed";
   return (
     <li
       className={`rounded-xl border p-4 ${
-        detected
+        locked
           ? "border-foreground/15 bg-muted/30"
           : "border-dashed border-border bg-background"
       } ${entry.active ? "" : "opacity-55"}`}
@@ -78,16 +117,7 @@ function EntryCard({ entry }: { entry: SpeakingError }) {
             {entry.errorId}
           </code>
         </div>
-        {detected ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-background">
-            <Lock className="h-2.5 w-2.5" />
-            Detected
-          </span>
-        ) : (
-          <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-            Observed
-          </span>
-        )}
+        <EntryBadge status={entry.status} />
       </div>
 
       <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
@@ -97,21 +127,28 @@ function EntryCard({ entry }: { entry: SpeakingError }) {
         {entry.asks}
       </p>
 
-      {detected ? (
-        <p className="mt-2.5 text-[11px] text-muted-foreground">
-          Routes exercises. Detected by{" "}
-          <code className="text-foreground/70">{entry.detectorRef}</code>
-        </p>
-      ) : (
-        <p className="mt-2.5 text-[11px] text-muted-foreground">
-          Named, not yet detectable — it routes nothing until a detector is
-          written for it.
-        </p>
-      )}
+      <EntryNote entry={entry} />
       {entry.active ? null : (
         <p className="mt-1 text-[11px] text-muted-foreground">Retired.</p>
       )}
     </li>
+  );
+}
+
+/** The silent-test group, drawn only when there is one. */
+function BeingTested({ entries }: { entries: SpeakingError[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <section className="mt-9">
+      <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        Being tested · routes nothing yet
+      </h2>
+      <ul className="mt-3 grid gap-3">
+        {entries.map((entry) => (
+          <EntryCard key={entry.errorId} entry={entry} />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -173,6 +210,7 @@ export default function SpeakingErrorLibraryClient() {
 
   const detected = (entries ?? []).filter((e) => e.status === "detected");
   const observed = (entries ?? []).filter((e) => e.status === "observed");
+  const beingTested = (entries ?? []).filter((e) => e.status === "shadow");
 
   return (
     <main className="mx-auto w-full max-w-2xl px-5 pb-24 pt-10">
@@ -215,6 +253,8 @@ export default function SpeakingErrorLibraryClient() {
               </p>
             )}
           </section>
+
+          <BeingTested entries={beingTested} />
 
           <section className="mt-9">
             <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
