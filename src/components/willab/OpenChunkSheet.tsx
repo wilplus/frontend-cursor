@@ -37,6 +37,7 @@ export default function OpenChunkSheet({
   headline,
   onUseHelperWords,
   pager = null,
+  onDocumentChanged = null,
   onClose,
   renderSheet,
 }: {
@@ -47,6 +48,8 @@ export default function OpenChunkSheet({
   headline: string | null;
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
   pager?: Pager | null;
+  /** Re-read the document (a stale exercise offer, MLC-3 §3.5). */
+  onDocumentChanged?: (() => void) | null;
   onClose: () => void;
   renderSheet: (practiseAgain: PractiseAgain) => ReactNode;
 }) {
@@ -72,6 +75,7 @@ export default function OpenChunkSheet({
       }
       onUseHelperWords={onUseHelperWords}
       pager={pager}
+      onDocumentChanged={onDocumentChanged}
       onClose={onClose}
     />
   );

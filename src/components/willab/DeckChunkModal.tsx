@@ -117,6 +117,7 @@ import {
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 import type { SaveBehind } from "./saveBehind";
+import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -420,6 +421,9 @@ export default function DeckChunkModal({
       ) ?? null,
     [feedbackInventory],
   );
+  /** MLC-3 §3.5: the offer below confirms it rendered once half visible; a
+   *  stale offer re-reads the document. Nothing is shown. */
+  const exerciseSeen = useExerciseRenderedAck(exerciseItem, onDocumentChanged);
 
   /** THE SERVED CONFIDENT VOICE ITEM (V3). Its answer goes through the MLC-3
    *  service route rather than the legacy one, and its exercise is the
@@ -1577,7 +1581,7 @@ export default function DeckChunkModal({
          the praise comment now wears next door. There are no spoken words on
          this screen (the offer's `passage` is deliberately not drawn), so the
          screen carries no orange at all. */
-      <div data-testid="practice-offer" className="flex flex-col gap-3">
+      <div ref={exerciseSeen} data-testid="practice-offer" className="flex flex-col gap-3">
         {/* A REFUSED ATTEMPT SAYS WHY, AT THE TOP (founder 2026-09-26: "the
             recording was not registered"). The server's own sentence — too
             short, not heard, not the passage — used to sit at the bottom of
