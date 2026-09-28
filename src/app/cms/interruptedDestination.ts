@@ -21,6 +21,7 @@
 export function interruptedDestination(): string | null {
   try {
     const raw = new URLSearchParams(window.location.search).get("next");
+    if (raw === "/cms/gaps") return raw;
     return raw && raw.startsWith("/cms/new/") ? raw : null;
   } catch {
     return null;

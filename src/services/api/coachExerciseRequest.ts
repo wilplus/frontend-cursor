@@ -11,6 +11,8 @@
 /*  Coach-only. Nothing from this module ever reaches the speaker's payload.  */
 /* -------------------------------------------------------------------------- */
 
+import { mapCandidates, type MatchCandidate } from "./machinePick";
+
 export type ExerciseRequestResolution =
   | "exercise_chosen"
   | "exercise_authored"
@@ -36,6 +38,8 @@ export interface CoachExerciseRequest {
   offeredSince: boolean;
   /** Best match first, in the backend's order. No rank or distance is kept. */
   availableExercises: ExerciseRequestExercise[];
+  /** Every exercise the machine weighed, and why none fitted (step 6). */
+  candidates: MatchCandidate[];
 }
 
 export type ExerciseRequestAnswer =
@@ -102,6 +106,7 @@ export function mapCoachExerciseRequest(raw: unknown): CoachExerciseRequest | nu
     availableExercises: records(r.available_exercises)
       .map(mapExercise)
       .filter((item): item is ExerciseRequestExercise => item !== null),
+    candidates: mapCandidates(r.candidates),
   };
 }
 

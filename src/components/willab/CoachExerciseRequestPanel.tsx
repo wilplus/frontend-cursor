@@ -43,6 +43,7 @@ import {
   NOT_YET_PUBLISHED,
   usePendingAttach,
 } from "./coachExercisePicking";
+import { WhyNothingFitted, titlesFrom } from "./MachinePickReasons";
 
 /** Every NEW sentence on this panel, in one place for founder sign-off. */
 export const EXERCISE_REQUEST_COPY = {
@@ -187,6 +188,10 @@ export default function CoachExerciseRequestPanel({
           <p className="text-[14px] leading-relaxed text-foreground">
             {requestReasonLine(request)}
           </p>
+          <WhyNothingFitted
+            candidates={request.candidates}
+            titles={titlesFrom(request.availableExercises)}
+          />
           {request.resolution ? (
             <AnsweredRequest
               sessionId={sessionId}

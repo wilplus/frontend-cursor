@@ -203,7 +203,7 @@ export function TagStep({ draft, patch, errors }: {
                 className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-4 py-3 text-[14px] text-muted-foreground opacity-50"
               >
                 <Lock className="h-3 w-3" aria-hidden />
-                {item.label}
+                {item.label}{item.beingTested ? " · being tested" : ""}
               </span>
             ))}
           </div>
