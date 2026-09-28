@@ -662,3 +662,59 @@ describe("recording roots payload", () => {
     ).toBeNull();
   });
 });
+
+/* Pinned when mapKeyMoment was split into named stages (audit W1,
+ * 2026-09-28): one exact moment and each rule it applies. */
+describe("key moment mapping", () => {
+  const moment = {
+    anchor: "We ship fast", snippet_id: "s1", take_session_id: "t1",
+    id: 7, has_explanation: true,
+    confidence_review_status: "coach_reviewed",
+    suggestion: { kind: "emphasize", why: "w", quote: "fast" },
+    star: "suggestion", applied: true,
+    coach: { has_message: true, reference: { slug: "a-post", title: "A post" } },
+    snippet_audio_ref: "", audio_ref: "b.webm",
+    start_offset_ms: 1200, duration_ms: 900,
+  };
+  const one = (raw: unknown) =>
+    mapIdealText({ text: "Body", key_moments: [raw] })?.keyMoments ?? [];
+
+  it("maps every field exactly", () => {
+    expect(one(moment)).toEqual([{
+      anchor: "We ship fast", snippetId: "s1", takeSessionId: "t1",
+      momentId: "7", hasExplanation: true, reviewStatus: "coach_reviewed",
+      star: "suggestion",
+      suggestion: { kind: "emphasize", replacement: null, why: "w",
+                    trigger: null, quote: "fast" },
+      applied: true,
+      coach: { hasMessage: true,
+               reference: { slug: "a-post", title: "A post", url: "/blog/a-post" } },
+      snippetAudioRef: "b.webm", startOffsetMs: 1200, durationMs: 900,
+    }]);
+  });
+
+  it("applies each rule", () => {
+    // A suggestion star needs a usable suggestion; verified never does.
+    expect(one({ ...moment, suggestion: undefined })[0]?.star).toBeNull();
+    expect(one({ ...moment, suggestion: undefined, star: "verified" })[0]?.star)
+      .toBe("verified");
+    // Ids coerce from numbers, fall back to moment_id, and a non-finite id is none.
+    expect(one({ ...moment, id: undefined, moment_id: 9 })[0]?.momentId).toBe("9");
+    expect(one({ ...moment, id: NaN, snippet_id: "" })).toEqual([]);
+    // A review status outside the three is absent, not null.
+    expect("reviewStatus" in (one({ ...moment, confidence_review_status: "x" })[0] ?? {}))
+      .toBe(false);
+    // A reference needs a slug and a title; the server url wins.
+    expect(one({ ...moment, coach: { reference: { slug: "a", title: "" } } })[0]?.coach)
+      .toEqual({ hasMessage: false, reference: null });
+    expect(one({ ...moment, coach: { reference: { slug: "a", title: "T", url: "/x" } } })[0]
+      ?.coach?.reference?.url).toBe("/x");
+    expect(one({ ...moment, coach: "junk" })[0]?.coach).toBeNull();
+    // Offsets must be finite and non-negative.
+    expect(one({ ...moment, start_offset_ms: -1, duration_ms: Infinity })[0])
+      .toMatchObject({ startOffsetMs: null, durationMs: null });
+    // No anchor, or neither a snippet nor a moment id, is no moment.
+    expect(one({ ...moment, anchor: "" })).toEqual([]);
+    expect(one({ ...moment, snippet_id: "", id: undefined })).toEqual([]);
+  });
+});
