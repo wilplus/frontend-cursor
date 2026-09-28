@@ -46,8 +46,16 @@ export interface ProcessingPolicy {
 export type AuthorizationStatus =
   /** A policy is active and this principal has a usable receipt for it. */
   | { kind: "authorized"; policy: ProcessingPolicy }
-  /** A policy is active and acceptance is what is missing. Render the screen. */
-  | { kind: "acceptance_required"; policy: ProcessingPolicy; code: string }
+  /** A policy is active and acceptance is what is missing. Render the screen.
+   *  `acceptedEarlierVersion`: this person agreed to an earlier version that a
+   *  newer policy replaced (founder 2026-09-28, decision 21) — the Data page
+   *  then offers "Accept the update". */
+  | {
+      kind: "acceptance_required";
+      policy: ProcessingPolicy;
+      code: string;
+      acceptedEarlierVersion?: boolean;
+    }
   /** No active policy, or the gate could not be read. NOT the same as
    *  "acceptance required": there is nothing to accept, and presenting an
    *  empty screen would be inventing a policy. */
@@ -138,7 +146,12 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   if (!policy) return { kind: "unavailable", code };
   return row.authorized === true
     ? { kind: "authorized", policy }
-    : { kind: "acceptance_required", policy, code };
+    : {
+        kind: "acceptance_required",
+        policy,
+        code,
+        acceptedEarlierVersion: row.accepted_earlier_version === true,
+      };
 }
 
 export interface AcceptanceInput {

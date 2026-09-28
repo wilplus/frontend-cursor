@@ -15,12 +15,16 @@ import { useState } from "react";
 import Link from "next/link";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DataConsentChoices from "@/components/account/DataConsentChoices";
+import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 export default function DataConsentPage() {
   const [trainingOffered, setTrainingOffered] = useState(false);
+  // Bumped when the policy update is accepted: the choices belong to the
+  // new receipt, so they are read again.
+  const [receiptNonce, setReceiptNonce] = useState(0);
   return (
     <main className="min-h-[100dvh] bg-background text-foreground">
       <DashboardHeader />
@@ -28,7 +32,9 @@ export default function DataConsentPage() {
         <h1 className="text-3xl font-semibold tracking-tight">
           {DATA_CONSENT_COPY.title}
         </h1>
+        <PolicyUpdateCard onAccepted={() => setReceiptNonce((n) => n + 1)} />
         <DataConsentChoices
+          key={receiptNonce}
           intro={trainingOffered ? DATA_CONSENT_COPY.introWithTraining : DATA_CONSENT_COPY.intro}
         />
         <div className="mt-6">
