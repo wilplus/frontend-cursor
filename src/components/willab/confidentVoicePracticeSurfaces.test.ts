@@ -93,7 +93,7 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(coach).toContain('href="/cms/new/exercise/1"');
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
-    expect(coach).toContain("Does the practice recording sound better than the original?");
+    expect(coach).toContain("Do you find it more confident?");
     expect(coach).toContain("selectedAttemptDecision");
   });
 

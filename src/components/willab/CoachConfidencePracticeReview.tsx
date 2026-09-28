@@ -215,7 +215,7 @@ export default function CoachConfidencePracticeReview({
           {practice.attempts.some((attempt) => attempt.isSelected) ? (
             <div className="rounded-xl border border-primary/30 bg-background p-3">
               <p className="text-[13px] font-semibold text-foreground">
-                Does the practice recording sound better than the original?
+                Do you find it more confident?
               </p>
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
                 Judge this new recording itself. The original clip’s rating does not apply here.
