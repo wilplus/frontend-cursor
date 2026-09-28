@@ -46,7 +46,8 @@ describe("settled text is ordinary, never grey", () => {
     expect(DECK).toContain('c.status === "waiting" &&');
     expect(DECK).not.toContain("text-foreground/55");
     expect(DECK).toContain(
-      'className="relative pl-4 text-[clamp(1.25rem,1rem+1vw,1.65rem)] leading-[1.65] text-foreground"',
+      // Bigger, no indent (founder 2026-09-28): the bars sit in the margin.
+      'className="relative text-[clamp(1.3rem,1rem+1.1vw,1.875rem)] leading-[1.65] text-foreground"',
     );
   });
 
@@ -115,7 +116,7 @@ describe("the two signals, and no others", () => {
     // nothing else". Asserted on the paragraph's OWN class list — a window of
     // surrounding source would catch unrelated markup and say nothing.
     const classes = DECK.slice(
-      DECK.indexOf("text-[clamp(1.25rem,1rem+1vw,1.65rem)]"),
+      DECK.indexOf("text-[clamp(1.3rem,1rem+1.1vw,1.875rem)]"),
     ).slice(0, 200);
     expect(classes).not.toContain("underline");
     expect(classes).not.toContain("bg-");

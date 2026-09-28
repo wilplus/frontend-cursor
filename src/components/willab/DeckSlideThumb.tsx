@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import DeckSlidePreview from "./DeckSlidePreview";
 
-/** The slide as a small tile beside its kicker, and the full picture on a tap
- *  (founder 2026-09-26, Ideal Text redesign B).
+/** The slide above or beside its kicker, and the full picture on a tap
+ *  (founder 2026-09-26, Ideal Text redesign B; resized 2026-09-28).
+ *
+ *  SIZED TO THE TEXT (founder 2026-09-28: "make the slider bigger and
+ *  comparably measured to the text"). On a phone it takes half the column,
+ *  beside the kicker; on desktop it stands centred above the reading column,
+ *  up to a third of the screen high. The 96px tile below is what it was.
  *
  *  The picture used to take up to 38% of the screen's height, and it repeats
  *  on every screen of a slide, so on a phone the speaker's own words started
@@ -36,13 +41,13 @@ export default function DeckSlideThumb({
         type="button"
         onClick={() => setEnlarged(true)}
         aria-label={`Show ${label} larger`}
-        className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-1/2 shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:w-full"
       >
         <DeckSlidePreview
           presentationRef={presentationRef}
           pageIndex={pageIndex}
           className=""
-          size="thumb"
+          size="header"
         />
       </button>
       {enlarged ? (

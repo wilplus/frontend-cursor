@@ -40,6 +40,19 @@ import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
  *  is here: one component, one bound, and the deck and the slide editor both
  *  get it without either being able to drift.
  */
+/* THE HEADER SLIDE (founder 2026-09-28, Ideal Text layout: desktop B, phone
+   C). Full width of its box, which is half the column on a phone and the
+   centred column on desktop, where it stops at 35rem wide and 60vh x 9/16 —
+   a third of the screen — high. */
+const FRAME: Record<"full" | "thumb" | "header", string> = {
+  thumb: "aspect-video w-24 overflow-hidden rounded-md border border-border bg-muted",
+  header:
+    "aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted md:mx-auto md:max-w-[min(35rem,60vh)]",
+  full:
+    "mx-auto aspect-video max-h-[38vh] w-full max-w-[67vh]" +
+    " overflow-hidden rounded-xl border border-border bg-muted",
+};
+
 export default function DeckSlidePreview({
   presentationRef,
   pageIndex,
@@ -57,7 +70,7 @@ export default function DeckSlidePreview({
   /** "thumb" is the compact picture beside the slide kicker (founder
    *  2026-09-26): a small 16:9 tile, so the speaker's words start near the
    *  top of the screen instead of under a picture a third of its height. */
-  size?: "full" | "thumb";
+  size?: "full" | "thumb" | "header";
 }) {
   const [failed, setFailed] = useState(false);
   // A new deck source, or a different page, gets a fresh chance.
@@ -74,11 +87,7 @@ export default function DeckSlidePreview({
 
      On a phone the width cap is larger than the screen, so w-full wins and
      the slide is full-width as before. */
-  const frame =
-    size === "thumb"
-      ? "aspect-video w-24 overflow-hidden rounded-md border border-border bg-muted"
-      : "mx-auto aspect-video max-h-[38vh] w-full max-w-[67vh]" +
-        " overflow-hidden rounded-xl border border-border bg-muted";
+  const frame = FRAME[size];
 
   /* THE DECKLESS LANE. No PDF means the canonical mock slide for this page,
      in the same box at the same bound. A page the default deck does not have
@@ -106,7 +115,7 @@ export default function DeckSlidePreview({
         <div
           className={`${frame} flex items-center justify-center text-[13px] text-muted-foreground`}
         >
-          {size === "thumb" ? null : "Slide preview unavailable"}
+          {size === "full" ? "Slide preview unavailable" : null}
         </div>
       </div>
     );

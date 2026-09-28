@@ -1051,7 +1051,10 @@ export default function TranscriptReviewDeck({
               // slide fills the viewport; a dashed line under each one drew
               // a box around the words for a boundary the scroll already
               // makes.
-              className="flex h-full flex-col gap-4 px-6 py-8 sm:px-10"
+              // ONE CENTRED READING COLUMN on desktop (founder 2026-09-28),
+              // about 65 characters of the deck's type; a phone keeps its
+              // full width.
+              className="mx-auto flex h-full w-full max-w-[56rem] flex-col gap-4 px-6 py-8 sm:px-10"
             >
               {/* ONE COMPACT ROW (founder 2026-09-26, Ideal Text redesign
                   B): the slide as a small tile, its kicker, and the pencil.
@@ -1060,7 +1063,11 @@ export default function TranscriptReviewDeck({
                   under it. The tile enlarges on a tap. No slide title heading
                   (founder 2026-09-17): the picture carries the title. The
                   deckless lane uses the same tile (founder 2026-09-19). */}
-              <div className="flex shrink-0 items-center gap-3">
+              {/* SIZED TO THE TEXT (founder 2026-09-28, layout desktop B /
+                  phone C): on a phone the slide takes half the width beside
+                  its kicker and pencil; on desktop it stands centred above
+                  the column with the kicker and pencil under it. */}
+              <div className="flex shrink-0 items-center gap-3 md:flex-col md:gap-2">
                 {g.slideIndex !== null ? (
                   <DeckSlideThumb
                     presentationRef={presentationRef}
@@ -1068,7 +1075,8 @@ export default function TranscriptReviewDeck({
                     label={kickerFor(g.slideIndex, gi)}
                   />
                 ) : null}
-                <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="flex min-w-0 flex-1 items-center gap-3 md:w-full md:flex-none md:justify-center">
+                <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground md:flex-none">
                   {kickerFor(g.slideIndex, gi)}
                 </p>
                 {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26). */}
@@ -1081,6 +1089,7 @@ export default function TranscriptReviewDeck({
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
                 </button>
+                </div>
               </div>
               {/* The INNER chunk scroller: overscroll-contained so the
                   last chunk never chains into a slide flip mid-gesture —
@@ -1111,7 +1120,9 @@ export default function TranscriptReviewDeck({
                     posRef.current = { slide: gi, chunk };
                   }
                 }}
-                className="scrollbar-none relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+                // -ml-4 pl-4: room in the margin for the paragraph bars, so
+                // the text starts flush with the column (founder 2026-09-28).
+                className="scrollbar-none relative -ml-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pl-4"
               >
                 {/* THE WORDS START AT THE TOP (founder 2026-09-17: "this
                     screen misalignment, it is impossible to work that way").
@@ -1126,7 +1137,10 @@ export default function TranscriptReviewDeck({
                     Top alignment makes the position of the first line a
                     constant: it is always directly under the header, on every
                     screen, whatever is or is not above it. */}
-                <div className="flex flex-col gap-4">
+                {/* A FULL EMPTY LINE BETWEEN PARAGRAPHS (founder 2026-09-28:
+                    "each paragraph should be separated"). The screen packing
+                    reads this gap from the DOM, so it stays honest. */}
+                <div className="flex flex-col gap-[1.625rem] md:gap-7">
                   {g.chunks.map((c) => {
                     const st = stateOf(c);
                     /* DOCUMENT STATE (founder 2026-09-26, Ideal Text
@@ -1155,7 +1169,7 @@ export default function TranscriptReviewDeck({
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative pl-4 text-[clamp(1.25rem,1rem+1vw,1.65rem)] leading-[1.65] text-foreground"
+                      className="relative text-[clamp(1.3rem,1rem+1.1vw,1.875rem)] leading-[1.65] text-foreground"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
@@ -1165,6 +1179,10 @@ export default function TranscriptReviewDeck({
                       {/* HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY
                           (founder 2026-09-26): inside the running text they
                           read in the paragraph's own colour. */}
+                      <SettledBar
+                        unsettled={unsettled}
+                        opens={opensParagraphSheet(st)}
+                      />
                       <ParagraphHeadline
                         text={headlineFor(headlines, c.part.id, c.sliceIndex)}
                       />
@@ -1557,6 +1575,22 @@ function firstWaitingBookmark(
   return bookmarks.findIndex((b) => waiting(b.chunk));
 }
 
+/** THE GREY BAR (founder 2026-09-28, paragraph mark B): a finished paragraph
+ *  that still opens its sheet keeps a thin grey bar where the orange one
+ *  stood, so "this opens" survives without the empty indent. Not a button:
+ *  the paragraph is the tap target. Its own component so the deck gains no
+ *  branch. */
+function SettledBar({ unsettled, opens }: { unsettled: boolean; opens: boolean }) {
+  if (unsettled || !opens) return null;
+  return (
+    <span
+      aria-hidden
+      data-settled-bar
+      className="absolute -left-3 bottom-1 top-1 w-[2px] rounded-full bg-muted-foreground/30"
+    />
+  );
+}
+
 /** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
  *  line per Slide): its own helper words, bold orange, directly above it —
  *  like a newspaper headline over the article that repeats its words. Inside
@@ -1569,7 +1603,7 @@ function ParagraphHeadline({ text }: { text: string | null }) {
   return (
     <span
       data-paragraph-headline
-      className="mb-1 block text-[clamp(1.4rem,1.1rem+1.2vw,1.9rem)] font-bold not-italic leading-snug text-primary"
+      className="mb-1 block text-[clamp(1.45rem,1.1rem+1.3vw,2.15rem)] font-bold not-italic leading-snug text-primary"
     >
       {text}
     </span>
