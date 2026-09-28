@@ -215,8 +215,11 @@ export interface ConfidentVoicePracticeOffer {
   /** Completed on an earlier Take (contract 35d): a flag, never a count. */
   doneBefore: boolean;
   /** A coach picked this exercise for this exact moment (backend 2026-09-28).
-   *  Arrives on a later poll. Whether an exercise was a trial is never in the
-   *  payload and is never inferred; neither is any matching number (AC-9). */
+   *  Arrives on a later poll. Data only: nothing renders it, because the
+   *  locked Ideal Text design (Final Screens, L2) shows a coach's exercise as
+   *  the Exercise step's "Your coach" card rather than a label. Whether an
+   *  exercise was a trial is never in the payload and is never inferred;
+   *  neither is any matching number (AC-9). */
   chosenByCoach: boolean;
 }
 

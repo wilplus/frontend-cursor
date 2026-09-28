@@ -54,10 +54,7 @@ import {
 } from "@/components/willab/Mlc3FirstClientPractice";
 import { usePracticeFlow } from "@/components/willab/usePracticeFlow";
 import { mlc3FirstClientPresentationEnabled } from "@/services/api/mlc3FirstClient";
-import type {
-  ConfidentVoicePracticeOffer,
-  DocumentSuggestion,
-} from "@/services/api/idealText";
+import type { DocumentSuggestion } from "@/services/api/idealText";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import RootingPhraseQualificationActions from "@/components/willab/RootingPhraseQualificationActions";
 import type { RootingPhraseRoutingState } from "@/lib/willab/rootingPhraseQualification";
@@ -296,32 +293,6 @@ function supersededFooter(advance: () => void): {
  *  branch. */
 function finishSheet(done: (() => void) | undefined, close: () => void): void {
   (done ?? close)();
-}
-
-/** The offer's small labels: done on an earlier Take, chosen by the coach.
- *  Words only; the offer carries no number to show (AC-9). */
-function ExerciseOfferLabels({ offer }: { offer: ConfidentVoicePracticeOffer }) {
-  if (!offer.doneBefore && !offer.chosenByCoach) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {offer.doneBefore ? (
-        <span
-          data-testid="exercise-done-label"
-          className="rounded-full bg-success/10 px-2.5 py-0.5 text-[12px] font-semibold text-success"
-        >
-          {COPY.exerciseDone}
-        </span>
-      ) : null}
-      {offer.chosenByCoach ? (
-        <span
-          data-testid="exercise-coach-label"
-          className="rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-semibold text-foreground"
-        >
-          {COPY.exerciseChosenByCoach}
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 export default function DeckChunkModal({
@@ -1549,10 +1520,17 @@ export default function DeckChunkModal({
             {exercise.error}
           </p>
         ) : null}
-        {/* ALREADY DONE (founder 2026-09-26, Q44 / Q45 A, contract 35d) and
-            CHOSEN BY YOUR COACH (backend 2026-09-28): little labels on the
-            offer only. Flags, never a count, a date or a fit type. */}
-        <ExerciseOfferLabels offer={exerciseItem.practiceExercise} />
+        {/* ALREADY DONE (founder 2026-09-26, Q44 / Q45 A, contract 35d): a
+            little green label on the offer only, so a repeat is never a
+            surprise. A flag, never a count or a date. */}
+        {exerciseItem.practiceExercise.doneBefore ? (
+          <span
+            data-testid="exercise-done-label"
+            className="self-start rounded-full bg-success/10 px-2.5 py-0.5 text-[12px] font-semibold text-success"
+          >
+            {COPY.exerciseDone}
+          </span>
+        ) : null}
         {exerciseItem.practiceExercise.explanationVideoRef ? (
           <div className="overflow-hidden rounded-2xl bg-black">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
