@@ -62,21 +62,18 @@ describe("learning exposure acknowledgement", () => {
     expect(saved).toBe(false);
   });
 
-  it("says so once when the proxy leg is missing, and still reports false", async () => {
+  it("reports a refused acknowledgement as false, without a proxy warning", async () => {
+    // The proxy leg exists since G-1 (src/app/api/v2/learning-exposures/ack);
+    // a 404 now means the backend refused the packet, and the caller learns
+    // that from the boolean, not from the console.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 404 })));
-    const first = await acknowledgeVisibleLearningExposures(
+    const saved = await acknowledgeVisibleLearningExposures(
       [{ presentationId: "p-1", acknowledgementToken: "t-1", learningSurface: "ideal_text_generation" }],
       "render-1",
     );
-    const second = await acknowledgeVisibleLearningExposures(
-      [{ presentationId: "p-2", acknowledgementToken: "t-2", learningSurface: "ideal_text_generation" }],
-      "render-2",
-    );
-    expect(first).toBe(false);
-    expect(second).toBe(false);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0][0])).toContain("learning-exposures/ack proxy route is not deployed");
+    expect(saved).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
