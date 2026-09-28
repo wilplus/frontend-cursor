@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Mic, Pencil } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -23,6 +23,7 @@ import {
   type RootGateAnswer,
 } from "@/lib/willab/chunkSteps";
 import MomentPlayer from "./MomentPlayer";
+import { useParagraphSheetData } from "./paragraphSheetData";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   nextSelection,
@@ -133,44 +134,22 @@ function ExerciseCard({
 }) {
   // MLC-3 §3.5: confirms the card rendered once half visible. Nothing shown.
   const seen = useExerciseRenderedAck(item, onStale);
-  const exercise = item.practiceExercise;
-  if (!exercise) return null;
+  if (!item.practiceExercise || !onPractise) return null;
+  // ONLY THE BUTTON (Ideal Text Final Screens, L3 "Answered No": Practise sits
+  // inside the Take). The video and the instruction belong to the Exercise
+  // screen that Practise opens; drawing them here too showed the exercise
+  // twice (founder 2026-09-28).
   return (
-    <section
+    <button
       ref={seen}
+      type="button"
       data-testid="answered-exercise"
-      className="flex flex-col gap-3 rounded-2xl border border-border p-4"
+      onClick={onPractise}
+      className="flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-border px-5 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
     >
-      <h3 className="text-[13px] font-semibold text-foreground">
-        {COPY.titleExercise}
-      </h3>
-      {exercise.explanationVideoRef ? (
-        <div className="overflow-hidden rounded-2xl bg-black">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video
-            src={exercise.explanationVideoRef}
-            controls
-            playsInline
-            preload="metadata"
-            className="aspect-video w-full"
-          />
-        </div>
-      ) : null}
-      {(exercise.instruction ?? "").trim() ? (
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {exercise.instruction}
-        </p>
-      ) : null}
-      {onPractise ? (
-        <button
-          type="button"
-          onClick={onPractise}
-          className="flex min-h-[48px] items-center justify-center rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90"
-        >
-          {COPY.pillPractise}
-        </button>
-      ) : null}
-    </section>
+      <Mic className="h-4 w-4" aria-hidden />
+      {COPY.pillPractise}
+    </button>
   );
 }
 
@@ -516,26 +495,12 @@ export default function ParagraphSheet({
   onDocumentChanged?: (() => void) | null;
   onClose: () => void;
 }) {
-  const [history, setHistory] = useState<ParagraphHistory | null>(null);
-  const [answers, setAnswers] = useState<OwnerAnswer[]>([]);
+  // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
+  // complete instead of drawing "Now" and then popping in the rest.
+  const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
+  const history = sheetData?.history ?? null;
+  const answers = useMemo(() => sheetData?.answers ?? [], [sheetData]);
   const [picking, setPicking] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (arcId) {
-      void fetchParagraphHistory(arcId, partId).then((result) => {
-        if (alive) setHistory(result);
-      });
-    }
-    if (takeSessionId) {
-      void fetchOwnerAnswers(takeSessionId).then((result) => {
-        if (alive) setAnswers(result);
-      });
-    }
-    return () => {
-      alive = false;
-    };
-  }, [arcId, takeSessionId, partId]);
 
   const view = useMemo(
     () => answeredView({ items: decided, answers, history, copy: COPY }),
@@ -546,6 +511,9 @@ export default function ParagraphSheet({
     answers.find((a) => a.feedbackId === exercise?.id)?.response ?? null;
   const canChoose =
     Boolean(onUseHelperWords) && mayChooseHelperWords(locked, decided, answers);
+
+  // Still reading: draw nothing rather than a half sheet (bounded wait).
+  if (!sheetData) return null;
 
   if (picking && onUseHelperWords) {
     return (

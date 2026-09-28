@@ -22,7 +22,7 @@ import {
 } from "@/lib/willab/answeredBookmark";
 import {
   headlineFor,
-  useParagraphHeadlines,
+  useHeadlinesWithPending,
 } from "@/components/willab/useSlideHeadlines";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
@@ -78,6 +78,7 @@ import type {
 import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
 import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
 import { helperWordsBehind, useSaveBehind } from "./saveBehind";
+import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -491,8 +492,29 @@ export default function TranscriptReviewDeck({
     setEditingSlideIndex(undefined);
   }, [deckReady]);
   const openChunk = resolveOpenChunk(chunks, openPart);
-  const headlines = useParagraphHeadlines(arcId, doc, openPart !== null);
+  const {
+    headlines,
+    expect: expectHeadline,
+    settle: settleHeadline,
+  } = useHeadlinesWithPending(arcId, doc, openPart !== null);
   const openState = openChunk ? stateOf(openChunk) : null;
+  // Every save of helper words goes through here, from either sheet, so the
+  // chosen words stand in as the headline at once (founder 2026-09-28, 2A).
+  const setRootPhrase = useCallback(
+    async (chunk: DeckChunk, phrase: RootPhraseSpan | null): Promise<boolean> => {
+      if (phrase) expectHeadline(chunk.part.id, phrase.text);
+      const ok = await onSetRootPhrase(chunk, phrase);
+      if (phrase) settleHeadline(chunk.part.id, ok);
+      return ok;
+    },
+    [onSetRootPhrase, expectHeadline, settleHeadline],
+  );
+  // The paragraph sheet opens complete: read its data ahead (1A).
+  const answeredPartIds = useMemo(
+    () => chunks.filter((c) => opensParagraphSheet(stateOf(c))).map((c) => c.part.id),
+    [chunks, stateOf],
+  );
+  usePrefetchParagraphSheets(arcId, takeSessionId, answeredPartIds, openPart !== null);
 
   /* BACK / NEXT ACROSS THE BOOKMARKS (founder 2026-09-25, Q29 A–Q32 A). Every
      bookmark of the Take in text order; a coach moment opens the coaching
@@ -1353,7 +1375,7 @@ export default function TranscriptReviewDeck({
             // neither write depends on the other (see emphasiseChosen).
             const chunk = openChunk;
             saveBehind(
-              () => helperWordsBehind(onSetRootPhrase, onLockPart, chunk, span),
+              () => helperWordsBehind(setRootPhrase, onLockPart, chunk, span),
               CHUNK_SHEET_COPY.failWordsBehind,
             );
             setToast(CHUNK_SHEET_COPY.toastHelperWordsSaved);
@@ -1362,6 +1384,7 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
+          feedbackPending={feedbackPending}
           renderSheet={(practiseAgain) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}
@@ -1392,7 +1415,7 @@ export default function TranscriptReviewDeck({
             // Set BEFORE the write: on tap and go the sheet finishes while
             // this is still in flight, and the "saved" line reads it then.
             helperSavedRef.current = Boolean(phrase);
-            const ok = await onSetRootPhrase(openChunk, phrase);
+            const ok = await setRootPhrase(openChunk, phrase);
             if (!ok) helperSavedRef.current = false;
             return ok;
           }}

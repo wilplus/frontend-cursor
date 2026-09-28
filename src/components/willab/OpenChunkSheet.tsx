@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import ParagraphSheet from "@/components/willab/ParagraphSheet";
 import type {
   ChunkHistoryLite,
@@ -12,6 +12,7 @@ import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { Pager } from "@/components/willab/feedbackPager";
+import { useBoundedWait } from "@/components/willab/paragraphSheetData";
 
 export type PractiseAgain = {
   item: DocumentSuggestion;
@@ -38,6 +39,7 @@ export default function OpenChunkSheet({
   onUseHelperWords,
   pager = null,
   onDocumentChanged = null,
+  feedbackPending = false,
   onClose,
   renderSheet,
 }: {
@@ -50,14 +52,28 @@ export default function OpenChunkSheet({
   pager?: Pager | null;
   /** Re-read the document (a stale exercise offer, MLC-3 §3.5). */
   onDocumentChanged?: (() => void) | null;
+  /** The Take's feedback is still arriving after the text. */
+  feedbackPending?: boolean;
   onClose: () => void;
   renderSheet: (practiseAgain: PractiseAgain) => ReactNode;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
+  // HELD WHILE THE FEEDBACK ARRIVES (founder 2026-09-28): tapped before the
+  // Take's feedback lands, a sheet used to open without the moment's
+  // recording, answer and exercise, which then appeared a moment later. It
+  // now waits for them (at most OPEN_WAIT_MS) and opens complete. The wait
+  // also decides WHICH sheet correctly: an unanswered moment that is still
+  // on its way must open the judgement sheet, not the paragraph's own.
+  const held = useBoundedWait(feedbackPending);
   // Decided ONCE, when the sheet opens. Answering inside the judgement sheet
   // empties the paragraph's pending list; reading it live would swap the
   // sheet for the history halfway down the ladder.
-  const [ownSheet] = useState(() => opensParagraphSheet(state));
+  const [ownSheet, setOwnSheet] = useState<boolean | null>(() =>
+    held ? null : opensParagraphSheet(state));
+  useEffect(() => {
+    if (!held && ownSheet === null) setOwnSheet(opensParagraphSheet(state));
+  }, [held, ownSheet, state]);
+  if (ownSheet === null) return null;
   if (practiseAgain || !ownSheet) {
     return <>{renderSheet(practiseAgain)}</>;
   }
