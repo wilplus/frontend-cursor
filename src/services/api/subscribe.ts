@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import { TOKENS_COPY } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
@@ -45,29 +45,22 @@ export type StartCheckoutResult =
   | { ok: false; reason: "error"; message: string };
 
 export async function startPlanCheckout(tier: string): Promise<StartCheckoutResult> {
-  const token = await getAuthToken();
-  if (!token) {
+  const result = await bffFetch("/api/v2/tokens/checkout", {
+    method: "POST",
+    json: { tier, ...returnUrls() },
+  });
+  if (result.kind === "unauthenticated") {
     return { ok: false, reason: "error", message: "Sign in to change your plan." };
   }
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/tokens/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ tier, ...returnUrls() }),
-    });
-  } catch {
+  if (result.kind === "network") {
     return { ok: false, reason: "error", message: "Couldn't reach the server. Try again." };
   }
 
-  const body = (await res.json().catch(() => null)) as
+  const body = result.body as
     | { checkout_url?: string; code?: string; error?: string }
     | null;
 
-  if (res.ok && body?.checkout_url) return { ok: true, url: body.checkout_url };
+  if (result.ok && body?.checkout_url) return { ok: true, url: body.checkout_url };
 
   // DISABLED = no Stripe key. MISCONFIGURED = no price map. Neither is the
   // user's problem and neither is fixed by trying again.
@@ -116,30 +109,23 @@ export type StartPortalResult =
  *  `return_url` is always sent: the BE's default is {FRONTEND_URL}/account and
  *  this app has no /account route. */
 export async function startBillingPortal(): Promise<StartPortalResult> {
-  const token = await getAuthToken();
-  if (!token) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const result = await bffFetch("/api/v2/tokens/portal", {
+    method: "POST",
+    json: { return_url: `${origin}/dashboard/pricing?plan=managed` },
+  });
+  if (result.kind === "unauthenticated") {
     return { ok: false, reason: "error", message: "Sign in to manage your plan." };
   }
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/tokens/portal", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ return_url: `${origin}/dashboard/pricing?plan=managed` }),
-    });
-  } catch {
+  if (result.kind === "network") {
     return { ok: false, reason: "error", message: TOKENS_COPY.planManageFailed };
   }
 
-  const body = (await res.json().catch(() => null)) as
+  const body = result.body as
     | { portal_url?: string; code?: string; error?: string }
     | null;
 
-  if (res.ok && body?.portal_url) return { ok: true, url: body.portal_url };
+  if (result.ok && body?.portal_url) return { ok: true, url: body.portal_url };
   if (body?.code === "NO_SUBSCRIPTION") return { ok: false, reason: "none" };
   if (body?.code === "DISABLED") {
     return {
