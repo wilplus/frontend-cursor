@@ -1626,6 +1626,34 @@ export async function fetchIdealText(
   return { kind: "ready", ideal };
 }
 
+/** The owner edit's live parts, with the helper words the snapshot holds for
+ *  the same part id (audit B3, L1: locked helper words persist until the
+ *  speaker picks new ones). The live rows carry no root; the snapshot is
+ *  republished whenever one is chosen, so it has the current pick.
+ *
+ *  The edit decides `text` and `locked`. `edited` is carried only while the
+ *  words are the ones the server compared. A span that no longer slices to
+ *  its phrase is carried as is and paints nothing (`partRootTint`). Pure. */
+function ownerEditPartsWithRoots(
+  ownerParts: ConfidentMomentOwnerEdit["parts"],
+  snapshotParts: Part[] | null,
+): Part[] {
+  const served = new Map((snapshotParts ?? []).map((part) => [part.id, part]));
+  return ownerParts.map((part) => {
+    const own: Part = { id: part.id, text: part.text, locked: part.locked };
+    const match = served.get(part.id);
+    if (!match) return own;
+    return {
+      ...own,
+      iteration: match.iteration,
+      rootPhrase: match.rootPhrase,
+      rootStart: match.rootStart,
+      rootEnd: match.rootEnd,
+      ...(match.text === part.text ? { edited: match.edited } : {}),
+    };
+  });
+}
+
 /** Map the deliberately small immutable cold-open payload. */
 function mapIdealTextCorePayload(
   body: Record<string, unknown> | null,
@@ -1696,11 +1724,7 @@ function mapIdealTextCorePayload(
     saved: null,
     keyPoints: null,
     parts: ownerEditParts
-      ? ownerEditParts.map((part) => ({
-          id: part.id,
-          text: part.text,
-          locked: part.locked,
-        }))
+      ? ownerEditPartsWithRoots(ownerEditParts, mapParts(body.parts))
       : mapParts(body.parts),
     // See `piecesForOwnerEdit` — the zip has to follow the parts it is zipped
     // against, and the branch above switches those to the edit's.
