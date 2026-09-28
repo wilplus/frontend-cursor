@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { PublishInput } from "./publishWillabSession";
 
 /* -------------------------------------------------------------------------- */
@@ -15,9 +15,6 @@ import type { PublishInput } from "./publishWillabSession";
 export async function saveCoachFeedback(
   input: PublishInput
 ): Promise<{ ok: boolean; message?: string }> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, message: "Not signed in." };
-
   // Paragraph feedback is persisted through snippets[] as canonical draft
   // items. The take-level summary is a separate scalar, never a second
   // feedback payload.
@@ -27,27 +24,21 @@ export async function saveCoachFeedback(
     ...(input.snippets ? { snippets: input.snippets } : {}),
   };
 
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(input.sessionId)}/save-feedback`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-  } catch {
+  const result = await bffFetch(
+    `/api/v2/coach/sessions/${encodeURIComponent(input.sessionId)}/save-feedback`,
+    { method: "POST", json: body }
+  );
+  if (result.kind === "unauthenticated") {
+    return { ok: false, message: "Not signed in." };
+  }
+  if (result.kind === "network") {
     return { ok: false, message: "Network error. Try again." };
   }
-  if (!res.ok) {
-    const b = (await res.json().catch(() => null)) as { error?: string } | null;
+  if (!result.ok) {
+    const b = result.body as { error?: string } | null;
     return {
       ok: false,
-      message: b?.error ?? `Couldn't save (HTTP ${res.status}).`,
+      message: b?.error ?? `Couldn't save (HTTP ${result.status}).`,
     };
   }
   return { ok: true };

@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  Deleting one project (founder 2026-09-25, N8; P1).                        */
@@ -39,29 +39,17 @@ async function send(
   projectId: string,
   method: "POST" | "DELETE",
 ): Promise<{ ok: boolean; deletion: ProjectDeletion | null }> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, deletion: null };
-  try {
-    const res = await fetch(
-      `/api/v2/projects/${encodeURIComponent(projectId)}/deletion-request`,
-      {
-        method,
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
-        },
-        body: method === "POST"
-          ? JSON.stringify({ idempotency_key: idempotencyKey() })
-          : undefined,
-      },
-    );
-    if (!res.ok) return { ok: false, deletion: null };
-    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    return { ok: true, deletion: mapProjectDeletion(body?.deletion) };
-  } catch {
-    return { ok: false, deletion: null };
-  }
+  const result = await bffFetch(
+    `/api/v2/projects/${encodeURIComponent(projectId)}/deletion-request`,
+    {
+      method,
+      credentials: "include",
+      json: method === "POST" ? { idempotency_key: idempotencyKey() } : undefined,
+    },
+  );
+  if (result.kind !== "response" || !result.ok) return { ok: false, deletion: null };
+  const body = result.body as Record<string, unknown> | null;
+  return { ok: true, deletion: mapProjectDeletion(body?.deletion) };
 }
 
 /** Ask for the project to be deleted. ok=false changes nothing. */
