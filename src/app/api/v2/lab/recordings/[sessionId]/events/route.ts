@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest } from "next/server";
-import { backendFetch, BackendNotConfiguredError, failure, getAccessToken } from "@/app/api/_lib/backend";
+import { backendConfigured, backendFetch, failure, getAccessToken } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,18 +43,17 @@ const SSE_HEADERS = {
  * account token or canonical signed Guest ID. A session UUID alone is never
  * access.
  *
- * Two modes, decided per request:
- *   1. PASSTHROUGH — if the backend exposes native SSE at
- *      GET /v2/lab/recordings/<id>/events (text/event-stream), pipe it through
- *      verbatim. This is the end state: the backend repo implements that
- *      endpoint against the contract below and this bridge upgrades itself
- *      with zero FE changes.
- *   2. BRIDGE — until then, poll the existing readout endpoint SERVER-side at
- *      the same 2s cadence and push only CHANGES down the pipe. The browser
- *      holds one streaming connection instead of paying a lambda invocation
- *      per tick; backend load is unchanged until mode 1 lands.
+ * BRIDGE: poll the existing readout endpoint SERVER-side at the same 2s
+ * cadence and push only CHANGES down the pipe. The browser holds one
+ * streaming connection instead of paying a lambda invocation per tick.
  *
- * Event contract (both modes — the backend must match it exactly):
+ * There used to be a first attempt at a native backend stream
+ * (GET /v2/lab/recordings/<id>/events). The backend never implemented it, so
+ * every connection paid one wasted round trip to a 404 before bridging
+ * (audit 2026-09-26, glue finding 7). If the backend ever speaks SSE, add the
+ * passthrough back behind a flag.
+ *
+ * Event contract:
  *   `event: status` frames whose `data` is the SAME single-line JSON envelope
  *   GET …/readout returns (the FE client owns the envelope shape, as with the
  *   readout proxy). `: ping` comment heartbeats every ~15s keep intermediaries
@@ -79,33 +78,11 @@ export async function GET(
   const identity: Record<string, string> =
     !token && guestOwner ? { "X-Willab-Guest-Owner": guestOwner } : {};
 
-  // Mode 1 — PASSTHROUGH when the backend speaks SSE natively.
-  try {
-    const upstream = await backendFetch(`/v2/lab/recordings/${id}/events`, {
-      method: "GET",
-      headers: { Accept: "text/event-stream", ...identity },
-      token,
-      signal: req.signal,
-    });
-    if (
-      upstream.ok &&
-      (upstream.headers.get("content-type") ?? "").includes(
-        "text/event-stream",
-      ) &&
-      upstream.body
-    ) {
-      return new Response(upstream.body, { status: 200, headers: SSE_HEADERS });
-    }
-    // Not implemented upstream (404 today) — discard and bridge instead.
-    void upstream.body?.cancel().catch(() => undefined);
-  } catch (err) {
-    // No backend URL is the one failure this route reports; anything else
-    // falls through to the bridge, whose per-tick fetches keep retrying — the
-    // same behavior the client's own poll had.
-    if (err instanceof BackendNotConfiguredError) return failure(NOT_CONFIGURED);
-  }
+  // No backend URL is the one failure this route reports; anything else is
+  // retried by the bridge's per-tick fetches, the same behavior the client's
+  // own poll had.
+  if (!backendConfigured()) return failure(NOT_CONFIGURED);
 
-  // Mode 2 — BRIDGE.
   const encoder = new TextEncoder();
   let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({

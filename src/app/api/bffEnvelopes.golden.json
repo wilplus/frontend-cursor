@@ -7915,12 +7915,6 @@
    "cacheControl": "no-cache, no-transform",
    "contentType": "text/event-stream; charset=utf-8",
    "status": 200
-  },
-  "sse_passthrough": {
-   "body": "event: status\ndata: {}\n\n",
-   "cacheControl": "no-cache, no-transform",
-   "contentType": "text/event-stream; charset=utf-8",
-   "status": 200
   }
  },
  "src/app/api/v2/life/[...path]/route.ts#DELETE#none": {
