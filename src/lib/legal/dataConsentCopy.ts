@@ -11,6 +11,10 @@ export const DATA_CONSENT_COPY = {
   title: "Data & consent",
   intro:
     "Your recordings are used to run your own coaching. They are not used to train models.",
+  // Approved by the founder 2026-09-28 (decision 21): the card shown only
+  // when a newer policy replaced the one this person accepted.
+  updateTitle: "What’s changed since you agreed",
+  updateAccept: "Accept the update",
   practiceTitle: "Personalised practice",
   // The acceptance tick's own sentence, without its last clause.
   practiceDescription:
