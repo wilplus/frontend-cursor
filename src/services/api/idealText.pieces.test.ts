@@ -48,13 +48,15 @@ describe("mapIdealPieces", () => {
       status: "settled",
       challenger: null,
     });
+    // The swap decision is retired (audit C3): a stray pending_swap row reads
+    // as settled; its challenger still counts toward the newest take.
     expect(v?.[1]).toMatchObject({
-      status: "pending_swap",
+      status: "settled",
       challenger: { snippetId: "c1", takeIndex: 3, why: "energy" },
     });
   });
 
-  it("degrades pending WITHOUT a usable challenger to settled (no dead glow)", () => {
+  it("reads pending WITHOUT a usable challenger as settled too", () => {
     const v = mapIdealPieces([
       {
         piece_key: 0,
@@ -173,7 +175,6 @@ describe("latestTakeIndex", () => {
         ...base,
         pieceKey: 1,
         takeIndex: 2,
-        status: "pending_swap",
         challenger: { snippetId: "c", takeIndex: 3, text: "y", why: null },
       },
     ];
