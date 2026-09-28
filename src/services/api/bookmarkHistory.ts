@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { FeedbackResponse } from "@/services/api/takeFeedback";
 
 /* The two reads behind an answered bookmark (founder 2026-09-25, Q19 A).
@@ -136,20 +136,13 @@ export function mapOwnerAnswers(body: unknown): OwnerAnswer[] {
 }
 
 async function getJson(url: string): Promise<unknown | null> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const response = await fetch(url, {
-      headers,
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    return await response.json().catch(() => null);
-  } catch {
-    return null;
-  }
+  // Signed out still reads: the session cookie may authenticate.
+  const result = await bffFetch(url, {
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+  });
+  return result.kind === "response" && result.ok ? result.body : null;
 }
 
 /** null when the Slide cannot be proven or the read failed: the sheet then
