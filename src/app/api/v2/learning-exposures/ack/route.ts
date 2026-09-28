@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest } from "next/server";
-import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend";
+import { callBackend, relayStrict } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -27,11 +27,9 @@ export const runtime = "nodejs";
  */
 const UPSTREAM = "/v2/learning-exposures/ack";
 
-const FAILURES: Failures = {
-  unauthenticated: { status: 401, body: { code: "UNAUTHENTICATED", error: "Not authenticated" } },
-  notConfigured: { status: 502, body: { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" } },
-  unreachable: { status: 502, body: { code: "PROXY_ERROR", error: "Learning service unavailable." } },
-};
+// Auth is demanded by callBackend's default; the failure envelopes are the
+// helper's own defaults, so no new user-facing string is minted here (copy
+// is founder-held). The envelope is pinned in bffEnvelopes.golden.json.
 const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
 export async function POST(req: NextRequest) {
@@ -40,7 +38,6 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body || "{}",
-    failures: FAILURES,
     relay: RELAY,
   });
 }

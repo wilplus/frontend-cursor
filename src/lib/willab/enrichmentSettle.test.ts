@@ -243,8 +243,9 @@ describe("the two lanes a first open asks in", () => {
   });
 
   it("keeps the failing F2 receipt away from the marks", () => {
-    // `learning` fails on every read in production today (G-1). It must
-    // never share a lane with the bookmarks, or its budget becomes theirs.
+    // `learning` is the F2 receipt leg (G-1, its proxy landed 2026-09-28).
+    // Whether it succeeds or fails, it must never share a lane with the
+    // bookmarks, or its budget becomes theirs.
     expect(SLOW_LANE).not.toContain("learning");
     expect(PROMPT_LANE).toContain("learning");
   });
