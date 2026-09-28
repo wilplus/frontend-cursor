@@ -325,10 +325,10 @@ export function mapCoachReviewSession(raw: unknown): CoachReviewSession | null {
     arcIdealReady: r.arc_ideal_ready === true,
     arcId:
       typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
-    contextUnlocked:
-      typeof r.context_unlocked === "boolean"
-        ? r.context_unlocked
-        : blindComplete,
+    // BLIND COACH (audit B4): only the server unlocks context. A payload
+    // without the gate is not a reason to open it, whatever the local labels
+    // say; the session GET always sends it.
+    contextUnlocked: r.context_unlocked === true,
     blindLabel: {
       labelled: blindLabelled,
       total: blindTotal,

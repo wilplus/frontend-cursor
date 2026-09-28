@@ -19,6 +19,5 @@
   "src/components/willab/readout.ts:Function 'mapFeedbackItem'": 29,
   "src/lib/willab/deckChunks.ts:Function 'groupChunksBySlide'": 28,
   "src/middleware.ts:Async function 'middleware'": 29,
-  "src/services/api/coachReview.ts:Function 'mapCoachReviewSession'": 26,
   "src/services/api/idealText.ts:Function 'mapKeyMoment'": 28
 }
