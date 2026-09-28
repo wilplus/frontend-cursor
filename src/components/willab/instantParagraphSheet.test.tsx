@@ -31,6 +31,7 @@ import {
   type SheetData,
 } from "./paragraphSheetData";
 import { useHeadlinesWithPending } from "./useSlideHeadlines";
+import OpenChunkSheet from "./OpenChunkSheet";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -146,5 +147,41 @@ describe("2A: helper words show at once", () => {
     await flush();
     expect(api.headlines.get("p1")).toBe("just a test");
     expect(roots).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("held while the Take's feedback arrives", () => {
+  const stateWith = (pending: unknown[]) =>
+    ({ pending, decided: [], locked: true, chunk: { part: { id: "p1", text: "t" } } }) as never;
+  const render = (state: unknown, feedbackPending: boolean) =>
+    act(() => root.render(createElement(OpenChunkSheet, {
+      state: state as never,
+      arcId: null,
+      takeSessionId: null,
+      headline: null,
+      feedbackPending,
+      onClose: () => {},
+      renderSheet: () => createElement("p", { "data-testid": "judgement" }, "judgement sheet"),
+    })));
+
+  it("opens nothing until the feedback lands, then the sheet the moment needs", () => {
+    render(stateWith([]), true);
+    expect(container.innerHTML).toBe("");
+    // The moment's unanswered item arrives with the feedback.
+    render(stateWith([{ id: "cv" }]), false);
+    expect(container.textContent).toBe("judgement sheet");
+  });
+
+  it("stops holding after the bounded wait", async () => {
+    vi.useFakeTimers();
+    render(stateWith([{ id: "cv" }]), true);
+    expect(container.innerHTML).toBe("");
+    await act(async () => { vi.advanceTimersByTime(OPEN_WAIT_MS); });
+    expect(container.textContent).toBe("judgement sheet");
+  });
+
+  it("opens at once when the feedback is already there", () => {
+    render(stateWith([{ id: "cv" }]), false);
+    expect(container.textContent).toBe("judgement sheet");
   });
 });

@@ -1384,6 +1384,7 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
+          feedbackPending={feedbackPending}
           renderSheet={(practiseAgain) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}

@@ -118,6 +118,19 @@ export function useParagraphSheetData(
   return data;
 }
 
+/** True while `waiting`, for at most OPEN_WAIT_MS from the first render.
+ *  Lets a sheet hold for the Take's feedback, which arrives a moment after
+ *  the text (founder 2026-09-28), without ever holding a tap indefinitely. */
+export function useBoundedWait(waiting: boolean): boolean {
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setTimeout(() => setExpired(true), OPEN_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+  return waiting && !expired;
+}
+
 /** The page's side: read ahead for every paragraph that opens this sheet,
  *  each time no sheet is open. */
 export function usePrefetchParagraphSheets(

@@ -147,7 +147,11 @@ describe("the answered bookmark", () => {
     expect(now).toContain("Take 2 · Now");
     expect(now).toContain(TEXT);
     expect(now).toContain("You were not sure how to judge this one");
-    expect(now).toContain("Say it again, slower.");
+    // Only the Practise button (Final Screens L3): the instruction and the
+    // video belong to the Exercise screen it opens.
+    expect(now).not.toContain("Say it again, slower.");
+    expect(now).toContain("Practise");
+    expect(container.querySelector("video")).toBeNull();
     expect(text).toContain("Earlier Takes");
     expect(text.indexOf("Take 2")).toBeLessThan(text.indexOf("Take 1"));
     expect(text).not.toMatch(/\d+\s*%|\bscore\b/i);
