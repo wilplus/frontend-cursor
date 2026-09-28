@@ -23,6 +23,26 @@ the STEP 2 fence check (AC-9 / CONSTRUCT / BLIND COACH / LIVE LOOP) is where FE
 decisions most often must stop. When a FE change can't name the in-flight F1/F2 task
 it serves, it's SCAFFOLDING — PARK or DEFER it, don't dress it as critical path.
 
+## Design lock — the speaker's Ideal Text (founder, 2026-09-28)
+
+The speaker's Ideal Text screens follow **Ideal Text Final Screens** exactly:
+<https://claude.ai/artifact/AeRVS91VUAiJLCePB82s3d>. Read it before touching
+any of them. It covers the Ideal Text page, the Feedback sheet
+(`DeckChunkModal.tsx`), the paragraph sheet (`ParagraphSheet.tsx`), the coach
+Exercise step, helper words in Ideal Text, Presentation Mode, export and
+Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
+
+- A designer's session builds these screens. Any other session does not change
+  their layout, flow or wording, and adds no element or string the design
+  doesn't show. If a task seems to need one, stop and ask the founder instead.
+- Data may still reach these screens unrendered (e.g. `chosenByCoach`) for the
+  design to use later.
+- The page's four "next improvement round" questions were decided 2026-09-28:
+  all A (clause 20 says italic; ship without words lighting up; a coach
+  exercise on an answered moment opens on its own; keep the orange picker
+  highlight).
+- Not covered: the coach review, the CMS and everything else in this repo.
+
 ---
 
 # WILLAB DECISION FILTER
