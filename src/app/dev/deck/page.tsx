@@ -257,6 +257,13 @@ function enrichmentPayload() {
         status: "ready",
         data: { moments_unlocked: current.moments_unlocked },
       },
+      // The live fast lane always carries this (PROMPT_LANE). Without it the
+      // harness left the guided Take's bottom button undecided, so the page
+      // held its first paint for the full hold (founder 2026-09-28, "A").
+      journey: {
+        status: "ready",
+        data: { journey_next_steps_seen: true },
+      },
     },
   };
 }
