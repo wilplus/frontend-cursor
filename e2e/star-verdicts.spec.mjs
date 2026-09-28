@@ -35,9 +35,9 @@ await page.waitForSelector("ul > li");
 const rows = page.locator("ul > li");
 check("all four stars render, in payload order", (await rows.count()) === 4);
 check(
-  "chips read kind · device from the wire, no copy table",
+  "chips read kind · device from the wire; replace reads Rewrite (founder 2026-09-28)",
   (await rows.nth(0).innerText()).includes("Delivery · pace fast") &&
-    (await rows.nth(1).innerText()).includes("Replace") &&
+    (await rows.nth(1).innerText()).includes("Rewrite") &&
     (await rows.nth(2).innerText()).includes("Structure")
 );
 check(
@@ -145,8 +145,8 @@ const famOptions = await rows
   .locator("div:has(> p) button")
   .allInnerTexts();
 check(
-  "empty device_options falls back to the other families",
-  ["emphasize", "structure", "delivery"].every((f) => famOptions.includes(f)),
+  "empty device_options falls back to the other families, named as the chips name them",
+  ["praise", "structure", "delivery"].every((f) => famOptions.includes(f)),
   famOptions.join(", ")
 );
 
