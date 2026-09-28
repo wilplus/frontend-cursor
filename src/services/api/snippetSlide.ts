@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  snippetSlide — the coach's word→slide ground truth (founder 2026-08-11)     */
@@ -26,29 +26,13 @@ export async function saveSnippetSlide(
   snippetId: string,
   slideIndex: number | null
 ): Promise<SaveSlideResult> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, error: null };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/slide`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ slide_index: slideIndex }),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return { ok: false, error: null };
-  }
-  if (res.ok) return { ok: true, error: null };
-  const data = (await res.json().catch(() => null)) as {
-    error?: unknown;
-  } | null;
+  const result = await bffFetch(
+    `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/slide`,
+    { method: "PUT", json: { slide_index: slideIndex }, cache: "no-store" }
+  );
+  if (result.kind !== "response") return { ok: false, error: null };
+  if (result.ok) return { ok: true, error: null };
+  const data = result.body as { error?: unknown } | null;
   return {
     ok: false,
     error: typeof data?.error === "string" ? data.error : null,
