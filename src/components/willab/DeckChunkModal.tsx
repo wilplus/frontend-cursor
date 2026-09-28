@@ -17,6 +17,7 @@ import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
 import MomentStory from "./MomentStory";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import PracticeRecordingView from "./PracticeRecordingView";
 import MomentPlayer from "./MomentPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
@@ -194,6 +195,13 @@ function initialInventory(
       return true;
     })
     .slice(0, 3);
+}
+
+/** Which attempt the live recording is: three are allowed per practice, so
+ *  the one being recorded is the next after those already spent. A position,
+ *  never a score (AC-9). */
+function practiceAttemptNumber(attemptsRemaining: number): number {
+  return Math.min(3, Math.max(1, 4 - attemptsRemaining));
 }
 
 /** Full height when the speaker expanded it, and always for the steps that
@@ -1543,6 +1551,12 @@ export default function DeckChunkModal({
         </div>
       </>
     ) : (
+      exercise.recording ? (
+        <PracticeRecordingView
+          instruction={exerciseItem.practiceExercise.instruction ?? null}
+          attempt={practiceAttemptNumber(exercise.attemptsRemaining)}
+        />
+      ) :
       /* THE OFFER (founder 2026-09-24). No "what you said" box, no eyebrow, no
          corner icon — the sheet title already says Exercise.
 
