@@ -1212,6 +1212,11 @@ export default function LabOverlay({
     // founder objected to on the way back from a readout.
     cancelMic();
     dispatch("upload_rejected");
+    // AND THEN CLOSE (founder 2026-09-28: "it stays stale on the loading after
+    // the discard"). Landing on the recorder with the mic idle drew its
+    // "connecting" spinner, which never resolves because nothing starts the
+    // mic. A discard closes exactly as the recording lane's already does.
+    onClose();
   }
 
   /** The dialog's destructive answer, for whichever lane opened it. */

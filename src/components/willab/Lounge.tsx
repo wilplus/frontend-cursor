@@ -106,6 +106,7 @@ import {
   productSpec,
 } from "@/lib/productDiscovery";
 import ProcessingResumeOverlay from "./ProcessingResumeOverlay";
+import { usePinThreadBottom } from "./usePinThreadBottom";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -1227,6 +1228,11 @@ export default function Lounge({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, botThinking]);
+
+  // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
+  // was scrolled up, and See next steps lands on the newest one. Only a new
+  // message moves the thread; reading history otherwise stays where it is.
+  usePinThreadBottom(scrollRef, messages.length, thread.loading, didInitScrollRef);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.

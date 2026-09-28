@@ -74,6 +74,7 @@ import type {
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
+import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextReadout — the post-recording screen IS the ideal text (SD)        */
@@ -965,6 +966,7 @@ export default function IdealTextReadout({
         onNewTake={onReRead}
         onSeeNextSteps={() => {
           void reloadLounge();
+          notifyThreadToLatest();
           onClose?.();
         }}
       />

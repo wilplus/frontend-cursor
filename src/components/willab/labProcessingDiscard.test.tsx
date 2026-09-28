@@ -179,6 +179,9 @@ describe("the host's half of the promise", () => {
     expect(handler).toContain("setBlob(null)");
     // ...and the mic does not open by itself.
     expect(handler).not.toContain("mic.start()");
+    // ...and it closes, rather than leaving an idle recorder behind a
+    // "connecting" spinner nothing will resolve (founder 2026-09-28).
+    expect(handler).toContain("onClose()");
   });
 
   it("does not tell someone to 'keep recording' when nothing is recording", () => {
