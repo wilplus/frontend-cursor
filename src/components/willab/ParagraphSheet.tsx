@@ -32,6 +32,7 @@ import {
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
+import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PARAGRAPH'S OWN SHEET (founder 2026-09-25, Q19 A, Q26 B, Q27 B).       */
@@ -123,14 +124,20 @@ function SheetFrame({
 function ExerciseCard({
   item,
   onPractise,
+  onStale,
 }: {
   item: DocumentSuggestion;
   onPractise: (() => void) | null;
+  /** A 409 on the render confirmation: the host re-reads the document. */
+  onStale: (() => void) | null;
 }) {
+  // MLC-3 §3.5: confirms the card rendered once half visible. Nothing shown.
+  const seen = useExerciseRenderedAck(item, onStale);
   const exercise = item.practiceExercise;
   if (!exercise) return null;
   return (
     <section
+      ref={seen}
       data-testid="answered-exercise"
       className="flex flex-col gap-3 rounded-2xl border border-border p-4"
     >
@@ -483,6 +490,7 @@ export default function ParagraphSheet({
   onPractise,
   onUseHelperWords,
   pager = null,
+  onDocumentChanged = null,
   onClose,
 }: {
   arcId: string | null;
@@ -504,6 +512,8 @@ export default function ParagraphSheet({
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
+  /** The exercise shown here is stale on the server: re-read the document. */
+  onDocumentChanged?: (() => void) | null;
   onClose: () => void;
 }) {
   const [history, setHistory] = useState<ParagraphHistory | null>(null);
@@ -571,6 +581,7 @@ export default function ParagraphSheet({
             onPractise={
               onPractise ? () => onPractise(exercise, exerciseAnswer) : null
             }
+            onStale={onDocumentChanged}
           />
         ) : null}
       </NowTakeCard>

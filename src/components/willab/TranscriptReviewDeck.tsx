@@ -1342,6 +1342,7 @@ export default function TranscriptReviewDeck({
             return true;
           }}
           onClose={closeWalk}
+          onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
           renderSheet={(practiseAgain) => (
         <DeckChunkModal
