@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildVerdictBody,
+  correctionOptionLabel,
   correctionOptions,
   effectiveReplacement,
   effectiveWhy,
@@ -411,5 +412,41 @@ describe("labels", () => {
     expect(starChipLabel(star({ starKind: "replace", starDevice: null }))).toBe(
       "Replace"
     );
+  });
+
+  it("names emphasize stars Praise and structure stars Rewrite (founder 2026-09-28)", () => {
+    expect(starChipLabel(star({ starKind: "emphasize", starDevice: null }))).toBe(
+      "Praise"
+    );
+    expect(starChipLabel(star({ starKind: "structure", starDevice: null }))).toBe(
+      "Rewrite"
+    );
+  });
+
+  it("the wrong-kind picker names a fallback family the way the chip does", () => {
+    const s = star({ starKind: "replace", starDevice: null, trigger: "threat", deviceOptions: [] });
+    expect(correctionOptions(s).map((opt) => correctionOptionLabel(s, opt))).toEqual([
+      "praise",
+      "rewrite",
+      "delivery",
+    ]);
+  });
+
+  it("the picker leaves served devices as token words, even one named like a family", () => {
+    const s = star({ deviceOptions: ["emphasis", "pace_fast", "structure"] });
+    expect(correctionOptions(s).map((opt) => correctionOptionLabel(s, opt))).toEqual([
+      "emphasis",
+      "structure",
+    ]);
+  });
+
+  it("renames words only: the verdict body still carries the contract tokens", () => {
+    const s = star({ starKind: "emphasize", starDevice: null });
+    expect(buildVerdictBody(s, "wrong_kind", { correctedDevice: "structure" })).toEqual({
+      star_kind: "emphasize",
+      star_device: null,
+      verdict: "wrong_kind",
+      corrected_device: "structure",
+    });
   });
 });

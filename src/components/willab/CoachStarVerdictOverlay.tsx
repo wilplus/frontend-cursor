@@ -15,11 +15,11 @@ import {
 } from "./coachChrome";
 import {
   buildVerdictBody,
+  correctionOptionLabel,
   correctionOptions,
   effectiveReplacement,
   effectiveWhy,
   fetchCoachArcStars,
-  humanizeToken,
   NOTE_MAX_CHARS,
   saveStarVerdict,
   starChipLabel,
@@ -180,6 +180,16 @@ interface StarRowContext {
   blindBundleAssignmentIds: Set<string>;
 }
 
+/* THE QUOTE BOX SAYS WHICH FAMILY (founder 2026-09-28): praise sits in the
+ * green of the speaker's best-moment bookmark (contract 24g), a rewrite in
+ * blue, and every other family keeps the orange. Colour is never the only
+ * cue: the chip above names the family. */
+function starQuoteTone(kind: string): string {
+  if (kind === "emphasize") return "border-affirm/25 bg-affirm/[0.08]";
+  if (kind === "structure") return "border-blue-500/25 bg-blue-500/[0.07]";
+  return "border-primary/20 bg-primary/[0.07]";
+}
+
 /* N3 — "Wrong kind" is never submittable bare: the pill only opens this
  * picker, and the PICK is the save. */
 function renderStarCorrectionPicker(
@@ -205,7 +215,7 @@ function renderStarCorrectionPicker(
             disabled={ctx.savingKeys[key] === true}
             onClick={() => void ctx.save(s, "wrong_kind", opt)}
           >
-            {humanizeToken(opt)}
+            {correctionOptionLabel(s, opt)}
           </CoachChip>
         ))}
       </div>
@@ -411,7 +421,7 @@ function renderStarVerdictRow(s: ArcStar, ctx: StarRowContext): React.ReactNode 
         />
       ) : null}
       {s.transcript ? (
-        <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+        <div className={`rounded-xl border px-4 py-3 ${starQuoteTone(s.starKind)}`}>
           <p className="text-[15px] leading-relaxed text-foreground">
             {s.transcript}
           </p>
