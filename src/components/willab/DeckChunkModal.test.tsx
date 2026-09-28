@@ -777,6 +777,40 @@ describe("the ladder", () => {
     expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe("now");
   });
 
+  it("saves the words tapped in a fragment that starts mid-paragraph, in either order", async () => {
+    // Founder 2026-09-28: tapping a later word, then an earlier one, "throws
+    // an error". The picker numbers the FRAGMENT's words from 0, and the save
+    // read those numbers against the WHOLE paragraph, so any fragment that did
+    // not open the paragraph saved other words, or none that resolved.
+    const lateVoice = {
+      ...confidentVoice,
+      start: 34,
+      end: 70,
+      quote: "data is clear and the team is ready",
+    } as DocumentSuggestion;
+    vi.mocked(props.onSetRootPhrase).mockClear();
+    await renderLadder({ style: emphasis, pending: [lateVoice] });
+    await click("Yes — Confident");
+    await click("Choose different words");
+    const tap = async (text: string) => {
+      const word = Array.from(container.querySelectorAll("button")).find(
+        (b) => (b.textContent ?? "").trim() === text,
+      )!;
+      await act(async () => {
+        word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+    };
+    await tap("team");
+    await tap("clear");
+    await click("Use these helper words");
+    const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]?.text).toBe("clear and the team");
+    expect(TEXT.slice(calls[0][0]!.start, calls[0][0]!.end)).toBe(
+      "clear and the team",
+    );
+  });
+
   it("a No has no helper-words step and no Lock (founder 2026-09-25)", async () => {
     // REVERSED AGAIN, by the founder: "if they choose judgment no or unclear,
     // then they should have no option to root that. Just close the overlay."

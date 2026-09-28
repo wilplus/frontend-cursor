@@ -839,7 +839,14 @@ export default function DeckChunkModal({
   async function emphasiseChosen() {
     if (busy) return;
     const source = tapSource(draft, practiceWords);
-    const chosen = selectionText(source, phraseTokens(source), phraseRun);
+    // The SAME list the picker numbered. `phraseRun` indexes the fragment's
+    // words, so reading it against every word of the paragraph saved other
+    // words whenever the fragment did not open it (founder 2026-09-28).
+    const chosen = selectionText(
+      source,
+      tapTokens(draft, practiceWords, confidentFragmentOf(feedbackInventory)),
+      phraseRun,
+    );
     /* BOTH SAVES AT ONCE (founder 2026-09-26, "improve the waiting time …
        Use this phrase", option B). The button used to wait for the helper
        words to save and only then start the lock: two server trips back to
