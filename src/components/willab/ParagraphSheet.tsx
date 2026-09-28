@@ -23,6 +23,7 @@ import {
   type RootGateAnswer,
 } from "@/lib/willab/chunkSteps";
 import MomentPlayer from "./MomentPlayer";
+import { useParagraphSheetData } from "./paragraphSheetData";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   nextSelection,
@@ -516,26 +517,12 @@ export default function ParagraphSheet({
   onDocumentChanged?: (() => void) | null;
   onClose: () => void;
 }) {
-  const [history, setHistory] = useState<ParagraphHistory | null>(null);
-  const [answers, setAnswers] = useState<OwnerAnswer[]>([]);
+  // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
+  // complete instead of drawing "Now" and then popping in the rest.
+  const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
+  const history = sheetData?.history ?? null;
+  const answers = useMemo(() => sheetData?.answers ?? [], [sheetData]);
   const [picking, setPicking] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (arcId) {
-      void fetchParagraphHistory(arcId, partId).then((result) => {
-        if (alive) setHistory(result);
-      });
-    }
-    if (takeSessionId) {
-      void fetchOwnerAnswers(takeSessionId).then((result) => {
-        if (alive) setAnswers(result);
-      });
-    }
-    return () => {
-      alive = false;
-    };
-  }, [arcId, takeSessionId, partId]);
 
   const view = useMemo(
     () => answeredView({ items: decided, answers, history, copy: COPY }),
@@ -546,6 +533,9 @@ export default function ParagraphSheet({
     answers.find((a) => a.feedbackId === exercise?.id)?.response ?? null;
   const canChoose =
     Boolean(onUseHelperWords) && mayChooseHelperWords(locked, decided, answers);
+
+  // Still reading: draw nothing rather than a half sheet (bounded wait).
+  if (!sheetData) return null;
 
   if (picking && onUseHelperWords) {
     return (
