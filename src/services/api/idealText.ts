@@ -1332,45 +1332,41 @@ function parseSuggestion(raw: unknown): MomentSuggestion | null {
   return null;
 }
 
-function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const anchor = str(r.anchor);
-  const snippetId = str(r.snippet_id);
-  const takeSessionId = str(r.take_session_id);
-  // SD payloads may key moments by id instead of snippet_id. Ids may arrive
-  // numeric (serializer-dependent) — coerce, never drop.
-  const idOf = (v: unknown): string =>
-    typeof v === "string"
-      ? v
-      : typeof v === "number" && Number.isFinite(v)
-        ? String(v)
-        : "";
-  const momentId = idOf(r.id) || idOf(r.moment_id) || null;
-  if (!anchor || (!snippetId && !momentId)) return null;
-  // MOMENT_SUGGESTIONS — all safe-ahead: an older payload omits these and the
-  // moment degrades to today's plain underlined link (star === null).
-  const suggestion = parseSuggestion(r.suggestion);
-  // A "suggestion" star MUST carry a usable suggestion — without one it
-  // degrades to a plain moment, never to the paid coach path (a grey star
-  // showing an unlock prompt would sell free content — review R-ms3).
-  const star =
-    r.star === "verified"
-      ? ("verified" as const)
-      : r.star === "suggestion" && suggestion
-        ? ("suggestion" as const)
-        : null;
-  const coachRaw =
-    r.coach && typeof r.coach === "object"
-      ? (r.coach as Record<string, unknown>)
+/** A moment id may arrive numeric (serializer-dependent) — coerce, never
+ *  drop. SD payloads may key moments by id instead of snippet_id. */
+function momentIdOf(v: unknown): string {
+  return typeof v === "string"
+    ? v
+    : typeof v === "number" && Number.isFinite(v)
+      ? String(v)
+      : "";
+}
+
+/** A "suggestion" star MUST carry a usable suggestion — without one it
+ *  degrades to a plain moment, never to the paid coach path (a grey star
+ *  showing an unlock prompt would sell free content — review R-ms3). */
+function momentStar(
+  star: unknown,
+  suggestion: MomentSuggestion | null
+): IdealKeyMomentLink["star"] {
+  return star === "verified"
+    ? ("verified" as const)
+    : star === "suggestion" && suggestion
+      ? ("suggestion" as const)
       : null;
+}
+
+/** The coach block, or null. A reference needs a slug AND a title to render
+ *  something a reader can act on. Prefer the server's url, but fall back to
+ *  building it from the slug so an older payload still links correctly. */
+function mapMomentCoach(raw: unknown): IdealKeyMomentLink["coach"] {
+  const coachRaw =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  if (!coachRaw) return null;
   const refRaw =
-    coachRaw && typeof coachRaw.reference === "object" && coachRaw.reference
+    typeof coachRaw.reference === "object" && coachRaw.reference
       ? (coachRaw.reference as Record<string, unknown>)
       : null;
-  // Need a slug AND a title to render something a reader can act on. Prefer
-  // the server's url, but fall back to building it from the slug so an older
-  // payload still links correctly.
   const referenceSlug = refRaw ? str(refRaw.slug) : "";
   const referenceTitle = refRaw ? str(refRaw.title) : "";
   const reference =
@@ -1381,25 +1377,40 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
           url: str(refRaw?.url) || `/blog/${referenceSlug}`,
         }
       : null;
-  const coach = coachRaw
-    ? {
-        hasMessage: coachRaw.has_message === true,
-        reference,
-      }
+  return {
+    hasMessage: coachRaw.has_message === true,
+    reference,
+  };
+}
+
+/** Parent+offset model: snippet_audio_ref is usually the WHOLE take's audio,
+ *  so the player must clamp to [start, start+duration]. Absent/unusable
+ *  offsets (older payload, un-sliced row) → null, and the sheet falls back to
+ *  unclamped playback rather than a dead player. */
+function nonNegativeMs(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+}
+
+function momentReviewStatus(v: unknown) {
+  return v === "pending_coach_review" ||
+    v === "coach_reviewed" ||
+    v === "not_confirmed"
+    ? v
     : null;
-  const snippetAudioRef = str(r.snippet_audio_ref) || str(r.audio_ref) || null;
-  // Parent+offset model: snippet_audio_ref is usually the WHOLE take's audio,
-  // so the player must clamp to [start, start+duration]. Absent/unusable
-  // offsets (older payload, un-sliced row) → null, and the sheet falls back to
-  // unclamped playback rather than a dead player.
-  const ms = (v: unknown): number | null =>
-    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
-  const reviewStatus =
-    r.confidence_review_status === "pending_coach_review" ||
-    r.confidence_review_status === "coach_reviewed" ||
-    r.confidence_review_status === "not_confirmed"
-      ? r.confidence_review_status
-      : null;
+}
+
+function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const anchor = str(r.anchor);
+  const snippetId = str(r.snippet_id);
+  const takeSessionId = str(r.take_session_id);
+  const momentId = momentIdOf(r.id) || momentIdOf(r.moment_id) || null;
+  if (!anchor || (!snippetId && !momentId)) return null;
+  // MOMENT_SUGGESTIONS — all safe-ahead: an older payload omits these and the
+  // moment degrades to today's plain underlined link (star === null).
+  const suggestion = parseSuggestion(r.suggestion);
+  const reviewStatus = momentReviewStatus(r.confidence_review_status);
   return {
     anchor,
     snippetId,
@@ -1407,13 +1418,13 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
     momentId,
     hasExplanation: r.has_explanation === true,
     ...(reviewStatus ? { reviewStatus } : {}),
-    star,
+    star: momentStar(r.star, suggestion),
     suggestion,
     applied: r.applied === true,
-    coach,
-    snippetAudioRef,
-    startOffsetMs: ms(r.start_offset_ms),
-    durationMs: ms(r.duration_ms),
+    coach: mapMomentCoach(r.coach),
+    snippetAudioRef: str(r.snippet_audio_ref) || str(r.audio_ref) || null,
+    startOffsetMs: nonNegativeMs(r.start_offset_ms),
+    durationMs: nonNegativeMs(r.duration_ms),
   };
 }
 
