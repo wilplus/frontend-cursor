@@ -10,7 +10,7 @@
 /*  target the exercise does not itself claim, so only its own tags are       */
 /*  offered here. Author-facing only; nothing here reaches a speaker.         */
 /*                                                                            */
-/*  Wording is new and held for founder sign-off.                             */
+/*  Wording: founder sign-off 2026-09-28.                                     */
 /* -------------------------------------------------------------------------- */
 
 export const MAIN_TARGET_COPY = {

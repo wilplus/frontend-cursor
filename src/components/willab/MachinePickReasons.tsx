@@ -13,7 +13,7 @@
 /*  measurements, or a rank as a number. Ranked exercises are listed in       */
 /*  their order instead.                                                      */
 /*                                                                            */
-/*  Every sentence lives in MACHINE_PICK_COPY for founder sign-off.           */
+/*  Every sentence lives in MACHINE_PICK_COPY. Founder sign-off 2026-09-28.    */
 /*  In its own file because CoachConfidencePracticeReview is grandfathered    */
 /*  at the complexity ratchet and may only shrink.                            */
 /* -------------------------------------------------------------------------- */

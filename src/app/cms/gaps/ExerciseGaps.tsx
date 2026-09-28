@@ -32,7 +32,7 @@ import {
 const PW_KEY = "willpower.journal.pw";
 const WINDOWS = [7, 30, 90] as const;
 
-/** Every sentence on this screen, in one place for founder sign-off. */
+/** Every sentence on this screen, in one place. Founder sign-off 2026-09-28. */
 export const GAPS_COPY = {
   title: "Exercise gaps",
   intro:
