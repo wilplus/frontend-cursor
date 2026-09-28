@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 export type FeedbackFamily =
   | "confident_voice"
@@ -50,39 +50,34 @@ export async function saveTakeFeedbackResponse(input: {
   feedbackMembershipId?: string | null;
   feedbackExposureId?: string | null;
 }): Promise<SaveTakeFeedbackResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const res = await fetch(
-      `/api/v2/user/takes/${encodeURIComponent(input.takeSessionId)}/feedback-response`,
-      {
-        method: "POST",
-        headers,
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({
-          feedback_id: input.feedbackId,
-          feedback_family: input.feedbackFamily,
-          response: input.response,
-          ...(input.candidateId && input.feedbackMembershipId && input.feedbackExposureId
-            ? {
-                candidate_id: input.candidateId,
-                feedback_membership_id: input.feedbackMembershipId,
-                feedback_exposure_id: input.feedbackExposureId,
-              }
-            : {}),
-        }),
-      }
-    );
-    if (res.ok) return { ok: true };
-    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    const error = typeof body?.error === "string" ? body.error : null;
-    if (res.status === 400 && error === FROZEN_SET_MISMATCH) {
-      return { ok: false, error, reason: "superseded" };
+  // Signed out still sends: the session cookie may authenticate.
+  const result = await bffFetch(
+    `/api/v2/user/takes/${encodeURIComponent(input.takeSessionId)}/feedback-response`,
+    {
+      method: "POST",
+      auth: "optional",
+      credentials: "include",
+      cache: "no-store",
+      json: {
+        feedback_id: input.feedbackId,
+        feedback_family: input.feedbackFamily,
+        response: input.response,
+        ...(input.candidateId && input.feedbackMembershipId && input.feedbackExposureId
+          ? {
+              candidate_id: input.candidateId,
+              feedback_membership_id: input.feedbackMembershipId,
+              feedback_exposure_id: input.feedbackExposureId,
+            }
+          : {}),
+      },
     }
-    return { ok: false, error };
-  } catch {
-    return { ok: false, error: null };
+  );
+  if (result.kind !== "response") return { ok: false, error: null };
+  if (result.ok) return { ok: true };
+  const body = result.body as Record<string, unknown> | null;
+  const error = typeof body?.error === "string" ? body.error : null;
+  if (result.status === 400 && error === FROZEN_SET_MISMATCH) {
+    return { ok: false, error, reason: "superseded" };
   }
+  return { ok: false, error };
 }

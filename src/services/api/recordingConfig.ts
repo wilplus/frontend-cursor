@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  recordingConfig — the recording product constants (FE-5)                   */
@@ -35,18 +35,14 @@ let cached: Promise<RecordingConfig> | null = null;
 
 export function fetchRecordingConfig(): Promise<RecordingConfig> {
   cached ??= (async () => {
-    const token = await getAuthToken();
-    if (!token) return { longTakeCautionSec: null };
-    try {
-      const res = await fetch("/api/v2/config/recording", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!res.ok) return { longTakeCautionSec: null };
-      return mapRecordingConfig(await res.json());
-    } catch {
+    const result = await bffFetch("/api/v2/config/recording", {
+      cache: "no-store",
+    });
+    // Signed out, unreachable or refused: no caution, never a guess.
+    if (result.kind !== "response" || !result.ok) {
       return { longTakeCautionSec: null };
     }
+    return mapRecordingConfig(result.body);
   })();
   return cached;
 }

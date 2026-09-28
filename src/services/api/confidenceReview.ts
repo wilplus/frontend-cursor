@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  confidenceReview — the peer-review validation loop (founder pivot,         */
@@ -35,34 +35,18 @@ export async function submitConfidenceReview(
     return { saved: false };
   }
 
-  const token = await getAuthToken();
-  if (!token) return { saved: false };
-
   const payload: Record<string, unknown> = { ai_correct: input.aiCorrect };
   if (typeof input.modelVersion === "string" && input.modelVersion) {
     payload.model_version = input.modelVersion;
   }
 
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(input.snippetId)}/confidence-review`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      }
-    );
-  } catch {
-    return { saved: false };
-  }
-  if (!res.ok) return { saved: false };
-  const body = (await res.json().catch(() => null)) as
-    | { saved?: boolean }
-    | null;
+  // Signed out (a peer flag must be attributable), unreachable or refused:
+  // nothing was saved.
+  const result = await bffFetch(
+    `/api/v2/user/snippets/${encodeURIComponent(input.snippetId)}/confidence-review`,
+    { method: "POST", json: payload, credentials: "include" }
+  );
+  if (result.kind !== "response" || !result.ok) return { saved: false };
+  const body = result.body as { saved?: boolean } | null;
   return { saved: body?.saved === true };
 }
