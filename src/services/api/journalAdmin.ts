@@ -236,6 +236,37 @@ export function adminListDiagnosticExercises(password: string) {
   });
 }
 
+/** The backend's own defaults (`DEFAULT_MATCHING_CRITERIA` in
+ *  services/diagnostic_exercise_catalogue.py). Mirrored because a supplied
+ *  `matching_criteria` REPLACES the defaults rather than merging with them, so
+ *  naming a main target on a new exercise must carry them along. */
+export const DEFAULT_MATCHING_CRITERIA: Readonly<Record<string, unknown>> = {
+  requires_multiple_acoustic_signals: true,
+  max_per_take: 1,
+};
+
+/** The one main target stored on an exercise, or null. */
+export function mainTargetOf(criteria: Record<string, unknown> | null | undefined): string | null {
+  const value = criteria?.primary_problem_tag;
+  return typeof value === "string" && value ? value : null;
+}
+
+/** What to send as `matching_criteria` for a main target (backend
+ *  2026-09-28, D5/D5a): the exercise's ONE main target, with every other tag
+ *  a secondary one. Undefined means send nothing — no main target is named
+ *  and none was stored, so the backend keeps today's behaviour. Clearing a
+ *  stored one sends the criteria without it. */
+export function criteriaForMainTarget(
+  existing: Record<string, unknown> | null,
+  primary: string | null,
+): Record<string, unknown> | undefined {
+  if (!primary && !mainTargetOf(existing)) return undefined;
+  const next: Record<string, unknown> = { ...(existing ?? DEFAULT_MATCHING_CRITERIA) };
+  if (primary) next.primary_problem_tag = primary;
+  else delete next.primary_problem_tag;
+  return next;
+}
+
 /** Create or update ONE catalogue entry.
  *
  *  `exerciseId` and `acousticProblemTags` used to be hardcoded here —
@@ -273,6 +304,9 @@ export function adminSaveDiagnosticExercise(
      *  the flag without it: a bare yes says a clip was shot carefully but
      *  never that two clips match. */
     avatarSetupLabel?: string;
+    /** Sent only when the author names or clears a main target — see
+     *  `criteriaForMainTarget`. Absent, the backend fills its defaults. */
+    matchingCriteria?: Record<string, unknown>;
   },
 ) {
   return post("diagnostic-exercises/save", password, {
@@ -286,6 +320,8 @@ export function adminSaveDiagnosticExercise(
     confident_introduction_copy: exercise.confidentIntroductionCopy,
     explanation_video_url: exercise.explanationVideoUrl,
     acoustic_problem_tags: exercise.acousticProblemTags,
+    ...(exercise.matchingCriteria
+      ? { matching_criteria: exercise.matchingCriteria } : {}),
     active: exercise.active,
   }, (data) => mapDiagnosticExercise(
     (data as Record<string, unknown> | null)?.exercise,

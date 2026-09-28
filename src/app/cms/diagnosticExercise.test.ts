@@ -40,13 +40,17 @@ describe("nothing about an exercise is hardcoded any more", () => {
     const save = CLIENT.slice(CLIENT.indexOf("export function adminSaveDiagnosticExercise"));
     const body = save.slice(0, save.indexOf("}, (data)"));
     for (const gone of [
-      "matching_criteria",
       "exclusions",
       "supported_confidence_patterns",
       "version",
     ]) {
       expect(body, `still sends ${gone}`).not.toContain(gone);
     }
+    // The one exception (backend 2026-09-28): `matching_criteria` rides only
+    // when the author names or clears a main target — never by default, so an
+    // exercise with none keeps the backend's own defaults.
+    expect(body).toContain("? { matching_criteria: exercise.matchingCriteria } : {}");
+    expect(body.match(/matching_criteria/g)).toHaveLength(1);
   });
 });
 

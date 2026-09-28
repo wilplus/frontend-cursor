@@ -43,6 +43,8 @@ export interface LaneDraft {
   videoUrl: string;
   videoSeconds: number;
   tags: string[];
+  /** The ONE main target among `tags`, or null for none (backend 2026-09-28). */
+  primaryTag: string | null;
   opening: string;
   instruction: string;
 
@@ -85,6 +87,7 @@ export function blankDraft(lane: Lane): LaneDraft {
     videoUrl: "",
     videoSeconds: 0,
     tags: [],
+    primaryTag: null,
     opening: "",
     instruction: "",
     publishPost: true,

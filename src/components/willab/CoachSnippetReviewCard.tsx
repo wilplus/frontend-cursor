@@ -19,6 +19,7 @@ import {
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "./ConfidenceLabelChips";
 import CoachConfidencePracticeReview from "./CoachConfidencePracticeReview";
+import CoachExerciseRequestPanel from "./CoachExerciseRequestPanel";
 import { CoachCard, CoachEyebrow, CoachMetaPill } from "./coachChrome";
 
 /* -------------------------------------------------------------------------- */
@@ -80,6 +81,9 @@ const OWNER_ANSWER_LABELS: Record<string, string> = {
 };
 
 function renderBlindPiece(options: {
+  sessionId: string;
+  /** The coach's own Yes/No on this moment is SAVED, not merely tapped. */
+  ratingSaved: boolean;
   snippet: CoachReviewSnippet;
   revealedTranscript: string;
   instrument: React.ReactNode;
@@ -88,8 +92,8 @@ function renderBlindPiece(options: {
   onBuildExercise?: (snippetId: string) => void;
 }): React.ReactNode {
   const {
-    snippet, revealedTranscript, instrument, rating, presentationRef,
-    onBuildExercise,
+    sessionId, ratingSaved, snippet, revealedTranscript, instrument, rating,
+    presentationRef, onBuildExercise,
   } = options;
   const answered = rating === "yes" || rating === "no";
   return (
@@ -170,6 +174,14 @@ function renderBlindPiece(options: {
           </p>
         ) : null}
       </div>
+      {/* A moment no exercise fitted (backend 2026-09-28): what the coach
+          does about it, only once their own answer is saved. */}
+      <CoachExerciseRequestPanel
+        sessionId={sessionId}
+        snippetId={snippet.id}
+        enabled={ratingSaved}
+        onBuildExercise={onBuildExercise}
+      />
       {onBuildExercise && answered ? (
         <button
           type="button"
@@ -360,8 +372,12 @@ export default function CoachSnippetReviewCard({
   // before any slide, acoustic context, practice, note or delivery control is
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
+  const ratingSaved =
+    !ratingSaving && !unrateable && (rating === "yes" || rating === "no");
   if (!contextUnlocked) {
     return renderBlindPiece({
+      sessionId,
+      ratingSaved,
       snippet,
       revealedTranscript,
       instrument: blindInstrument,
@@ -457,11 +473,13 @@ export default function CoachSnippetReviewCard({
         <CoachConfidencePracticeReview
           sessionId={sessionId}
           snippetId={snippet.id}
-          enabled={
-            !ratingSaving &&
-            !unrateable &&
-            (rating === "yes" || rating === "no")
-          }
+          enabled={ratingSaved}
+          onBuildExercise={onBuildExercise}
+        />
+        <CoachExerciseRequestPanel
+          sessionId={sessionId}
+          snippetId={snippet.id}
+          enabled={ratingSaved}
           onBuildExercise={onBuildExercise}
         />
 
