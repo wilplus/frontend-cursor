@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  userProfile — the willab one-time profile client (§2 / ① + §F.0)           */
@@ -52,29 +52,15 @@ export function shouldAskRaterLanguages(profile: UserProfile | null): boolean {
 
 const ENDPOINT = "/api/v2/user/profile";
 
-async function authHeaders(): Promise<Record<string, string> | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  return { Authorization: `Bearer ${token}` };
-}
-
 /**
  * Fetch the profile. Soft-fails to `null` (unsigned → 401 → caller uses the
  * local cache), so a profile read never blocks a surface mount.
  */
 export async function fetchUserProfile(): Promise<UserProfile | null> {
-  const headers = await authHeaders();
-  if (!headers) return null;
+  const result = await bffFetch(ENDPOINT, { cache: "no-store" });
+  if (result.kind !== "response" || !result.ok) return null;
 
-  let res: Response;
-  try {
-    res = await fetch(ENDPOINT, { headers, cache: "no-store" });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-
-  const data = (await res.json().catch(() => null)) as Partial<UserProfile> | null;
+  const data = result.body as Partial<UserProfile> | null;
   if (!data) return null;
   return {
     domain: typeof data.domain === "string" ? data.domain : null,
@@ -136,16 +122,6 @@ export function forgetSharedUserProfile(): void {
 
 export async function saveUserProfile(draft: UserProfileDraft): Promise<boolean> {
   forgetSharedUserProfile();
-  const headers = await authHeaders();
-  if (!headers) return false;
-  try {
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const result = await bffFetch(ENDPOINT, { method: "POST", json: draft });
+  return result.kind === "response" && result.ok;
 }

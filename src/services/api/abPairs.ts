@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  abPairs — the blinded A/B comparison queue (founder 2026-08-11)             */
@@ -55,27 +55,14 @@ export async function fetchAbPairs(
   arcId: string,
   opts?: { all?: boolean }
 ): Promise<{ pairs: AbPair[]; ratedCount: number; reason: string | null } | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/arcs/${encodeURIComponent(arcId)}/ab-pairs${
-        opts?.all ? "?all=1" : ""
-      }`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const result = await bffFetch(
+    `/api/v2/coach/arcs/${encodeURIComponent(arcId)}/ab-pairs${
+      opts?.all ? "?all=1" : ""
+    }`,
+    { cache: "no-store" }
+  );
+  if (result.kind !== "response" || !result.ok) return null;
+  const data = result.body as Record<string, unknown> | null;
   if (!data) return null;
   const rows = Array.isArray(data.pairs) ? data.pairs : [];
   return {
@@ -107,23 +94,13 @@ export async function saveAbVerdict(
   pairId: string,
   verdict: AbVerdict
 ): Promise<boolean> {
-  const token = await getAuthToken();
-  if (!token) return false;
-  try {
-    const res = await fetch(
-      `/api/v2/coach/arcs/${encodeURIComponent(arcId)}/ab-verdict`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ pair_id: pairId, verdict }),
-        cache: "no-store",
-      }
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const result = await bffFetch(
+    `/api/v2/coach/arcs/${encodeURIComponent(arcId)}/ab-verdict`,
+    {
+      method: "PUT",
+      json: { pair_id: pairId, verdict },
+      cache: "no-store",
+    }
+  );
+  return result.kind === "response" && result.ok;
 }
