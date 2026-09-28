@@ -1,11 +1,9 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { callBackend } from "@/app/api/_lib/backend";
+import { isUuid } from "@/lib/uuid";
 
 export const runtime = "nodejs";
-
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The operator confirms one project deletion (P1, N8). Creates the
  * one-project purge request; nothing is deleted until an operator runs the
@@ -15,7 +13,7 @@ export async function POST(
   context: { params: { requestId: string } }
 ): Promise<NextResponse> {
   const { requestId } = context.params;
-  if (!UUID.test(requestId)) {
+  if (!isUuid(requestId)) {
     return NextResponse.json(
       { code: "INVALID_INPUT", error: "Invalid request id" },
       { status: 400 }
