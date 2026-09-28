@@ -149,9 +149,6 @@ export const CHUNK_SHEET_COPY = {
   /* The green label on an exercise already completed on an earlier Take
      (founder 2026-09-26, Q44: "just add a little green label 'done'"). */
   exerciseDone: "Done",
-  /* A coach picked this exercise for this exact moment (backend 2026-09-28).
-     NEW — held for founder sign-off. */
-  exerciseChosenByCoach: "Chosen by your coach",
   pillPractiseAgain: "Practise again",
   /* NOT a new string. §3 says "Practise records in place" and the screen table
      has no stop state, but a recording still has to be endable — so this is
