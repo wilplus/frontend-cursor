@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import { uploadProxyBase } from "@/lib/api/uploadProxy";
 import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
 import {
@@ -604,23 +605,12 @@ export function mapTrainingImport(raw: unknown): TrainingImport | null {
 export async function fetchTrainingImports(
   userId?: string | null
 ): Promise<TrainingImport[] | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
   const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
-  let res: Response;
-  try {
-    res = await fetch(`/api/v2/coach/training-imports${qs}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const result = await bffFetch(`/api/v2/coach/training-imports${qs}`, {
+    cache: "no-store",
+  });
+  if (result.kind !== "response" || !result.ok) return null;
+  const body = result.body as Record<string, unknown> | null;
   if (!body || !Array.isArray(body.imports)) return null;
   return body.imports
     .map(mapTrainingImport)
@@ -802,8 +792,11 @@ export function mapConfidenceQueue(raw: unknown): ConfidenceQueue | null {
 export async function fetchConfidenceQueueResult(
   sessionId: string
 ): Promise<ConfidenceQueueResult> {
-  const token = await getAuthToken();
-  if (!token) {
+  const result = await bffFetch(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
+    { cache: "no-store" }
+  );
+  if (result.kind === "unauthenticated") {
     return {
       ok: false,
       status: 401,
@@ -812,13 +805,7 @@ export async function fetchConfidenceQueueResult(
       language: null,
     };
   }
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
-    );
-  } catch {
+  if (result.kind === "network") {
     return {
       ok: false,
       status: 0,
@@ -827,14 +814,14 @@ export async function fetchConfidenceQueueResult(
       language: null,
     };
   }
-  const body = (await res.json().catch(() => null)) as unknown;
-  if (!res.ok) {
+  const body = result.body;
+  if (!result.ok) {
     const failure = body && typeof body === "object"
       ? body as Record<string, unknown>
       : {};
     return {
       ok: false,
-      status: res.status,
+      status: result.status,
       code: strOrNull(failure.code),
       error: str(failure.error) || "Labelling queue unavailable.",
       language: strOrNull(failure.language),
@@ -845,7 +832,7 @@ export async function fetchConfidenceQueueResult(
     ? { ok: true, queue }
     : {
         ok: false,
-        status: res.status,
+        status: result.status,
         code: "INVALID_QUEUE_RESPONSE",
         error: "Labelling queue returned an invalid response.",
         language: null,
@@ -863,25 +850,13 @@ export async function confirmCoachSessionLanguage(
   sessionId: string,
   language: string,
 ): Promise<boolean> {
-  const token = await getAuthToken();
   const normalized = normalizeLanguage(language);
-  if (!token || !normalized) return false;
-  try {
-    const response = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ language: normalized }),
-      },
-    );
-    return response.ok;
-  } catch {
-    return false;
-  }
+  if (!normalized) return false;
+  const result = await bffFetch(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
+    { method: "PUT", json: { language: normalized } },
+  );
+  return result.kind === "response" && result.ok;
 }
 
 /* ------------------------------ the label ---------------------------------
