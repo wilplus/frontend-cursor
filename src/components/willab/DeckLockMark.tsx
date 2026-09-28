@@ -161,17 +161,17 @@ export default function DeckLockMark({
       data-tier={tier ?? undefined}
       onClick={onClick}
       disabled={disabled}
-      className={`absolute bottom-0 left-0 top-0 flex w-4 justify-start rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
+      className={`absolute bottom-0 -left-3 top-0 flex w-3 justify-start rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${tierClasses(tier)}`}
     >
       {/* A BAR IN THE LEFT MARGIN (founder 2026-09-26, Ideal Text redesign
           B), replacing the bookmark at the end of the paragraph. At the end
           of a long paragraph the bookmark could land on the next screen and
           moved with every line length; the bar stands level with the first
           line, in the same place every time, and the words keep their full
-          colour. The whole paragraph is the tap target too. The bar sits
-          INSIDE the paragraph's left padding (every paragraph carries it, so
-          text never shifts as a bar comes and goes): outside the box, the
-          slide's scroller clipped it and swallowed the tap. Tier colour and
+          colour. The whole paragraph is the tap target too. The bar sits in
+          the MARGIN, left of the text (founder 2026-09-28: no empty indent);
+          the deck's scroller carries a matching left padding so it neither
+          clips the bar nor swallows its tap. Tier colour and
           motion, the accessible label and every data-* attribute are
           unchanged — the bar is the old mark's position, not a new signal. */}
       <span

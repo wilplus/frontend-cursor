@@ -173,6 +173,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MARK).not.toMatch(/<Bookmark/);
   });
 
+  it("a finished paragraph keeps a grey bar in the margin, with no indent", () => {
+    // Founder 2026-09-28 (paragraph mark B): the empty 16px indent is gone,
+    // both bars sit in the margin left of the text, and a paragraph that
+    // opens its sheet with nothing waiting keeps a thin grey bar so it still
+    // reads as openable.
+    expect(DECK).toMatch(/data-settled-bar/);
+    expect(DECK).toMatch(/if \(unsettled \|\| !opens\) return null/);
+    expect(DECK).not.toMatch(/"relative pl-4 text-\[clamp/);
+    expect(MARK).toMatch(/absolute bottom-0 -left-3 top-0/);
+    expect(DECK).toMatch(/-ml-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pl-4/);
+  });
+
   it("the deck has no footer — no review count, no position, no word count", () => {
     expect(DECK).not.toMatch(/to review/);
     expect(DECK).not.toMatch(/Nothing waiting/);
