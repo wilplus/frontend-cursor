@@ -28,7 +28,6 @@ import {
   withSuggestionStatus,
 } from "@/lib/willab/idealTextDecisions";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
-import { swapPiece } from "@/services/api/pieceSwap";
 import {
   fetchBlockVariants,
   selectBlockVariant,
@@ -36,7 +35,6 @@ import {
   type VariantBlock,
 } from "@/services/api/blockVariants";
 import { BlockVariantSheet } from "./BlockVariantPicker";
-import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
@@ -216,8 +214,6 @@ export default function IdealTextReadout({
   // bump the generation so an in-flight GET from BEFORE the decision can
   // never land on top of them (review R-db4).
   const sdGenRef = useRef(0);
-  // DISCERNMENT — the pending-swap comparison sheet's open piece.
-  const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
   // BLOCK_VARIANTS — the picker pool and its open sheet. null = feature off
   // (the GET 404s) / not loaded: nothing new renders. The timeline lives on
   // the notebook overlay only (§8.2); this screen carries just the picker.
@@ -1153,50 +1149,6 @@ export default function IdealTextReadout({
         </div>
       ) : null}
 
-      {/* DISCERNMENT — accept lands the challenger (the BE reassembles →
-          refetch the whole document); reject pins the incumbent (apply the
-          echoed piece locally, the glow dies). Both 409s (a newer take moved
-          the offer mid-view) refetch SILENTLY — never an error surface. */}
-      <PieceSwapSheet
-        piece={swapOpen}
-        onClose={() => setSwapOpen(null)}
-        onDecide={async (action) => {
-          const p = swapOpen;
-          if (!p?.challenger || !arcId) return false;
-          const r = await swapPiece({
-            arcId,
-            pieceKey: p.pieceKey,
-            action,
-            challengerSnippetId: p.challenger.snippetId,
-          });
-          if (r.kind === "error") return false;
-          setSwapOpen(null);
-          if (r.kind === "stale" || action === "accept" || r.piece === null) {
-            // The master text changed under us (accept reassembled it; stale
-            // means a newer take already did). The user's decision here IS
-            // the newer intent, so release the local edit lane — otherwise a
-            // dirty flag would block adoption of the accepted text and the
-            // next keystroke would PUT the stale words back (review R-db6).
-            markDirty(false);
-            savedTextRef.current = null;
-            setSdNonce((n) => n + 1);
-          } else {
-            const echoed = r.piece;
-            sdGenRef.current++; // fence out any in-flight pre-decision GET
-            setSd((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    pieces: (prev.pieces ?? []).map((x) =>
-                      x.pieceKey === echoed.pieceKey ? echoed : x,
-                    ),
-                  }
-                : prev,
-            );
-          }
-          return true;
-        }}
-      />
       {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological).
           Kept visually separate from the offer sheet above BY DESIGN (§6):
           the offer pushes, the picker pulls. */}

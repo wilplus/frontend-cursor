@@ -734,8 +734,8 @@ export function mapDocumentSuggestions(
 }
 
 /** One piece of the master text with its provenance: which take the shown
- *  words come from (the badge), and — when a newer take beat it but nothing
- *  swapped yet — the challenger awaiting the user's decision (the glow). */
+ *  words come from (the badge), and any newer take the server names as a
+ *  challenger. There is no swap decision any more (audit C3). */
 export interface IdealPiece {
   pieceKey: number;
   /** Stable Paragraph identity carried by the immutable core. When present,
@@ -765,7 +765,9 @@ export interface IdealPiece {
   takeIndex: number | null;
   snippetId: string;
   takeSessionId: string;
-  status: "settled" | "pending_swap";
+  /** Always "settled": the pending-swap decision is retired (audit C3,
+   *  2026-09-28). The backend has no swap route and never sends it. */
+  status: "settled";
   challenger: {
     snippetId: string;
     takeIndex: number | null;
@@ -777,7 +779,7 @@ export interface IdealPiece {
 
 /** Map the GET's `pieces` block. ABSENT key (flag off / pre-migration) →
  *  null: no badge layer, today's view exactly. A present-but-broken row is
- *  dropped; an unknown status degrades to settled (no glow, no dead sheet). */
+ *  dropped. Every row reads as settled: the swap decision is retired (C3). */
 export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
   if (!Array.isArray(raw)) return null;
   const out: IdealPiece[] = [];
@@ -796,8 +798,6 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
       r.challenger && typeof r.challenger === "object"
         ? (r.challenger as Record<string, unknown>)
         : null;
-    // A pending swap without a usable challenger cannot open a comparison —
-    // degrade to settled rather than a glowing pill with an empty sheet.
     const why = (v: unknown): SwapWhy | null =>
       v === "energy" ||
       v === "steadiness" ||
@@ -833,8 +833,7 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
       takeIndex: take(r.take_index),
       snippetId: str(r.snippet_id),
       takeSessionId: str(r.take_session_id),
-      status:
-        r.status === "pending_swap" && challenger ? "pending_swap" : "settled",
+      status: "settled",
       challenger,
     });
   }

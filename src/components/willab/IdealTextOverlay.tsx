@@ -43,7 +43,6 @@ import {
   withStyleApproved,
   withSuggestionStatus,
 } from "@/lib/willab/idealTextDecisions";
-import { swapPiece } from "@/services/api/pieceSwap";
 import {
   fetchBlockVariants,
   fetchIdealTextRevisions,
@@ -57,7 +56,6 @@ import {
   BlockVariantSheet,
   RevisionTimelineSheet,
 } from "./BlockVariantPicker";
-import { PieceSwapSheet } from "./PieceBadges";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import type { LearningExposureHandle } from "@/services/api/learningExposures";
@@ -214,8 +212,6 @@ export default function IdealTextOverlay({
     visibilityKey: `ideal-text:${arcId}:${sd?.version ?? "unknown"}`,
     enabled: status === "ready" && ideal !== null && sd !== null,
   });
-  // DISCERNMENT — the pending-swap comparison sheet's open piece.
-  const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
   // BLOCK_VARIANTS — the picker pool, the revision timeline, and their open
   // sheets. null = feature off (the GET 404s) / not loaded: nothing new
   // renders anywhere.
@@ -1240,42 +1236,6 @@ export default function IdealTextOverlay({
         />
       ) : null}
 
-      {/* DISCERNMENT — accept lands the challenger (BE reassembles → full
-          refetch); reject pins the incumbent (apply the echoed piece, the
-          glow dies). Both 409s refetch SILENTLY — never an error surface. */}
-      <PieceSwapSheet
-        piece={swapOpen}
-        onClose={() => setSwapOpen(null)}
-        onDecide={async (action) => {
-          const p = swapOpen;
-          if (!p?.challenger) return false;
-          const r = await swapPiece({
-            arcId,
-            pieceKey: p.pieceKey,
-            action,
-            challengerSnippetId: p.challenger.snippetId,
-          });
-          if (r.kind === "error") return false;
-          setSwapOpen(null);
-          if (r.kind === "stale" || action === "accept" || r.piece === null) {
-            setRefetchNonce((n) => n + 1);
-          } else {
-            const echoed = r.piece;
-            fetchGenRef.current++; // fence out any in-flight pre-decision GET
-            setSd((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    pieces: (prev.pieces ?? []).map((x) =>
-                      x.pieceKey === echoed.pieceKey ? echoed : x,
-                    ),
-                  }
-                : prev,
-            );
-          }
-          return true;
-        }}
-      />
       {/* BLOCK_VARIANTS — the per-block picker (neutral, chronological — the
           student browses and chooses) and the revision timeline with restore.
           Kept separate from the offer sheet above BY DESIGN (§6): the offer

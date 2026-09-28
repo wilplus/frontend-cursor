@@ -71,16 +71,12 @@ describe("no stars on user surfaces (founder 2026-08-11)", () => {
     const gone = [
       "src/components/willab/MomentStars.tsx",
       "src/components/willab/TrackedText.tsx",
+      // The swap sheet was the last thing left in it; it could never open
+      // (audit C3, 2026-09-28).
+      "src/components/willab/PieceBadges.tsx",
     ];
     for (const f of gone) {
       expect(files).not.toContain(f);
     }
-    // The DECLARATION, not the name: the surviving file's header explains
-    // what was removed and why, and that record is worth keeping.
-    const pieceBadges = readFileSync(
-      "src/components/willab/PieceBadges.tsx",
-      "utf8"
-    );
-    expect(pieceBadges).not.toMatch(/export function PieceBadgeText/);
   });
 });
