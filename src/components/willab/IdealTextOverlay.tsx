@@ -70,6 +70,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
+import { applyEarlyJourney, useFirstPaintHold } from "./idealTextFirstPaint";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -433,8 +434,12 @@ export default function IdealTextOverlay({
              tight one and arrives when it always did. `mergeIdealText-
              Enrichment` is a merge, so applying the two answers in whatever
              order they land is the same document either way. */
+          const promptLane = fetchIdealTextEnrichment(arcId, r.documentSnapshotId, PROMPT_LANE);
+          // The bottom button's one fact, the moment the fast lane lands.
+          void promptLane.then((p) =>
+            applyEarlyJourney(p, r, setSd, () => active && gen === fetchGenRef.current));
           const [prompt, slow] = await Promise.all([
-            fetchIdealTextEnrichment(arcId, r.documentSnapshotId, PROMPT_LANE),
+            promptLane,
             fetchIdealTextEnrichment(arcId, r.documentSnapshotId, SLOW_LANE),
           ]);
           const enrichment =
@@ -995,6 +1000,9 @@ export default function IdealTextOverlay({
     );
   }
 
+  // Words and button together on the first paint (founder 2026-09-28, "A").
+  const shownStatus = useFirstPaintHold(status, sd?.takeCount, sd?.journeyNextStepsSeen);
+
   return (
     <div
       data-ideal-text-wheel-owner
@@ -1016,7 +1024,7 @@ export default function IdealTextOverlay({
               the review loop, and on a phone their five icons read as a row
               of unlabelled circles. No edit control here (founder
               2026-08-11: "The edits should not be in the top bar"). */}
-          {status === "ready" && sd ? (
+          {shownStatus === "ready" && sd ? (
             <IdealTextMenu
               arcId={arcId}
               saved={sd.saved}
@@ -1031,9 +1039,9 @@ export default function IdealTextOverlay({
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
-      <FeedbackLoadingLine active={status === "ready" && feedbackPending} />
+      <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
 
-      {status === "ready" && sd && ideal ? (
+      {shownStatus === "ready" && sd && ideal ? (
         // THE TRANSCRIPT REVIEW DECK (founder 2026-08-11) — replaces the
         // star/tracked/badged paragraph stack: chunk states + one lock per
         // chunk, REVIEW/EDITOR modals on the existing decide/lock lanes.
@@ -1107,7 +1115,7 @@ export default function IdealTextOverlay({
       ) : (
         <div className="scrollbar-none flex-1 overflow-y-auto">
           <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
-            {status === "loading" ? (
+            {shownStatus === "loading" ? (
               analysisPending ? (
                 // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. This wait is not
                 // an ordinary load: the old text is deliberately inaccessible
@@ -1127,16 +1135,16 @@ export default function IdealTextOverlay({
               ) : (
                 <LoadingState placement="surface" />
               )
-            ) : status === "pending" ? (
+            ) : shownStatus === "pending" ? (
               <IdealTextPendingCoach
                 onReadAloud={onReadAloud}
                 onRetry={retryWhilePending}
               />
-            ) : status === "error" ? (
+            ) : shownStatus === "error" ? (
               <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
                 Couldn&apos;t load your ideal text. Try again in a moment.
               </p>
-            ) : status === "instant" && ideal ? (
+            ) : shownStatus === "instant" && ideal ? (
               <div className="flex flex-col gap-5">
                 {/* The persistent instant banner — this text is a free DRAFT the
                   machine assembled; the coach-perfected version replaces it
@@ -1195,7 +1203,7 @@ export default function IdealTextOverlay({
           here as a second, gated mic; it is retired (founder 2026-08-05 — it
           brought no value to the coach or the user). What remains is one lane:
           take after take, each an official recording. */}
-      {status === "ready" && sd && onReadAloud ? (
+      {shownStatus === "ready" && sd && onReadAloud ? (
         <div className="shrink-0 bg-background px-4 pb-4">
           {/* MASTER DOCUMENT — Save, then the next official take. */}
           {nextStep(reviewWaiting)}
