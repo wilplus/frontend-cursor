@@ -409,44 +409,53 @@ describe("labels", () => {
 
   it("chips read kind · device, or kind alone when the star has no device", () => {
     expect(starChipLabel(star())).toBe("Delivery · pace fast");
-    expect(starChipLabel(star({ starKind: "replace", starDevice: null }))).toBe(
-      "Replace"
+    expect(starChipLabel(star({ starKind: "structure", starDevice: null }))).toBe(
+      "Structure"
     );
   });
 
-  it("names emphasize stars Praise and structure stars Rewrite (founder 2026-09-28)", () => {
+  it("names emphasize stars Praise and replace stars Rewrite; structure keeps its name (founder 2026-09-28)", () => {
     expect(starChipLabel(star({ starKind: "emphasize", starDevice: null }))).toBe(
       "Praise"
     );
-    expect(starChipLabel(star({ starKind: "structure", starDevice: null }))).toBe(
+    expect(starChipLabel(star({ starKind: "replace", starDevice: null }))).toBe(
       "Rewrite"
+    );
+    expect(starChipLabel(star({ starKind: "structure", starDevice: null }))).toBe(
+      "Structure"
     );
   });
 
   it("the wrong-kind picker names a fallback family the way the chip does", () => {
-    const s = star({ starKind: "replace", starDevice: null, trigger: "threat", deviceOptions: [] });
-    expect(correctionOptions(s).map((opt) => correctionOptionLabel(s, opt))).toEqual([
+    const replace = star({ starKind: "replace", starDevice: null, trigger: "threat", deviceOptions: [] });
+    expect(correctionOptions(replace).map((opt) => correctionOptionLabel(replace, opt))).toEqual([
       "praise",
+      "structure",
+      "delivery",
+    ]);
+    const emphasize = star({ starKind: "emphasize", starDevice: null, trigger: null, deviceOptions: [] });
+    expect(correctionOptions(emphasize).map((opt) => correctionOptionLabel(emphasize, opt))).toEqual([
       "rewrite",
+      "structure",
       "delivery",
     ]);
   });
 
   it("the picker leaves served devices as token words, even one named like a family", () => {
-    const s = star({ deviceOptions: ["emphasis", "pace_fast", "structure"] });
+    const s = star({ deviceOptions: ["emphasis", "pace_fast", "replace"] });
     expect(correctionOptions(s).map((opt) => correctionOptionLabel(s, opt))).toEqual([
       "emphasis",
-      "structure",
+      "replace",
     ]);
   });
 
   it("renames words only: the verdict body still carries the contract tokens", () => {
     const s = star({ starKind: "emphasize", starDevice: null });
-    expect(buildVerdictBody(s, "wrong_kind", { correctedDevice: "structure" })).toEqual({
+    expect(buildVerdictBody(s, "wrong_kind", { correctedDevice: "replace" })).toEqual({
       star_kind: "emphasize",
       star_device: null,
       verdict: "wrong_kind",
-      corrected_device: "structure",
+      corrected_device: "replace",
     });
   });
 });

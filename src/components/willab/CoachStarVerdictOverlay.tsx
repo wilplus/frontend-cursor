@@ -180,13 +180,17 @@ interface StarRowContext {
   blindBundleAssignmentIds: Set<string>;
 }
 
-/* THE QUOTE BOX SAYS WHICH FAMILY (founder 2026-09-28): praise sits in the
- * green of the speaker's best-moment bookmark (contract 24g), a rewrite in
- * blue, and every other family keeps the orange. Colour is never the only
- * cue: the chip above names the family. */
+/* THE QUOTE BOX SAYS WHICH FAMILY (founder 2026-09-28, option C): the two
+ * families that point at something the speaker already did well (praise,
+ * structure) sit in the green of the speaker's best-moment bookmark
+ * (contract 24g); a rewrite, the family that suggests new words, in blue;
+ * delivery keeps the orange. Colour is never the only cue: the chip above
+ * names the family. */
 function starQuoteTone(kind: string): string {
-  if (kind === "emphasize") return "border-affirm/25 bg-affirm/[0.08]";
-  if (kind === "structure") return "border-blue-500/25 bg-blue-500/[0.07]";
+  if (kind === "emphasize" || kind === "structure") {
+    return "border-affirm/25 bg-affirm/[0.08]";
+  }
+  if (kind === "replace") return "border-blue-500/25 bg-blue-500/[0.07]";
   return "border-primary/20 bg-primary/[0.07]";
 }
 
