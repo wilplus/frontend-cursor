@@ -18,7 +18,7 @@
 /*  No numbers anywhere (AC-9): the library arrives best match first and is   */
 /*  shown in that order without a rank, a distance or a fit type.             */
 /*                                                                            */
-/*  Every sentence lives in EXERCISE_REQUEST_COPY for founder sign-off.       */
+/*  Every sentence lives in EXERCISE_REQUEST_COPY. Founder sign-off 2026-09-28. */
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,7 +45,7 @@ import {
 } from "./coachExercisePicking";
 import { WhyNothingFitted, titlesFrom } from "./MachinePickReasons";
 
-/** Every NEW sentence on this panel, in one place for founder sign-off. */
+/** Every NEW sentence on this panel, in one place. Founder sign-off 2026-09-28. */
 export const EXERCISE_REQUEST_COPY = {
   eyebrow: "No exercise fitted · after blind rating",
   nothingSpotted: "Nothing specific was spotted in this moment.",
