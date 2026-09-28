@@ -67,4 +67,18 @@ describe("the first-take scroll hint", () => {
     act(() => root.render(createElement(Harness)));
     expect(hint().length).toBe(0);
   });
+
+  it("names the chosen words \"Helper words\" above the cues", () => {
+    act(() => {
+      root.render(createElement(RecordingRoadmap, {
+        slides: SLIDES,
+        presentationRef: null,
+        currentSlide: 0,
+        roots: [{ slideIndex: 0, text: "the timing matters", type: "flagship" }] as never[],
+        onSlideChange: () => undefined,
+      }));
+    });
+    expect(host.textContent).toContain("Helper words");
+    expect(host.textContent).toContain("the timing matters");
+  });
 });
