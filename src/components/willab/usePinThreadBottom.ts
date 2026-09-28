@@ -20,8 +20,12 @@ export const PIN_FOLLOW_MS = 1500;
 export function usePinThreadBottom(
   scrollRef: RefObject<HTMLDivElement | null>,
   messageCount: number,
-  ready: boolean,
+  loading: boolean,
+  /** True once the thread has opened at its bottom; until then a growing
+   *  count is history arriving, not a new bubble. */
+  openedRef: RefObject<boolean>,
 ): () => void {
+  const ready = !loading && openedRef.current === true;
   const stopRef = useRef<(() => void) | null>(null);
   const pin = useCallback(() => {
     const el = scrollRef.current;

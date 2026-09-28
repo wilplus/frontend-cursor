@@ -10,7 +10,8 @@ import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 /** A thread whose scrollHeight we control, so "at the bottom" is observable. */
 function Thread({ count, ready }: { count: number; ready: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  usePinThreadBottom(ref, count, ready);
+  const opened = useRef(true);
+  usePinThreadBottom(ref, count, !ready, opened);
   return createElement(
     "div",
     {

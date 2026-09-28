@@ -1232,7 +1232,7 @@ export default function Lounge({
   // A NEW BUBBLE IS ALWAYS SHOWN (founder 2026-09-28), even when the thread
   // was scrolled up, and See next steps lands on the newest one. Only a new
   // message moves the thread; reading history otherwise stays where it is.
-  usePinThreadBottom(scrollRef, messages.length, !thread.loading && didInitScrollRef.current);
+  usePinThreadBottom(scrollRef, messages.length, thread.loading, didInitScrollRef);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
