@@ -407,9 +407,13 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // by whoever scrolls — a bias in which moments reach the album, not a layout
     // nit. The two detents are unchanged; one more thing reaches the tall
     // one.
+    // Since 2026-09-28 the exercise takes the tall detent too: it carries the
+    // coach's video, your recording and the Practise button ("the overlay is
+    // not even full height").
     expect(MODAL).toMatch(
-      /expanded \|\| isConfidentVoice\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/
+      /sheetFullHeight\(expanded, isConfidentVoice, step\?\.kind\)\s*\?\s*"h-\[97dvh\] max-h-\[97dvh\]/
     );
+    expect(MODAL).toMatch(/expanded \|\| isConfidentVoice \|\| kind === "exercise"/);
     expect(MODAL).toMatch(/:\s*"h-\[68dvh\] max-h-\[68dvh\]/);
     // dvh, not vh: on a phone 100vh sits behind the URL bar, which would put
     // the decision buttons under the browser chrome.
@@ -427,15 +431,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).toMatch(/onClick=\{toggleExpanded\}/);
   });
 
-  it("swiping the modal DOWN collapses it — it never closes it", () => {
-    // Dismissing a review with the same gesture that resizes it would throw
-    // away an undecided suggestion on a slip of the thumb. The close button
-    // and the backdrop are both already there for a deliberate exit.
+  it("swiping DOWN resizes; only a pull clearly below the lower detent closes", () => {
+    // 2026-08-11: a slip of the thumb must never close a review. Still true:
+    // a pull that stays above the lower detent only resizes. 2026-09-28
+    // (founder: "doesn't work as on the app smoothly"): pulling the sheet
+    // clearly BELOW its lower detent closes it, like a native sheet. Nothing
+    // is lost — answers save on the tap, undecided moments stay marked.
     const MODAL = code("src/components/willab/DeckChunkModal.tsx");
     const grabStart = MODAL.indexOf("function finishSheetDrag");
     const grab = MODAL.slice(grabStart, MODAL.indexOf("\n  return (", grabStart));
     expect(grab).toMatch(/setExpanded\(drag\.height >=/);
-    expect(grab).not.toMatch(/onClose/);
+    expect(grab).toMatch(/if \(sheetDismissed\(drag, minimum\)\)/);
+    expect(MODAL).toMatch(/return drag\.moved && drag\.height < minimum \* 0\.8;/);
   });
 
   it("the lock shows that the coach left something on these words", () => {

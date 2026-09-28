@@ -1155,7 +1155,7 @@ export default function TranscriptReviewDeck({
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative pl-4 text-[clamp(1.02rem,2.5vw,1.22rem)] leading-[1.8] text-foreground"
+                      className="relative pl-4 text-[clamp(1.25rem,1rem+1vw,1.65rem)] leading-[1.65] text-foreground"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
@@ -1568,7 +1568,7 @@ function ParagraphHeadline({ text }: { text: string | null }) {
   return (
     <span
       data-paragraph-headline
-      className="mb-1 block text-[clamp(1.1rem,2.8vw,1.35rem)] font-bold not-italic leading-snug text-primary"
+      className="mb-1 block text-[clamp(1.4rem,1.1rem+1.2vw,1.9rem)] font-bold not-italic leading-snug text-primary"
     >
       {text}
     </span>

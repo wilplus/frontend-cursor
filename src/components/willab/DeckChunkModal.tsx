@@ -196,6 +196,30 @@ function initialInventory(
     .slice(0, 3);
 }
 
+/** Full height when the speaker expanded it, and always for the steps that
+ *  carry a player or a video: the confidence question and the exercise
+ *  (founder 2026-09-28: "the overlay is not even full height"). */
+function sheetFullHeight(
+  expanded: boolean,
+  isConfidentVoice: boolean,
+  kind: string | undefined,
+): boolean {
+  return expanded || isConfidentVoice || kind === "exercise";
+}
+
+/** Only a drag that ends clearly BELOW the lower detent closes the sheet —
+ *  the native swipe-down (founder 2026-09-28: "this little icon doesn't work
+ *  as on the app smoothly"). A pull that stays above it only resizes, as
+ *  since 2026-08-11, so a slip of the thumb never closes a review. Closing
+ *  loses nothing either way: each answer saves on the tap, and an undecided
+ *  moment stays marked on the page, exactly as after ✕ or the backdrop. */
+function sheetDismissed(
+  drag: { height: number; moved: boolean },
+  minimum: number,
+): boolean {
+  return drag.moved && drag.height < minimum * 0.8;
+}
+
 /** The first screen: the exercise when practising again or when the coach's
  *  exercise has arrived, else the top of the ladder. Pure, for the
  *  complexity ratchet.
@@ -1232,7 +1256,7 @@ export default function DeckChunkModal({
   }
 
   function onSheetPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || isConfidentVoice) return;
+    if (event.button !== 0) return;
     const target = event.target as HTMLElement;
     const grabSurface = target.closest("[data-sheet-grabber]");
     if (
@@ -1261,9 +1285,11 @@ export default function DeckChunkModal({
     const desktop = window.matchMedia("(min-width: 640px)").matches;
     const minimum = window.innerHeight * (desktop ? 0.62 : 0.58);
     const maximum = window.innerHeight * (desktop ? 0.94 : 0.97);
+    // Below the lower detent the sheet keeps following the finger: that is
+    // the swipe-down-to-close every native sheet has (founder 2026-09-28).
     const next = Math.min(
       maximum,
-      Math.max(minimum, drag.startHeight + drag.startY - event.clientY)
+      Math.max(minimum * 0.35, drag.startHeight + drag.startY - event.clientY)
     );
     drag.height = next;
     drag.moved ||= Math.abs(event.clientY - drag.startY) >= 8;
@@ -1276,10 +1302,14 @@ export default function DeckChunkModal({
     const desktop = window.matchMedia("(min-width: 640px)").matches;
     const minimum = window.innerHeight * (desktop ? 0.62 : 0.58);
     const maximum = window.innerHeight * (desktop ? 0.94 : 0.97);
-    setExpanded(drag.height >= (minimum + maximum) / 2);
     suppressClickRef.current = drag.moved;
     dragRef.current = null;
     setDragHeight(null);
+    if (sheetDismissed(drag, minimum)) {
+      onClose();
+      return;
+    }
+    setExpanded(drag.height >= (minimum + maximum) / 2);
   }
 
   /* ---- what each screen shows and what its one pill does ----------------- */
@@ -1871,7 +1901,7 @@ export default function DeckChunkModal({
         className={`flex w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl ease-out sm:rounded-3xl ${
           dragHeight === null ? "transition-[height] duration-300" : "cursor-grabbing"
         } ${
-          expanded || isConfidentVoice
+          sheetFullHeight(expanded, isConfidentVoice, step?.kind)
             ? "h-[97dvh] max-h-[97dvh] sm:h-[94vh] sm:max-h-[94vh]"
             : "h-[68dvh] max-h-[68dvh] sm:h-[72vh] sm:max-h-[72vh]"
         }`}
@@ -1955,7 +1985,7 @@ export default function DeckChunkModal({
           </div>
         ) : null}
 
-        <div data-sheet-scroll className="scrollbar-none flex flex-col gap-3 overflow-y-auto px-5 py-3">
+        <div data-sheet-scroll className="scrollbar-none flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-5 py-3">
           {coachReviewStatus ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
               {coachReviewStatus === "pending_coach_review"
