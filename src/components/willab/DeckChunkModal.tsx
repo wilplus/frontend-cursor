@@ -283,6 +283,49 @@ function judgementPillDisabled(
   return exercise.busy || exercise.corrected === null || judgement === null;
 }
 
+/** The id the judgement screen is about, or null before an attempt exists.
+ *  Pure, for the complexity ratchet. */
+function attemptIdOf(attempt: { id: string } | null): string | null {
+  return attempt === null ? null : attempt.id;
+}
+
+/** Whether the exercise rung is on the ladder for this answer (the follow-up
+ *  matrix, founder 2026-09-29). The library video opens on In-between, No
+ *  and Not sure. Before any answer the rung is built after the question (a
+ *  coach-reviewed moment opens straight on it); the answer then rebuilds the
+ *  ladder. A video the coach shared is theirs to show on any answer but
+ *  Audio unclear. Pure, for the complexity ratchet. */
+function libraryVideoOpens(
+  judgement: RootGateAnswer,
+  item: DocumentSuggestion | null,
+): boolean {
+  if (item === null) return false;
+  if (judgement === null || judgement === "other") return true;
+  if (judgement === "in_between" || judgement === "no" || judgement === "not_sure") {
+    return true;
+  }
+  return item.practiceExercise?.chosenByCoach === true && judgement !== "audio_unclear";
+}
+
+/** Whether the "your coach is working on it" rung is on the ladder: no
+ *  exercise rung of either kind, not the MLC-3 service lane (its answer goes
+ *  through the service route, which raises nothing), a bookmark to say it
+ *  about, and an answer that makes it an error (`sendsToCoach`). Pure, for
+ *  the complexity ratchet. */
+function coachSentenceOpens(
+  judgement: RootGateAnswer,
+  lane: {
+    exerciseItem: DocumentSuggestion | null;
+    serviceItem: DocumentSuggestion | null;
+    servicePractise: boolean;
+    noticeItem: DocumentSuggestion | null;
+  },
+): boolean {
+  if (lane.exerciseItem !== null || lane.serviceItem !== null) return false;
+  if (lane.servicePractise || lane.noticeItem === null) return false;
+  return sendsToCoach(judgement, lane.noticeItem);
+}
+
 /** Whether this answer makes the bookmark an ERROR for the coach with no
  *  library video to show (the follow-up matrix, founder 2026-09-29): the
  *  clip read weak, a delivery problem fired, nothing targets it
@@ -502,15 +545,7 @@ export default function DeckChunkModal({
         // (a coach-reviewed moment opens straight on it); the answer then
         // rebuilds the ladder. A video the coach shared is theirs to show on
         // any answer but Audio unclear.
-        canPractise:
-          exerciseItem !== null &&
-          (judgementValue === null ||
-            judgementValue === "in_between" ||
-            judgementValue === "no" ||
-            judgementValue === "not_sure" ||
-            judgementValue === "other" ||
-            (exerciseItem.practiceExercise?.chosenByCoach === true &&
-              judgementValue !== "audio_unclear")),
+        canPractise: libraryVideoOpens(judgementValue, exerciseItem),
         // The service rung exists only once the server has said the answer
         // may carry an offer — passed in explicitly on the advance that the
         // answer causes, because the flow's own state has not re-rendered yet.
@@ -522,12 +557,9 @@ export default function DeckChunkModal({
         // helper-words step still follows on the three. Audio unclear closes.
         // Not on the MLC-3 service lane: its answer goes through the service
         // route, which raises nothing, so the sentence would not be true.
-        canNotice:
-          exerciseItem === null &&
-          serviceItem === null &&
-          !servicePractise &&
-          noticeItem !== null &&
-          sendsToCoach(judgementValue, noticeItem),
+        canNotice: coachSentenceOpens(judgementValue, {
+          exerciseItem, serviceItem, servicePractise, noticeItem,
+        }),
         // Nothing to emphasise on an empty paragraph, and nothing to choose on
         // one already locked and settled — that sheet is a single Discard.
         //
@@ -1305,7 +1337,7 @@ export default function DeckChunkModal({
   // Each attempt is judged afresh: the chips empty whenever a new attempt
   // reaches the judgement screen, and after Back or a No that sent the
   // speaker to practise again.
-  const judgedAttemptId = exercise.corrected?.id ?? null;
+  const judgedAttemptId = attemptIdOf(exercise.corrected);
   useEffect(() => {
     setPracticeJudgement(null);
   }, [exercise.screen, judgedAttemptId]);
