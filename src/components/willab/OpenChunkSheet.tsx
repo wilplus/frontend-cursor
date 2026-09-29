@@ -38,6 +38,7 @@ export default function OpenChunkSheet({
   headline,
   onUseHelperWords,
   pager = null,
+  slideLabel = null,
   onDocumentChanged = null,
   feedbackPending = false,
   onClose,
@@ -50,6 +51,8 @@ export default function OpenChunkSheet({
   headline: string | null;
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
   pager?: Pager | null;
+  /** Where the paragraph sits ("Slide 2"), for the Take stack's header. */
+  slideLabel?: string | null;
   /** Re-read the document (a stale exercise offer, MLC-3 §3.5). */
   onDocumentChanged?: (() => void) | null;
   /** The Take's feedback is still arriving after the text. */
@@ -91,6 +94,7 @@ export default function OpenChunkSheet({
       }
       onUseHelperWords={onUseHelperWords}
       pager={pager}
+      slideLabel={slideLabel}
       onDocumentChanged={onDocumentChanged}
       onClose={onClose}
     />

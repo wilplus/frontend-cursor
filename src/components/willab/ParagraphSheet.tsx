@@ -82,6 +82,7 @@ function SheetFrame({
   children,
   footer = null,
   nav = null,
+  showTitle = true,
 }: {
   title: string;
   onClose: () => void;
@@ -89,6 +90,10 @@ function SheetFrame({
   footer?: ReactNode;
   /** The walk's ‹ position › header, above the title (founder 2026-09-26). */
   nav?: ReactNode;
+  /** The Take stack has no title (Final Screens L3, founder 2026-09-29:
+   *  "definitely the design"): the header row keeps only the close button,
+   *  and `title` names the dialog for assistive tech alone. */
+  showTitle?: boolean;
 }) {
   return (
     <div
@@ -108,9 +113,13 @@ function SheetFrame({
       >
         {nav ? <div className="shrink-0 pt-3">{nav}</div> : null}
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
-          <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
-            {title}
-          </h2>
+          {showTitle ? (
+            <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
+              {title}
+            </h2>
+          ) : (
+            <span />
+          )}
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-6 pt-2">
@@ -458,6 +467,54 @@ export function ParagraphHistoryBlock({
   );
 }
 
+/** ‹ Slide 2 › over the Take stack (Final Screens L3). In the walk it is
+ *  the walk's own bar with the slide as its whole text; outside the walk
+ *  the slide alone, centred, no arrows. */
+function TakeStackNav({
+  pager,
+  slideLabel,
+}: {
+  pager: Pager | null;
+  slideLabel: string | null;
+}): ReactNode {
+  if (pager) {
+    return <FeedbackPagerBar pager={{ ...pager, position: pager.label ?? slideLabel ?? undefined }} />;
+  }
+  if (!slideLabel) return null;
+  return (
+    <p
+      data-testid="paragraph-sheet-slide"
+      className="px-3 pt-1 text-center text-[13px] font-semibold text-foreground"
+    >
+      {slideLabel}
+    </p>
+  );
+}
+
+/** ONE BLACK BUTTON at the bottom of the Take stack (founder 2026-09-29:
+ *  "just one black CTA at the bottom, smth like next"). In the walk it is
+ *  the walk's Next, Done on the last moment; outside the walk it is Done
+ *  and closes the sheet. */
+function TakeStackFooter({
+  pager,
+  onClose,
+}: {
+  pager: Pager | null;
+  onClose: () => void;
+}): ReactNode {
+  const last = !pager || pager.index >= pager.total - 1;
+  return (
+    <button
+      type="button"
+      data-testid="paragraph-sheet-next"
+      onClick={pager ? pager.onNext : onClose}
+      className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90"
+    >
+      {last ? COPY.pillDone : COPY.pagerNext}
+    </button>
+  );
+}
+
 export default function ParagraphSheet({
   arcId,
   takeSessionId,
@@ -469,6 +526,7 @@ export default function ParagraphSheet({
   onPractise,
   onUseHelperWords,
   pager = null,
+  slideLabel = null,
   onDocumentChanged = null,
   onClose,
 }: {
@@ -491,6 +549,9 @@ export default function ParagraphSheet({
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
+  /** Where the paragraph sits ("Slide 2"), the sheet's header outside the
+   *  walk (Final Screens L3). */
+  slideLabel?: string | null;
   /** The exercise shown here is stale on the server: re-read the document. */
   onDocumentChanged?: (() => void) | null;
   onClose: () => void;
@@ -520,9 +581,11 @@ export default function ParagraphSheet({
   if (!sheetData) {
     return (
       <SheetFrame
-        title={COPY.titleFeedback}
+        title={slideLabel ?? COPY.titleFeedback}
+        showTitle={false}
         onClose={onClose}
-        nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
+        nav={<TakeStackNav pager={pager} slideLabel={slideLabel} />}
+        footer={<TakeStackFooter pager={pager} onClose={onClose} />}
       >
         <div data-testid="paragraph-sheet-loading" className="flex flex-col gap-5">
           <HelperWordsCard headline={headline} onChoose={null} />
@@ -545,9 +608,11 @@ export default function ParagraphSheet({
 
   return (
     <SheetFrame
-      title={COPY.titleFeedback}
+      title={slideLabel ?? COPY.titleFeedback}
+      showTitle={false}
       onClose={onClose}
-      nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
+      nav={<TakeStackNav pager={pager} slideLabel={slideLabel} />}
+      footer={<TakeStackFooter pager={pager} onClose={onClose} />}
     >
       <HelperWordsCard
         headline={headline}
