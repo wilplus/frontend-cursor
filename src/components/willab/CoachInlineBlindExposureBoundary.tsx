@@ -9,8 +9,20 @@ import {
 } from "react";
 import {
   acknowledgeCoachInlineBlindRender,
+  type BlindRenderResult,
   type CoachInlineBlindReviewHandle,
 } from "@/services/api/stateRatings";
+
+/** What every blind handle must carry for a receipt to be matched to it. */
+export interface BlindHandleIdentity {
+  reviewAssignmentId: string;
+  presentationId: string;
+}
+
+export type AcknowledgeBlindRender<H extends BlindHandleIdentity> = (
+  handle: H,
+  request: StableRenderRequest,
+) => Promise<BlindRenderResult>;
 
 interface BlindExposureState {
   exposureId: string | null;
@@ -25,9 +37,10 @@ interface StableRenderRequest {
 }
 
 function stableRenderRequest(
-  blindReview: CoachInlineBlindReviewHandle,
+  blindReview: BlindHandleIdentity,
+  scope: string,
 ): StableRenderRequest {
-  const storageKey = `willab:coach-inline-render:${blindReview.presentationId}`;
+  const storageKey = `willab:${scope}-render:${blindReview.presentationId}`;
   try {
     const stored = window.sessionStorage.getItem(storageKey);
     if (stored) {
@@ -48,7 +61,7 @@ function stableRenderRequest(
     renderInstanceId,
     clientRenderedAt: new Date().toISOString(),
     idempotencyKey:
-      `coach-inline-visible-render:${blindReview.presentationId}:` +
+      `${scope}-visible-render:${blindReview.presentationId}:` +
       renderInstanceId,
   };
   try {
@@ -60,18 +73,26 @@ function stableRenderRequest(
 }
 
 /**
- * The D5 visible-render boundary.
+ * The visible-render boundary.
  *
  * Fetching or mounting a hidden card is not exposure. Once the exact card
  * intersects the visible viewport, two painted frames elapse before the
  * independently retryable render ACK. An answer can consume only the exact
  * exposure returned here; it never manufactures its own render event.
+ *
+ * `acknowledge` is the receipt's transport (D5 inline, or the legacy card's
+ * confidence-chain receipt since Q2) and `scope` keys the stable request in
+ * session storage, so two chains never share a retry identity.
  */
-export default function CoachInlineBlindExposureBoundary({
+export function BlindExposureBoundary<H extends BlindHandleIdentity>({
   blindReview,
+  acknowledge,
+  scope,
   children,
 }: {
-  blindReview: CoachInlineBlindReviewHandle | null;
+  blindReview: H | null;
+  acknowledge: AcknowledgeBlindRender<H>;
+  scope: string;
   children: (state: BlindExposureState) => ReactNode;
 }) {
   const targetRef = useRef<HTMLDivElement | null>(null);
@@ -95,12 +116,12 @@ export default function CoachInlineBlindExposureBoundary({
     let paintedFrame = 0;
     const retryTimers: number[] = [];
 
-    const acknowledge = async (
+    const confirm = async (
       request: StableRenderRequest,
       attempt = 0,
     ) => {
       if (disposed) return;
-      const result = await acknowledgeCoachInlineBlindRender(exact, request);
+      const result = await acknowledge(exact, request);
       if (disposed) return;
       if (result.ok) {
         if (
@@ -123,7 +144,7 @@ export default function CoachInlineBlindExposureBoundary({
       }
       if (attempt < 2) {
         retryTimers.push(window.setTimeout(
-          () => void acknowledge(request, attempt + 1),
+          () => void confirm(request, attempt + 1),
           500 * 2 ** attempt,
         ));
         return;
@@ -138,10 +159,10 @@ export default function CoachInlineBlindExposureBoundary({
     const beginAfterPaint = () => {
       if (started || document.visibilityState !== "visible") return;
       started = true;
-      const request = stableRenderRequest(exact);
+      const request = stableRenderRequest(exact, scope);
       firstFrame = window.requestAnimationFrame(() => {
         paintedFrame = window.requestAnimationFrame(() => {
-          void acknowledge(request);
+          void confirm(request);
         });
       });
     };
@@ -159,7 +180,26 @@ export default function CoachInlineBlindExposureBoundary({
       window.cancelAnimationFrame(paintedFrame);
       retryTimers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [blindReview]);
+  }, [blindReview, acknowledge, scope]);
 
   return createElement("div", { ref: targetRef }, children(state));
+}
+
+/** The D5 visible-render boundary: the inline blind receipt, as before. */
+export default function CoachInlineBlindExposureBoundary({
+  blindReview,
+  children,
+}: {
+  blindReview: CoachInlineBlindReviewHandle | null;
+  children: (state: BlindExposureState) => ReactNode;
+}) {
+  return (
+    <BlindExposureBoundary<CoachInlineBlindReviewHandle>
+      blindReview={blindReview}
+      acknowledge={acknowledgeCoachInlineBlindRender}
+      scope="coach-inline"
+    >
+      {children}
+    </BlindExposureBoundary>
+  );
 }

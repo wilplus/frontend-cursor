@@ -6,7 +6,10 @@ import {
   mapLearningExposureHandles,
   type LearningExposureHandle,
 } from "@/services/api/learningExposures";
-import type { CoachInlineBlindReviewHandle } from "@/services/api/stateRatings";
+import type {
+  CoachInlineBlindReviewHandle,
+  ConfidenceChainBlindHandle,
+} from "@/services/api/stateRatings";
 
 /** Browser-visible backend base, mirroring `presentationExtract`. Empty =
  *  no public URL in this env, so everything goes through the BFF proxy. */
@@ -659,6 +662,9 @@ export interface QueuePiece {
   learningExposures: LearningExposureHandle[];
   canonicalPosition: number | null;
   blindReview: CoachInlineBlindReviewHandle | null;
+  /** The legacy card's handle on the canonical confidence chain (Q2), only
+   * while the writer state is founder_canary. Identifiers only. */
+  mlc2BlindReview: ConfidenceChainBlindHandle | null;
 }
 
 const OPAQUE_PLAYBACK_REFERENCE =
@@ -728,6 +734,23 @@ function pickLabel(raw: unknown): ConfidenceLabel | null {
   };
 }
 
+/** Four identifiers or nothing: a partial or malformed handle is no handle. */
+export function mapConfidenceChainHandle(
+  raw: unknown,
+): ConfidenceChainBlindHandle | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const ids = ["review_assignment_id", "presentation_id", "acknowledgement_token"];
+  if (!ids.every((key) => OPAQUE_PLAYBACK_REFERENCE.test(str(r[key])))) return null;
+  if (!/^[0-9a-f]{64}$/.test(str(r.visible_payload_sha256))) return null;
+  return {
+    reviewAssignmentId: str(r.review_assignment_id),
+    presentationId: str(r.presentation_id),
+    acknowledgementToken: str(r.acknowledgement_token),
+    visiblePayloadSha256: str(r.visible_payload_sha256),
+  };
+}
+
 export function mapQueuePiece(raw: unknown): QueuePiece | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -774,6 +797,7 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
       : null,
     learningExposures: mapLearningExposureHandles(r.learning_exposures),
     blindReview,
+    mlc2BlindReview: mapConfidenceChainHandle(r.mlc2_blind_review),
   };
 }
 

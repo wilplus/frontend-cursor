@@ -37,7 +37,48 @@ describe("mapQueuePiece — drop-not-repair", () => {
       canonicalPosition: null,
       learningExposures: [],
       blindReview: null,
+      mlc2BlindReview: null,
     });
+  });
+
+  it("carries the legacy card's confidence-chain handle as four identifiers only (Q2)", () => {
+    const mapped = mapQueuePiece(piece({
+      mlc2_blind_review: {
+        review_assignment_id: "20000000-0000-4000-8000-000000000003",
+        presentation_id: "20000000-0000-4000-8000-000000000005",
+        acknowledgement_token: "20000000-0000-4000-8000-000000000006",
+        visible_payload_sha256: "b".repeat(64),
+        transcript: "must never ride along",
+      },
+    }));
+    expect(mapped?.mlc2BlindReview).toEqual({
+      reviewAssignmentId: "20000000-0000-4000-8000-000000000003",
+      presentationId: "20000000-0000-4000-8000-000000000005",
+      acknowledgementToken: "20000000-0000-4000-8000-000000000006",
+      visiblePayloadSha256: "b".repeat(64),
+    });
+    // The legacy label PUT still goes to the snippet: the chain is beside it.
+    expect(mapped?.reviewActId).toBe("snip-1");
+    expect(mapped?.blindReview).toBeNull();
+  });
+
+  it("drops a partial or malformed confidence-chain handle rather than repairing it", () => {
+    expect(mapQueuePiece(piece({
+      mlc2_blind_review: {
+        review_assignment_id: "20000000-0000-4000-8000-000000000003",
+        presentation_id: "20000000-0000-4000-8000-000000000005",
+        visible_payload_sha256: "b".repeat(64),
+      },
+    }))?.mlc2BlindReview).toBeNull();
+    expect(mapQueuePiece(piece({
+      mlc2_blind_review: {
+        review_assignment_id: "not-a-uuid",
+        presentation_id: "20000000-0000-4000-8000-000000000005",
+        acknowledgement_token: "20000000-0000-4000-8000-000000000006",
+        visible_payload_sha256: "b".repeat(64),
+      },
+    }))?.mlc2BlindReview).toBeNull();
+    expect(mapQueuePiece(piece({ mlc2_blind_review: "handle" }))?.mlc2BlindReview).toBeNull();
   });
 
   it("maps only production render-ACK handles for a blind row", () => {
