@@ -270,6 +270,11 @@ export interface DocumentSuggestion {
    *  (`practiceExercise` with `chosenByCoach`). `open` while unanswered;
    *  `answered` once the coach replied without sharing. */
   coachRequest?: { status: "open" | "answered" } | null;
+  /** A problem was recognised on this clip and nothing in the library
+   *  targets it yet (founder 2026-09-29): a Yes, In-between or Not sure
+   *  sends the bookmark to the coach too, and the sheet says so. A No sends
+   *  it regardless. A flag, never what was recognised (AC-9). */
+  problemRecognised?: boolean;
   /** The ~75-word block this item was selected within. Blocks tile a Slide
    *  contiguously, so this is what lets the document grey a whole BLOCK while
    *  a judgement is unsettled (24g-1) without ever colouring part of a word. */
@@ -701,6 +706,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     bookmarkTier: readEnum(record.bookmark_tier, BOOKMARK_TIERS),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
+    problemRecognised: record.problem_recognised === true,
     blockId: readNonEmptyString(record.block_id),
     device,
     why,

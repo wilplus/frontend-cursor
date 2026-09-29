@@ -425,3 +425,44 @@ describe("the paragraph sheet's line", () => {
     expect(coachHasIt([bare])).toBe(false);
   });
 });
+
+describe("the lane on every bookmark (founder 2026-09-29)", () => {
+  const recognised = { ...bare, id: "s-cv-rec", problemRecognised: true } as DocumentSuggestion;
+  async function open(target: DocumentSuggestion) {
+    props.onClose.mockClear();
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [target.id] } as DeckChunk,
+            { document: TEXT, suggestions: [target] },
+          ),
+        }),
+      );
+    });
+  }
+
+  it("a Yes with a recognised problem and no match: the sentence, then helper words", async () => {
+    await open(recognised);
+    await click("Yes — Confident");
+    expect(notice()).not.toBeNull();
+    await click("Continue");
+    expect(notice()).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("an In-between with nothing recognised: helper words directly, no sentence", async () => {
+    await open(bare);
+    await click("In-between");
+    expect(notice()).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("Audio unclear never reaches an exercise, even when one is attached", async () => {
+    await open(item);
+    await click("Audio unclear");
+    expect(offer()).toBeNull();
+    expect(props.onClose).toHaveBeenCalled();
+  });
+});

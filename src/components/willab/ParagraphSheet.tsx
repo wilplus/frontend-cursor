@@ -553,7 +553,8 @@ export default function ParagraphSheet({
         youSaid={view.youSaid}
       >
         <Boxes boxes={view.boxes} />
-        {exercise ? (
+        {exercise && exerciseAnswer !== "audio_unclear" ? (
+          /* Audio unclear never enters the lane (founder 2026-09-29). */
           <ExerciseCard
             item={exercise}
             onPractise={
