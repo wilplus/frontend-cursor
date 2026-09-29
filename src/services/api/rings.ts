@@ -1,5 +1,5 @@
 /**
- * Rings — the one rollout mechanism (backend 0392, founder 2026-09-29).
+ * Rings — the one rollout mechanism (backend 0393, founder 2026-09-29).
  *
  * The backend decides, per person, which gated features are on:
  *

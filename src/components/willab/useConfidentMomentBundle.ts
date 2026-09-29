@@ -22,7 +22,7 @@ export function useConfidentMomentBundle({
   const [projection, setProjection] = useState<ConfidentMomentProjection | null>(null);
   const [status, setStatus] = useState<"off" | "loading" | "ready" | "retry" | "error">("off");
   const generation = useRef(0);
-  // Building switch AND the person's ring (backend 0392): a person the
+  // Building switch AND the person's ring (backend 0393): a person the
   // `confident_moment_bundles` row does not reach never asks for the lane.
   const bundlesOn = useFeatureOn(RING_FEATURES.confidentMomentBundles);
 

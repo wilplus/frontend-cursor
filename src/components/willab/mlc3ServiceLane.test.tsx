@@ -100,7 +100,7 @@ vi.mock("@/components/results/MediaPlayer", () => ({
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));
-/* The person's ring reaches the service lane (backend 0392, `exercise_service_ui`
+/* The person's ring reaches the service lane (backend 0393, `exercise_service_ui`
  * in features_on). The building switch above says the build carries it; this
  * says THIS person gets it. Both are needed for the lane to mount. */
 vi.mock("@/hooks/useRingState", () => ({

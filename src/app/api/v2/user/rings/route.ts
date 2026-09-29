@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 /* -------------------------------------------------------------------------- */
 /*  /api/v2/user/rings — what is on for the signed-in person and which        */
-/*  announcements are pending for them (backend 0392). Read at login by the   */
+/*  announcements are pending for them (backend 0393). Read at login by the   */
 /*  announcement sheet and by the hooks that decide whether a ringed overlay   */
 /*  lane mounts. Carries the person's own ring and feature list, never a      */
 /*  score or anyone else's row. @require_auth backend-side.                    */
