@@ -384,9 +384,24 @@ async function openBare() {
 }
 const notice = () => container.querySelector('[data-testid="coach-request-notice"]');
 
+const recognisedBare = { ...bare, id: "s-cv-rec-bare", problemRecognised: true } as DocumentSuggestion;
+
 describe("a No on a bookmark with no exercise", () => {
   it("says the coach is working on it, with your recording, and Continue moves on", async () => {
-    await openBare();
+    // Read weak, a problem fired, nothing targets it: an error the coach
+    // always answers with a video (the follow-up matrix, founder 2026-09-29).
+    props.onClose.mockClear();
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [recognisedBare.id] } as DeckChunk,
+            { document: TEXT, suggestions: [recognisedBare] },
+          ),
+        }),
+      );
+    });
     await click("No — Not confident");
     expect(notice()).not.toBeNull();
     expect(notice()?.textContent).toContain("Your coach is working on your exercise.");
@@ -418,9 +433,13 @@ describe("a No on a bookmark with no exercise", () => {
 
 describe("the paragraph sheet's line", () => {
   it("shows while the request is open and nothing came back", () => {
-    const open = { ...bare, coachRequest: { status: "open" } } as DocumentSuggestion;
+    const open = { ...bare, coachRequest: { status: "open", kind: "error" } } as DocumentSuggestion;
     expect(coachHasIt([open])).toBe(true);
-    expect(coachHasIt([{ ...open, coachRequest: { status: "answered" } } as DocumentSuggestion])).toBe(false);
+    expect(coachHasIt([{ ...open, coachRequest: { status: "answered", kind: "error" } } as DocumentSuggestion])).toBe(false);
+    // Only an error is a promise; the other kinds say nothing (Q6).
+    for (const kind of ["praise", "rewrite", "ambiguity"] as const) {
+      expect(coachHasIt([{ ...open, coachRequest: { status: "open", kind } } as DocumentSuggestion])).toBe(false);
+    }
     expect(coachHasIt([{ ...open, practiceExercise: item.practiceExercise } as DocumentSuggestion])).toBe(false);
     expect(coachHasIt([bare])).toBe(false);
   });
@@ -443,13 +462,36 @@ describe("the lane on every bookmark (founder 2026-09-29)", () => {
     });
   }
 
-  it("a Yes with a recognised problem and no match: the sentence, then helper words", async () => {
+  it("an In-between with a recognised problem and no match: the sentence, then helper words", async () => {
     await open(recognised);
-    await click("Yes — Confident");
+    await click("In-between");
     expect(notice()).not.toBeNull();
     await click("Continue");
     expect(notice()).toBeNull();
     expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("a Yes with a recognised problem shows nothing now: helper words directly", async () => {
+    // The matrix (founder 2026-09-29): it reaches the coach as an ambiguity;
+    // no sentence, their video comes if they record one.
+    await open(recognised);
+    await click("Yes — Confident");
+    expect(notice()).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("a Yes never opens the library video, even when one is attached", async () => {
+    await open(item);
+    await click("Yes — Confident");
+    expect(offer()).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("a No with nothing recognised is a rewrite: no sentence, the sheet ends", async () => {
+    await open(bare);
+    await click("No — Not confident");
+    expect(notice()).toBeNull();
+    expect(props.onClose).toHaveBeenCalled();
   });
 
   it("an In-between with nothing recognised: helper words directly, no sentence", async () => {

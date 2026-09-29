@@ -59,13 +59,17 @@ import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 
 /** The exercise this moment carries, if any: the same exact-clip offer the
  *  judgement sheet would have shown. */
-/** The moment's bookmark is with the coach and nothing has come back yet. */
+/** The moment's bookmark is with the coach as an ERROR and nothing has come
+ *  back yet: the one kind the coach always answers with a video, so the
+ *  sentence is a promise kept (founder 2026-09-29, Q6). The other kinds say
+ *  nothing; the coach's video appears when shared. */
 export function coachHasIt(items: readonly DocumentSuggestion[]): boolean {
   return items.some(
     (item) =>
       isConfidentVoiceFeedback(item) &&
       !item.practiceExercise &&
-      item.coachRequest?.status === "open",
+      item.coachRequest?.status === "open" &&
+      item.coachRequest.kind === "error",
   );
 }
 

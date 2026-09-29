@@ -283,15 +283,20 @@ function judgementPillDisabled(
   return exercise.busy || exercise.corrected === null || judgement === null;
 }
 
-/** Whether this answer sends a bookmark with no exercise to the coach
- *  (founder 2026-09-29), mirroring the server's rule at judgement time. */
+/** Whether this answer makes the bookmark an ERROR for the coach with no
+ *  library video to show (the follow-up matrix, founder 2026-09-29): the
+ *  clip read weak, a delivery problem fired, nothing targets it
+ *  (`problemRecognised`), on In-between, No or Not sure. That is the one
+ *  cell where the sentence is a promise the coach always keeps. A Yes read
+ *  weak reaches the coach as an ambiguity and shows nothing now; the other
+ *  kinds (praise, rewrite, ambiguity) promise nothing and the coach's video
+ *  simply appears when shared. Mirrors the server's rule at judgement time. */
 function sendsToCoach(
   judgement: RootGateAnswer,
   item: DocumentSuggestion,
 ): boolean {
-  if (judgement === "no") return true;
   return (
-    (judgement === "yes" || judgement === "in_between" || judgement === "not_sure") &&
+    (judgement === "in_between" || judgement === "no" || judgement === "not_sure") &&
     item.problemRecognised === true
   );
 }
@@ -489,9 +494,23 @@ export default function DeckChunkModal({
     ): ChunkStep[] =>
       buildChunkSteps({
         inventory: feedbackInventory,
-        // AUDIO UNCLEAR NEVER ENTERS THE LANE (founder 2026-09-29, rule D):
-        // an unhearable clip closes and moves on. Every other answer may.
-        canPractise: exerciseItem !== null && judgementValue !== "audio_unclear",
+        // THE LIBRARY VIDEO SHOWS ON In-between, No AND Not sure (the
+        // follow-up matrix, founder 2026-09-29). Audio unclear closes and
+        // moves on; a Yes the machine read weak shows nothing now and reaches
+        // the coach as an ambiguity, so its video, if any, comes from them.
+        // Before any answer the rung is built and sits after the question
+        // (a coach-reviewed moment opens straight on it); the answer then
+        // rebuilds the ladder. A video the coach shared is theirs to show on
+        // any answer but Audio unclear.
+        canPractise:
+          exerciseItem !== null &&
+          (judgementValue === null ||
+            judgementValue === "in_between" ||
+            judgementValue === "no" ||
+            judgementValue === "not_sure" ||
+            judgementValue === "other" ||
+            (exerciseItem.practiceExercise?.chosenByCoach === true &&
+              judgementValue !== "audio_unclear")),
         // The service rung exists only once the server has said the answer
         // may carry an offer — passed in explicitly on the advance that the
         // answer causes, because the flow's own state has not re-rendered yet.

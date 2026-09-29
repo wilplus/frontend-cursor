@@ -269,7 +269,12 @@ export interface DocumentSuggestion {
    *  item says the coach is working on it until an exercise arrives
    *  (`practiceExercise` with `chosenByCoach`). `open` while unanswered;
    *  `answered` once the coach replied without sharing. */
-  coachRequest?: { status: "open" | "answered" } | null;
+  coachRequest?: {
+    status: "open" | "answered";
+    /** Why it reached the coach (the follow-up matrix, founder 2026-09-29).
+     *  Only an error carries a promise the sheet may say out loud. */
+    kind: "error" | "praise" | "rewrite" | "ambiguity";
+  } | null;
   /** A problem was recognised on this clip and nothing in the library
    *  targets it yet (founder 2026-09-29): a Yes, In-between or Not sure
    *  sends the bookmark to the coach too, and the sheet says so. A No sends
@@ -563,12 +568,16 @@ function mapSuggestionEvidence(value: unknown): SuggestionEvidence | null {
 
 function mapCoachRequest(
   value: unknown,
-): { status: "open" | "answered" } | null {
+): DocumentSuggestion["coachRequest"] {
   const request = asRecord(value);
   if (!request) return null;
-  return request.status === "open" || request.status === "answered"
-    ? { status: request.status }
-    : null;
+  if (request.status !== "open" && request.status !== "answered") return null;
+  const kind =
+    request.kind === "praise" || request.kind === "rewrite" ||
+    request.kind === "ambiguity"
+      ? request.kind
+      : "error";
+  return { status: request.status, kind };
 }
 
 function mapPracticeExercise(
