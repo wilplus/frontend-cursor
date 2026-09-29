@@ -264,13 +264,13 @@ describe("DeckChunkModal — F1 net", () => {
     const text = await render(rewrite);
     expect(text).toContain("What you said");
     expect(text).toContain(rewrite.quote);
-    expect(text).toContain("Try saying");
+    expect(text).toContain("Small rewrite");
     expect(text).toContain(rewrite.proposedText!);
     const labels = buttonLabels();
-    // One pill, the verb of this screen. "Edit myself" is the pencil on the
-    // Try saying card, named for assistive tech by its aria-label.
+    // One pill, the verb of this screen, and the decline as a link. No pencil
+    // on the card (Final Screens, founder 2026-09-29).
     expect(labels).toContain("Apply");
-    expect(labels).toContain("Edit myself");
+    expect(labels).not.toContain("Edit myself");
     expect(labels).toContain("Keep my wording");
     // Never two buttons side by side: the decline is a grey link under the
     // pill, and there is no third competing action.
@@ -378,7 +378,7 @@ describe("DeckChunkModal — F1 net", () => {
         decided.push("confident_voice");
         // Answering IS the decision — no Done step behind it (2026-09-15).
         await click("Yes — Confident");
-      } else if (text.includes("Try saying")) {
+      } else if (text.includes("Small rewrite")) {
         decided.push("rewrite_clarity");
         await click("Keep my wording");
       } else if (text.includes(PRAISE_LEAD)) {
@@ -491,7 +491,7 @@ describe("DeckChunkModal — F1 net", () => {
     // exercise (§1). So the answer lands on the rewrite, and the exercise is
     // the screen after it — not a card riding on the confidence screen.
     await click("No — Not confident");
-    expect(container.textContent).toContain("Try saying");
+    expect(container.textContent).toContain("Small rewrite");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
     await click("Keep my wording");
@@ -611,7 +611,7 @@ describe("the ladder", () => {
       );
     });
     expect(container.textContent).toContain("Does this sound confident to you?");
-    expect(container.textContent).not.toContain("Try saying");
+    expect(container.textContent).not.toContain("Small rewrite");
   });
 
   it("walks to the emphasis step and promotes the phrase on lock, with no root face", async () => {

@@ -175,7 +175,7 @@ export const CHUNK_SHEET_COPY = {
 
   /* --- card eyebrows ------------------------------------------------------ */
   cardWhatYouSaid: "What you said",
-  cardClearerVersion: "Try saying",
+  cardClearerVersion: "Small rewrite",
   cardWithEmphasis: "With emphasis",
   /* The judgement screen shows the corrected take ALONE — the original
      playback is gone from it, so this eyebrow is the only thing naming which
