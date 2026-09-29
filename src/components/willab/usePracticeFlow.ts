@@ -69,7 +69,7 @@ function confidenceAnswer(value: ConfidenceRatingValue): FiveStateConfidence {
 export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
   const identity = suggestion?.firstClientService ?? null;
   // The building switch says this build carries the service lane; the ring
-  // (backend 0393, `exercise_service_ui` in features_on) says whether THIS
+  // (the backend rings migration, `exercise_service_ui` in features_on) says whether THIS
   // person gets it. Both, or the lane stays off for them.
   const serviceLaneOn = useBuiltAndOn(
     mlc3FirstClientPresentationEnabled,

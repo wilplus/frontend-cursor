@@ -5,7 +5,7 @@ import { callBackend, relayStrict } from "@/app/api/_lib/backend";
 export const runtime = "nodejs";
 
 /* -------------------------------------------------------------------------- */
-/*  /api/v2/admin/rings/* — the founder's rollout panel (backend 0393).        */
+/*  /api/v2/admin/rings/* — the founder's rollout panel (the backend rings migration).        */
 /*                                                                            */
 /*  CARRIES NO SECRET: it forwards only the caller's JWT and the backend's     */
 /*  @require_admin is the gate; a non-admin gets the 403 passed through.       */

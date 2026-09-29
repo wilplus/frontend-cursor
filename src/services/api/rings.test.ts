@@ -1,5 +1,5 @@
 /**
- * The browser's read of the rings decision (backend 0393): it maps what the
+ * The browser's read of the rings decision (the backend rings migration): it maps what the
  * backend said, decides nothing itself, fails closed, and reads once per
  * page load.
  */

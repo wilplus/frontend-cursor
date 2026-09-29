@@ -20,7 +20,7 @@ export default async function ProtectedLayout({
     redirect("/login?redirectTo=/dashboard");
   }
 
-  // Rings (backend 0393): a feature the person's ring has reached that
+  // Rings (the backend rings migration): a feature the person's ring has reached that
   // announces itself shows its sheet on their next login. Placeholder copy;
   // it renders nothing when nothing is pending or the read fails.
   return (

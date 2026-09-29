@@ -1,5 +1,5 @@
 /**
- * The founder's rings panel client (backend /v2/admin/rings/*, 0393).
+ * The founder's rings panel client (backend /v2/admin/rings/*).
  *
  * Thin fetches over the BFF routes under /api/v2/admin/rings/*. The backend's
  * @require_admin is the gate; the panel only renders behind the founder check

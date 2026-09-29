@@ -42,7 +42,7 @@ export default function CoachGuidanceComposer({
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   // The building switch says this build carries inline authoring; the coach's
-  // own ring (backend 0393, `coach_inline_authoring`) says whether THIS coach
+  // own ring (the backend rings migration, `coach_inline_authoring`) says whether THIS coach
   // gets it. Both, or the composer authors nothing.
   const inlineAuthoringOn = useBuiltAndOn(
     COACH_INLINE_AUTHORING_UI_ENABLED,

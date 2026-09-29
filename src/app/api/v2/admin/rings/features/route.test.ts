@@ -1,6 +1,6 @@
 /**
  * The rings panel's BFF legs forward to the backend through callBackend with
- * the strict relay and no envelope of their own (rings, backend 0393). One
+ * the strict relay and no envelope of their own (rings, the backend rings migration). One
  * read and one write are exercised here; every leg's envelope is pinned in
  * bffEnvelopes.golden.json.
  */
