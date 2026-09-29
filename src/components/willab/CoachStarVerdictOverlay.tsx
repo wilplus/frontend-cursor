@@ -51,6 +51,7 @@ import {
 } from "@/services/api/trainingCorpus";
 import {
   buildRatingBody,
+  opensPracticeDoor,
   saveStateRating,
   type ConfidenceRatingValue,
   CONFIDENCE_QUESTION,
@@ -777,7 +778,7 @@ function renderConfidentVoiceCarryoverSection(options: {
             snippetId={row.snippetId}
             enabled={
               COACH_GUIDANCE_D3_UI_ENABLED &&
-              (row.label?.value !== null || row.label?.unrateable === true)
+              opensPracticeDoor(row.label?.value, row.label?.unrateable)
             }
           />
           {coachGuidanceItemsForReviewAct(guidanceBatch, {

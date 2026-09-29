@@ -13,6 +13,7 @@ import {
 } from "@/services/api/coachReview";
 import {
   buildRatingBody,
+  opensPracticeDoor,
   saveStateRating,
   CONFIDENCE_QUESTION,
   type ConfidenceRatingValue,
@@ -95,7 +96,7 @@ function renderBlindPiece(options: {
     sessionId, ratingSaved, snippet, revealedTranscript, instrument, rating,
     presentationRef, onBuildExercise,
   } = options;
-  const answered = rating === "yes" || rating === "no";
+  const answered = opensPracticeDoor(rating);
   return (
     <CoachCard gap="lg">
       {/* THE SLIDE, ON THE BLIND SCREEN — a founder override of the
@@ -373,7 +374,7 @@ export default function CoachSnippetReviewCard({
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
   const ratingSaved =
-    !ratingSaving && !unrateable && (rating === "yes" || rating === "no");
+    !ratingSaving && opensPracticeDoor(rating, unrateable);
   if (!contextUnlocked) {
     return renderBlindPiece({
       sessionId,
