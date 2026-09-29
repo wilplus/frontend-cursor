@@ -10,6 +10,8 @@ import {
   type CoachConfidencePractice,
 } from "@/services/api/coachConfidencePractice";
 import type { PracticeAnswer } from "@/services/api/confidentVoicePractice";
+import ConfidenceLabelChips from "./ConfidenceLabelChips";
+import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 
 /** The speaker's answer as the speaker saw it, or `none` when there is none. */
 function answerLabel(value: PracticeAnswer | null, none: string): string {
@@ -46,7 +48,7 @@ export default function CoachConfidencePracticeReview({
   const [loading, setLoading] = useState(false);
   const [decision, setDecision] = useState<"yes" | "no" | "refine">("refine");
   const [selectedAttemptDecision, setSelectedAttemptDecision] = useState<
-    "yes" | "no" | null
+    PracticeAnswer | null
   >(null);
   const [exerciseMode, setExerciseMode] = useState<"library" | "custom">("library");
   const [exerciseId, setExerciseId] = useState("");
@@ -221,28 +223,19 @@ export default function CoachConfidencePracticeReview({
 
           {practice.attempts.some((attempt) => attempt.isSelected) ? (
             <div className="rounded-xl border border-primary/30 bg-background p-3">
-              <p className="text-[13px] font-semibold text-foreground">
-                Do you find it more confident?
-              </p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              {/* ONE JUDGEMENT SCREEN EVERYWHERE (founder 2026-09-29, Q3/Q3a):
+                  the speaker's own question and the same five answers, on the
+                  shared instrument. A snapshot of this recording, which is
+                  what the Voice Album needs; "better than before" is worked
+                  out from it, never asked. */}
+              <ConfidenceLabelChips
+                question={CHUNK_SHEET_COPY.confidenceQuestion}
+                value={selectedAttemptDecision}
+                onPick={setSelectedAttemptDecision}
+              />
+              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
                 Judge this new recording itself. The original clip’s rating does not apply here.
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["yes", "no"] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setSelectedAttemptDecision(value)}
-                    className={`rounded-full border px-4 py-2 text-[13px] font-medium ${
-                      selectedAttemptDecision === value
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground"
-                    }`}
-                  >
-                    {value === "yes" ? "Yes" : "No"}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : null}
 

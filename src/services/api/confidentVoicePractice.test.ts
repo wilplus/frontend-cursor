@@ -130,7 +130,13 @@ describe("the coach sees the speaker's answer as given (founder 2026-09-28)", ()
     expect(coach?.attempts[0].userAnswer).toBe("not_sure");
   });
 
-  it("still reads the coach's own decision as Yes or No only", () => {
+  it("reads the coach's own answer the same five ways (Q3a)", () => {
+    // "maybe" is not an answer.
     expect(mapCoachConfidencePractice(base)?.attempts[0].coachConfidenceDecision).toBeNull();
+    const five = mapCoachConfidencePractice({
+      ...base,
+      attempts: [{ ...base.attempts[0], coach_confidence_decision: "in_between" }],
+    });
+    expect(five?.attempts[0].coachConfidenceDecision).toBe("in_between");
   });
 });

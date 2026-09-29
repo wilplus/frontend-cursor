@@ -93,7 +93,11 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(coach).toContain('href="/cms/new/exercise/1"');
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
-    expect(coach).toContain("Do you find it more confident?");
+    // One judgement screen everywhere (founder 2026-09-29, Q3/Q3a): the
+    // speaker's question and the shared five-answer instrument.
+    expect(coach).toContain("<ConfidenceLabelChips");
+    expect(coach).toContain("question={CHUNK_SHEET_COPY.confidenceQuestion}");
+    expect(coach).not.toContain("more confident?");
     expect(coach).toContain("selectedAttemptDecision");
   });
 
