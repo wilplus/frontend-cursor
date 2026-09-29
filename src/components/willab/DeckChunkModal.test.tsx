@@ -264,14 +264,14 @@ describe("DeckChunkModal — F1 net", () => {
     const text = await render(rewrite);
     expect(text).toContain("What you said");
     expect(text).toContain(rewrite.quote);
-    expect(text).toContain("Clearer version");
+    expect(text).toContain("Try saying");
     expect(text).toContain(rewrite.proposedText!);
     const labels = buttonLabels();
     // One pill, the verb of this screen. "Edit myself" is the pencil on the
-    // Clearer version card, named for assistive tech by its aria-label.
+    // Try saying card, named for assistive tech by its aria-label.
     expect(labels).toContain("Apply");
     expect(labels).toContain("Edit myself");
-    expect(labels).toContain("Keep wording");
+    expect(labels).toContain("Keep my wording");
     // Never two buttons side by side: the decline is a grey link under the
     // pill, and there is no third competing action.
     expect(labels).not.toContain("Apply suggestion");
@@ -287,7 +287,7 @@ describe("DeckChunkModal — F1 net", () => {
     expect(text).toContain(PRAISE_LEAD);
     const labels = buttonLabels();
     expect(labels).toContain("Continue");
-    for (const gone of ["Useful", "Not useful", "Apply", "Keep wording"]) {
+    for (const gone of ["Useful", "Not useful", "Apply", "Keep my wording"]) {
       expect(labels, gone).not.toContain(gone);
     }
   });
@@ -378,9 +378,9 @@ describe("DeckChunkModal — F1 net", () => {
         decided.push("confident_voice");
         // Answering IS the decision — no Done step behind it (2026-09-15).
         await click("Yes — Confident");
-      } else if (text.includes("Clearer version")) {
+      } else if (text.includes("Try saying")) {
         decided.push("rewrite_clarity");
-        await click("Keep wording");
+        await click("Keep my wording");
       } else if (text.includes(PRAISE_LEAD)) {
         decided.push("great_formulation");
         await click("Continue");
@@ -491,10 +491,10 @@ describe("DeckChunkModal — F1 net", () => {
     // exercise (§1). So the answer lands on the rewrite, and the exercise is
     // the screen after it — not a card riding on the confidence screen.
     await click("No — Not confident");
-    expect(container.textContent).toContain("Clearer version");
+    expect(container.textContent).toContain("Try saying");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
-    await click("Keep wording");
+    await click("Keep my wording");
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
     // The exercise step's own footer: one verb, one stacked link.
     expect(buttonLabels()).toContain("Practise");
@@ -611,14 +611,14 @@ describe("the ladder", () => {
       );
     });
     expect(container.textContent).toContain("Does this sound confident to you?");
-    expect(container.textContent).not.toContain("Clearer version");
+    expect(container.textContent).not.toContain("Try saying");
   });
 
   it("walks to the emphasis step and promotes the phrase on lock, with no root face", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis });
     await click("Yes — Confident");     // feedback
-    await click("Keep wording");        // suggestion
+    await click("Keep my wording");        // suggestion
     await click("Continue");            // good job
     expect(container.textContent).toContain("With emphasis");
     await click("Use these helper words");
@@ -862,7 +862,7 @@ describe("the ladder", () => {
   it("Choose different words opens tap-to-select, and a tap previews in the accent", async () => {
     await renderLadder({ style: emphasis });
     await click("Yes — Confident");
-    await click("Keep wording");
+    await click("Keep my wording");
     await click("Continue");
     await click("Choose different words");
     expect(container.textContent).toContain("Tap the words");

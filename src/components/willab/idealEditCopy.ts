@@ -161,7 +161,7 @@ export const CHUNK_SHEET_COPY = {
   pillStop: "Stop",
 
   /* --- links (grey, stacked under the pill, never beside it) -------------- */
-  linkKeepWording: "Keep wording",
+  linkKeepWording: "Keep my wording",
   linkChooseWords: "Choose different words",
   /* linkSkip is GONE with the button that used it (founder 2026-09-16, §5):
      the emphasis step has no opt-out, because it only appears on a paragraph
@@ -175,7 +175,7 @@ export const CHUNK_SHEET_COPY = {
 
   /* --- card eyebrows ------------------------------------------------------ */
   cardWhatYouSaid: "What you said",
-  cardClearerVersion: "Clearer version",
+  cardClearerVersion: "Try saying",
   cardWithEmphasis: "With emphasis",
   /* The judgement screen shows the corrected take ALONE — the original
      playback is gone from it, so this eyebrow is the only thing naming which
