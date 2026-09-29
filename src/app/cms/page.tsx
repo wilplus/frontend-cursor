@@ -720,6 +720,13 @@ export default function JournalAdminPage() {
             </button>
             <button
               type="button"
+              onClick={() => router.push("/cms/jar")}
+              className={BTN_GHOST}
+            >
+              The jar
+            </button>
+            <button
+              type="button"
               onClick={() => router.push("/cms/new")}
               className={BTN_PRIMARY}
             >

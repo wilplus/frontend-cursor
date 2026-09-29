@@ -216,8 +216,11 @@ describe("slugify", () => {
 });
 
 describe("the doors into the lane", () => {
-  it("the coach panel links straight past the fork", () => {
-    expect(COACH).toContain('href="/cms/new/exercise/1"');
+  it("the coach panel links to its own exercise lane, not the CMS fork", () => {
+    // Since decision 4 (founder 2026-09-29) the coach authors in the coach
+    // panel, which needs no CMS password; this lane stays for an admin.
+    expect(COACH).toContain('href="/coach/exercises?new=1"');
+    expect(COACH).not.toContain("/cms/new/exercise/1");
     expect(COACH).toContain("Add to the library");
   });
 

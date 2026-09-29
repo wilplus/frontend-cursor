@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import { Loader2, Video } from "lucide-react";
+import { useBuiltAndOn } from "@/hooks/useRingState";
+import { RING_FEATURES } from "@/services/api/rings";
 import SpeechDataPanel from "./SpeechDataPanel";
 import {
   COACH_INLINE_AUTHORING_UI_ENABLED,
@@ -39,8 +41,15 @@ export default function CoachGuidanceComposer({
   );
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
+  // The building switch says this build carries inline authoring; the coach's
+  // own ring (the backend rings migration, `coach_inline_authoring`) says whether THIS coach
+  // gets it. Both, or the composer authors nothing.
+  const inlineAuthoringOn = useBuiltAndOn(
+    COACH_INLINE_AUTHORING_UI_ENABLED,
+    RING_FEATURES.coachInlineAuthoring,
+  );
   const canCreateExercise =
-    COACH_INLINE_AUTHORING_UI_ENABLED &&
+    inlineAuthoringOn &&
     item.exerciseEligible &&
     item.feedbackMembershipId !== null &&
     item.feedbackCandidateId !== null &&

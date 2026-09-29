@@ -3,7 +3,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import CoachInlineBlindExposureBoundary from "./CoachInlineBlindExposureBoundary";
+import CoachInlineBlindExposureBoundary, {
+  BlindExposureBoundary,
+} from "./CoachInlineBlindExposureBoundary";
 import { acknowledgeCoachInlineBlindRender } from "@/services/api/stateRatings";
 
 vi.mock("@/services/api/stateRatings", async (load) => {
@@ -105,5 +107,108 @@ describe("CoachInlineBlindExposureBoundary", () => {
 
     expect(acknowledgeCoachInlineBlindRender).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("exposure-1");
+  });
+
+  it("keeps the D5 retry identity under the coach-inline scope", async () => {
+    await act(async () => {
+      // eslint-disable-next-line react/no-children-prop
+      root.render(createElement(
+        CoachInlineBlindExposureBoundary,
+        { blindReview, children: () => createElement("span", null, "card") },
+      ));
+    });
+    await act(async () => {
+      observerCallback?.([
+        { isIntersecting: true } as IntersectionObserverEntry,
+      ], {} as IntersectionObserver);
+    });
+    const request = vi.mocked(acknowledgeCoachInlineBlindRender).mock.calls[0][1];
+    expect(request.idempotencyKey).toMatch(
+      new RegExp(`^coach-inline-visible-render:${blindReview.presentationId}:`),
+    );
+    expect(window.sessionStorage.getItem(
+      `willab:coach-inline-render:${blindReview.presentationId}`,
+    )).not.toBeNull();
+  });
+});
+
+describe("BlindExposureBoundary (Q2: one boundary, two receipts)", () => {
+  beforeEach(() => {
+    vi.mocked(acknowledgeCoachInlineBlindRender).mockClear();
+  });
+
+  const chainHandle = {
+    reviewAssignmentId: "20000000-0000-4000-8000-000000000003",
+    presentationId: "20000000-0000-4000-8000-000000000005",
+    acknowledgementToken: "20000000-0000-4000-8000-000000000006",
+    visiblePayloadSha256: "b".repeat(64),
+  };
+
+  it("confirms through the given transport under its own scope", async () => {
+    const acknowledge = vi.fn().mockResolvedValue({
+      ok: true,
+      receipt: {
+        reviewAssignmentId: chainHandle.reviewAssignmentId,
+        presentationId: chainHandle.presentationId,
+        exposureId: "exposure-9",
+      },
+    });
+    await act(async () => {
+      // eslint-disable-next-line react/no-children-prop
+      root.render(createElement(
+        BlindExposureBoundary<typeof chainHandle>,
+        {
+          blindReview: chainHandle,
+          acknowledge,
+          scope: "coach-card",
+          children: ({ exposureId }: { exposureId: string | null }) =>
+            createElement("span", null, exposureId ?? "waiting"),
+        },
+      ));
+    });
+    await act(async () => {
+      observerCallback?.([
+        { isIntersecting: true } as IntersectionObserverEntry,
+      ], {} as IntersectionObserver);
+    });
+
+    expect(acknowledge).toHaveBeenCalledTimes(1);
+    expect(acknowledgeCoachInlineBlindRender).not.toHaveBeenCalled();
+    expect(acknowledge.mock.calls[0][0]).toBe(chainHandle);
+    expect(acknowledge.mock.calls[0][1].idempotencyKey).toMatch(
+      new RegExp(`^coach-card-visible-render:${chainHandle.presentationId}:`),
+    );
+    expect(container.textContent).toContain("exposure-9");
+  });
+
+  it("a receipt for another card is refused and no exposure is reported", async () => {
+    const acknowledge = vi.fn().mockResolvedValue({
+      ok: true,
+      receipt: {
+        reviewAssignmentId: "30000000-0000-4000-8000-000000000003",
+        presentationId: chainHandle.presentationId,
+        exposureId: "exposure-x",
+      },
+    });
+    await act(async () => {
+      // eslint-disable-next-line react/no-children-prop
+      root.render(createElement(
+        BlindExposureBoundary<typeof chainHandle>,
+        {
+          blindReview: chainHandle,
+          acknowledge,
+          scope: "coach-card",
+          children: ({ exposureId, error }: { exposureId: string | null; error: string | null }) =>
+            createElement("span", null, exposureId ?? error ?? "waiting"),
+        },
+      ));
+    });
+    await act(async () => {
+      observerCallback?.([
+        { isIntersecting: true } as IntersectionObserverEntry,
+      ], {} as IntersectionObserver);
+    });
+    expect(container.textContent).not.toContain("exposure-x");
+    expect(container.textContent).toContain("did not match");
   });
 });

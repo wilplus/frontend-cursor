@@ -6,13 +6,11 @@
 /*      which made one glyph do two jobs — every other Shell in the delivery   */
 /*      flow closes the overlay.                                              */
 /*                                                                            */
-/*  (2) THE TAKE-LEVEL COACH VIDEO IS RETIRED (superseded the same day:        */
-/*      "I only want to exercise videos, not the coach video at the end").     */
-/*      It briefly gained a server seed so the checklist could see a video     */
-/*      recorded in an earlier sitting; the founder then removed the feature   */
-/*      instead, so what is pinned here is its ABSENCE. An exercise's own      */
-/*      demonstration video is untouched and is the one that reaches the       */
-/*      speaker.                                                              */
+/*  (2) THE COACH VIDEO IS BACK (founder 2026-09-29, Q1), and it is READ,    */
+/*      not just written. `videoRef` was local state only an upload in that  */
+/*      same sitting could fill, so a coach who recorded last week was told   */
+/*      "Coach video · None" on the last screen before a student receives    */
+/*      the analysis.                                                         */
 /*                                                                            */
 /*  (3) THE CMS DEEP LINK SURVIVES THE PASSWORD GATE. /cms/new/exercise/1 is   */
 /*      already the record step, but the gate bounced to /cms and dropped the  */
@@ -53,6 +51,12 @@ vi.mock("@/services/api/saveCoachFeedback", () => ({
   saveCoachFeedback: vi.fn(async () => ({ ok: true as const })),
 }));
 
+const fetchCoachReviewSession = vi.fn();
+vi.mock("@/services/api/coachReview", async (load) => {
+  const actual = await load<typeof import("@/services/api/coachReview")>();
+  return { ...actual, fetchCoachReviewSession: (id: string) => fetchCoachReviewSession(id) };
+});
+
 import CoachDeliveryOverlay from "./CoachDeliveryOverlay";
 
 const STATE = {
@@ -72,6 +76,7 @@ let container: HTMLDivElement;
 
 beforeEach(() => {
   fetchCoachReviewState.mockReset().mockResolvedValue(STATE);
+  fetchCoachReviewSession.mockReset().mockResolvedValue({ videoRef: null });
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -111,32 +116,25 @@ async function click(match: (b: HTMLButtonElement) => boolean) {
 }
 const byText = (t: string) => (b: HTMLButtonElement) => (b.textContent ?? "").trim().startsWith(t);
 
-describe("the take-level coach video is gone", () => {
-  it("the message screen offers no video slot", async () => {
+describe("the coach video is read back, not only written", () => {
+  it("shows a video recorded in an earlier sitting", async () => {
+    fetchCoachReviewSession.mockResolvedValue({ videoRef: "https://media/coach.mp4" });
     await mount();
+    // Walk to the last screen: Wrap up → message → review and send.
     await click(byText("Ideal text · approved"));
-    // On the message screen now: a message box and one way forward.
-    expect(container.textContent).toContain("Message to the user");
-    expect(container.textContent).not.toContain("Coach video");
+    await click(byText("Review and send"));
+    // The row itself, not the page: "Message from you · None" is a different
+    // row and legitimately says None when no message was written.
+    expect(container.textContent).toContain("Coach videoRecorded");
   });
 
-  it("the final checklist does not promise one", async () => {
-    // It used to carry a "Coach video · None/Recorded" row. A row for a
-    // surface that no longer exists would be the worst of both.
+  it("still says None when the server has no video", async () => {
+    // The honest empty state has to survive the fix — a checklist that always
+    // reads "Recorded" is worth less than one that always read "None".
     await mount();
     await click(byText("Ideal text · approved"));
     await click(byText("Review and send"));
-    expect(container.textContent).toContain("Ideal text");
-    expect(container.textContent).not.toContain("Coach video");
-  });
-
-  it("the exercise video path is untouched", () => {
-    // The one video that does reach the speaker. It uploads through the same
-    // transport the retired slot used, so deleting the slot must not take the
-    // uploader with it.
-    const practice = read(join("components", "willab", "CoachConfidencePracticeReview.tsx"));
-    expect(practice).toContain("uploadCoachVideo");
-    expect(practice).toContain("Exercise video");
+    expect(container.textContent).toContain("Coach videoNone");
   });
 });
 
@@ -225,7 +223,11 @@ describe("the CMS deep link survives the password gate", () => {
     const first = lanes.indexOf("export const EXERCISE_STEPS");
     expect(lanes.slice(first, first + 200)).toContain('id: "record"');
 
+    // Since decision 4 (founder 2026-09-29) the review hands off to the coach
+    // panel's own exercise lane, which needs no CMS password; the CMS lane
+    // above stays for an admin who starts there.
     const review = read(join("components", "willab", "CoachReviewOverlay.tsx"));
-    expect(review).toContain("/cms/new/exercise/1?returnTo=");
+    expect(review).toContain("/coach/exercises?new=1&returnTo=");
+    expect(review).not.toContain("/cms/new/exercise/1");
   });
 });

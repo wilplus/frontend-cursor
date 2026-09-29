@@ -1185,6 +1185,10 @@ export type IdealTextResult =
        *  `version`, exactly today's behavior. */
       takeCount: number | null;
       journeyNextStepsSeen: boolean | null;
+      /** The coach's overall message for the latest published Take, with its
+       *  optional video (founder 2026-09-29, Q1; Final Screens L8). Owner
+       *  only; null when the coach sent neither, or before the BE serves it. */
+      coachMessage: CoachMessage | null;
       /** The latest SPOKEN take (excludes reads). Still the pairing target
        *  for a delivery-star snippet re-record. */
       latestTakeSessionId: string | null;
@@ -1554,6 +1558,7 @@ function mapSingleIdealTextFetchResult(
       typeof body.journey_next_steps_seen === "boolean"
         ? body.journey_next_steps_seen
         : null,
+    coachMessage: mapCoachMessage(body.coach_message),
     latestTakeSessionId:
       typeof body.latest_take_session_id === "string" &&
       body.latest_take_session_id
@@ -1757,6 +1762,7 @@ function mapIdealTextCorePayload(
     updatedAt: str(body.updated_at) || null,
     takeCount: numberOrNull(body.take_count),
     journeyNextStepsSeen: null,
+    coachMessage: null,
     latestTakeSessionId: str(body.latest_take_session_id) || null,
     pieces: ownerEditParts
       ? piecesForOwnerEdit(mapIdealPieces(body.pieces), ownerEditParts)
@@ -2159,6 +2165,35 @@ export async function settleIdealTextEnrichment(
   }
 }
 
+/** The coach's overall message for one published Take (founder 2026-09-29,
+ *  Q1): the written message and/or the coach's video, the Take it was written
+ *  for, and when it was published. Step 0 of the Feedback sheet shows it. */
+export interface CoachMessage {
+  text: string | null;
+  videoUrl: string | null;
+  takeIndex: number | null;
+  publishedAt: string | null;
+}
+
+/** null unless the coach sent a message or a video. */
+export function mapCoachMessage(raw: unknown): CoachMessage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const text = typeof r.text === "string" && r.text.trim() ? r.text.trim() : null;
+  const videoUrl =
+    typeof r.video_url === "string" && r.video_url.trim() ? r.video_url : null;
+  if (!text && !videoUrl) return null;
+  return {
+    text,
+    videoUrl,
+    takeIndex:
+      typeof r.take_index === "number" && Number.isFinite(r.take_index)
+        ? r.take_index
+        : null,
+    publishedAt: typeof r.published_at === "string" ? r.published_at : null,
+  };
+}
+
 /** Apply only ready optional sections to their exact core revision. */
 export function mergeIdealTextEnrichment(
   core: Extract<IdealTextResult, { kind: "single" }>,
@@ -2212,6 +2247,9 @@ export function mergeIdealTextEnrichment(
     journeyNextStepsSeen: journey
       ? journey.journey_next_steps_seen === true
       : core.journeyNextStepsSeen,
+    coachMessage: journey
+      ? mapCoachMessage(journey.coach_message)
+      : core.coachMessage,
     suggestions: layers
       ? mapDocumentSuggestions(layers.changes)
       : core.suggestions,

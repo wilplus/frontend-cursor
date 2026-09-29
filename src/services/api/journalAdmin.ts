@@ -882,3 +882,125 @@ export function mapExerciseGaps(data: unknown): ExerciseGaps {
 export function adminExerciseGaps(password: string, days = 30) {
   return post("exercise-gaps", password, { days }, mapExerciseGaps);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  The jar (founder 2026-09-29, decision 5; backend step 8 prep).             */
+/*                                                                            */
+/*  How close the exercise learning data is to its evidence bar: 300         */
+/*  first-exposure attempts with a valid endpoint, and 30 for every exercise  */
+/*  a ranker would rank. COUNTS ONLY. The backend never computes whether an   */
+/*  exercise worked here, and this mapper reads no such field: peeking at    */
+/*  results while the jar fills would let the bar be judged against the very  */
+/*  thing it exists to protect. A source the backend could not read is        */
+/*  listed in `unavailable`, and the count is then not ready, never smaller.  */
+/* -------------------------------------------------------------------------- */
+
+export type JarSource = "exposures" | "assignments" | "match_traces" | "practices" | "attempts";
+
+export type JarExclusion =
+  | "untraced"
+  | "no_targeted_problem"
+  | "rules_changed"
+  | "repeat"
+  | "below_minimum_probability"
+  | "no_attempt"
+  | "no_valid_attempt";
+
+export interface JarExercise {
+  exerciseId: string;
+  /** Confirmed renders of this exercise. */
+  exposures: number;
+  /** Renders that entered the cohort (first exposure per targeted problem). */
+  cohort: number;
+  /** Cohort renders with a valid endpoint attempt: what counts. */
+  counted: number;
+  /** The per-exercise bar. */
+  needed: number;
+}
+
+export interface ExerciseJar {
+  bar: { minCounted: number; minPerExercise: number };
+  exposures: number;
+  cohort: number;
+  counted: number;
+  /** counted / cohort, or null while the cohort is empty. */
+  attemptRate: number | null;
+  excluded: Record<JarExclusion, number>;
+  /** How the counted practices were chosen (top, exploration, a singleton, a coach). */
+  countedBySelectionMode: Record<string, number>;
+  exercises: JarExercise[];
+  ready: boolean;
+  whyNot: string | null;
+  unavailable: JarSource[];
+  versions: { labelSpec: string; readiness: string; signalRules: string; noiseGate: string };
+}
+
+const JAR_SOURCES: readonly string[] = ["exposures", "assignments", "match_traces", "practices", "attempts"];
+export const JAR_EXCLUSIONS: readonly JarExclusion[] = [
+  "untraced", "no_targeted_problem", "rules_changed", "repeat",
+  "below_minimum_probability", "no_attempt", "no_valid_attempt",
+];
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function mapJarExercise(raw: unknown): JarExercise | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.exercise_id !== "string" || !r.exercise_id) return null;
+  return {
+    exerciseId: r.exercise_id,
+    exposures: count(r.exposures),
+    cohort: count(r.cohort),
+    counted: count(r.counted),
+    needed: count(r.needed) || 30,
+  };
+}
+
+function mapCounts(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isFinite(value)) out[key] = Math.max(0, value);
+  }
+  return out;
+}
+
+export function mapExerciseJar(data: unknown): ExerciseJar {
+  const d = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  const bar = d.bar && typeof d.bar === "object" ? d.bar as Record<string, unknown> : {};
+  const excludedRaw = mapCounts(d.excluded);
+  const excluded = Object.fromEntries(
+    JAR_EXCLUSIONS.map((name) => [name, excludedRaw[name] ?? 0]),
+  ) as Record<JarExclusion, number>;
+  const rate = d.attempt_rate;
+  return {
+    bar: {
+      minCounted: count(bar.min_counted) || 300,
+      minPerExercise: count(bar.min_per_exercise) || 30,
+    },
+    exposures: count(d.exposures),
+    cohort: count(d.cohort),
+    counted: count(d.counted),
+    attemptRate: typeof rate === "number" && Number.isFinite(rate) ? rate : null,
+    excluded,
+    countedBySelectionMode: mapCounts(d.counted_by_selection_mode),
+    exercises: (Array.isArray(d.exercises) ? d.exercises : [])
+      .map(mapJarExercise)
+      .filter((e): e is JarExercise => e !== null),
+    ready: d.ready === true,
+    whyNot: text(d.why_not) || null,
+    unavailable: ids(d.unavailable).filter((v): v is JarSource => JAR_SOURCES.includes(v)),
+    versions: {
+      labelSpec: text(d.label_spec_version),
+      readiness: text(d.readiness_version),
+      signalRules: text(d.signal_rules_version),
+      noiseGate: text(d.noise_gate_version),
+    },
+  };
+}
+
+export function adminExerciseLearningReadiness(password: string) {
+  return post("exercise-learning-readiness", password, {}, mapExerciseJar);
+}

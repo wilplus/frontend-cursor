@@ -236,9 +236,11 @@ export default function CoachReviewOverlay({
     [refresh],
   );
 
-  /** The CMS owns exercise authoring; the review only hands off and comes
-   *  back. `returnTo` carries the exact piece so the queue reopens where the
-   *  coach left it — the drafts survive the trip in localStorage already.
+  /** The coach panel owns exercise authoring (founder 2026-09-29, decision
+   *  4: /coach/exercises, no CMS password); the review only hands off and
+   *  comes back. `returnTo` carries the exact piece so the queue reopens
+   *  where the coach left it — the drafts survive the trip in localStorage
+   *  already.
    *
    *  `piece` is 1-based (`initialPiece - 1` on the way back), so this reopens
    *  the SAME moment, not the next one — which is what the coach needs, since
@@ -249,7 +251,7 @@ export default function CoachReviewOverlay({
     const forMoment = snippetId ? `&for=${encodeURIComponent(snippetId)}` : "";
     const back = `/chat?review=${encodeURIComponent(sessionId)}&piece=${cursor + 1}${forMoment}`;
     window.location.assign(
-      `/cms/new/exercise/1?returnTo=${encodeURIComponent(back)}`,
+      `/coach/exercises?new=1&returnTo=${encodeURIComponent(back)}`,
     );
   }, [sessionId, cursor]);
 

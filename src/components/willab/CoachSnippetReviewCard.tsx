@@ -13,6 +13,7 @@ import {
 } from "@/services/api/coachReview";
 import {
   buildRatingBody,
+  opensPracticeDoor,
   saveStateRating,
   CONFIDENCE_QUESTION,
   type ConfidenceRatingValue,
@@ -95,8 +96,7 @@ function renderBlindPiece(options: {
     sessionId, ratingSaved, snippet, revealedTranscript, instrument, rating,
     presentationRef, onBuildExercise,
   } = options;
-  // Any saved answer, Audio unclear included (founder 2026-09-29).
-  const answered = ratingSaved;
+  const answered = opensPracticeDoor(rating);
   return (
     <CoachCard gap="lg">
       {/* THE SLIDE, ON THE BLIND SCREEN — a founder override of the
@@ -372,13 +372,8 @@ export default function CoachSnippetReviewCard({
   // before any slide, acoustic context, practice, note or delivery control is
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
-  // ANY OF THE FIVE OPENS THE DOOR (founder 2026-09-29). Until today only
-  // Yes and No did, so an In-between, Not sure or Audio unclear left the
-  // practice review and the exercise request unreachable on that moment, and
-  // it looked as if nothing existed there. The fence is unchanged: the answer
-  // must be saved before anything is built, and the server refuses until it
-  // is. `unrateable` IS the Audio unclear answer.
-  const ratingSaved = !ratingSaving && (rating !== null || unrateable);
+  const ratingSaved =
+    !ratingSaving && opensPracticeDoor(rating, unrateable);
   if (!contextUnlocked) {
     return renderBlindPiece({
       sessionId,

@@ -9,7 +9,7 @@
   "src/components/willab/CoachConfidencePracticeReview.tsx:Function 'CoachConfidencePracticeReview'": 30,
   "src/components/willab/CoachGuidanceComposer.tsx:Function 'CoachGuidanceComposer'": 36,
   "src/components/willab/ConfidentMomentExercisePanel.tsx:Function 'ConfidentMomentExercisePanel'": 35,
-  "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 41,
+  "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 40,
   "src/components/willab/IdealTextOverlay.tsx:Function 'IdealTextOverlay'": 43,
   "src/components/willab/LabOverlay.tsx:Async arrow function#3": 32,
   "src/components/willab/LabOverlay.tsx:Function 'LabOverlay'": 26,

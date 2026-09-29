@@ -90,10 +90,15 @@ describe("Confident Voice micro-practice journey fences", () => {
     // And the third door, which is the one that really does add to the
     // catalogue: straight into the exercise lane, skipping the fork.
     expect(coach).toContain("Add to the library");
-    expect(coach).toContain('href="/cms/new/exercise/1"');
+    // The coach panel's own lane since decision 4 (founder 2026-09-29).
+    expect(coach).toContain('href="/coach/exercises?new=1"');
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
-    expect(coach).toContain("Do you find it more confident?");
+    // One judgement screen everywhere (founder 2026-09-29, Q3/Q3a): the
+    // speaker's question and the shared five-answer instrument.
+    expect(coach).toContain("<ConfidenceLabelChips");
+    expect(coach).toContain("question={CHUNK_SHEET_COPY.confidenceQuestion}");
+    expect(coach).not.toContain("more confident?");
     expect(coach).toContain("selectedAttemptDecision");
   });
 

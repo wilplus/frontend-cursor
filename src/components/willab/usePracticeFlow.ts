@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useBuiltAndOn } from "@/hooks/useRingState";
+import { RING_FEATURES } from "@/services/api/rings";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import {
@@ -66,6 +68,13 @@ function confidenceAnswer(value: ConfidenceRatingValue): FiveStateConfidence {
  *  reports `active: false` and does nothing. */
 export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
   const identity = suggestion?.firstClientService ?? null;
+  // The building switch says this build carries the service lane; the ring
+  // (the backend rings migration, `exercise_service_ui` in features_on) says whether THIS
+  // person gets it. Both, or the lane stays off for them.
+  const serviceLaneOn = useBuiltAndOn(
+    mlc3FirstClientPresentationEnabled,
+    RING_FEATURES.exerciseServiceUi,
+  );
   const mic = useDualCaptureMic({ transcript: false });
   const feedbackRenderId = useRef(freshId()).current;
   const offerRenderId = useRef(freshId()).current;
@@ -101,7 +110,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
   );
 
   useEffect(() => {
-    if (!mlc3FirstClientPresentationEnabled || !identity || !feedbackRenderId) return;
+    if (!serviceLaneOn || !identity || !feedbackRenderId) return;
     let cancelled = false;
     void confirmFeedbackRender(
       identity,
@@ -114,7 +123,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
       else setError(result.error ?? "This practice is not available yet.");
     });
     return () => { cancelled = true; };
-  }, [feedbackKey, feedbackRenderId, identity]);
+  }, [feedbackKey, feedbackRenderId, identity, serviceLaneOn]);
 
   useEffect(() => {
     if (!identity) return;
@@ -364,7 +373,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
     (item) => item.speakerConfirmationRequired && !item.ownerPair,
   );
   return {
-    active: mlc3FirstClientPresentationEnabled && Boolean(identity),
+    active: serviceLaneOn && Boolean(identity),
     identity,
     feedbackReady: Boolean(renderReceiptId),
     mic,
