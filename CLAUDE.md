@@ -41,6 +41,22 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   all A (clause 20 says italic; ship without words lighting up; a coach
   exercise on an answered moment opens on its own; keep the orange picker
   highlight).
+- The six journey questions the design does not draw were decided 2026-09-29
+  (founder, from the "Six Journey Questions" page):
+  1. After a Take is saved the speaker lands on the Ideal Text page and taps
+     "Review feedback"; the Feedback sheet never opens by itself.
+  2. The wait between Stop and the text is leave-and-come-back: a "working
+     on your text" card in the Lounge that becomes "Review feedback" when the
+     text is ready; the speaker may go anywhere meanwhile.
+  3. After a moment is answered the sheet moves on by itself, with a small
+     confirmation toast; the back arrow returns to change it.
+  4. The end card's primary button is "Record Take 2" always, with "Back to
+     the text" as the link. The Lounge still shows the whole story when the
+     speaker returns (Take 1, the feedback, Take 2), and its "Practise again"
+     stays the door for those who left the walk.
+  5. Presentation Mode is entered from the ⋯ menu only.
+  6. After Take 2 nothing opens by itself: the orange bar marks a paragraph
+     waiting on the speaker, the grey bar opens its history on tap.
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---
