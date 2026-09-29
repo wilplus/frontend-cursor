@@ -99,7 +99,7 @@ check(
     return (
       text.includes("WHAT YOU SAID") &&
       text.includes("believed the numbers") &&
-      text.includes("CLEARER VERSION") &&
+      text.includes("SMALL REWRITE") &&
       text.includes("trusted the figures")
     );
   })()
