@@ -234,10 +234,9 @@ export default function CoachSnippetReviewCard({
   contextUnlocked: boolean;
   /** Refetches the session after an immutable blind answer so the server can
    *  unlock the contextual pass as soon as the final piece is labelled. */
-  /** Fires once the server has the answer, carrying it so a paged queue can
-   *  decide whether to advance: In-between and the abstentions have nothing
-   *  more to show, but a Yes or a No reveals the words and the exercise link,
-   *  and jumping on would hide both. */
+  /** Fires once the server has the answer. Every answer now reveals the
+   *  words, the practice and the exercise request under it (founder
+   *  2026-09-29), so the host holds the screen and Next is a tap. */
   onBlindRatingCommitted?: (
     snippetId: string,
     value: ConfidenceRatingValue | null,

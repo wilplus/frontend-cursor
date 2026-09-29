@@ -113,7 +113,10 @@ export function useExerciseChoice(
       setMode("library");
       setId(item.exerciseId);
       setNotice(null);
-      if (item.explanationVideoRef) setVideo(item.explanationVideoRef);
+      // The video follows the exercise. An exercise without one used to
+      // leave the previously chosen exercise's video in place, and the save
+      // then shared exercise B under exercise A's video.
+      setVideo(item.explanationVideoRef ?? "");
     },
     [setMode, setId, setNotice, setVideo],
   );
