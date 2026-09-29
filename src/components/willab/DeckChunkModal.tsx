@@ -1227,10 +1227,10 @@ export default function DeckChunkModal({
     snippetId: exerciseItem?.snippetId ?? null,
     offer: exerciseItem?.practiceExercise ?? null,
     evidence: exerciseItem?.evidence ?? null,
-    // The introduction the offer shows depends on how the speaker judged the
-    // original; "other" answers read the same as a No here, which is what the
-    // pre-ladder card did.
-    originalUserAnswer: judgement === "yes" ? "yes" : "no",
+    // The speaker's answer about the original, as given (founder 2026-09-28).
+    // It used to be folded to yes/no, so an In-between or a Not sure reached
+    // the practice record, and the coach, as a No.
+    originalUserAnswer: practiceChipValue(judgement) ?? "no",
     onFinished: onExerciseFinished,
   });
 
