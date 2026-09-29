@@ -68,7 +68,7 @@ describe("the first-take scroll hint", () => {
     expect(hint().length).toBe(0);
   });
 
-  it("names the chosen words \"Helper words\" above the cues", () => {
+  it("draws the chosen words with no kicker over them (founder 2026-09-29)", () => {
     act(() => {
       root.render(createElement(RecordingRoadmap, {
         slides: SLIDES,
@@ -78,7 +78,24 @@ describe("the first-take scroll hint", () => {
         onSlideChange: () => undefined,
       }));
     });
-    expect(host.textContent).toContain("Helper words");
+    expect(host.textContent).not.toContain("Helper words");
     expect(host.textContent).toContain("the timing matters");
+  });
+
+  it("goes after one scroll inside the slide, and stays gone on this device", () => {
+    act(() => root.render(createElement(Harness)));
+    const hint = () => host.querySelectorAll('button[aria-label="Next slide"]');
+    expect(hint().length).toBeGreaterThan(0);
+    const scroller = host.querySelector('[aria-label^="Speaking anchors"]') as HTMLElement;
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+    });
+    expect(hint().length).toBe(0);
+    act(() => root.unmount());
+    act(() => {
+      root = createRoot(host);
+    });
+    act(() => root.render(createElement(Harness)));
+    expect(hint().length).toBe(0);
   });
 });

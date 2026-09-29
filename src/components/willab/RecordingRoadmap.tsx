@@ -82,6 +82,16 @@ export default function RecordingRoadmap({
     onSlideChangeRef.current = onSlideChange;
   }, [onSlideChange]);
 
+  /** One scroll inside the slide dismisses the hint too (founder
+   *  2026-09-29: "after user scrolls at least once it disappears"), not
+   *  only a move to the next slide. */
+  const onScrolled = useCallback(() => {
+    setMovedOnce((seen) => {
+      if (!seen) rememberScrollHintSeen();
+      return true;
+    });
+  }, []);
+
   const goToSlide = useCallback(
     (index: number) => {
       const next = Math.min(Math.max(index, 0), slides.length - 1);
@@ -212,6 +222,7 @@ export default function RecordingRoadmap({
           ref={scrollRef}
           tabIndex={0}
           onKeyDown={handleKeyDown}
+          onScroll={onScrolled}
           className="scrollbar-none h-full overflow-y-auto overscroll-contain pr-9 outline-none"
           aria-label={`Speaking anchors for slide ${currentSlide + 1}`}
         >
@@ -226,13 +237,9 @@ export default function RecordingRoadmap({
                 onNext={() => goToSlide(currentSlide + 1)}
               />
             ) : null}
-            {currentRoots.some((root) => root.type === "flagship") ? (
-              // The words you chose, named as such (founder 2026-09-28,
-              // option 1 of the recording screen).
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Helper words
-              </p>
-            ) : null}
+            {/* NO KICKER over the cues (founder 2026-09-29: "no need for the
+                little title 'helper words'"); the orange words are the
+                helper words, and the picker already named them. */}
             {currentRoots.map((root, rootIndex) => (
               <p
                 key={`${rootIndex}-${root.text}`}
