@@ -57,9 +57,32 @@ describe("WalkEndLayer", () => {
       ),
     );
     expect(host.textContent).toContain("That's every moment for this Take");
+    // The note line under the title (Final Screens L0).
+    expect(host.textContent).toContain("Your helper words show while you record.");
     expect(host.textContent).toContain("Record Take 2");
     const back = [...host.querySelectorAll("button")].find((b) => b.textContent === "Back to the text");
     act(() => back!.click());
     expect(onCloseEndCard).toHaveBeenCalled();
+  });
+
+  it("draws the last moment's toast above the end card, never over its button", () => {
+    act(() =>
+      root.render(
+        createElement(WalkEndLayer, {
+          endCard: true,
+          renderNextStep: () => createElement("button", null, "Record Take 2"),
+          onCloseEndCard: () => undefined,
+          toast: "Helper words saved",
+          onToastGone: () => undefined,
+        }),
+      ),
+    );
+    const toast = host.querySelector("[data-sheet-toast]") as HTMLElement;
+    const card = host.querySelector("[data-walk-end]") as HTMLElement;
+    expect(toast.textContent).toBe("Helper words saved");
+    // In flow inside the dialog, before the card, not fixed over the page.
+    expect(host.querySelector('[role="dialog"]')?.contains(toast)).toBe(true);
+    expect(toast.className).not.toContain("fixed");
+    expect(toast.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
