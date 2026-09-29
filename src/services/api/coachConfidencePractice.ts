@@ -12,7 +12,9 @@ export interface CoachPracticeAttempt {
   kept: boolean;
   /** The speaker's own answer, any of the five (founder 2026-09-28). */
   userAnswer: PracticeAnswer | null;
-  coachConfidenceDecision: "yes" | "no" | null;
+  /** The coach's answer to the same five-way question (founder 2026-09-29,
+   *  Q3/Q3a; backend 0390). */
+  coachConfidenceDecision: PracticeAnswer | null;
 }
 
 export interface CoachPracticeExercise {
@@ -62,8 +64,8 @@ export interface CoachConfidencePractice {
 
 /** THE SPEAKER'S ANSWER, ALL FIVE (founder 2026-09-28). This used to keep only
  *  yes/no, so a speaker who said In-between, Not sure or Audio unclear reached
- *  the coach as "not yet" or "unanswered". The coach's own decision below is
- *  still a Yes or a No. */
+ *  the coach as "not yet" or "unanswered". Since 2026-09-29 the coach answers
+ *  the same five ways too (Q3a). */
 export const PRACTICE_ANSWER_LABEL: Record<PracticeAnswer, string> = {
   yes: "Yes",
   in_between: "In-between",
@@ -71,10 +73,6 @@ export const PRACTICE_ANSWER_LABEL: Record<PracticeAnswer, string> = {
   not_sure: "Not sure",
   audio_unclear: "Audio unclear",
 };
-
-function answer(value: unknown): "yes" | "no" | null {
-  return value === "yes" || value === "no" ? value : null;
-}
 
 function records(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value)
@@ -137,7 +135,7 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
           isSelected: a.is_selected === true,
           kept: a.kept === true,
           userAnswer: practiceAnswer(a.user_answer),
-          coachConfidenceDecision: answer(a.coach_confidence_decision),
+          coachConfidenceDecision: practiceAnswer(a.coach_confidence_decision),
         }];
       })
     : [];
@@ -219,7 +217,7 @@ export async function saveCoachConfidencePractice(
   sessionId: string,
   snippetId: string,
   decision: "yes" | "no" | "refine",
-  selectedAttemptDecision: "yes" | "no" | null,
+  selectedAttemptDecision: PracticeAnswer | null,
   shareWithUser: boolean,
   selection:
     | { kind: "library"; exerciseId: string; explanationVideoUrl?: string }
