@@ -21,9 +21,13 @@ import type { BehindNotice } from "./saveBehind";
 export function SheetToast({
   text,
   onGone,
+  inline = false,
 }: {
   text: string | null;
   onGone: () => void;
+  /** Drawn in flow, just above the end card, rather than fixed over the
+   *  page: fixed at bottom-24 it sat on the card's black pill. */
+  inline?: boolean;
 }) {
   useEffect(() => {
     if (!text) return;
@@ -35,7 +39,11 @@ export function SheetToast({
     <div
       role="status"
       data-sheet-toast
-      className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center px-4"
+      className={
+        inline
+          ? "pointer-events-none flex justify-center px-4 pb-3"
+          : "pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center px-4"
+      }
     >
       <span className="rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background shadow-lg">
         {text}
@@ -85,9 +93,13 @@ export function SaveBehindNotice({
 export function WalkEndCard({
   nextStep,
   onClose,
+  above = null,
 }: {
   nextStep: ReactNode;
   onClose: () => void;
+  /** The "saved" line of the last moment, drawn above the card so it never
+   *  covers the card's own button. */
+  above?: ReactNode;
 }) {
   return (
     <div
@@ -97,22 +109,25 @@ export function WalkEndCard({
       aria-label={COPY.endCardTitle}
       onClick={onClose}
     >
-      <div
-        data-walk-end
-        onClick={(event) => event.stopPropagation()}
-        className="flex w-full max-w-lg flex-col gap-3 rounded-t-3xl bg-background px-5 pb-6 pt-6 shadow-xl sm:rounded-3xl"
-      >
-        <h2 className="text-[20px] font-bold tracking-[-0.01em] text-foreground">
-          {COPY.endCardTitle}
-        </h2>
-        {nextStep}
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-11 items-center justify-center text-[15px] text-muted-foreground transition-colors hover:text-foreground"
+      <div className="flex w-full max-w-lg flex-col">
+        {above}
+        <div
+          data-walk-end
+          onClick={(event) => event.stopPropagation()}
+          className="flex w-full flex-col gap-3 rounded-t-3xl bg-background px-5 pb-6 pt-6 shadow-xl sm:rounded-3xl"
         >
-          {COPY.endCardBack}
-        </button>
+          <h2 className="text-[20px] font-bold tracking-[-0.01em] text-foreground">
+            {COPY.endCardTitle}
+          </h2>
+          {nextStep}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 items-center justify-center text-[15px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {COPY.endCardBack}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -137,12 +152,20 @@ export function WalkEndLayer({
   notice?: BehindNotice | null;
   onNoticeGone?: () => void;
 }) {
+  // While the end card is up the toast rides above it (audit 2026-09-29:
+  // fixed at bottom-24 it sat on the card's black pill).
+  const toastNode = <SheetToast text={toast} onGone={onToastGone} inline={endCard} />;
   return (
     <>
       {endCard ? (
-        <WalkEndCard nextStep={renderNextStep?.() ?? null} onClose={onCloseEndCard} />
-      ) : null}
-      <SheetToast text={toast} onGone={onToastGone} />
+        <WalkEndCard
+          nextStep={renderNextStep?.() ?? null}
+          onClose={onCloseEndCard}
+          above={toastNode}
+        />
+      ) : (
+        toastNode
+      )}
       <SaveBehindNotice notice={notice} onGone={onNoticeGone} />
     </>
   );
