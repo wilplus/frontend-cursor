@@ -40,7 +40,15 @@ export interface Pager {
 
 type MarkerLite = { bundleId: string; hasCoachUpdate: boolean };
 
-/** The bookmarks, one per paragraph, in text order. Pure. */
+/** The bookmarks, one per paragraph, in text order. Pure.
+ *
+ *  ONLY WHAT IS NEW (founder 2026-09-29, answering the audit's question 2,
+ *  option A): a paragraph is in the walk when it has feedback still waiting
+ *  on the speaker, or a coach moment. A paragraph whose feedback was all
+ *  answered on an earlier Take is not a moment of this walk: it keeps its
+ *  grey bar and opens its Take stack on tap, outside the walk (Q6). It used
+ *  to be listed too, so the first sheet after "Review feedback" could be
+ *  one with nothing to answer, and "moment N of M" counted it. */
 export function buildBookmarks(
   chunks: readonly DeckChunk[],
   feedbackOf: (chunk: DeckChunk) => { pending: number; decided: number },
@@ -52,8 +60,8 @@ export function buildBookmarks(
     const id = chunk.part.id;
     if (seen.has(id)) continue;
     const markers = markersOf(id) ?? [];
-    const { pending, decided } = feedbackOf(chunk);
-    if (markers.length === 0 && pending === 0 && decided === 0) continue;
+    const { pending } = feedbackOf(chunk);
+    if (markers.length === 0 && pending === 0) continue;
     seen.add(id);
     out.push({
       partId: id,
