@@ -20,6 +20,7 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { BehindOutcome } from "./saveBehind";
 import { startConfidencePractice } from "@/services/api/confidentVoicePractice";
+import { PRAISE_CUE_COPY } from "@/lib/willab/trackedChangeWhy";
 import { fetchParagraphHistory } from "@/services/api/bookmarkHistory";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -81,7 +82,11 @@ const confidentVoice = suggestion({
   snippetAudioRef: "https://media/moment.wav",
   startOffsetMs: 0,
   durationMs: 9000,
-  practiceExercise: { id: "ex-1", instruction: "Say it again, slower." },
+  practiceExercise: {
+    id: "ex-1",
+    instruction: "Say it again, slower.",
+    explanationVideoRef: "https://media/coach-exercise.mp4",
+  },
   evidence: {
     projectId: "arc-1",
     takeSessionId: "take-1",
@@ -284,5 +289,39 @@ describe("the paragraph sheet while its reads are pending", () => {
     expect(loading?.textContent).toContain("ship it now");
     expect(loading?.textContent).toContain(TEXT);
     expect(container.querySelector('[data-testid="paragraph-now"]')).not.toBeNull();
+  });
+});
+
+describe("the Exercise step as the design draws it (L2)", () => {
+  it("is one orange Your coach card (video, play icon only, comment) with What you said under it, and no History row", async () => {
+    await renderSheet([confidentVoice]);
+    await click("No — Not confident");
+    const offer = container.querySelector('[data-testid="practice-offer"]') as HTMLElement;
+    const card = offer.querySelector('[data-testid="exercise-coach-card"]') as HTMLElement;
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain("Your coach");
+    expect(card.textContent).toContain("Say it again, slower.");
+    const video = card.querySelector("video") as HTMLVideoElement;
+    expect(video.getAttribute("src")).toBe("https://media/coach-exercise.mp4");
+    expect(video.hasAttribute("controls")).toBe(false);
+    expect(card.querySelector('button[aria-label="Play"]')).not.toBeNull();
+    // The speaker's own recording sits under the coach's card.
+    const said = offer.querySelector('[data-testid="exercise-your-recording"]') as HTMLElement;
+    expect(card.compareDocumentPosition(said) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(offer.textContent).not.toContain("History");
+    expect(offer.querySelector('[data-testid="bundle-history"]')).toBeNull();
+  });
+});
+
+describe("Good job as the design draws it (L4)", () => {
+  it("says what this moment's voice did, from the closed cue vocabulary, under the lead", async () => {
+    const cued = suggestion({ ...praise, cueKeys: ["wide_range", "not_a_key"] } as Partial<DocumentSuggestion>);
+    await renderSheet([confidentVoice, cued]);
+    await click("Yes — Confident");
+    expect(container.textContent).toContain("Good job");
+    expect(container.textContent).toContain("It was your confident moment.");
+    expect(container.textContent).toContain(PRAISE_CUE_COPY.wide_range);
+    // An unknown cue renders nothing, never an invented sentence.
+    expect(container.textContent).not.toMatch(/not_a_key/);
   });
 });

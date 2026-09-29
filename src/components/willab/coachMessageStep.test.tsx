@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CoachStepLayer } from "./CoachMessageSheet";
-import { coachSeenKey, useCoachStep } from "./useCoachStep";
+import { useCoachStep } from "./useCoachStep";
 import { mapCoachMessage, type CoachMessage } from "@/services/api/idealText";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -49,20 +49,22 @@ describe("the served message", () => {
   });
 });
 
-function Host({ message, next, ready = true }: {
-  message: CoachMessage | null; next: () => void; ready?: boolean;
+function Host({ message, next, ready = true, stepsAhead = 0 }: {
+  message: CoachMessage | null; next: () => void; ready?: boolean; stepsAhead?: number;
 }) {
   const step = useCoachStep({ arcId: "arc-1", message, ready, next });
   return createElement("div", null,
     createElement("button", { "data-review": true, onClick: () => { step.show(); } }, "review"),
-    createElement(CoachStepLayer, { step, message }));
+    createElement(CoachStepLayer, { step, message, stepsAhead }));
 }
 
 const sheet = () => host.querySelector("[data-coach-message-step]");
 
 describe("step 0", () => {
-  it("opens by itself once, shows the words, the Take and the video", () => {
+  it("never opens by itself (Q1); Review feedback shows the words, the Take and the video", () => {
     act(() => root.render(createElement(Host, { message: MSG, next: () => {} })));
+    expect(sheet()).toBeNull();
+    act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
     expect(sheet()).not.toBeNull();
     expect(sheet()?.textContent).toContain("Your coach");
     expect(sheet()?.textContent).toContain("Take 2");
@@ -70,26 +72,58 @@ describe("step 0", () => {
     expect(sheet()?.querySelector("video")?.getAttribute("src")).toBe(MSG.videoUrl);
   });
 
-  it("Continue goes on to the moments, and it does not open by itself again", () => {
+  it("Continue goes on to the moments and closes the step", () => {
     const next = vi.fn();
     act(() => root.render(createElement(Host, { message: MSG, next })));
+    act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
     const cont = [...host.querySelectorAll("button")].find((b) => b.textContent === "Continue")!;
     act(() => cont.click());
     expect(next).toHaveBeenCalledTimes(1);
     expect(sheet()).toBeNull();
-    expect(window.localStorage.getItem(coachSeenKey("arc-1", MSG))).toBe("1");
-    act(() => root.unmount());
-    root = createRoot(host);
-    act(() => root.render(createElement(Host, { message: MSG, next })));
-    expect(sheet()).toBeNull();
   });
 
   it("comes first again whenever the walk starts, so it can be reread", () => {
-    window.localStorage.setItem(coachSeenKey("arc-1", MSG), "1");
     act(() => root.render(createElement(Host, { message: MSG, next: () => {} })));
+    act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
+    expect(sheet()).not.toBeNull();
+    const cont = [...host.querySelectorAll("button")].find((b) => b.textContent === "Continue")!;
+    act(() => cont.click());
     expect(sheet()).toBeNull();
     act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
     expect(sheet()).not.toBeNull();
+  });
+
+  it("draws the walk's header, the step bar and the video with a play icon only (L8)", () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+    const next = vi.fn();
+    act(() => root.render(createElement(Host, { message: MSG, next, stepsAhead: 3 })));
+    act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
+    const nav = sheet()?.querySelector('[data-testid="feedback-pager"]');
+    expect(nav?.textContent).toContain("Your coach · Take 2");
+    expect(nav?.textContent).not.toContain("moment");
+    const back = nav?.querySelector('button[aria-label="Back"]') as HTMLButtonElement;
+    expect(back.disabled).toBe(true);
+    // The step bar: this screen current, the first moment's screens after.
+    const dots = sheet()?.querySelector("[data-coach-step-dots]");
+    expect(dots?.children.length).toBe(4);
+    // The video carries no native controls; one play button over it.
+    const video = sheet()?.querySelector("video") as HTMLVideoElement;
+    expect(video.hasAttribute("controls")).toBe(false);
+    const playButton = sheet()?.querySelector('button[aria-label="Play"]') as HTMLButtonElement;
+    expect(playButton).not.toBeNull();
+    act(() => playButton.click());
+    expect(play).toHaveBeenCalledTimes(1);
+    // › goes on exactly as Continue does.
+    const forward = nav?.querySelector('button[aria-label="Next"]') as HTMLButtonElement;
+    act(() => forward.click());
+    expect(next).toHaveBeenCalledTimes(1);
+    play.mockRestore();
+  });
+
+  it("draws no step bar when nothing follows", () => {
+    act(() => root.render(createElement(Host, { message: MSG, next: () => {} })));
+    act(() => host.querySelector<HTMLButtonElement>("[data-review]")!.click());
+    expect(sheet()?.querySelector("[data-coach-step-dots]")).toBeNull();
   });
 
   it("renders nothing without a message", () => {

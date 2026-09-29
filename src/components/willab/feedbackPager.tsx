@@ -34,6 +34,9 @@ export interface Pager {
   total: number;
   /** Where the open bookmark sits ("Slide 2"), for the header. */
   label?: string | null;
+  /** The whole centre text, when it is not "moment N of M": step 0 reads
+   *  "Your coach · Take 2" (Final Screens L8). */
+  position?: string;
   onBack: () => void;
   onNext: () => void;
 }
@@ -82,7 +85,8 @@ export function landingIndex(bookmarks: readonly Bookmark[]): number {
 export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined }) {
   if (!pager) return null;
   const last = pager.index >= pager.total - 1;
-  const position = `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
+  const position =
+    pager.position ?? `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
   return (
     <nav
       data-testid="feedback-pager"
@@ -99,7 +103,7 @@ export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined })
         <ChevronLeft className="h-5 w-5" aria-hidden />
       </button>
       <p className="min-w-0 truncate text-[13px] font-semibold text-foreground">
-        {pager.label ? `${pager.label} · ${position}` : position}
+        {pager.label && !pager.position ? `${pager.label} · ${position}` : position}
       </p>
       <button
         type="button"

@@ -58,6 +58,10 @@ const SUGGESTIONS = [
     device: null,
     tentative: true,
     status: null,
+    // A clip: a Confident Voice item nobody can hear is not asked (2026-09-29).
+    snippetAudioRef: "https://media/moment.wav",
+    startOffsetMs: 0,
+    durationMs: 9000,
   },
 ];
 const partsWith = (prefix: string): Part[] =>

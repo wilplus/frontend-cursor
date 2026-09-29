@@ -43,6 +43,8 @@ const suggestions: DocumentSuggestion[] = [
     quote: "retention went up", kind: "replace", proposedText: "retention rose",
     feedbackFamily: "confident_voice", source: "confident_voice",
     device: null, tentative: true,
+    // A clip: a Confident Voice item nobody can hear is not asked (2026-09-29).
+    snippetAudioRef: "https://media/moment.wav", startOffsetMs: 0, durationMs: 9000,
   } as DocumentSuggestion,
 ];
 
