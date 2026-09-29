@@ -22,9 +22,19 @@ import {
 /*  opens complete, never half-drawn. OPEN_WAIT_MS bounds that wait on a      */
 /*  very slow connection; after it, the sheet opens with what it has.         */
 /*                                                                            */
+/*  A refresh never throws a read away (founder 2026-09-29, "tap and go").   */
+/*  Each close reads everything ahead again, so the last sheet's answer or    */
+/*  lock shows in the next one. It used to replace every finished read with  */
+/*  an unfinished one, so a sheet opened right after a close drew only "Now" */
+/*  and filled in "Take 2 · Now" and the earlier Takes a moment later. Now   */
+/*  the last finished read keeps serving until the new one lands; only what  */
+/*  actually changed updates, in place.                                       */
+/*                                                                            */
 /*  Timing only. What the sheet shows, and where, is the locked design's.     */
 /* -------------------------------------------------------------------------- */
 
+/** `done` means `value` can be shown: the read landed, or an earlier read of
+ *  the same thing did and still stands in while this one is in flight. */
 type Entry<T> = { promise: Promise<T>; done: boolean; value: T | undefined };
 
 const histories = new Map<string, Entry<ParagraphHistory | null>>();
@@ -37,7 +47,12 @@ function historyKey(arcId: string, partId: string): string {
 }
 
 function remember<T>(map: Map<string, Entry<T>>, key: string, load: () => Promise<T>): Entry<T> {
-  const entry: Entry<T> = { promise: Promise.resolve(undefined as T), done: false, value: undefined };
+  const before = map.get(key);
+  const entry: Entry<T> = {
+    promise: Promise.resolve(undefined as T),
+    done: before?.done ?? false,
+    value: before?.done ? before.value : undefined,
+  };
   entry.promise = load().then((value) => {
     entry.value = value;
     entry.done = true;

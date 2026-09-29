@@ -98,6 +98,22 @@ describe("1A: the paragraph sheet opens complete", () => {
     expect(answers).toHaveBeenCalledTimes(2);
     expect(history).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps the last finished read while a fresh one is in flight (tap and go)", async () => {
+    history.mockResolvedValue({ entries: ["take 1"] });
+    answers.mockResolvedValue([]);
+    prefetchParagraphSheets("arc", "take", ["p1"]);
+    await flush();
+    // A sheet closes: everything is read again, and this read is slow.
+    let finish: (v: unknown) => void = () => {};
+    history.mockReturnValue(new Promise((r) => { finish = r; }));
+    prefetchParagraphSheets("arc", "take", ["p1"]);
+    act(() => root.render(createElement(Probe)));
+    expect(seen[0]).toEqual({ history: { entries: ["take 1"] }, answers: [] });
+    finish({ entries: ["take 1", "take 2"] });
+    await flush();
+    expect(seen.at(-1)).toEqual({ history: { entries: ["take 1", "take 2"] }, answers: [] });
+  });
 });
 
 describe("2A: helper words show at once", () => {
