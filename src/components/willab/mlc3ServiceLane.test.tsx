@@ -100,6 +100,14 @@ vi.mock("@/components/results/MediaPlayer", () => ({
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));
+/* The person's ring reaches the service lane (the backend rings migration, `exercise_service_ui`
+ * in features_on). The building switch above says the build carries it; this
+ * says THIS person gets it. Both are needed for the lane to mount. */
+vi.mock("@/hooks/useRingState", () => ({
+  useFeatureOn: () => true,
+  useBuiltAndOn: (built: boolean) => built,
+  useRingState: () => null,
+}));
 /* A BOOLEAN. The real export is `process.env.… === "true"`, inlined at build
  * time, and a mock of the wrong shape cannot control the branch it names. */
 vi.mock("@/services/api/mlc3FirstClient", async (load) => {
