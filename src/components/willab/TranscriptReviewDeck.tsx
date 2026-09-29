@@ -79,6 +79,9 @@ import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
 import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
 import { helperWordsBehind, useSaveBehind } from "./saveBehind";
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
+import { CoachStepLayer } from "./CoachMessageSheet";
+import { useCoachStep } from "./useCoachStep";
+import type { CoachMessage } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -219,6 +222,7 @@ export default function TranscriptReviewDeck({
   confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
   openFeedback = false,
+  coachMessage = null,
   reviewRequest = 0,
   onReviewWaiting,
   renderNextStep,
@@ -296,6 +300,9 @@ export default function TranscriptReviewDeck({
   /** Open on the coach's feedback once the deck is ready: the email link and
    *  the chat bubble (founder 2026-09-25, Q28 A). */
   openFeedback?: boolean;
+  /** The coach's overall message: step 0 of the Feedback sheet (founder
+   *  2026-09-29, Q1; Final Screens L8). */
+  coachMessage?: CoachMessage | null;
   /** Bumped by the host's "Review feedback" button: open the walk at the
    *  first waiting moment in text order (founder 2026-09-26). */
   reviewRequest?: number;
@@ -608,12 +615,22 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     onReviewWaiting?.(deckReady && firstWaiting >= 0);
   }, [deckReady, firstWaiting, onReviewWaiting]);
+  const coachStep = useCoachStep({
+    arcId,
+    message: coachMessage,
+    ready: deckReady,
+    next: () => {
+      if (firstWaiting >= 0) walk.openAt(firstWaiting);
+    },
+  });
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
     reviewSeenRef.current = reviewRequest;
+    // Step 0 first when the coach left a message; its Continue opens the walk.
+    if (coachStep.show()) return;
     if (firstWaiting >= 0) walk.openAt(firstWaiting);
-  }, [reviewRequest, firstWaiting, walk]);
+  }, [reviewRequest, firstWaiting, walk, coachStep]);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -1464,6 +1481,7 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
         />
       ) : null}
+      <CoachStepLayer step={coachStep} message={coachMessage} />
       <WalkEndLayer
         endCard={endCard}
         renderNextStep={renderNextStep}

@@ -34,6 +34,7 @@ import {
   type IdealText,
   type MomentSuggestion,
   type IdealTextResult,
+  type CoachMessage,
 } from "@/services/api/idealText";
 import { decideBlock } from "@/services/api/documentDecide";
 import {
@@ -204,6 +205,7 @@ export default function IdealTextOverlay({
     canRecordTake: boolean | null;
     takeCount: number | null;
     journeyNextStepsSeen: boolean | null;
+    coachMessage: CoachMessage | null;
     learningExposures: LearningExposureHandle[];
     confidentMomentSummary: ConfidentMomentSummary | null;
     confidentMomentOwnerEdit: ConfidentMomentOwnerEdit | null;
@@ -368,6 +370,7 @@ export default function IdealTextOverlay({
         canRecordTake: r.canRecordTake,
         takeCount: r.takeCount,
         journeyNextStepsSeen: r.journeyNextStepsSeen,
+        coachMessage: r.coachMessage,
         learningExposures: r.learningExposures,
         confidentMomentSummary: r.confidentMomentSummary ?? null,
         confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
@@ -1062,6 +1065,7 @@ export default function IdealTextOverlay({
           ) : null}
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
+            coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
             renderNextStep={() => nextStep(false)}
             openFeedback={initialMode === "feedback"}

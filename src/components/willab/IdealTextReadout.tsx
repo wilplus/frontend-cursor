@@ -18,6 +18,7 @@ import {
   type IdealText,
   type KeyPoint,
   type IdealTextResult,
+  type CoachMessage,
 } from "@/services/api/idealText";
 import { decideBlock } from "@/services/api/documentDecide";
 import {
@@ -206,6 +207,7 @@ export default function IdealTextReadout({
     canRecordTake: boolean | null;
     takeCount: number | null;
     journeyNextStepsSeen: boolean | null;
+    coachMessage: CoachMessage | null;
     confidentMomentSummary: ConfidentMomentSummary | null;
     confidentMomentOwnerEdit: ConfidentMomentOwnerEdit | null;
   } | null>(null);
@@ -359,6 +361,7 @@ export default function IdealTextReadout({
         canRecordTake: r.canRecordTake,
         takeCount: r.takeCount,
         journeyNextStepsSeen: r.journeyNextStepsSeen,
+        coachMessage: r.coachMessage,
         confidentMomentSummary: r.confidentMomentSummary ?? null,
         confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
       });
@@ -1047,6 +1050,7 @@ export default function IdealTextReadout({
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
+            coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
             renderNextStep={() => nextStep(false)}
             chrome="stage"

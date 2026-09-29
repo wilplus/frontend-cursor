@@ -120,6 +120,9 @@ export const CHUNK_SHEET_COPY = {
   emphasisFirstTakeNote:
     "These words show while you record your next take",
   titleLock: "Lock",
+  /* Step 0 (founder 2026-09-29, Q1; Final Screens L8). "Your coach" and
+     "Take N" are the signed-off coach-card words (L6). */
+  titleCoach: "Your coach",
   /* Reopening a clean paragraph is an edit, not the end of a review. */
   titleEditChunk: "Edit this chunk",
 
