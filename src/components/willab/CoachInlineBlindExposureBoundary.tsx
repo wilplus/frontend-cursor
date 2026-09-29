@@ -193,10 +193,13 @@ export default function CoachInlineBlindExposureBoundary({
   blindReview: CoachInlineBlindReviewHandle | null;
   children: (state: BlindExposureState) => ReactNode;
 }) {
-  return createElement(BlindExposureBoundary<CoachInlineBlindReviewHandle>, {
-    blindReview,
-    acknowledge: acknowledgeCoachInlineBlindRender,
-    scope: "coach-inline",
-    children,
-  });
+  return (
+    <BlindExposureBoundary<CoachInlineBlindReviewHandle>
+      blindReview={blindReview}
+      acknowledge={acknowledgeCoachInlineBlindRender}
+      scope="coach-inline"
+    >
+      {children}
+    </BlindExposureBoundary>
+  );
 }
