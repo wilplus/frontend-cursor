@@ -381,10 +381,15 @@ export function mapCoachGuidanceBatch(raw: unknown): CoachGuidanceBatch | null {
 export async function fetchCoachGuidanceBatch(
   arcId: string,
 ): Promise<CoachGuidanceBatch | null> {
-  const response = await fetch(
-    `/api/v2/coach/guidance/batches/${encodeURIComponent(arcId)}`,
-    { cache: "no-store" },
-  );
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/v2/coach/guidance/batches/${encodeURIComponent(arcId)}`,
+      { cache: "no-store" },
+    );
+  } catch {
+    return null;
+  }
   if (!response.ok) return null;
   return mapCoachGuidanceBatch(await response.json().catch(() => null));
 }
@@ -556,11 +561,16 @@ export async function submitCoachGuidance(input: {
     language_code: input.languageCode ?? "en",
   }).forEach(([key, value]) => body.append(key, value));
   if (input.video) body.append("video", input.video);
-  const response = await fetch("/api/v2/coach/guidance/attachments", {
-    method: "POST",
-    headers: { "Idempotency-Key": input.idempotencyKey },
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/v2/coach/guidance/attachments", {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body,
+    });
+  } catch {
+    return { ok: false, error: "Couldn't reach the server. Try again." };
+  }
   if (response.ok) return { ok: true };
   const payload = await response.json().catch(() => ({}));
   return {
@@ -616,11 +626,16 @@ export async function submitCoachInlineExerciseDraft(input: {
     body.append("supported_confidence_patterns", pattern);
   });
   body.append("video", input.video);
-  const response = await fetch("/api/v2/coach/guidance/exercise-drafts", {
-    method: "POST",
-    headers: { "Idempotency-Key": input.idempotencyKey },
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/v2/coach/guidance/exercise-drafts", {
+      method: "POST",
+      headers: { "Idempotency-Key": input.idempotencyKey },
+      body,
+    });
+  } catch {
+    return { ok: false, error: "Couldn't reach the server. Try again." };
+  }
   const payload = await response.json().catch(() => ({})) as Record<
     string, unknown
   >;
