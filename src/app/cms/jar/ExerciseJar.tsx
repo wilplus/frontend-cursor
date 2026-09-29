@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
+  adminExerciseLearningEvaluation,
   adminExerciseLearningReadiness,
   adminListDiagnosticExercises,
   JAR_EXCLUSIONS,
+  JAR_PILES,
   type ExerciseJar,
+  type JarEvaluation,
   type JarExclusion,
   type JarExercise,
+  type JarFairTest,
+  type JarPile,
+  type JarPileEvaluation,
   type JarSource,
 } from "@/services/api/journalAdmin";
 
@@ -44,7 +50,7 @@ export const JAR_COPY = {
   intro:
     "Practices counted toward the exercise learning bar. Counts only; no result is shown here.",
   counted: (n: string, of: number) => `${n} of ${of} counted`,
-  ready: "The bar is met. The scorekeeper and the fair test can be unsealed by a founder decision.",
+  ready: "The bar is met. The evaluation below is unsealed.",
   seen: "Renders",
   cohort: "In the cohort",
   attemptRate: "Attempt rate",
@@ -211,6 +217,187 @@ function Summary({ jar }: { jar: ExerciseJar }) {
   );
 }
 
+/** Every sentence of the unsealed view, in one place. Internal CMS wording;
+ *  founder sign-off pending (decision of 2026-09-29, evening). The words
+ *  "helped" and "success" appear here and nowhere else on the page: this
+ *  block renders only what the backend computes once the bar is met. */
+export const EVALUATION_COPY = {
+  heading: "The evaluation",
+  sealed: (why: string) => `Sealed until the bar is met: ${why}.`,
+  sealedNoReason: "Sealed until the bar is met.",
+  unsealed: "The bar is met, so the scorekeeper and the fair test ran on their own. Nothing is promoted by this page; a learned ranking still needs your yes.",
+  pile: {
+    machine_only: "Machine picks only",
+    with_coach_picks: "With coach picks",
+  } satisfies Record<JarPile, string>,
+  pileHelp: {
+    machine_only: "Labels from exercises the machine drew. The fair test always grades these.",
+    with_coach_picks: "The same, plus labels from exercises a coach chose, kept in their own pile. They change what the candidate learns from, never what is graded.",
+  } satisfies Record<JarPile, string>,
+  scoreboard: "Scoreboard",
+  helped: "Helped",
+  helpedRate: "Helped rate",
+  counted: "Counted",
+  exercise: "Exercise",
+  overall: (helped: number, counted: number) => `${helped} of ${counted} helped`,
+  byMode: "By how the exercise was chosen",
+  fairTest: "Fair test",
+  candidate: "Candidate",
+  candidateHelp: (version: string, labels: number, speakers: number) =>
+    `${version}: prefers the exercise with the highest helped rate on study-group speakers, learned from ${labels} labels across ${speakers} speakers; graded on exam-group speakers only.`,
+  today: "Today's ranking",
+  successRate: "Success rate",
+  attemptRate: "Attempt rate",
+  gain: "Success gain",
+  interval: "95% interval of the gain",
+  attemptChange: "Attempt rate change",
+  agrees: (n: number, of: number) => `Candidate agrees with what was served on ${n} of ${of} exam exposures.`,
+  meets: "Meets the bar. Nothing is promoted; that stays your call.",
+  fails: "Does not meet the bar:",
+  preferences: "What the candidate learned",
+  trusted: "used",
+  untrusted: "below the bar, not used",
+  none: "–",
+} as const;
+
+function pct(value: number | null): string {
+  return value === null ? EVALUATION_COPY.none : `${Math.round(value * 100)}%`;
+}
+
+function pts(value: number | null): string {
+  if (value === null) return EVALUATION_COPY.none;
+  const n = Math.round(value * 100);
+  return `${n > 0 ? "+" : ""}${n} pts`;
+}
+
+function Scoreboard({ pile, titles }: { pile: JarPileEvaluation; titles: Map<string, string> }) {
+  const board = pile.scoreboard;
+  const modes = Object.entries(board.bySelectionMode);
+  return (
+    <section className="rounded-xl border border-border p-3">
+      <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{EVALUATION_COPY.scoreboard}</h3>
+      <p className="mt-1 text-sm text-foreground">
+        {EVALUATION_COPY.overall(board.helped, board.counted)} · {EVALUATION_COPY.helpedRate} {pct(board.helpedRate)}
+      </p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+            <tr><th className="py-1 pr-3">{EVALUATION_COPY.exercise}</th><th className="py-1 pr-3">{EVALUATION_COPY.counted}</th><th className="py-1 pr-3">{EVALUATION_COPY.helped}</th><th className="py-1">{EVALUATION_COPY.helpedRate}</th></tr>
+          </thead>
+          <tbody>
+            {board.exercises.map((row) => (
+              <tr key={row.exerciseId} className="border-t border-border">
+                <td className="py-1 pr-3">{titles.get(row.exerciseId) ?? row.exerciseId}</td>
+                <td className="py-1 pr-3 tabular-nums">{row.counted}</td>
+                <td className="py-1 pr-3 tabular-nums">{row.helped}</td>
+                <td className="py-1 tabular-nums">{pct(row.helpedRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {modes.length ? (
+        <dl className="mt-3 flex flex-col gap-1 text-xs text-muted-foreground">
+          <dt className="font-medium uppercase tracking-[0.08em]">{EVALUATION_COPY.byMode}</dt>
+          {modes.map(([mode, v]) => (
+            <dd key={mode} className="flex justify-between gap-3">
+              <span>{JAR_COPY.mode[mode] ?? mode}</span>
+              <span className="tabular-nums">{v.helped} / {v.counted} · {pct(v.helpedRate)}</span>
+            </dd>
+          ))}
+        </dl>
+      ) : null}
+    </section>
+  );
+}
+
+function FairTest({ pile }: { pile: JarPileEvaluation }) {
+  const test: JarFairTest = pile.fairTest;
+  const interval = test.successGainInterval95;
+  return (
+    <section className="rounded-xl border border-border p-3">
+      <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{EVALUATION_COPY.fairTest}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {EVALUATION_COPY.candidateHelp(pile.candidate.version, pile.candidate.learnedFrom.labels, pile.candidate.learnedFrom.speakers)}
+      </p>
+      <table className="mt-2 w-full text-sm">
+        <thead className="text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <tr><th className="py-1 pr-3"></th><th className="py-1 pr-3">{EVALUATION_COPY.successRate}</th><th className="py-1">{EVALUATION_COPY.attemptRate}</th></tr>
+        </thead>
+        <tbody>
+          <tr className="border-t border-border"><td className="py-1 pr-3">{EVALUATION_COPY.candidate}</td><td className="py-1 pr-3 tabular-nums">{pct(test.candidate.successRate)}</td><td className="py-1 tabular-nums">{pct(test.candidate.attemptRate)}</td></tr>
+          <tr className="border-t border-border"><td className="py-1 pr-3">{EVALUATION_COPY.today}</td><td className="py-1 pr-3 tabular-nums">{pct(test.baseline.successRate)}</td><td className="py-1 tabular-nums">{pct(test.baseline.attemptRate)}</td></tr>
+        </tbody>
+      </table>
+      <dl className="mt-2 flex flex-col gap-1 text-xs">
+        <div className="flex justify-between gap-3"><dt>{EVALUATION_COPY.gain}</dt><dd className="tabular-nums">{pts(test.successGain)}</dd></div>
+        <div className="flex justify-between gap-3"><dt>{EVALUATION_COPY.interval}</dt><dd className="tabular-nums">{interval ? `${pts(interval[0])} to ${pts(interval[1])}` : EVALUATION_COPY.none}</dd></div>
+        <div className="flex justify-between gap-3"><dt>{EVALUATION_COPY.attemptChange}</dt><dd className="tabular-nums">{pts(test.attemptRateChange)}</dd></div>
+      </dl>
+      <p className="mt-2 text-xs text-muted-foreground">{EVALUATION_COPY.agrees(test.holdout.candidateAgrees, test.holdout.exposures)}</p>
+      {test.meetsBar ? (
+        <p className="mt-2 rounded-lg border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">{EVALUATION_COPY.meets}</p>
+      ) : (
+        <p className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-foreground">
+          {EVALUATION_COPY.fails} {test.whyNot.join("; ")}
+        </p>
+      )}
+      <ul className="mt-2 flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+        <li className="font-medium uppercase tracking-[0.08em]">{EVALUATION_COPY.preferences}</li>
+        {pile.candidate.preferences.map((row) => (
+          <li key={row.exerciseId} className="flex justify-between gap-3">
+            <span>{row.exerciseId}</span>
+            <span className="tabular-nums">{row.helped} / {row.counted} · {pct(row.helpedRate)} · {row.trusted ? EVALUATION_COPY.trusted : EVALUATION_COPY.untrusted}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The unsealed view, or the one sentence that says why it is sealed. Pure. */
+export function EvaluationView({ evaluation, titles }: { evaluation: JarEvaluation; titles: Map<string, string> }) {
+  const [pile, setPile] = useState<JarPile>("machine_only");
+  return (
+    <section className="rounded-xl border border-border p-4">
+      <h2 className="text-sm font-semibold text-foreground">{EVALUATION_COPY.heading}</h2>
+      {evaluation.sealed || !evaluation.piles ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {evaluation.whyNot ? EVALUATION_COPY.sealed(evaluation.whyNot) : EVALUATION_COPY.sealedNoReason}
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-xs text-muted-foreground">{EVALUATION_COPY.unsealed}</p>
+          <div className="mt-3 flex flex-wrap gap-2" role="tablist">
+            {JAR_PILES.map((name) => (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                aria-selected={pile === name}
+                onClick={() => setPile(name)}
+                className={`rounded-full border px-3 py-1.5 text-[12px] font-medium ${
+                  pile === name ? "border-foreground bg-foreground text-background" : "border-border bg-background text-foreground"
+                }`}
+              >
+                {EVALUATION_COPY.pile[name]}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{EVALUATION_COPY.pileHelp[pile]}</p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <Scoreboard pile={evaluation.piles[pile]} titles={titles} />
+            <FairTest pile={evaluation.piles[pile]} />
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            <code>{evaluation.versions.evaluation}</code> · <code>{evaluation.versions.candidate}</code> · <code>{evaluation.versions.fairTest}</code>
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 function usePassword(): string {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -253,6 +440,7 @@ export function ExerciseJarView({ jar, titles }: { jar: ExerciseJar; titles: Map
 export default function ExerciseJarPage() {
   const password = usePassword();
   const [jar, setJar] = useState<ExerciseJar | null>(null);
+  const [evaluation, setEvaluation] = useState<JarEvaluation | null>(null);
   const [titles, setTitles] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
@@ -266,6 +454,9 @@ export default function ExerciseJarPage() {
     });
     void adminListDiagnosticExercises(password).then((result) => {
       if (alive && result.ok) setTitles(new Map(result.data.map((e) => [e.exerciseId, e.title])));
+    });
+    void adminExerciseLearningEvaluation(password).then((result) => {
+      if (alive && result.ok) setEvaluation(result.data);
     });
     return () => { alive = false; };
   }, [password]);
@@ -285,6 +476,7 @@ export default function ExerciseJarPage() {
         {jar ? <ExerciseJarView jar={jar} titles={titles} /> : error ? null : (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
         )}
+        {jar && evaluation ? <EvaluationView evaluation={evaluation} titles={titles} /> : null}
       </div>
     </main>
   );
