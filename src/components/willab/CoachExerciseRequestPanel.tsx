@@ -48,6 +48,18 @@ import { WhyNothingFitted, titlesFrom } from "./MachinePickReasons";
 /** Every NEW sentence on this panel, in one place. Founder sign-off 2026-09-28. */
 export const EXERCISE_REQUEST_COPY = {
   eyebrow: "No exercise fitted · after blind rating",
+  /* WHY IT REACHED YOU (the follow-up matrix, founder 2026-09-29): every
+     judged moment comes to the coach with its kind. Errors are the default
+     video; the rest are the coach's to pick up. Coach-facing words, from the
+     founder's own: error, praise, rewrite, ambiguity. */
+  eyebrowByKind: {
+    error: "Error · a video by default · after blind rating",
+    praise: "Praise · a video if you want to · after blind rating",
+    rewrite: "Rewrite · a video if you want to · after blind rating",
+    ambiguity: "Ambiguity · the speaker and the machine disagree · after blind rating",
+  },
+  libraryMatched: (labels: string) =>
+    `Spotted: ${labels}. The library matched it and the speaker already has that exercise; a video from you rides the same moment.`,
   nothingSpotted: "Nothing specific was spotted in this moment.",
   nothingTargets: (labels: string) =>
     `Spotted: ${labels}. No exercise in the library treats it yet.`,
@@ -93,6 +105,11 @@ function asPickable(items: ExerciseRequestExercise[]): CoachPracticeExercise[] {
 
 /** What the request says about the moment, in words. */
 export function requestReasonLine(request: CoachExerciseRequest): string {
+  if (request.reason === "library_matched") {
+    return EXERCISE_REQUEST_COPY.libraryMatched(
+      request.spotted.map((item) => item.label).join(", "),
+    );
+  }
   if (request.reason === "nothing_targets_it" && request.spotted.length > 0) {
     return EXERCISE_REQUEST_COPY.nothingTargets(
       request.spotted.map((item) => item.label).join(", "),
@@ -181,7 +198,9 @@ export default function CoachExerciseRequestPanel({
       className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.04] p-4"
     >
       <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
-        {EXERCISE_REQUEST_COPY.eyebrow}
+        {request
+          ? EXERCISE_REQUEST_COPY.eyebrowByKind[request.kind]
+          : EXERCISE_REQUEST_COPY.eyebrow}
       </p>
       {request ? (
         <div className="mt-3 flex flex-col gap-4">
