@@ -264,6 +264,12 @@ export interface DocumentSuggestion {
    *  an exercise is work the user must go and do and a list of them is a list
    *  nobody starts. Carries no number and no band name (24i). */
   practicePrompt?: boolean;
+  /** The bookmark went to the coach (founder 2026-09-29, contract 35g-2):
+   *  the speaker judged it No and nothing in the library matched, so the
+   *  item says the coach is working on it until an exercise arrives
+   *  (`practiceExercise` with `chosenByCoach`). `open` while unanswered;
+   *  `answered` once the coach replied without sharing. */
+  coachRequest?: { status: "open" | "answered" } | null;
   /** The ~75-word block this item was selected within. Blocks tile a Slide
    *  contiguously, so this is what lets the document grey a whole BLOCK while
    *  a judgement is unsettled (24g-1) without ever colouring part of a word. */
@@ -550,6 +556,16 @@ function mapSuggestionEvidence(value: unknown): SuggestionEvidence | null {
   };
 }
 
+function mapCoachRequest(
+  value: unknown,
+): { status: "open" | "answered" } | null {
+  const request = asRecord(value);
+  if (!request) return null;
+  return request.status === "open" || request.status === "answered"
+    ? { status: request.status }
+    : null;
+}
+
 function mapPracticeExercise(
   value: unknown,
 ): ConfidentVoicePracticeOffer | null {
@@ -684,6 +700,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     tentative: record.tentative === true,
     bookmarkTier: readEnum(record.bookmark_tier, BOOKMARK_TIERS),
     practicePrompt: record.practice_prompt === true,
+    coachRequest: mapCoachRequest(record.coach_request),
     blockId: readNonEmptyString(record.block_id),
     device,
     why,

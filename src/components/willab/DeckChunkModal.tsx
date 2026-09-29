@@ -429,6 +429,21 @@ export default function DeckChunkModal({
   /** MLC-3 §3.5: the offer below confirms it rendered once half visible; a
    *  stale offer re-reads the document. Nothing is shown. */
   const exerciseSeen = useExerciseRenderedAck(exerciseItem, onDocumentChanged);
+  /** THE BOOKMARK WITH NO EXERCISE ON IT (founder 2026-09-29). A No on it
+   *  sends it to the coach the moment the answer saves (the server does the
+   *  sending), and the Exercise screen says so instead of leading nowhere.
+   *  The first Confident Voice item without an exercise; with an exercise
+   *  on the sheet this is never drawn. */
+  const noticeItem = useMemo(
+    () =>
+      feedbackInventory.find(
+        (item) =>
+          isConfidentVoiceFeedback(item) &&
+          !item.practiceExercise &&
+          item.snippetId,
+      ) ?? null,
+    [feedbackInventory],
+  );
 
   /** THE SERVED CONFIDENT VOICE ITEM (V3). Its answer goes through the MLC-3
    *  service route rather than the legacy one, and its exercise is the
@@ -466,6 +481,17 @@ export default function DeckChunkModal({
         // may carry an offer — passed in explicitly on the advance that the
         // answer causes, because the flow's own state has not re-rendered yet.
         canPractiseService: exerciseItem === null && servicePractise,
+        // A NO WITH NOTHING TO PRACTISE (founder 2026-09-29): the bookmark
+        // went to the coach, and the sheet says so rather than ending. The
+        // other answers keep their helper-words step; Audio unclear closes.
+        // Not on the MLC-3 service lane: its answer goes through the service
+        // route, which raises nothing, so the sentence would not be true.
+        canNotice:
+          exerciseItem === null &&
+          serviceItem === null &&
+          !servicePractise &&
+          noticeItem !== null &&
+          judgementValue === "no",
         // Nothing to emphasise on an empty paragraph, and nothing to choose on
         // one already locked and settled — that sheet is a single Discard.
         //
@@ -504,6 +530,8 @@ export default function DeckChunkModal({
     [
       feedbackInventory,
       exerciseItem,
+      noticeItem,
+      serviceItem,
       service.exerciseAllowed,
       chunk.part.text,
       chunk.part.locked,
@@ -1410,6 +1438,15 @@ export default function DeckChunkModal({
           () => advanceStep(),
         );
       }
+      // THE COACH HAS IT: nothing to practise yet, so the only way on is on.
+      if (step.id === "coach_request") {
+        return {
+          pill: COPY.pillContinue,
+          icon: null,
+          onPill: () => advanceStep(),
+          links: [],
+        };
+      }
       // THE JUDGEMENT SCREEN. Done answers it; Back leaves without answering
       // and lands on the offer, where the pill will now read Practise again.
       if (exercise.screen === "judgement") {
@@ -1534,6 +1571,30 @@ export default function DeckChunkModal({
     if (step.id === "service_exercise") {
       return serviceItem ? (
         <Mlc3ExerciseStep flow={service} suggestion={serviceItem} />
+      ) : null;
+    }
+    if (step.id === "coach_request") {
+      /* THE SAME SCREEN, WITH THE SENTENCE WHERE THE VIDEO AND INSTRUCTION
+         WOULD BE (founder 2026-09-29): the bookmark went to the coach. Your
+         recording stays attached underneath, as on every screen about what
+         you said. */
+      return noticeItem ? (
+        <div data-testid="coach-request-notice" className="flex flex-col gap-3">
+          <div className="rounded-2xl border border-border p-4">
+            <p className="text-[15px] font-semibold leading-relaxed text-foreground">
+              {COPY.coachWorkingOnExercise}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+              {COPY.cardWhatYouSaid}
+            </p>
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {noticeItem.quote || chunk.part.text}
+            </p>
+            <MomentPlayer item={noticeItem} />
+          </div>
+        </div>
       ) : null;
     }
     if (!exerciseItem?.practiceExercise) return null;

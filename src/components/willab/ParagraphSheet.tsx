@@ -59,6 +59,16 @@ import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 
 /** The exercise this moment carries, if any: the same exact-clip offer the
  *  judgement sheet would have shown. */
+/** The moment's bookmark is with the coach and nothing has come back yet. */
+export function coachHasIt(items: readonly DocumentSuggestion[]): boolean {
+  return items.some(
+    (item) =>
+      isConfidentVoiceFeedback(item) &&
+      !item.practiceExercise &&
+      item.coachRequest?.status === "open",
+  );
+}
+
 export function exerciseOf(
   items: readonly DocumentSuggestion[],
 ): DocumentSuggestion | null {
@@ -551,6 +561,16 @@ export default function ParagraphSheet({
             }
             onStale={onDocumentChanged}
           />
+        ) : coachHasIt(decided) ? (
+          /* WHERE PRACTISE WOULD SIT (founder 2026-09-29): the bookmark went
+             to the coach and no exercise has come back yet. The sentence
+             becomes the Practise button on the read after the coach shares. */
+          <p
+            data-testid="coach-request-line"
+            className="text-[14px] font-semibold text-foreground"
+          >
+            {COPY.coachWorkingOnExercise}
+          </p>
         ) : null}
       </NowTakeCard>
       <EarlierTakes entries={view.timeline.slice(1)} />

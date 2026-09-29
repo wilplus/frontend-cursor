@@ -22,6 +22,7 @@ import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { DualCaptureState } from "@/hooks/useDualCaptureMic";
+import { coachHasIt } from "./ParagraphSheet";
 
 /* One mic for every hook in the sheet (the service flow calls it too), so a
    state pushed here reaches the exercise step exactly as the browser's
@@ -354,5 +355,73 @@ describe("the practice judgement", () => {
     expect(judgement()).not.toBeNull();
     expect(container.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0);
     expect(button("Done").disabled).toBe(true);
+  });
+});
+
+/* THE BOOKMARK WITH NO EXERCISE (founder 2026-09-29): a No no longer leads
+   nowhere. The server sends the bookmark to the coach when the answer saves;
+   the sheet says so on the Exercise screen, and Continue is the way on. */
+const bare = {
+  ...item,
+  id: "s-cv-bare",
+  snippetId: "snip-2",
+  practiceExercise: null,
+} as unknown as DocumentSuggestion;
+
+async function openBare() {
+  props.onClose.mockClear();
+  await act(async () => {
+    root.render(
+      createElement(DeckChunkModal, {
+        ...props,
+        state: chunkStateFor(
+          { ...chunk(), pendingIds: [bare.id] } as DeckChunk,
+          { document: TEXT, suggestions: [bare] },
+        ),
+      }),
+    );
+  });
+}
+const notice = () => container.querySelector('[data-testid="coach-request-notice"]');
+
+describe("a No on a bookmark with no exercise", () => {
+  it("says the coach is working on it, with your recording, and Continue moves on", async () => {
+    await openBare();
+    await click("No — Not confident");
+    expect(notice()).not.toBeNull();
+    expect(notice()?.textContent).toContain("Your coach is working on your exercise.");
+    expect(notice()?.textContent).toContain("What you said");
+    const labels = buttons().map((b) => b.textContent?.trim());
+    expect(labels).toContain("Continue");
+    expect(labels).not.toContain("Practise");
+    expect(props.onClose).not.toHaveBeenCalled();
+    await click("Continue");
+    // The only item was answered and a No has no helper-words step: the
+    // sheet is done, and the host closes it.
+    expect(props.onClose).toHaveBeenCalled();
+  });
+
+  it("keeps the helper-words step, not the sentence, on a Yes", async () => {
+    await openBare();
+    await click("Yes — Confident");
+    expect(notice()).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+  });
+
+  it("closes on Audio unclear without the sentence", async () => {
+    await openBare();
+    await click("Audio unclear");
+    expect(notice()).toBeNull();
+    expect(props.onClose).toHaveBeenCalled();
+  });
+});
+
+describe("the paragraph sheet's line", () => {
+  it("shows while the request is open and nothing came back", () => {
+    const open = { ...bare, coachRequest: { status: "open" } } as DocumentSuggestion;
+    expect(coachHasIt([open])).toBe(true);
+    expect(coachHasIt([{ ...open, coachRequest: { status: "answered" } } as DocumentSuggestion])).toBe(false);
+    expect(coachHasIt([{ ...open, practiceExercise: item.practiceExercise } as DocumentSuggestion])).toBe(false);
+    expect(coachHasIt([bare])).toBe(false);
   });
 });
