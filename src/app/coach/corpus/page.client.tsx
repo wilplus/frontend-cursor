@@ -24,14 +24,55 @@ import {
 } from "@/services/api/trainingCorpus";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import {
+  acknowledgeCoachInlineBlindRender,
+  acknowledgeConfidenceChainRender,
   buildRatingBody,
   saveStateRating,
+  type BlindRenderResult,
+  type CoachInlineBlindReviewHandle,
+  type ConfidenceChainBlindHandle,
   type ConfidenceRatingValue,
   CONFIDENCE_QUESTION,
 } from "@/services/api/stateRatings";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
-import CoachInlineBlindExposureBoundary from "@/components/willab/CoachInlineBlindExposureBoundary";
+import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
+
+/** One queue row carries at most one blind handle: the D5 inline packet, or
+ *  (Q2, while the writer state is founder_canary) the legacy card's handle on
+ *  the canonical confidence chain. D5 wins when both are present. */
+type CoachQueueBlindHandle =
+  | CoachInlineBlindReviewHandle
+  | ConfidenceChainBlindHandle;
+
+function queueBlindHandle(piece: QueuePiece): CoachQueueBlindHandle | null {
+  return piece.blindReview ?? piece.mlc2BlindReview;
+}
+
+function isInlineHandle(
+  handle: CoachQueueBlindHandle,
+): handle is CoachInlineBlindReviewHandle {
+  return "blindPacketId" in handle;
+}
+
+function acknowledgeQueueRender(
+  handle: CoachQueueBlindHandle,
+  request: { renderInstanceId: string; clientRenderedAt: string; idempotencyKey: string },
+): Promise<BlindRenderResult> {
+  return isInlineHandle(handle)
+    ? acknowledgeCoachInlineBlindRender(handle, request)
+    : acknowledgeConfidenceChainRender(handle, request);
+}
+
+/** The chain's echo for the label PUT: only with a real exposure. */
+function confidenceChainEcho(
+  piece: QueuePiece,
+  exposureId: string | null | undefined,
+): { handle: ConfidenceChainBlindHandle; exposureId: string } | null {
+  return piece.mlc2BlindReview && exposureId
+    ? { handle: piece.mlc2BlindReview, exposureId }
+    : null;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  /coach/corpus — the training corpus workbench (2026-07-28)                 */
@@ -964,6 +1005,7 @@ function LabelScreen({
       body,
       piece.blindReview,
       opts?.blindExposureId,
+      confidenceChainEcho(piece, opts?.blindExposureId),
     );
     inFlightRef.current = false;
     setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
@@ -1109,9 +1151,11 @@ function LabelScreen({
             Nothing queued to label on this import.
           </p>
         ) : piece ? (
-          <CoachInlineBlindExposureBoundary
+          <BlindExposureBoundary<CoachQueueBlindHandle>
             key={piece.reviewActId}
-            blindReview={piece.blindReview}
+            blindReview={queueBlindHandle(piece)}
+            acknowledge={acknowledgeQueueRender}
+            scope={piece.blindReview ? "coach-inline" : "coach-card"}
           >
             {({ exposureId, error: renderError }) => <>
             {/* Before a saved answer this is audio only. The shared readout
@@ -1132,9 +1176,13 @@ function LabelScreen({
               question={CONFIDENCE_QUESTION}
               value={abstained ? null : answered}
               unrateable={abstained}
+              // A D5 answer needs its exact exposure. The legacy card waits
+              // for the chain's receipt too, but a receipt the chain refused
+              // never blocks the coach's own label (Q2).
               disabled={
                 savingId === piece.reviewActId ||
-                (piece.blindReview !== null && !exposureId)
+                (piece.blindReview !== null && !exposureId) ||
+                (piece.mlc2BlindReview !== null && !exposureId && !renderError)
               }
               // The NAV BAR owns the pending state on this screen ("Saving…"
               // + the amber dot) — a second Saving… inside the chips would
@@ -1209,7 +1257,7 @@ function LabelScreen({
               </button>
             </div>
             </>}
-          </CoachInlineBlindExposureBoundary>
+          </BlindExposureBoundary>
         ) : null}
       </div>
     </main>

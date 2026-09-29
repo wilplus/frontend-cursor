@@ -111,6 +111,18 @@ export interface CoachInlineBlindReviewHandle {
   visiblePayloadSha256: string;
 }
 
+/** The legacy coach card's handle on the canonical confidence chain (Q2).
+ *
+ *  Four identifiers and nothing of the packet: the card keeps its own audio
+ *  reference, and the handle is never a second channel for anything about the
+ *  moment. Present on a queue row only while the writer state is founder_canary. */
+export interface ConfidenceChainBlindHandle {
+  reviewAssignmentId: string;
+  presentationId: string;
+  acknowledgementToken: string;
+  visiblePayloadSha256: string;
+}
+
 export interface CoachInlineBlindRenderReceipt {
   reviewAssignmentId: string;
   presentationId: string;
@@ -184,6 +196,69 @@ export async function acknowledgeCoachInlineBlindRender(
   }
 }
 
+/** Confirm an actually painted legacy coach card to the confidence chain (Q2).
+ *
+ * Same contract as the D5 receipt: the caller owns the render instance, the
+ * timestamp and the retry key, so transport retries are byte-identical and a
+ * card painted but never answered stays a real rendered exposure. The
+ * exposure id it returns is what the label PUT must echo for the canonical
+ * judgment to be written. */
+export async function acknowledgeConfidenceChainRender(
+  handle: ConfidenceChainBlindHandle,
+  request: {
+    renderInstanceId: string;
+    clientRenderedAt: string;
+    idempotencyKey: string;
+  },
+): Promise<BlindRenderResult> {
+  const token = await getAuthToken();
+  if (!token) return { ok: false, error: null };
+  try {
+    const rendered = await fetch(
+      `/api/v2/coach/mlc2/assignments/${encodeURIComponent(
+        handle.reviewAssignmentId
+      )}/render`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": request.idempotencyKey,
+        },
+        body: JSON.stringify({
+          presentation_id: handle.presentationId,
+          acknowledgement_token: handle.acknowledgementToken,
+          render_instance_id: request.renderInstanceId,
+          client_rendered_at: request.clientRenderedAt,
+          client_version: "coach-card-blind-v1",
+          visible_payload_sha256: handle.visiblePayloadSha256,
+        }),
+        cache: "no-store",
+      },
+    );
+    const body = (await rendered.json().catch(() => null)) as
+      Record<string, unknown> | null;
+    if (!rendered.ok || typeof body?.exposure_id !== "string") {
+      return {
+        ok: false,
+        error: typeof body?.error === "string"
+          ? body.error
+          : "Couldn't confirm this blind review card. Try again.",
+      };
+    }
+    return {
+      ok: true,
+      receipt: {
+        reviewAssignmentId: handle.reviewAssignmentId,
+        presentationId: handle.presentationId,
+        exposureId: body.exposure_id,
+      },
+    };
+  } catch {
+    return { ok: false, error: null };
+  }
+}
+
 /** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
  *
  *  This is an ANCHORED owner response on a card that has already told the
@@ -235,6 +310,11 @@ export async function saveStateRating(
   body: StateRatingBody,
   blindReview?: CoachInlineBlindReviewHandle | null,
   blindExposureId?: string | null,
+  /** The legacy card's confidence-chain echo (Q2): the assignment the queue
+   *  row carried and the exposure its render receipt returned. The label PUT
+   *  itself is unchanged; the backend writes the canonical judgment beside
+   *  the label only when both are present. */
+  mlc2?: { handle: ConfidenceChainBlindHandle; exposureId: string } | null,
 ): Promise<SaveRatingResult> {
   const token = await getAuthToken();
   if (!token) return { ok: false, error: null };
@@ -297,7 +377,17 @@ export async function saveStateRating(
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(
+          mlc2
+            ? {
+                ...body,
+                mlc2: {
+                  review_assignment_id: mlc2.handle.reviewAssignmentId,
+                  exposure_id: mlc2.exposureId,
+                },
+              }
+            : body,
+        ),
         cache: "no-store",
       }
     );
