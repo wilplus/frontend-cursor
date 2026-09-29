@@ -99,7 +99,7 @@ check(
     return (
       text.includes("WHAT YOU SAID") &&
       text.includes("believed the numbers") &&
-      text.includes("CLEARER VERSION") &&
+      text.includes("SMALL REWRITE") &&
       text.includes("trusted the figures")
     );
   })()
@@ -114,16 +114,14 @@ check(
   )
 );
 check(
-  // Still three decisions; "Edit myself" is now the pencil in the top-right of
-  // the Clearer version card, named for assistive tech by its aria-label.
-  // Still three decisions. Each screen now carries ONE black pill — the verb
-  // of that screen — with the decline as a grey link beneath it, never a
-  // second button beside it; and "Edit myself" is the pencil on the Clearer
-  // version card, named for assistive tech by its aria-label.
-  "improvement offers the three canonical decisions, one pill among them",
+  // Two decisions (Final Screens, founder 2026-09-29): each screen carries
+  // ONE black pill — the verb of that screen — with the decline as a grey
+  // link beneath it, never a second button beside it. The "Edit myself"
+  // pencil is gone from the Small rewrite card.
+  "improvement offers its two decisions, one pill among them",
   (await page.locator("button", { hasText: /^Apply$/ }).count()) === 1 &&
-    (await page.locator('button[aria-label="Edit myself"]').count()) === 1 &&
-    (await page.locator("button", { hasText: /^Keep wording$/ }).count()) === 1 &&
+    (await page.locator('button[aria-label="Edit myself"]').count()) === 0 &&
+    (await page.locator("button", { hasText: /^Keep my wording$/ }).count()) === 1 &&
     (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 0
 );
 await page.locator("button", { hasText: /^Apply$/ }).click();

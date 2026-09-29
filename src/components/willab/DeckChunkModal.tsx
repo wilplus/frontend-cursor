@@ -811,16 +811,6 @@ export default function DeckChunkModal({
     advanceStep();
   }
 
-  async function editImprovementMyself() {
-    if (!suggestion || busy) return;
-    setBusy(true);
-    setError(null);
-    const ok = await recordFeedbackResponse("edit_myself");
-    setBusy(false);
-    if (!ok) return;
-    advanceStep();
-  }
-
   async function keepImprovementWording() {
     if (!suggestion || busy) return;
     setBusy(true);
@@ -1891,23 +1881,12 @@ export default function DeckChunkModal({
           </div>
         </div>
         <div className="rounded-2xl border border-pending/40 bg-pending/[0.08] p-4">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-              {COPY.cardClearerVersion}
-            </p>
-            {/* THE PENCIL IS "EDIT MYSELF" — same handler, same
-                edit_myself response, sitting on the words it edits
-                instead of competing with the accept at the bottom. */}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void editImprovementMyself()}
-              aria-label="Edit myself"
-              className="-mr-1 -mt-1 shrink-0 rounded-full p-1 text-pending transition-colors hover:text-foreground disabled:opacity-50"
-            >
-              <Pencil className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
+          {/* NO PENCIL (Ideal Text Final Screens, founder 2026-09-29): the
+              card carries the eyebrow and the words, and the two decisions
+              are the pill and the link below. "Edit myself" left with it. */}
+          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+            {COPY.cardClearerVersion}
+          </p>
           <p className="mt-2 text-[15px] leading-relaxed text-foreground">
             {suggestion.kind === "bold"
               ? suggestion.quote || chunk.part.text
