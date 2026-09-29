@@ -166,6 +166,13 @@ function PreferenceAction({ flow }: { flow: PracticeFlow }) {
   if (flow.preferenceSaved) {
     return <p className="mt-4 text-sm text-muted-foreground">Thank you.</p>;
   }
+  // "Yes" means the PRACTICE sounds better, and the pair puts the practice
+  // on either side (`rightClip` is "before" or "after"). This read Yes as
+  // prefer_right regardless, so on a pair with the original on the right a
+  // Yes was stored as preferring the original.
+  const practiceOnRight = flow.selectedAttempt?.ownerPair?.rightClip !== "before";
+  const preferPractice = practiceOnRight ? "prefer_right" : "prefer_left";
+  const preferOriginal = practiceOnRight ? "prefer_left" : "prefer_right";
   return (
     <div className="mt-5">
       <p className="text-sm font-semibold">
@@ -173,8 +180,8 @@ function PreferenceAction({ flow }: { flow: PracticeFlow }) {
       </p>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {([
-          ["prefer_right", "Yes"], ["same", "Same"],
-          ["prefer_left", "No"], ["not_sure", "Not sure"],
+          [preferPractice, "Yes"], ["same", "Same"],
+          [preferOriginal, "No"], ["not_sure", "Not sure"],
           ["audio_unusable", "Audio unclear"],
         ] as const).map(([value, label]) => (
           <button
