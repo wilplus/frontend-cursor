@@ -40,14 +40,15 @@ function bookmarks(): Bookmark[] {
 }
 
 describe("the bookmarks", () => {
-  it("are every paragraph with feedback, open or done, once each, in text order", () => {
+  it("are the paragraphs with feedback still waiting or a coach moment, once each, in text order (2026-09-29, A)", () => {
     const list = bookmarks();
-    expect(list.map((b) => b.partId)).toEqual(["a", "c", "d"]);
-    expect(list[2]).toMatchObject({ bundleId: "bundle-d", coach: true });
+    // "c" was answered earlier and has nothing new: not a moment of this walk.
+    expect(list.map((b) => b.partId)).toEqual(["a", "d"]);
+    expect(list[1]).toMatchObject({ bundleId: "bundle-d", coach: true });
   });
 
   it("the link lands on the first coach-reviewed one, never a judgement-only one", () => {
-    expect(landingIndex(bookmarks())).toBe(2);
+    expect(landingIndex(bookmarks())).toBe(1);
     const noCoach = buildBookmarks([chunk("a")], (c) => FEEDBACK[c.part.id], () => undefined);
     expect(landingIndex(noCoach)).toBe(-1);
   });
@@ -110,12 +111,15 @@ function Harness({
   onOpen,
   onCloseAll,
   openFeedback,
+  rebuilt = null,
 }: {
   onOpen: (b: Bookmark) => void;
   onCloseAll: () => void;
   openFeedback: boolean;
+  /** What the host's re-read of the document rebuilds the list into. */
+  rebuilt?: Bookmark[] | null;
 }) {
-  const [list] = useState(bookmarks);
+  const [list, setList] = useState(bookmarks);
   const walk = useFeedbackPager({
     bookmarks: list,
     open: onOpen,
@@ -127,8 +131,11 @@ function Harness({
     "div",
     null,
     createElement("span", { "data-testid": "at" }, String(walk.pager?.index ?? "none")),
+    createElement("span", { "data-testid": "total" }, String(walk.pager?.total ?? "none")),
     createElement(FeedbackPagerBar, { pager: walk.pager }),
     createElement("button", { onClick: () => walk.openPart("a") }, "open-a"),
+    createElement("button", { onClick: () => walk.openPart("c") }, "open-c"),
+    createElement("button", { onClick: () => { if (rebuilt) setList(rebuilt); } }, "rebuild"),
   );
 }
 
@@ -149,7 +156,7 @@ describe("the walk", () => {
       await act(async () => b.el.click());
     };
     await click("Back");
-    expect(opened.at(-1)).toBe("c");
+    expect(opened.at(-1)).toBe("a");
     await click("Next");
     expect(opened.at(-1)).toBe("d");
     await click("Done");
@@ -240,5 +247,49 @@ describe("the email's words (signed off 2026-09-25)", () => {
     expect(text).toContain("Your coach's feedback is in.");
     expect(text).toContain("Open the feedback:");
     expect(text).not.toMatch(/Published snippets|contextual chat|Hi there/);
+  });
+
+  it("keeps the list it started on while a sheet is open, whatever the host re-reads (audit 2026-09-29)", async () => {
+    // After Apply the host re-reads the document and rebuilds its bookmarks;
+    // the walk is positional, so the header used to change under the speaker
+    // and the walk ended early when the open paragraph fell out of the list.
+    const opened: string[] = [];
+    const closeAll = vi.fn();
+    const full = bookmarks();
+    // The walk is a, d. The re-read drops "a" (its feedback was decided):
+    // only "d" is left in the host's list.
+    const rebuilt = full.filter((b) => b.partId === "d");
+    await act(async () =>
+      root.render(createElement(Harness, {
+        onOpen: (b: Bookmark) => opened.push(b.partId),
+        onCloseAll: closeAll,
+        openFeedback: false,
+        rebuilt,
+      })),
+    );
+    const click = async (label: string) => {
+      const b = [...container.querySelectorAll("button")].find((x) => x.textContent === label
+        || x.getAttribute("aria-label") === label)!;
+      await act(async () => b.click());
+    };
+    const total = () => container.querySelector('[data-testid="total"]')?.textContent;
+    await click("open-a");
+    expect(total()).toBe("2");
+    await click("rebuild");
+    // Still "moment 1 of 2", still on "a", although "a" left the host's list.
+    expect(total()).toBe("2");
+    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("0");
+    await click("Next");
+    expect(opened.at(-1)).toBe("d");
+    expect(total()).toBe("2");
+    await click("Done");
+    expect(closeAll).toHaveBeenCalledTimes(1);
+    // The next walk starts on the host's current list: "a" is no longer in
+    // it, so a tap on it is not a walk, and "c" never was.
+    await click("open-a");
+    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
+    await click("open-c");
+    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
+    expect(opened.at(-1)).toBe("d");
   });
 });
