@@ -28,7 +28,9 @@ export interface ExerciseRequestExercise {
 
 export interface CoachExerciseRequest {
   id: string;
-  reason: "nothing_spotted" | "nothing_targets_it";
+  reason: "nothing_spotted" | "nothing_targets_it" | "library_matched";
+  /** Why it reached the coach (the follow-up matrix, founder 2026-09-29). */
+  kind: "error" | "praise" | "rewrite" | "ambiguity";
   spotted: { errorId: string; label: string }[];
   resolution: ExerciseRequestResolution | null;
   resolvedExerciseId: string | null;
@@ -94,7 +96,14 @@ export function mapCoachExerciseRequest(raw: unknown): CoachExerciseRequest | nu
     ? r.resolution as ExerciseRequestResolution : null;
   return {
     id,
-    reason: r.reason === "nothing_targets_it" ? "nothing_targets_it" : "nothing_spotted",
+    reason:
+      r.reason === "nothing_targets_it" || r.reason === "library_matched"
+        ? r.reason
+        : "nothing_spotted",
+    kind:
+      r.kind === "praise" || r.kind === "rewrite" || r.kind === "ambiguity"
+        ? r.kind
+        : "error",
     spotted: records(r.spotted).flatMap((item) => {
       const errorId = str(item.error_id);
       return errorId ? [{ errorId, label: str(item.label) ?? errorId }] : [];

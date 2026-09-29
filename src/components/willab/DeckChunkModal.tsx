@@ -278,12 +278,69 @@ function tapTokens(
  *  answers. Pure, for the complexity ratchet. */
 function judgementPillDisabled(
   exercise: { busy: boolean; corrected: unknown },
+  judgement: ConfidenceRatingValue | null,
+): boolean {
+  return exercise.busy || exercise.corrected === null || judgement === null;
+}
+
+/** The id the judgement screen is about, or null before an attempt exists.
+ *  Pure, for the complexity ratchet. */
+function attemptIdOf(attempt: { id: string } | null): string | null {
+  return attempt === null ? null : attempt.id;
+}
+
+/** Whether the exercise rung is on the ladder for this answer (the follow-up
+ *  matrix, founder 2026-09-29). The library video opens on In-between, No
+ *  and Not sure. Before any answer the rung is built after the question (a
+ *  coach-reviewed moment opens straight on it); the answer then rebuilds the
+ *  ladder. A video the coach shared is theirs to show on any answer but
+ *  Audio unclear. Pure, for the complexity ratchet. */
+function libraryVideoOpens(
   judgement: RootGateAnswer,
+  item: DocumentSuggestion | null,
+): boolean {
+  if (item === null) return false;
+  if (judgement === null || judgement === "other") return true;
+  if (judgement === "in_between" || judgement === "no" || judgement === "not_sure") {
+    return true;
+  }
+  return item.practiceExercise?.chosenByCoach === true && judgement !== "audio_unclear";
+}
+
+/** Whether the "your coach is working on it" rung is on the ladder: no
+ *  exercise rung of either kind, not the MLC-3 service lane (its answer goes
+ *  through the service route, which raises nothing), a bookmark to say it
+ *  about, and an answer that makes it an error (`sendsToCoach`). Pure, for
+ *  the complexity ratchet. */
+function coachSentenceOpens(
+  judgement: RootGateAnswer,
+  lane: {
+    exerciseItem: DocumentSuggestion | null;
+    serviceItem: DocumentSuggestion | null;
+    servicePractise: boolean;
+    noticeItem: DocumentSuggestion | null;
+  },
+): boolean {
+  if (lane.exerciseItem !== null || lane.serviceItem !== null) return false;
+  if (lane.servicePractise || lane.noticeItem === null) return false;
+  return sendsToCoach(judgement, lane.noticeItem);
+}
+
+/** Whether this answer makes the bookmark an ERROR for the coach with no
+ *  library video to show (the follow-up matrix, founder 2026-09-29): the
+ *  clip read weak, a delivery problem fired, nothing targets it
+ *  (`problemRecognised`), on In-between, No or Not sure. That is the one
+ *  cell where the sentence is a promise the coach always keeps. A Yes read
+ *  weak reaches the coach as an ambiguity and shows nothing now; the other
+ *  kinds (praise, rewrite, ambiguity) promise nothing and the coach's video
+ *  simply appears when shared. Mirrors the server's rule at judgement time. */
+function sendsToCoach(
+  judgement: RootGateAnswer,
+  item: DocumentSuggestion,
 ): boolean {
   return (
-    exercise.busy ||
-    exercise.corrected === null ||
-    practiceChipValue(judgement) === null
+    (judgement === "in_between" || judgement === "no" || judgement === "not_sure") &&
+    item.problemRecognised === true
   );
 }
 
@@ -405,6 +462,15 @@ export default function DeckChunkModal({
   const [practiceWords, setPracticeWords] = useState<PracticeOutcome | null>(
     null,
   );
+  /** THE PRACTICE IS JUDGED ON ITS OWN (contract 29a, locked screen L1: the
+   *  chips start empty). This used to read and write `judgement`, the
+   *  paragraph's answer, so the judgement screen opened with the speaker's
+   *  answer about the ORIGINAL already selected and Done live — one tap
+   *  stored, against the practice attempt, a judgement nobody had made of
+   *  it. The paragraph's answer only changes once this one is saved
+   *  (`onExerciseFinished`). */
+  const [practiceJudgement, setPracticeJudgement] =
+    useState<ConfidenceRatingValue | null>(null);
 
   /** An exercise matched to this exact clip, from the confidence item that
    *  carries it. Read off the frozen inventory rather than the current step,
@@ -424,6 +490,21 @@ export default function DeckChunkModal({
   /** MLC-3 §3.5: the offer below confirms it rendered once half visible; a
    *  stale offer re-reads the document. Nothing is shown. */
   const exerciseSeen = useExerciseRenderedAck(exerciseItem, onDocumentChanged);
+  /** THE BOOKMARK WITH NO EXERCISE ON IT (founder 2026-09-29). A No on it
+   *  sends it to the coach the moment the answer saves (the server does the
+   *  sending), and the Exercise screen says so instead of leading nowhere.
+   *  The first Confident Voice item without an exercise; with an exercise
+   *  on the sheet this is never drawn. */
+  const noticeItem = useMemo(
+    () =>
+      feedbackInventory.find(
+        (item) =>
+          isConfidentVoiceFeedback(item) &&
+          !item.practiceExercise &&
+          item.snippetId,
+      ) ?? null,
+    [feedbackInventory],
+  );
 
   /** THE SERVED CONFIDENT VOICE ITEM (V3). Its answer goes through the MLC-3
    *  service route rather than the legacy one, and its exercise is the
@@ -456,11 +537,29 @@ export default function DeckChunkModal({
     ): ChunkStep[] =>
       buildChunkSteps({
         inventory: feedbackInventory,
-        canPractise: exerciseItem !== null,
+        // THE LIBRARY VIDEO SHOWS ON In-between, No AND Not sure (the
+        // follow-up matrix, founder 2026-09-29). Audio unclear closes and
+        // moves on; a Yes the machine read weak shows nothing now and reaches
+        // the coach as an ambiguity, so its video, if any, comes from them.
+        // Before any answer the rung is built and sits after the question
+        // (a coach-reviewed moment opens straight on it); the answer then
+        // rebuilds the ladder. A video the coach shared is theirs to show on
+        // any answer but Audio unclear.
+        canPractise: libraryVideoOpens(judgementValue, exerciseItem),
         // The service rung exists only once the server has said the answer
         // may carry an offer — passed in explicitly on the advance that the
         // answer causes, because the flow's own state has not re-rendered yet.
         canPractiseService: exerciseItem === null && servicePractise,
+        // NOTHING TO PRACTISE, SO THE COACH HAS IT (founder 2026-09-29): a
+        // No sends the bookmark to the coach whatever was recognised; a Yes,
+        // In-between or Not sure sends it when a problem was recognised and
+        // nothing targets it. The sheet says so rather than ending, and the
+        // helper-words step still follows on the three. Audio unclear closes.
+        // Not on the MLC-3 service lane: its answer goes through the service
+        // route, which raises nothing, so the sentence would not be true.
+        canNotice: coachSentenceOpens(judgementValue, {
+          exerciseItem, serviceItem, servicePractise, noticeItem,
+        }),
         // Nothing to emphasise on an empty paragraph, and nothing to choose on
         // one already locked and settled — that sheet is a single Discard.
         //
@@ -499,6 +598,8 @@ export default function DeckChunkModal({
     [
       feedbackInventory,
       exerciseItem,
+      noticeItem,
+      serviceItem,
       service.exerciseAllowed,
       chunk.part.text,
       chunk.part.locked,
@@ -1223,6 +1324,13 @@ export default function DeckChunkModal({
     originalUserAnswer: practiceChipValue(judgement) ?? "no",
     onFinished: onExerciseFinished,
   });
+  // Each attempt is judged afresh: the chips empty whenever a new attempt
+  // reaches the judgement screen, and after Back or a No that sent the
+  // speaker to practise again.
+  const judgedAttemptId = attemptIdOf(exercise.corrected);
+  useEffect(() => {
+    setPracticeJudgement(null);
+  }, [exercise.screen, judgedAttemptId]);
 
 
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
@@ -1388,16 +1496,24 @@ export default function DeckChunkModal({
           () => advanceStep(),
         );
       }
+      // THE COACH HAS IT: nothing to practise yet, so the only way on is on.
+      if (step.id === "coach_request") {
+        return {
+          pill: COPY.pillContinue,
+          icon: null,
+          onPill: () => advanceStep(),
+          links: [],
+        };
+      }
       // THE JUDGEMENT SCREEN. Done answers it; Back leaves without answering
       // and lands on the offer, where the pill will now read Practise again.
       if (exercise.screen === "judgement") {
         return {
           pill: COPY.pillDone,
           icon: <Check className="h-4 w-4" aria-hidden />,
-          pillDisabled: judgementPillDisabled(exercise, judgement),
+          pillDisabled: judgementPillDisabled(exercise, practiceJudgement),
           onPill: () => {
-            const answer = practiceChipValue(judgement);
-            if (answer) void exercise.finish(answer);
+            if (practiceJudgement) void exercise.finish(practiceJudgement);
           },
           links: [{ label: COPY.linkBack, onClick: () => exercise.back() }],
         };
@@ -1515,6 +1631,30 @@ export default function DeckChunkModal({
         <Mlc3ExerciseStep flow={service} suggestion={serviceItem} />
       ) : null;
     }
+    if (step.id === "coach_request") {
+      /* THE SAME SCREEN, WITH THE SENTENCE WHERE THE VIDEO AND INSTRUCTION
+         WOULD BE (founder 2026-09-29): the bookmark went to the coach. Your
+         recording stays attached underneath, as on every screen about what
+         you said. */
+      return noticeItem ? (
+        <div data-testid="coach-request-notice" className="flex flex-col gap-3">
+          <div className="rounded-2xl border border-border p-4">
+            <p className="text-[15px] font-semibold leading-relaxed text-foreground">
+              {COPY.coachWorkingOnExercise}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+              {COPY.cardWhatYouSaid}
+            </p>
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {noticeItem.quote || chunk.part.text}
+            </p>
+            <MomentPlayer item={noticeItem} />
+          </div>
+        </div>
+      ) : null;
+    }
     if (!exerciseItem?.practiceExercise) return null;
     return exercise.screen === "judgement" ? (
       <>
@@ -1535,12 +1675,12 @@ export default function DeckChunkModal({
           ) : null}
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
-            value={practiceChipValue(judgement)}
+            value={practiceJudgement}
             disabled={exercise.busy}
             saving={exercise.busy}
             error={exercise.error}
             ownerWording
-            onPick={(value) => setJudgement(value)}
+            onPick={(value) => setPracticeJudgement(value)}
           />
         </div>
       </>

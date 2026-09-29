@@ -105,6 +105,13 @@ export const CHUNK_SHEET_COPY = {
      has no eyebrow and no corner icon, because the screen has already said
      what it is (founder 2026-09-16, §3). */
   titleExercise: "Exercise",
+  /* THE BOOKMARK WENT TO THE COACH (founder 2026-09-29, contract 35g-2).
+     SIGNED OFF as written, the same day: "One okay". Shown on the Exercise
+     screen in place of the video and instruction when the speaker judged the
+     moment No and nothing in the library matched, and on the paragraph sheet
+     where Practise sits, until the coach shares an exercise. One sentence,
+     no second line. */
+  coachWorkingOnExercise: "Your coach is working on your exercise.",
   /* Founder 2026-09-24: the emphasis step is where the speaker picks the
      helper words that show while recording the next take. */
   titleEmphasis: "Choose your helper words",
