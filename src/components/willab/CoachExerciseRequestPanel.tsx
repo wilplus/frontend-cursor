@@ -340,7 +340,7 @@ function RequestAnswerForm({
         hasLibrary={pickable.length > 0}
         onMode={setMode}
         door={
-          <AddToLibraryDoor href="/cms/new/exercise/1" snippetId={snippetId} onBuild={onBuildExercise}>
+          <AddToLibraryDoor href="/coach/exercises?new=1" snippetId={snippetId} onBuild={onBuildExercise}>
             {EXERCISE_REQUEST_COPY.buildInLane}
           </AddToLibraryDoor>
         }

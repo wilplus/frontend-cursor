@@ -294,12 +294,13 @@ export default function CoachConfidencePracticeReview({
                   same day) no longer makes a one-off: the
                   backend files it into the library under this moment's
                   error, like any other exercise. This door builds one in the
-                  full CMS lane instead, with its own video and post. */}
+                  coach panel's own exercise lane instead (founder 2026-09-29,
+                  decision 4), with its video and its kept version. */}
               {/* Brings the coach back to this moment with the new exercise
                   already chosen, when a review hosts the sheet (founder
                   2026-09-25). The plain link was a one-way trip. */}
               <AddToLibraryDoor
-                href="/cms/new/exercise/1"
+                href="/coach/exercises?new=1"
                 snippetId={snippetId}
                 onBuild={onBuildExercise}
               >
