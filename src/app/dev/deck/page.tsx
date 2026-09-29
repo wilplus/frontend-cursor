@@ -110,6 +110,11 @@ function payload() {
     why_key: "confidence",
     status: "pending",
     visual: "underline",
+    // A CLIP, because a Confident Voice item nobody can hear is not asked
+    // (founder 2026-09-29): without one the harness would show no moment.
+    snippet_audio_ref: silentWavDataUri(),
+    start_offset_ms: 0,
+    duration_ms: 9000,
   });
   const bq = "finally came together";
   changes.push({
@@ -393,6 +398,26 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       return real(input, init);
     };
   }
+}
+
+/** A short silent WAV, so the harness's Confident Voice item carries a clip
+ *  the player can open (same shape as the corpus harness's). Empty on the
+ *  server, where nothing plays anyway. */
+function silentWavDataUri(): string {
+  if (typeof window === "undefined") return "";
+  const samples = 2000;
+  const header = [
+    0x52, 0x49, 0x46, 0x46, (36 + samples) & 0xff, ((36 + samples) >> 8) & 0xff, 0, 0,
+    0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 16, 0, 0, 0, 1, 0, 1, 0,
+    0x40, 0x1f, 0, 0, 0x40, 0x1f, 0, 0, 1, 0, 8, 0, 0x64, 0x61, 0x74, 0x61,
+    samples & 0xff, (samples >> 8) & 0xff, 0, 0,
+  ];
+  const bytes = new Uint8Array(header.length + samples);
+  bytes.set(header);
+  bytes.fill(128, header.length);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return "data:audio/wav;base64," + btoa(bin);
 }
 
 export default function DeckHarness() {
