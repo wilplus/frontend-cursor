@@ -95,7 +95,8 @@ function renderBlindPiece(options: {
     sessionId, ratingSaved, snippet, revealedTranscript, instrument, rating,
     presentationRef, onBuildExercise,
   } = options;
-  const answered = rating === "yes" || rating === "no";
+  // Any saved answer, Audio unclear included (founder 2026-09-29).
+  const answered = ratingSaved;
   return (
     <CoachCard gap="lg">
       {/* THE SLIDE, ON THE BLIND SCREEN — a founder override of the
@@ -233,10 +234,9 @@ export default function CoachSnippetReviewCard({
   contextUnlocked: boolean;
   /** Refetches the session after an immutable blind answer so the server can
    *  unlock the contextual pass as soon as the final piece is labelled. */
-  /** Fires once the server has the answer, carrying it so a paged queue can
-   *  decide whether to advance: In-between and the abstentions have nothing
-   *  more to show, but a Yes or a No reveals the words and the exercise link,
-   *  and jumping on would hide both. */
+  /** Fires once the server has the answer. Every answer now reveals the
+   *  words, the practice and the exercise request under it (founder
+   *  2026-09-29), so the host holds the screen and Next is a tap. */
   onBlindRatingCommitted?: (
     snippetId: string,
     value: ConfidenceRatingValue | null,
@@ -372,8 +372,13 @@ export default function CoachSnippetReviewCard({
   // before any slide, acoustic context, practice, note or delivery control is
   // constructed. The backend independently redacts those fields as defence in
   // depth, so neither side can accidentally anchor a blind label.
-  const ratingSaved =
-    !ratingSaving && !unrateable && (rating === "yes" || rating === "no");
+  // ANY OF THE FIVE OPENS THE DOOR (founder 2026-09-29). Until today only
+  // Yes and No did, so an In-between, Not sure or Audio unclear left the
+  // practice review and the exercise request unreachable on that moment, and
+  // it looked as if nothing existed there. The fence is unchanged: the answer
+  // must be saved before anything is built, and the server refuses until it
+  // is. `unrateable` IS the Audio unclear answer.
+  const ratingSaved = !ratingSaving && (rating !== null || unrateable);
   if (!contextUnlocked) {
     return renderBlindPiece({
       sessionId,

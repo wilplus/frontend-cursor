@@ -16,7 +16,6 @@ import type {
   CoachSnippetState,
   SessionFeeling,
 } from "@/services/api/coachReview";
-import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import {
   readCoachReviewDraft,
   writeCoachReviewDraft,
@@ -221,21 +220,18 @@ export default function CoachReviewOverlay({
     },
     [],
   );
-  /** An answer carries the queue forward on its own — except a Yes or a No,
-   *  which reveal the words and the exercise link. Advancing past those would
-   *  hide both, so they hold the screen and Next becomes a tap. */
+  /** Every answer holds the screen (founder 2026-09-29): any of the five now
+   *  reveals the words, the practice review and the exercise request under
+   *  it, so advancing on its own would hide what the answer just opened.
+   *  Next is a tap, as it was for Yes and No. */
   const onBlindRatingCommitted = useCallback(
-    (snippetId: string, value: ConfidenceRatingValue | null) => {
+    (snippetId: string) => {
       // Mark it answered HERE, not on the refetch. The blind rating saves
       // through its own lane, so the session read is a round trip behind —
       // long enough for the dot to stay hollow and the forward button to still
       // say Skip on a piece the coach has just answered.
       setJudged((prev) => ({ ...prev, [snippetId]: true }));
       void refresh();
-      if (value === "yes" || value === "no") return;
-      window.setTimeout(() => {
-        setCursor((c) => c + 1);
-      }, 420);
     },
     [refresh],
   );
