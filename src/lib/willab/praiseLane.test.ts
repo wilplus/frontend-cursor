@@ -181,9 +181,10 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     expect(MODAL).not.toMatch(/\{rationale\b/);
     expect(MODAL).not.toMatch(/whyLine\(suggestion\)/);
     // The coach note card went with it (§6). The coach REVIEW STATUS pill
-    // stays — a different thing, and still on every screen.
+    // stays — a different thing, drawn only once the coach confirmed the
+    // moment (founder 2026-09-29).
     expect(MODAL).not.toMatch(/coachNote/);
-    expect(MODAL).toMatch(/coachReviewStatus \? \(/);
+    expect(MODAL).toMatch(/coachReviewStatus === "coach_reviewed" \? \(/);
   });
 });
 

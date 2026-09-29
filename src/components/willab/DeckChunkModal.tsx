@@ -2019,13 +2019,14 @@ export default function DeckChunkModal({
         ) : null}
 
         <div data-sheet-scroll className="scrollbar-none flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-5 py-3">
-          {coachReviewStatus ? (
+          {/* ONLY WHEN CONFIRMED (founder 2026-09-29): the coach's state on
+              this moment shows once the coach reviewed it, and nothing while
+              it is pending or when the coach did not confirm it. A "Not
+              confirmed" over the speaker's own question leaned on the
+              answer. */}
+          {coachReviewStatus === "coach_reviewed" ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
-              {coachReviewStatus === "pending_coach_review"
-                ? "Pending coach review"
-                : coachReviewStatus === "coach_reviewed"
-                  ? "Coach reviewed"
-                  : "Not confirmed"}
+              Coach reviewed
             </p>
           ) : null}
 
