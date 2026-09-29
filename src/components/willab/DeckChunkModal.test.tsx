@@ -1173,9 +1173,30 @@ describe("declining the exercise keeps the emphasis step", () => {
     await click("Not now");
   }
 
-  it("Yes then Not now lands on Emphasis, not Lock", async () => {
-    // THE DEFECT, on the answer where it was visible.
-    await openOnTheDrill("Yes — Confident");
+  it("Yes lands on Emphasis with no drill (the follow-up matrix, 2026-09-29)", async () => {
+    // A Yes never enters the library video lane: the moment reaches the
+    // coach as praise or an ambiguity, and their video comes if they record
+    // one. The helper words follow the answer directly.
+    await act(async () => {
+      root.render(
+        createElement(DeckChunkModal, {
+          ...props,
+          state: chunkStateFor(
+            { ...chunk(), pendingIds: [withPractice.id] } as DeckChunk,
+            { document: TEXT, suggestions: [withPractice] },
+          ),
+        }),
+      );
+    });
+    await click("Yes — Confident");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+    expect(container.textContent).toContain("Tap the words");
+    expect(buttonLabels()).toContain("Use these helper words");
+  });
+
+  it("In-between then Not now lands on Emphasis, not Lock", async () => {
+    // THE DEFECT, on an answer that keeps the drill.
+    await openOnTheDrill("In-between");
     expect(container.textContent).toContain("Tap the words");
     expect(buttonLabels()).toContain("Use these helper words");
   });

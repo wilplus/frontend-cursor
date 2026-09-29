@@ -365,3 +365,18 @@ describe("closesLock — No and Audio unclear end the ladder early", () => {
     }
   });
 });
+
+describe("the coach-request rung (founder 2026-09-29)", () => {
+  it("takes the exercise slot only when neither exercise rung exists", () => {
+    const inventory = [
+      { id: "cv", feedbackFamily: "confident_voice", source: "confident_voice" },
+    ] as unknown as DocumentSuggestion[];
+    const ids = (over: Partial<Parameters<typeof buildChunkSteps>[0]>) =>
+      buildChunkSteps({ inventory, canEmphasise: false, canLock: false, ...over })
+        .map((s) => s.id);
+    expect(ids({ canNotice: true })).toEqual(["cv", "coach_request"]);
+    expect(ids({ canNotice: true, canPractise: true })).toEqual(["cv", "exercise"]);
+    expect(ids({ canNotice: true, canPractiseService: true })).toEqual(["cv", "service_exercise"]);
+    expect(ids({ canNotice: false })).toEqual(["cv"]);
+  });
+});
