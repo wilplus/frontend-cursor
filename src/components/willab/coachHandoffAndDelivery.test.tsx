@@ -223,7 +223,11 @@ describe("the CMS deep link survives the password gate", () => {
     const first = lanes.indexOf("export const EXERCISE_STEPS");
     expect(lanes.slice(first, first + 200)).toContain('id: "record"');
 
+    // Since decision 4 (founder 2026-09-29) the review hands off to the coach
+    // panel's own exercise lane, which needs no CMS password; the CMS lane
+    // above stays for an admin who starts there.
     const review = read(join("components", "willab", "CoachReviewOverlay.tsx"));
-    expect(review).toContain("/cms/new/exercise/1?returnTo=");
+    expect(review).toContain("/coach/exercises?new=1&returnTo=");
+    expect(review).not.toContain("/cms/new/exercise/1");
   });
 });
