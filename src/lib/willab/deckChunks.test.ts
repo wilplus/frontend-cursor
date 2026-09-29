@@ -5,6 +5,7 @@ import {
   buildDeckChunks,
   coachMomentForChunk,
   groupChunksBySlide,
+  withoutUnhearableJudgements,
 } from "./deckChunks";
 import type { Part } from "./documentParts";
 
@@ -525,3 +526,32 @@ describe("chunkStateFor / buildChunkStates", () => {
     chunks.forEach((c, i) => expect(chunkStateFor(c, inputs)).toEqual(all[i]));
   });
 });
+
+describe("a Confident Voice item without a clip is not asked (founder 2026-09-29)", () => {
+  type Lite = {
+    id: string; start: number; end: number;
+    status: "pending" | "approved" | "dismissed" | null;
+    feedbackFamily?: string | null; source?: string | null; snippetAudioRef?: string | null;
+  };
+  const cv = (id: string, over: Partial<Lite>): Lite => ({
+    id, start: 0, end: 10, status: null, feedbackFamily: "confident_voice", ...over,
+  });
+  it("drops an undecided Confident Voice item with no playable clip, keeps everything else", () => {
+    const kept = withoutUnhearableJudgements<Lite>([
+      cv("silent", { status: null }),
+      cv("silent-empty", { status: "pending", snippetAudioRef: "" }),
+      cv("heard", { status: null, snippetAudioRef: "https://media/moment.wav" }),
+      cv("decided-silent", { status: "dismissed" }),
+      cv("rewrite", { feedbackFamily: "rewrite_clarity" }),
+      cv("by-source", { status: "pending", feedbackFamily: null, source: "confident_voice" }),
+    ]);
+    expect(kept.map((s) => s.id)).toEqual(["heard", "decided-silent", "rewrite"]);
+  });
+  it("so the paragraph is not marked waiting for it", () => {
+    const suggestions = withoutUnhearableJudgements([cv("silent", { status: null })]);
+    const chunks = buildDeckChunks(DOC, parts(), suggestions);
+    expect(chunks[0].status).not.toBe("waiting");
+    expect(chunks[0].pendingIds).toEqual([]);
+  });
+});
+

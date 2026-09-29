@@ -128,7 +128,8 @@ export const PRAISE_CUE_LEAD = "Here is what your voice did:";
  *  avoid, and inventing a sentence for a cue we do not have copy for is how
  *  it would happen. */
 export const PRAISE_CUE_COPY: Record<string, string> = {
-  wide_range: "Your pitch moved — you let it rise and fall instead of holding it flat.",
+  // FOUNDER WORDING, 2026-09-29 (Good job per Final Screens L4).
+  wide_range: "Your voice went up and down in good moments - it's good cause it was engaging!",
   even_pitch: "Your pitch stayed steady, with none of the wobble that creeps in when you are unsure.",
   full_volume: "You let the volume move, so the words had shape rather than one level.",
   no_hesitation: "You went straight through it — fewer and shorter pauses than you usually take.",

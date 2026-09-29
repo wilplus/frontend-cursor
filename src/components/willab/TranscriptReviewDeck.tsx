@@ -33,6 +33,7 @@ import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   buildChunkStates,
   buildDeckChunks,
+  withoutUnhearableJudgements,
   chunkStateFor,
   groupChunksBySlide,
   markWorthShowing,
@@ -199,7 +200,7 @@ export default function TranscriptReviewDeck({
   chrome = "full",
   document: doc,
   parts,
-  suggestions,
+  suggestions: servedSuggestions,
   pieceSlideIndexes,
   piecePartIds = null,
   slideTitles,
@@ -343,6 +344,12 @@ export default function TranscriptReviewDeck({
     setOptimisticLocked(new Set());
   }, [parts]);
 
+  // A Confident Voice item the speaker cannot hear is not asked (founder
+  // 2026-09-29): it leaves the inventory before anything is built from it.
+  const suggestions = useMemo(
+    () => withoutUnhearableJudgements(servedSuggestions),
+    [servedSuggestions],
+  );
   const chunks = useMemo(() => {
     const built = buildDeckChunks(doc, parts, suggestions);
     if (optimisticLocked.size === 0) {
@@ -1481,7 +1488,11 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
         />
       ) : null}
-      <CoachStepLayer step={coachStep} message={coachMessage} />
+      <CoachStepLayer
+        step={coachStep}
+        message={coachMessage}
+        stepsAhead={coachStepsAhead(bookmarks, firstWaiting, stateOf)}
+      />
       <WalkEndLayer
         endCard={endCard}
         renderNextStep={renderNextStep}
@@ -1609,6 +1620,18 @@ function slideLabelOf(
 
 /** The first bookmark, in text order, whose paragraph still waits. -1 when
  *  nothing waits. Pure, so the deck gains no branch. */
+/** How many feedback screens follow step 0: the first waiting moment's
+ *  pending items. Screens only (AC-9); 0 when nothing waits. Pure, so the
+ *  deck gains no branch (complexity ratchet). */
+function coachStepsAhead(
+  bookmarks: readonly Bookmark[],
+  firstWaiting: number,
+  stateOf: (c: DeckChunk) => { pending: readonly unknown[] },
+): number {
+  const bookmark = firstWaiting >= 0 ? bookmarks[firstWaiting] : undefined;
+  return bookmark ? stateOf(bookmark.chunk).pending.length : 0;
+}
+
 function firstWaitingBookmark(
   bookmarks: readonly Bookmark[],
   waiting: (chunk: DeckChunk) => boolean,

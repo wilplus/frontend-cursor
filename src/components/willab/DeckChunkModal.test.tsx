@@ -1324,6 +1324,14 @@ describe("a coach-reviewed moment", () => {
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
     expect(buttonLabels()).toContain("Yes — Confident");
   });
+
+  it("names the coach's state only once confirmed (founder 2026-09-29)", async () => {
+    await open("pending_coach_review");
+    expect(container.textContent).not.toContain("Pending coach review");
+    expect(container.textContent).not.toContain("Not confirmed");
+    await open("coach_reviewed");
+    expect(container.textContent).toContain("Coach reviewed");
+  });
 });
 
 /* ── THE OWNER'S JUDGEMENT: STACKED, TALL, NO ICONS (screen L1) ──────────── */
