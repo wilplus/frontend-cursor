@@ -15,7 +15,7 @@ import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "./RichText";
-import MomentStory from "./MomentStory";
+import CoachVideo from "./CoachVideo";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import PracticeRecordingView from "./PracticeRecordingView";
 import MomentPlayer from "./MomentPlayer";
@@ -32,7 +32,7 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
    AGREE_THANKS and its cue list), the praise cue list, and the machine's
    whyLine() rationale. PRAISE_LEAD stays — it is the praise itself, not an
    explanation of it. */
-import { PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
+import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { emphasizeQuote } from "@/lib/willab/emphasizeQuote";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
@@ -205,9 +205,10 @@ function practiceAttemptNumber(attemptsRemaining: number): number {
   return Math.min(3, Math.max(1, 4 - attemptsRemaining));
 }
 
-/** Full height when the speaker expanded it, and always for the steps that
- *  carry a player or a video: the confidence question and the exercise
- *  (founder 2026-09-28: "the overlay is not even full height"). */
+/** Full height on every step (Final Screens: one sheet height for the whole
+ *  walk; founder 2026-09-28: "the overlay is not even full height"). The
+ *  speaker may still pull it down to the lower detent, and the steps that
+ *  carry a player or a video come back up on their own. */
 function sheetFullHeight(
   expanded: boolean,
   isConfidentVoice: boolean,
@@ -350,6 +351,27 @@ function practiceChipValue(judgement: RootGateAnswer): PracticeAnswer | null {
   return judgement === null || judgement === "other" ? null : judgement;
 }
 
+/** A footer link is off while the sheet saves, or while its own awaited
+ *  write runs ("Not now" on the exercise offer). Pure, for the ratchet. */
+function linkDisabled(
+  busy: boolean,
+  link: { disabled?: boolean },
+): boolean {
+  return busy || link.disabled === true;
+}
+
+/** The pill spins while the sheet saves, or while the step's own awaited
+ *  write runs (the exercise offer's "Not now"). Pure, for the ratchet. */
+function footerSaving(busy: boolean, footer: { saving?: boolean }): boolean {
+  return busy || footer.saving === true;
+}
+
+/** The pill's leading glyph: a spinner while something is being saved, else
+ *  the step's own icon. Pure, for the ratchet. */
+function pillIcon(saving: boolean, icon: React.ReactNode): React.ReactNode {
+  return saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon;
+}
+
 /** The footer of the MLC-3 exercise rung. Pure, so the sheet's own function
  *  does not grow a branch for it (complexity ratchet). */
 function serviceExerciseFooter(
@@ -360,7 +382,7 @@ function serviceExerciseFooter(
   icon: React.ReactNode;
   pillDisabled?: boolean;
   onPill?: () => void;
-  links: { label: string; onClick: () => void }[];
+  links: { label: string; onClick: () => void; disabled?: boolean }[];
 } {
   return {
     pill: COPY.pillDone,
@@ -378,7 +400,7 @@ function supersededFooter(advance: () => void): {
   icon: React.ReactNode;
   pillDisabled?: boolean;
   onPill?: () => void;
-  links: { label: string; onClick: () => void }[];
+  links: { label: string; onClick: () => void; disabled?: boolean }[];
 } {
   return { pill: COPY.pillContinue, icon: null, onPill: advance, links: [] };
 }
@@ -1337,7 +1359,7 @@ export default function DeckChunkModal({
   // follows the pointer continuously, then settles to one of two detents.
   // Starting inside the scroll body or on an interactive control is ignored,
   // so dragging the sheet cannot steal scrolling, playback, or editing.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
@@ -1443,11 +1465,13 @@ export default function DeckChunkModal({
   const reopenedClean = !hadFeedback && chunk.part.locked !== true;
   const title = stepTitle(step?.kind ?? "lock", reopenedClean);
 
-  type FooterLink = { label: string; onClick: () => void };
+  type FooterLink = { label: string; onClick: () => void; disabled?: boolean };
   const footer: {
     pill: string | null;
     icon: React.ReactNode;
     pillDisabled?: boolean;
+    /** The step's own awaited write is running: the pill spins. */
+    saving?: boolean;
     onPill?: () => void;
     links: FooterLink[];
   } = (() => {
@@ -1533,8 +1557,17 @@ export default function DeckChunkModal({
         pill: exercise.returned ? COPY.pillPractiseAgain : COPY.pillPractise,
         icon: <Mic className="h-4 w-4" aria-hidden />,
         pillDisabled: exercise.busy,
+        saving: exercise.busy,
         onPill: () => exercise.practise(),
-        links: [{ label: COPY.linkNotNow, onClick: () => void exercise.notNow() }],
+        links: [
+          {
+            label: COPY.linkNotNow,
+            onClick: () => void exercise.notNow(),
+            // The dismiss is awaited (Final Screens L2, audit 2026-09-29): the
+            // link greys out and the pill spins until the server has it.
+            disabled: exercise.busy,
+          },
+        ],
       };
     }
     if (step.kind === "emphasis") {
@@ -1691,26 +1724,16 @@ export default function DeckChunkModal({
           attempt={practiceAttemptNumber(exercise.attemptsRemaining)}
         />
       ) :
-      /* THE OFFER (founder 2026-09-24). No "what you said" box, no eyebrow, no
-         corner icon — the sheet title already says Exercise.
-
-         THE VIDEO LEADS AND THE INSTRUCTION IS PLAIN, and the two are one
-         decision. "Exercise should have the video displayed, not the text. Or
-         it should have the video and below the text so that it's connected to
-         what is uploaded through the exercise upload system" — so the coach's
-         own recording is the first thing on the screen, and the words are
-         underneath it. It is the same file the CMS exercise lane uploaded:
-         videoUrl -> explanation_video_ref -> explanationVideoRef. Nothing new
-         is fetched and no second upload path exists.
-
-         AND THE INSTRUCTION LEAVES THE ORANGE BOX: "the instruction should not
-         be in the same box, orange box, as the text you are saying, because it
-         is confusing." Orange means words that get said; this is us telling
-         the speaker what to do with them, so it takes the plain box — the same
-         one "What you said" wears on the Suggestion screen, and the same one
-         the praise comment now wears next door. There are no spoken words on
-         this screen (the offer's `passage` is deliberately not drawn), so the
-         screen carries no orange at all. */
+      /* THE OFFER (Ideal Text Final Screens L2, founder 2026-09-29 "as
+         design"). The coach's video (play icon only) and their comment are
+         ONE orange card with the eyebrow "Your coach", and the speaker's own
+         recording — "What you said" and the compact Play this moment — is
+         attached under it. This supersedes the 2026-09-24 split of a bare
+         video over a plain instruction box: orange now marks the coach's
+         card, and the story row ("History") left the step. The file is
+         still the one the CMS exercise lane uploaded: videoUrl ->
+         explanation_video_ref -> explanationVideoRef; nothing new is
+         fetched. */
       <div ref={exerciseSeen} data-testid="practice-offer" className="flex flex-col gap-3">
         {/* A REFUSED ATTEMPT SAYS WHY, AT THE TOP (founder 2026-09-26: "the
             recording was not registered"). The server's own sentence — too
@@ -1737,62 +1760,42 @@ export default function DeckChunkModal({
             {COPY.exerciseDone}
           </span>
         ) : null}
-        {exerciseItem.practiceExercise.explanationVideoRef ? (
-          <div className="overflow-hidden rounded-2xl bg-black">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <video
-              src={exerciseItem.practiceExercise.explanationVideoRef}
-              controls
-              playsInline
-              preload="metadata"
-              className="aspect-video w-full"
-            />
-          </div>
-        ) : null}
-        {/* AN EXERCISE MAY CARRY NO WORDS AT ALL (founder 2026-09-24: the
-            CMS lane's words step "is not obligatory"). A video-only exercise
-            must not draw an empty bordered box under its clip, so the box
-            goes with the text rather than standing there hollow. */}
-        {/* `?? ""` because the field is typed string but arrives undefined on
-            an offer assembled before it existed — the old render tolerated
-            that by printing nothing, and a bare .trim() here threw. */}
-        {(exerciseItem.practiceExercise.instruction ?? "").trim() ? (
-          <div className="rounded-2xl border border-border p-4">
-            <p className="text-[15px] leading-relaxed text-foreground">
-              {exerciseItem.practiceExercise.instruction}
+        {exerciseItem.practiceExercise.explanationVideoRef ||
+        (exerciseItem.practiceExercise.instruction ?? "").trim() ? (
+          <div
+            data-testid="exercise-coach-card"
+            className="flex flex-col gap-3 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+          >
+            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
+              {COPY.titleCoach}
             </p>
+            {exerciseItem.practiceExercise.explanationVideoRef ? (
+              <CoachVideo src={exerciseItem.practiceExercise.explanationVideoRef} />
+            ) : null}
+            {/* AN EXERCISE MAY CARRY NO WORDS AT ALL (founder 2026-09-24: the
+                CMS lane's words step "is not obligatory"). `?? ""` because the
+                field is typed string but arrives undefined on an offer
+                assembled before it existed. */}
+            {(exerciseItem.practiceExercise.instruction ?? "").trim() ? (
+              <p className="text-[15px] leading-relaxed text-foreground">
+                {exerciseItem.practiceExercise.instruction}
+              </p>
+            ) : null}
           </div>
         ) : null}
-        {/* YOUR RECORDING, ATTACHED TO THE COACH'S (founder 2026-09-26,
-            locked L2). Every coach message is an exercise, and advice about
-            HOW something was said needs the speaker's own clip right under
-            it: what was said, and Play this moment. This supersedes the
-            2026-09-24 "no what-you-said box" on this screen. The words
-            lighting up while it plays waits for word timings on the
-            frontend. */}
+        {/* YOUR RECORDING, ATTACHED TO THE COACH'S (L2): what was said, and
+            Play this moment. The exact passage the practice is checked
+            against (the server refuses an attempt that does not say it), so
+            the words to say are on the screen — the moment's own words. */}
         <div data-testid="exercise-your-recording" className="flex flex-col gap-3 rounded-2xl border border-border p-4">
           <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
             {COPY.cardWhatYouSaid}
           </p>
           <p className="text-[15px] leading-relaxed text-foreground">
-            {/* The exact passage the practice is checked against (the
-                server refuses an attempt that does not say it), so the words
-                to say are on the screen — the moment's own words. */}
             {exerciseItem.practiceExercise.passage || exerciseItem.quote || chunk.part.text}
           </p>
-          <MomentPlayer item={exerciseItem} />
+          <MomentPlayer item={exerciseItem} compact />
         </div>
-        {/* THE STORY BEHIND THIS MOMENT (founder 2026-09-25): "the album
-            shows your confident moments, not any moments." It sits INSIDE
-            this step rather than taking a step of its own, because
-            `stepProgress` counts screens and a story step present only where
-            there is a story would make the bar longer on exactly the weaker
-            paragraphs — a score, drawn as a bar. Loaded only when opened. */}
-        <MomentStory
-          arcId={arcId}
-          sessionId={exerciseItem.takeSessionId ?? null}
-          snippetId={exerciseItem.snippetId ?? null}
-        />
       </div>
     );
   }
@@ -1833,13 +1836,24 @@ export default function DeckChunkModal({
             <MomentPlayer
               item={suggestion}
               fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+              compact
             />
           </div>
         </div>
-        <div className="rounded-2xl border border-border p-4">
+        {/* THE COMMENT IS ABOUT THIS MOMENT (Final Screens L4, founder
+            2026-09-29 "as the design"): the lead, then one sentence per
+            delivery cue the Manager attached to the item, from the closed
+            vocabulary in trackedChangeWhy. Nothing model-authored renders
+            (LIVE LOOP); a cue with no copy renders nothing. */}
+        <div className="flex flex-col gap-2 rounded-2xl border border-border p-4">
           <p className="text-[15px] leading-relaxed text-foreground">
             {suggestion.tentative ? COPY.praiseTentative : PRAISE_LEAD}
           </p>
+          {praiseLines(suggestion.cueKeys ?? []).map((line) => (
+            <p key={line} className="text-[15px] leading-relaxed text-foreground">
+              {line}
+            </p>
+          ))}
         </div>
       </>
     );
@@ -1862,6 +1876,7 @@ export default function DeckChunkModal({
             <MomentPlayer
               item={suggestion}
               fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+              compact
             />
           </div>
         </div>
@@ -2123,13 +2138,14 @@ export default function DeckChunkModal({
         ) : null}
 
         <div data-sheet-scroll className="scrollbar-none flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-5 py-3">
-          {coachReviewStatus ? (
+          {/* ONLY WHEN CONFIRMED (founder 2026-09-29): the coach's state on
+              this moment shows once the coach reviewed it, and nothing while
+              it is pending or when the coach did not confirm it. A "Not
+              confirmed" over the speaker's own question leaned on the
+              answer. */}
+          {coachReviewStatus === "coach_reviewed" ? (
             <p className="w-fit rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-[11px] font-semibold text-primary">
-              {coachReviewStatus === "pending_coach_review"
-                ? "Pending coach review"
-                : coachReviewStatus === "coach_reviewed"
-                  ? "Coach reviewed"
-                  : "Not confirmed"}
+              Coach reviewed
             </p>
           ) : null}
 
@@ -2174,9 +2190,7 @@ export default function DeckChunkModal({
               onClick={footer.onPill}
               className="flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : footer.icon }
+              {pillIcon(footerSaving(busy, footer), footer.icon)}
               {footer.pill}
             </button>
           ) : null}
@@ -2184,7 +2198,7 @@ export default function DeckChunkModal({
             <button
               key={link.label}
               type="button"
-              disabled={busy}
+              disabled={linkDisabled(busy, link)}
               onClick={link.onClick}
               className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >

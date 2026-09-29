@@ -763,3 +763,27 @@ export function markWorthShowing(
   );
   return waiting || (moments ?? []).length > 0;
 }
+
+/** A CONFIDENT VOICE ITEM THE SPEAKER CANNOT HEAR IS NOT ASKED (founder
+ *  2026-09-29, answering the audit: "skip it; you need to hear it to
+ *  decide"). An undecided Confident Voice item with no playable clip leaves
+ *  the deck's inventory before the chunks are built, so the paragraph is
+ *  not marked waiting for it and no judgement screen opens on a bare
+ *  question. Decided items keep their place in history whatever they carry.
+ *  Pure. */
+export function withoutUnhearableJudgements<
+  S extends {
+    status: DeckSuggestionLite["status"];
+    feedbackFamily?: string | null;
+    source?: string | null;
+    snippetAudioRef?: string | null;
+  },
+>(suggestions: readonly S[]): S[] {
+  return suggestions.filter((item) => {
+    const undecided = item.status !== "approved" && item.status !== "dismissed";
+    const confidentVoice =
+      item.feedbackFamily === "confident_voice" || item.source === "confident_voice";
+    return !(undecided && confidentVoice && !item.snippetAudioRef);
+  });
+}
+

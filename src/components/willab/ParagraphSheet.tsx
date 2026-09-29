@@ -526,8 +526,25 @@ export default function ParagraphSheet({
   const canChoose =
     Boolean(onUseHelperWords) && mayChooseHelperWords(locked, decided, answers);
 
-  // Still reading: draw nothing rather than a half sheet (bounded wait).
-  if (!sheetData) return null;
+  // Still reading (the read-ahead has not landed, or the paragraph was never
+  // read ahead): the frame with the helper words and the paragraph as it is
+  // now, so a tap on a grey bar always opens something (audit 2026-09-29).
+  // The answer sentence, the exercise and the earlier Takes fill in when the
+  // reads land — nothing here that the complete sheet does not also draw.
+  if (!sheetData) {
+    return (
+      <SheetFrame
+        title={COPY.titleFeedback}
+        onClose={onClose}
+        nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
+      >
+        <div data-testid="paragraph-sheet-loading" className="flex flex-col gap-5">
+          <HelperWordsCard headline={headline} onChoose={null} />
+          <NowTakeCard label={null} text={text} player={null} youSaid={null} />
+        </div>
+      </SheetFrame>
+    );
+  }
 
   if (picking && onUseHelperWords) {
     return (
@@ -553,7 +570,7 @@ export default function ParagraphSheet({
       <NowTakeCard
         label={view.timeline[0]?.label ?? null}
         text={text}
-        player={<MomentPlayer item={decided.find(isConfidentVoiceFeedback) ?? null} />}
+        player={<MomentPlayer item={decided.find(isConfidentVoiceFeedback) ?? null} compact />}
         youSaid={view.youSaid}
       >
         <Boxes boxes={view.boxes} />

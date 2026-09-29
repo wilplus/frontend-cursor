@@ -134,4 +134,16 @@ describe("RingAnnouncementSheet", () => {
     expect(yes!.disabled).toBe(true);
     expect(container.textContent).toContain("[founder copy] This choice will be available once the policy is in place.");
   });
+
+  it("the Phase-2 yes goes to the model-improvement consent page once the policy exists (Q7)", async () => {
+    fetchMock.mockImplementation(() =>
+      reply(ringPayload([{ ...PHASE2, consent_policy_available: true }])));
+    await render();
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/account/model-improvement");
+    expect(link?.textContent).toBe("[founder copy] Yes");
+    // The sheet still records an answer, never a consent: the only POST it
+    // can make is the announcement decision.
+    expect(container.textContent).not.toContain("This choice will be available");
+  });
 });

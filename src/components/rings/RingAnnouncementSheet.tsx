@@ -38,9 +38,20 @@ const COPY = {
 } as const;
 
 const DATA_CHOICES_PATH = "/account/data-consent";
+/** Q7 (founder 2026-09-29): the Phase-2 purpose has its own consent page. */
+const MODEL_IMPROVEMENT_PATH = "/account/model-improvement";
 
 function yesLabel(item: PendingAnnouncement): string {
   return item.consent_purpose === "personalised_practice" ? COPY.yesToDataChoices : COPY.yes;
+}
+
+/** Where a consent-bearing "yes" sends the person, or null when the purpose
+ *  has no screen. The link records the answer; only the screen records a
+ *  consent (L3). */
+function consentPath(item: PendingAnnouncement): string | null {
+  if (item.consent_purpose === "personalised_practice") return DATA_CHOICES_PATH;
+  if (item.consent_purpose === "pooled_model_improvement") return MODEL_IMPROVEMENT_PATH;
+  return null;
 }
 
 function yesIsAvailable(item: PendingAnnouncement): boolean {
@@ -71,7 +82,7 @@ export default function RingAnnouncementSheet() {
   if (!item) return null;
 
   const available = yesIsAvailable(item);
-  const goesToDataChoices = item.consent_purpose === "personalised_practice";
+  const path = consentPath(item);
 
   return (
     <div
@@ -97,9 +108,9 @@ export default function RingAnnouncementSheet() {
         >
           {COPY.notNow}
         </button>
-        {goesToDataChoices && available ? (
+        {path && available ? (
           <Link
-            href={DATA_CHOICES_PATH}
+            href={path}
             className="rounded-md bg-primary px-3 py-2 text-sm text-white"
             onClick={() => void answer(item, "accepted")}
           >

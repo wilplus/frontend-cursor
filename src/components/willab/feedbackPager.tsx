@@ -34,13 +34,24 @@ export interface Pager {
   total: number;
   /** Where the open bookmark sits ("Slide 2"), for the header. */
   label?: string | null;
+  /** The whole centre text, when it is not "moment N of M": step 0 reads
+   *  "Your coach · Take 2" (Final Screens L8). */
+  position?: string;
   onBack: () => void;
   onNext: () => void;
 }
 
 type MarkerLite = { bundleId: string; hasCoachUpdate: boolean };
 
-/** The bookmarks, one per paragraph, in text order. Pure. */
+/** The bookmarks, one per paragraph, in text order. Pure.
+ *
+ *  ONLY WHAT IS NEW (founder 2026-09-29, answering the audit's question 2,
+ *  option A): a paragraph is in the walk when it has feedback still waiting
+ *  on the speaker, or a coach moment. A paragraph whose feedback was all
+ *  answered on an earlier Take is not a moment of this walk: it keeps its
+ *  grey bar and opens its Take stack on tap, outside the walk (Q6). It used
+ *  to be listed too, so the first sheet after "Review feedback" could be
+ *  one with nothing to answer, and "moment N of M" counted it. */
 export function buildBookmarks(
   chunks: readonly DeckChunk[],
   feedbackOf: (chunk: DeckChunk) => { pending: number; decided: number },
@@ -52,8 +63,8 @@ export function buildBookmarks(
     const id = chunk.part.id;
     if (seen.has(id)) continue;
     const markers = markersOf(id) ?? [];
-    const { pending, decided } = feedbackOf(chunk);
-    if (markers.length === 0 && pending === 0 && decided === 0) continue;
+    const { pending } = feedbackOf(chunk);
+    if (markers.length === 0 && pending === 0) continue;
     seen.add(id);
     out.push({
       partId: id,
@@ -82,7 +93,8 @@ export function landingIndex(bookmarks: readonly Bookmark[]): number {
 export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined }) {
   if (!pager) return null;
   const last = pager.index >= pager.total - 1;
-  const position = `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
+  const position =
+    pager.position ?? `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
   return (
     <nav
       data-testid="feedback-pager"
@@ -99,7 +111,7 @@ export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined })
         <ChevronLeft className="h-5 w-5" aria-hidden />
       </button>
       <p className="min-w-0 truncate text-[13px] font-semibold text-foreground">
-        {pager.label ? `${pager.label} · ${position}` : position}
+        {pager.label && !pager.position ? `${pager.label} · ${position}` : position}
       </p>
       <button
         type="button"
@@ -134,23 +146,38 @@ export function useFeedbackPager(args: {
   const { bookmarks, open, closeAll, openFeedback, ready, labelOf } = args;
   const [at, setAt] = useState<number | null>(null);
   const landed = useRef(false);
+  /* THE LIST IS FROZEN FOR THE WALK (audit 2026-09-29). The host rebuilds
+     its bookmarks from every re-read of the document — after Apply, after an
+     answer — and the walk is positional, so a rebuild under an open sheet
+     changed "Slide 1 · moment 1 of 2" into "Slide 2 · moment 1 of 1" and
+     ended the walk early when the open paragraph fell out of its own list.
+     The list the walk started on is the list it finishes on; a bookmark is
+     opened from the current list when it is still there (fresh chunk), else
+     from the frozen one. */
+  const frozen = useRef<readonly Bookmark[] | null>(null);
+  const list = frozen.current ?? bookmarks;
 
   const openAt = useCallback(
     (index: number) => {
-      const bookmark = bookmarks[index];
+      const walkList = frozen.current ?? bookmarks;
+      const bookmark = walkList[index];
       if (!bookmark) return;
+      if (frozen.current === null) frozen.current = walkList;
       setAt(index);
-      open(bookmark);
+      open(bookmarks.find((b) => b.partId === bookmark.partId) ?? bookmark);
     },
     [bookmarks, open],
   );
 
-  const stop = useCallback(() => setAt(null), []);
+  const stop = useCallback(() => {
+    frozen.current = null;
+    setAt(null);
+  }, []);
 
   /** A tap on a mark or a paragraph joins the walk at that bookmark. */
   const openPart = useCallback(
     (partId: string) => {
-      const index = bookmarks.findIndex((b) => b.partId === partId);
+      const index = (frozen.current ?? bookmarks).findIndex((b) => b.partId === partId);
       if (index < 0) return false;
       openAt(index);
       return true;
@@ -167,15 +194,16 @@ export function useFeedbackPager(args: {
   }, [openFeedback, ready, bookmarks, openAt]);
 
   const pager = useMemo<Pager | null>(() => {
-    if (at === null || bookmarks.length === 0) return null;
-    const bookmark = bookmarks[at];
+    if (at === null || list.length === 0) return null;
+    const bookmark = list[at];
     return {
       index: at,
-      total: bookmarks.length,
+      total: list.length,
       label: bookmark && labelOf ? labelOf(bookmark) : null,
       onBack: () => openAt(Math.max(0, at - 1)),
       onNext: () => {
-        if (at >= bookmarks.length - 1) {
+        if (at >= list.length - 1) {
+          frozen.current = null;
           setAt(null);
           closeAll();
           return;
@@ -183,7 +211,7 @@ export function useFeedbackPager(args: {
         openAt(at + 1);
       },
     };
-  }, [at, bookmarks, openAt, closeAll, labelOf]);
+  }, [at, list, openAt, closeAll, labelOf]);
 
   return { pager, openAt, openPart, stop };
 }
