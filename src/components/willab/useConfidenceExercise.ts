@@ -155,6 +155,16 @@ export function useConfidenceExercise(args: {
 
   const submitAttempt = useCallback(
     async (audio: Blob, durationSec: number) => {
+      // THE RECORDING SCREEN ENDS WITH THE MIC, NOT WITH THE UPLOAD. The take
+      // is over the moment the speaker tapped Stop; what follows is the
+      // server assessing it, which the offer shows as a disabled pill
+      // (`busy`). Leaving `recording` true here kept the clock ticking and a
+      // Stop that did nothing for the whole upload, and when opening the
+      // practice failed the early return below skipped the reset entirely:
+      // the error was set, but only the offer draws it, so the speaker was
+      // left on a recording screen with no way off but the close button.
+      mic.cancel();
+      setRecording(false);
       const opened = await ensurePractice();
       if (!opened) return;
       setBusy(true);
@@ -165,8 +175,6 @@ export function useConfidenceExercise(args: {
         durationSec,
       );
       setBusy(false);
-      mic.cancel();
-      setRecording(false);
       if (!result.ok) {
         setError(result.error ?? "Couldn't assess that attempt. Try again.");
         return;
@@ -187,6 +195,18 @@ export function useConfidenceExercise(args: {
     void submitAttempt(mic.state.audioBlob, mic.state.durationSec);
     // submitAttempt is stable per practice; the blob identity is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mic.state]);
+
+  // A MIC THAT NEVER STARTED IS NOT A RECORDING. `practise()` raises the
+  // recording screen before the browser has answered the permission prompt,
+  // so a refusal (or no microphone, or an unsupported browser) used to leave
+  // that screen up, its clock running, with a Stop that had nothing to stop.
+  // The mic's own sentence says what happened, on the offer, where errors
+  // are drawn.
+  useEffect(() => {
+    if (mic.state.status !== "error") return;
+    setRecording(false);
+    setError(mic.state.message);
   }, [mic.state]);
 
   const practise = useCallback(() => {
@@ -278,9 +298,11 @@ export function useConfidenceExercise(args: {
     busy,
     error,
     corrected: attemptToJudge(practice),
-    // Only the practice row carries the cap; before one is opened the count is
-    // unknown rather than zero, and the offer screen does not surface it.
-    attemptsRemaining: practice?.attemptsRemaining ?? 0,
+    // Only the practice row carries the cap. Before one is opened nothing has
+    // been spent, so the full three remain: the recording screen numbers the
+    // attempt from this, and a zero here made the very first recording read
+    // "attempt 3" (the row is only created once that recording is uploaded).
+    attemptsRemaining: practice?.attemptsRemaining ?? 3,
     finished,
     practise,
     stop,
