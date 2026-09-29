@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFeatureOn } from "@/hooks/useRingState";
+import { RING_FEATURES } from "@/services/api/rings";
 import {
   confidentMomentBundleEnabled,
   fetchConfidentMomentBundles,
@@ -20,10 +22,13 @@ export function useConfidentMomentBundle({
   const [projection, setProjection] = useState<ConfidentMomentProjection | null>(null);
   const [status, setStatus] = useState<"off" | "loading" | "ready" | "retry" | "error">("off");
   const generation = useRef(0);
+  // Building switch AND the person's ring (backend 0392): a person the
+  // `confident_moment_bundles` row does not reach never asks for the lane.
+  const bundlesOn = useFeatureOn(RING_FEATURES.confidentMomentBundles);
 
   const refresh = useCallback(() => {
     const current = ++generation.current;
-    if (!confidentMomentBundleEnabled() || !projectId || !takeId || !summary) {
+    if (!confidentMomentBundleEnabled() || !bundlesOn || !projectId || !takeId || !summary) {
       setProjection(null);
       setStatus("off");
       return;
@@ -44,7 +49,7 @@ export function useConfidentMomentBundle({
       setProjection(result.projection);
       setStatus("ready");
     });
-  }, [projectId, takeId, summary]);
+  }, [bundlesOn, projectId, takeId, summary]);
 
   useEffect(() => {
     refresh();

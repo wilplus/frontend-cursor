@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import RingAnnouncementSheet from "@/components/rings/RingAnnouncementSheet";
 
 /**
  * Protects all routes under (protected): dashboard, profile, recordings, change-password.
@@ -19,5 +20,13 @@ export default async function ProtectedLayout({
     redirect("/login?redirectTo=/dashboard");
   }
 
-  return <>{children}</>;
+  // Rings (backend 0392): a feature the person's ring has reached that
+  // announces itself shows its sheet on their next login. Placeholder copy;
+  // it renders nothing when nothing is pending or the read fails.
+  return (
+    <>
+      {children}
+      <RingAnnouncementSheet />
+    </>
+  );
 }

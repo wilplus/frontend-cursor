@@ -1439,6 +1439,1254 @@
    "status": 200
   }
  },
+ "src/app/api/v2/admin/rings/announcements/[feature]/route.ts#PUT#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/announcements/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/audit/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/default/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/default/route.ts#PUT#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/features/[feature]/kill/route.ts#POST#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/features/[feature]/route.ts#PUT#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/features/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/me/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/people/[principalId]/route.ts#PUT#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/people/bulk/route.ts#POST#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/admin/rings/people/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
  "src/app/api/v2/chat/query/route.ts#POST#json": {
   "cookie_token": {
    "body": {
@@ -9739,6 +10987,214 @@
    "cacheControl": null,
    "contentType": "application/json",
    "status": 200
+  }
+ },
+ "src/app/api/v2/user/rings/announcements/[feature]/decision/route.ts#POST#json": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  }
+ },
+ "src/app/api/v2/user/rings/route.ts#GET#none": {
+  "ok_json": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "err_json_404": {
+   "body": {
+    "code": "NOT_FOUND",
+    "error": "nope"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 404
+  },
+  "json_502": {
+   "body": {
+    "error": "upstream down"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "empty_200": {
+   "body": {},
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "empty_204": {
+   "throws": "TypeError: Response constructor: Invalid response status code 204"
+  },
+  "html_502": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 502)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "nonjson_200": {
+   "body": {
+    "code": "UPSTREAM_NON_JSON",
+    "error": "Unexpected backend response (HTTP 200)."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "cookie_token": {
+   "body": {
+    "ok": true,
+    "items": [
+     1
+    ]
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 200
+  },
+  "no_token": {
+   "body": {
+    "code": "UNAUTHENTICATED",
+    "error": "Authentication required."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 401
+  },
+  "no_url": {
+   "body": {
+    "code": "BACKEND_UNAVAILABLE",
+    "error": "Backend URL not configured"
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_throws": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
+  },
+  "fetch_aborts": {
+   "body": {
+    "code": "PROXY_ERROR",
+    "error": "Something went wrong on our end."
+   },
+   "cacheControl": "no-store",
+   "contentType": "application/json",
+   "status": 502
   }
  },
  "src/app/api/v2/user/sessions/[sessionId]/transcript-edits/route.ts#PUT#json": {
