@@ -5,9 +5,16 @@ import { Loader2, Upload } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   fetchCoachConfidencePractice,
+  PRACTICE_ANSWER_LABEL,
   saveCoachConfidencePractice,
   type CoachConfidencePractice,
 } from "@/services/api/coachConfidencePractice";
+import type { PracticeAnswer } from "@/services/api/confidentVoicePractice";
+
+/** The speaker's answer as the speaker saw it, or `none` when there is none. */
+function answerLabel(value: PracticeAnswer | null, none: string): string {
+  return value ? PRACTICE_ANSWER_LABEL[value] : none;
+}
 import {
   AddToLibraryDoor,
   ExercisePickList,
@@ -186,7 +193,7 @@ export default function CoachConfidencePracticeReview({
           {practice.originalAudioRef ? (
             <div>
               <p className="mb-2 text-[12px] font-medium text-muted-foreground">
-                Original · user answered {practice.originalUserAnswer ?? "not yet"}
+                Original · user answered {answerLabel(practice.originalUserAnswer, "not yet")}
               </p>
               <MediaPlayer
                 src={practice.originalAudioRef}
@@ -201,7 +208,7 @@ export default function CoachConfidencePracticeReview({
                 Attempt {attempt.attemptIndex}
                 {attempt.isStrongest ? " · first valid comparison" : ""}
                 {attempt.isSelected ? " · selected by user" : ""}
-                {attempt.kept ? ` · kept (${attempt.userAnswer ?? "unanswered"})` : ""}
+                {attempt.kept ? ` · kept (${answerLabel(attempt.userAnswer, "unanswered")})` : ""}
               </p>
               <MediaPlayer src={attempt.audioRef} startOffsetMs={0} durationMs={attempt.durationMs} />
               {attempt.assessment ? (
@@ -215,7 +222,7 @@ export default function CoachConfidencePracticeReview({
           {practice.attempts.some((attempt) => attempt.isSelected) ? (
             <div className="rounded-xl border border-primary/30 bg-background p-3">
               <p className="text-[13px] font-semibold text-foreground">
-                Does the practice recording sound better than the original?
+                Do you find it more confident?
               </p>
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
                 Judge this new recording itself. The original clip’s rating does not apply here.

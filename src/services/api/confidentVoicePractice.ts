@@ -13,7 +13,7 @@ const PRACTICE_ANSWERS: readonly PracticeAnswer[] = [
   "yes", "in_between", "no", "not_sure", "audio_unclear",
 ];
 
-function practiceAnswer(value: unknown): PracticeAnswer | null {
+export function practiceAnswer(value: unknown): PracticeAnswer | null {
   return PRACTICE_ANSWERS.includes(value as PracticeAnswer)
     ? (value as PracticeAnswer)
     : null;
@@ -156,7 +156,7 @@ export async function startConfidencePractice(
   snippetId: string,
   offer: ConfidentVoicePracticeOffer,
   evidence: NonNullable<import("@/services/api/idealText").DocumentSuggestion["evidence"]>,
-  originalUserAnswer: "yes" | "no",
+  originalUserAnswer: PracticeAnswer,
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders(true);
   if (!headers) return { ok: false, error: null };

@@ -38,7 +38,7 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(modal).toContain('step.kind === "exercise"');
     // Offered on a Yes and on a No alike: the practice is matched to the clip,
     // not awarded for a verdict. Only the introduction copy differs.
-    expect(modal).toContain('originalUserAnswer: judgement === "yes" ? "yes" : "no"');
+    expect(modal).toContain('originalUserAnswer: practiceChipValue(judgement) ?? "no"');
   });
 
   it("never resumes a judged attempt — Practise again records a new one", () => {
@@ -93,7 +93,7 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(coach).toContain('href="/cms/new/exercise/1"');
     expect(coach).toContain("Share with user");
     expect(coach).toContain('kind: "custom"');
-    expect(coach).toContain("Does the practice recording sound better than the original?");
+    expect(coach).toContain("Do you find it more confident?");
     expect(coach).toContain("selectedAttemptDecision");
   });
 

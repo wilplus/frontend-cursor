@@ -105,3 +105,32 @@ describe("practice is judged after every attempt (founder 2026-09-25)", () => {
     expect(mapped?.judgeableAttemptId).toBeNull();
   });
 });
+
+describe("the coach sees the speaker's answer as given (founder 2026-09-28)", () => {
+  const base = {
+    id: "practice-1",
+    exact_passage: "The exact same passage.",
+    exercise: { exercise_id: "e", title: "t", instruction: "i" },
+    attempts: [{
+      id: "attempt-1", attempt_index: 1, audio_ref: "a", duration_ms: 1,
+      user_answer: "not_sure", coach_confidence_decision: "maybe",
+    }],
+  };
+
+  it("keeps all five answers instead of folding three into 'not yet'", () => {
+    for (const answer of ["yes", "in_between", "no", "not_sure", "audio_unclear"]) {
+      const coach = mapCoachConfidencePractice({
+        ...base, original_user_answer: answer, final_user_answer: answer,
+      });
+      expect(coach?.originalUserAnswer).toBe(answer);
+      expect(coach?.finalUserAnswer).toBe(answer);
+    }
+    const coach = mapCoachConfidencePractice({ ...base, original_user_answer: "bogus" });
+    expect(coach?.originalUserAnswer).toBeNull();
+    expect(coach?.attempts[0].userAnswer).toBe("not_sure");
+  });
+
+  it("still reads the coach's own decision as Yes or No only", () => {
+    expect(mapCoachConfidencePractice(base)?.attempts[0].coachConfidenceDecision).toBeNull();
+  });
+});

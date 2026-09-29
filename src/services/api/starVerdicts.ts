@@ -230,12 +230,39 @@ export function humanizeToken(value: string): string {
   return value.replace(/_/g, " ");
 }
 
+/** What the coach calls a star FAMILY (founder 2026-09-28, option C): an
+ *  `emphasize` star reads "praise", and a `replace` star, the one family that
+ *  suggests new words, reads "rewrite". `structure` keeps its own name: it
+ *  quotes a contrast or a list of three the speaker already used. Words only:
+ *  `star_kind` and `corrected_device` still carry the contract tokens, so a
+ *  verdict stays keyed to the family the coach was shown. A family without an
+ *  entry reads as its token's words. */
+const STAR_KIND_WORDS: ReadonlyMap<string, string> = new Map([
+  ["emphasize", "praise"],
+  ["replace", "rewrite"],
+]);
+
+/** A star family's words, lower case: "emphasize" → "praise". */
+function starKindWords(kind: string): string {
+  return STAR_KIND_WORDS.get(kind) ?? humanizeToken(kind);
+}
+
 /** The row chip: kind, plus the device when the star has one.
- *  "delivery" + "pace_fast" → "Delivery · pace fast". */
+ *  "delivery" + "pace_fast" → "Delivery · pace fast"; "emphasize" → "Praise". */
 export function starChipLabel(star: ArcStar): string {
-  const kind = humanizeToken(star.starKind);
+  const kind = starKindWords(star.starKind);
   const cap = kind.charAt(0).toUpperCase() + kind.slice(1);
   return star.starDevice ? `${cap} · ${humanizeToken(star.starDevice)}` : cap;
+}
+
+/** A wrong-kind option's words. A device from the row's `device_options`
+ *  stays plain token words (N4); a fallback FAMILY reads the way the chip
+ *  names it ("replace" → "rewrite"), so the picker and the chip agree. */
+export function correctionOptionLabel(star: ArcStar, option: string): string {
+  const isFamily =
+    !star.deviceOptions.includes(option) &&
+    (STAR_KINDS as readonly string[]).includes(option);
+  return isFamily ? starKindWords(option) : humanizeToken(option);
 }
 
 /** The BE contract caps the note; the textarea also enforces this. */

@@ -1,4 +1,5 @@
 import { mapMachinePick, type MachinePick } from "./machinePick";
+import { practiceAnswer, type PracticeAnswer } from "./confidentVoicePractice";
 
 export interface CoachPracticeAttempt {
   id: string;
@@ -9,7 +10,8 @@ export interface CoachPracticeAttempt {
   isStrongest: boolean;
   isSelected: boolean;
   kept: boolean;
-  userAnswer: "yes" | "no" | null;
+  /** The speaker's own answer, any of the five (founder 2026-09-28). */
+  userAnswer: PracticeAnswer | null;
   coachConfidenceDecision: "yes" | "no" | null;
 }
 
@@ -44,8 +46,8 @@ export interface CoachConfidencePractice {
   originalAudioRef: string | null;
   originalStartOffsetMs: number;
   originalDurationMs: number;
-  originalUserAnswer: "yes" | "no" | null;
-  finalUserAnswer: "yes" | "no" | null;
+  originalUserAnswer: PracticeAnswer | null;
+  finalUserAnswer: PracticeAnswer | null;
   professionalCoachDecision: "yes" | "no" | "refine" | null;
   coachShared: boolean;
   exercise: CoachPracticeExercise;
@@ -57,6 +59,18 @@ export interface CoachConfidencePractice {
    *  moment had no automatic pick: a coach-shared exercise, or an older Take. */
   machinePick: MachinePick | null;
 }
+
+/** THE SPEAKER'S ANSWER, ALL FIVE (founder 2026-09-28). This used to keep only
+ *  yes/no, so a speaker who said In-between, Not sure or Audio unclear reached
+ *  the coach as "not yet" or "unanswered". The coach's own decision below is
+ *  still a Yes or a No. */
+export const PRACTICE_ANSWER_LABEL: Record<PracticeAnswer, string> = {
+  yes: "Yes",
+  in_between: "In-between",
+  no: "No",
+  not_sure: "Not sure",
+  audio_unclear: "Audio unclear",
+};
 
 function answer(value: unknown): "yes" | "no" | null {
   return value === "yes" || value === "no" ? value : null;
@@ -122,7 +136,7 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
           isStrongest: a.is_strongest === true,
           isSelected: a.is_selected === true,
           kept: a.kept === true,
-          userAnswer: answer(a.user_answer),
+          userAnswer: practiceAnswer(a.user_answer),
           coachConfidenceDecision: answer(a.coach_confidence_decision),
         }];
       })
@@ -162,8 +176,8 @@ export function mapCoachConfidencePractice(raw: unknown): CoachConfidencePractic
     originalAudioRef: typeof r.original_audio_ref === "string" ? r.original_audio_ref : null,
     originalStartOffsetMs: typeof r.original_start_offset_ms === "number" ? r.original_start_offset_ms : 0,
     originalDurationMs: typeof r.original_duration_ms === "number" ? r.original_duration_ms : 0,
-    originalUserAnswer: answer(r.original_user_answer),
-    finalUserAnswer: answer(r.final_user_answer),
+    originalUserAnswer: practiceAnswer(r.original_user_answer),
+    finalUserAnswer: practiceAnswer(r.final_user_answer),
     professionalCoachDecision:
       decision === "yes" || decision === "no" || decision === "refine" ? decision : null,
     coachShared: typeof r.coach_shared_at === "string",
