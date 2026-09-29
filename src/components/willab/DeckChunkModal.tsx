@@ -278,13 +278,9 @@ function tapTokens(
  *  answers. Pure, for the complexity ratchet. */
 function judgementPillDisabled(
   exercise: { busy: boolean; corrected: unknown },
-  judgement: RootGateAnswer,
+  judgement: ConfidenceRatingValue | null,
 ): boolean {
-  return (
-    exercise.busy ||
-    exercise.corrected === null ||
-    practiceChipValue(judgement) === null
-  );
+  return exercise.busy || exercise.corrected === null || judgement === null;
 }
 
 /** Which answer the practice judgement chips show: the five real ones, never
@@ -405,6 +401,15 @@ export default function DeckChunkModal({
   const [practiceWords, setPracticeWords] = useState<PracticeOutcome | null>(
     null,
   );
+  /** THE PRACTICE IS JUDGED ON ITS OWN (contract 29a, locked screen L1: the
+   *  chips start empty). This used to read and write `judgement`, the
+   *  paragraph's answer, so the judgement screen opened with the speaker's
+   *  answer about the ORIGINAL already selected and Done live — one tap
+   *  stored, against the practice attempt, a judgement nobody had made of
+   *  it. The paragraph's answer only changes once this one is saved
+   *  (`onExerciseFinished`). */
+  const [practiceJudgement, setPracticeJudgement] =
+    useState<ConfidenceRatingValue | null>(null);
 
   /** An exercise matched to this exact clip, from the confidence item that
    *  carries it. Read off the frozen inventory rather than the current step,
@@ -1233,6 +1238,13 @@ export default function DeckChunkModal({
     originalUserAnswer: practiceChipValue(judgement) ?? "no",
     onFinished: onExerciseFinished,
   });
+  // Each attempt is judged afresh: the chips empty whenever a new attempt
+  // reaches the judgement screen, and after Back or a No that sent the
+  // speaker to practise again.
+  const judgedAttemptId = exercise.corrected?.id ?? null;
+  useEffect(() => {
+    setPracticeJudgement(null);
+  }, [exercise.screen, judgedAttemptId]);
 
 
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
@@ -1404,10 +1416,9 @@ export default function DeckChunkModal({
         return {
           pill: COPY.pillDone,
           icon: <Check className="h-4 w-4" aria-hidden />,
-          pillDisabled: judgementPillDisabled(exercise, judgement),
+          pillDisabled: judgementPillDisabled(exercise, practiceJudgement),
           onPill: () => {
-            const answer = practiceChipValue(judgement);
-            if (answer) void exercise.finish(answer);
+            if (practiceJudgement) void exercise.finish(practiceJudgement);
           },
           links: [{ label: COPY.linkBack, onClick: () => exercise.back() }],
         };
@@ -1545,12 +1556,12 @@ export default function DeckChunkModal({
           ) : null}
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
-            value={practiceChipValue(judgement)}
+            value={practiceJudgement}
             disabled={exercise.busy}
             saving={exercise.busy}
             error={exercise.error}
             ownerWording
-            onPick={(value) => setJudgement(value)}
+            onPick={(value) => setPracticeJudgement(value)}
           />
         </div>
       </>

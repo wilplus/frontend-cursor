@@ -777,7 +777,7 @@ function renderConfidentVoiceCarryoverSection(options: {
             snippetId={row.snippetId}
             enabled={
               COACH_GUIDANCE_D3_UI_ENABLED &&
-              (row.label?.value !== null || row.label?.unrateable === true)
+              (row.label?.value != null || row.label?.unrateable === true)
             }
           />
           {coachGuidanceItemsForReviewAct(guidanceBatch, {
@@ -1060,7 +1060,7 @@ export default function CoachStarVerdictOverlay({
   const blindComplete =
     cvStatus === "ready" &&
     cvRows.every(
-      (row) => row.label?.value !== null || row.label?.unrateable === true,
+      (row) => row.label?.value != null || row.label?.unrateable === true,
     ) && serviceBlindComplete;
   const [guidanceBatch, setGuidanceBatch] =
     useState<CoachGuidanceBatch | null>(null);

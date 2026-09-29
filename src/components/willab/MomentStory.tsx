@@ -71,7 +71,12 @@ export default function MomentStory({
     <div className="rounded-2xl border border-border">
       <button
         type="button"
-        onClick={() => setOpen((was) => !was)}
+        onClick={() => {
+          // A failed read is retried on the next open rather than shown for
+          // the rest of the sheet's life.
+          if (open && status === "error") setStatus("idle");
+          setOpen((was) => !was);
+        }}
         aria-expanded={open}
         className="flex w-full items-center justify-end gap-1 px-4 py-3 text-[13px] font-semibold text-foreground"
       >
