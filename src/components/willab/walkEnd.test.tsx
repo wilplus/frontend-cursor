@@ -57,8 +57,6 @@ describe("WalkEndLayer", () => {
       ),
     );
     expect(host.textContent).toContain("That's every moment for this Take");
-    // The note line under the title (Final Screens L0).
-    expect(host.textContent).toContain("Your helper words show while you record.");
     expect(host.textContent).toContain("Record Take 2");
     const back = [...host.querySelectorAll("button")].find((b) => b.textContent === "Back to the text");
     act(() => back!.click());

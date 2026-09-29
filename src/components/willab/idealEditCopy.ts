@@ -286,8 +286,6 @@ export const CHUNK_SHEET_COPY = {
   retryBehind: "Retry",
   /* After the last moment of the walk. */
   endCardTitle: "That's every moment for this Take",
-  /** Under the title (Final Screens L0, the end card's builder). */
-  endCardNote: "Your helper words show while you record.",
   endCardBack: "Back to the text",
   historyNow: "Now",
 } as const;

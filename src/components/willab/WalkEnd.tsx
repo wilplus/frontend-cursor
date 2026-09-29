@@ -119,10 +119,6 @@ export function WalkEndCard({
           <h2 className="text-[20px] font-bold tracking-[-0.01em] text-foreground">
             {COPY.endCardTitle}
           </h2>
-          {/* The note line under the title (Final Screens L0). */}
-          <p className="text-[15px] leading-relaxed text-muted-foreground">
-            {COPY.endCardNote}
-          </p>
           {nextStep}
           <button
             type="button"
