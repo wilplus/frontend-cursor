@@ -192,7 +192,7 @@ describe("one sheet height", () => {
     await click("Yes — Confident");
     expect(container.textContent).toContain("Suggestion");
     expect(sheetBox()?.className).toContain("h-[97dvh]");
-    await click("Keep wording");
+    await click("Keep my wording");
     expect(container.textContent).toContain("Good job");
     expect(sheetBox()?.className).toContain("h-[97dvh]");
   });
@@ -218,7 +218,7 @@ describe("the compact player row", () => {
     await click("Yes — Confident");
     expect(container.textContent).toContain("Suggestion");
     expect(playerCompact()).toBe("true");
-    await click("Keep wording");
+    await click("Keep my wording");
     expect(container.textContent).toContain("Good job");
     expect(playerCompact()).toBe("true");
   });
