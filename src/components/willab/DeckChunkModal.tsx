@@ -205,9 +205,10 @@ function practiceAttemptNumber(attemptsRemaining: number): number {
   return Math.min(3, Math.max(1, 4 - attemptsRemaining));
 }
 
-/** Full height when the speaker expanded it, and always for the steps that
- *  carry a player or a video: the confidence question and the exercise
- *  (founder 2026-09-28: "the overlay is not even full height"). */
+/** Full height on every step (Final Screens: one sheet height for the whole
+ *  walk; founder 2026-09-28: "the overlay is not even full height"). The
+ *  speaker may still pull it down to the lower detent, and the steps that
+ *  carry a player or a video come back up on their own. */
 function sheetFullHeight(
   expanded: boolean,
   isConfidentVoice: boolean,
@@ -350,6 +351,27 @@ function practiceChipValue(judgement: RootGateAnswer): PracticeAnswer | null {
   return judgement === null || judgement === "other" ? null : judgement;
 }
 
+/** A footer link is off while the sheet saves, or while its own awaited
+ *  write runs ("Not now" on the exercise offer). Pure, for the ratchet. */
+function linkDisabled(
+  busy: boolean,
+  link: { disabled?: boolean },
+): boolean {
+  return busy || link.disabled === true;
+}
+
+/** The pill spins while the sheet saves, or while the step's own awaited
+ *  write runs (the exercise offer's "Not now"). Pure, for the ratchet. */
+function footerSaving(busy: boolean, footer: { saving?: boolean }): boolean {
+  return busy || footer.saving === true;
+}
+
+/** The pill's leading glyph: a spinner while something is being saved, else
+ *  the step's own icon. Pure, for the ratchet. */
+function pillIcon(saving: boolean, icon: React.ReactNode): React.ReactNode {
+  return saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon;
+}
+
 /** The footer of the MLC-3 exercise rung. Pure, so the sheet's own function
  *  does not grow a branch for it (complexity ratchet). */
 function serviceExerciseFooter(
@@ -360,7 +382,7 @@ function serviceExerciseFooter(
   icon: React.ReactNode;
   pillDisabled?: boolean;
   onPill?: () => void;
-  links: { label: string; onClick: () => void }[];
+  links: { label: string; onClick: () => void; disabled?: boolean }[];
 } {
   return {
     pill: COPY.pillDone,
@@ -378,7 +400,7 @@ function supersededFooter(advance: () => void): {
   icon: React.ReactNode;
   pillDisabled?: boolean;
   onPill?: () => void;
-  links: { label: string; onClick: () => void }[];
+  links: { label: string; onClick: () => void; disabled?: boolean }[];
 } {
   return { pill: COPY.pillContinue, icon: null, onPill: advance, links: [] };
 }
@@ -1347,7 +1369,7 @@ export default function DeckChunkModal({
   // follows the pointer continuously, then settles to one of two detents.
   // Starting inside the scroll body or on an interactive control is ignored,
   // so dragging the sheet cannot steal scrolling, playback, or editing.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
@@ -1453,11 +1475,13 @@ export default function DeckChunkModal({
   const reopenedClean = !hadFeedback && chunk.part.locked !== true;
   const title = stepTitle(step?.kind ?? "lock", reopenedClean);
 
-  type FooterLink = { label: string; onClick: () => void };
+  type FooterLink = { label: string; onClick: () => void; disabled?: boolean };
   const footer: {
     pill: string | null;
     icon: React.ReactNode;
     pillDisabled?: boolean;
+    /** The step's own awaited write is running: the pill spins. */
+    saving?: boolean;
     onPill?: () => void;
     links: FooterLink[];
   } = (() => {
@@ -1543,8 +1567,17 @@ export default function DeckChunkModal({
         pill: exercise.returned ? COPY.pillPractiseAgain : COPY.pillPractise,
         icon: <Mic className="h-4 w-4" aria-hidden />,
         pillDisabled: exercise.busy,
+        saving: exercise.busy,
         onPill: () => exercise.practise(),
-        links: [{ label: COPY.linkNotNow, onClick: () => void exercise.notNow() }],
+        links: [
+          {
+            label: COPY.linkNotNow,
+            onClick: () => void exercise.notNow(),
+            // The dismiss is awaited (Final Screens L2, audit 2026-09-29): the
+            // link greys out and the pill spins until the server has it.
+            disabled: exercise.busy,
+          },
+        ],
       };
     }
     if (step.kind === "emphasis") {
@@ -1790,7 +1823,7 @@ export default function DeckChunkModal({
                 to say are on the screen — the moment's own words. */}
             {exerciseItem.practiceExercise.passage || exerciseItem.quote || chunk.part.text}
           </p>
-          <MomentPlayer item={exerciseItem} />
+          <MomentPlayer item={exerciseItem} compact />
         </div>
         {/* THE STORY BEHIND THIS MOMENT (founder 2026-09-25): "the album
             shows your confident moments, not any moments." It sits INSIDE
@@ -1843,6 +1876,7 @@ export default function DeckChunkModal({
             <MomentPlayer
               item={suggestion}
               fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+              compact
             />
           </div>
         </div>
@@ -1872,6 +1906,7 @@ export default function DeckChunkModal({
             <MomentPlayer
               item={suggestion}
               fallback={feedbackInventory.find(isConfidentVoiceFeedback) ?? null}
+              compact
             />
           </div>
         </div>
@@ -2195,9 +2230,7 @@ export default function DeckChunkModal({
               onClick={footer.onPill}
               className="flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : footer.icon }
+              {pillIcon(footerSaving(busy, footer), footer.icon)}
               {footer.pill}
             </button>
           ) : null}
@@ -2205,7 +2238,7 @@ export default function DeckChunkModal({
             <button
               key={link.label}
               type="button"
-              disabled={busy}
+              disabled={linkDisabled(busy, link)}
               onClick={link.onClick}
               className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >

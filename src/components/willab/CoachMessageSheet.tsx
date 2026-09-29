@@ -10,8 +10,8 @@ import { CHUNK_SHEET_COPY } from "./idealEditCopy";
  *  The coach's overall message for the Take, and their video when they
  *  recorded one, before the moments and exercises. The one black button goes
  *  on to the first moment waiting (or simply closes when none is). Same sheet
- *  frame as the Feedback steps, so it reads as the first screen of the same
- *  overlay rather than a second window.
+ *  frame and the same height as the Feedback steps, so it reads as the first
+ *  screen of the same overlay rather than a second window.
  *
  *  It exists only on the Ideal Text: never in Recording Mode, Presentation
  *  Mode or export, which do not mount the deck. */
@@ -39,7 +39,7 @@ export default function CoachMessageSheet({
       }}
     >
       <div
-        className="flex h-[68dvh] max-h-[68dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:h-[72vh] sm:max-h-[72vh] sm:rounded-3xl"
+        className="flex h-[97dvh] max-h-[97dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:h-[94vh] sm:max-h-[94vh] sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 justify-center pb-1 pt-3" aria-hidden>
