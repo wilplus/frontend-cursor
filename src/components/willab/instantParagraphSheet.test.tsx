@@ -30,7 +30,7 @@ import {
   useParagraphSheetData,
   type SheetData,
 } from "./paragraphSheetData";
-import { useHeadlinesWithPending } from "./useSlideHeadlines";
+import { CONFIRM_RETRY_MS, CONFIRM_TRIES, useHeadlinesWithPending } from "./useSlideHeadlines";
 import OpenChunkSheet from "./OpenChunkSheet";
 
 let container: HTMLDivElement;
@@ -98,6 +98,22 @@ describe("1A: the paragraph sheet opens complete", () => {
     expect(answers).toHaveBeenCalledTimes(2);
     expect(history).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps the last finished read while a fresh one is in flight (tap and go)", async () => {
+    history.mockResolvedValue({ entries: ["take 1"] });
+    answers.mockResolvedValue([]);
+    prefetchParagraphSheets("arc", "take", ["p1"]);
+    await flush();
+    // A sheet closes: everything is read again, and this read is slow.
+    let finish: (v: unknown) => void = () => {};
+    history.mockReturnValue(new Promise((r) => { finish = r; }));
+    prefetchParagraphSheets("arc", "take", ["p1"]);
+    act(() => root.render(createElement(Probe)));
+    expect(seen[0]).toEqual({ history: { entries: ["take 1"] }, answers: [] });
+    finish({ entries: ["take 1", "take 2"] });
+    await flush();
+    expect(seen.at(-1)).toEqual({ history: { entries: ["take 1", "take 2"] }, answers: [] });
+  });
 });
 
 describe("2A: helper words show at once", () => {
@@ -147,6 +163,51 @@ describe("2A: helper words show at once", () => {
     await flush();
     expect(api.headlines.get("p1")).toBe("just a test");
     expect(roots).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps them while the lock is still landing, and asks again (tap and go)", async () => {
+    vi.useFakeTimers();
+    roots.mockResolvedValue(ready([]));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    act(() => api.expect("p1", "just a test"));
+    // The words' write lands first; the lock has not, so the read after
+    // the save still comes back without them.
+    act(() => api.settle("p1", true));
+    await flush();
+    expect(api.headlines.get("p1")).toBe("just a test");
+    // The lock lands; the next read carries the words.
+    roots.mockResolvedValue(ready([{ partId: "p1", text: "Just a test" }]));
+    await act(async () => { vi.advanceTimersByTime(CONFIRM_RETRY_MS); });
+    await flush();
+    expect(api.headlines.get("p1")).toBe("Just a test");
+  });
+
+  it("lets the server's answer stand once the tries run out", async () => {
+    vi.useFakeTimers();
+    roots.mockResolvedValue(ready([]));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    act(() => api.expect("p1", "just a test"));
+    act(() => api.settle("p1", true));
+    for (let i = 0; i <= CONFIRM_TRIES; i += 1) {
+      await flush();
+      await act(async () => { vi.advanceTimersByTime(CONFIRM_RETRY_MS); });
+    }
+    await flush();
+    expect(api.headlines.has("p1")).toBe(false);
+  });
+
+  it("keeps every shown headline when a read fails", async () => {
+    roots.mockResolvedValueOnce(ready([{ partId: "p2", text: "kept" }]));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    roots.mockResolvedValueOnce({ kind: "stale" });
+    act(() => root.render(createElement(Probe, { sheetOpen: true })));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    expect(roots).toHaveBeenCalledTimes(2);
+    expect(api.headlines.get("p2")).toBe("kept");
   });
 });
 

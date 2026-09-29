@@ -37,10 +37,12 @@ function useHeadlineRead(
     let alive = true;
     void fetchRecordingRoots(arcId).then((result) => {
       if (!alive) return;
-      setRead({
-        headlines: result.kind === "ready" ? paragraphHeadlines(result.roots) : new Map(),
+      // A read that failed or met the document mid-change (a lock landing)
+      // keeps the words already shown rather than wiping every headline.
+      setRead((prev) => ({
+        headlines: result.kind === "ready" ? paragraphHeadlines(result.roots) : prev.headlines,
         readOf: refresh,
-      });
+      }));
     });
     return () => {
       alive = false;
@@ -49,7 +51,49 @@ function useHeadlineRead(
   return read;
 }
 
-type Pending = { text: string; settledAt: number | null };
+type Pending = { text: string; settledAt: number | null; tries: number };
+
+/** How often a read after the save may still come back without the words,
+ *  and how long to wait before asking again. */
+export const CONFIRM_TRIES = 5;
+export const CONFIRM_RETRY_MS = 700;
+
+/** The server's headline for the paragraph already carries the words. */
+function confirms(headline: string | undefined, text: string): boolean {
+  return Boolean(headline && headline.toLowerCase().includes(text.toLowerCase()));
+}
+
+/** What a read does to the stand-ins: those it carries go; those a read
+ *  after their save came back without ask again while tries remain, and
+ *  then go too. */
+export function afterRead(
+  pending: ReadonlyMap<string, Pending>,
+  read: { headlines: Map<string, string>; readOf: number },
+): { next: ReadonlyMap<string, Pending>; again: boolean } {
+  let changed = false;
+  let again = false;
+  const next = new Map<string, Pending>();
+  for (const [partId, p] of pending) {
+    const answered = p.settledAt !== null && p.settledAt <= read.readOf;
+    if (answered && confirms(read.headlines.get(partId), p.text)) {
+      changed = true;
+      continue;
+    }
+    if (answered && p.tries < CONFIRM_TRIES) {
+      changed = true;
+      again = true;
+      next.set(partId, { ...p, settledAt: read.readOf + 1, tries: p.tries + 1 });
+      continue;
+    }
+    if (answered) {
+      // Out of tries: the server's answer stands.
+      changed = true;
+      continue;
+    }
+    next.set(partId, p);
+  }
+  return { next: changed ? next : pending, again };
+}
 
 /** Helper words shown the moment they are chosen (founder 2026-09-28, "2A").
  *
@@ -59,7 +103,15 @@ type Pending = { text: string; settledAt: number | null };
  *  fresh read is asked for, and the stand-in goes as soon as a read started
  *  after the save arrives. A failed save takes the stand-in back at once;
  *  the existing failure notice says so. Choosing new words replaces the
- *  paragraph's old ones (clause 13), so the stand-in replaces, never joins. */
+ *  paragraph's old ones (clause 13), so the stand-in replaces, never joins.
+ *
+ *  The stand-in goes only when a read CARRIES the words (founder 2026-09-29,
+ *  "tap and go"). The words and the lock are two writes sent together, and
+ *  the server shows helper words only on a locked paragraph. When the words
+ *  landed first, the read after them came back without them, the stand-in
+ *  went, and the words vanished until some later read. Now a read without
+ *  them asks again shortly (CONFIRM_TRIES × CONFIRM_RETRY_MS), long enough
+ *  for the lock to land; after that the server's answer stands. */
 export function useHeadlinesWithPending(
   arcId: string | null,
   document: string,
@@ -75,18 +127,22 @@ export function useHeadlinesWithPending(
   const read = useHeadlineRead(arcId, document, sheetOpen, refresh);
 
   useEffect(() => {
-    setPending((prev) => {
-      const next = new Map(
-        [...prev].filter(([, p]) => p.settledAt === null || p.settledAt > read.readOf),
-      );
-      return next.size === prev.size ? prev : next;
-    });
+    const { next, again } = afterRead(pending, read);
+    if (next !== pending) setPending(next);
+    if (!again) return;
+    const timer = setTimeout(() => {
+      refreshRef.current = Math.max(refreshRef.current, read.readOf) + 1;
+      setRefresh(refreshRef.current);
+    }, CONFIRM_RETRY_MS);
+    return () => clearTimeout(timer);
+    // Runs per read only: `pending` is read, not watched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [read]);
 
   const expect = useCallback((partId: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setPending((prev) => new Map(prev).set(partId, { text: trimmed, settledAt: null }));
+    setPending((prev) => new Map(prev).set(partId, { text: trimmed, settledAt: null, tries: 0 }));
   }, []);
 
   const settle = useCallback((partId: string, saved: boolean) => {
