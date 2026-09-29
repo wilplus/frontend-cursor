@@ -1392,6 +1392,7 @@ export default function TranscriptReviewDeck({
           arcId={arcId}
           takeSessionId={takeSessionId}
           headline={headlineOfChunk(headlines, openChunk.part.id)}
+          slideLabel={slideLabelOf(groups, openChunk.part.id)}
           onUseHelperWords={async (span) => {
             // Q24 B / Q27 B: the new words are saved and locked. Tap and go
             // (founder 2026-09-28): both writes run together, behind the

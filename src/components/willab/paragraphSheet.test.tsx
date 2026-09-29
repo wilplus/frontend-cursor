@@ -180,6 +180,64 @@ describe("the answered bookmark", () => {
     ).not.toBeNull();
   });
 
+  it("is the Take stack as the design draws it: no title, the slide over it, one black Done (2026-09-29)", async () => {
+    await render();
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
+    expect(sheet.querySelector("h2")).toBeNull();
+    expect(sheet.textContent).not.toContain("Feedback");
+    const done = sheet.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
+    expect(done.textContent).toBe("Done");
+    await act(async () => done.click());
+    expect(closeSheet).toHaveBeenCalled();
+  });
+
+  it("in the walk, the header is the slide and the black button is the walk's Next", async () => {
+    const onNext = vi.fn();
+    await act(async () => {
+      root.render(
+        createElement(OpenChunkSheet, {
+          state: state(),
+          arcId: "arc-1",
+          takeSessionId: "take-1",
+          headline: "ship it now",
+          onUseHelperWords: useWords,
+          onClose: closeSheet,
+          slideLabel: "Slide 2",
+          pager: { index: 0, total: 3, label: "Slide 2", onBack: vi.fn(), onNext },
+          renderSheet: () => null,
+        }),
+      );
+    });
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
+    const nav = sheet.querySelector('[data-testid="feedback-pager"]') as HTMLElement;
+    expect(nav.textContent).toContain("Slide 2");
+    expect(nav.textContent).not.toContain("moment");
+    const next = sheet.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
+    expect(next.textContent).toBe("Next");
+    await act(async () => next.click());
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("outside the walk, the slide alone heads the sheet", async () => {
+    await act(async () => {
+      root.render(
+        createElement(OpenChunkSheet, {
+          state: state(),
+          arcId: "arc-1",
+          takeSessionId: "take-1",
+          headline: "ship it now",
+          onUseHelperWords: useWords,
+          onClose: closeSheet,
+          slideLabel: "Slide 2",
+          renderSheet: () => null,
+        }),
+      );
+    });
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
+    expect(sheet.querySelector('[data-testid="paragraph-sheet-slide"]')?.textContent).toBe("Slide 2");
+    expect(sheet.querySelector('[data-testid="feedback-pager"]')).toBeNull();
+  });
+
   it("carries only the five answers into the sheet", () => {
     expect(asJudgement("in_between")).toBe("in_between");
     expect(asJudgement("apply_suggestion")).toBeNull();
