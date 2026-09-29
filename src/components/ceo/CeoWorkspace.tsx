@@ -14,6 +14,7 @@ import CeoSegmentedControl from "@/components/ceo/CeoSegmentedControl";
 import CeoBugCapture from "@/components/ceo/CeoBugCapture";
 import CeoTasks from "@/components/ceo/CeoTasks";
 import CeoLearningReadiness from "@/components/ceo/CeoLearningReadiness";
+import FounderRingsLink from "@/components/ceo/FounderRingsLink";
 import { cn } from "@/lib/utils";
 import {
   CEO_PROJECT_KEYS,
@@ -177,6 +178,8 @@ export default function CeoWorkspace() {
             <span className="h-4 w-px bg-border" aria-hidden />
             <h1 className="text-sm font-semibold tracking-tight">CEO</h1>
           </div>
+          <div className="flex items-center gap-1">
+          <FounderRingsLink />
           <button
             type="button"
             onClick={() => updateState({ surface: "settings" })}
@@ -189,6 +192,7 @@ export default function CeoWorkspace() {
           >
             <Settings className="h-4 w-4" aria-hidden />
           </button>
+          </div>
         </div>
       </header>
 
