@@ -202,7 +202,7 @@ export default function ConfidentMomentExercisePanel({
           setBusy(false);
           if (!loaded.ok) { setError(true); return; }
           setPractice(loaded.value);
-        })}>Practise this moment</button>
+        })()}>Practise this moment</button>
       ) : (
         <div className="space-y-3">
           <p className="text-sm font-medium">{practice.exactPassage}</p>
@@ -237,7 +237,7 @@ export default function ConfidentMomentExercisePanel({
                     practiceTargetSpeakerBindingId: result.value.speakerTarget.targetBindingId,
                   });
                 }
-              })}>This is my voice</button>
+              })()}>This is my voice</button>
               <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setAttempts((items) => items.map((item) => item.attemptId === pendingSpeaker.attemptId ? { ...item, speakerConfirmationRequired: false } : item))}>Cancel</button>
             </div>
           ) : null}
