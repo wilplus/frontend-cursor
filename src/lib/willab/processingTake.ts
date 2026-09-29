@@ -84,26 +84,6 @@ function parseProgress(v: unknown): ProcessingTakeProgress | null {
   };
 }
 
-/** How old a marker can be before "still processing" stops being credible.
- *
- *  FOUNDER 2026-09-29: an email deep link opened on "Building your Ideal
- *  Text" instead of the feedback. The link was never the problem. A marker
- *  left behind by an earlier take made Lounge's `takeInFlight` true, which
- *  makes IdealTextOverlay's `analysisPending` true, and that overlay RETURNS
- *  BEFORE ITS FETCH while that holds. The document was not loading slowly; it
- *  was never requested.
- *
- *  Every existing release path only runs while a page is open and watching:
- *  the analysis timer fires from a live effect, the document probe needs a
- *  network round trip. Neither has anything to say about a marker found on a
- *  cold page load days later. This does.
- *
- *  THIRTY MINUTES IS DELIBERATELY FAR LOOSER THAN THE SETTLE CAPS (2 min
- *  document, 8 min analysis). This is not a second settle rule and must not
- *  become one: it answers only "can this job be alive at all", so it can
- *  never cut short a wait the settle logic would have honoured. */
-export const PROCESSING_MARKER_MAX_AGE_MS = 30 * 60_000;
-
 export function readProcessingTake(
   userId: string | null,
 ): ProcessingTake | null {
@@ -115,39 +95,18 @@ export function readProcessingTake(
       return null;
     const startedAt =
       typeof v.startedAt === "number" ? v.startedAt : Date.now();
-    const status: ProcessingStatus =
-      v.status === "failed_ideal_text_unconfirmed"
-        ? "failed_ideal_text_unconfirmed"
-        : v.status === "failed"
-          ? "failed"
-          : "processing";
-    // Only a marker still CLAIMING to run goes stale. A failed one is a note
-    // the speaker has not acted on yet and stays until they do (W6); ageing
-    // those out would delete the explanation for a take that never arrived.
-    // Measured from `startedAt`, the whole job's clock rather than the current
-    // phase: the question is whether the job can be alive at all, not whether
-    // this phase has overrun — the settle caps already answer that.
-    if (
-      status === "processing" &&
-      Date.now() - startedAt > PROCESSING_MARKER_MAX_AGE_MS
-    ) {
-      // Absent, not "failed". If the job finished while the tab was shut, the
-      // document is already there and a failure note would be a lie; if it
-      // really died, the speaker sees an unchanged document and can record
-      // again. Saying nothing is the only claim true in both cases.
-      //
-      // The read stays pure and does NOT delete the key: clearProcessingTake
-      // removes it on the next clear, and a write inside a read is a surprise
-      // nobody reading this call site would expect.
-      return null;
-    }
     return {
       sessionId: v.sessionId,
       arcId: typeof v.arcId === "string" ? v.arcId : null,
       takeIndex: typeof v.takeIndex === "number" ? v.takeIndex : null,
       startedAt,
       phase: v.phase === "document" ? "document" : "analysis",
-      status,
+      status:
+        v.status === "failed_ideal_text_unconfirmed"
+          ? "failed_ideal_text_unconfirmed"
+          : v.status === "failed"
+            ? "failed"
+            : "processing",
       phaseStartedAt:
         typeof v.phaseStartedAt === "number" ? v.phaseStartedAt : startedAt,
       progress: parseProgress(v.progress),
