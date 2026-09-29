@@ -3,6 +3,7 @@ import {
   clearProcessingTake,
   markProcessingTakeFailed,
   markProcessingTakeIdealTextUnconfirmed,
+  PROCESSING_MARKER_MAX_AGE_MS,
   readProcessingTake,
   transitionProcessingTakeToDocument,
   updateProcessingTakeProgress,
@@ -22,11 +23,16 @@ class MemoryStorage {
   }
 }
 
+// `startedAt` is NOW, not a literal. A marker still claiming to be processing
+// is ignored once it is older than PROCESSING_MARKER_MAX_AGE_MS, and the old
+// fixture value of 123 is epoch 1970 — every marker these tests wrote would
+// read back as null. The isolation tests below are unchanged in intent; they
+// were never about age. Ageing has its own describe block at the bottom.
 const take = {
   sessionId: "session-a",
   arcId: "arc-a",
   takeIndex: 2,
-  startedAt: 123,
+  startedAt: Date.now(),
 };
 
 describe("processing take account isolation", () => {
@@ -41,7 +47,7 @@ describe("processing take account isolation", () => {
       ...take,
       phase: "analysis",
       status: "processing",
-      phaseStartedAt: 123,
+      phaseStartedAt: take.startedAt,
     });
     expect(readProcessingTake("user-b")).toBeNull();
   });
@@ -168,5 +174,75 @@ describe("processing take account isolation", () => {
       stage: "completed",
       percent: 100,
     });
+  });
+});
+
+describe("a marker stops being believed once it is old", () => {
+  // FOUNDER 2026-09-29: an email deep link opened on "Building your Ideal
+  // Text" and stayed there. A leftover marker made the Lounge think a take
+  // was in flight, and IdealTextOverlay returns before its fetch while that
+  // is true — so the document was never requested at all.
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", new MemoryStorage());
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const ago = (ms: number) => Date.now() - ms;
+
+  it("ignores a processing marker older than the cap", () => {
+    writeProcessingTake("user-a", {
+      ...take,
+      startedAt: ago(PROCESSING_MARKER_MAX_AGE_MS + 60_000),
+    });
+    expect(readProcessingTake("user-a")).toBeNull();
+  });
+
+  it("still believes one inside the cap", () => {
+    writeProcessingTake("user-a", {
+      ...take,
+      startedAt: ago(PROCESSING_MARKER_MAX_AGE_MS - 60_000),
+    });
+    expect(readProcessingTake("user-a")?.sessionId).toBe("session-a");
+  });
+
+  it("KEEPS a failed marker however old it is", () => {
+    // It is a note the speaker has not acted on yet (W6). Ageing it out would
+    // delete the explanation for a take that never arrived.
+    writeProcessingTake("user-a", {
+      ...take,
+      startedAt: ago(PROCESSING_MARKER_MAX_AGE_MS * 50),
+      status: "failed",
+    });
+    expect(readProcessingTake("user-a")?.status).toBe("failed");
+  });
+
+  it("KEEPS an old unconfirmed-ideal-text marker too", () => {
+    writeProcessingTake("user-a", {
+      ...take,
+      startedAt: ago(PROCESSING_MARKER_MAX_AGE_MS * 50),
+      status: "failed_ideal_text_unconfirmed",
+    });
+    expect(readProcessingTake("user-a")?.status).toBe(
+      "failed_ideal_text_unconfirmed",
+    );
+  });
+
+  it("ages a document-phase marker too, not only an analysis one", () => {
+    // The screenshot was the DOCUMENT phase. Its only release paths are a
+    // live probe and a live timer, neither of which runs on a cold load.
+    writeProcessingTake("user-a", {
+      ...take,
+      startedAt: ago(PROCESSING_MARKER_MAX_AGE_MS + 60_000),
+      phase: "document",
+      phaseStartedAt: Date.now(),
+    });
+    expect(readProcessingTake("user-a")).toBeNull();
+  });
+
+  it("is far looser than the settle caps, so it can never pre-empt them", () => {
+    // 2 min document, 8 min analysis. This rule answers a different question:
+    // whether the job can be alive at all. If it ever tightened below the
+    // settle caps it would start cutting short honest waits.
+    expect(PROCESSING_MARKER_MAX_AGE_MS).toBeGreaterThan(480_000);
   });
 });
