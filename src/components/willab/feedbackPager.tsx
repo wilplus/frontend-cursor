@@ -134,23 +134,38 @@ export function useFeedbackPager(args: {
   const { bookmarks, open, closeAll, openFeedback, ready, labelOf } = args;
   const [at, setAt] = useState<number | null>(null);
   const landed = useRef(false);
+  /* THE LIST IS FROZEN FOR THE WALK (audit 2026-09-29). The host rebuilds
+     its bookmarks from every re-read of the document — after Apply, after an
+     answer — and the walk is positional, so a rebuild under an open sheet
+     changed "Slide 1 · moment 1 of 2" into "Slide 2 · moment 1 of 1" and
+     ended the walk early when the open paragraph fell out of its own list.
+     The list the walk started on is the list it finishes on; a bookmark is
+     opened from the current list when it is still there (fresh chunk), else
+     from the frozen one. */
+  const frozen = useRef<readonly Bookmark[] | null>(null);
+  const list = frozen.current ?? bookmarks;
 
   const openAt = useCallback(
     (index: number) => {
-      const bookmark = bookmarks[index];
+      const walkList = frozen.current ?? bookmarks;
+      const bookmark = walkList[index];
       if (!bookmark) return;
+      if (frozen.current === null) frozen.current = walkList;
       setAt(index);
-      open(bookmark);
+      open(bookmarks.find((b) => b.partId === bookmark.partId) ?? bookmark);
     },
     [bookmarks, open],
   );
 
-  const stop = useCallback(() => setAt(null), []);
+  const stop = useCallback(() => {
+    frozen.current = null;
+    setAt(null);
+  }, []);
 
   /** A tap on a mark or a paragraph joins the walk at that bookmark. */
   const openPart = useCallback(
     (partId: string) => {
-      const index = bookmarks.findIndex((b) => b.partId === partId);
+      const index = (frozen.current ?? bookmarks).findIndex((b) => b.partId === partId);
       if (index < 0) return false;
       openAt(index);
       return true;
@@ -167,15 +182,16 @@ export function useFeedbackPager(args: {
   }, [openFeedback, ready, bookmarks, openAt]);
 
   const pager = useMemo<Pager | null>(() => {
-    if (at === null || bookmarks.length === 0) return null;
-    const bookmark = bookmarks[at];
+    if (at === null || list.length === 0) return null;
+    const bookmark = list[at];
     return {
       index: at,
-      total: bookmarks.length,
+      total: list.length,
       label: bookmark && labelOf ? labelOf(bookmark) : null,
       onBack: () => openAt(Math.max(0, at - 1)),
       onNext: () => {
-        if (at >= bookmarks.length - 1) {
+        if (at >= list.length - 1) {
+          frozen.current = null;
           setAt(null);
           closeAll();
           return;
@@ -183,7 +199,7 @@ export function useFeedbackPager(args: {
         openAt(at + 1);
       },
     };
-  }, [at, bookmarks, openAt, closeAll, labelOf]);
+  }, [at, list, openAt, closeAll, labelOf]);
 
   return { pager, openAt, openPart, stop };
 }
