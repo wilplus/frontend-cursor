@@ -1207,6 +1207,10 @@ export default function TranscriptReviewDeck({
                         summaryByParagraph.get(c.part.id),
                       );
                     return (
+                    /* TEXT SIZE (founder 2026-09-30, "D"): 17px on a phone
+                       rising to 20px on desktop, down from 21–30px. Only the
+                       paragraph text; the helper-words headline keeps its
+                       size, so it stands out more. */
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
@@ -1215,7 +1219,7 @@ export default function TranscriptReviewDeck({
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative text-[clamp(1.3rem,1rem+1.1vw,1.875rem)] leading-[1.65] text-foreground"
+                      className="relative text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
