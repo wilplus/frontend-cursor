@@ -26,8 +26,10 @@ import MomentPlayer from "./MomentPlayer";
 import { useParagraphSheetData } from "./paragraphSheetData";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
+  canTap,
   nextSelection,
   phraseTokens,
+  selectionLength,
   selectionSpan,
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
@@ -194,6 +196,13 @@ function Boxes({ boxes }: { boxes: LabelledLine[] }) {
 
 /** Q27 B: the current words above for reference, the paragraph below with
  *  nothing selected. "Use this phrase" waits for a tap, then locks. */
+/** A tapped word previews in the accent; a word a tap cannot reach under
+ *  the four-word cap reads muted (founder lock 2026-09-30, B3). */
+function tokenTone(picked: boolean, reachable: boolean): string {
+  if (picked) return "bg-primary/10 text-primary";
+  return reachable ? "text-foreground" : "text-muted-foreground/60";
+}
+
 function HelperWordsPicker({
   headline,
   text,
@@ -248,19 +257,21 @@ function HelperWordsPicker({
         </div>
       ) : null}
       <div className="rounded-2xl border border-border px-3 py-4">
-        <p className={EYEBROW}>{COPY.cardTapWords}</p>
+        <p className={EYEBROW}>
+          {COPY.cardTapWords} · {COPY.emphasisCount(selectionLength(run))}
+        </p>
         <div className="mt-2 flex flex-wrap gap-0.5" data-testid="picker-tokens">
           {tokens.map((token, index) => {
             const picked = run !== null && index >= run.from && index <= run.to;
+            const reachable = canTap(run, index);
             return (
               <button
                 key={`${token.start}-${token.text}`}
                 type="button"
                 aria-pressed={picked}
+                disabled={!reachable}
                 onClick={() => setRun(nextSelection(run, index))}
-                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${
-                  picked ? "bg-primary/10 text-primary" : "text-foreground"
-                }`}
+                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${tokenTone(picked, reachable)}`}
               >
                 {token.text}
               </button>

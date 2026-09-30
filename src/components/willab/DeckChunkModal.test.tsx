@@ -982,7 +982,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
  * moment three answers end the ladder earlier — the speaker taps their words,
  * the sheet closes, and nothing was ever written.
  */
-describe("No and Audio unclear end the sheet; Not sure keeps words and their lock (founder 2026-09-25)", () => {
+describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choose words (founder lock 2026-09-30, B2)", () => {
   /** Pick the first offered word and commit it. */
   async function tapAWordAndCommit() {
     expect(container.textContent).toContain("Tap the words");
@@ -1019,14 +1019,14 @@ describe("No and Audio unclear end the sheet; Not sure keeps words and their loc
     expect(buttonLabels()).not.toContain("Lock");
   });
 
-  it("Not sure taps helper words and keeps its Lock (Q1 B)", async () => {
+  it("Not sure is like No: no helper words, no Lock (founder lock 2026-09-30, B2; until then Q1 B)", async () => {
     vi.mocked(props.onLockIn).mockClear();
     await renderLadder({ pending: [confidentVoice] });
     await click("Not sure");
-    await tapAWordAndCommit();
-    // No Lock screen: "Use these helper words" locked the words (Q24 B).
+    expect(container.textContent).not.toContain("Tap the words");
+    expect(buttonLabels()).not.toContain("Use these helper words");
     expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onLockIn).toHaveBeenCalled();
+    expect(props.onLockIn).not.toHaveBeenCalled();
   });
 
   it("In-between keeps its Lock", async () => {

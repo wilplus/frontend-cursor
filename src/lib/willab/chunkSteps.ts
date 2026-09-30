@@ -65,35 +65,43 @@ export type RootGateAnswer = ConfidenceRatingValue | "other" | null;
 
 /** Does this answer open the tap-to-root phrase step?
  *
- *  FOUNDER 2026-09-25 (contract 24e): "if they choose judgment no or unclear,
- *  then they should have no option to root that. Just close the overlay."
- *  Yes, In-between and Not sure open it; No and Audio unclear do not. This
- *  reverses the 2026-09-24 "keep the emphasis open" ruling.
+ *  FOUNDER LOCK 2026-09-30 (B2, contract 24e): Yes and In-between open it.
+ *  No, Not sure and Audio unclear do not. Helper words are the words of a
+ *  confident moment; "I was not sure" is not a moment to build a cue on, and
+ *  that moment still reaches the coach as an ambiguity. This narrows the
+ *  2026-09-25 ruling, which also opened it on Not sure.
  *
- *  A No or Audio unclear is not the end of the road: after an exercise the
- *  speaker practises and judges each attempt on the same five answers (29a),
- *  and that judgement supersedes this one. A Yes, In-between or Not sure there
- *  opens this step with the practice's words.
+ *  A No, Not sure or Audio unclear is not the end of the road: after an
+ *  exercise the speaker practises and judges each attempt on the same five
+ *  answers (29a), and that judgement supersedes this one. A Yes or In-between
+ *  there opens this step with the practice's words. The same rule reads here
+ *  for both, so the walk, the paragraph sheet and the practice loop can never
+ *  disagree.
  *
  *  `"other"` is what the older coarse paths report (the legacy agreement
  *  chip); it keeps the step, as before. Nobody having answered — a paragraph
  *  the detector never flagged — still closes it.
  */
 export function opensRootPhrase(answer: RootGateAnswer): boolean {
-  return answer !== null && answer !== "no" && answer !== "audio_unclear";
+  return (
+    answer !== null &&
+    answer !== "no" &&
+    answer !== "not_sure" &&
+    answer !== "audio_unclear"
+  );
 }
 
 /** Does this answer take the Lock step off the end of the ladder?
  *
- *  FOUNDER 2026-09-25: Yes, In-between and Not sure lock ("Q1: B" — Not sure
- *  keeps its Lock); No and Audio unclear do not. With no helper-words step on
- *  those two either, their sheet ends when the feedback does.
+ *  FOUNDER LOCK 2026-09-30 (B2): the ladder ends after the feedback on No,
+ *  Not sure and Audio unclear, the three answers with no helper-words step.
+ *  Until then Not sure kept its Lock (founder 2026-09-25, Q1 B).
  *
  *  `"other"` keeps the Lock, as before: it is what the older coarse paths
  *  report, and a judgement of a different recording is not this rule.
  */
 export function closesLock(answer: RootGateAnswer): boolean {
-  return answer === "no" || answer === "audio_unclear";
+  return answer === "no" || answer === "not_sure" || answer === "audio_unclear";
 }
 
 /** Does the lock step SHOW the paragraph rather than offer it for editing?

@@ -125,6 +125,17 @@ export function tokensWithinFragment(
   return within.length > 0 ? within : [...tokens];
 }
 
+/** A helper-word pick is at most this many words (founder lock 2026-09-30,
+ *  B3, contract 13). A cue is read at a glance while recording and has to be
+ *  found again in the next Take's words; a sentence does neither. Phrases
+ *  saved before the cap are shown as they are — the cap is on the pick. */
+export const HELPER_WORDS_MAX = 4;
+
+/** How many words a run holds; 0 for none. */
+export function selectionLength(selection: PhraseSelection | null): number {
+  return selection ? selection.to - selection.from + 1 : 0;
+}
+
 /** What a tap does to the current run.
  *
  *  `null` means nothing is selected. Tapping the only selected word clears it,
@@ -135,18 +146,34 @@ export function tokensWithinFragment(
  *  first to it, in either direction. Any tap after that starts a new phrase
  *  at the tapped word, replacing the old one, so a phrase is never stretched
  *  by accident.
+ *
+ *  AT MOST FOUR WORDS (founder lock 2026-09-30, B3). A second tap that would
+ *  stretch the run past `max` does nothing: the same selection comes back,
+ *  by identity, so a picker can grey the words a tap cannot reach.
  */
 export function nextSelection(
   selection: PhraseSelection | null,
   index: number,
+  max: number = HELPER_WORDS_MAX,
 ): PhraseSelection | null {
   if (!selection) return { from: index, to: index };
   const { from, to } = selection;
   if (from === to) {
     if (index === from) return null;
-    return { from: Math.min(from, index), to: Math.max(from, index) };
+    const run = { from: Math.min(from, index), to: Math.max(from, index) };
+    return selectionLength(run) > max ? selection : run;
   }
   return { from: index, to: index };
+}
+
+/** Would a tap on this word change the selection? False for the words a
+ *  second tap cannot reach under the cap; the picker greys those. */
+export function canTap(
+  selection: PhraseSelection | null,
+  index: number,
+  max: number = HELPER_WORDS_MAX,
+): boolean {
+  return nextSelection(selection, index, max) !== selection;
 }
 
 /** The selected run as the span the backend stores.

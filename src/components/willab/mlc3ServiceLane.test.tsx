@@ -326,10 +326,10 @@ describe("a served answer advances the ladder by itself", () => {
     expect(buttonLabels()).toContain("Use these helper words");
   });
 
-  it("Not sure reaches the helper words and keeps the Lock (founder 2026-09-25, Q1 B)", async () => {
+  it("Not sure offers no helper words (founder lock 2026-09-30, B2; until then Q1 B)", async () => {
     await render(served);
     await click("Not sure");
-    expect(buttonLabels()).toContain("Use these helper words");
+    expect(buttonLabels()).not.toContain("Use these helper words");
   });
 
   it("No and Audio unclear offer no helper words and no Lock (founder 2026-09-25)", async () => {
