@@ -8,6 +8,9 @@ const CEO_SURFACE_PATHS = [
   "/admin/project-deletions",
   // The rings panel (founder 2026-09-29): launches, rings, kill switches.
   "/admin/rings",
+  // The pace panel and the research screen (founder 2026-09-30; ML-4, ML-7).
+  "/admin/pace",
+  "/admin/research",
 ];
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
@@ -15,6 +18,8 @@ const CEO_API_PATHS = [
   "/api/v2/admin/tokens",
   "/api/v2/admin/project-deletions",
   "/api/v2/admin/rings",
+  "/api/v2/admin/learning",
+  "/api/v2/research",
 ];
 
 export type CeoHostRouteAction =

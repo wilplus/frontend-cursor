@@ -36,6 +36,14 @@ describe("CEO hostname routing", () => {
     expect(decide(CEO_CANONICAL_HOST, "/admin/users").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/tokens").action).toBe("allow");
     expect(decide(CEO_CANONICAL_HOST, "/admin/rings").action).toBe("allow");
+    expect(decide(CEO_CANONICAL_HOST, "/admin/pace").action).toBe("allow");
+    expect(decide(CEO_CANONICAL_HOST, "/admin/research").action).toBe("allow");
+    expect(
+      decide(CEO_CANONICAL_HOST, "/api/v2/admin/learning/ledger").action
+    ).toBe("allow");
+    expect(
+      decide(CEO_CANONICAL_HOST, "/api/v2/research/golden/confidence/next").action
+    ).toBe("allow");
     expect(
       decide(CEO_CANONICAL_HOST, "/api/v2/admin/rings/features").action
     ).toBe("allow");
