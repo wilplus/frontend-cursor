@@ -11,6 +11,7 @@ const LABELS: Record<string, string> = {
   praise_selection: "Praise selection",
   correction_selection: "Verbal-correction selection",
   ideal_text_generation: "Ideal Text generation",
+  exercise_adequacy_classification: "Exercise adequacy classifier",
 };
 
 const BLOCKERS: Record<string, string> = {
@@ -131,7 +132,7 @@ export default function CeoLearningReadiness({
             Learning-system readiness
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Aggregate production evidence for seven isolated future systems.
+            Aggregate production evidence for eight isolated future systems.
             A fetch is not exposure; only a confirmed visible render counts.
           </p>
         </div>
