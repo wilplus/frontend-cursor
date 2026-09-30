@@ -4,7 +4,7 @@
      - one sheet height for every step, the coach step included;
      - the compact "Play this moment · 0:09" row on Good job, Suggestion, the
        Exercise and the paragraph sheet, not the full player;
-     - "Not now" on the exercise offer shows it is working while its write is
+     - "Skip" on the exercise offer shows it is working while its write is
        awaited;
      - a tap on a grey bar draws the paragraph sheet's frame at once, even
        before its reads land. */
@@ -232,7 +232,7 @@ describe("the compact player row", () => {
   });
 });
 
-describe("Not now on the exercise offer", () => {
+describe("Skip on the exercise offer (D10: Skip, not Not now)", () => {
   it("greys the link and spins the pill while the dismiss is awaited", async () => {
     let settle: (v: unknown) => void = () => undefined;
     vi.mocked(startConfidencePractice).mockReturnValueOnce(
@@ -242,13 +242,13 @@ describe("Not now on the exercise offer", () => {
     );
     await renderSheet([confidentVoice]);
     await click("No — Not confident");
-    const notNow = () =>
+    const skip = () =>
       Array.from(container.querySelectorAll("button")).find(
-        (b) => (b.textContent ?? "").trim() === "Not now",
+        (b) => (b.textContent ?? "").trim() === "Skip",
       ) as HTMLButtonElement;
-    expect(notNow().disabled).toBe(false);
-    await click("Not now");
-    expect(notNow().disabled).toBe(true);
+    expect(skip().disabled).toBe(false);
+    await click("Skip");
+    expect(skip().disabled).toBe(true);
     const pill = Array.from(container.querySelectorAll("button")).find(
       (b) => (b.textContent ?? "").trim() === "Practise",
     ) as HTMLButtonElement;
@@ -261,7 +261,7 @@ describe("Not now on the exercise offer", () => {
 });
 
 describe("the paragraph sheet while its reads are pending", () => {
-  it("draws the frame with the helper words and the paragraph, never nothing", async () => {
+  it("draws the frame with the helper words, and never the paragraph text (D6)", async () => {
     vi.mocked(fetchParagraphHistory).mockReturnValueOnce(new Promise(() => undefined) as never);
     const decided = suggestion({
       ...confidentVoice,
@@ -276,7 +276,6 @@ describe("the paragraph sheet while its reads are pending", () => {
           partId: "p-pending",
           text: TEXT,
           headline: "ship it now",
-          locked: true,
           decided: [decided],
           onClose: () => undefined,
         }),
@@ -284,11 +283,36 @@ describe("the paragraph sheet while its reads are pending", () => {
     });
     const frame = container.querySelector('[data-testid="paragraph-sheet"]');
     expect(frame).not.toBeNull();
-    const loading = container.querySelector('[data-testid="paragraph-sheet-loading"]');
-    expect(loading).not.toBeNull();
-    expect(loading?.textContent).toContain("ship it now");
-    expect(loading?.textContent).toContain(TEXT);
-    expect(container.querySelector('[data-testid="paragraph-now"]')).not.toBeNull();
+    // Saved helper words: the saved state, drawn at once with what it has.
+    const saved = container.querySelector('[data-testid="overlay-saved"]');
+    expect(saved).not.toBeNull();
+    expect(saved?.textContent).toContain("ship it now");
+    expect(frame?.textContent).not.toContain(TEXT);
+  });
+
+  it("without saved words, the practise state draws the player and the button at once", async () => {
+    vi.mocked(fetchParagraphHistory).mockReturnValueOnce(new Promise(() => undefined) as never);
+    const decided = suggestion({
+      ...confidentVoice,
+      id: "s-done-2",
+      status: "dismissed",
+    } as Partial<DocumentSuggestion>);
+    await act(async () => {
+      root.render(
+        createElement(ParagraphSheet, {
+          arcId: "arc-1",
+          takeSessionId: "take-1",
+          partId: "p-pending-2",
+          text: TEXT,
+          headline: null,
+          decided: [decided],
+          onClose: () => undefined,
+        }),
+      );
+    });
+    expect(container.querySelector('[data-testid="paragraph-sheet-loading"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="paragraph-sheet-next"]')).not.toBeNull();
+    expect(container.textContent).not.toContain(TEXT);
   });
 });
 

@@ -512,6 +512,12 @@ export default function TranscriptReviewDeck({
     settle: settleHeadline,
   } = useHeadlinesWithPending(arcId, doc, openPart !== null);
   const openState = openChunk ? stateOf(openChunk) : null;
+  /** A paragraph opens its own sheet when no judgement waits on it or its
+   *  helper words are saved (founder lock 2026-09-30, B5, B8). */
+  const opensOwnSheet = useCallback(
+    (c: DeckChunk) => opensParagraphSheet(stateOf(c), headlines.has(c.part.id)),
+    [stateOf, headlines],
+  );
   // Every save of helper words goes through here, from either sheet, so the
   // chosen words stand in as the headline at once (founder 2026-09-28, 2A).
   const setRootPhrase = useCallback(
@@ -525,8 +531,8 @@ export default function TranscriptReviewDeck({
   );
   // The paragraph sheet opens complete: read its data ahead (1A).
   const answeredPartIds = useMemo(
-    () => chunks.filter((c) => opensParagraphSheet(stateOf(c))).map((c) => c.part.id),
-    [chunks, stateOf],
+    () => chunks.filter((c) => opensOwnSheet(c)).map((c) => c.part.id),
+    [chunks, opensOwnSheet],
   );
   usePrefetchParagraphSheets(arcId, takeSessionId, answeredPartIds, openPart !== null);
 
@@ -542,8 +548,11 @@ export default function TranscriptReviewDeck({
           return { pending: st.pending.length, decided: st.decided.length };
         },
         (id) => summaryByParagraph.get(id),
+        // A paragraph with saved helper words is a screen of the walk,
+        // passed with Next (founder lock 2026-09-30, B8).
+        (c) => headlines.has(c.part.id),
       ),
-    [chunks, stateOf, summaryByParagraph],
+    [chunks, stateOf, summaryByParagraph, headlines],
   );
   const openBookmark = useCallback(
     (bookmark: Bookmark) => {
@@ -627,7 +636,7 @@ export default function TranscriptReviewDeck({
     message: coachMessage,
     ready: deckReady,
     next: () => {
-      if (firstWaiting >= 0) walk.openAt(firstWaiting);
+      if (firstWaiting >= 0) walk.openAt(0);
     },
   });
   const reviewSeenRef = useRef(reviewRequest);
@@ -636,7 +645,10 @@ export default function TranscriptReviewDeck({
     reviewSeenRef.current = reviewRequest;
     // Step 0 first when the coach left a message; its Continue opens the walk.
     if (coachStep.show()) return;
-    if (firstWaiting >= 0) walk.openAt(firstWaiting);
+    // TOP TO BOTTOM (founder lock 2026-09-30, B8): the walk visits the
+    // open feedbacks and the saved paragraphs in text order, from the first
+    // screen, whenever a judgement still waits somewhere in the text.
+    if (firstWaiting >= 0) walk.openAt(0);
   }, [reviewRequest, firstWaiting, walk, coachStep]);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
@@ -1214,7 +1226,7 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      {...paragraphTap(unsettled || opensParagraphSheet(st), () => {
+                      {...paragraphTap(unsettled || opensOwnSheet(c), () => {
                         if (!walk.openPart(c.part.id)) openParagraph(c);
                       })}
                       data-settled={unsettled ? undefined : "true"}
@@ -1403,17 +1415,19 @@ export default function TranscriptReviewDeck({
               () => helperWordsBehind(setRootPhrase, onLockPart, chunk, span),
               CHUNK_SHEET_COPY.failWordsBehind,
             );
-            setToast(CHUNK_SHEET_COPY.toastHelperWordsSaved);
+            helperSavedRef.current = true;
             return true;
           }}
           onClose={closeWalk}
+          onDone={sheetDone}
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
           feedbackPending={feedbackPending}
-          renderSheet={(practiseAgain) => (
+          renderSheet={(practiseAgain, onAnswered) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}
           practiseAgain={practiseAgain}
+          onAnswered={onAnswered}
           state={openState}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}

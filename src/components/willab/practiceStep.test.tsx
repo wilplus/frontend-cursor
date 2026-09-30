@@ -387,7 +387,7 @@ const notice = () => container.querySelector('[data-testid="coach-request-notice
 const recognisedBare = { ...bare, id: "s-cv-rec-bare", problemRecognised: true } as DocumentSuggestion;
 
 describe("a No on a bookmark with no exercise", () => {
-  it("says the coach is working on it, with your recording, and Continue moves on", async () => {
+  it("says the coach is working on it, with your recording, and Next moves on (D10)", async () => {
     // Read weak, a problem fired, nothing targets it: an error the coach
     // always answers with a video (the follow-up matrix, founder 2026-09-29).
     props.onClose.mockClear();
@@ -407,10 +407,10 @@ describe("a No on a bookmark with no exercise", () => {
     expect(notice()?.textContent).toContain("Your coach is working on your exercise.");
     expect(notice()?.textContent).toContain("What you said");
     const labels = buttons().map((b) => b.textContent?.trim());
-    expect(labels).toContain("Continue");
+    expect(labels).toContain("Next");
     expect(labels).not.toContain("Practise");
     expect(props.onClose).not.toHaveBeenCalled();
-    await click("Continue");
+    await click("Next");
     // The only item was answered and a No has no helper-words step: the
     // sheet is done, and the host closes it.
     expect(props.onClose).toHaveBeenCalled();
@@ -466,7 +466,7 @@ describe("the lane on every bookmark (founder 2026-09-29)", () => {
     await open(recognised);
     await click("In-between");
     expect(notice()).not.toBeNull();
-    await click("Continue");
+    await click("Next");
     expect(notice()).toBeNull();
     expect(container.textContent).toContain("Tap the words");
   });

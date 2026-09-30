@@ -1,30 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Mic, Pencil } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import {
-  fetchOwnerAnswers,
   fetchParagraphHistory,
-  type OwnerAnswer,
   type ParagraphHistory,
 } from "@/services/api/bookmarkHistory";
+import { isConfidentVoiceFeedback } from "@/lib/willab/chunkSteps";
 import {
-  answeredView,
-  timelineOf,
-  type LabelledLine,
-  type TimelineEntry,
-} from "@/lib/willab/answeredBookmark";
-import {
-  isConfidentVoiceFeedback,
-  opensRootPhrase,
-  type RootGateAnswer,
-} from "@/lib/willab/chunkSteps";
+  asJudgementValue,
+  belowInBetween,
+  historyRows,
+  judgementTone,
+  nextOpensPicker,
+  overlayFooter,
+  practiseCardOf,
+  type HistoryRow,
+  type Judgement,
+  type LabelTone,
+  type PractiseCard,
+} from "@/lib/willab/paragraphOverlay";
+export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
+import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import MomentPlayer from "./MomentPlayer";
+import CoachVideo from "./CoachVideo";
 import { useParagraphSheetData } from "./paragraphSheetData";
-import MediaPlayer from "@/components/results/MediaPlayer";
 import {
   canTap,
   nextSelection,
@@ -38,59 +41,36 @@ import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 
 /* -------------------------------------------------------------------------- */
-/*  THE PARAGRAPH'S OWN SHEET (founder 2026-09-25, Q19 A, Q26 B, Q27 B).       */
+/*  THE PARAGRAPH'S OWN SHEET (founder lock 2026-09-30, B5, B8, D6, D7, Q1).  */
 /*                                                                            */
-/*  Opens when a paragraph with nothing waiting is tapped and it was answered */
-/*  or locked. An unanswered bookmark still opens the judgement sheet.        */
+/*  Exactly two states, and never the paragraph text — the words are on the   */
+/*  page behind it (D6):                                                      */
 /*                                                                            */
-/*    1. At the top: the Slide's helper words (tap them to choose new ones)   */
-/*       and the paragraph as it is now.                                      */
-/*    2. The exercise, if the moment has one, with Practise.                  */
-/*    3. "You have judged this as your …", and what happened in one or two boxes.         */
-/*    4. One timeline, newest Take first: what was said, and under it the     */
-/*       helper words that were locked while it stood (Q26 B).                */
+/*    PRACTISE  the player, "Your judgement: …" as one small tinted line,    */
+/*              one main practise card (a rewrite, a praise, or an exercise   */
+/*              with its video inside), one collapsed History row, and the    */
+/*              button: Practise with Skip under it on a No or Not sure,      */
+/*              Next on a Yes or In-between (Practise as the link on          */
+/*              In-between, Q1 B). Next after a Yes or In-between opens the   */
+/*              helper-words picker (24e); a locked paragraph opens on the    */
+/*              other state.                                                  */
+/*    SAVED     "Helper words saved": the player, the words, History, Next.   */
+/*              Nothing to judge and nothing to practise (B8); the walk       */
+/*              passes it with Next.                                          */
 /*                                                                            */
-/*  Tapping the helper words opens the word picker over the current           */
-/*  paragraph (Q27 B): the current words shown above for reference, nothing   */
-/*  selected, and "Use this phrase" locks the new ones at once (Q24 B).       */
-/*                                                                            */
-/*  Its own component so the judgement sheet — grandfathered at the           */
-/*  complexity ratchet — gains no branch. Words only (AC-9); the answer is    */
-/*  the owner's own self-report (L3). Every label is signed-off copy (Q21 A). */
+/*  Opens from a tap on the paragraph, and from the judgement sheet the       */
+/*  moment an answer is given (the hand-off). Its own component so the        */
+/*  judgement sheet — grandfathered at the complexity ratchet — gains no      */
+/*  branch. Words only (AC-9); the label is the owner's own answer (L3).      */
+/*  Every string is signed copy (B9).                                         */
 /* -------------------------------------------------------------------------- */
-
-/** The exercise this moment carries, if any: the same exact-clip offer the
- *  judgement sheet would have shown. */
-/** The moment's bookmark is with the coach as an ERROR and nothing has come
- *  back yet: the one kind the coach always answers with a video, so the
- *  sentence is a promise kept (founder 2026-09-29, Q6). The other kinds say
- *  nothing; the coach's video appears when shared. */
-export function coachHasIt(items: readonly DocumentSuggestion[]): boolean {
-  return items.some(
-    (item) =>
-      isConfidentVoiceFeedback(item) &&
-      !item.practiceExercise &&
-      item.coachRequest?.status === "open" &&
-      item.coachRequest.kind === "error",
-  );
-}
-
-export function exerciseOf(
-  items: readonly DocumentSuggestion[],
-): DocumentSuggestion | null {
-  return (
-    items.find(
-      (item) =>
-        isConfidentVoiceFeedback(item) &&
-        item.practiceExercise &&
-        item.snippetId &&
-        item.evidence,
-    ) ?? null
-  );
-}
 
 const EYEBROW =
   "text-[11px] uppercase tracking-[0.13em] text-muted-foreground";
+const PILL =
+  "flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
+const LINK =
+  "flex min-h-[48px] w-full items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50";
 
 function SheetFrame({
   title,
@@ -98,7 +78,6 @@ function SheetFrame({
   children,
   footer = null,
   nav = null,
-  showTitle = true,
 }: {
   title: string;
   onClose: () => void;
@@ -106,10 +85,6 @@ function SheetFrame({
   footer?: ReactNode;
   /** The walk's ‹ position › header, above the title (founder 2026-09-26). */
   nav?: ReactNode;
-  /** The Take stack has no title (Final Screens L3, founder 2026-09-29:
-   *  "definitely the design"): the header row keeps only the close button,
-   *  and `title` names the dialog for assistive tech alone. */
-  showTitle?: boolean;
 }) {
   return (
     <div
@@ -129,16 +104,12 @@ function SheetFrame({
       >
         {nav ? <div className="shrink-0 pt-3">{nav}</div> : null}
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
-          {showTitle ? (
-            <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
-              {title}
-            </h2>
-          ) : (
-            <span />
-          )}
+          <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
+            {title}
+          </h2>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-6 pt-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-2">
           {children}
         </div>
         {footer ? <div className="shrink-0 px-5 pb-6 pt-2">{footer}</div> : null}
@@ -147,55 +118,185 @@ function SheetFrame({
   );
 }
 
-function ExerciseCard({
-  item,
-  onPractise,
-  onStale,
-}: {
-  item: DocumentSuggestion;
-  onPractise: (() => void) | null;
-  /** A 409 on the render confirmation: the host re-reads the document. */
-  onStale: (() => void) | null;
-}) {
-  // MLC-3 §3.5: confirms the card rendered once half visible. Nothing shown.
-  const seen = useExerciseRenderedAck(item, onStale);
-  if (!item.practiceExercise || !onPractise) return null;
-  // ONLY THE BUTTON (Ideal Text Final Screens, L3 "Answered No": Practise sits
-  // inside the Take). The video and the instruction belong to the Exercise
-  // screen that Practise opens; drawing them here too showed the exercise
-  // twice (founder 2026-09-28).
+/* ---- the judgement label (D7) ------------------------------------------- */
+
+/** Tint behind, full colour on the text. The five colours are the speaker's
+ *  own five answers; the machine's read has no colour here. Written as
+ *  arbitrary values so the palette needs no new token. */
+const TONE_CLASS: Record<LabelTone, string> = {
+  green: "bg-affirm/15 text-affirm",
+  blue: "bg-[hsl(214_80%_50%/0.14)] text-[hsl(214_70%_38%)]",
+  red: "bg-destructive/15 text-destructive",
+  yellow: "bg-[hsl(44_92%_50%/0.2)] text-[hsl(40_80%_30%)]",
+  grey: "bg-muted text-muted-foreground",
+};
+
+function JudgementLabel({ judgement }: { judgement: Judgement | null }) {
+  if (!judgement) return null;
+  const tone = judgementTone(judgement);
   return (
-    <button
-      ref={seen}
-      type="button"
-      data-testid="answered-exercise"
-      onClick={onPractise}
-      className="flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-border px-5 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
+    <p
+      data-testid="judgement-label"
+      data-tone={tone}
+      className={`flex items-baseline gap-1.5 self-start rounded-lg px-2.5 py-1 text-[13px] font-semibold ${TONE_CLASS[tone]}`}
     >
-      <Mic className="h-4 w-4" aria-hidden />
-      {COPY.pillPractise}
-    </button>
+      <span className="text-[10px] font-medium uppercase tracking-[0.1em] opacity-75">
+        {COPY.judgementLabel}
+      </span>
+      {COPY.judgementWord[judgement]}
+    </p>
   );
 }
 
-function Boxes({ boxes }: { boxes: LabelledLine[] }) {
-  if (boxes.length === 0) return null;
+/* ---- the practise card (B5) --------------------------------------------- */
+
+/** MLC-3 §3.5: an exercise card confirms it rendered once half visible;
+ *  nothing is shown. Its own component so the hook runs only when the card
+ *  is an exercise. */
+function ExerciseCardBody({
+  card,
+  onStale,
+}: {
+  card: Extract<PractiseCard, { kind: "exercise" }>;
+  onStale: (() => void) | null;
+}) {
+  const seen = useExerciseRenderedAck(card.item, onStale);
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {boxes.map((box) => (
-        <div key={box.label} className="rounded-xl border border-border p-3">
-          <p className={EYEBROW}>{box.label}</p>
-          <p className="mt-1 text-[14px] leading-relaxed text-foreground">
-            {box.text}
-          </p>
-        </div>
-      ))}
+    <div ref={seen} data-testid="answered-exercise" className="flex flex-col gap-3">
+      {card.video ? <CoachVideo src={card.video} /> : null}
+      {card.instruction ? (
+        <p className="text-[15px] leading-relaxed text-foreground">{card.instruction}</p>
+      ) : null}
+      <p className="text-[17px] font-semibold leading-snug text-foreground">
+        {card.passage}
+      </p>
     </div>
   );
 }
 
-/** Q27 B: the current words above for reference, the paragraph below with
- *  nothing selected. "Use this phrase" waits for a tap, then locks. */
+function cardEyebrow(card: PractiseCard): string {
+  switch (card.kind) {
+    case "exercise":
+      return COPY.titleExercise;
+    case "rewrite":
+      return COPY.cardClearerVersion;
+    case "praise":
+      return COPY.titlePraise;
+    default:
+      return COPY.cardSayItAgain;
+  }
+}
+
+function PractiseCardView({
+  card,
+  onStale,
+}: {
+  card: PractiseCard | null;
+  onStale: (() => void) | null;
+}) {
+  if (!card) return null;
+  return (
+    <div
+      data-testid="practise-card"
+      data-kind={card.kind}
+      className="flex flex-col gap-3 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+    >
+      <p className={EYEBROW}>{cardEyebrow(card)}</p>
+      {card.kind === "exercise" ? (
+        <ExerciseCardBody card={card} onStale={onStale} />
+      ) : card.kind === "praise" ? (
+        <>
+          <p className="text-[17px] font-semibold leading-snug text-foreground">
+            {card.text}
+          </p>
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {card.tentative ? COPY.praiseTentative : PRAISE_LEAD}
+          </p>
+          {praiseLines(card.cueKeys).map((line) => (
+            <p key={line} className="text-[15px] leading-relaxed text-foreground">
+              {line}
+            </p>
+          ))}
+        </>
+      ) : (
+        <p className="text-[17px] font-semibold leading-snug text-foreground">
+          {card.text}
+        </p>
+      )}
+      {card.kind === "plain" && card.coach ? (
+        /* WHERE PRACTISE WOULD SIT (founder 2026-09-29; kept by Q5): the
+           bookmark went to the coach and no exercise has come back yet. */
+        <p data-testid="coach-request-line" className="text-[14px] font-semibold text-foreground">
+          {COPY.coachWorkingOnExercise}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---- the saved words (state two) ---------------------------------------- */
+
+function HelperWordsCard({
+  headline,
+  onChoose,
+}: {
+  headline: string;
+  onChoose: (() => void) | null;
+}) {
+  return (
+    <div
+      data-testid="paragraph-helper-card"
+      className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+    >
+      <span className={EYEBROW}>{COPY.historyHelperWords}</span>
+      <p className="text-[20px] font-bold leading-snug text-primary">{headline}</p>
+      {onChoose ? (
+        <button
+          type="button"
+          data-testid="paragraph-helper-words"
+          onClick={onChoose}
+          className="self-start text-[14px] font-semibold text-primary transition-opacity hover:opacity-70"
+        >
+          {COPY.pillChooseWords}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---- History, one collapsed row (Q1) ------------------------------------ */
+
+function HistoryRowView({ rows }: { rows: readonly HistoryRow[] }) {
+  return (
+    <details data-testid="paragraph-history" className="group rounded-lg bg-muted/60 px-3 py-2">
+      <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-semibold text-muted-foreground">
+        <span>{COPY.historyRow}</span>
+        <span className="transition-transform group-open:rotate-90" aria-hidden>
+          ›
+        </span>
+      </summary>
+      {rows.length > 0 ? (
+        <ol className="mt-2 flex flex-col gap-1">
+          {rows.map((row, index) => (
+            <li
+              key={`${row.label}-${index}`}
+              className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-foreground"
+            >
+              <span className="font-semibold">{row.label}</span>
+              {row.answer ? <span>{COPY.judgementWord[row.answer]}</span> : null}
+              {row.helperWords ? (
+                <span className="font-semibold text-primary">{row.helperWords}</span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </details>
+  );
+}
+
+/* ---- the picker (Q27 B, B3) ---------------------------------------------- */
+
 /** A tapped word previews in the accent; a word a tap cannot reach under
  *  the four-word cap reads muted (founder lock 2026-09-30, B3). */
 function tokenTone(picked: boolean, reachable: boolean): string {
@@ -239,7 +340,7 @@ function HelperWordsPicker({
           type="button"
           disabled={!span || busy}
           onClick={() => void use()}
-          className="flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
+          className={PILL}
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           {COPY.pillEmphasise}
@@ -288,214 +389,11 @@ function HelperWordsPicker({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  THE TAKE STACK (founder 2026-09-26, Ideal Text redesign, locked L3/L3b).   */
-/*                                                                            */
-/*  "You said: Yes" never showed what was asked, and nothing said the list    */
-/*  below it was earlier Takes. Now every Take is the same card: the current  */
-/*  one open ("Take 2 · Now") with its recording and the owner's own answer    */
-/*  sentence, earlier ones folded underneath "Earlier Takes". The helper words */
-/*  sit on top because they carry across Takes (clause 14). Only what the     */
-/*  history holds is shown: answers and recordings exist for the current Take */
-/*  only, so earlier rows carry their words and helper words, nothing more.   */
-/* -------------------------------------------------------------------------- */
+/* ---- the walk's chrome --------------------------------------------------- */
 
-function HelperWordsCard({
-  headline,
-  onChoose,
-}: {
-  headline: string | null;
-  onChoose: (() => void) | null;
-}) {
-  if (!headline) {
-    return onChoose ? (
-      <button
-        type="button"
-        data-testid="paragraph-helper-words"
-        onClick={onChoose}
-        className="flex min-h-[48px] items-center justify-center rounded-full bg-foreground px-5 text-[15px] font-semibold text-background transition-colors hover:bg-foreground/90"
-      >
-        {COPY.titleEmphasis}
-      </button>
-    ) : null;
-  }
-  return (
-    <div
-      data-testid="paragraph-helper-card"
-      className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-    >
-      <span className={EYEBROW}>{COPY.historyHelperWords}</span>
-      <p className="text-[18px] font-bold leading-snug text-primary">{headline}</p>
-      <button
-        type="button"
-        data-testid="paragraph-helper-words"
-        disabled={!onChoose}
-        onClick={() => onChoose?.()}
-        className="self-start text-[14px] font-semibold text-primary transition-opacity hover:opacity-70 disabled:hidden"
-      >
-        {COPY.pillChooseWords}
-      </button>
-    </div>
-  );
-}
-
-function NowTakeCard({
-  label,
-  text,
-  player,
-  youSaid,
-  children,
-}: {
-  label: string | null;
-  text: string;
-  player: ReactNode;
-  youSaid: string | null;
-  children?: ReactNode;
-}) {
-  return (
-    <section
-      data-testid="paragraph-now"
-      className="flex flex-col gap-3 rounded-2xl border border-border p-4"
-    >
-      <p className="text-[13px] font-semibold text-foreground">
-        {label ? `${label} · ${COPY.historyNow}` : COPY.historyNow}
-      </p>
-      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-        {text}
-      </p>
-      {player}
-      {youSaid ? (
-        <p data-testid="answered-you-said" className="text-[15px] text-foreground">
-          {youSaid}
-        </p>
-      ) : null}
-      {children}
-    </section>
-  );
-}
-
-function EarlierTakes({ entries }: { entries: TimelineEntry[] }) {
-  if (entries.length === 0) return null;
-  return (
-    <section className="flex flex-col gap-2" data-testid="paragraph-timeline">
-      <h3 className={EYEBROW}>{COPY.historyEarlierTakes}</h3>
-      <ol className="flex flex-col gap-2">
-        {entries.map((entry, index) => (
-          <li key={`${entry.label ?? "take"}-${index}`}>
-            <details className="group rounded-xl bg-muted/60 px-3 py-2.5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[14px] font-semibold text-foreground">
-                <span>{entry.label ?? COPY.historyTake}</span>
-                <span className="text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>
-                  ›
-                </span>
-              </summary>
-              {entry.helperWords ? (
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  {COPY.historyHelperWords}:{" "}
-                  <span className="font-semibold text-primary">{entry.helperWords}</span>
-                </p>
-              ) : null}
-              <EarlierTakeRecording entry={entry} />
-              <p className="mt-2 whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground group-[:not([open])]:hidden">
-                {entry.text}
-              </p>
-            </details>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-/** An earlier Take's own recording of this Slide and the owner's answer on
- *  it (founder 2026-09-28, decision 5; accepted Take stack). Shown only when
- *  the row is open, like its words. Nothing when neither exists. */
-function EarlierTakeRecording({ entry }: { entry: TimelineEntry }) {
-  if (!entry.clip && !entry.judged) return null;
-  return (
-    <div
-      data-testid="earlier-take-recording"
-      className="mt-2 flex flex-col gap-2 group-[:not([open])]:hidden"
-    >
-      {entry.clip ? (
-        <MediaPlayer
-          src={entry.clip.audioRef}
-          startOffsetMs={entry.clip.startOffsetMs}
-          durationMs={entry.clip.durationMs}
-          compact
-        />
-      ) : null}
-      {entry.judged ? (
-        <p className="text-[13px] text-foreground">{entry.judged}</p>
-      ) : null}
-    </div>
-  );
-}
-
-/** Can the owner choose helper words here? Once locked they can always
- *  choose new ones (Q26). Before that, only when their answer on this moment
- *  opens the helper-words step (24e: Yes, In-between, Not sure) — the speaker
- *  who closed the sheet before choosing is not locked out for the Take. */
-function mayChooseHelperWords(
-  locked: boolean,
-  decided: readonly DocumentSuggestion[],
-  answers: readonly OwnerAnswer[],
-): boolean {
-  if (locked) return true;
-  const cv = decided.find(isConfidentVoiceFeedback);
-  const answer = cv ? answers.find((a) => a.feedbackId === cv.id)?.response ?? null : null;
-  return opensRootPhrase(asJudgementValue(answer));
-}
-
-const FIVE_ANSWERS = new Set(["yes", "in_between", "no", "not_sure", "audio_unclear"]);
-
-/** The stored answer as one of the five, or null (then nothing is opened). */
-function asJudgementValue(answer: string | null): RootGateAnswer {
-  return answer && FIVE_ANSWERS.has(answer) ? (answer as RootGateAnswer) : null;
-}
-
-/** Whose history to show under the coach's work (the coaching sheet). */
-export interface HistoryTarget {
-  arcId: string | null;
-  partId: string;
-  text: string;
-  headline: string | null;
-}
-
-/** A done bookmark's history, for the coaching sheet (founder 2026-09-25):
- *  the helper words and the paragraph now, then one timeline by Take. */
-export function ParagraphHistoryBlock({
-  arcId,
-  partId,
-  text,
-  headline,
-}: HistoryTarget) {
-  const [history, setHistory] = useState<ParagraphHistory | null>(null);
-  useEffect(() => {
-    let alive = true;
-    if (arcId) {
-      void fetchParagraphHistory(arcId, partId).then((result) => {
-        if (alive) setHistory(result);
-      });
-    }
-    return () => {
-      alive = false;
-    };
-  }, [arcId, partId]);
-  const entries = useMemo(() => timelineOf(history, COPY), [history]);
-  return (
-    <div className="flex flex-col gap-5" data-testid="bundle-history">
-      <HelperWordsCard headline={headline} onChoose={null} />
-      <NowTakeCard label={entries[0]?.label ?? null} text={text} player={null} youSaid={null} />
-      <EarlierTakes entries={entries.slice(1)} />
-    </div>
-  );
-}
-
-/** ‹ Slide 2 › over the Take stack (Final Screens L3). In the walk it is
- *  the walk's own bar with the slide as its whole text; outside the walk
- *  the slide alone, centred, no arrows. */
-function TakeStackNav({
+/** ‹ Slide 2 › over the sheet. In the walk it is the walk's own bar with the
+ *  slide as its whole text; outside the walk the slide alone, centred. */
+function OverlayNav({
   pager,
   slideLabel,
 }: {
@@ -516,28 +414,58 @@ function TakeStackNav({
   );
 }
 
-/** ONE BLACK BUTTON at the bottom of the Take stack (founder 2026-09-29:
- *  "just one black CTA at the bottom, smth like next"). In the walk it is
- *  the walk's Next, Done on the last moment; outside the walk it is Done
- *  and closes the sheet. */
-function TakeStackFooter({
-  pager,
-  onClose,
-}: {
-  pager: Pager | null;
-  onClose: () => void;
-}): ReactNode {
+/** The word on the one black button that moves on: the walk's Next, Done
+ *  on the last moment and outside the walk (Q32 A). */
+function moveOnLabel(pager: Pager | null): string {
   const last = !pager || pager.index >= pager.total - 1;
+  return last ? COPY.pillDone : COPY.pagerNext;
+}
+
+/** Whose history to show under the coach's work (the coaching sheet). */
+export interface HistoryTarget {
+  arcId: string | null;
+  partId: string;
+  text: string;
+  headline: string | null;
+}
+
+/** A done bookmark's history, for the coaching sheet (founder 2026-09-25):
+ *  the helper words now, then the History row. */
+export function ParagraphHistoryBlock({ arcId, partId, headline }: HistoryTarget) {
+  const [history, setHistory] = useState<ParagraphHistory | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (arcId) {
+      void fetchParagraphHistory(arcId, partId).then((result) => {
+        if (alive) setHistory(result);
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [arcId, partId]);
+  const rows = useMemo(() => historyRows(history, COPY.historyTake), [history]);
   return (
-    <button
-      type="button"
-      data-testid="paragraph-sheet-next"
-      onClick={pager ? pager.onNext : onClose}
-      className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90"
-    >
-      {last ? COPY.pillDone : COPY.pagerNext}
-    </button>
+    <div className="flex flex-col gap-4" data-testid="bundle-history">
+      {headline ? <HelperWordsCard headline={headline} onChoose={null} /> : null}
+      <HistoryRowView rows={rows} />
+    </div>
   );
+}
+
+/** The items on this paragraph, once each: the answered ones and the ones
+ *  still open (a rewrite or a praise rides its moment and is never decided
+ *  on its own any more). */
+function itemsOf(
+  decided: readonly DocumentSuggestion[],
+  pending: readonly DocumentSuggestion[],
+): DocumentSuggestion[] {
+  const seen = new Set<string>();
+  return [...decided, ...pending].filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 export default function ParagraphSheet({
@@ -546,10 +474,12 @@ export default function ParagraphSheet({
   partId,
   text,
   headline,
-  locked,
   decided,
+  pending = [],
+  answer = null,
   onPractise,
   onUseHelperWords,
+  onDone = null,
   pager = null,
   slideLabel = null,
   onDocumentChanged = null,
@@ -558,67 +488,48 @@ export default function ParagraphSheet({
   arcId: string | null;
   takeSessionId: string | null;
   partId: string;
-  /** The paragraph as it is now. */
+  /** The paragraph as it is now. Never drawn (D6); the picker taps it. */
   text: string;
-  /** The Slide's locked helper words, joined " · " — or null. */
+  /** The paragraph's saved helper words, joined " · " — or null. With
+   *  them the sheet is the SAVED state (B8). */
   headline: string | null;
-  /** New helper words are chosen only on a locked paragraph (Q26). */
-  locked: boolean;
   /** The answered items on this paragraph. */
   decided: readonly DocumentSuggestion[];
-  /** Practise the moment's exercise again: the host reopens the judgement
-   *  sheet on its exercise step. Absent → no Practise pill. */
+  /** The items still open on it: the rewrite or praise riding the moment. */
+  pending?: readonly DocumentSuggestion[];
+  /** The answer just given in the judgement sheet (the hand-off), before
+   *  the server's read of it lands. Null: the stored answer is read. */
+  answer?: string | null;
+  /** Practise the card's exercise: the host opens the judgement sheet on
+   *  its exercise step. Absent → no Practise. */
   onPractise?: ((item: DocumentSuggestion, answer: string | null) => void) | null;
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
-   *  landed. Absent → the helper words are not a button. */
+   *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
+  /** The sheet finished on its own — Next, Skip, or the words saved — and
+   *  the host moves the walk on. Absent → the sheet closes. */
+  onDone?: (() => void) | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
-  /** Where the paragraph sits ("Slide 2"), the sheet's header outside the
-   *  walk (Final Screens L3). */
+  /** Where the paragraph sits ("Slide 2"). */
   slideLabel?: string | null;
   /** The exercise shown here is stale on the server: re-read the document. */
   onDocumentChanged?: (() => void) | null;
   onClose: () => void;
 }) {
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
-  // complete instead of drawing "Now" and then popping in the rest.
+  // complete instead of drawing the player and then popping in the rest.
   const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
-  const history = sheetData?.history ?? null;
-  const answers = useMemo(() => sheetData?.answers ?? [], [sheetData]);
   const [picking, setPicking] = useState(false);
-
-  const view = useMemo(
-    () => answeredView({ items: decided, answers, history, copy: COPY }),
-    [decided, answers, history],
+  const items = useMemo(() => itemsOf(decided, pending), [decided, pending]);
+  const moment = items.find(isConfidentVoiceFeedback) ?? null;
+  const stored = sheetData?.answers.find((a) => a.feedbackId === moment?.id)?.response ?? null;
+  const judgement = asJudgementValue(answer ?? stored);
+  const rows = useMemo(
+    () => historyRows(sheetData?.history ?? null, COPY.historyTake),
+    [sheetData],
   );
-  const exercise = exerciseOf(decided);
-  const exerciseAnswer =
-    answers.find((a) => a.feedbackId === exercise?.id)?.response ?? null;
-  const canChoose =
-    Boolean(onUseHelperWords) && mayChooseHelperWords(locked, decided, answers);
-
-  // Still reading (the read-ahead has not landed, or the paragraph was never
-  // read ahead): the frame with the helper words and the paragraph as it is
-  // now, so a tap on a grey bar always opens something (audit 2026-09-29).
-  // The answer sentence, the exercise and the earlier Takes fill in when the
-  // reads land — nothing here that the complete sheet does not also draw.
-  if (!sheetData) {
-    return (
-      <SheetFrame
-        title={slideLabel ?? COPY.titleFeedback}
-        showTitle={false}
-        onClose={onClose}
-        nav={<TakeStackNav pager={pager} slideLabel={slideLabel} />}
-        footer={<TakeStackFooter pager={pager} onClose={onClose} />}
-      >
-        <div data-testid="paragraph-sheet-loading" className="flex flex-col gap-5">
-          <HelperWordsCard headline={headline} onChoose={null} />
-          <NowTakeCard label={null} text={text} player={null} youSaid={null} />
-        </div>
-      </SheetFrame>
-    );
-  }
+  const moveOn = onDone ?? onClose;
 
   if (picking && onUseHelperWords) {
     return (
@@ -626,52 +537,99 @@ export default function ParagraphSheet({
         headline={headline}
         text={text}
         onUse={onUseHelperWords}
-        onClose={onClose}
+        onClose={() => {
+          setPicking(false);
+          moveOn();
+        }}
       />
     );
   }
 
+  const nav = <OverlayNav pager={pager} slideLabel={slideLabel} />;
+  const player = <MomentPlayer item={moment} compact />;
+  const history = <HistoryRowView rows={rows} />;
+
+  /* STATE TWO — SAVED (B8, D6): the words, the player, History, Next. No
+     judgement and no practise card. */
+  if (headline) {
+    return (
+      <SheetFrame
+        title={COPY.titleSaved}
+        onClose={onClose}
+        nav={nav}
+        footer={
+          <button type="button" data-testid="paragraph-sheet-next" onClick={moveOn} className={PILL}>
+            {moveOnLabel(pager)}
+          </button>
+        }
+      >
+        <div data-testid="overlay-saved" className="flex flex-col gap-4">
+          {player}
+          <HelperWordsCard
+            headline={headline}
+            onChoose={onUseHelperWords ? () => setPicking(true) : null}
+          />
+          {history}
+        </div>
+      </SheetFrame>
+    );
+  }
+
+  /* STATE ONE — PRACTISE (B5, D1, D7). While the read-ahead has not landed
+     the same frame draws with the player and the button (audit 2026-09-29:
+     a tap always opens something), and the label, the card and History fill
+     in when the reads land. */
+  const card = sheetData ? practiseCardOf(items, judgement, text) : null;
+  const canPractise = card?.kind === "exercise" && Boolean(onPractise);
+  const footer = overlayFooter(judgement, canPractise);
+  const practise = () => {
+    if (card?.kind === "exercise") onPractise?.(card.item, judgement);
+  };
+  const next = () => {
+    if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);
+    else moveOn();
+  };
+  const pill = footer.pill === "practise" ? (
+    <button type="button" data-testid="paragraph-sheet-practise" onClick={practise} className={PILL}>
+      <Mic className="h-4 w-4" aria-hidden />
+      {COPY.pillPractise}
+    </button>
+  ) : (
+    <button type="button" data-testid="paragraph-sheet-next" onClick={next} className={PILL}>
+      {nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
+    </button>
+  );
+  const link = footer.link === "skip" ? (
+    <button type="button" data-testid="paragraph-sheet-skip" onClick={moveOn} className={LINK}>
+      {COPY.linkSkip}
+    </button>
+  ) : footer.link === "practise" ? (
+    <button type="button" data-testid="paragraph-sheet-practise" onClick={practise} className={LINK}>
+      {COPY.pillPractise}
+    </button>
+  ) : null;
+
   return (
     <SheetFrame
-      title={slideLabel ?? COPY.titleFeedback}
-      showTitle={false}
+      title={COPY.titleParagraph}
       onClose={onClose}
-      nav={<TakeStackNav pager={pager} slideLabel={slideLabel} />}
-      footer={<TakeStackFooter pager={pager} onClose={onClose} />}
+      nav={nav}
+      footer={
+        <div className="flex flex-col gap-0.5">
+          {pill}
+          {link}
+        </div>
+      }
     >
-      <HelperWordsCard
-        headline={headline}
-        onChoose={canChoose ? () => setPicking(true) : null}
-      />
-      <NowTakeCard
-        label={view.timeline[0]?.label ?? null}
-        text={text}
-        player={<MomentPlayer item={decided.find(isConfidentVoiceFeedback) ?? null} compact />}
-        youSaid={view.youSaid}
+      <div
+        data-testid={sheetData ? "overlay-practise" : "paragraph-sheet-loading"}
+        className="flex flex-col gap-4"
       >
-        <Boxes boxes={view.boxes} />
-        {exercise && exerciseAnswer !== "audio_unclear" ? (
-          /* Audio unclear never enters the lane (founder 2026-09-29). */
-          <ExerciseCard
-            item={exercise}
-            onPractise={
-              onPractise ? () => onPractise(exercise, exerciseAnswer) : null
-            }
-            onStale={onDocumentChanged}
-          />
-        ) : coachHasIt(decided) ? (
-          /* WHERE PRACTISE WOULD SIT (founder 2026-09-29): the bookmark went
-             to the coach and no exercise has come back yet. The sentence
-             becomes the Practise button on the read after the coach shares. */
-          <p
-            data-testid="coach-request-line"
-            className="text-[14px] font-semibold text-foreground"
-          >
-            {COPY.coachWorkingOnExercise}
-          </p>
-        ) : null}
-      </NowTakeCard>
-      <EarlierTakes entries={view.timeline.slice(1)} />
+        {player}
+        <JudgementLabel judgement={judgement} />
+        <PractiseCardView card={card} onStale={onDocumentChanged} />
+        {history}
+      </div>
     </SheetFrame>
   );
 }

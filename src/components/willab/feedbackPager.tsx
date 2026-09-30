@@ -56,6 +56,12 @@ export function buildBookmarks(
   chunks: readonly DeckChunk[],
   feedbackOf: (chunk: DeckChunk) => { pending: number; decided: number },
   markersOf: (partId: string) => readonly MarkerLite[] | undefined,
+  /** The paragraph's helper words are saved (founder lock 2026-09-30, B8):
+   *  a screen of the walk, passed with Next — never judged, never
+   *  practised, until its words are deleted. A paragraph with neither an
+   *  open feedback nor saved words is not a screen; it still opens from
+   *  the page. */
+  savedOf: (chunk: DeckChunk) => boolean = () => false,
 ): Bookmark[] {
   const seen = new Set<string>();
   const out: Bookmark[] = [];
@@ -64,7 +70,7 @@ export function buildBookmarks(
     if (seen.has(id)) continue;
     const markers = markersOf(id) ?? [];
     const { pending } = feedbackOf(chunk);
-    if (markers.length === 0 && pending === 0) continue;
+    if (markers.length === 0 && pending === 0 && !savedOf(chunk)) continue;
     seen.add(id);
     out.push({
       partId: id,

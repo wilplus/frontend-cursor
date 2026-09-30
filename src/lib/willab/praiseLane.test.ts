@@ -150,7 +150,9 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     expect(MODAL).not.toMatch(/"Not useful"/);
     expect(MODAL).not.toMatch(/resolveObservedFeedback/);
     expect(MODAL).toMatch(/recordFeedbackResponse\("acknowledged"\)/);
-    expect(MODAL).toMatch(/pillContinue/);
+    // Next, not Continue, since the founder lock of 2026-09-30 (D10).
+    expect(MODAL).toMatch(/pagerNext/);
+    expect(MODAL).not.toMatch(/pillContinue/);
     expect(MODAL).not.toMatch(/Use as flagship/);
   });
 

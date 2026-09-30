@@ -177,7 +177,11 @@ export const CHUNK_SHEET_COPY = {
      does not return on the next Take. "Back" leaves the judgement without
      answering it and lands on the offer — the same screen a rejected attempt
      lands on, which is the known silence flagged in §3. */
-  linkNotNow: "Not now",
+  /* "Not now" is RETIRED from these screens (founder lock 2026-09-30,
+     D10): the plain-text link under Practise reads "Skip", on the paragraph
+     overlay and on the exercise offer alike. "Back" leaves the judgement
+     without answering it and lands on the offer. */
+  linkSkip: "Skip",
   linkBack: "Back",
 
   /* --- card eyebrows ------------------------------------------------------ */
@@ -298,4 +302,23 @@ export const CHUNK_SHEET_COPY = {
   endCardTitle: "That's every moment for this Take",
   endCardBack: "Back to the text",
   historyNow: "Now",
+
+  /* --- THE PARAGRAPH OVERLAY (founder lock 2026-09-30, B5, B9, D1, D7, Q1) -
+     Signed with the lock, B9: the overlay's title, "Your judgement:", the
+     History row and "Say it again" (D1). The saved state's title is the
+     toast's own words; "Next" is `pagerNext` and "Practise" is `pillPractise`
+     above. The words after "Your judgement:" are the ones on the speaker's
+     own answer chips, never the machine's read (D7, L3). */
+  titleParagraph: "This paragraph",
+  titleSaved: "Helper words saved",
+  judgementLabel: "Your judgement:",
+  judgementWord: {
+    yes: "Confident",
+    in_between: "In-between",
+    no: "Not confident",
+    not_sure: "Not sure",
+    audio_unclear: "Audio unclear",
+  },
+  historyRow: "History",
+  cardSayItAgain: "Say it again",
 } as const;
