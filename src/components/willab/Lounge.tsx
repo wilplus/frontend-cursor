@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Upload, Users } from "lucide-react";
+import { Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
+import CoachDoor from "./coachwalk/CoachDoor";
+import { coachModes } from "@/lib/willab/coachWalk";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import {
@@ -295,7 +297,10 @@ export default function Lounge({
   // tampered FE flag wouldn't get past the upstream wall). Non-coach users
   // see exactly the same Lounge as today.
   const { isCoach } = useUserProfile();
-  const reviewQueue = useReviewQueue(isCoach);
+  // The coach's walk (founder 2026-09-30; group 3 behind its switch): one
+  // queue of moments instead of the per-student bubbles and the roster.
+  const { walkOn, legacyCoach } = coachModes(isCoach);
+  const reviewQueue = useReviewQueue(legacyCoach);
   // §F.2 — overlay sessionId. null = closed. Setting to a sessionId mounts
   // the CoachReviewOverlay over the Lounge; closing it returns to the chat
   // thread underneath with no remount of the queue.
@@ -339,8 +344,8 @@ export default function Lounge({
   // (its row flips to done → the group's rows update) rather than a frozen
   // snapshot taken at open time.
   const reviewGroups = useMemo<ReviewStudentGroup[]>(
-    () => (isCoach ? groupReviewQueueByStudent(reviewQueue.rows) : []),
-    [isCoach, reviewQueue.rows],
+    () => (legacyCoach ? groupReviewQueueByStudent(reviewQueue.rows) : []),
+    [legacyCoach, reviewQueue.rows],
   );
   // The live group behind an open ReviewGroupOverlay (null when none open or the
   // group emptied out). Looked up by key so it tracks row-state changes.
@@ -367,7 +372,7 @@ export default function Lounge({
         message: m,
       });
     }
-    if (isCoach) {
+    if (legacyCoach) {
       // FP-4 — one item per student, sorted by the group's earliest-waiting
       // session.
       for (const group of reviewGroups) {
@@ -383,7 +388,7 @@ export default function Lounge({
     // retired with the 3-take arc: takes are open-ended now.
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewGroups]);
+  }, [messages, legacyCoach, reviewGroups]);
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
@@ -1461,15 +1466,11 @@ export default function Lounge({
       {/* E3 — coach-only entry to the student roster (pseudonymized). Coaches
           can still record, so this sits above the record CTA, not instead of it. */}
       {isCoach && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setRosterOpen(true)}
-          className="h-12 w-full gap-2 rounded-full"
-        >
-          <Users className="h-4 w-4" />
-          Your students
-        </Button>
+        <CoachDoor
+          walkOn={walkOn}
+          onOpenRoster={() => setRosterOpen(true)}
+          onAnswer={(sessionId) => openReview(sessionId)}
+        />
       )}
 
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
