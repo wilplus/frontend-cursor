@@ -33,6 +33,9 @@ export interface ConfidencePracticeAttempt {
 export interface ConfidencePractice {
   id: string;
   status: "open" | "completed" | "dismissed";
+  /** The kind of passage (founder lock 2026-09-30, D1); rows from before
+   *  the lock are exercises. */
+  kind: PracticeKind;
   exercise: {
     exerciseId: string;
     version: number;
@@ -83,18 +86,40 @@ function attempt(raw: unknown): ConfidencePracticeAttempt | null {
   };
 }
 
+/** The exercise as served, or null when its shape is not the wire's. */
+function exerciseShape(value: unknown): ConfidencePractice["exercise"] | null {
+  const ex = value && typeof value === "object"
+    ? value as Record<string, unknown> : null;
+  if (
+    !ex || typeof ex.exercise_id !== "string" ||
+    typeof ex.version !== "number" || typeof ex.title !== "string" ||
+    typeof ex.instruction !== "string"
+  ) return null;
+  return {
+    exerciseId: ex.exercise_id,
+    version: ex.version,
+    title: ex.title,
+    instruction: ex.instruction,
+    explanationVideoRef: typeof ex.explanation_video_ref === "string"
+      ? ex.explanation_video_ref : null,
+  };
+}
+
+/** The kind of passage (founder lock 2026-09-30, D1); rows from before the
+ *  lock, and a server that does not send one, are exercises. */
+function kindOf(value: unknown): PracticeKind {
+  return value === "rewrite" || value === "plain" ? value : "exercise";
+}
+
 export function mapConfidencePractice(raw: unknown): ConfidencePractice | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const ex = r.exercise && typeof r.exercise === "object"
-    ? r.exercise as Record<string, unknown> : null;
+  const exercise = exerciseShape(r.exercise);
   const status = r.status;
   if (
     typeof r.id !== "string" ||
     (status !== "open" && status !== "completed" && status !== "dismissed") ||
-    !ex || typeof ex.exercise_id !== "string" ||
-    typeof ex.version !== "number" || typeof ex.title !== "string" ||
-    typeof ex.instruction !== "string" || typeof r.passage !== "string"
+    !exercise || typeof r.passage !== "string"
   ) return null;
   const attempts = Array.isArray(r.attempts)
     ? r.attempts.map(attempt).filter((a): a is ConfidencePracticeAttempt => !!a)
@@ -103,14 +128,8 @@ export function mapConfidencePractice(raw: unknown): ConfidencePractice | null {
   return {
     id: r.id,
     status,
-    exercise: {
-      exerciseId: ex.exercise_id,
-      version: ex.version,
-      title: ex.title,
-      instruction: ex.instruction,
-      explanationVideoRef: typeof ex.explanation_video_ref === "string"
-        ? ex.explanation_video_ref : null,
-    },
+    kind: kindOf(r.kind),
+    exercise,
     passage: r.passage,
     originalAudioRef: typeof r.original_audio_ref === "string"
       ? r.original_audio_ref : null,
@@ -152,11 +171,26 @@ async function tokenHeaders(json = false): Promise<Record<string, string> | null
   };
 }
 
+/** What the practised passage is (founder lock 2026-09-30, D1): the
+ *  library exercise matched to the clip, the Manager's rewrite as the words
+ *  to say, or the plain moment said again. */
+export type PracticeKind = "exercise" | "rewrite" | "plain";
+
+export interface PracticePassage {
+  kind: PracticeKind;
+  /** The rewrite's words (kind "rewrite"); the server takes the moment's
+   *  own words for the other two. */
+  passage?: string | null;
+  /** The feedback item the passage came from, for the record. */
+  feedbackId?: string | null;
+}
+
 export async function startConfidencePractice(
   snippetId: string,
-  offer: ConfidentVoicePracticeOffer,
+  offer: ConfidentVoicePracticeOffer | null,
   evidence: NonNullable<import("@/services/api/idealText").DocumentSuggestion["evidence"]>,
   originalUserAnswer: PracticeAnswer,
+  passage: PracticePassage = { kind: "exercise" },
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders(true);
   if (!headers) return { ok: false, error: null };
@@ -166,7 +200,11 @@ export async function startConfidencePractice(
       {
         method: "POST", headers, cache: "no-store",
         body: JSON.stringify({
-          exercise_id: offer.exerciseId,
+          kind: passage.kind,
+          ...(passage.kind === "exercise"
+            ? { exercise_id: offer?.exerciseId }
+            : { passage: passage.passage ?? undefined,
+                feedback_id: passage.feedbackId ?? undefined }),
           original_user_answer: originalUserAnswer,
           evidence: {
             project_id: evidence.projectId,

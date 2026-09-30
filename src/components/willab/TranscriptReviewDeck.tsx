@@ -1423,6 +1423,12 @@ export default function TranscriptReviewDeck({
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
           feedbackPending={feedbackPending}
+          practiseHost={{
+            onLockIn: (text) => onLockPart(openChunk, text),
+            onHelperWordsSaved: () => {
+              helperSavedRef.current = true;
+            },
+          }}
           renderSheet={(practiseAgain, onAnswered) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}

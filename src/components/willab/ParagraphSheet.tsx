@@ -478,6 +478,7 @@ export default function ParagraphSheet({
   pending = [],
   answer = null,
   onPractise,
+  practiseEveryCard = false,
   onUseHelperWords,
   onDone = null,
   pager = null,
@@ -500,9 +501,14 @@ export default function ParagraphSheet({
   /** The answer just given in the judgement sheet (the hand-off), before
    *  the server's read of it lands. Null: the stored answer is read. */
   answer?: string | null;
-  /** Practise the card's exercise: the host opens the judgement sheet on
-   *  its exercise step. Absent → no Practise. */
+  /** Practise the card: the host opens the practise loop. Absent → no
+   *  Practise. */
   onPractise?: ((item: DocumentSuggestion, answer: string | null) => void) | null;
+  /** The host runs the practise loop for every kind of card (founder lock
+   *  2026-09-30, B6: the exercise, the rewrite and the plain moment all
+   *  reach the same screens). Without it only an exercise can be
+   *  practised — the host then opens the judgement sheet's exercise step. */
+  practiseEveryCard?: boolean;
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
    *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
@@ -580,10 +586,12 @@ export default function ParagraphSheet({
      a tap always opens something), and the label, the card and History fill
      in when the reads land. */
   const card = sheetData ? practiseCardOf(items, judgement, text) : null;
-  const canPractise = card?.kind === "exercise" && Boolean(onPractise);
+  const canPractise =
+    Boolean(onPractise) && Boolean(moment) && card !== null &&
+    (practiseEveryCard || card.kind === "exercise");
   const footer = overlayFooter(judgement, canPractise);
   const practise = () => {
-    if (card?.kind === "exercise") onPractise?.(card.item, judgement);
+    if (card && moment) onPractise?.(moment, judgement);
   };
   const next = () => {
     if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);

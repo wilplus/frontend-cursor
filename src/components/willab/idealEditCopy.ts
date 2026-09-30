@@ -321,4 +321,13 @@ export const CHUNK_SHEET_COPY = {
   },
   historyRow: "History",
   cardSayItAgain: "Say it again",
+  /* --- THE PRACTISE SCREEN (founder lock 2026-09-30, B6, B9, Q4, Q5) ------
+     Signed with the lock: "Say it this way" heads the rewrite's words, and
+     "From your attempt" heads the picker over the attempt's own words.
+     "Practise" is `pillPractise`; "Skip" is `linkSkip`; the exercise's
+     words are headed by its own instruction; the plain moment by
+     `cardSayItAgain`. */
+  titlePractise: "Practise",
+  cardSayItThisWay: "Say it this way",
+  fromYourAttempt: "From your attempt",
 } as const;
