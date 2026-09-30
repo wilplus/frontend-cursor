@@ -86,6 +86,7 @@ export function SheetFrame({
   children,
   footer = null,
   nav = null,
+  railed = false,
 }: {
   title: string;
   onClose: () => void;
@@ -93,10 +94,14 @@ export function SheetFrame({
   footer?: ReactNode;
   /** The walk's ‹ position › header, above the title (founder 2026-09-26). */
   nav?: ReactNode;
+  /** The coach's desktop rail sits on the left from 1024px (P2-14); the
+   *  sheet centres in what is left. Never set on a speaker's sheet. */
+  railed?: boolean;
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
+      className={`fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6${
+        railed ? " lg:pl-[276px]" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label={title}

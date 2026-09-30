@@ -1,284 +1,177 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
-import LoadingState from "@/components/willab/LoadingState";
+/* -------------------------------------------------------------------------- */
+/*  L1 · The Library (founder 2026-09-30, A8; build plan P2-13).                */
+/*                                                                            */
+/*  The exercise lane is the Library list, then the same three screens as     */
+/*  the walk: New → Pattern → Words, Video, Home. Videos by main target, then  */
+/*  the praise lines and the rewrite moves of the catalogue. The long form    */
+/*  is gone; a moment's answer and a library entry are one way to add.        */
+/*  Outside a moment the Words screen opens with the library's own past final */
+/*  for the pattern, never with a speaker's words.                            */
+/* -------------------------------------------------------------------------- */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUserProfile } from "@/components/willab/useUserProfile";
-import { authoringReturnTo, withAttachedExercise } from "@/app/cms/interruptedDestination";
-import {
-  BLANK_DRAFT,
-  draftFrom,
-  draftProblem,
-  listCoachExercises,
-  saveCoachExercise,
-  saveCoachExerciseWithVideo,
-  type AuthoringLibrary,
-  type CoachExercise,
-  type CoachExerciseDraft,
-  type TranscriptStatus,
-} from "@/services/api/coachExercises";
-import ExerciseForm from "./ExerciseForm";
+import LoadingState from "@/components/willab/LoadingState";
+import CoachPatternSheet, { type PatternChoice } from "@/components/willab/coachwalk/CoachPatternSheet";
+import CoachAnswerOverlay from "@/components/willab/coachwalk/CoachAnswerOverlay";
+import type { PatternOption } from "@/components/willab/coachwalk/CoachHomeSheet";
+import { listCoachExercises, type CoachExercise } from "@/services/api/coachExercises";
+import { listCatalogue, type CatalogueLine } from "@/services/api/coachWalk";
+import type { SpeakingError } from "@/services/api/speakingErrors";
+import { CUE_OPTIONS } from "@/lib/willab/coachAnswer";
+import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
-/* -------------------------------------------------------------------------- */
-/*  /coach/exercises — EXERCISE AUTHORING IN THE COACH PANEL                   */
-/*  (founder 2026-09-29, decision 4)                                           */
-/*                                                                            */
-/*  The library the matcher offers from, edited by the coach without the CMS   */
-/*  password. Same catalogue service, same refusals, same live row; what the   */
-/*  coach panel adds is that every save keeps its version (0395), the video   */
-/*  is transcribed at upload under the coach's own authorization, and a first */
-/*  script can be drafted from the library's own past finals.                 */
-/*                                                                            */
-/*  THE HAND-OFF. The review sends a coach here with `?new=1&returnTo=…&for=…` */
-/*  when no exercise fitted a moment. After the save the coach goes back to    */
-/*  that moment with the new exercise riding along as `attach` — preselected,  */
-/*  never shared: the coach still presses the button that shares it.          */
-/*                                                                            */
-/*  L3 — this screen is about exercises, never about a speaker: no clip, no   */
-/*  take and no outcome appears here. AC-9 — nothing here is a score; the     */
-/*  version and the transcript's state are facts about the coach's own file.  */
-/*                                                                            */
-/*  COACH ONLY (N4): renders nothing for a non-coach even by direct URL; the   */
-/*  BE role-gates every endpoint independently.                               */
-/* -------------------------------------------------------------------------- */
+const PILL =
+  "flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
 
-/** Every sentence on this screen, in one place. Coach-facing wording; founder
- *  sign-off pending (accepted design, 2026-09-29). */
-export const AUTHORING_COPY = {
-  title: "Exercises",
-  intro:
-    "The library the matcher offers from. Every save keeps its version, and the video is transcribed when it is uploaded.",
-  nothing: "Nothing here.",
-  newExercise: "New exercise",
-  edit: "Edit",
-  empty: "No exercises yet.",
-  retired: "Retired",
-  version: (n: number) => `Version ${n}`,
-  transcript: {
-    not_requested: "No transcript",
-    pending: "Transcribing",
-    done: "Transcript ready",
-    coach_authorization_missing: "No transcript: processing authorization missing",
-    failed: "Transcript failed",
-  } as Record<TranscriptStatus, string>,
-  saved: (title: string, version: number) => `“${title}” is saved as version ${version}.`,
-  returning: "Taking you back to the moment…",
-} as const;
-
-function defaultNavigate(to: string) {
-  window.location.assign(to);
+function mainTargetOf(exercise: CoachExercise): string {
+  const primary = exercise.matchingCriteria?.primary_problem_tag;
+  return typeof primary === "string" && primary ? primary : exercise.acousticProblemTags[0] ?? "";
 }
 
-function ExerciseCard({
-  exercise,
-  labels,
-  onEdit,
-}: {
-  exercise: CoachExercise;
-  labels: ReadonlyMap<string, string>;
-  onEdit: (exercise: CoachExercise) => void;
-}) {
-  const latest = exercise.latestVersion;
+function transcriptWord(exercise: CoachExercise): string | null {
+  const status = exercise.latestVersion?.transcriptStatus;
+  if (status === "done") return COPY.libraryTranscribed;
+  if (status === "pending") return COPY.libraryTranscribing;
+  return null;
+}
+
+function Row({ title, detail, onClick }: { title: string; detail: string; onClick?: () => void }) {
   return (
-    <li className={`rounded-xl border border-border bg-background p-4 ${exercise.active ? "" : "opacity-55"}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">{exercise.title}</h3>
-          <code className="mt-0.5 block truncate text-[11px] text-muted-foreground">{exercise.exerciseId}</code>
-        </div>
-        <button
-          type="button"
-          onClick={() => onEdit(exercise)}
-          className="shrink-0 rounded-full border border-border bg-background px-3 py-1 text-[12px] font-medium text-foreground"
-        >
-          {AUTHORING_COPY.edit}
-        </button>
-      </div>
-      <p className="mt-2 flex flex-wrap gap-1.5">
-        {exercise.acousticProblemTags.map((tag) => (
-          <span key={tag} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-            {labels.get(tag) ?? tag}
-          </span>
-        ))}
-      </p>
-      <p className="mt-2.5 text-[11px] text-muted-foreground">
-        {AUTHORING_COPY.version(exercise.version)}
-        {latest ? ` · ${AUTHORING_COPY.transcript[latest.transcriptStatus]}` : ""}
-        {exercise.active ? "" : ` · ${AUTHORING_COPY.retired}`}
-      </p>
-    </li>
+    <button type="button" onClick={onClick} disabled={!onClick}
+      className="flex w-full items-center justify-between rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-muted disabled:cursor-default disabled:hover:bg-transparent">
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-[14px] font-semibold text-foreground">{title}</span>
+        <span className="text-[12px] text-muted-foreground">{detail}</span>
+      </span>
+    </button>
   );
 }
 
-export default function CoachExerciseAuthoringClient({
-  navigate = defaultNavigate,
-}: {
-  /** Where the hand-off returns the coach. Injectable for tests. */
-  navigate?: (to: string) => void;
-}) {
+function pastFinalFor(choice: PatternChoice, exercises: CoachExercise[], lines: CatalogueLine[]): string | null {
+  if (choice.kind === "error") {
+    const same = exercises.filter((e) => mainTargetOf(e) === choice.patternKey && e.instruction.trim());
+    return same[0]?.instruction ?? null;
+  }
+  const lane = choice.kind === "praise" ? "praise" : "rewrite";
+  const same = lines.filter((l) => l.lane === lane && l.patternKey === choice.patternKey && l.active)
+    .sort((a, b) => b.version - a.version);
+  return same[0]?.text ?? null;
+}
+
+export default function CoachLibraryClient() {
   const { isCoach, loading: profileLoading } = useUserProfile();
-  const [library, setLibrary] = useState<AuthoringLibrary | null>(null);
+  const [exercises, setExercises] = useState<CoachExercise[]>([]);
+  const [errors, setErrors] = useState<SpeakingError[]>([]);
+  const [lines, setLines] = useState<CatalogueLine[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<CoachExerciseDraft | null>(null);
-  const [isNew, setIsNew] = useState(false);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [step, setStep] = useState<"list" | "pattern" | "answer">("list");
+  const [choice, setChoice] = useState<PatternChoice | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoadError(null);
-    const result = await listCoachExercises();
-    if (!result.ok) {
-      setLoadError(result.message);
-      setLibrary({ exercises: [], speakingErrors: [] });
-      return;
+    const [library, catalogue] = await Promise.all([listCoachExercises(), listCatalogue()]);
+    if (!library.ok) {
+      setLoadError(library.message);
+    } else {
+      setExercises(library.data.exercises);
+      setErrors(library.data.speakingErrors);
     }
-    setLibrary(result.data);
+    setLines(catalogue);
   }, []);
 
   useEffect(() => {
     if (isCoach) void refresh();
   }, [isCoach, refresh]);
 
-  // The review's hand-off opens the blank form straight away.
   useEffect(() => {
     try {
-      if (new URLSearchParams(window.location.search).get("new") === "1") {
-        setDraft({ ...BLANK_DRAFT });
-        setIsNew(true);
-      }
-    } catch {
-      /* no address to read; the coach opens the form by hand */
-    }
+      if (new URLSearchParams(window.location.search).get("new") === "1") setStep("pattern");
+    } catch { /* no address to read */ }
   }, []);
 
-  function openNew() {
-    setDraft({ ...BLANK_DRAFT });
-    setIsNew(true);
-    setVideoFile(null);
-    setProblem(null);
-    setSaved(null);
-  }
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
-  function openEdit(exercise: CoachExercise) {
-    setDraft(draftFrom(exercise));
-    setIsNew(false);
-    setVideoFile(null);
-    setProblem(null);
-    setSaved(null);
-  }
-
-  function close() {
-    setDraft(null);
-    setVideoFile(null);
-    setProblem(null);
-  }
-
-  async function save() {
-    if (!draft || saving) return;
-    const refusal = draftProblem(draft, Boolean(videoFile) || Boolean(draft.explanationVideoUrl.trim()));
-    if (refusal) {
-      setProblem(refusal);
-      return;
-    }
-    setSaving(true);
-    setProblem(null);
-    const result = videoFile
-      ? await saveCoachExerciseWithVideo(draft, videoFile)
-      : await saveCoachExercise(draft);
-    setSaving(false);
-    if (!result.ok) {
-      setProblem(result.message);
-      return;
-    }
-    const { exercise, version } = result.data;
-    setSaved(AUTHORING_COPY.saved(exercise.title, version));
-    close();
-    const back = authoringReturnTo();
-    if (back) {
-      navigate(withAttachedExercise(back, exercise.exerciseId));
-      return;
-    }
-    await refresh();
-  }
+  const options: PatternOption[] = useMemo(() => errors.filter((e) => e.active).map((e) => ({
+    key: e.errorId, label: e.label, locked: e.status !== "detected",
+  })), [errors]);
+  const labels = useMemo(() => new Map(errors.map((e) => [e.errorId, e.label])), [errors]);
 
   if (profileLoading) return <LoadingState placement="viewport" />;
-  // N4 — nothing for a non-coach, even by direct URL.
   if (!isCoach) {
     return (
       <main className="flex h-full items-center justify-center bg-background px-6">
-        <p className="text-center text-[15px] text-muted-foreground">{AUTHORING_COPY.nothing}</p>
+        <p className="text-center text-[15px] text-muted-foreground">Nothing here for you.</p>
       </main>
     );
   }
 
-  const errors = library?.speakingErrors ?? [];
-  const labels = new Map(errors.map((e) => [e.errorId, e.label]));
+  const praise = lines.filter((l) => l.lane === "praise" && l.active);
+  const moves = lines.filter((l) => l.lane === "rewrite" && l.active);
+  const byKey = (rows: CatalogueLine[]) => {
+    const out = new Map<string, number>();
+    for (const l of rows) out.set(l.patternKey, (out.get(l.patternKey) ?? 0) + 1);
+    return [...out.entries()];
+  };
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 pb-24 pt-10">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">{AUTHORING_COPY.title}</h1>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{AUTHORING_COPY.intro}</p>
-        </div>
-        {draft ? null : (
-          <button
-            type="button"
-            onClick={openNew}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-[12px] font-medium text-background"
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            {AUTHORING_COPY.newExercise}
-          </button>
-        )}
-      </header>
-
-      {loadError ? (
-        <p className="mt-5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-          {loadError}
-        </p>
+    <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-5 pb-28 pt-8" data-testid="coach-library">
+      <h1 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">{COPY.libraryTitle}</h1>
+      {loadError ? <p role="alert" className="text-[13px] text-destructive">{loadError}</p> : null}
+      <section className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{COPY.libraryEyebrowVideos}</span>
+        {exercises.length === 0 && !loadError ? (
+          <p className="text-[14px] text-muted-foreground">{COPY.libraryEmpty}</p>
+        ) : null}
+        {exercises.map((e) => {
+          const target = mainTargetOf(e);
+          const bits = [labels.get(target) ?? target, `v${e.version}`, transcriptWord(e), e.active ? null : COPY.libraryRetired]
+            .filter((b): b is string => Boolean(b));
+          return <Row key={e.exerciseId} title={e.title} detail={bits.join(" · ")} />;
+        })}
+      </section>
+      <section className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{COPY.libraryEyebrowLines}</span>
+        {byKey(praise).map(([key, n]) => (
+          <Row key={`p:${key}`} title={key === "confident_read" ? COPY.homeConfidentRead : (CUE_OPTIONS.find((c) => c.key === key)?.label ?? key)} detail={COPY.libraryLine(n)} />
+        ))}
+        {byKey(moves).map(([key, n]) => (
+          <Row key={`m:${key}`} title={COPY.homeMoves[key as keyof typeof COPY.homeMoves] ?? key} detail={COPY.libraryMove(n)} />
+        ))}
+      </section>
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-lg px-5 pb-6">
+        <button type="button" className={`${PILL} w-full`} onClick={() => setStep("pattern")} data-testid="coach-library-new">
+          {COPY.pillNew}
+        </button>
+      </div>
+      {step === "pattern" ? (
+        <CoachPatternSheet errors={options} onClose={() => setStep("list")}
+          onNext={(c) => { setChoice(c); setStep("answer"); }} />
       ) : null}
-
-      {saved ? (
-        <p className="mt-6 rounded-lg border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-          {saved}
-        </p>
-      ) : null}
-
-      {draft ? (
-        <ExerciseForm
-          draft={draft}
-          onDraft={setDraft}
-          errors={errors}
-          isNew={isNew}
-          videoFile={videoFile}
-          onVideoFile={setVideoFile}
-          onSave={() => void save()}
-          onCancel={close}
-          saving={saving}
-          problem={problem}
+      {step === "answer" && choice ? (
+        <CoachAnswerOverlay
+          key={`${choice.kind}:${choice.patternKey}`}
+          kind={choice.kind}
+          context={{ moment: null, patternKey: choice.patternKey, errors: options, cues: CUE_OPTIONS,
+            pastFinal: pastFinalFor(choice, exercises, lines) }}
+          baseIndex={1}
+          baseTotal={4}
+          onClose={() => setStep("pattern")}
+          onDone={() => { setStep("list"); setChoice(null); setToast(COPY.toastLibraryOnly); void refresh(); }}
         />
       ) : null}
-
-      {library === null ? (
-        <div className="mt-8 flex justify-center">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      {toast ? (
+        <div role="status" className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
+          <span className="rounded-xl bg-foreground px-4 py-2 text-[13px] font-medium text-background shadow-lg">{toast}</span>
         </div>
-      ) : (
-        <section className="mt-8">
-          {library.exercises.length ? (
-            <ul className="grid gap-3">
-              {library.exercises.map((exercise) => (
-                <ExerciseCard key={exercise.exerciseId} exercise={exercise} labels={labels} onEdit={openEdit} />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-muted-foreground">{AUTHORING_COPY.empty}</p>
-          )}
-        </section>
-      )}
+      ) : null}
     </main>
   );
 }

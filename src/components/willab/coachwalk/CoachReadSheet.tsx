@@ -127,6 +127,7 @@ export default function CoachReadSheet({
   onAnswer,
   onNothingToAdd,
   onNext,
+  railed = false,
 }: {
   sessionId: string;
   snippetId: string;
@@ -136,10 +137,12 @@ export default function CoachReadSheet({
   coachAnswer: AnswerValue | null;
   onClose: () => void;
   /** Answer opens the coach's answer for this request (screens 4 to 6). */
-  onAnswer: (request: CoachExerciseRequest) => void;
+  onAnswer: (request: CoachExerciseRequest, read: MomentRead) => void;
   /** Nothing to add is saved; the walk moves on. */
   onNothingToAdd: () => void;
   onNext: () => void;
+  /** Leaves room for the desktop rail (P2-14). */
+  railed?: boolean;
 }) {
   const [read, setRead] = useState<MomentRead | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -170,7 +173,7 @@ export default function CoachReadSheet({
   const open = read ? requestOpen(read.request) : false;
   const footer = read === undefined ? null : open && read ? (
     <div className="flex flex-col gap-0.5">
-      <button type="button" className={PILL} disabled={busy} onClick={() => read.request && onAnswer(read.request)}>
+      <button type="button" className={PILL} disabled={busy} onClick={() => read.request && onAnswer(read.request, read)}>
         {COPY.pillAnswer}
       </button>
       <button type="button" className={LINK} disabled={busy} onClick={() => void nothingToAdd()}>
@@ -190,6 +193,7 @@ export default function CoachReadSheet({
       onClose={onClose}
       nav={<FeedbackPagerBar pager={pager} />}
       footer={footer}
+      railed={railed}
     >
       <div className="flex flex-col gap-4" data-testid="coach-read-sheet">
         {read === undefined ? (

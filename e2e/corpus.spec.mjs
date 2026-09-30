@@ -408,7 +408,7 @@ check(
 
 // The Yes click's PUT is deliberately delayed 300ms by the harness, so there
 // is a window to observe "pending" before it resolves.
-const yesClick = page.locator("button", { hasText: /^Yes$/ }).click();
+const yesClick = page.locator("button", { hasText: /^Yes — Confident$/ }).click();
 await page.waitForTimeout(80);
 check(
   "while the save is in flight, the nav bar says so — literally 'Saving…', not a silent wait",
@@ -429,7 +429,7 @@ check(
   "the Yes/No buttons are disabled while their own save is in flight — a second tap must not race the first",
   await page.evaluate(() => {
     const yes = [...document.querySelectorAll("button")].find(
-      (b) => b.textContent?.trim() === "Yes"
+      (b) => b.textContent?.trim() === "Yes — Confident"
     );
     return yes?.disabled === true;
   })
@@ -472,7 +472,7 @@ check(
 );
 check(
   "its saved call renders as the active answer, not a locked one",
-  (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1
+  (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes — Confident$/ }).count()) === 1
 );
 check(
   "a piece that still CARRIES a historical 1–5 grade renders no grade UI — the number stays in the database, read-only, never back on screen",
@@ -506,8 +506,10 @@ check(
     // The native <audio> element MediaPlayer renders is visually hidden (its
     // own custom UI is what's shown), so it has no box to compare against.
     // The question is a real, visible layout anchor further down the screen.
+    // The question line carries the coach eyebrow beside it since the walk's
+    // one instrument took over this screen (group 4), so match its start.
     const confident = [...document.querySelectorAll("p")].find(
-      (x) => x.textContent?.trim() === question
+      (x) => x.textContent?.trim().startsWith(question)
     );
     if (!dot || !confident) return false;
     return dot.getBoundingClientRect().top < confident.getBoundingClientRect().top;
@@ -552,7 +554,7 @@ check(
 );
 
 /* --------------- once every piece is labelled, the nav bar says so plainly -------------- */
-await page.locator("button", { hasText: /^Yes$/ }).click();
+await page.locator("button", { hasText: /^Yes — Confident$/ }).click();
 await page.waitForTimeout(400);
 check(
   "the nav bar marks completion instead of just counting, once every piece is labelled",
@@ -568,7 +570,7 @@ await page.locator('button[aria-label="Back to the corpus"]').click();
 await page.waitForTimeout(200);
 await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector(`text=${CONFIDENCE_QUESTION}`);
-await page.locator("button", { hasText: /^No$/ }).click();
+await page.locator("button", { hasText: /^No — Not confident$/ }).click();
 await page.waitForTimeout(400);
 put = await labels(page);
 check(

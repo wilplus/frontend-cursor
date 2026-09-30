@@ -37,12 +37,8 @@ export function CoachWalkBubble({ waiting, onOpen }: { waiting: number; onOpen: 
 }
 
 export default function CoachWalkEntry({
-  onAnswer,
   bubble = true,
 }: {
-  /** Answer on the Read screen: the host opens today's answer path for the
-   *  take (the group 3 bridge; screens 4 to 6 come in group 4). */
-  onAnswer: (sessionId: string, snippetId: string) => void;
   /** The thread bubble; off where the host draws its own. */
   bubble?: boolean;
 }) {
@@ -74,16 +70,13 @@ export default function CoachWalkEntry({
       {open ? (
         <CoachWalkOverlay
           key={`${open.take.sessionId}:${open.snippetId}`}
+          speakers={queue.speakers}
           speaker={open.speaker}
           take={open.take}
           startSnippetId={open.snippetId}
           onClose={() => { setOpen(null); queue.refresh(); }}
           onChanged={queue.refresh}
-          onAnswer={(sessionId, snippetId) => {
-            setOpen(null);
-            setQueueOpen(false);
-            onAnswer(sessionId, snippetId);
-          }}
+          onOpenMoment={(speaker, take, snippetId) => setOpen({ speaker, take, snippetId })}
         />
       ) : null}
     </>
