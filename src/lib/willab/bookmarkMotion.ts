@@ -44,12 +44,14 @@ export type BookmarkTier = DeckChunk["tier"];
 
 /** Does this mark move?
  *
- *  Only the exercise, which is the one item the speaker is asked to go and
- *  do (24f). Everything else is still — including an untiered mark, which no
- *  longer breathes because the ring it was breathing around is gone.
+ *  Only the orange one, the moment with a practise attached: the one item
+ *  the speaker is asked to go and do (24f; since the founder lock of
+ *  2026-09-30 the tier is named `weak`, the read below the threshold with a
+ *  practise). Everything else is still — including an untiered mark, which
+ *  no longer breathes because the ring it was breathing around is gone.
  */
 export function markPulses(tier: BookmarkTier): boolean {
-  return tier === "exercise";
+  return tier === "weak";
 }
 
 /** Every animation class this mark may carry, or none.

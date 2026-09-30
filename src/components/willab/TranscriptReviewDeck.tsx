@@ -1229,10 +1229,6 @@ export default function TranscriptReviewDeck({
                       {/* HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY
                           (founder 2026-09-26): inside the running text they
                           read in the paragraph's own colour. */}
-                      <SettledBar
-                        unsettled={unsettled}
-                        opens={opensParagraphSheet(st)}
-                      />
                       <ParagraphHeadline
                         text={headlineFor(headlines, c.part.id, c.sliceIndex)}
                       />
@@ -1644,22 +1640,10 @@ function firstWaitingBookmark(
   return bookmarks.findIndex((b) => waiting(b.chunk));
 }
 
-/** THE GREY BAR (founder 2026-09-28, paragraph mark B): a finished paragraph
- *  that still opens its sheet keeps a thin grey bar where the orange one
- *  stood, so "this opens" survives without the empty indent. Not a button:
- *  the paragraph is the tap target. Its own component so the deck gains no
- *  branch. */
-function SettledBar({ unsettled, opens }: { unsettled: boolean; opens: boolean }) {
-  if (unsettled || !opens) return null;
-  return (
-    <span
-      aria-hidden
-      data-settled-bar
-      className="absolute -left-3 bottom-1 top-1 w-[2px] rounded-full bg-muted-foreground/30"
-    />
-  );
-}
-
+/* THE GREY BAR IS GONE (founder lock 2026-09-30, B7). A paragraph with
+   nothing open draws no bar: plain text, full width, still the tap target
+   for its own sheet. Only green and orange bars exist, and they are the
+   mark's. */
 /** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
  *  line per Slide): its own helper words, bold orange, directly above it —
  *  like a newspaper headline over the article that repeats its words. Inside

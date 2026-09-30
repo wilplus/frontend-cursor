@@ -98,9 +98,13 @@ export interface DeckSuggestionLite {
   start: number;
   end: number;
   status: "pending" | "approved" | "dismissed" | null;
-  /** Which bookmark this item is (contract 24g). Optional and safe-ahead: a
-   *  backend that does not send it leaves every mark exactly as it was. */
-  bookmarkTier?: "exercise" | "most_confident" | "standard" | null;
+  /** The machine's read of this item as a tier name (contract 24g, founder
+   *  lock 2026-09-30, B7): `confident`, `weak` or `standard`. Optional and
+   *  safe-ahead: a backend that does not send it draws no bar. */
+  bookmarkTier?: "confident" | "weak" | "standard" | null;
+  /** A practise attached to this item. Orange needs one: a weak read with
+   *  nothing to practise draws no bar (B7: "below and matched"). */
+  practiceExercise?: unknown;
 }
 
 export interface DeckChunk {
@@ -125,7 +129,7 @@ export interface DeckChunk {
   /** The bookmark this paragraph wears (contract 24g), from the UNDECIDED
    *  items on it. A settled item is no longer asking for anything, so it stops
    *  colouring the mark — 24g-1's "the clean text IS the settled state". */
-  tier?: "exercise" | "most_confident" | "standard" | null;
+  tier?: "confident" | "weak" | "standard" | null;
   /** DISPLAY ONLY — the piece of this paragraph shown on THIS screen.
    *
    *  Set when a paragraph is too tall for one screen and is split across
@@ -162,17 +166,17 @@ function overlaps(
  *  about which part a paragraph is. */
 /** The strongest bookmark among the undecided items on one paragraph.
  *
- *  The order is the contract's, not a preference: the exercise is the one item
- *  the speaker is asked to go and DO (24f), so it takes the mark; green marks
- *  work already done well; everything else is an ordinary bookmark. Position
- *  among the greens is never consulted, because there is none to consult —
- *  first and second are identical by construction (24i). */
-function pickTier(
-  tiers: readonly NonNullable<DeckSuggestionLite["bookmarkTier"]>[],
-): DeckChunk["tier"] {
-  if (tiers.includes("exercise")) return "exercise";
-  if (tiers.includes("most_confident")) return "most_confident";
-  return tiers.length > 0 ? "standard" : null;
+ *  The order is the contract's (24g, founder lock 2026-09-30, B7): orange is
+ *  the one thing the speaker is asked to go and DO, so a weak read with a
+ *  practise attached takes the mark; green marks a read above the threshold;
+ *  a read the machine could not make, or a weak read with nothing to
+ *  practise, draws no bar. A threshold is a tier name, never a position:
+ *  every green is identical (24i). */
+type TierEntry = { tier: NonNullable<DeckSuggestionLite["bookmarkTier"]>; practise: boolean };
+function pickTier(entries: readonly TierEntry[]): DeckChunk["tier"] {
+  if (entries.some((e) => e.tier === "weak" && e.practise)) return "weak";
+  if (entries.some((e) => e.tier === "confident")) return "confident";
+  return entries.length > 0 ? "standard" : null;
 }
 
 export function buildDeckChunks(
@@ -196,7 +200,7 @@ export function buildDeckChunks(
     const pendingIds: string[] = [];
     const approvedIds: string[] = [];
     const decidedIds: string[] = [];
-    const tiers: NonNullable<DeckSuggestionLite["bookmarkTier"]>[] = [];
+    const tiers: TierEntry[] = [];
     // Any answered bookmark on these words is proof the paragraph was
     // reviewed — it is what separates "untouched" from "clean" below.
     let decided = false;
@@ -214,7 +218,9 @@ export function buildDeckChunks(
         // Only an UNDECIDED item colours the mark. An approved or dismissed
         // one has been dealt with, and a bookmark that keeps its colour after
         // the decision is a document that never empties (24g-1).
-        if (s.bookmarkTier) tiers.push(s.bookmarkTier);
+        if (s.bookmarkTier) {
+          tiers.push({ tier: s.bookmarkTier, practise: s.practiceExercise != null });
+        }
       }
     }
     const locked = parts[i].locked === true;
