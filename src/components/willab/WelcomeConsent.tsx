@@ -87,12 +87,15 @@ export default function WelcomeConsent({
           deliverable, never a feeling. That rule still stands and this wording
           was weighed against it: "reduce public speaking anxiety" describes
           what the tool is for, not an outcome it guarantees, and nothing here
-          promises a state the product cannot deliver. Founder-signed. */}
+          promises a state the product cannot deliver. Founder-signed.
+
+          Founder 2026-09-30: now "Public speaking excellence tool", which names
+          what the tool is for, still without promising an outcome. */}
       <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[48px]">
         WillpowerLab
       </h1>
       <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground">
-        A tool to reduce public speaking anxiety.
+        Public speaking excellence tool.
       </p>
 
       {/* THE CTA NO LONGER CLAIMS ACCEPTANCE. It read "Accept & enter the lab"
