@@ -115,6 +115,7 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
   const byReason = Object.entries(obj(exclusions.by_reason));
   const exports = obj(view.exports);
   const runs = arr(exports.annotation_runs);
+  const releases = arr(exports.pair_exports);
   const weekly = arr(view.weekly);
   const unavailable = Array.isArray(view.unavailable) ? view.unavailable.map(String) : [];
   return (
@@ -132,6 +133,32 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
           ) : null}
         </Panel>
         <Panel title="Exports" note={str(exports.note)}>
+          {releases.length > 0 ? (
+            <div className="mb-3 overflow-x-auto rounded-xl border border-border">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Surface</th>
+                    <th className="px-3 py-2 font-medium">Week</th>
+                    <th className="px-3 py-2 font-medium">Pairs</th>
+                    <th className="px-3 py-2 font-medium">Manifest sha256</th>
+                    <th className="px-3 py-2 font-medium">State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {releases.map((r, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2">{str(r.surface) ?? "—"}</td>
+                      <td className="px-3 py-2 tabular-nums">{str(r.week_start) ?? "—"}</td>
+                      <td className="px-3 py-2 tabular-nums">{n(r.item_count)}</td>
+                      <td className="px-3 py-2 font-mono text-[11px]">{(str(r.manifest_sha256) ?? "").slice(0, 16)}</td>
+                      <td className="px-3 py-2">{str(r.purged_at) ? "voided · purged" : str(r.voided_at) ? `voided · ${str(r.voided_reason) ?? ""}` : "released"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           {runs.length > 0 ? (
             <ul className="text-sm">{runs.map((run, i) => <li key={i} className="flex flex-wrap justify-between gap-2"><span>{str(run.started_at)?.slice(0, 10) ?? "—"} · {str(run.status) ?? "—"}</span><span className="tabular-nums">{n(run.exported_count)}</span></li>)}</ul>
           ) : null}
