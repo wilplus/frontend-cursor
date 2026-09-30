@@ -57,6 +57,10 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   5. Presentation Mode is entered from the ⋯ menu only.
   6. After Take 2 nothing opens by itself: the orange bar marks a paragraph
      waiting on the speaker, the grey bar opens its history on tap.
+- The paragraph text size was changed 2026-09-30 (founder, "D" on the "Ideal
+  Text Size" page): 17px on a phone rising to 20px on desktop, replacing the
+  design's "21px on a phone, up to 30px on desktop" (L7). The helper-words
+  headline keeps its size.
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---

@@ -46,8 +46,9 @@ describe("settled text is ordinary, never grey", () => {
     expect(DECK).toContain('c.status === "waiting" &&');
     expect(DECK).not.toContain("text-foreground/55");
     expect(DECK).toContain(
-      // Bigger, no indent (founder 2026-09-28): the bars sit in the margin.
-      'className="relative text-[clamp(1.3rem,1rem+1.1vw,1.875rem)] leading-[1.65] text-foreground"',
+      // No indent (founder 2026-09-28): the bars sit in the margin.
+      // 17px on a phone to 20px on desktop (founder 2026-09-30, "D").
+      'className="relative text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground"',
     );
   });
 
