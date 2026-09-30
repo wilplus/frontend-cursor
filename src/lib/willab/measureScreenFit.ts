@@ -157,3 +157,59 @@ export function fitChangedMeaningfully(
     Math.abs(previous.gapPx - next.gapPx) > 1
   );
 }
+
+/** What the page learned from screens that still came out too tall. */
+export interface OverflowAllowance {
+  /** Pixels taken off the measured budget. */
+  shrinkPx: number;
+  /** The budget that allowance was learned against; a new one starts over. */
+  budgetPx: number;
+}
+
+/** Paragraph text hidden below the bottom of any screen, in pixels (0 when
+ *  none). Read from the paragraphs themselves rather than `scrollHeight`, so
+ *  padding under the last one never counts as hidden text. */
+export function hiddenBelow(
+  scrollers: readonly (HTMLElement | null | undefined)[],
+): number {
+  let most = 0;
+  for (const el of scrollers) {
+    if (!el) continue;
+    const box = el.getBoundingClientRect();
+    for (const chunk of el.querySelectorAll<HTMLElement>("[data-chunk]")) {
+      const bottom = chunk.getBoundingClientRect().bottom - box.top + el.scrollTop;
+      most = Math.max(most, bottom - el.clientHeight);
+    }
+  }
+  return most;
+}
+
+/** The budget to pack by, after what the screens actually showed.
+ *
+ *  A CUT-OFF PARAGRAPH COUNTS AS TOO LONG (founder 2026-09-30: "if it
+ *  doesn't fit … the text was cut - please just divide it; treat the cut
+ *  off as something that is on the screen so that the divider knows"). The
+ *  packing works from an estimate: characters per line, and nothing for the
+ *  orange helper words above a paragraph. When the estimate is short, the
+ *  last paragraph ran under the bottom of the screen. Now whatever is hidden
+ *  there is taken off the budget (at least a line), and the deck repacks, so
+ *  that paragraph moves to the next screen or is divided across two. Each
+ *  repack measures again and takes off more while anything is still hidden,
+ *  up to half the screen. A different screen size starts from nothing.
+ *
+ *  Pure: `hiddenPx` is read by `hiddenBelow`.
+ */
+export function allowForHidden(
+  fit: ScreenFit,
+  hiddenPx: number,
+  previous: OverflowAllowance | null,
+): { fit: ScreenFit; allowance: OverflowAllowance } {
+  const sameScreen = previous !== null && Math.abs(previous.budgetPx - fit.budgetPx) <= 1;
+  let shrinkPx = sameScreen ? previous.shrinkPx : 0;
+  if (hiddenPx > 1) shrinkPx += Math.max(hiddenPx, fit.lineHeightPx);
+  shrinkPx = Math.min(shrinkPx, fit.budgetPx / 2);
+  return {
+    fit: { ...fit, budgetPx: fit.budgetPx - shrinkPx },
+    allowance: { shrinkPx, budgetPx: fit.budgetPx },
+  };
+}

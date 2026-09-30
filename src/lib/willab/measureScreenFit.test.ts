@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  allowForHidden,
   fitChangedMeaningfully,
   tightestFit,
 } from "@/lib/willab/measureScreenFit";
@@ -126,5 +127,39 @@ describe("the deck measures every screen and shows the slide on each", () => {
     // the choice now, so both callers get it and neither can drift.
     expect(deck).not.toMatch(/presentationRef && g\.slideIndex !== null/);
     expect(deck).not.toMatch(/presentationRef && slideIndex !== null/);
+  });
+});
+
+describe("text cut off at the bottom counts as too long (founder 2026-09-30)", () => {
+  const FIT = { budgetPx: 600, lineHeightPx: 30, charsPerLine: 60, gapPx: 26 };
+
+  it("takes what was hidden off the budget, at least one line", () => {
+    const first = allowForHidden(FIT, 45, null);
+    expect(first.fit.budgetPx).toBe(555);
+    expect(allowForHidden(FIT, 5, null).fit.budgetPx).toBe(570);
+  });
+
+  it("keeps what it learned while nothing is hidden any more", () => {
+    const first = allowForHidden(FIT, 45, null);
+    const again = allowForHidden(FIT, 0, first.allowance);
+    expect(again.fit.budgetPx).toBe(555);
+  });
+
+  it("takes off more while text is still hidden, never past half the screen", () => {
+    let state = allowForHidden(FIT, 200, null);
+    state = allowForHidden(FIT, 200, state.allowance);
+    state = allowForHidden(FIT, 200, state.allowance);
+    expect(state.fit.budgetPx).toBe(300);
+  });
+
+  it("starts over on a different screen size", () => {
+    const first = allowForHidden(FIT, 45, null);
+    const bigger = allowForHidden({ ...FIT, budgetPx: 800 }, 0, first.allowance);
+    expect(bigger.fit.budgetPx).toBe(800);
+  });
+
+  it("is what the deck packs by", () => {
+    const deck = readFileSync("src/components/willab/TranscriptReviewDeck.tsx", "utf8");
+    expect(deck).toMatch(/allowForHidden\(next, hiddenBelow\(innerRefs\.current\)/);
   });
 });
