@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fill, formatRate, jarLabel, mapLedgerWeek, mapPaceRow, paceLine, sliderMax, weeksAt } from "./pace";
+import { coverageWord, fill, formatRate, gapCount, jarLabel, mapGapView, mapLedgerWeek, mapPaceRow, paceLine, sliderMax, weeksAt } from "./pace";
 
 const row = (over: Partial<ReturnType<typeof mapPaceRow>> = {}) => ({
   jar: "pairs.praise_line",
@@ -63,5 +63,21 @@ describe("the pace panel's arithmetic", () => {
     expect(sliderMax(row({ current: 195 }))).toBe(10);
     expect(sliderMax(row({ current: 0, bar: 300 }))).toBe(300);
     expect(sliderMax(row({ current: 4, bar: 30 }))).toBe(30);
+  });
+
+  it("maps the gap view and says unknown, never 0, for a source it could not read", () => {
+    const gaps = mapGapView({
+      days: 30,
+      patterns: [
+        { error_id: "rushing", label: "Rushing", status: "detected", coverage: "no_exercise", spotted: 12, open_coach_requests: 3, main_exercises: [], secondary_exercises: [] },
+      ],
+      nothing_spotted_open_requests: 2,
+      unavailable: ["coach_requests"],
+    });
+    expect(gaps?.patterns[0].errorId).toBe("rushing");
+    expect(gapCount(gaps!.patterns[0].openCoachRequests, "coach_requests", gaps!.unavailable)).toBe("unknown");
+    expect(gapCount(gaps!.patterns[0].spotted, "match_traces", gaps!.unavailable)).toBe("12");
+    expect(coverageWord("no_exercise")).toBe("no exercise");
+    expect(mapGapView(null)).toBeNull();
   });
 });

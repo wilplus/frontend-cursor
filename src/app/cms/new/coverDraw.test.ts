@@ -44,8 +44,8 @@ describe("the lane chrome", () => {
     expect(SHELL).toContain('aria-label="Close"');
   });
 
-  it("gives the camera screen no Enter, and none mid-write", () => {
-    expect(CLIENT).toContain("dark || laneBusy ? undefined : advance");
+  it("gives Enter nothing to do mid-write", () => {
+    expect(CLIENT).toContain("laneBusy ? undefined : advance");
   });
 
   it("makes Enter the CTA itself rather than a copy of it", () => {

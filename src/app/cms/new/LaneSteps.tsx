@@ -2,15 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { ExternalLink, Lock } from "lucide-react";
-import type { AdminSpeakingError } from "@/services/api/journalAdmin";
-import {
-  draftProblem,
-  saveSpeakingError,
-  suggestErrorId,
-} from "@/services/api/speakingErrors";
 import type { LaneDraft } from "./laneDraft";
 import { slugify } from "./laneDraft";
-import MainTargetPicker, { keptMainTarget } from "../MainTargetPicker";
 import { LANE_INPUT, LaneField } from "./LaneShell";
 
 /* -------------------------------------------------------------------------- */
@@ -22,372 +15,25 @@ export type Patch = (next: Partial<LaneDraft>) => void;
 
 const CATEGORIES = ["voice", "science", "others"] as const;
 
-export function TitleStep({ draft, patch, idKeep }: {
-  draft: LaneDraft; patch: Patch; idKeep: "-" | "_";
+export function TitleStep({ draft, patch }: {
+  draft: LaneDraft; patch: Patch;
 }) {
   return (
     <input
       value={draft.title}
       onChange={(event) => {
         const title = event.target.value;
-        // The slug and the exercise id follow the title until the author edits
-        // one directly. Matching is exact string comparison on the server, so a
-        // hand-typed capital routes nothing and reports nothing.
+        // The slug follows the title until the author edits it directly.
         const trackingSlug = draft.slug === slugify(draft.title);
-        const trackingId = draft.exerciseId === slugify(draft.title, idKeep);
         patch({
           title,
           ...(trackingSlug || !draft.slug ? { slug: slugify(title) } : {}),
-          ...(trackingId || !draft.exerciseId
-            ? { exerciseId: slugify(title, idKeep) }
-            : {}),
         });
       }}
       placeholder="Land the ending"
       className={LANE_INPUT}
       autoFocus
     />
-  );
-}
-
-export function NameStep({ draft, patch }: { draft: LaneDraft; patch: Patch }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <TitleStep draft={draft} patch={patch} idKeep="-" />
-      <p className="font-mono text-[13px] text-muted-foreground">
-        {draft.exerciseId || "…"}
-      </p>
-    </div>
-  );
-}
-
-/** One tick and its sentence. `locked` draws it on and unpressable — the
- *  exercise itself is not a choice, and a disabled checkbox that still looks
- *  clickable is the kind of control people fight with. */
-function Tick({ on, locked, title, note, onToggle }: {
-  on: boolean; locked?: boolean; title: string; note: string;
-  onToggle?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={on}
-      aria-disabled={locked || undefined}
-      disabled={locked}
-      onClick={onToggle}
-      className={`flex w-full items-start gap-3 rounded-[10px] border p-3.5 text-left ${
-        on ? "border-foreground/40 bg-foreground/[0.04]" : "border-border bg-background"
-      } ${locked ? "cursor-default opacity-70" : ""}`}
-    >
-      <span
-        aria-hidden
-        className={`mt-[2px] flex h-[19px] w-[19px] flex-none items-center justify-center rounded-[5px] border-2 text-[12px] font-bold ${
-          on
-            ? "border-foreground bg-foreground text-background"
-            : "border-muted-foreground"
-        }`}
-      >
-        {on ? "✓" : ""}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[15px] font-medium">{title}</span>
-        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
-          {note}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-/** Where the recording goes — the screen that decides the shape of the lane.
- *
- *  It sits at position two, straight after the camera, because the write-up
- *  answer removes four later screens. Asking at the end would mean walking a
- *  cover picker for a post the author had already declined. */
-export function WhereStep({ draft, patch }: { draft: LaneDraft; patch: Patch }) {
-  return (
-    <div className="flex flex-col gap-2.5">
-      <Tick
-        on
-        locked
-        title="An exercise"
-        note="Always. It is the thing you just recorded."
-      />
-      <Tick
-        on={draft.publishPost}
-        title="Also a journal post"
-        note={
-          draft.publishPost
-            ? "You will write it up, give it a cover and an address."
-            : "Skipped — the exercise goes out on its video and instruction alone."
-        }
-        onToggle={() => patch({ publishPost: !draft.publishPost })}
-      />
-      <Tick
-        on={draft.avatarEligible}
-        title="Usable for a future avatar"
-        note="Same shirt, same angle, same light as the others in its setup."
-        onToggle={() => patch({ avatarEligible: !draft.avatarEligible })}
-      />
-      {draft.avatarEligible ? (
-        <div className="pt-1">
-          <LaneField label="Which setup?">
-            <input
-              value={draft.avatarSetupLabel}
-              onChange={(event) => patch({ avatarSetupLabel: event.target.value })}
-              placeholder="desk-white-shirt-sept"
-              maxLength={120}
-              className={LANE_INPUT}
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-          </LaneField>
-          <p className="mt-2 text-[13px] leading-snug text-muted-foreground">
-            The same label on every clip shot this way. A tick on its own says
-            this one was careful; the label is what says two of them match.
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export function TagStep({ draft, patch, errors }: {
-  draft: LaneDraft; patch: Patch; errors: AdminSpeakingError[];
-}) {
-  const detected = errors.filter((e) => e.detected);
-  const named = errors.filter((e) => !e.detected);
-  return (
-    <div>
-      <div className="flex flex-wrap gap-2">
-        {detected.map((item) => {
-          const on = draft.tags.includes(item.errorId);
-          return (
-            <button
-              key={item.errorId}
-              type="button"
-              aria-pressed={on}
-              onClick={() => {
-                const tags = on
-                  ? draft.tags.filter((t) => t !== item.errorId)
-                  : [...draft.tags, item.errorId];
-                patch({ tags, primaryTag: keptMainTarget(tags, draft.primaryTag) });
-              }}
-              className={`rounded-full border px-4 py-3 text-[14px] ${
-                on
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-        {detected.length === 0 ? (
-          <span className="text-[13px] text-muted-foreground">
-            Nothing detectable in the library yet.
-          </span>
-        ) : null}
-      </div>
-      {named.length ? (
-        <div className="mt-5">
-          <p className="mb-2 text-[13px] text-muted-foreground">
-            Named only — no detector yet
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {named.map((item) => (
-              <span
-                key={item.errorId}
-                className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-4 py-3 text-[14px] text-muted-foreground opacity-50"
-              >
-                <Lock className="h-3 w-3" aria-hidden />
-                {item.label}{item.beingTested ? " · being tested" : ""}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      <MainTargetPicker
-        tags={draft.tags}
-        labels={new Map(errors.map((e) => [e.errorId, e.label]))}
-        value={draft.primaryTag}
-        onChange={(primaryTag) => patch({ primaryTag })}
-        size="lg"
-      />
-      <NameAnErrorBox />
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  NAMING ONE THAT IS NOT THERE (founder 2026-09-25, decision 03).            */
-/*                                                                            */
-/*  Two holes, one box. The library page existed and NOTHING in the app        */
-/*  linked to it, so most coaches had never seen the list they are tagging     */
-/*  from. And when a coach heard something the list does not have, there was   */
-/*  nowhere to put it — so it was lost at the one moment someone knew it.      */
-/*                                                                            */
-/*  It is a filing cabinet, not a switch, and the confirmation says so. A      */
-/*  newly named pattern saves as `observed`: code cannot hear it, so no        */
-/*  exercise may be tagged with it, and nothing reaches a speaker until a      */
-/*  detector exists. Telling the coach that plainly is the whole point —       */
-/*  letting them believe they had just switched something on would be worse    */
-/*  than not having the box.                                                   */
-/*                                                                            */
-/*  Copy: founder sign-off 2026-09-25, except "The one question it answers",   */
-/*  which the CONSTRUCT fence requires and which is awaiting sign-off.         */
-/* -------------------------------------------------------------------------- */
-export function NameAnErrorBox() {
-  const [open, setOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [definition, setDefinition] = useState("");
-  const [asks, setAsks] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [filed, setFiled] = useState<string | null>(null);
-
-  const reset = () => {
-    setLabel("");
-    setDefinition("");
-    setAsks("");
-    setProblem(null);
-  };
-
-  const submit = async () => {
-    if (saving) return;
-    const draft = {
-      errorId: suggestErrorId(label),
-      label: label.trim(),
-      definition: definition.trim(),
-      asks: asks.trim(),
-    };
-    const stop = draftProblem(draft);
-    if (stop) {
-      setProblem(stop);
-      return;
-    }
-    setSaving(true);
-    const result = await saveSpeakingError(draft);
-    setSaving(false);
-    if (!result.ok) {
-      setProblem(result.message);
-      return;
-    }
-    setFiled(draft.label);
-    setOpen(false);
-    reset();
-  };
-
-  return (
-    <div className="mt-6 border-t border-border pt-5">
-      <a
-        href="/coach/errors"
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground underline underline-offset-4"
-      >
-        See all known errors
-        <ExternalLink className="h-3 w-3" aria-hidden />
-      </a>
-
-      {filed ? (
-        <p className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          Filed. It can’t be attached to an exercise until the app can
-          hear it.
-        </p>
-      ) : null}
-
-      {open ? (
-        <div className="mt-4 flex flex-col gap-[18px] rounded-xl border border-border p-4">
-          <LaneField label="A short name">
-            <input
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              className={LANE_INPUT}
-            />
-          </LaneField>
-          <LaneField label="What you heard">
-            <textarea
-              rows={3}
-              value={definition}
-              onChange={(event) => setDefinition(event.target.value)}
-              className={`${LANE_INPUT} resize-none leading-relaxed`}
-            />
-          </LaneField>
-          <LaneField label="The one question it answers">
-            <input
-              value={asks}
-              onChange={(event) => setAsks(event.target.value)}
-              className={LANE_INPUT}
-            />
-          </LaneField>
-          {problem ? (
-            <p className="text-[13px] leading-relaxed text-destructive">
-              {problem}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void submit()}
-              className="rounded-full bg-foreground px-5 py-3 text-[14px] text-background disabled:opacity-50"
-            >
-              {saving ? "Filing…" : "File it"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                reset();
-              }}
-              className="rounded-full border border-border px-5 py-3 text-[14px]"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4">
-          <p className="text-[13px] text-muted-foreground">Not on the list?</p>
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(true);
-              setFiled(null);
-            }}
-            className="mt-2 rounded-full border border-border px-5 py-3 text-[14px]"
-          >
-            Name what you heard
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function WordsStep({ draft, patch }: { draft: LaneDraft; patch: Patch }) {
-  return (
-    <div className="flex flex-col gap-[18px]">
-      <LaneField label="What they see first">
-        <textarea
-          rows={3}
-          value={draft.opening}
-          onChange={(event) => patch({ opening: event.target.value })}
-          className={`${LANE_INPUT} resize-none leading-relaxed`}
-        />
-      </LaneField>
-      <LaneField label="What they do">
-        <textarea
-          rows={3}
-          value={draft.instruction}
-          onChange={(event) => patch({ instruction: event.target.value })}
-          className={`${LANE_INPUT} resize-none leading-relaxed`}
-        />
-      </LaneField>
-    </div>
   );
 }
 
@@ -547,31 +193,12 @@ export function DetailsStep({ draft, patch }: { draft: LaneDraft; patch: Patch }
 }
 
 export function ReviewStep({ draft }: { draft: LaneDraft }) {
-  // THE SUMMARY MUST MATCH WHAT WILL ACTUALLY BE WRITTEN. A declined write-up
-  // means no post row is created at all, so listing a Post and a /blog address
-  // here would promise a page that never appears — and the last screen before
-  // publishing is the worst place to be wrong about what publishing does.
-  const rows: [string, string][] =
-    draft.lane === "exercise"
-      ? [
-          ["Video", draft.videoSeconds ? `${draft.videoSeconds}s` : "added"],
-          ["Fixes", draft.tags.join(", ") || "—"],
-          ...((draft.publishPost
-            ? [
-                ["Post", draft.title || "—"],
-                ["Address", `/blog/${draft.slug}`],
-              ]
-            : [["Post", "none — video and instruction only"]]) as [string, string][]),
-          ...((draft.avatarEligible
-            ? [["Avatar set", draft.avatarSetupLabel || "—"]]
-            : []) as [string, string][]),
-        ]
-      : [
-          ["Title", draft.title || "—"],
-          ["Category", draft.category],
-          ["Author", draft.author],
-          ["Address", `/blog/${draft.slug}`],
-        ];
+  const rows: [string, string][] = [
+    ["Title", draft.title || "—"],
+    ["Category", draft.category],
+    ["Author", draft.author],
+    ["Address", `/blog/${draft.slug}`],
+  ];
   return (
     <div className="flex flex-col">
       {rows.map(([key, value]) => (

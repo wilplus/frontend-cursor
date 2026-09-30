@@ -30,8 +30,8 @@ import {
 import {
   criteriaForMainTarget,
   DEFAULT_MATCHING_CRITERIA,
+  keptMainTarget,
 } from "@/services/api/journalAdmin";
-import { keptMainTarget } from "@/app/cms/MainTargetPicker";
 import { mapDocumentSuggestions } from "@/services/api/idealText";
 
 /** The speaker's offer as the Ideal Text mapper reads it, with `extra` fields

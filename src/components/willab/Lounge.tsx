@@ -62,7 +62,6 @@ import BestPresentationOverlay from "./BestPresentationOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
-import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
 import CoachDeliveryOverlay from "./CoachDeliveryOverlay";
 import { useJudgeWalk } from "./useJudgeWalk";
 import RaterLanguageGate from "./RaterLanguageGate";
@@ -151,16 +150,13 @@ function parseReviewPiece(raw: string | null | undefined): number | null {
 }
 
 /** The delivery flow's mount, with its own presence check, so the hub renders
- *  it unconditionally. Its POSITION here is load-bearing: above the star panel
- *  it opens from, below the ideal-text panel that opens over it. */
+ *  it unconditionally. */
 function CoachDeliveryMount({
   arcId,
-  onOpenArcIdeal,
   onPublished,
   onClose,
 }: {
   arcId: string | null;
-  onOpenArcIdeal: (arcId: string) => void;
   onPublished: (sessionIds: string[]) => void;
   onClose: () => void;
 }) {
@@ -168,7 +164,6 @@ function CoachDeliveryMount({
   return (
     <CoachDeliveryOverlay
       arcId={arcId}
-      onOpenArcIdeal={onOpenArcIdeal}
       onPublished={onPublished}
       onClose={onClose}
     />
@@ -264,14 +259,6 @@ export default function Lounge({
   const [bestPresentationArcId, setBestPresentationArcId] = useState<
     string | null
   >(null);
-  // Star Verdict (2026-07-27) — the coach's star-review overlay for one arc.
-  // A SIBLING of the review overlay on purpose (N1): the verdict surface
-  // shows the machine's guesses, so it never mounts inside the blind
-  // labeling flow — the two only meet here, in the hub.
-  const [starVerdictArcId, setStarVerdictArcId] = useState<{
-    arcId: string;
-    sessionIds: string[];
-  } | null>(null);
   // F2/F7 — the offer (install / legacy joke) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -305,15 +292,15 @@ export default function Lounge({
   // the CoachReviewOverlay over the Lounge; closing it returns to the chat
   // thread underneath with no remount of the queue.
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
-  // FP-9 — the student's one door leads with judgement: take by take, then the
-  // Feedbacks review. The hub holds the walk because it is the one place
-  // allowed to know both lanes (N1).
+  // FP-9 — the student's one door leads with judgement: take by take, then
+  // straight to the arc's delivery. The Feedbacks review that used to sit
+  // between them is retired (founder 2026-09-30, B1; contract 63).
   const judge = useJudgeWalk({
     onOpenTake: setReviewSessionId,
-    onComplete: (arcId, sessionIds) => {
+    onComplete: (arcId) => {
       setReviewSessionId(null);
       void reviewQueue.refresh();
-      setStarVerdictArcId({ arcId, sessionIds });
+      setDeliveryArcId(arcId);
     },
   });
   // FP-9 — the arc-level delivery flow (wrap up → ideal text → message → send).
@@ -1778,14 +1765,9 @@ export default function Lounge({
         <StudentRosterOverlay
           onClose={() => setRosterOpen(false)}
           onOpenReview={openReview}
-          // FE-B — the ideal-ready badge opens the arc's coach panel view
-          // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
-          // in every state, pre-3-takes included — never a dead end).
-          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          // Same one door as the detail overlay below: judgement first, the
-          // machine's guesses after (the roster renders its own detail and
-          // passes this straight through).
-          onOpenStarVerdicts={judge.start}
+          // Same one door as the detail overlay below: judgement first (the
+          // roster renders its own detail and passes this straight through).
+          onOpenJudge={judge.start}
         />
       )}
       {/* FP-4 — per-student drill-down opened from a grouped review bubble.
@@ -1801,9 +1783,8 @@ export default function Lounge({
             void reviewQueue.refresh();
           }}
           onOpenReview={openReview}
-          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
-          // The one door leads with judgement; the star lane comes after it.
-          onOpenStarVerdicts={judge.start}
+          // The one door leads with judgement.
+          onOpenJudge={judge.start}
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1819,39 +1800,8 @@ export default function Lounge({
           onOpenReview={openReview}
         />
       )}
-      {/* Star Verdict — the coach judges the machine's fired stars for one
-          arc. Mounted AFTER the student detail (so it stacks over the detail
-          it opens from, which is what the LIFO back-dismiss wants) but BEFORE
-          the review overlay (equal z-40 → last in DOM paints on top). That
-          order is load-bearing: this panel's per-take rows OPEN the review via
-          onOpenTakeReview, and while it was mounted last the review opened
-          underneath it — the coach saw nothing happen and had to dismiss this
-          panel with the ✕ to reach what they had just opened. Never opened
-          from the review overlay (N1 — that flow labels blind). */}
-      {starVerdictArcId && (
-        <RaterLanguageGate onClose={() => setStarVerdictArcId(null)}>
-          <CoachStarVerdictOverlay
-            arcId={starVerdictArcId.arcId}
-            sessionIds={starVerdictArcId.sessionIds}
-            // Final migration (founder 2026-08-10): the panel's per-take rows
-            // open the take review from HERE — the Lounge, the one hub allowed
-            // to know both flows, wires the walker in as a prop so the panel
-            // imports nothing from the blind-labeling lane (N1).
-            onOpenTakeReview={openReview}
-            // Judging done → delivery. The panel flushes the take drafts on
-            // its way out (the Save button is gone), then hands over.
-            onWrapUp={(id) => {
-              setStarVerdictArcId(null);
-              setDeliveryArcId(id);
-            }}
-            onClose={() => setStarVerdictArcId(null)}
-          />
-        </RaterLanguageGate>
-      )}
-
       <CoachDeliveryMount
         arcId={deliveryArcId}
-        onOpenArcIdeal={(id) => setBestPresentationArcId(id)}
         onPublished={(sessionIds) => {
           // ONE delivery covers the whole arc, so every take goes done —
           // markDone takes a single session, and marking only one would land

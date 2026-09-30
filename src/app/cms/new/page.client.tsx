@@ -2,20 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authoringReturnTo, withAttachedExercise } from "../interruptedDestination";
 import { Loader2 } from "lucide-react";
 import {
   adminCreatePost,
-  adminListSpeakingErrors,
   adminPresign,
-  adminSaveDiagnosticExercise,
-  criteriaForMainTarget,
   adminSetPublished,
   adminUpdatePost,
   uploadToStorage,
-  type AdminSpeakingError,
 } from "@/services/api/journalAdmin";
-import { keptMainTarget } from "../MainTargetPicker";
 import type { JournalCategory, JournalCoverKind } from "@/services/api/journal";
 import {
   blankDraft,
@@ -36,10 +30,8 @@ import {
   unsupportedMessage,
   type MediaKind,
 } from "./laneMediaUpload";
-import { RecordStep } from "./RecordStep";
 import {
-  BodyStep, CoverStep, DetailsStep, ExcerptStep, NameStep,
-  ReviewStep, TagStep, TitleStep, WhereStep, WordsStep,
+  BodyStep, CoverStep, DetailsStep, ExcerptStep, ReviewStep, TitleStep,
 } from "./LaneSteps";
 
 const PW_KEY = "willpower.journal.pw";
@@ -125,15 +117,15 @@ export default function NewContentClient({ path }: { path: string[] }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [draft, setDraft] = useState<LaneDraft | null>(null);
-  const [errors, setErrors] = useState<AdminSpeakingError[]>([]);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
   const restored = useRef(false);
 
-  const lane: Lane | null =
-    path[0] === "exercise" ? "exercise" : path[0] === "post" ? "post" : null;
+  // One lane since 2026-09-30 (founder B8): /cms/new is the post lane; the
+  // exercise lane lives in the coach's library.
+  const lane: Lane | null = path[0] === "post" ? "post" : null;
   // Draft-aware: the `where` ticks decide how long this lane is, so the step
   // list has to be read off the draft rather than the lane name. Before the
   // draft is restored a fresh lane is the right assumption — it publishes.
@@ -168,12 +160,10 @@ export default function NewContentClient({ path }: { path: string[] }) {
     }
   }, [router]);
 
+  // No fork any more: a bare /cms/new is the post lane's first screen.
   useEffect(() => {
-    if (!password) return;
-    void adminListSpeakingErrors(password).then((r) => {
-      if (r.ok) setErrors(r.data);
-    });
-  }, [password]);
+    if (!lane) router.replace("/cms/new/post/1");
+  }, [lane, router]);
 
   // Restore once. A lane is eight screens long and a stray back-swipe must not
   // cost the author everything they have typed.
@@ -266,52 +256,12 @@ export default function NewContentClient({ path }: { path: string[] }) {
     setBusy(true);
     setSaid(null);
 
-    // NO POST UNLESS THE AUTHOR ASKED FOR ONE. An exercise that declined the
-    // write-up has no title page, no cover and no address — writing an empty
-    // one anyway would put a blank entry on the public journal, which is worse
-    // than the missing explanation it was meant to stand in for.
-    const wantsPost = draft.lane !== "exercise" || draft.publishPost;
-    let postId: string | null = null;
-    if (wantsPost) {
-      const post = await savePost(draft, publish);
-      if (!post.id) { setBusy(false); setSaid(post.message); return; }
-      postId = post.id;
-      patch({ postId });
-    }
-
-    if (draft.lane === "exercise") {
-      const saved = await adminSaveDiagnosticExercise(password, {
-        exerciseId: draft.exerciseId,
-        journalPostId: postId,
-        title: draft.title,
-        instruction: draft.instruction,
-        introductionCopy: draft.opening,
-        confidentIntroductionCopy: "",
-        explanationVideoUrl: draft.videoUrl,
-        acousticProblemTags: draft.tags,
-        matchingCriteria: criteriaForMainTarget(
-          null, keptMainTarget(draft.tags, draft.primaryTag)),
-        active: publish,
-        avatarTrainingEligible: draft.avatarEligible,
-        avatarSetupLabel: draft.avatarSetupLabel.trim(),
-      });
-      if (!saved.ok) { setBusy(false); setSaid(saved.message); return; }
-    }
+    const post = await savePost(draft, publish);
+    if (!post.id) { setBusy(false); setSaid(post.message); return; }
+    patch({ postId: post.id });
     setBusy(false);
     clearDraft();
-    // Back where they came from, when they came from somewhere. The coach's
-    // review sends `?returnTo=` so the queue reopens on the exact piece; the
-    // catalogue is only the right destination for an author who started here.
-    // An exercise that came from a moment also sends its own id back, so that
-    // moment opens with it already chosen. A post has nothing to attach, and
-    // an author who started in the catalogue has no moment to return to.
-    const back = authoringReturnTo() ?? "/cms";
-    const cameFromAMoment = back !== "/cms";
-    router.push(
-      draft.lane === "exercise" && cameFromAMoment
-        ? withAttachedExercise(back, draft.exerciseId)
-        : back,
-    );
+    router.push("/cms");
   }
 
   function next() {
@@ -324,21 +274,7 @@ export default function NewContentClient({ path }: { path: string[] }) {
   const body = useMemo(() => {
     if (!draft || !current) return null;
     switch (current.id) {
-      case "record":
-        return (
-          <RecordStep
-            password={password}
-            videoUrl={draft.videoUrl}
-            onVideo={(url, seconds) => patch({ videoUrl: url, videoSeconds: seconds })}
-            onBusyChange={setUploading}
-          />
-        );
-      case "where": return <WhereStep draft={draft} patch={patch} />;
-      case "name": return <NameStep draft={draft} patch={patch} />;
-      case "title": return <TitleStep draft={draft} patch={patch} idKeep="-" />;
-      case "fixes": return <TagStep draft={draft} patch={patch} errors={errors} />;
-      case "words": return <WordsStep draft={draft} patch={patch} />;
-      case "writeup": return <BodyStep draft={draft} patch={patch} hint="Published to the journal." />;
+      case "title": return <TitleStep draft={draft} patch={patch} />;
       case "body": return <BodyStep draft={draft} patch={patch} />;
       case "excerpt": return <ExcerptStep draft={draft} patch={patch} />;
       case "cover":
@@ -377,10 +313,9 @@ export default function NewContentClient({ path }: { path: string[] }) {
       default: return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, current, errors, password, uploading, patch, ensurePost]);
+  }, [draft, current, password, uploading, patch, ensurePost]);
 
-  if (!lane) return <Fork onPick={(picked) => router.replace(`/cms/new/${picked}/1`)} />;
-  if (!draft || !current) {
+  if (!lane || !draft || !current) {
     return (
       <main className="flex h-full items-center justify-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
@@ -388,7 +323,6 @@ export default function NewContentClient({ path }: { path: string[] }) {
     );
   }
 
-  const dark = current.id === "record" && !draft.videoUrl;
   const last = step === steps.length;
   /** The lane is mid-write. Holding BOTH the CTA and Enter on one value is
    *  what stops the two drifting apart the next time a slow lane is added. */
@@ -400,75 +334,31 @@ export default function NewContentClient({ path }: { path: string[] }) {
     <LaneShell
       step={step}
       total={steps.length}
-      dark={dark}
-      /* Back from the first step returns to where the author came from: the
-         coach's review, on the same moment (founder 2026-09-26). An author
-         who started in the catalogue still goes back to the fork. */
-      onBack={() =>
-        step > 1 ? go(step - 1) : router.push(authoringReturnTo() ?? "/cms/new")
-      }
+      onBack={() => (step > 1 ? go(step - 1) : router.push("/cms"))}
       onClose={() => router.push("/cms")}
-      // The camera screen deliberately has no CTA, so Enter has nothing to do
-      // there. Everywhere else Enter is the CTA — literally the same call, so
-      // the two can never drift — including Publish on the last screen, which
-      // is what the button under the thumb does too.
-      onEnter={dark || laneBusy ? undefined : advance}
+      // Enter is the CTA — literally the same call, so the two can never
+      // drift — including Publish on the last screen.
+      onEnter={laneBusy ? undefined : advance}
       footer={
         <>
-          {/* The camera screen carries the record ring and nothing else —
-              a CTA beside it competes with the one thing the screen is for.
-              It reappears the moment there is a clip to move on from. */}
-          {dark ? null : (
-            <LaneCta
-              onClick={advance}
-              disabled={laneBusy}
-              dark={dark}
-            >
-              {busy ? "Saving…" : last ? "Publish" : "Next"}
-            </LaneCta>
-          )}
+          <LaneCta onClick={advance} disabled={laneBusy}>
+            {busy ? "Saving…" : last ? "Publish" : "Next"}
+          </LaneCta>
           {last ? (
             <LaneQuiet onClick={() => void finish(false)}>Save as draft</LaneQuiet>
           ) : current.skippable ? (
-            <LaneQuiet onClick={() => go(step + 1)} dark={dark}>Skip</LaneQuiet>
+            <LaneQuiet onClick={() => go(step + 1)}>Skip</LaneQuiet>
           ) : null}
           {said ? (
-            <p className={`text-center text-[13px] ${dark ? "text-[#e0908a]" : "text-destructive"}`}>
+            <p className="text-center text-[13px] text-destructive">
               {said}
             </p>
           ) : null}
         </>
       }
     >
-      {dark ? null : <LaneHeading small={current.id === "writeup" || current.id === "body"}>{current.heading}</LaneHeading>}
-      {dark ? <LaneHeading>{current.heading}</LaneHeading> : null}
+      <LaneHeading small={current.id === "body"}>{current.heading}</LaneHeading>
       {body}
     </LaneShell>
-  );
-}
-
-function Fork({ onPick }: { onPick: (lane: Lane) => void }) {
-  return (
-    <main className="flex h-full flex-col bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-16">
-        <LaneHeading>What are you adding?</LaneHeading>
-        <div className="flex flex-col gap-3">
-          {([
-            ["post", "Post", "Writing for the journal"],
-            ["exercise", "Exercise", "Something a speaker practises"],
-          ] as const).map(([id, name, what]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onPick(id)}
-              className="flex w-full flex-col items-start gap-1.5 rounded-2xl border border-border bg-background px-5 py-6 text-left"
-            >
-              <span className="text-[17px] font-semibold">{name}</span>
-              <span className="text-[14px] text-muted-foreground">{what}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </main>
   );
 }

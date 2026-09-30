@@ -49,6 +49,16 @@ const sectionText = (heading) =>
 const routes = await sectionText("Detected in audio");
 const named = await sectionText("Named only");
 
+const tested = await sectionText("Being tested");
+check(
+  "a pattern being tested sits in its own group, locked, with the founder's readiness line",
+  tested.includes("Hedging") &&
+    tested.includes("Being tested silently") &&
+    tested.includes("named by a coach on 12 of 30 moments") &&
+    tested.includes("caught 75% of 80% needed") &&
+    !routes.includes("Hedging") &&
+    !named.includes("Hedging"),
+);
 check(
   "what routes exercises is listed apart from what only has a name",
   routes.includes("Rushing") &&

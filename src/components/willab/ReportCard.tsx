@@ -11,7 +11,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { REVIEWED } from "@/lib/willab/verificationCopy";
 import {
   fetchIdealTextCore,
   primeIdealTextDisplay,
@@ -351,7 +350,6 @@ function renderIdealTextReportCard(
       />
     );
   }
-  const verified = variant === "verified";
   if (variant === "instant") {
     return (
       <div
@@ -407,7 +405,6 @@ function renderIdealTextReportCard(
           : null
       }
       version={version}
-      frozenVerified={verified}
       // The DATE, not message.body. The BE's sentence used to sit here;
       // founder 2026-08-05 cut it to "just the title, date and the CTA".
       date={reportDateLabel(message.client_created_at)}
@@ -682,7 +679,6 @@ function IdealRecordingCard({
   title,
   meta,
   badge,
-  verified,
   ctaLabel,
   onOpen,
   unread = 0,
@@ -699,7 +695,6 @@ function IdealRecordingCard({
   meta: string | null;
   /** The version badge, e.g. "2.0" — the take this version came from. */
   badge: string | null;
-  verified: boolean;
   ctaLabel: string;
   /** null → no CTA (an un-openable historical bubble). */
   onOpen: (() => void) | null;
@@ -731,18 +726,6 @@ function IdealRecordingCard({
           </span>
         ) : null}
       </div>
-      {/* Reviewed pill only (founder 2026-09-22) — the pending state shows
-          nothing, here and in the header, for the reason given in
-          `verificationCopy`. The wrapper goes with it rather than staying as
-          an empty 16px gap under the card. */}
-      {verified ? (
-        <div className="mt-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-medium text-success ring-1 ring-success/25">
-            <Check className="h-3.5 w-3.5" aria-hidden />
-            {REVIEWED}
-          </span>
-        </div>
-      ) : null}
       {/* CTA — rounded-xl to echo the icon tile + card corners. */}
       {onOpen ? (
         <Button
@@ -822,7 +805,6 @@ function LiveStatusIdealTextCard({
   arcId,
   stampedTitle,
   version,
-  frozenVerified,
   date,
   onOpen,
   latest = false,
@@ -840,8 +822,6 @@ function LiveStatusIdealTextCard({
    *  Since founder 2026-08-05 the version IS the take: take 1 → 1.0, take
    *  2 → 2.0, each with its own verification. */
   version: number | null;
-  /** True when the BE wrote this bubble as a verified one (variant). */
-  frozenVerified: boolean;
   /** The bubble's own date, from its FE-stamped timestamp. */
   date: string | null;
   onOpen: (() => void) | null;
@@ -890,13 +870,6 @@ function LiveStatusIdealTextCard({
   }, [arcId]);
   // The dot sits only on the project's latest Ideal Text bubble (Q39 B).
   const unread = latest ? (live?.unread ?? 0) : 0;
-  // The status pill is the one mutable thing: a pending bubble flips to
-  // reviewed once the live document verifies THIS version.
-  const verified =
-    frozenVerified ||
-    (live?.status === "verified" &&
-      live.version !== null &&
-      live.version === version);
   return (
     <IdealRecordingCard
       /* Live → stamped-on-the-row → remembered → the generic. The generic is
@@ -911,7 +884,6 @@ function LiveStatusIdealTextCard({
       }
       meta={date}
       badge={version !== null ? `${version}.0` : null}
-      verified={verified}
       ctaLabel="Open your ideal text"
       unread={unread}
       // While feedback waits, the bubble opens it (the same place as the

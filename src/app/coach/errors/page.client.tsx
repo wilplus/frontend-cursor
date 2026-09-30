@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Lock, Plus } from "lucide-react";
 import LoadingState from "@/components/willab/LoadingState";
+import { founderLearning } from "@/services/api/founderLearning";
+import type { PaceRow } from "@/lib/founder/pace";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import {
   draftProblem,
@@ -98,7 +100,7 @@ function EntryNote({ entry }: { entry: SpeakingError }) {
   );
 }
 
-function EntryCard({ entry }: { entry: SpeakingError }) {
+function EntryCard({ entry, founderLine = null }: { entry: SpeakingError; founderLine?: string | null }) {
   const locked = entry.status !== "observed";
   return (
     <li
@@ -128,6 +130,11 @@ function EntryCard({ entry }: { entry: SpeakingError }) {
       </p>
 
       <EntryNote entry={entry} />
+      {founderLine ? (
+        <p className="mt-1.5 text-[11px] text-foreground/80" data-testid="founder-readiness">
+          {founderLine}
+        </p>
+      ) : null}
       {entry.active ? null : (
         <p className="mt-1 text-[11px] text-muted-foreground">Retired.</p>
       )}
@@ -135,8 +142,28 @@ function EntryCard({ entry }: { entry: SpeakingError }) {
   );
 }
 
+/** The founder's readiness line under a pattern being tested (founder
+ *  2026-09-30, P2-15): how many moments a coach named it on against the
+ *  bar, and how many of those the detector caught. Read from the founder's
+ *  ledger; a coach never sees it (AC-9), and the backend refuses the read
+ *  to anyone but the founder. Nothing here promotes a pattern. */
+export function readinessLine(row: PaceRow | undefined): string {
+  if (!row) return "No readiness read yet.";
+  const named = row.current === null ? "—" : String(row.current);
+  const caught = row.caughtRate === null ? "not measured" : `${Math.round(row.caughtRate * 100)}%`;
+  const caughtBar = row.caughtBar === null ? "" : ` of ${Math.round(row.caughtBar * 100)}% needed`;
+  return `${row.ready ? "READY to propose · " : ""}named by a coach on ${named} of ${row.bar} moments · caught ${caught}${caughtBar}`;
+}
+
+/** The cue id a shadow entry's detector names, e.g. verbal_cues:hedging → hedging. */
+export function cueOf(entry: SpeakingError): string | null {
+  const ref = entry.detectorRef ?? "";
+  const i = ref.indexOf(":");
+  return i > 0 ? ref.slice(i + 1) : ref || null;
+}
+
 /** The silent-test group, drawn only when there is one. */
-function BeingTested({ entries }: { entries: SpeakingError[] }) {
+function BeingTested({ entries, pace }: { entries: SpeakingError[]; pace: PaceRow[] | null }) {
   if (entries.length === 0) return null;
   return (
     <section className="mt-9">
@@ -145,15 +172,20 @@ function BeingTested({ entries }: { entries: SpeakingError[] }) {
       </h2>
       <ul className="mt-3 grid gap-3">
         {entries.map((entry) => (
-          <EntryCard key={entry.errorId} entry={entry} />
+          <EntryCard
+            key={entry.errorId}
+            entry={entry}
+            founderLine={pace ? readinessLine(pace.find((r) => r.jar === `shadow_cues.${cueOf(entry)}`)) : null}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-export default function SpeakingErrorLibraryClient() {
+export default function SpeakingErrorLibraryClient({ founder = false }: { founder?: boolean }) {
   const { isCoach, loading: profileLoading } = useUserProfile();
+  const [pace, setPace] = useState<PaceRow[] | null>(null);
   const [entries, setEntries] = useState<SpeakingError[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<SpeakingErrorDraft | null>(null);
@@ -171,6 +203,17 @@ export default function SpeakingErrorLibraryClient() {
     }
     setEntries(result.data);
   }, []);
+
+  useEffect(() => {
+    if (!founder) return;
+    let live = true;
+    void founderLearning.ledger().then((r) => {
+      if (live && r.ok) setPace(r.value.pace);
+    });
+    return () => {
+      live = false;
+    };
+  }, [founder]);
 
   useEffect(() => {
     if (isCoach) void refresh();
@@ -254,7 +297,7 @@ export default function SpeakingErrorLibraryClient() {
             )}
           </section>
 
-          <BeingTested entries={beingTested} />
+          <BeingTested entries={beingTested} pace={founder ? pace : null} />
 
           <section className="mt-9">
             <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">

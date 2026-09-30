@@ -73,7 +73,7 @@ async function mount(states: (ReviewState | null)[]) {
         onClose: () => {},
         onOpenReview: () => {},
         // The arc rows only render when the host threads an opener.
-        onOpenStarVerdicts: () => {},
+        onOpenJudge: () => {},
       }),
     );
   });

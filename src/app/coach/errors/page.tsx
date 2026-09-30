@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isFounderEmail } from "@/lib/founder";
 import SpeakingErrorLibraryClient from "./page.client";
 
 /**
@@ -23,5 +24,8 @@ export default async function CoachErrorLibraryPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?redirectTo=/coach/errors");
-  return <SpeakingErrorLibraryClient />;
+  // The founder alone sees the readiness line under a pattern being tested
+  // (founder 2026-09-30, P2-15): counts about the machine, never a coach's
+  // surface (AC-9). The backend gates the read again by email.
+  return <SpeakingErrorLibraryClient founder={isFounderEmail(user.email)} />;
 }

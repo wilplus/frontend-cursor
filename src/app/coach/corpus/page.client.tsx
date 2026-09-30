@@ -101,11 +101,7 @@ function confidenceChainEcho(
 /*  Copy on this screen is coach-facing and flagged for founder sign-off.      */
 /* -------------------------------------------------------------------------- */
 
-export default function CorpusPageClient({
-  canViewFounderComparison = false,
-}: {
-  canViewFounderComparison?: boolean;
-}) {
+export default function CorpusPageClient() {
   const router = useRouter();
   const { isCoach, loading } = useUserProfile();
   const [openSession, setOpenSession] = useState<TrainingImport | null>(null);
@@ -175,12 +171,6 @@ export default function CorpusPageClient({
             imports={imports}
             failed={indexFailed}
             onOpen={setOpenSession}
-            canViewFounderComparison={canViewFounderComparison}
-            onOpenComparison={(sessionId) =>
-              router.push(
-                `/coach/corpus/summary/${encodeURIComponent(sessionId)}`
-              )
-            }
           />
         </div>
       </main>
@@ -639,14 +629,10 @@ function IndexPanel({
   imports,
   failed,
   onOpen,
-  canViewFounderComparison,
-  onOpenComparison,
 }: {
   imports: TrainingImport[] | null;
   failed: boolean;
   onOpen: (i: TrainingImport) => void;
-  canViewFounderComparison: boolean;
-  onOpenComparison: (sessionId: string) => void;
 }) {
   /* The labelled badge on each row is computed from a FRESH server read of
    * that row's queue on every render of this list — the label objects the
@@ -872,15 +858,6 @@ function IndexPanel({
                     <X className="h-3.5 w-3.5" aria-hidden />
                   )}
                 </button>
-                {complete && canViewFounderComparison ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenComparison(i.sessionId)}
-                    className="mt-1 w-full rounded-xl border border-primary/30 bg-primary/[0.04] px-3 py-2 text-left text-[12px] font-medium text-foreground transition-colors hover:border-primary/60"
-                  >
-                    View machine × coach comparison
-                  </button>
-                ) : null}
               </li>
             );
           })}

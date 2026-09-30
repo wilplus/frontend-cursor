@@ -14,7 +14,7 @@
 /*  GET only). A refusal comes back as its code and the page shows it.        */
 /* -------------------------------------------------------------------------- */
 
-import { mapLedgerWeek, mapPaceRow, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
+import { mapGapView, mapLedgerWeek, mapPaceRow, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
 import type { ConfidenceRatingValue } from "./stateRatings";
 
 export type FounderResult<T> = { ok: true; value: T } | { ok: false; code: string; status: number };
@@ -50,6 +50,7 @@ export interface LedgerRead {
   ledger: Record<string, unknown>;
   weeks: LedgerWeek[];
   pace: PaceRow[];
+  gaps: GapView | null;
 }
 
 export interface WeeklyRun {
@@ -118,6 +119,7 @@ export const founderLearning = {
       ledger: (b.ledger && typeof b.ledger === "object" ? b.ledger : {}) as Record<string, unknown>,
       weeks: (Array.isArray(b.weeks) ? b.weeks : []).map(mapLedgerWeek).filter((w): w is LedgerWeek => w !== null),
       pace: (Array.isArray(b.pace) ? b.pace : []).map(mapPaceRow).filter((p): p is PaceRow => p !== null),
+      gaps: mapGapView(b.gaps),
     })),
   runWeekly: () =>
     call("/api/v2/admin/learning/weekly/run", { method: "POST" }, (b): WeeklyRun => ({

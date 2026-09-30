@@ -58,6 +58,16 @@ const ROWS = [
     active: true,
   },
   {
+    error_id: "hedging",
+    label: "Hedging",
+    definition:
+      "The passage softens its claims with qualifiers a listener hears as doubt: sort of, kind of, I think, maybe.",
+    asks: "Did the speaker commit to what they said?",
+    status: "shadow",
+    detector_ref: "verbal_cues:hedging",
+    active: true,
+  },
+  {
     error_id: "trailing_mumble",
     label: "Trailing mumble",
     definition:
@@ -88,6 +98,19 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
+      }
+
+      if (url.includes("/api/v2/admin/learning/ledger")) {
+        return new Response(
+          JSON.stringify({
+            ledger: {},
+            weeks: [],
+            pace: [
+              { jar: "shadow_cues.hedging", current: 12, bar: 30, observed_rate: null, weeks_to_bar: null, caught_rate: 0.75, caught_bar: 0.8, ready: false },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
       }
 
       if (url.includes("/api/v2/coach/speaking-errors")) {
@@ -139,5 +162,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
 
 export default function SpeakingErrorLibraryHarness() {
   if (process.env.NODE_ENV === "production") return null;
-  return <SpeakingErrorLibraryClient />;
+  // The harness plays the founder so the readiness line under a pattern
+  // being tested can be checked; the real page decides by email.
+  return <SpeakingErrorLibraryClient founder />;
 }

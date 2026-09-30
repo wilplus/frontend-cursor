@@ -47,18 +47,16 @@ describe("what it still refuses, and what it says", () => {
 });
 
 describe("the limit that does not apply here", () => {
-  const RECORD = readFileSync("src/app/cms/new/RecordStep.tsx", "utf8");
   const CLIENT_SRC = readFileSync("src/app/cms/new/page.client.tsx", "utf8");
   const API = readFileSync("src/services/api/journalAdmin.ts", "utf8");
 
   it("is gone from the lane", () => {
-    expect(RECORD).not.toContain("MAX_UPLOAD_BYTES");
-    expect(RECORD).not.toContain("Keep it under a minute");
+    expect(CLIENT_SRC).not.toContain("MAX_UPLOAD_BYTES");
+    expect(CLIENT_SRC).not.toContain("Keep it under a minute");
   });
 
   it("is replaced by the cap the presign serves", () => {
     expect(API).toContain("max_bytes");
-    expect(RECORD).toContain("presigned.data.maxBytes");
     expect(CLIENT_SRC).toContain("presigned.data.maxBytes");
   });
 

@@ -18,20 +18,11 @@ describe("the coach's practice door", () => {
     expect(opensPracticeDoor(undefined)).toBe(false);
   });
 
-  it("is the one door on the blind card and the overlay's practice review", () => {
+  it("is the one door on the blind card", () => {
     const card = readFileSync(
       "src/components/willab/CoachSnippetReviewCard.tsx", "utf8");
-    const overlay = readFileSync(
-      "src/components/willab/CoachStarVerdictOverlay.tsx", "utf8");
     expect(card).toContain("const answered = opensPracticeDoor(rating);");
     expect(card).toContain("opensPracticeDoor(rating, unrateable)");
     expect(card).not.toContain('rating === "yes" || rating === "no"');
-    expect(overlay).toContain(
-      "opensPracticeDoor(row.label?.value, row.label?.unrateable)");
-    // The old door opened on a row with no label at all. (blindComplete
-    // keeps that shape on purpose: an abstention does complete the pass.)
-    expect(overlay).not.toMatch(
-      /enabled=\{\s*COACH_GUIDANCE_D3_UI_ENABLED &&\s*\(row\.label\?\.value !== null/,
-    );
   });
 });

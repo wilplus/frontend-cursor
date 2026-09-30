@@ -86,7 +86,6 @@ jobs:
 
       - name: Start next dev and warm the harness pages
         env:
-          # The harness contract (e2e/README.md): the star-verdicts fixture
           # seeds an sb-dummy-* auth cookie, so the URL's project ref MUST
           # be "dummy". Placeholders only — nothing connects to them.
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
@@ -99,7 +98,7 @@ jobs:
           done
           # First-compile warmup: a spec that navigates mid-compile races
           # its own selectors. Compile each harness page before any spec.
-          for p in dev/life-bets dev/corpus dev/star-verdicts dev/marked-editor dev/deck dev/speaking-errors dev/coach-walk; do
+          for p in dev/life-bets dev/corpus dev/marked-editor dev/deck dev/speaking-errors dev/coach-walk; do
             curl -sf -o /dev/null "http://localhost:3111/$p" || true
           done
 
@@ -107,7 +106,6 @@ jobs:
         run: |
           node e2e/bets-reorder.spec.mjs
           node e2e/corpus.spec.mjs
-          node e2e/star-verdicts.spec.mjs
           node e2e/ideal-text-canonical.spec.mjs
           LIBRARY_URL=http://localhost:3111/dev/speaking-errors node e2e/speaking-errors.spec.mjs
           WALK_URL=http://localhost:3111/dev/coach-walk node e2e/coach-walk.spec.mjs

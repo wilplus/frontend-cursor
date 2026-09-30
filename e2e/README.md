@@ -13,7 +13,6 @@ failure.
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
-| `star-verdicts.spec.mjs` | `/dev/star-verdicts` | `STARS_URL` → `:3111` |
 
 The five `/dev/*` harness pages stub their own network, so no backend is
 needed for them. **record-flow drives the real record flow at `/chat`** on a
@@ -50,7 +49,7 @@ rendered HTML were all green.
 npm ci                            # playwright is a devDependency
 npx playwright install chromium   # once per machine
 
-# The env shape is part of the harness contract: the star-verdicts fixture
+# The env shape is part of the harness contract: the coach-walk fixture
 # seeds an sb-dummy-* auth cookie, so the Supabase URL's project ref MUST
 # be "dummy". These are placeholders — nothing ever connects to them.
 NEXT_PUBLIC_SUPABASE_URL=https://dummy.supabase.co \
@@ -59,13 +58,12 @@ npx next dev -p 3111              # in one terminal
 
 node e2e/bets-reorder.spec.mjs    # in another
 node e2e/corpus.spec.mjs
-node e2e/star-verdicts.spec.mjs
 node e2e/ideal-text-canonical.spec.mjs
 MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
 ```
 
 Point a spec at a different port with its URL env var
-(e.g. `STARS_URL=http://localhost:3000/dev/star-verdicts`). Load the page
+(e.g. `WALK_URL=http://localhost:3000/dev/coach-walk`). Load the page
 once in a browser (or curl it) before the first spec run — `next dev`
 compiles on demand, and a spec navigating mid-compile races its own
 selectors.

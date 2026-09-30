@@ -53,17 +53,13 @@ export default function StudentDetailOverlay({
   fallbackPseudonym,
   onClose,
   onOpenReview,
-  onOpenArcIdeal,
-  onOpenStarVerdicts,
+  onOpenJudge,
 }: {
   userId: string;
   /** Shown in the header until the detail loads (carried from the roster row). */
   fallbackPseudonym?: string;
   onClose: () => void;
   onOpenReview: (sessionId: string) => void;
-  /** FE-B — open the arc's ideal-text panel from the ready badge. Optional:
-   *  without it the badge renders as a non-tappable cue. */
-  onOpenArcIdeal?: (arcId: string) => void;
   /** Star Verdict (2026-07-27) — open the arc's star-review overlay. THIS
    *  screen is the entry on purpose (N1): the verdict surface shows the
    *  machine's guesses, so its way in must never be the blind labeling flow
@@ -71,7 +67,7 @@ export default function StudentDetailOverlay({
    *  separate navigation entry. Optional: absent, no entry renders. */
   /** sessionIds: the arc's take sessions — the panel's confident-voice
    *  labeling rows aggregate their blind queues (founder 2026-08-10). */
-  onOpenStarVerdicts?: (arcId: string, sessionIds: string[]) => void;
+  onOpenJudge?: (arcId: string, sessionIds: string[]) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -187,21 +183,13 @@ export default function StudentDetailOverlay({
               <button
                 key={arcId}
                 type="button"
-                onClick={
-                  onOpenArcIdeal ? () => onOpenArcIdeal(arcId) : undefined
-                }
-                disabled={!onOpenArcIdeal}
-                className={`flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/5 px-4 py-3 text-left ${
-                  onOpenArcIdeal ? "transition-colors hover:border-primary/70" : ""
-                }`}
+                disabled
+                className="flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/5 px-4 py-3 text-left"
               >
                 <Crown className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
                 <span className="flex-1 text-[14px] font-medium text-foreground">
                   Ideal text ready to review
                 </span>
-                {onOpenArcIdeal ? (
-                  <span className="text-[12px] text-primary">Open</span>
-                ) : null}
               </button>
             ))}
 
@@ -210,13 +198,13 @@ export default function StudentDetailOverlay({
                 states, and deliberately NOT on the review overlay's wrap-up:
                 that overlay is the blind labeling flow, and this surface shows
                 the machine's guesses (N1). */}
-            {onOpenStarVerdicts
+            {onOpenJudge
               ? starArcs.map(({ arcId, topic, sent }) => (
                   <button
                     key={`stars-${arcId}`}
                     type="button"
                     onClick={() =>
-                      onOpenStarVerdicts(
+                      onOpenJudge(
                         arcId,
                         detail.sessions
                           .filter((s) => s.arcId === arcId)

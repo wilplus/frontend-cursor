@@ -29,7 +29,7 @@ export interface JudgeWalk {
 export function useJudgeWalk(handlers: {
   /** Open one take's judgement queue. */
   onOpenTake: (sessionId: string) => void;
-  /** Every take judged — open the arc's Feedbacks review. */
+  /** Every take judged — the hub opens the arc's delivery. */
   onComplete: (arcId: string, sessionIds: string[]) => void;
 }) {
   const { onOpenTake, onComplete } = handlers;

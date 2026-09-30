@@ -24,8 +24,6 @@ import {
 } from "./MachinePickReasons";
 import { mapCandidates, mapMachinePick } from "@/services/api/machinePick";
 import { mapCoachConfidencePractice } from "@/services/api/coachConfidencePractice";
-import { mapExerciseGaps } from "@/services/api/journalAdmin";
-import { gapCount } from "@/app/cms/gaps/ExerciseGaps";
 import { mapSpeakingError } from "@/services/api/speakingErrors";
 
 const TITLES = titlesFrom([
@@ -143,36 +141,5 @@ describe("why nothing fitted, on a coach request", () => {
   it("gives a ranked row that isn't the pick a plain reason", () => {
     const [row] = mapCandidates([{ exercise_id: "a", outcome: "ranked", rank: 2 }]);
     expect(candidateReason(row, true)).toBe("Ranked below the pick.");
-  });
-});
-
-describe("the gap view", () => {
-  const gaps = mapExerciseGaps({
-    days: 30,
-    patterns: [
-      { error_id: "rushing", label: "Rushing", status: "detected", coverage: "no_exercise", spotted: 12, open_coach_requests: 3, main_exercises: [], secondary_exercises: [] },
-      { error_id: "mumble", label: "Mumble", status: "shadow", coverage: "being_tested", spotted: 0, open_coach_requests: 0, main_exercises: [], secondary_exercises: [], shadow: { clips_measured: 40, clips_fired: 6 } },
-    ],
-    nothing_spotted_open_requests: 2,
-    unavailable: ["coach_requests"],
-  });
-
-  it("keeps the backend's order and reads every field", () => {
-    expect(gaps.patterns.map((p) => p.errorId)).toEqual(["rushing", "mumble"]);
-    expect(gaps.patterns[1].shadow).toEqual({ clipsMeasured: 40, clipsFired: 6 });
-  });
-
-  it("says Unknown, never 0, for a source it couldn't read", () => {
-    expect(gapCount(gaps.patterns[0].openCoachRequests, "coach_requests", gaps.unavailable)).toBe("Unknown");
-    expect(gapCount(gaps.patterns[0].spotted, "match_traces", gaps.unavailable)).toBe("12");
-  });
-});
-
-describe("the library's silent-test status", () => {
-  it("reads shadow as being tested, never as detected", () => {
-    const entry = mapSpeakingError({ error_id: "mumble", label: "Mumble", definition: "d", asks: "a", status: "shadow" });
-    expect(entry?.status).toBe("shadow");
-    const unknown = mapSpeakingError({ error_id: "x", label: "X", definition: "d", asks: "a", status: "weird" });
-    expect(unknown?.status).toBe("observed");
   });
 });

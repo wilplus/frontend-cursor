@@ -17,7 +17,7 @@
 /*  every API the flow reads is answered at the browser (ctx.route) or by      */
 /*  e2e/_fixture-backend.mjs behind the BFF. The auth seed uses the Supabase   */
 /*  project ref of the build's NEXT_PUBLIC_SUPABASE_URL — "dummy" in CI, the   */
-/*  same harness contract as star-verdicts (e2e/README.md); override with      */
+/*  same harness contract as coach-walk (e2e/README.md); override with         */
 /*  SUPABASE_REF for a local build.                                            */
 /*                                                                            */
 /*  RUN IT:                                                                    */
