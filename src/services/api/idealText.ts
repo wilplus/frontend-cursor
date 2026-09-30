@@ -258,7 +258,7 @@ export interface DocumentSuggestion {
    *  A tier NAME, never a band, a score or a position: the BE decides which
    *  bookmark this is and sends only that word. Safe-ahead — absent/null on an
    *  older backend renders exactly today's single colour. */
-  bookmarkTier?: "exercise" | "most_confident" | "standard" | null;
+  bookmarkTier?: BookmarkTierName | null;
   /** "Let's practice" with no exercise attached (24f). Every item below the
    *  neutral read offers practice; only the weakest carries the drill, because
    *  an exercise is work the user must go and do and a list of them is a list
@@ -458,14 +458,32 @@ const SUGGESTION_VISUALS: readonly SuggestionVisual[] = [
   "underline",
   "bold",
 ];
-/** The bookmark tiers of contract 24g. A CLOSED list: an unknown word from a
- *  newer backend maps to null and renders as an ordinary bookmark, rather than
- *  inventing a fourth appearance the design never approved. */
-const BOOKMARK_TIERS: readonly ("exercise" | "most_confident" | "standard")[] = [
+/** The bookmark tiers of contract 24g (founder lock 2026-09-30, B7): the
+ *  machine's read of the moment as a NAME, never a number. `confident` is
+ *  read above the threshold and draws green; `weak` is read below it and
+ *  draws orange when a practise is attached; `standard` could not be read
+ *  and draws no bar. A CLOSED list: an unknown word from a newer backend maps
+ *  to null and draws no bar, rather than inventing an appearance the design
+ *  never approved. Takes frozen before the lock carry the old names,
+ *  `most_confident` and `exercise`; they are read as `confident` and `weak`
+ *  at this boundary so nothing downstream knows two vocabularies. */
+export type BookmarkTierName = "confident" | "weak" | "standard";
+const BOOKMARK_TIERS: readonly (BookmarkTierName | "exercise" | "most_confident")[] = [
+  "confident",
+  "weak",
+  "standard",
   "exercise",
   "most_confident",
-  "standard",
 ];
+const LEGACY_TIERS: Record<string, BookmarkTierName> = {
+  exercise: "weak",
+  most_confident: "confident",
+};
+function readBookmarkTier(value: unknown): BookmarkTierName | null {
+  const tier = readEnum(value, BOOKMARK_TIERS);
+  if (tier === null) return null;
+  return LEGACY_TIERS[tier] ?? (tier as BookmarkTierName);
+}
 const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
   "great_formulation",
@@ -712,7 +730,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     proposedText,
     feedbackFamily: readEnum(record.feedback_family, FEEDBACK_FAMILIES),
     tentative: record.tentative === true,
-    bookmarkTier: readEnum(record.bookmark_tier, BOOKMARK_TIERS),
+    bookmarkTier: readBookmarkTier(record.bookmark_tier),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
     problemRecognised: record.problem_recognised === true,

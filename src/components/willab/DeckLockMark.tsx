@@ -47,7 +47,35 @@ const COACH_LABEL = "Coach note:";
    a second vocabulary starts, which is what this label's test guards. */
 const STYLE_LABEL = CHUNK_SHEET_COPY.titleEmphasis;
 
-type BookmarkTier = "exercise" | "most_confident" | "standard" | null;
+type BookmarkTier = "confident" | "weak" | "standard" | null;
+
+/** Which tiers draw a bar at all (founder lock 2026-09-30, B7): green for a
+ *  read above the threshold, orange for a read below it with a practise.
+ *  `standard` — a read the machine could not make, or a weak read with
+ *  nothing to practise — draws nothing; the paragraph is plain text at full
+ *  width, and still the tap target. Safe-ahead: a row with no tier at all
+ *  (a backend that does not send one) keeps the mark it always had. */
+function drawsBar(tier: BookmarkTier): boolean {
+  return tier !== "standard";
+}
+
+/** Nothing to draw and nothing to carry: the mark is not on the page. */
+function hidesMark(tier: BookmarkTier, hasCoach: boolean): boolean {
+  return !drawsBar(tier) && !hasCoach;
+}
+
+/** The bar itself, or nothing. Its own component so the mark, at the
+ *  complexity ratchet's edge, gains no branch. */
+function GutterBar({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <span
+      aria-hidden
+      data-gutter-bar
+      className="block h-full w-[3px] rounded-full bg-current"
+    />
+  );
+}
 
 /** How one bookmark is painted (contract 24g), as a pure function of its tier.
  *
@@ -75,7 +103,7 @@ type BookmarkTier = "exercise" | "most_confident" | "standard" | null;
  *  indicator and it stays. */
 function tierClasses(tier: BookmarkTier): string {
   const colour =
-    tier === "most_confident"
+    tier === "confident"
       ? "text-affirm focus-visible:outline-affirm"
       : "text-primary focus-visible:outline-primary";
   return `${colour} ${motionClasses(tier)}`;
@@ -132,8 +160,12 @@ export default function DeckLockMark({
   // do, so it is the only tier that moves — see `bookmarkMotion`, which owns
   // the motion rule because keeping it here is what let green breathe while a
   // comment promised it never would.
-  const isExercise = tier === "exercise";
-  const isAffirmed = tier === "most_confident";
+  const isExercise = tier === "weak";
+  const isAffirmed = tier === "confident";
+  // TWO COLOURS, OR NOTHING (founder lock 2026-09-30, B7). Without a bar to
+  // draw and no coach dot to carry, the mark is not on the page at all: the
+  // paragraph reads as plain text, full width, and is its own tap target.
+  if (hidesMark(tier, hasCoach)) return null;
 
   return (
     <button
@@ -174,11 +206,7 @@ export default function DeckLockMark({
           clips the bar nor swallows its tap. Tier colour and
           motion, the accessible label and every data-* attribute are
           unchanged — the bar is the old mark's position, not a new signal. */}
-      <span
-        aria-hidden
-        data-gutter-bar
-        className="block h-full w-[3px] rounded-full bg-current"
-      />
+      <GutterBar visible={drawsBar(tier)} />
       {hasCoach ? (
         <span
           className={`absolute left-[1.5px] top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full ring-2 ring-background ${hasUnreadCoachUpdate ? "bg-primary motion-safe:animate-pulse" : "bg-muted-foreground"}`}

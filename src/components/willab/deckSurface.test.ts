@@ -173,15 +173,18 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MARK).not.toMatch(/<Bookmark/);
   });
 
-  it("a finished paragraph keeps a grey bar in the margin, with no indent", () => {
-    // Founder 2026-09-28 (paragraph mark B): the empty 16px indent is gone,
-    // both bars sit in the margin left of the text, and a paragraph that
-    // opens its sheet with nothing waiting keeps a thin grey bar so it still
-    // reads as openable.
-    expect(DECK).toMatch(/data-settled-bar/);
-    expect(DECK).toMatch(/if \(unsettled \|\| !opens\) return null/);
+  it("a paragraph with nothing open draws no bar: plain text at full width, no indent", () => {
+    // Founder lock 2026-09-30 (B7): only green and orange bars exist. The
+    // grey bar of 2026-09-28 is gone; a paragraph that opens its sheet with
+    // nothing waiting is plain text and still its own tap target. Both bars
+    // that remain sit in the margin left of the text, so the text keeps its
+    // full width and nothing reads as an empty indent.
+    expect(DECK).not.toMatch(/data-settled-bar/);
+    expect(DECK).not.toMatch(/<SettledBar/);
     expect(DECK).not.toMatch(/"relative pl-4 text-\[clamp/);
     expect(MARK).toMatch(/absolute bottom-0 -left-3 top-0/);
+    expect(MARK).toMatch(/if \(hidesMark\(tier, hasCoach\)\) return null/);
+    expect(MARK).toMatch(/return tier !== "standard";/);
     expect(DECK).toMatch(/-ml-4 min-h-0 flex-1 overflow-y-auto overscroll-y-contain pl-4/);
   });
 

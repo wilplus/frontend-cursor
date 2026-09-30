@@ -56,11 +56,22 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
      stays the door for those who left the walk.
   5. Presentation Mode is entered from the ⋯ menu only.
   6. After Take 2 nothing opens by itself: the orange bar marks a paragraph
-     waiting on the speaker, the grey bar opens its history on tap.
+     waiting on the speaker, the grey bar opens its history on tap. (The grey
+     bar was retired by the founder lock of 2026-09-30, B7: only green and
+     orange bars exist, a paragraph with nothing open is plain text at full
+     width and still opens its own sheet on tap.)
 - The paragraph text size was changed 2026-09-30 (founder, "D" on the "Ideal
   Text Size" page): 17px on a phone rising to 20px on desktop, replacing the
   design's "21px on a phone, up to 30px on desktop" (L7). The helper-words
   headline keeps its size.
+- The founder lock of 2026-09-30 (`docs/FOUNDER-LOCK-helper-words-2026-09-30.md`
+  in the backend repo) amends these screens task by task: the helper-words
+  step opens on Yes and In-between only (B2), a pick is at most four words
+  (B3), the bars are two colours by the machine's read (B7), the walk goes
+  top to bottom with locked paragraphs as Next screens (B8), and the helper
+  words overlay, the paragraph overlay and the practise loop follow the mocks
+  on the lock's build list. Where this section and the lock disagree, the
+  lock wins.
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---

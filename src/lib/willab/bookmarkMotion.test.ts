@@ -25,19 +25,20 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const TIERS: BookmarkTier[] = [
-  "exercise",
-  "most_confident",
+  "weak",
+  "confident",
   "standard",
   null,
 ];
 
 describe("motionClasses", () => {
-  it("moves the exercise, and nothing else", () => {
-    // The whole point. The exercise is the one item the speaker is asked to
-    // go and do (24f); a moment that congratulates itself in motion is asking
+  it("moves the orange mark, and nothing else", () => {
+    // The whole point. The orange mark is the one item the speaker is asked
+    // to go and do (24f; the tier `weak` since the founder lock of
+    // 2026-09-30); a moment that congratulates itself in motion is asking
     // for attention it has not earned.
-    expect(motionClasses("exercise")).toBe("motion-safe:animate-pulse");
-    for (const tier of TIERS.filter((t) => t !== "exercise")) {
+    expect(motionClasses("weak")).toBe("motion-safe:animate-pulse");
+    for (const tier of TIERS.filter((t) => t !== "weak")) {
       expect(motionClasses(tier)).toBe("");
     }
   });
@@ -53,7 +54,7 @@ describe("motionClasses", () => {
   });
 
   it("is motion-safe, so Reduce Motion stops everything", () => {
-    expect(motionClasses("exercise")).toMatch(/^motion-safe:/);
+    expect(motionClasses("weak")).toMatch(/^motion-safe:/);
   });
 
   it("emits classes, never undefined or a stray space", () => {
@@ -66,9 +67,9 @@ describe("motionClasses", () => {
 });
 
 describe("markPulses", () => {
-  it("is the exercise alone", () => {
-    expect(markPulses("exercise")).toBe(true);
-    expect(markPulses("most_confident")).toBe(false);
+  it("is the orange mark alone", () => {
+    expect(markPulses("weak")).toBe(true);
+    expect(markPulses("confident")).toBe(false);
     expect(markPulses("standard")).toBe(false);
     expect(markPulses(null)).toBe(false);
   });
@@ -78,7 +79,7 @@ describe("marksMove — the founder's sentence, asserted directly", () => {
   it("green does NOT move", () => {
     // Said in a comment for weeks while the screen did the opposite. Now it
     // is a test.
-    expect(marksMove("most_confident")).toBe(false);
+    expect(marksMove("confident")).toBe(false);
   });
 
   it("an ordinary orange mark does NOT move", () => {
@@ -91,11 +92,11 @@ describe("marksMove — the founder's sentence, asserted directly", () => {
     expect(marksMove(null)).toBe(false);
   });
 
-  it("the exercise moves", () => {
-    expect(marksMove("exercise")).toBe(true);
+  it("the orange mark moves", () => {
+    expect(marksMove("weak")).toBe(true);
   });
 
   it("exactly one tier moves, so motion still means one thing", () => {
-    expect(TIERS.filter((tier) => marksMove(tier))).toEqual(["exercise"]);
+    expect(TIERS.filter((tier) => marksMove(tier))).toEqual(["weak"]);
   });
 });
