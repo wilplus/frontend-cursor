@@ -183,3 +183,31 @@ export function headlineFor(
   if ((sliceIndex ?? 0) > 0) return null;
   return headlines.get(partId) ?? null;
 }
+
+/** A DELETED SET LEAVES THE PAGE AT ONCE (founder lock 2026-09-30, D4).
+ *  The delete runs behind the sheet; until a read after it comes back
+ *  without the words, the page would still draw the old headline. The
+ *  dropped paragraph is withheld from the shown map until a read arrives
+ *  that no longer carries it. */
+export function useDroppedHeadlines(
+  headlines: Map<string, string>,
+): { headlines: Map<string, string>; drop: (partId: string) => void } {
+  const [dropped, setDropped] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (dropped.size === 0) return;
+    const still = new Set([...dropped].filter((id) => headlines.has(id)));
+    if (still.size !== dropped.size) setDropped(still);
+    // Runs per read: `dropped` is read, not watched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headlines]);
+  const shown = useMemo(() => {
+    if (dropped.size === 0) return headlines;
+    const out = new Map(headlines);
+    for (const id of dropped) out.delete(id);
+    return out;
+  }, [headlines, dropped]);
+  const drop = useCallback((partId: string) => {
+    setDropped((prev) => new Set(prev).add(partId));
+  }, []);
+  return { headlines: shown, drop };
+}

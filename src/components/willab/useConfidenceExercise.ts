@@ -48,6 +48,7 @@ import {
   type ConfidencePractice,
   type ConfidencePracticeAttempt,
   type PracticeAnswer,
+  type PracticePassage,
 } from "@/services/api/confidentVoicePractice";
 
 type Evidence = NonNullable<DocumentSuggestion["evidence"]>;
@@ -89,6 +90,9 @@ export interface ConfidenceExercise {
   error: string | null;
   /** The attempt the server chose as worth judging — the orange card's audio. */
   corrected: ConfidencePracticeAttempt | null;
+  /** Which attempt the next recording is (founder lock 2026-09-30, D2: no
+   *  cap; a position, never a score). */
+  attemptNumber: number;
   attemptsRemaining: number;
   /** Closed server-side: the step is done and the ladder moves on. */
   finished: boolean;
@@ -112,6 +116,10 @@ export function useConfidenceExercise(args: {
   evidence: Evidence | null;
   /** The speaker's answer about the original clip, as given: all five. */
   originalUserAnswer: PracticeAnswer;
+  /** What is practised (founder lock 2026-09-30, D1): the library exercise
+   *  (the default, and it needs `offer`), the rewrite's words, or the plain
+   *  moment. */
+  passage?: PracticePassage;
   /** Called once the practice row closes, so the ladder can advance. */
   onFinished: (
     answer: PracticeAnswer | null,
@@ -119,6 +127,7 @@ export function useConfidenceExercise(args: {
   ) => void;
 }): ConfidenceExercise {
   const { snippetId, offer, evidence, originalUserAnswer, onFinished } = args;
+  const passage = args.passage ?? { kind: "exercise" };
   const mic = useDualCaptureMic({ transcript: false });
   const [practice, setPractice] = useState<ConfidencePractice | null>(null);
   const [screen, setScreen] = useState<ExerciseScreen>("offer");
@@ -135,7 +144,8 @@ export function useConfidenceExercise(args: {
 
   const ensurePractice = useCallback(async (): Promise<ConfidencePractice | null> => {
     if (practice) return practice;
-    if (!snippetId || !offer || !evidence) return null;
+    if (!snippetId || !evidence) return null;
+    if (passage.kind === "exercise" && !offer) return null;
     setBusy(true);
     setError(null);
     const result = await startConfidencePractice(
@@ -143,6 +153,7 @@ export function useConfidenceExercise(args: {
       offer,
       evidence,
       originalUserAnswer,
+      passage,
     );
     setBusy(false);
     if (!result.ok) {
@@ -151,7 +162,7 @@ export function useConfidenceExercise(args: {
     }
     setPractice(result.practice);
     return result.practice;
-  }, [practice, snippetId, offer, evidence, originalUserAnswer]);
+  }, [practice, snippetId, offer, evidence, originalUserAnswer, passage]);
 
   const submitAttempt = useCallback(
     async (audio: Blob, durationSec: number) => {
@@ -298,6 +309,7 @@ export function useConfidenceExercise(args: {
     busy,
     error,
     corrected: attemptToJudge(practice),
+    attemptNumber: (practice?.attempts.length ?? 0) + 1,
     // Only the practice row carries the cap. Before one is opened nothing has
     // been spent, so the full three remain: the recording screen numbers the
     // attempt from this, and a zero here made the very first recording read

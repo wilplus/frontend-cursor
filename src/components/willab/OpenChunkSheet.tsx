@@ -2,6 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import ParagraphSheet from "@/components/willab/ParagraphSheet";
+import PractiseSheet from "@/components/willab/PractiseSheet";
+import type { LockResult } from "@/components/willab/DeckChunkModal";
+import { asJudgementValue, practiseCardOf } from "@/lib/willab/paragraphOverlay";
 import type {
   ChunkHistoryLite,
   ChunkState,
@@ -47,6 +50,9 @@ export default function OpenChunkSheet({
   feedbackPending = false,
   onClose,
   renderSheet,
+  practiseHost = null,
+  helperWordsHost = null,
+  startPicking = false,
 }: {
   state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   arcId: string | null;
@@ -70,6 +76,23 @@ export default function OpenChunkSheet({
     practiseAgain: PractiseAgain,
     onAnswered: (answer: ConfidenceRatingValue) => void,
   ) => ReactNode;
+  /** THE PRACTISE SCREEN (founder lock 2026-09-30, B6): with a host,
+   *  Practise from the overlay opens the practise loop — say, record,
+   *  judge, the helper words from the attempt — and the lock after it.
+   *  Without one, Practise opens the judgement sheet on its exercise step,
+   *  as before. */
+  practiseHost?: {
+    onLockIn: (text: string) => Promise<LockResult>;
+    onHelperWordsSaved: () => void;
+  } | null;
+  /** THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4): its two
+   *  writes the sheet cannot make itself. */
+  helperWordsHost?: {
+    onUseFromTake: (phrase: string, takeIndex: number) => Promise<boolean>;
+    onDelete: () => Promise<boolean>;
+  } | null;
+  /** The page's headline was tapped: open on the helper words. */
+  startPicking?: boolean;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
   /** The answer given in the judgement sheet this opening, carried into the
@@ -93,6 +116,28 @@ export default function OpenChunkSheet({
     if (!held && ownSheet === null) setOwnSheet(opensParagraphSheet(state, saved));
   }, [held, ownSheet, state, saved]);
   if (ownSheet === null) return null;
+  if (practiseAgain && practiseHost) {
+    const judgement = asJudgementValue(practiseAgain.answer);
+    const card = practiseCardOf(
+      [...state.decided, ...state.pending], judgement, state.chunk.part.text);
+    if (card) {
+      return (
+        <PractiseSheet
+          item={practiseAgain.item}
+          judgement={judgement}
+          card={card}
+          partId={state.chunk.part.id}
+          paragraphText={state.chunk.part.text}
+          onLockIn={practiseHost.onLockIn}
+          onSaved={practiseHost.onHelperWordsSaved}
+          onDone={onDone}
+          pager={pager}
+          slideLabel={slideLabel}
+          onClose={onClose}
+        />
+      );
+    }
+  }
   if (practiseAgain || !ownSheet) {
     return (
       <>
@@ -116,7 +161,10 @@ export default function OpenChunkSheet({
       onPractise={(item, answer) =>
         setPractiseAgain({ item, answer: asJudgement(answer) })
       }
+      practiseEveryCard={practiseHost !== null}
       onUseHelperWords={onUseHelperWords}
+      helperWordsHost={helperWordsHost}
+      startPicking={startPicking}
       onDone={onDone}
       pager={pager}
       slideLabel={slideLabel}
