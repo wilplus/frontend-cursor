@@ -884,6 +884,175 @@ export function adminExerciseGaps(password: string, days = 30) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  The evaluation (founder 2026-09-29, evening: a full jar unseals the        */
+/*  evaluation by itself; coach picks in, in their own pile).                 */
+/*                                                                            */
+/*  Its own call and its own mapper, on purpose: the jar's mapper below reads */
+/*  counts and nothing about outcomes, and its test pins that. This one reads */
+/*  the outcomes the backend computes ONLY once the bar is met; below the bar */
+/*  the backend answers sealed and why, and this mapper carries nothing else. */
+/*  Two piles that never mix; nothing promotes.                               */
+/* -------------------------------------------------------------------------- */
+
+export type JarPile = "machine_only" | "with_coach_picks";
+export const JAR_PILES: readonly JarPile[] = ["machine_only", "with_coach_picks"];
+
+export interface JarScoreRow {
+  exerciseId: string;
+  counted: number;
+  helped: number;
+  /** helped / counted, or null with nothing counted. */
+  helpedRate: number | null;
+}
+
+export interface JarScoreboard {
+  counted: number;
+  helped: number;
+  helpedRate: number | null;
+  exercises: JarScoreRow[];
+  bySelectionMode: Record<string, { counted: number; helped: number; helpedRate: number | null }>;
+}
+
+export interface JarFairTest {
+  meetsBar: boolean;
+  whyNot: string[];
+  /** Exam-group speakers and exposures the candidate was graded on. */
+  holdout: { exposures: number; speakers: number; candidateAgrees: number };
+  candidate: { attemptRate: number | null; successRate: number | null };
+  baseline: { attemptRate: number | null; successRate: number | null };
+  successGain: number | null;
+  successGainInterval95: [number, number] | null;
+  attemptRateChange: number | null;
+  requiresFounderApproval: boolean;
+}
+
+export interface JarPreference {
+  exerciseId: string;
+  counted: number;
+  helped: number;
+  helpedRate: number | null;
+  /** Above the per-exercise bar of study-group labels: the rate is used. */
+  trusted: boolean;
+}
+
+export interface JarPileEvaluation {
+  scoreboard: JarScoreboard;
+  candidate: { version: string; learnedFrom: { labels: number; speakers: number }; preferences: JarPreference[] };
+  fairTest: JarFairTest;
+}
+
+export interface JarEvaluation {
+  sealed: boolean;
+  whyNot: string | null;
+  requiresFounderApproval: boolean;
+  promotes: boolean;
+  versions: { evaluation: string; candidate: string; fairTest: string; scorekeeper: string };
+  /** Present only when unsealed. */
+  piles: Record<JarPile, JarPileEvaluation> | null;
+  coachPickLabels: number;
+}
+
+function rate(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function mapRates(raw: unknown): { attemptRate: number | null; successRate: number | null } {
+  const r = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  return { attemptRate: rate(r.attempt_rate), successRate: rate(r.success_rate) };
+}
+
+function mapScoreboard(raw: unknown): JarScoreboard {
+  const r = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const modes: JarScoreboard["bySelectionMode"] = {};
+  const modesRaw = r.by_selection_mode && typeof r.by_selection_mode === "object"
+    ? r.by_selection_mode as Record<string, unknown> : {};
+  for (const [mode, value] of Object.entries(modesRaw)) {
+    const v = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    modes[mode] = { counted: count(v.counted), helped: count(v.helped), helpedRate: rate(v.helped_rate) };
+  }
+  return {
+    counted: count(r.counted),
+    helped: count(r.helped),
+    helpedRate: rate(r.helped_rate),
+    exercises: (Array.isArray(r.exercises) ? r.exercises : [])
+      .map((row): JarScoreRow | null => {
+        const x = row && typeof row === "object" ? row as Record<string, unknown> : {};
+        if (typeof x.exercise_id !== "string" || !x.exercise_id) return null;
+        return { exerciseId: x.exercise_id, counted: count(x.counted), helped: count(x.helped), helpedRate: rate(x.helped_rate) };
+      })
+      .filter((row): row is JarScoreRow => row !== null),
+    bySelectionMode: modes,
+  };
+}
+
+function mapFairTest(raw: unknown): JarFairTest {
+  const r = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const h = r.holdout && typeof r.holdout === "object" ? r.holdout as Record<string, unknown> : {};
+  const interval = Array.isArray(r.success_gain_interval_95) && r.success_gain_interval_95.length === 2
+    && r.success_gain_interval_95.every((v) => typeof v === "number")
+    ? [r.success_gain_interval_95[0], r.success_gain_interval_95[1]] as [number, number] : null;
+  return {
+    meetsBar: r.meets_bar === true,
+    whyNot: Array.isArray(r.why_not) ? r.why_not.filter((v): v is string => typeof v === "string") : [],
+    holdout: { exposures: count(h.exposures), speakers: count(h.speakers), candidateAgrees: count(h.candidate_agrees) },
+    candidate: mapRates(r.candidate),
+    baseline: mapRates(r.baseline),
+    successGain: rate(r.success_gain),
+    successGainInterval95: interval,
+    attemptRateChange: rate(r.attempt_rate_change),
+    // Fail closed: an answer that does not say so still needs the founder.
+    requiresFounderApproval: r.requires_founder_approval !== false,
+  };
+}
+
+function mapPile(raw: unknown): JarPileEvaluation {
+  const r = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const c = r.candidate && typeof r.candidate === "object" ? r.candidate as Record<string, unknown> : {};
+  const learned = c.learned_from && typeof c.learned_from === "object" ? c.learned_from as Record<string, unknown> : {};
+  return {
+    scoreboard: mapScoreboard(r.scoreboard),
+    candidate: {
+      version: typeof c.version === "string" ? c.version : "",
+      learnedFrom: { labels: count(learned.labels), speakers: count(learned.speakers) },
+      preferences: (Array.isArray(c.preferences) ? c.preferences : [])
+        .map((row): JarPreference | null => {
+          const x = row && typeof row === "object" ? row as Record<string, unknown> : {};
+          if (typeof x.exercise_id !== "string" || !x.exercise_id) return null;
+          return { exerciseId: x.exercise_id, counted: count(x.counted), helped: count(x.helped),
+                   helpedRate: rate(x.helped_rate), trusted: x.trusted === true };
+        })
+        .filter((row): row is JarPreference => row !== null),
+    },
+    fairTest: mapFairTest(r.fair_test),
+  };
+}
+
+export function mapJarEvaluation(data: unknown): JarEvaluation {
+  const d = data && typeof data === "object" ? data as Record<string, unknown> : {};
+  // Fail closed: anything but an explicit `sealed: false` reads as sealed.
+  const sealed = d.sealed !== false;
+  return {
+    sealed,
+    whyNot: typeof d.why_not === "string" ? d.why_not : null,
+    requiresFounderApproval: d.requires_founder_approval !== false,
+    promotes: d.promotes === true,
+    versions: {
+      evaluation: typeof d.evaluation_version === "string" ? d.evaluation_version : "",
+      candidate: typeof d.candidate_version === "string" ? d.candidate_version : "",
+      fairTest: typeof d.fair_test_version === "string" ? d.fair_test_version : "",
+      scorekeeper: typeof d.scorekeeper_version === "string" ? d.scorekeeper_version : "",
+    },
+    piles: sealed ? null : { machine_only: mapPile(d.machine_only), with_coach_picks: mapPile(d.with_coach_picks) },
+    coachPickLabels: count(d.coach_pick_labels),
+  };
+}
+
+/** The evaluation, sealed or not. Never cached: the seal is the backend's. */
+export function adminExerciseLearningEvaluation(password: string) {
+  return post("exercise-learning-evaluation", password, {}, mapJarEvaluation);
+}
+
+/* -------------------------------------------------------------------------- */
 /*  The jar (founder 2026-09-29, decision 5; backend step 8 prep).             */
 /*                                                                            */
 /*  How close the exercise learning data is to its evidence bar: 300         */
