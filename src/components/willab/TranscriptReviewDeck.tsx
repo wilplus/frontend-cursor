@@ -1453,6 +1453,7 @@ export default function TranscriptReviewDeck({
             helperSavedRef.current = true;
             return true;
           }}
+          onAccept={onAccept}
           onClose={closeWalk}
           onDone={sheetDone}
           onDocumentChanged={onConfidentMomentChanged}

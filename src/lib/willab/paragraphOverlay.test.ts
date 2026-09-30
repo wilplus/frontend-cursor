@@ -9,7 +9,9 @@ import {
   historyRows,
   judgementTone,
   nextOpensPicker,
+  canAcceptCard,
   overlayFooter,
+  ownWordsCard,
   practiseCardOf,
 } from "./paragraphOverlay";
 
@@ -173,5 +175,46 @@ describe("History (Q1)", () => {
 
   it("is empty with no history", () => {
     expect(historyRows(null, "Take")).toEqual([]);
+  });
+});
+
+describe("accepting a rewrite (founder 2026-09-30, C11; contract 29b)", () => {
+  const rewriteCard = practiseCardOf([moment, rewrite], "no", TEXT);
+
+  it("the card carries the catalogue's signed move, and the praise its line (35f)", () => {
+    expect(rewriteCard).toMatchObject({ kind: "rewrite", move: null });
+    const moved = { ...rewrite, rewriteMove: "Split the clause." } as DocumentSuggestion;
+    expect(practiseCardOf([moment, moved], "no", TEXT)).toMatchObject({ move: "Split the clause." });
+    const lined = { ...praise, praiseLine: "You held this one." } as DocumentSuggestion;
+    expect(practiseCardOf([moment, lined], "yes", TEXT)).toMatchObject({ kind: "praise", line: "You held this one." });
+    expect(practiseCardOf([moment, praise], "yes", TEXT)).toMatchObject({ kind: "praise", line: null });
+  });
+
+  it("can be accepted below Yes while it is still open, and only with a host", () => {
+    expect(canAcceptCard(rewriteCard, "no", true)).toBe(true);
+    expect(canAcceptCard(rewriteCard, "in_between", true)).toBe(true);
+    expect(canAcceptCard(rewriteCard, "not_sure", true)).toBe(true);
+    expect(canAcceptCard(rewriteCard, "yes", true)).toBe(false);
+    expect(canAcceptCard(rewriteCard, "audio_unclear", true)).toBe(false);
+    expect(canAcceptCard(rewriteCard, null, true)).toBe(false);
+    expect(canAcceptCard(rewriteCard, "no", false)).toBe(false);
+    const approved = { ...rewrite, status: "approved" } as DocumentSuggestion;
+    expect(canAcceptCard(practiseCardOf([moment, approved], "no", TEXT), "no", true)).toBe(false);
+    expect(canAcceptCard(practiseCardOf([moment, praise], "no", TEXT), "no", true)).toBe(false);
+  });
+
+  it("the footer is Accept and practise with Keep my words, and a Yes keeps Next", () => {
+    expect(overlayFooter("no", true, true)).toEqual({ pill: "accept", link: "keep" });
+    expect(overlayFooter("in_between", true, true)).toEqual({ pill: "accept", link: "keep" });
+    expect(overlayFooter("yes", true, true)).toEqual({ pill: "next", link: null });
+    // Without an accept, exactly as before.
+    expect(overlayFooter("no", true, false)).toEqual({ pill: "practise", link: "skip" });
+  });
+
+  it("Keep my words below In-between practises the moment's own words", () => {
+    expect(ownWordsCard([moment, rewrite], TEXT)).toEqual({
+      kind: "plain", item: moment, text: "We should ship it now", coach: false,
+    });
+    expect(ownWordsCard([rewrite], TEXT)).toMatchObject({ kind: "plain", item: null, text: TEXT });
   });
 });

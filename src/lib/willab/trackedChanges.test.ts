@@ -27,6 +27,8 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
   pendingBetterVersion: false,
   pendingCopy: null,
   cueKeys: [],
+  praiseLine: null,
+  rewriteMove: null,
   snippetAudioRef: null,
   startOffsetMs: null,
   durationMs: null,

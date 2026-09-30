@@ -211,7 +211,12 @@ const say = () => container.querySelector('[data-testid="practise-say"]');
 const recording = () => container.querySelector('[data-testid="practice-recording"]');
 const judgement = () => container.querySelector("[data-practice-judgement]");
 
-async function open(items: DocumentSuggestion[], pending: string[] = []) {
+const accept = vi.fn(async () => true);
+async function open(
+  items: DocumentSuggestion[],
+  pending: string[] = [],
+  onAccept: ((item: DocumentSuggestion) => Promise<boolean>) | null = null,
+) {
   const s = chunkStateFor(
     {
       part: { id: "p1", text: TEXT, locked: false },
@@ -236,6 +241,7 @@ async function open(items: DocumentSuggestion[], pending: string[] = []) {
         onDone: done,
         onClose: close,
         practiseHost: { onLockIn: lockIn, onHelperWordsSaved: saved },
+        onAccept,
         renderSheet: () => createElement("div", { "data-testid": "judgement-sheet" }),
       }),
     );
@@ -253,7 +259,7 @@ async function stopWithAudio() {
 
 describe("what a card sends to practise (D1)", () => {
   it("the rewrite practises the clearer version, the plain moment its own words, the exercise its passage", () => {
-    const rw = passageOf({ kind: "rewrite", item: rewrite, text: "because the numbers back it" });
+    const rw = passageOf({ kind: "rewrite", item: rewrite, text: "because the numbers back it", move: null });
     expect(rw.passage).toEqual({ kind: "rewrite", passage: "because the numbers back it", feedbackId: "s-rw" });
     expect(rw.heading).toBe("Say it this way");
     const plain = passageOf({ kind: "plain", item: moment, text: "We should ship it now", coach: false });
@@ -381,5 +387,62 @@ describe("the practise loop from the overlay", () => {
     expect(link.textContent).toBe("Practise");
     await act(async () => link.click());
     expect(sheet()).not.toBeNull();
+  });
+});
+
+describe("accepting the rewrite (founder 2026-09-30, C11; contract 29b)", () => {
+  it("without a host the rewrite is a passage to practise, as before", async () => {
+    await open([moment, rewrite], [rewrite.id]);
+    expect(labels()).toContain("Practise");
+    expect(labels()).not.toContain("Accept and practise");
+  });
+
+  it("Accept and practise writes the owner's response, the host's decision, and opens the practise on the accepted words", async () => {
+    const { saveTakeFeedbackResponse } = await import("@/services/api/takeFeedback");
+    vi.mocked(saveTakeFeedbackResponse).mockClear();
+    accept.mockClear();
+    await open([moment, rewrite], [rewrite.id], accept);
+    expect(labels()).toContain("Accept and practise");
+    expect(labels()).toContain("Keep my words");
+    expect(labels()).not.toContain("Skip");
+    await click("Accept and practise");
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveTakeFeedbackResponse).mock.calls[0][0]).toMatchObject({
+      feedbackId: "s-rw", feedbackFamily: "rewrite_clarity", response: "apply_suggestion",
+    });
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(sheet()).not.toBeNull();
+    expect(say()?.textContent).toContain("Say it this way · accepted");
+    expect(say()?.textContent).toContain("because the numbers back it");
+  });
+
+  it("a failed decision says so and leaves the card", async () => {
+    const refused = vi.fn(async () => false);
+    await open([moment, rewrite], [rewrite.id], refused);
+    await click("Accept and practise");
+    expect(sheet()).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBeTruthy();
+    expect(labels()).toContain("Accept and practise");
+  });
+
+  it("Keep my words below In-between practises the speaker's own words", async () => {
+    await open([moment, rewrite], [rewrite.id], accept);
+    await click("Keep my words");
+    expect(sheet()).not.toBeNull();
+    expect(say()?.textContent).toContain("Say it again");
+    expect(say()?.textContent).toContain("We should ship it now");
+    expect(say()?.textContent).not.toContain("because the numbers back it");
+  });
+
+  it("Keep my words on an In-between is Next: the helper-words picker, no practise", async () => {
+    (fetchOwnerAnswers as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { feedbackId: "s-cv", response: "in_between" },
+    ]);
+    await open([moment, rewrite], [rewrite.id], accept);
+    expect(labels()).toContain("Accept and practise");
+    await click("Keep my words");
+    expect(sheet()).toBeNull();
+    // Next after an In-between with no words saved opens the picker (24e, B2).
+    expect(container.textContent).toContain("Choose your helper words");
   });
 });

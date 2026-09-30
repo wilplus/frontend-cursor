@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import ParagraphSheet from "@/components/willab/ParagraphSheet";
+import ParagraphSheet, { type PractiseMode } from "@/components/willab/ParagraphSheet";
+import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
 import PractiseSheet from "@/components/willab/PractiseSheet";
 import type { LockResult } from "@/components/willab/DeckChunkModal";
-import { asJudgementValue, practiseCardOf } from "@/lib/willab/paragraphOverlay";
+import {
+  asJudgementValue,
+  ownWordsCard,
+  practiseCardOf,
+} from "@/lib/willab/paragraphOverlay";
 import type {
   ChunkHistoryLite,
   ChunkState,
@@ -21,6 +26,11 @@ import { useBoundedWait } from "@/components/willab/paragraphSheetData";
 export type PractiseAgain = {
   item: DocumentSuggestion;
   answer: RootGateAnswer;
+  /** How Practise was reached (29b). Absent: the card as shown. */
+  mode?: PractiseMode;
+  /** The card at the moment Practise was tapped, when the host must not
+   *  re-derive it (an accept reassembles the document under the sheet). */
+  card?: PractiseCard;
 } | null;
 
 const FIVE = new Set(["yes", "in_between", "no", "not_sure", "audio_unclear"]);
@@ -43,6 +53,7 @@ export default function OpenChunkSheet({
   takeSessionId,
   headline,
   onUseHelperWords,
+  onAccept = null,
   onDone = null,
   pager = null,
   slideLabel = null,
@@ -60,6 +71,8 @@ export default function OpenChunkSheet({
   /** The paragraph's saved helper words, joined " · ", or null. */
   headline: string | null;
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
+  /** Accept a rewrite on the document (29b); the host's decision handler. */
+  onAccept?: ((item: DocumentSuggestion) => Promise<boolean>) | null;
   /** The paragraph's own sheet finished on its own: the host moves on. */
   onDone?: (() => void) | null;
   pager?: Pager | null;
@@ -118,14 +131,18 @@ export default function OpenChunkSheet({
   if (ownSheet === null) return null;
   if (practiseAgain && practiseHost) {
     const judgement = asJudgementValue(practiseAgain.answer);
-    const card = practiseCardOf(
-      [...state.decided, ...state.pending], judgement, state.chunk.part.text);
+    const items = [...state.decided, ...state.pending];
+    const card = practiseAgain.card
+      ?? (practiseAgain.mode === "own"
+        ? ownWordsCard(items, state.chunk.part.text)
+        : practiseCardOf(items, judgement, state.chunk.part.text));
     if (card) {
       return (
         <PractiseSheet
           item={practiseAgain.item}
           judgement={judgement}
           card={card}
+          accepted={practiseAgain.mode === "accepted"}
           partId={state.chunk.part.id}
           paragraphText={state.chunk.part.text}
           onLockIn={practiseHost.onLockIn}
@@ -158,9 +175,10 @@ export default function OpenChunkSheet({
       decided={state.decided}
       pending={state.pending}
       answer={answered}
-      onPractise={(item, answer) =>
-        setPractiseAgain({ item, answer: asJudgement(answer) })
+      onPractise={(item, answer, mode, card) =>
+        setPractiseAgain({ item, answer: asJudgement(answer), mode, card })
       }
+      onAccept={onAccept}
       practiseEveryCard={practiseHost !== null}
       onUseHelperWords={onUseHelperWords}
       helperWordsHost={helperWordsHost}

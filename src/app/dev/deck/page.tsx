@@ -54,6 +54,13 @@ let styleApplied = false; // the locked chunk's style proposal (slice 2)
 const noParts =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).get("noparts") === "1";
+/** ?library=full — THE COLD START'S OTHER HALF (build plan P1-7): the moment
+ *  carries a library exercise matched to its clip, as it does once the three
+ *  videos exist. Without it the fixture is the cold start itself: an empty
+ *  library and no coach, so a judgement below Yes lands on the rewrite. */
+const libraryFull =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("library") === "full";
 
 function payload() {
   const p1 = decided === "approved" ? P1_AFTER : P1;
@@ -115,6 +122,32 @@ function payload() {
     snippet_audio_ref: silentWavDataUri(),
     start_offset_ms: 0,
     duration_ms: 9000,
+    ...(libraryFull
+      ? {
+          // The exact-clip evidence an exercise rides on (the sheet opens
+          // the exercise only on a moment that carries it).
+          evidence: {
+            project_id: "arc-deck",
+            take_session_id: "sess-1",
+            slide_index: 0,
+            paragraph_index: 1,
+            span: { start: text.indexOf(quote), end: text.indexOf(quote) + quote.length },
+          },
+          practice_exercise: {
+            exercise_id: "land-it",
+            version: 1,
+            title: "Land the last word",
+            instruction: "Give the last four words as much time as the first four.",
+            introduction: "",
+            // A string, as the mapper requires; the player's failure to
+            // load it is silent and beside the point here.
+            explanation_video_ref: "https://cdn.example/land.mp4",
+            passage: quote,
+            practice_id: null,
+            resume: false,
+          },
+        }
+      : {}),
   });
   const bq = "finally came together";
   changes.push({
