@@ -1,0 +1,73 @@
+/* The coach's walk, the pure half (founder 2026-09-30; P2-8). Pins: the queue
+ * maps the backend's words and never invents a kind; the bubble counts
+ * speakers with something waiting; the walk finds the next open moment. */
+import { describe, expect, it } from "vitest";
+import {
+  afterJudged, afterNothingToAdd, mapMomentsQueue, nextOpenIndex,
+  speakersWaiting, stateWord, kindWord, answerWord,
+} from "./coachWalk";
+
+const RAW = [
+  {
+    pseudonym: "Quiet Heron", waiting: 2,
+    takes: [{
+      session_id: "t-1", take_index: 2, sent_at: "2026-09-30T10:00:00Z", waiting: 2,
+      moments: [
+        { snippet_id: "s-1", state: "judge_it" },
+        { snippet_id: "s-2", state: "answer_it", kind: "praise" },
+        { snippet_id: "s-3", state: "answered", kind: "error" },
+        { snippet_id: "s-4", state: "score", kind: "error" },
+      ],
+    }],
+  },
+  { pseudonym: "", waiting: 0, takes: [] },
+  "junk",
+];
+
+describe("mapMomentsQueue", () => {
+  it("keeps the backend's order and words, drops what it cannot draw", () => {
+    const out = mapMomentsQueue(RAW);
+    expect(out.map((s) => s.pseudonym)).toEqual(["Quiet Heron", "Anonymous"]);
+    const moments = out[0].takes[0].moments;
+    expect(moments.map((m) => m.state)).toEqual(["judge_it", "answer_it", "answered"]);
+  });
+
+  it("never invents a kind before the rating", () => {
+    const moments = mapMomentsQueue(RAW)[0].takes[0].moments;
+    expect(moments[0].kind).toBeNull();
+    expect(moments[1].kind).toBe("praise");
+    expect(mapMomentsQueue([{ pseudonym: "x", takes: [{ session_id: "t", moments: [
+      { snippet_id: "s", state: "judge_it", kind: "error" },
+    ] }] }])[0].takes[0].moments[0].kind).toBe("error");
+  });
+
+  it("counts speakers with something waiting, never quality", () => {
+    expect(speakersWaiting(mapMomentsQueue(RAW))).toBe(1);
+    expect(mapMomentsQueue([])).toEqual([]);
+  });
+});
+
+describe("the words", () => {
+  it("every state, kind and answer is a word", () => {
+    expect(stateWord("judge_it")).toBe("Judge it");
+    expect(stateWord("nothing_to_add")).toBe("Nothing to add");
+    expect(kindWord("rewrite")).toBe("Rewrite");
+    expect(kindWord(null)).toBeNull();
+    expect(answerWord("no")).toBe("Not confident");
+    expect(answerWord("audio_unclear")).toBe("Audio unclear");
+  });
+});
+
+describe("the walk's next step", () => {
+  const moments = mapMomentsQueue(RAW)[0].takes[0].moments;
+  it("finds the next open moment after the cursor, or none", () => {
+    expect(nextOpenIndex(moments, null)).toBe(0);
+    expect(nextOpenIndex(moments, 0)).toBe(1);
+    expect(nextOpenIndex(moments, 1)).toBe(-1);
+  });
+  it("moves a moment on locally after the coach's own move", () => {
+    expect(afterJudged(moments[0]).state).toBe("judged");
+    expect(afterJudged(moments[1]).state).toBe("answer_it");
+    expect(afterNothingToAdd(moments[1]).state).toBe("nothing_to_add");
+  });
+});

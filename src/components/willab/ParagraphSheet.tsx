@@ -80,7 +80,7 @@ const PILL =
 const LINK =
   "flex min-h-[48px] w-full items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50";
 
-function SheetFrame({
+export function SheetFrame({
   title,
   onClose,
   children,
