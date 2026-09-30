@@ -64,9 +64,12 @@ import {
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
 import {
+  allowForHidden,
   fitChangedMeaningfully,
+  hiddenBelow,
   measureScreenFit,
   tightestFit,
+  type OverflowAllowance,
 } from "@/lib/willab/measureScreenFit";
 import { type Part } from "@/lib/willab/documentParts";
 import type {
@@ -451,6 +454,7 @@ export default function TranscriptReviewDeck({
      first pass the old fixed count of three is used — so the deck is never
      blank waiting for a measurement. */
   const [fit, setFit] = useState<ScreenFit | null>(null);
+  const hiddenRef = useRef<OverflowAllowance | null>(null);
   const screens = useMemo(
     () =>
       buildScreens(
@@ -976,12 +980,15 @@ export default function TranscriptReviewDeck({
         ),
       );
       if (!next) return;
-      setFit((prev) => (fitChangedMeaningfully(prev, next) ? next : prev));
+      // Text still cut off at the bottom of a screen counts as too long.
+      const tuned = allowForHidden(next, hiddenBelow(innerRefs.current), hiddenRef.current);
+      hiddenRef.current = tuned.allowance;
+      setFit((prev) => (fitChangedMeaningfully(prev, tuned.fit) ? tuned.fit : prev));
     };
     remeasure();
     window.addEventListener("resize", remeasure);
     return () => window.removeEventListener("resize", remeasure);
-  }, [deckReady, screens]);
+  }, [deckReady, screens, headlines]);
 
   /* THE KEYS ARE LIVE ON OPEN (founder 2026-09-22). The handler lives on the
    * stage, so until something focused it every arrow press went to the page
