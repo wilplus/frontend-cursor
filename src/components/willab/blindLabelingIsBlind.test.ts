@@ -164,10 +164,16 @@ describe("the blind labeling surface shows no machine read", () => {
   });
 
   it("uses the same saved-answer transcript gate in the corpus", () => {
+    // Since group 4 (founder 2026-09-30, B9) the corpus renders the walk's
+    // one instrument, which wraps the same evidence readout; the gate is the
+    // same expression, one level down.
     const corpus = code(CORPUS);
-    expect(corpus).toContain("<ConfidenceEvidenceReadout");
+    expect(corpus).toContain("<CoachJudgeInstrument");
     expect(corpus).toContain("transcriptRevealed={piece.label !== null}");
     expect(corpus).not.toContain("{piece.transcript}</p>");
+    const instrument = code(join("components", "willab", "coachwalk", "CoachJudgeInstrument.tsx"));
+    expect(instrument).toContain("<ConfidenceEvidenceReadout");
+    expect(instrument).toContain("transcriptRevealed={transcriptRevealed}");
   });
 
   it("uses the same shared evidence readout in the combined review", () => {

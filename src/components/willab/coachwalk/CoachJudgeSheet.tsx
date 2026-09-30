@@ -4,10 +4,10 @@
 /*  Screen 2 · Judge (founder 2026-09-30, A1; build plan P2-9).                 */
 /*                                                                            */
 /*  The speaker's Feedback sheet with the coach's words: the same frame        */
-/*  (SheetFrame), the same ‹ position › bar (FeedbackPagerBar), the same clip  */
-/*  card (MediaPlayer, compact) and the same five pills (ConfidenceLabelChips,  */
-/*  owner wording). What differs is only what the design lists: the pseudonym  */
-/*  in the header, the title, the eyebrow, and the question's subject.         */
+/*  (SheetFrame), the same ‹ position › bar (FeedbackPagerBar), and the one   */
+/*  instrument (CoachJudgeInstrument: the clip card and the five pills). What */
+/*  differs is only what the design lists: the pseudonym in the header, the   */
+/*  title, the eyebrow, and the question's subject.                            */
 /*                                                                            */
 /*  BLIND COACH: nothing but the clip and the question is on this screen, and  */
 /*  nothing renders under the question until the save returns. The passage,   */
@@ -18,16 +18,11 @@
 import { useState } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
-import ConfidenceLabelChips from "../ConfidenceLabelChips";
-import MediaPlayer from "@/components/results/MediaPlayer";
+import CoachJudgeInstrument, { type JudgeClip } from "./CoachJudgeInstrument";
 import { buildRatingBody, saveStateRating, type ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
-export interface JudgeClip {
-  src: string | null;
-  startOffsetMs: number;
-  durationMs: number;
-}
+export type { JudgeClip } from "./CoachJudgeInstrument";
 
 export default function CoachJudgeSheet({
   snippetId,
@@ -35,6 +30,7 @@ export default function CoachJudgeSheet({
   clip,
   onClose,
   onJudged,
+  railed = false,
 }: {
   snippetId: string;
   pager: Pager;
@@ -42,6 +38,8 @@ export default function CoachJudgeSheet({
   onClose: () => void;
   /** The rating is saved; the walk moves to Read on its own. */
   onJudged: (value: ConfidenceRatingValue) => void;
+  /** Leaves room for the desktop rail (P2-14). */
+  railed?: boolean;
 }) {
   const [value, setValue] = useState<ConfidenceRatingValue | null>(null);
   const [saving, setSaving] = useState(false);
@@ -69,29 +67,16 @@ export default function CoachJudgeSheet({
       title={COPY.judgeTitle}
       onClose={onClose}
       nav={<FeedbackPagerBar pager={pager} />}
+      railed={railed}
     >
       <div className="flex flex-col gap-4" data-testid="coach-judge-sheet">
-        {clip?.src ? (
-          <MediaPlayer
-            src={clip.src}
-            startOffsetMs={clip.startOffsetMs}
-            durationMs={clip.durationMs}
-            compact
-          />
-        ) : null}
-        <ConfidenceLabelChips
-          question={COPY.judgeQuestion}
+        <CoachJudgeInstrument
+          clip={clip}
           value={value}
           saving={saving}
-          disabled={saving}
           error={error}
-          ownerWording
-          eyebrow={
-            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary">
-              {COPY.judgeEyebrow}
-            </span>
-          }
           onPick={(next) => void pick(next)}
+          keys
         />
       </div>
     </SheetFrame>

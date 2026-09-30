@@ -9,10 +9,11 @@
 
 import { COACH_WALK_COPY } from "./coachWalkCopy";
 
-/** Group 3 ships behind this switch; group 4 lifts it. Presentation only:
- *  every coach endpoint enforces its own gate. */
+/** The walk is the coach's panel (group 4 lifted the switch, founder
+ *  2026-09-30); "false" keeps the per-student bubbles and the roster for a
+ *  rollback. Presentation only: every coach endpoint enforces its own gate. */
 export function coachWalkEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_COACH_WALK_ENABLED === "true";
+  return process.env.NEXT_PUBLIC_COACH_WALK_ENABLED !== "false";
 }
 
 /** The Lounge's two coach modes from one read of the switch: the walk, or

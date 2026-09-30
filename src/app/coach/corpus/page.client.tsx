@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
 import LoadingState from "@/components/willab/LoadingState";
-import ConfidenceEvidenceReadout from "@/components/willab/ConfidenceEvidenceReadout";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import {
@@ -32,9 +31,8 @@ import {
   type CoachInlineBlindReviewHandle,
   type ConfidenceChainBlindHandle,
   type ConfidenceRatingValue,
-  CONFIDENCE_QUESTION,
 } from "@/services/api/stateRatings";
-import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
+import CoachJudgeInstrument from "@/components/willab/coachwalk/CoachJudgeInstrument";
 import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
 
@@ -1158,22 +1156,17 @@ function LabelScreen({
             scope={piece.blindReview ? "coach-inline" : "coach-card"}
           >
             {({ exposureId, error: renderError }) => <>
-            {/* Before a saved answer this is audio only. The shared readout
-                reveals exact words after this coach's label is committed.
-                There is still no machine read, band, or ordering cue. */}
-            <ConfidenceEvidenceReadout
-              audioRef={piece.audioRef}
-              startOffsetMs={piece.startOffsetMs}
-              durationMs={piece.durationMs}
+            {/* THE one instrument (founder 2026-09-30, B9): the walk's Judge
+                body, the clip and the five answers with the coach's words.
+                Before a saved answer this is audio only; the exact words are
+                revealed after this coach's label is committed. There is still
+                no machine read, band, or ordering cue. The NAV BAR owns the
+                pending state on this screen ("Saving…" + the amber dot), so
+                the instrument never says it twice. */}
+            <CoachJudgeInstrument
+              clip={{ src: piece.audioRef, startOffsetMs: piece.startOffsetMs, durationMs: piece.durationMs }}
               transcript={piece.transcript}
               transcriptRevealed={piece.label !== null}
-            />
-
-            {/* THE shared instrument (founder 2026-08-10): the same
-                component the snippet card, the Feedbacks review and the
-                game render — three answers + the abstention. */}
-            <ConfidenceLabelChips
-              question={CONFIDENCE_QUESTION}
               value={abstained ? null : answered}
               unrateable={abstained}
               // A D5 answer needs its exact exposure. The legacy card waits
@@ -1184,10 +1177,8 @@ function LabelScreen({
                 (piece.blindReview !== null && !exposureId) ||
                 (piece.mlc2BlindReview !== null && !exposureId && !renderError)
               }
-              // The NAV BAR owns the pending state on this screen ("Saving…"
-              // + the amber dot) — a second Saving… inside the chips would
-              // say it twice, and the e2e pins exactly one.
               saving={false}
+              error={null}
               onPick={(v) => void save(v, { blindExposureId: exposureId })}
             />
 

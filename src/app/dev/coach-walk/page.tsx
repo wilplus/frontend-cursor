@@ -15,7 +15,6 @@ import CoachWalkEntry from "@/components/willab/coachwalk/CoachWalkEntry";
 declare global {
   interface Window {
     __walkCalls?: { url: string; method: string; body: unknown }[];
-    __walkAnswered?: (sessionId: string, snippetId: string) => void;
   }
 }
 
@@ -34,78 +33,90 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     const rated = new Set<string>();
     const resolved = new Set<string>();
     const real = window.fetch.bind(window);
+    type Ctx = { url: string; method: string; body: any };
+    type Handler = { when: (c: Ctx) => boolean; reply: (c: Ctx) => Response };
+    const snip = (url: string) => (url.includes(SNIP_1) ? SNIP_1 : SNIP_2);
+    const state = (id: string) => (resolved.has(id) ? "answered" : rated.has(id) ? "answer_it" : "judge_it");
+    const kindOf = (id: string) => (id === SNIP_1 ? "error" : "praise");
+    const request = (id: string, over: Record<string, unknown> = {}) => ({
+      id: `req-${id}`, take_session_id: TAKE, snippet_id: id, reason: "nothing_targets_it", kind: kindOf(id),
+      spotted: kindOf(id) === "error" ? [{ error_id: "restart_repair", label: "Restarting a phrase" }] : [],
+      created_at: "2026-09-30T10:01:00Z", resolution: null, resolved_exercise_id: null, answer_text: null,
+      draft: null, resolved_at: null, shared_at: null, offered_since: false, candidates: [], available_exercises: [],
+      ...over,
+    });
+    const record = (c: Ctx, body: unknown = c.body) => window.__walkCalls?.push({ url: c.url, method: c.method, body });
+    const moment = (url: string, tail: string) => url.includes(`/api/v2/coach/sessions/${TAKE}/snippets/`) && url.endsWith(tail);
+    const HANDLERS: Handler[] = [
+      { when: (c) => c.url.includes("/api/v2/user/profile"),
+        reply: () => json({ is_coach: true, proficient_languages: ["en"] }) },
+      { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"),
+        reply: () => json({ errors: [
+          { error_id: "restart_repair", label: "Restarting a phrase", definition: "d", asks: "a", status: "detected", detector_ref: "verbal-cues-v1", observed_by: null, active: true },
+          { error_id: "rushing", label: "Rushing", definition: "d", asks: "a", status: "detected", detector_ref: "x", observed_by: null, active: true },
+          { error_id: "trailing_mumble", label: "Trailing mumble", definition: "d", asks: "a", status: "observed", detector_ref: null, observed_by: "c", active: true },
+        ] }) },
+      { when: (c) => c.url.includes("/api/v2/coach/catalogue") && c.method === "POST",
+        reply: (c) => { record(c); return json({ line: { id: "l-9", ...c.body, version: 2, active: true } }); } },
+      { when: (c) => c.url.includes("/api/v2/coach/catalogue"),
+        reply: () => json({ lines: [{ id: "l-1", lane: "praise", pattern_kind: "read", pattern_key: "confident_read", text: "You held the room.", version: 1, active: true }] }) },
+      { when: (c) => c.url.includes("/api/v2/coach/exercises/") && c.url.endsWith("/video"),
+        reply: (c) => {
+          record(c, "multipart");
+          const id = decodeURIComponent(c.url.split("/exercises/")[1].split("/video")[0]);
+          return json({ exercise: { exercise_id: id, title: "Land it", instruction: "x", introduction_copy: "",
+            explanation_video_url: "https://v/x.mp4", acoustic_problem_tags: ["restart_repair"],
+            matching_criteria: { primary_problem_tag: "restart_repair" }, active: true, version: 1 },
+            version: 1, transcript_status: "pending" });
+        } },
+      { when: (c) => c.url.includes("/api/v2/coach/exercises"),
+        reply: () => json({ exercises: [], speaking_errors: [] }) },
+      { when: (c) => c.url.includes(`/api/v2/coach/sessions/${TAKE}/word`) && c.method === "PUT",
+        reply: (c) => { record(c); return json({ word: { take_session_id: TAKE, text: c.body?.text, video_ref: null, video_url: null, shared_at: "now" } }); } },
+      { when: (c) => c.url.includes(`/api/v2/coach/sessions/${TAKE}/word`),
+        reply: () => json({ word: null }) },
+      { when: (c) => c.url.includes("/api/v2/coach/queue/moments"),
+        reply: () => json([
+          { pseudonym: "Quiet Heron", waiting: 2, takes: [{
+            session_id: TAKE, take_index: 2, sent_at: "2026-09-30T10:00:00Z", waiting: 2,
+            moments: [SNIP_1, SNIP_2].map((id) => ({ snippet_id: id, state: state(id), ...(rated.has(id) ? { kind: kindOf(id) } : {}) })),
+          }] },
+          { pseudonym: "Calm Otter", waiting: 0, takes: [] },
+        ]) },
+      { when: (c) => moment(c.url, "/moment"),
+        reply: (c) => {
+          const id = snip(c.url);
+          if (!rated.has(id)) return json({ code: "BLIND_RATING_REQUIRED", error: "Rate the original moment first." }, 409);
+          return json({ passage: id === SNIP_1 ? PASSAGE_1 : PASSAGE_2, speaker_answer: "no", coach_answer: "no",
+            speaker_goal: "Sound calm in front of the board",
+            request: request(id, resolved.has(id) ? { resolution: "no_safe_match" } : {}), named_errors: [] });
+        } },
+      { when: (c) => moment(c.url, "/exercise-request/draft"),
+        reply: (c) => { record(c); const id = snip(c.url); return json({ draft: {
+          surface: id === SNIP_1 ? "exercise_script" : "praise_line",
+          text: id === SNIP_1 ? "Say the phrase once, then pause." : "You let the number land.", model_version: "m", kept: true } }); } },
+      { when: (c) => moment(c.url, "/exercise-request/video"),
+        reply: (c) => { record(c, "multipart"); return json({ video_url: "https://v/answer.mp4" }); } },
+      { when: (c) => moment(c.url, "/exercise-request"),
+        reply: (c) => { record(c); const id = snip(c.url); resolved.add(id); return json({ request: request(id, {
+          resolution: c.body?.resolution ?? "no_safe_match", resolved_exercise_id: c.body?.exercise_id ?? null,
+          resolved_at: "now", shared_at: c.body?.share_with_user ? "now" : null }) }); } },
+      { when: (c) => c.url.includes(`/api/v2/coach/sessions/${TAKE}`),
+        reply: () => json({ session_id: TAKE, snippets: [
+          { id: SNIP_1, index: 0, transcript: "", audio_ref: null, start_offset_ms: 0, duration_ms: 9000 },
+          { id: SNIP_2, index: 1, transcript: "", audio_ref: null, start_offset_ms: 9000, duration_ms: 7000 },
+        ] }) },
+      { when: (c) => c.url.includes("/api/v2/coach/snippets/") && c.url.endsWith("/confidence-label"),
+        reply: (c) => { record(c); const id = snip(c.url); rated.add(id);
+          return json({ saved: true, snippet_id: id, state_id: "confidence", value: c.body?.value, unrateable: false }); } },
+    ];
     window.fetch = async (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const method = (init?.method ?? "GET").toUpperCase();
-      const body = init?.body ? JSON.parse(String(init.body)) : null;
-
-      if (url.includes("/api/v2/user/profile")) {
-        return json({ is_coach: true, proficient_languages: ["en"] });
-      }
-      if (url.includes("/api/v2/coach/queue/moments")) {
-        const state = (id: string) => (resolved.has(id) ? "nothing_to_add" : rated.has(id) ? "answer_it" : "judge_it");
-        const kind = (id: string) => (rated.has(id) ? { kind: "error" } : {});
-        return json([
-          {
-            pseudonym: "Quiet Heron",
-            waiting: 2,
-            takes: [{
-              session_id: TAKE, take_index: 2, sent_at: "2026-09-30T10:00:00Z", waiting: 2,
-              moments: [
-                { snippet_id: SNIP_1, state: state(SNIP_1), ...kind(SNIP_1) },
-                { snippet_id: SNIP_2, state: state(SNIP_2), ...kind(SNIP_2) },
-              ],
-            }],
-          },
-          { pseudonym: "Calm Otter", waiting: 0, takes: [] },
-        ]);
-      }
-      if (url.includes(`/api/v2/coach/sessions/${TAKE}/snippets/`) && url.endsWith("/moment")) {
-        const id = url.includes(SNIP_1) ? SNIP_1 : SNIP_2;
-        if (!rated.has(id)) return json({ code: "BLIND_RATING_REQUIRED", error: "Rate the original moment first." }, 409);
-        return json({
-          passage: id === SNIP_1 ? PASSAGE_1 : PASSAGE_2,
-          speaker_answer: "no",
-          coach_answer: "no",
-          speaker_goal: "Sound calm in front of the board",
-          request: {
-            id: `req-${id}`, take_session_id: TAKE, snippet_id: id, reason: "nothing_targets_it",
-            kind: "error", spotted: [{ error_id: "restart_repair", label: "Restarting a phrase" }],
-            created_at: "2026-09-30T10:01:00Z",
-            resolution: resolved.has(id) ? "no_safe_match" : null,
-            resolved_exercise_id: null, answer_text: null, draft: null, resolved_at: null, shared_at: null,
-            offered_since: false, candidates: [], available_exercises: [],
-          },
-          named_errors: [],
-        });
-      }
-      if (url.includes(`/api/v2/coach/sessions/${TAKE}/snippets/`) && url.endsWith("/exercise-request")) {
-        const id = url.includes(SNIP_1) ? SNIP_1 : SNIP_2;
-        window.__walkCalls?.push({ url, method, body });
-        resolved.add(id);
-        return json({ request: {
-          id: `req-${id}`, take_session_id: TAKE, snippet_id: id, reason: "nothing_targets_it", kind: "error",
-          spotted: [], created_at: "x", resolution: "no_safe_match", resolved_exercise_id: null,
-          resolved_at: "now", shared_at: null, offered_since: false, candidates: [], available_exercises: [],
-        } });
-      }
-      if (url.includes(`/api/v2/coach/sessions/${TAKE}`)) {
-        // The take's clips (audio_ref null: the harness has no audio). The
-        // transcript is withheld here as the backend withholds it.
-        return json({
-          session_id: TAKE, snippets: [
-            { id: SNIP_1, index: 0, transcript: "", audio_ref: null, start_offset_ms: 0, duration_ms: 9000 },
-            { id: SNIP_2, index: 1, transcript: "", audio_ref: null, start_offset_ms: 9000, duration_ms: 7000 },
-          ],
-        });
-      }
-      if (url.includes("/api/v2/coach/snippets/") && url.endsWith("/confidence-label")) {
-        const id = url.includes(SNIP_1) ? SNIP_1 : SNIP_2;
-        window.__walkCalls?.push({ url, method, body });
-        rated.add(id);
-        return json({ saved: true, snippet_id: id, state_id: "confidence", value: body?.value, unrateable: false });
-      }
-      return real(input, init);
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+      const ctx: Ctx = { url, method, body };
+      const handler = HANDLERS.find((h) => h.when(ctx));
+      return handler ? handler.reply(ctx) : real(input, init);
     };
   }
   const session = {
@@ -120,7 +131,7 @@ export default function CoachWalkHarness() {
   return (
     <main className="mx-auto flex max-w-lg flex-col gap-4 p-4">
       <h1 className="text-[18px] font-bold">Coach walk harness</h1>
-      <CoachWalkEntry onAnswer={(sessionId, snippetId) => window.__walkAnswered?.(sessionId, snippetId)} />
+      <CoachWalkEntry />
     </main>
   );
 }

@@ -297,8 +297,8 @@ export default function Lounge({
   // tampered FE flag wouldn't get past the upstream wall). Non-coach users
   // see exactly the same Lounge as today.
   const { isCoach } = useUserProfile();
-  // The coach's walk (founder 2026-09-30; group 3 behind its switch): one
-  // queue of moments instead of the per-student bubbles and the roster.
+  // The coach's walk (founder 2026-09-30; on since group 4): one queue of
+  // moments instead of the per-student bubbles and the roster.
   const { walkOn, legacyCoach } = coachModes(isCoach);
   const reviewQueue = useReviewQueue(legacyCoach);
   // §F.2 — overlay sessionId. null = closed. Setting to a sessionId mounts
@@ -1469,7 +1469,6 @@ export default function Lounge({
         <CoachDoor
           walkOn={walkOn}
           onOpenRoster={() => setRosterOpen(true)}
-          onAnswer={(sessionId) => openReview(sessionId)}
         />
       )}
 

@@ -14,13 +14,11 @@ import CoachWalkEntry from "./CoachWalkEntry";
 export default function CoachDoor({
   walkOn,
   onOpenRoster,
-  onAnswer,
 }: {
   walkOn: boolean;
   onOpenRoster: () => void;
-  onAnswer: (sessionId: string, snippetId: string) => void;
 }) {
-  if (walkOn) return <CoachWalkEntry onAnswer={onAnswer} />;
+  if (walkOn) return <CoachWalkEntry />;
   return (
     <Button
       type="button"
