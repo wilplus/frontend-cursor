@@ -107,11 +107,13 @@ import {
   opensRootPhrase,
 } from "@/lib/willab/chunkSteps";
 import {
+  canTap,
   nextSelection,
   phraseTokens,
-  tokensWithinFragment,
   quoteSpan,
+  selectionLength,
   selectionText,
+  tokensWithinFragment,
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
@@ -427,6 +429,14 @@ function behindRunner(
 
 function finishSheet(done: (() => void) | undefined, close: () => void): void {
   (done ?? close)();
+}
+
+/** A tapped word previews in the accent; a word a tap cannot reach under
+ *  the four-word cap reads muted (founder lock 2026-09-30, B3). Module-level
+ *  so the component, frozen at the complexity ratchet, gains no branch. */
+function emphasisTokenTone(picked: boolean, reachable: boolean): string {
+  if (picked) return "bg-primary/10 text-primary";
+  return reachable ? "text-foreground" : "text-muted-foreground/60";
 }
 
 export default function DeckChunkModal({
@@ -1906,27 +1916,25 @@ export default function DeckChunkModal({
          renders while recording — a preview, not a selection colour. */
       <div className="rounded-2xl border border-border px-3 py-4">
         <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-          {COPY.cardTapWords}
+          {COPY.cardTapWords} · {COPY.emphasisCount(selectionLength(phraseRun))}
         </p>
-        <div className="mt-2 flex flex-wrap gap-0.5">
+        <div className="mt-2 flex flex-wrap gap-0.5" data-testid="emphasis-tokens">
           {tokens.map((token, index) => {
             const picked =
               phraseRun !== null &&
               index >= phraseRun.from &&
               index <= phraseRun.to;
+            const reachable = canTap(phraseRun, index);
             return (
               <button
                 key={`${token.start}-${token.text}`}
                 type="button"
                 aria-pressed={picked}
+                disabled={!reachable}
                 onClick={() =>
                   setPhraseRun(nextSelection(phraseRun, index))
                 }
-                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${
-                  picked
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground"
-                }`}
+                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${emphasisTokenTone(picked, reachable)}`}
               >
                 {token.text}
               </button>

@@ -14,7 +14,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canTap,
   nextSelection,
+  selectionLength,
+  HELPER_WORDS_MAX,
   phraseTokens,
   tokensWithinFragment,
   quoteSpan,
@@ -103,7 +106,7 @@ describe("nextSelection", () => {
   it("the second tap marks every word in between, either direction (founder 2026-09-26)", () => {
     expect(nextSelection({ from: 0, to: 0 }, 3)).toEqual({ from: 0, to: 3 });
     expect(nextSelection({ from: 3, to: 3 }, 4)).toEqual({ from: 3, to: 4 });
-    expect(nextSelection({ from: 6, to: 6 }, 2)).toEqual({ from: 2, to: 6 });
+    expect(nextSelection({ from: 6, to: 6 }, 3)).toEqual({ from: 3, to: 6 });
   });
 
   it("clears when the only selected word is tapped again", () => {
@@ -119,8 +122,8 @@ describe("nextSelection", () => {
 
   it("tap, tap, tap, tap: the second phrase replaces the first", () => {
     let selection = nextSelection(null, 0);
-    selection = nextSelection(selection, 12);
-    expect(selection).toEqual({ from: 0, to: 12 });
+    selection = nextSelection(selection, 3);
+    expect(selection).toEqual({ from: 0, to: 3 });
     selection = nextSelection(selection, 20);
     selection = nextSelection(selection, 22);
     expect(selection).toEqual({ from: 20, to: 22 });
@@ -214,5 +217,43 @@ describe("tokensWithinFragment — orange lands inside what was asked about", ()
     expect(out.map((t) => t.text)).toEqual([
       "Nobody", "believed", "the", "numbers.",
     ]);
+  });
+});
+
+describe("at most four words (founder lock 2026-09-30, B3)", () => {
+  it("the cap is four", () => {
+    expect(HELPER_WORDS_MAX).toBe(4);
+  });
+
+  it("a second tap that would stretch the run past four does nothing", () => {
+    const one = { from: 2, to: 2 };
+    // Four words: fine.
+    expect(nextSelection(one, 5)).toEqual({ from: 2, to: 5 });
+    // Five words: the same selection comes back, by identity.
+    expect(nextSelection(one, 6)).toBe(one);
+    // Backwards the same: four words fine, five ignored.
+    expect(nextSelection({ from: 6, to: 6 }, 3)).toEqual({ from: 3, to: 6 });
+    const six = { from: 6, to: 6 };
+    expect(nextSelection(six, 2)).toBe(six);
+  });
+
+  it("canTap greys exactly the words a tap cannot reach", () => {
+    const one = { from: 4, to: 4 };
+    expect(canTap(one, 7)).toBe(true);
+    expect(canTap(one, 8)).toBe(false);
+    expect(canTap(one, 1)).toBe(true);
+    expect(canTap(one, 0)).toBe(false);
+    // The selected word itself clears the run, so it is always reachable.
+    expect(canTap(one, 4)).toBe(true);
+    // With nothing selected every word starts a run.
+    expect(canTap(null, 40)).toBe(true);
+    // A finished run: any tap starts a new phrase, so every word is reachable.
+    expect(canTap({ from: 0, to: 3 }, 30)).toBe(true);
+  });
+
+  it("selectionLength counts the words in the run", () => {
+    expect(selectionLength(null)).toBe(0);
+    expect(selectionLength({ from: 3, to: 3 })).toBe(1);
+    expect(selectionLength({ from: 0, to: 3 })).toBe(4);
   });
 });

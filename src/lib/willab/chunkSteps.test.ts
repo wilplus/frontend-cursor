@@ -255,17 +255,18 @@ describe("judgedStatus — the status the server serves for an answered row", ()
  *
  * What still matters most is the second half: the step and the store read the
  * SAME rule. A screen offered but not saved is silent data loss. */
-describe("opensRootPhrase — Yes, In-between and Not sure (founder 2026-09-25)", () => {
-  it("opens for the three answers that go on to Lock", () => {
-    for (const answer of ["yes", "in_between", "not_sure"] as const) {
+describe("opensRootPhrase — Yes and In-between (founder lock 2026-09-30, B2)", () => {
+  it("opens for the two answers that lock", () => {
+    for (const answer of ["yes", "in_between"] as const) {
       expect(opensRootPhrase(answer)).toBe(true);
     }
   });
 
-  it("stays closed on No and Audio unclear: the sheet closes after the feedback", () => {
-    // Reverses 2026-09-24's "keep the emphasis open". A practice judged Yes,
-    // In-between or Not sure afterwards supersedes this answer (29a).
+  it("stays closed on No, Not sure and Audio unclear: the sheet closes after the feedback", () => {
+    // Narrows 2026-09-25, which opened it on Not sure too. A practice judged
+    // Yes or In-between afterwards supersedes this answer (29a).
     expect(opensRootPhrase("no")).toBe(false);
+    expect(opensRootPhrase("not_sure")).toBe(false);
     expect(opensRootPhrase("audio_unclear")).toBe(false);
   });
 
@@ -284,7 +285,7 @@ describe("opensRootPhrase — Yes, In-between and Not sure (founder 2026-09-25)"
         inventory: [],
         canEmphasise: opensRootPhrase(answer),
       }).some((step) => step.kind === "emphasis");
-    expect(ask("not_sure")).toBe(true);
+    expect(ask("not_sure")).toBe(false);
     expect(ask("in_between")).toBe(true);
     expect(ask("no")).toBe(false);
     expect(ask("audio_unclear")).toBe(false);
@@ -307,8 +308,8 @@ describe("closesLock — No and Audio unclear end the ladder early", () => {
     expect(closesLock("audio_unclear")).toBe(true);
   });
 
-  it("Not sure keeps its Lock (founder 2026-09-25, Q1 B)", () => {
-    expect(closesLock("not_sure")).toBe(false);
+  it("Not sure ends the ladder too (founder lock 2026-09-30, B2; until then Q1 B kept its Lock)", () => {
+    expect(closesLock("not_sure")).toBe(true);
   });
 
   it("In-between keeps its Lock", () => {

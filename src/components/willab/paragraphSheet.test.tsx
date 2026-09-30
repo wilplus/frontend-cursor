@@ -9,6 +9,8 @@ import OpenChunkSheet, { asJudgement } from "./OpenChunkSheet";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
+import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
+import { forgetParagraphSheetData } from "./paragraphSheetData";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
@@ -158,14 +160,31 @@ describe("the answered bookmark", () => {
   });
 
   it("an answer that opens helper words lets them be chosen before any lock (J7)", async () => {
-    // Founder 2026-09-26: answered Yes, In-between or Not sure but closed the
-    // sheet before choosing — the paragraph sheet offers the choice instead
-    // of locking the speaker out for the Take.
-    await render();
+    // Founder 2026-09-26: answered Yes or In-between but closed the sheet
+    // before choosing — the paragraph sheet offers the choice instead of
+    // locking the speaker out for the Take. Since the founder lock of
+    // 2026-09-30 (B2) Not sure is not such an answer.
+    const answers = vi.mocked(fetchOwnerAnswers);
+    answers.mockResolvedValue([{ feedbackId: "s-cv", response: "in_between" }]);
+    forgetParagraphSheetData(); // the read-ahead caches answers per Take
+    try {
+      await render();
+      const words = container.querySelector<HTMLButtonElement>(
+        '[data-testid="paragraph-helper-words"]',
+      );
+      expect(words?.disabled).toBe(false);
+    } finally {
+      answers.mockResolvedValue([{ feedbackId: "s-cv", response: "not_sure" }]);
+      forgetParagraphSheetData();
+    }
+  });
+
+  it("a Not sure answer does not open the helper words from the sheet (founder lock 2026-09-30, B2)", async () => {
+    await render(); // the fixture's stored answer is Not sure
     const words = container.querySelector<HTMLButtonElement>(
       '[data-testid="paragraph-helper-words"]',
     );
-    expect(words?.disabled).toBe(false);
+    expect(words?.disabled).toBe(true);
   });
 
   it("Practise opens the judgement sheet on its exercise step", async () => {
@@ -322,9 +341,12 @@ describe("a locked paragraph chooses new helper words (Q27 B)", () => {
     expect(pill?.disabled).toBe(true);
     const tokens = container.querySelectorAll('[data-testid="picker-tokens"] button');
     expect(Array.from(tokens).some((t) => t.getAttribute("aria-pressed") === "true")).toBe(false);
+    expect(sheet?.textContent).toContain("0 of 4 words");
     const word = Array.from(tokens).find((t) => t.textContent === "data");
     await act(async () => (word as HTMLButtonElement).click());
     expect(pill?.disabled).toBe(false);
+    // The counter follows the run (founder lock 2026-09-30, B3).
+    expect(sheet?.textContent).toContain("1 of 4 words");
     await act(async () => pill?.click());
     expect(useWords).toHaveBeenCalledTimes(1);
     expect(useWords.mock.calls[0][0].text).toBe("data");
