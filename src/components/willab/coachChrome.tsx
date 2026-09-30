@@ -6,9 +6,8 @@ import type { ReactNode } from "react";
 /*  coachChrome — the presentational vocabulary BOTH coach lanes share          */
 /*                                                                            */
 /*  There are two coach feedback lanes, and they stay separate SURFACES        */
-/*  (N1 / BLIND COACH, enforced by starVerdictSeparation.test.ts):             */
+/*  (N1 / BLIND COACH):                                                        */
 /*    - the BLIND labeler   CoachReviewOverlay → CoachSnippetReviewCard        */
-/*    - the STAR verdicts   CoachStarVerdictOverlay                            */
 /*                                                                            */
 /*  Separate surfaces, not separate design languages. Both lanes were drawing  */
 /*  the same pill, badge, eyebrow, error line and card from scratch. The star  */

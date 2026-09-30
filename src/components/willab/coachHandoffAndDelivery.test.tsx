@@ -12,10 +12,8 @@
 /*      "Coach video · None" on the last screen before a student receives    */
 /*      the analysis.                                                         */
 /*                                                                            */
-/*  (3) THE CMS DEEP LINK SURVIVES THE PASSWORD GATE. /cms/new/exercise/1 is   */
-/*      already the record step, but the gate bounced to /cms and dropped the  */
-/*      lane, the step and the returnTo — so "build an exercise for this       */
-/*      moment" landed the coach on the Post-or-Exercise fork instead.        */
+/*  (3) THE CMS DEEP LINK SURVIVES THE PASSWORD GATE. The gate bounced to     */
+/*      /cms and dropped the lane and the step; it now carries them.          */
 /* -------------------------------------------------------------------------- */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -23,10 +21,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  authoringReturnTo,
-  interruptedDestination,
-} from "@/app/cms/interruptedDestination";
+import { interruptedDestination } from "@/app/cms/interruptedDestination";
 
 // process.cwd(), not import.meta.url: this file runs in jsdom, where
 // import.meta.url is not a file: URL and fileURLToPath throws.
@@ -91,7 +86,6 @@ async function mount(onClose = () => {}) {
     root.render(
       createElement(CoachDeliveryOverlay, {
         arcId: "arc-1",
-        onOpenArcIdeal: () => {},
         onPublished: () => {},
         onClose,
       }),
@@ -120,8 +114,7 @@ describe("the coach video is read back, not only written", () => {
   it("shows a video recorded in an earlier sitting", async () => {
     fetchCoachReviewSession.mockResolvedValue({ videoRef: "https://media/coach.mp4" });
     await mount();
-    // Walk to the last screen: Wrap up → message → review and send.
-    await click(byText("Ideal text · approved"));
+    // Walk to the last screen: message → review and send.
     await click(byText("Review and send"));
     // The row itself, not the page: "Message from you · None" is a different
     // row and legitimately says None when no message was written.
@@ -132,7 +125,6 @@ describe("the coach video is read back, not only written", () => {
     // The honest empty state has to survive the fix — a checklist that always
     // reads "Recorded" is worth less than one that always read "None".
     await mount();
-    await click(byText("Ideal text · approved"));
     await click(byText("Review and send"));
     expect(container.textContent).toContain("Coach videoNone");
   });
@@ -142,7 +134,6 @@ describe("the ✕ on the last screen leaves", () => {
   it("closes the overlay instead of stepping back", async () => {
     const onClose = vi.fn();
     await mount(onClose);
-    await click(byText("Ideal text · approved"));
     await click(byText("Review and send"));
     expect(container.textContent).toContain("Review and send");
 
@@ -161,11 +152,8 @@ describe("the CMS deep link survives the password gate", () => {
   };
 
   it("resumes an authoring destination", () => {
-    AT("?next=%2Fcms%2Fnew%2Fexercise%2F1%3FreturnTo%3D%252Fchat%253Freview%253Dtake-1");
-    // One decode, so the inner returnTo stays encoded and keeps its own &.
-    expect(interruptedDestination()).toBe(
-      "/cms/new/exercise/1?returnTo=%2Fchat%3Freview%3Dtake-1",
-    );
+    AT("?next=%2Fcms%2Fnew%2Fpost%2F3");
+    expect(interruptedDestination()).toBe("/cms/new/post/3");
   });
 
   it("refuses anything that is not an authoring path", () => {
@@ -176,7 +164,8 @@ describe("the CMS deep link survives the password gate", () => {
       "//evil.example/cms/new/",
       "/chat?review=x",
       "/cms",
-      "/cms/newish/exercise/1",
+      "/cms/newish/post/1",
+      "/cms/gaps",
       "",
     ]) {
       AT(`?next=${encodeURIComponent(bad)}`);
@@ -197,35 +186,10 @@ describe("the CMS deep link survives the password gate", () => {
     expect(gate).toContain("/cms?next=");
   });
 
-  it("returns the author to where they came from after publishing", () => {
-    // The whole point of carrying returnTo: publishing used to push "/cms"
-    // unconditionally, so a coach who came from a moment landed in the
-    // catalogue instead of back on the piece.
-    const client = read(join("app", "cms", "new", "page.client.tsx"));
-    expect(client).toContain("authoringReturnTo() ?? \"/cms\"");
-    expect(client).not.toContain('router.push("/cms");');
-  });
-
-  it("refuses a returnTo that would leave the app", () => {
-    expect(authoringReturnTo("?returnTo=%2Fchat%3Freview%3Dtake-1")).toBe(
-      "/chat?review=take-1",
-    );
-    for (const bad of ["https://evil.example/x", "//evil.example/x", "chat", ""]) {
-      expect(authoringReturnTo(`?returnTo=${encodeURIComponent(bad)}`)).toBeNull();
-    }
-    expect(authoringReturnTo("")).toBeNull();
-  });
-
-  it("step 1 of the exercise lane is still the record screen", () => {
-    // The whole hand-off rests on this: if a screen were ever inserted before
-    // `record`, the deep link would quietly point at the wrong one again.
-    const lanes = read(join("app", "cms", "new", "laneDraft.ts"));
-    const first = lanes.indexOf("export const EXERCISE_STEPS");
-    expect(lanes.slice(first, first + 200)).toContain('id: "record"');
-
+  it("the review hands off to the coach's own exercise lane, never the CMS", () => {
     // Since decision 4 (founder 2026-09-29) the review hands off to the coach
-    // panel's own exercise lane, which needs no CMS password; the CMS lane
-    // above stays for an admin who starts there.
+    // panel's own exercise lane, which needs no CMS password; the CMS
+    // exercise lane itself is retired (founder 2026-09-30, B8).
     const review = read(join("components", "willab", "CoachReviewOverlay.tsx"));
     expect(review).toContain("/coach/exercises?new=1&returnTo=");
     expect(review).not.toContain("/cms/new/exercise/1");

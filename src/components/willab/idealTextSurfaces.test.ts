@@ -160,28 +160,16 @@ describe("a chunk decision changes its own paragraph, never the document", () =>
  * Both surfaces used to render the state unconditionally, so the test is
  * written against the thing that would bring it back: a render of the pending
  * wording, on either. */
-describe("only a reviewed text wears a badge", () => {
+describe("no verification badge on the speaker's document", () => {
+  // Founder 2026-09-30 (B2): the coach's approve is retired, so neither the
+  // heading nor the Lounge bubble wears a "Reviewed" or "Pending" pill.
   const HEADING = source("IdealTextHeading.tsx");
   const CARD = source("ReportCard.tsx");
 
-  it("neither surface renders the pending wording any more", () => {
+  it("renders neither the pending nor the reviewed wording", () => {
     for (const src of [HEADING, CARD]) {
-      expect(src).not.toMatch(/PENDING_SHORT|PENDING_VERIFICATION/);
+      expect(src).not.toMatch(/PENDING_SHORT|PENDING_VERIFICATION|REVIEWED|verificationCopy/);
     }
-  });
-
-  it("both still render the reviewed one, gated on verified", () => {
-    expect(HEADING).toMatch(/status === "verified" \? \(/);
-    expect(HEADING).toMatch(/\{REVIEWED\}/);
-    expect(CARD).toMatch(/\{verified \? \(/);
-    expect(CARD).toMatch(/\{REVIEWED\}/);
-  });
-
-  it("the card leaves no empty spacer where the pill was", () => {
-    // `mt-4` used to sit on a wrapper that always rendered; an unverified card
-    // would keep a 16px gap under it reserved for nothing.
-    const pill = CARD.slice(CARD.indexOf("Reviewed pill only"), CARD.indexOf("CTA —"));
-    expect(pill).toMatch(/\{verified \? \(\s*<div className="mt-4">/);
   });
 });
 

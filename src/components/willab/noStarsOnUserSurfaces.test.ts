@@ -54,16 +54,6 @@ describe("no stars on user surfaces (founder 2026-08-11)", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the coach's verdict lane still marks its rows — the glyph changed, the labelling flow did not", () => {
-    // The rip must not read as "the coach tool lost its affordance": the row
-    // still carries a mark, it is simply a neutral one.
-    const overlay = readFileSync(
-      "src/components/willab/CoachStarVerdictOverlay.tsx",
-      "utf8"
-    );
-    expect(overlay).toMatch(/<BadgeCheck/);
-  });
-
   it("the star RENDERERS are gone from the tree, not merely unmounted", () => {
     // MomentStars/TrackedText were the star lane's own modules; PieceBadgeText
     // was the badged reading view that mounted them. A file that still exists

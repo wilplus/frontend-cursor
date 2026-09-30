@@ -251,7 +251,7 @@ describe("the judgement walk survives the last answer of a take", () => {
     expect(labels()).toContain("Judge take 2");
   });
 
-  it("walks take 1 → take 2 → the Feedbacks review", async () => {
+  it("walks take 1 → take 2 → the arc's delivery", async () => {
     await mount();
     await answerCurrent("s1a");
     await click("Next");
@@ -274,8 +274,8 @@ describe("the judgement walk survives the last answer of a take", () => {
   });
 
   it("never drops the walk into the contextual pass", async () => {
-    // SPEC.md puts the contextual pass on a detour from the Feedbacks review,
-    // never inside the walk. Its tell is the take's own tail page.
+    // SPEC.md puts the contextual pass on a detour after the walk,
+    // never inside it. Its tell is the take's own tail page.
     await mount();
     await answerCurrent("s1a");
     await click("Next");

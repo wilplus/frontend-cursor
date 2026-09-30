@@ -14,7 +14,6 @@ import { useUserProfile } from "./useUserProfile";
 import { useUserId } from "./useUserId";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { useBackDismiss } from "./useBackDismiss";
-import CoachIdealTextPanel from "./CoachIdealTextPanel";
 import { richMarkersToHtml } from "@/lib/willab/richMarkers";
 import { RichText } from "./RichText";
 
@@ -147,32 +146,6 @@ export default function BestPresentationOverlay({
     else w.addEventListener("load", triggerPrint);
   }
 
-  // Founder redesign — for the COACH the ideal-text editor IS the whole view:
-  // a slide + the text below in editable paragraphs, minimalistic (no student
-  // sections, no paywall/preparing/error student screens). The panel fetches
-  // the coach lane itself and renders its own pending/empty/ready/failed. The
-  // deck ref rides along from the student fetch when it happens to be resolved;
-  // otherwise the panel falls back to the ref the coach lane echoes.
-  if (isCoach) {
-    return (
-      <div className="fixed inset-0 z-40 flex flex-col bg-background">
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-          <span className="text-[13px] font-medium text-foreground">
-            Ideal text · coach review
-          </span>
-          <OverlayCloseButton onClick={onClose} />
-        </div>
-        <CoachIdealTextPanel
-          arcId={arcId}
-          presentationRef={result?.presentationRef ?? null}
-          /* Verified → leave. Same exit as the ✕ above: this overlay closes
-             and the delivery flow it opened from is revealed underneath. */
-          onDone={onClose}
-        />
-      </div>
-    );
-  }
-
   if (status === "preparing") {
     return (
       <PreShellOverlay onClose={onClose}>
@@ -301,11 +274,6 @@ export default function BestPresentationOverlay({
                 {result.name}
               </h2>
             </div>
-          ) : null}
-          {!result.coachReviewed ? (
-            <span className="ml-4 mt-2 inline-block rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
-              Draft, pending coach review
-            </span>
           ) : null}
 
           {result.slides.map((slide, i) => (

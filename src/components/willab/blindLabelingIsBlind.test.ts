@@ -33,11 +33,6 @@ const READOUT = join(
   "ConfidenceEvidenceReadout.tsx",
 );
 const INSTRUMENT = join("components", "willab", "ConfidenceLabelChips.tsx");
-const STAR_REVIEW = join(
-  "components",
-  "willab",
-  "CoachStarVerdictOverlay.tsx",
-);
 const CORPUS = join("app", "coach", "corpus", "page.client.tsx");
 
 /** Strip block + line comments so a comment EXPLAINING the fence never trips
@@ -176,12 +171,6 @@ describe("the blind labeling surface shows no machine read", () => {
     expect(instrument).toContain("transcriptRevealed={transcriptRevealed}");
   });
 
-  it("uses the same shared evidence readout in the combined review", () => {
-    const review = code(STAR_REVIEW);
-    expect(review).toContain("<ConfidenceEvidenceReadout");
-    expect(review).toContain("transcriptRevealed={false}");
-    expect(review).toContain("transcript: r.transcript ?? x.transcript");
-  });
 });
 
 describe("the F2 direction construct is purged from the FE", () => {

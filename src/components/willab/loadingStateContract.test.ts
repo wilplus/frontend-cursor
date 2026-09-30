@@ -83,13 +83,9 @@ describe("the app-wide loading contract", () => {
   it("removes arbitrary marks and generic spinners from blocking surfaces", () => {
     const blockingSurfaces = [
       "src/app/audits/page.client.tsx",
-      "src/app/coach/audit/[studentId]/page.client.tsx",
-      "src/app/coach/compare/page.client.tsx",
       "src/app/coach/corpus/page.client.tsx",
-      "src/app/coach/corpus/summary/[sessionId]/page.client.tsx",
       "src/components/willab/RaterLanguageGate.tsx",
       "src/components/willab/CoachReviewOverlay.tsx",
-      "src/components/willab/CoachStarVerdictOverlay.tsx",
       "src/components/willab/ConfidencePracticeOverlay.tsx",
       "src/components/willab/LibraryOverlay.tsx",
       "src/components/willab/StudentDetailOverlay.tsx",

@@ -120,3 +120,66 @@ export function sliderMax(row: PaceRow): number {
   const magnitude = 10 ** Math.floor(Math.log10(remaining));
   return Math.max(10, Math.ceil(remaining / magnitude) * magnitude);
 }
+
+/** The gap view (founder 2026-09-30, B8): which pattern needs an exercise
+ *  filmed, and how many coach requests wait on it. Rode the retired
+ *  /cms/gaps page; lives on the pace panel now so nothing is lost. */
+export interface GapPattern {
+  errorId: string;
+  label: string;
+  status: string;
+  coverage: string;
+  spotted: number | null;
+  openCoachRequests: number | null;
+  mainExercises: string[];
+  secondaryExercises: string[];
+}
+
+export interface GapView {
+  days: number;
+  patterns: GapPattern[];
+  nothingSpottedOpenRequests: number | null;
+  unavailable: string[];
+}
+
+export function mapGapView(raw: unknown): GapView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const list = Array.isArray(r.patterns) ? r.patterns : [];
+  return {
+    days: num(r.days) ?? 30,
+    patterns: list
+      .filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === "object")
+      .map((p) => ({
+        errorId: String(p.error_id ?? ""),
+        label: String(p.label ?? p.error_id ?? ""),
+        status: String(p.status ?? ""),
+        coverage: String(p.coverage ?? ""),
+        spotted: num(p.spotted),
+        openCoachRequests: num(p.open_coach_requests),
+        mainExercises: Array.isArray(p.main_exercises) ? p.main_exercises.map(String) : [],
+        secondaryExercises: Array.isArray(p.secondary_exercises) ? p.secondary_exercises.map(String) : [],
+      })),
+    nothingSpottedOpenRequests: num(r.nothing_spotted_open_requests),
+    unavailable: Array.isArray(r.unavailable) ? r.unavailable.map(String) : [],
+  };
+}
+
+/** A count, or "unknown" when its source could not be read: never a zero that
+ *  reads as a measurement. */
+export function gapCount(value: number | null, source: string, unavailable: string[]): string {
+  if (unavailable.includes(source) || value === null) return "unknown";
+  return String(value);
+}
+
+const COVERAGE_WORDS: Record<string, string> = {
+  no_exercise: "no exercise",
+  trial_only: "trial only",
+  covered: "covered",
+  being_tested: "being tested",
+  named_only: "named only",
+};
+
+export function coverageWord(coverage: string): string {
+  return COVERAGE_WORDS[coverage] ?? coverage.replace(/_/g, " ");
+}

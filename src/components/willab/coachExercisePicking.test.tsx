@@ -23,7 +23,6 @@ import {
   pendingAttachFor,
   useExerciseChoice,
 } from "./coachExercisePicking";
-import { withAttachedExercise } from "@/app/cms/interruptedDestination";
 import type { CoachPracticeExercise } from "@/services/api/coachConfidencePractice";
 
 const SRC = join(process.cwd(), "src");
@@ -67,32 +66,6 @@ const radios = () =>
   Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
 
 /* ── the return address ─────────────────────────────────────────────────── */
-
-describe("the CMS hands the new exercise back", () => {
-  it("adds it to the return address, keeping the moment", () => {
-    expect(
-      withAttachedExercise("/chat?review=take-1&piece=3&for=snip-9", "land-the-last-words"),
-    ).toBe("/chat?review=take-1&piece=3&for=snip-9&attach=land-the-last-words");
-  });
-
-  it("stays an in-app path whatever it is given", () => {
-    // authoringReturnTo has already refused other origins; nothing added here
-    // may turn the result into one.
-    const out = withAttachedExercise("/chat?review=x", "a/../b?c=//evil.example");
-    expect(out.startsWith("/chat?")).toBe(true);
-    expect(out.startsWith("//")).toBe(false);
-  });
-
-  it("leaves the address alone when there is no id", () => {
-    expect(withAttachedExercise("/chat?review=x", "   ")).toBe("/chat?review=x");
-  });
-
-  it("is what the exercise lane pushes on the way back, and only that lane", () => {
-    const lane = read("app/cms/new/page.client.tsx");
-    expect(lane).toContain("withAttachedExercise(back, draft.exerciseId)");
-    expect(lane).toContain('draft.lane === "exercise"');
-  });
-});
 
 describe("the review names the moment it hands off", () => {
   it("carries the clip, so the hand-back can only land on it", () => {

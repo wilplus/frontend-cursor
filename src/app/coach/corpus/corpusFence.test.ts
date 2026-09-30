@@ -27,14 +27,6 @@ const SRC = join(fileURLToPath(new URL("../../../", import.meta.url)));
 const SERVICE = join("services", "api", "trainingCorpus.ts");
 const CLIENT = join("app", "coach", "corpus", "page.client.tsx");
 const PAGE = join("app", "coach", "corpus", "page.tsx");
-const SUMMARY_PAGE = join(
-  "app",
-  "coach",
-  "corpus",
-  "summary",
-  "[sessionId]",
-  "page.tsx",
-);
 
 /** Any quoted path naming the corpus lane — shape-agnostic on purpose, so it
  *  catches `import`, `import type`, dynamic `import()` and `require` alike. */
@@ -45,7 +37,6 @@ const CORPUS_LINK = /["'`][^"'`\n]*\/coach\/corpus/;
 /** The lanes that carry a machine read of confidence. The corpus service and
  *  its screen must not import them — not for types, not for a helper. */
 const MACHINE_READ_LANES = [
-  "starVerdicts", // the machine's fired stars + their why
   "readout", // powerScore lives here
   "coachReview", // coach-review mapper must stay out of blind corpus tools
 ];
@@ -168,16 +159,6 @@ describe("training corpus fences", () => {
         `"${word}" appears in the labelling screen's code — N1 forbids surfacing the machine's read`,
       ).toBe(false);
     }
-  });
-
-  it("keeps the post-label founder audit on a separate exact-email route", () => {
-    const page = readFileSync(join(SRC, SUMMARY_PAGE), "utf8");
-    expect(page).toContain('"artur@willonski.com"');
-    expect(page).toContain("notFound()");
-    // The blind corpus service must never import the audit response shape.
-    expect(readFileSync(join(SRC, SERVICE), "utf8")).not.toContain(
-      "founderConfidenceComparison",
-    );
   });
 
   it("N5/FE-4 — the normal user's upload path carries no stage vocabulary", () => {

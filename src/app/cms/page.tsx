@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
-import DiagnosticExerciseSection from "./DiagnosticExerciseSection";
 import { interruptedDestination } from "./interruptedDestination";
 import BodyBlocks from "@/components/journal/BodyBlocks";
 import {
@@ -713,20 +712,6 @@ export default function JournalAdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.push("/cms/gaps")}
-              className={BTN_GHOST}
-            >
-              Exercise gaps
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/cms/jar")}
-              className={BTN_GHOST}
-            >
-              The jar
-            </button>
-            <button
-              type="button"
               onClick={() => router.push("/cms/new")}
               className={BTN_PRIMARY}
             >
@@ -1291,14 +1276,6 @@ export default function JournalAdminPage() {
                     }
                     focusItemId={focusItemId}
                     onFocusHandled={() => setFocusItemId(null)}
-                  />
-
-                  {/* An ordinary published post never becomes a diagnostic
-                      exercise. This separate save is the explicit admin gate. */}
-                  <DiagnosticExerciseSection
-                    password={password}
-                    postId={editing.id}
-                    postStatus={editingStatus}
                   />
                 </div>
               </>

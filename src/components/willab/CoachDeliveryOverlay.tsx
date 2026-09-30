@@ -45,7 +45,7 @@ import { fetchCoachReviewSession } from "@/services/api/coachReview";
 /*  Coach-facing copy; founder-specified in docs/coach-review-flow/SPEC.md.    */
 /* -------------------------------------------------------------------------- */
 
-type Screen = "wrapup" | "message" | "send" | "delivered";
+type Screen = "message" | "send" | "delivered";
 
 /** The take the arc-level message rides on. There is ONE message now, and the
  *  publish payload carries it per take, so it goes on the earliest spoken take
@@ -142,20 +142,17 @@ function Field({
 export default function CoachDeliveryOverlay({
   arcId,
   onClose,
-  onOpenArcIdeal,
   onPublished,
 }: {
   arcId: string;
   onClose: () => void;
-  /** Opens the ideal-text panel, which the host stacks above this overlay. */
-  onOpenArcIdeal: (arcId: string) => void;
   /** Fires once the arc is delivered, with every published session id, so the
    *  host can mark the WHOLE arc done rather than one take (markDone takes a
    *  single session; one delivery covers them all). */
   onPublished: (sessionIds: string[]) => void;
 }) {
   useBackDismiss(onClose);
-  const [screen, setScreen] = useState<Screen>("wrapup");
+  const [screen, setScreen] = useState<Screen>("message");
   const [state, setState] = useState<CoachReviewState | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -164,7 +161,6 @@ export default function CoachDeliveryOverlay({
   const [error, setError] = useState<string | null>(null);
 
   const sessionId = primaryTake(state);
-  const approved = state?.ideal.approved === true;
 
   const refresh = useCallback(async () => {
     const next = await fetchCoachReviewState(arcId);
@@ -209,19 +205,6 @@ export default function CoachDeliveryOverlay({
     if (existing) setMessage(existing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
-
-  // Returning from the ideal-text panel: re-read, and if the coach approved it
-  // while they were there, carry them on to the message rather than dropping
-  // them back on a screen whose one action they have already taken.
-  useEffect(() => {
-    if (screen !== "wrapup") return;
-    const id = setInterval(() => {
-      void refresh().then((next) => {
-        if (next?.ideal.approved) setScreen("message");
-      });
-    }, 2500);
-    return () => clearInterval(id);
-  }, [screen, refresh]);
 
   const payloads = useMemo<CoachPublishPayload[]>(
     () =>
@@ -279,7 +262,7 @@ export default function CoachDeliveryOverlay({
 
   if (loading) {
     return (
-      <Shell title="Wrap up" onClose={onClose}>
+      <Shell title="Message to the user" onClose={onClose}>
         <LoadingState placement="surface" />
       </Shell>
     );
@@ -300,37 +283,6 @@ export default function CoachDeliveryOverlay({
         <CheckCircle2 className="h-14 w-14 text-success" aria-hidden />
         <p className="text-[20px] font-semibold text-foreground">Delivered</p>
       </div>
-    );
-  }
-
-  if (screen === "wrapup") {
-    return (
-      <Shell title="Wrap up" sub="Coach only" onClose={onClose}>
-        <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-4">
-            <div className="my-auto flex justify-center">
-              <button
-                type="button"
-                onClick={() =>
-                  approved ? setScreen("message") : onOpenArcIdeal(arcId)
-                }
-                className="h-11 min-w-[220px] shrink-0 rounded-full bg-foreground px-6 text-[15px] font-semibold text-background"
-              >
-                {approved ? "Ideal text · approved" : "Open the ideal text"}
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="shrink-0 border-t border-border px-4 py-3">
-          <button
-            type="button"
-            onClick={() => setScreen("send")}
-            className="mx-auto block text-[12px] text-muted-foreground underline underline-offset-2"
-          >
-            Skip it and send what you have
-          </button>
-        </div>
-      </Shell>
     );
   }
 
@@ -386,7 +338,6 @@ export default function CoachDeliveryOverlay({
         : "Saved",
       (state?.takesSaved ?? 0) > 0,
     ],
-    ["Ideal text", approved ? "Approved" : "Not approved", approved],
     ["Message from you", message.trim() ? "Written" : "None", !!message.trim()],
     ["Coach video", videoRef ? "Recorded" : "None", !!videoRef],
   ];

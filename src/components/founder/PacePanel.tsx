@@ -10,7 +10,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useState } from "react";
-import { fill, formatRate, jarLabel, paceLine, sliderMax, weeksAt, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
+import { coverageWord, fill, formatRate, gapCount, jarLabel, paceLine, sliderMax, weeksAt, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
 import { founderLearning, type LedgerRead } from "@/services/api/founderLearning";
 import { FounderFrame, Meter, Panel, Refusal } from "./FounderFrame";
 
@@ -63,6 +63,41 @@ function JarRow({ row }: { row: PaceRow }) {
       <p className="mt-2 text-xs text-muted-foreground">{paceLine(row)}</p>
       {row.current !== null && row.current < row.bar ? <WhatIf row={row} /> : null}
     </li>
+  );
+}
+
+function Gaps({ gaps }: { gaps: GapView | null }) {
+  if (!gaps) return <p className="text-sm text-muted-foreground">The gap view could not be read.</p>;
+  if (gaps.patterns.length === 0) return <p className="text-sm text-muted-foreground">No pattern reported.</p>;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full min-w-[520px] text-left text-sm">
+        <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Pattern</th>
+            <th className="px-3 py-2 font-medium">Coverage</th>
+            <th className="px-3 py-2 font-medium">Spotted</th>
+            <th className="px-3 py-2 font-medium">Coach requests open</th>
+            <th className="px-3 py-2 font-medium">Exercises</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gaps.patterns.map((p) => (
+            <tr key={p.errorId} className="border-t border-border align-top">
+              <td className="px-3 py-2">{p.label}<div className="text-[11px] text-muted-foreground">{p.status}</div></td>
+              <td className="px-3 py-2">{coverageWord(p.coverage)}</td>
+              <td className="px-3 py-2 tabular-nums">{gapCount(p.spotted, "match_traces", gaps.unavailable)}</td>
+              <td className="px-3 py-2 tabular-nums">{gapCount(p.openCoachRequests, "coach_requests", gaps.unavailable)}</td>
+              <td className="px-3 py-2 text-[12px]">{[...p.mainExercises, ...p.secondaryExercises].join(", ") || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-3 py-2 text-[11px] text-muted-foreground">
+        last {gaps.days} days · requests with nothing spotted: {gapCount(gaps.nothingSpottedOpenRequests, "coach_requests", gaps.unavailable)}
+        {gaps.unavailable.length > 0 ? ` · unavailable: ${gaps.unavailable.join(", ")}` : ""}
+      </p>
+    </div>
   );
 }
 
@@ -153,6 +188,9 @@ export default function PacePanel() {
               ))}
             </ul>
             {unavailable.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">unavailable this read: {unavailable.join(", ")}</p> : null}
+          </Panel>
+          <Panel title="Gaps" note="Which pattern needs an exercise filmed, and how many coach requests wait on it. A source the machine could not read says unknown, never zero.">
+            <Gaps gaps={read.gaps} />
           </Panel>
           <Panel title="Doors" note="As the code constants say them. Nothing on this page opens one.">
             <Doors doors={(ledger.doors ?? {}) as Record<string, unknown>} />
