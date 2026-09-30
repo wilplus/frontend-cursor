@@ -27,6 +27,7 @@ export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import MomentPlayer from "./MomentPlayer";
 import CoachVideo from "./CoachVideo";
+import HelperWordsSheet from "./HelperWordsSheet";
 import { useParagraphSheetData } from "./paragraphSheetData";
 import {
   canTap,
@@ -480,6 +481,8 @@ export default function ParagraphSheet({
   onPractise,
   practiseEveryCard = false,
   onUseHelperWords,
+  helperWordsHost = null,
+  startPicking = false,
   onDone = null,
   pager = null,
   slideLabel = null,
@@ -512,6 +515,16 @@ export default function ParagraphSheet({
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
    *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
+  /** THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4): with a host,
+   *  "Choose different words" on the saved state opens the overlay with
+   *  the Take chips and Delete; without one, the picker over the current
+   *  words. */
+  helperWordsHost?: {
+    onUseFromTake: (phrase: string, takeIndex: number) => Promise<boolean>;
+    onDelete: () => Promise<boolean>;
+  } | null;
+  /** Open straight on the helper words (the page's headline was tapped). */
+  startPicking?: boolean;
   /** The sheet finished on its own — Next, Skip, or the words saved — and
    *  the host moves the walk on. Absent → the sheet closes. */
   onDone?: (() => void) | null;
@@ -526,7 +539,7 @@ export default function ParagraphSheet({
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
   // complete instead of drawing the player and then popping in the rest.
   const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState(startPicking);
   const items = useMemo(() => itemsOf(decided, pending), [decided, pending]);
   const moment = items.find(isConfidentVoiceFeedback) ?? null;
   const stored = sheetData?.answers.find((a) => a.feedbackId === moment?.id)?.response ?? null;
@@ -537,6 +550,24 @@ export default function ParagraphSheet({
   );
   const moveOn = onDone ?? onClose;
 
+  if (picking && onUseHelperWords && helperWordsHost && headline) {
+    return (
+      <HelperWordsSheet
+        headline={headline}
+        currentText={text}
+        history={sheetData?.history ?? null}
+        onUseCurrent={onUseHelperWords}
+        onUseFromTake={helperWordsHost.onUseFromTake}
+        onDelete={helperWordsHost.onDelete}
+        onDone={() => {
+          setPicking(false);
+          moveOn();
+        }}
+        nav={<OverlayNav pager={pager} slideLabel={slideLabel} />}
+        onClose={onClose}
+      />
+    );
+  }
   if (picking && onUseHelperWords) {
     return (
       <HelperWordsPicker

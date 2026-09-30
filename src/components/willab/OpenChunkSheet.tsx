@@ -51,6 +51,8 @@ export default function OpenChunkSheet({
   onClose,
   renderSheet,
   practiseHost = null,
+  helperWordsHost = null,
+  startPicking = false,
 }: {
   state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   arcId: string | null;
@@ -83,6 +85,14 @@ export default function OpenChunkSheet({
     onLockIn: (text: string) => Promise<LockResult>;
     onHelperWordsSaved: () => void;
   } | null;
+  /** THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4): its two
+   *  writes the sheet cannot make itself. */
+  helperWordsHost?: {
+    onUseFromTake: (phrase: string, takeIndex: number) => Promise<boolean>;
+    onDelete: () => Promise<boolean>;
+  } | null;
+  /** The page's headline was tapped: open on the helper words. */
+  startPicking?: boolean;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
   /** The answer given in the judgement sheet this opening, carried into the
@@ -153,6 +163,8 @@ export default function OpenChunkSheet({
       }
       practiseEveryCard={practiseHost !== null}
       onUseHelperWords={onUseHelperWords}
+      helperWordsHost={helperWordsHost}
+      startPicking={startPicking}
       onDone={onDone}
       pager={pager}
       slideLabel={slideLabel}

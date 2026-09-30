@@ -154,3 +154,35 @@ export async function setPartRootPhrase(
     return false;
   }
 }
+
+/** Helper words taken from an earlier Take (founder lock 2026-09-30, B4,
+ *  D5): the words need not be in the current text, so they go to the
+ *  Slide rather than to a span of the paragraph. `takeIndex` is the Take
+ *  whose version of the paragraph they were tapped in. The lock that
+ *  follows is `setPartLock`, as for any pick. */
+export async function setPartHelperWordsFromTake(
+  arcId: string,
+  partId: string,
+  phrase: string,
+  takeIndex: number,
+): Promise<boolean> {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    const res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(
+        partId
+      )}/helper-words`,
+      {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ phrase, take_index: takeIndex }),
+      }
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

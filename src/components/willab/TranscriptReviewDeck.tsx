@@ -22,6 +22,7 @@ import {
 } from "@/lib/willab/answeredBookmark";
 import {
   headlineFor,
+  useDroppedHeadlines,
   useHeadlinesWithPending,
 } from "@/components/willab/useSlideHeadlines";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -78,7 +79,12 @@ import type {
 } from "@/services/api/confidentMomentBundles";
 import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
 import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
-import { helperWordsBehind, useSaveBehind } from "./saveBehind";
+import {
+  deleteHelperWordsBehind,
+  helperWordsBehind,
+  helperWordsFromTakeBehind,
+  useSaveBehind,
+} from "./saveBehind";
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
@@ -210,7 +216,9 @@ export default function TranscriptReviewDeck({
   onKeepMine,
   onJudged,
   onLockPart,
+  onUnlockPart = null,
   onSetRootPhrase,
+  onSetHelperWordsFromTake = null,
   onEditSlide,
   onClose,
   styleChanges = null,
@@ -268,10 +276,18 @@ export default function TranscriptReviewDeck({
    *  "Couldn't lock this in" on a fresh arc. Position + words is the claim
    *  the lock endpoint verifies anyway. */
   onLockPart: (chunk: DeckChunk, newText: string) => Promise<LockResult>;
+  /** Lift the lock (founder lock 2026-09-30, D4: Delete clears the words
+   *  and the lock). Absent → Delete clears the words alone. */
+  onUnlockPart?: ((chunk: DeckChunk) => Promise<boolean>) | null;
   onSetRootPhrase: (
     chunk: DeckChunk,
     phrase: RootPhraseSpan | null,
   ) => Promise<boolean>;
+  /** Helper words from an earlier Take (B4, D5), stored on the Slide.
+   *  Absent → the overlay shows earlier Takes' words but cannot use them. */
+  onSetHelperWordsFromTake?: (
+    (chunk: DeckChunk, phrase: string, takeIndex: number) => Promise<boolean>
+  ) | null;
   /** Save only the current slide's changed paragraphs in one atomic document
    *  edit; all other slides remain byte-for-byte unchanged. */
   onEditSlide: (
@@ -488,9 +504,14 @@ export default function TranscriptReviewDeck({
      instance, and that is exactly when this counter moves. */
   const openSeqRef = useRef(0);
   const [openSeq, setOpenSeq] = useState(0);
+  /* THE PAGE'S HEADLINE OPENS THE HELPER WORDS OVERLAY (founder lock
+     2026-09-30, B4): a tap on the orange words opens the paragraph's sheet
+     straight on them; any other opening starts on the sheet itself. */
+  const [openWords, setOpenWords] = useState(false);
   const openParagraph = useCallback((chunk: DeckChunk) => {
     openSeqRef.current += 1;
     setOpenSeq(openSeqRef.current);
+    setOpenWords(false);
     setOpenPart({
       id: chunk.part.id,
       index: chunk.paragraphIndex,
@@ -507,10 +528,16 @@ export default function TranscriptReviewDeck({
   }, [deckReady]);
   const openChunk = resolveOpenChunk(chunks, openPart);
   const {
-    headlines,
+    headlines: readHeadlines,
     expect: expectHeadline,
     settle: settleHeadline,
   } = useHeadlinesWithPending(arcId, doc, openPart !== null);
+  // A deleted set leaves the page at once (D4).
+  const { headlines, drop: dropHeadline } = useDroppedHeadlines(readHeadlines);
+  const openHelperWords = useCallback((chunk: DeckChunk) => {
+    openParagraph(chunk);
+    setOpenWords(true);
+  }, [openParagraph]);
   const openState = openChunk ? stateOf(openChunk) : null;
   /** A paragraph opens its own sheet when no judgement waits on it or its
    *  helper words are saved (founder lock 2026-09-30, B5, B8). */
@@ -1243,6 +1270,7 @@ export default function TranscriptReviewDeck({
                           read in the paragraph's own colour. */}
                       <ParagraphHeadline
                         text={headlineFor(headlines, c.part.id, c.sliceIndex)}
+                        onOpen={() => openHelperWords(c)}
                       />
                       <RichText
                         text={c.displayText ?? c.part.text}
@@ -1427,6 +1455,34 @@ export default function TranscriptReviewDeck({
             onLockIn: (text) => onLockPart(openChunk, text),
             onHelperWordsSaved: () => {
               helperSavedRef.current = true;
+            },
+          }}
+          startPicking={openWords}
+          helperWordsHost={{
+            // Words from an earlier Take (B4, D5): the Slide takes them and
+            // the lock follows, behind the sheet; the headline stands in.
+            onUseFromTake: async (phrase, takeIndex) => {
+              if (!onSetHelperWordsFromTake) return false;
+              const chunk = openChunk;
+              expectHeadline(chunk.part.id, phrase);
+              saveBehind(
+                () => helperWordsFromTakeBehind(
+                  onSetHelperWordsFromTake, onLockPart, chunk, phrase, takeIndex),
+                CHUNK_SHEET_COPY.failWordsBehind,
+              );
+              helperSavedRef.current = true;
+              return true;
+            },
+            // Delete (D4): the words and the lock go, behind the sheet; the
+            // headline leaves the page at once.
+            onDelete: async () => {
+              const chunk = openChunk;
+              dropHeadline(chunk.part.id);
+              saveBehind(
+                () => deleteHelperWordsBehind(setRootPhrase, onUnlockPart, chunk),
+                CHUNK_SHEET_COPY.failWordsBehind,
+              );
+              return true;
             },
           }}
           renderSheet={(practiseAgain, onAnswered) => (
@@ -1671,12 +1727,32 @@ function firstWaitingBookmark(
  *  and font; the headline is the only orange. A block span inside the
  *  paragraph element, so the tap target and the screen packing still see one
  *  paragraph. Its own component so the deck gains no branch. */
-function ParagraphHeadline({ text }: { text: string | null }) {
+function ParagraphHeadline({
+  text,
+  onOpen,
+}: {
+  text: string | null;
+  /** A tap on the headline opens the helper words overlay (founder lock
+   *  2026-09-30, B4), not the paragraph's own sheet under it. */
+  onOpen: () => void;
+}) {
   if (!text) return null;
   return (
     <span
       data-paragraph-headline
-      className="mb-1 block text-[clamp(1.45rem,1.1rem+1.3vw,2.15rem)] font-bold not-italic leading-snug text-primary"
+      role="button"
+      tabIndex={0}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        onOpen();
+      }}
+      className="mb-1 block cursor-pointer text-[clamp(1.45rem,1.1rem+1.3vw,2.15rem)] font-bold not-italic leading-snug text-primary"
     >
       {text}
     </span>

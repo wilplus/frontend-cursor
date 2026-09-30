@@ -330,4 +330,17 @@ export const CHUNK_SHEET_COPY = {
   titlePractise: "Practise",
   cardSayItThisWay: "Say it this way",
   fromYourAttempt: "From your attempt",
+  /* --- THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, B9, D4, D5, Q2, Q3)
+     Built from the mock as it stands (Q4 A). Its title is the eyebrow
+     `historyHelperWords`; "Delete" and "Delete helper words" are the one
+     confirmation (Q2); "now" marks the current Take's chip and "new" the
+     words about to replace the saved ones; the line under the picker on a
+     later Take is signed with the lock (B9). */
+  helperWordsDelete: "Delete",
+  helperWordsDeleteConfirm: "Delete helper words",
+  chipNow: "now",
+  chipNew: "new",
+  tapWordsFromAnyTake: "Tap words from any Take",
+  helperWordsReplaceNote: (take: number) =>
+    `These replace your Take ${take} words. Those stay in Earlier Takes.`,
 } as const;

@@ -77,3 +77,35 @@ export async function helperWordsBehind<
   if (result.outcome === "blocked") return "final";
   return saved && result.outcome === "ok" ? "ok" : "failed";
 }
+
+/** Helper words from an earlier Take, then the lock (founder lock
+ *  2026-09-30, B4, D5): the words go to the Slide, the lock to the
+ *  paragraph as it is. A blocked lock is final. */
+export async function helperWordsFromTakeBehind<
+  C extends { part: { text: string } },
+>(
+  setFromTake: (chunk: C, phrase: string, takeIndex: number) => Promise<boolean>,
+  lock: (chunk: C, text: string) => Promise<{ outcome: string }>,
+  chunk: C,
+  phrase: string,
+  takeIndex: number,
+): Promise<BehindOutcome> {
+  const saved = await setFromTake(chunk, phrase, takeIndex);
+  if (!saved) return "failed";
+  const result = await lock(chunk, chunk.part.text);
+  if (result.outcome === "blocked") return "final";
+  return result.outcome === "ok" ? "ok" : "failed";
+}
+
+/** Delete the helper words (founder lock 2026-09-30, D4): the paragraph's
+ *  span is cleared and the lock lifted. Without an unlock the words alone
+ *  are cleared. */
+export async function deleteHelperWordsBehind<C>(
+  setRoot: (chunk: C, span: null) => Promise<boolean>,
+  unlock: ((chunk: C) => Promise<boolean>) | null | undefined,
+  chunk: C,
+): Promise<BehindOutcome> {
+  const cleared = await setRoot(chunk, null);
+  const unlocked = unlock ? await unlock(chunk) : true;
+  return cleared && unlocked ? "ok" : "failed";
+}

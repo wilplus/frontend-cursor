@@ -77,6 +77,7 @@ import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
 import AdditionsPanel from "./AdditionsPanel";
 import {
+  setPartHelperWordsFromTake,
   setPartLock,
   setPartRootPhrase,
   type RootPhraseSpan,
@@ -833,6 +834,35 @@ export default function IdealTextOverlay({
     [arcId, displayText],
   );
 
+  /** Lift the lock on one paragraph (founder lock 2026-09-30, D4). By
+   *  position, as `deckLockPart` resolves its target. */
+  const deckUnlockPart = useCallback(
+    async (chunk: DeckChunk): Promise<boolean> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      const target = parts[chunk.paragraphIndex];
+      if (!target) return false;
+      return (await toggleLock(target, false)) === "ok";
+    },
+    [displayText, toggleLock],
+  );
+
+  /** Helper words from an earlier Take (B4, D5): stored on the Slide, and
+   *  the paragraph's own span cleared with them, projected at once. */
+  const deckSetHelperWordsFromTake = useCallback(
+    async (chunk: DeckChunk, phrase: string, takeIndex: number): Promise<boolean> => {
+      const parts = reconcileParts(displayText, partsRef.current ?? []);
+      const target = parts[chunk.paragraphIndex];
+      if (!target) return false;
+      const ok = await setPartHelperWordsFromTake(arcId, target.id, phrase, takeIndex);
+      if (!ok) return false;
+      const nextParts = withPartRootPhrase(parts, target.id, null);
+      partsRef.current = nextParts;
+      setSd((prev) => (prev ? { ...prev, parts: nextParts } : prev));
+      return true;
+    },
+    [arcId, displayText],
+  );
+
   const deckEditSlide = useCallback(
     async (
       edits: Array<{ chunk: DeckChunk; text: string }>,
@@ -1084,7 +1114,9 @@ export default function IdealTextOverlay({
               setSd((prev) => withSuggestionStatus(prev, s.id, decided))
             }
             onLockPart={deckLockPart}
+            onUnlockPart={deckUnlockPart}
             onSetRootPhrase={deckSetRootPhrase}
+            onSetHelperWordsFromTake={deckSetHelperWordsFromTake}
             onEditSlide={deckEditSlide}
             coachMoments={(ideal?.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
