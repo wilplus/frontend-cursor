@@ -231,10 +231,14 @@ export default function PractiseSheet({
   onDone = null,
   pager = null,
   slideLabel = null,
+  accepted = false,
   onClose,
 }: {
   /** The Confident Voice item being practised: its clip, its evidence. */
   item: DocumentSuggestion;
+  /** The rewrite was just accepted (29b): the heading says the words on
+   *  screen are the paragraph's now. */
+  accepted?: boolean;
   /** The speaker's answer on the moment, as given. */
   judgement: Judgement | null;
   /** The card shown on the overlay: what is practised. */
@@ -253,7 +257,11 @@ export default function PractiseSheet({
   slideLabel?: string | null;
   onClose: () => void;
 }) {
-  const { passage, words, heading, video } = useMemo(() => passageOf(card), [card]);
+  const { passage, words, heading: cardHeading, video } = useMemo(
+    () => passageOf(card), [card]);
+  const heading = accepted && card.kind === "rewrite"
+    ? COPY.cardSayItThisWayAccepted
+    : cardHeading;
   const [phase, setPhase] = useState<"loop" | "pick">("loop");
   const [attemptWords, setAttemptWords] = useState<string | null>(null);
   const [practiceId, setPracticeId] = useState<string | null>(null);

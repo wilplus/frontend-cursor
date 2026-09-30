@@ -309,6 +309,14 @@ export interface DocumentSuggestion {
    *  NOTHING, same rule as `why`. Empty/absent → no explanation, and the
    *  praise still stands on its own line. */
   cueKeys: string[];
+  /** THE SIGNED LINE (founder 2026-09-30, E3; contract 35f): the catalogue's
+   *  sentence for this praise's evidence, written by the founder or a coach.
+   *  Present, it is the praise's whole explanation; absent, the sheet keeps
+   *  its own constant per cue. Never minted here. */
+  praiseLine: string | null;
+  /** THE SIGNED MOVE (35f): the catalogue's sentence for a rewrite's reason
+   *  ("Split the clause."). Absent → the card shows the words alone. */
+  rewriteMove: string | null;
   /** HEAR IT — the student's own recording of this moment, free (the BE
    *  sources it from the free playback map, never the paid moments read).
    *  Parent+offset: the ref is usually the WHOLE take, so the player clamps
@@ -758,6 +766,8 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     // Shape-check only. The closed vocabulary lives in the copy map, so one
     // unknown key renders nothing there instead of creating a second gate.
     cueKeys: mapCueKeys(record.cue_keys),
+    praiseLine: readNonEmptyString(record.praise_line),
+    rewriteMove: readNonEmptyString(record.rewrite_move),
     snippetAudioRef: readNonEmptyString(record.snippet_audio_ref),
     startOffsetMs: readFiniteNumber(record.start_offset_ms),
     durationMs: readFiniteNumber(record.duration_ms),

@@ -78,13 +78,18 @@ export type PractiseCard =
       instruction: string | null;
       passage: string;
     }
-  | { kind: "rewrite"; item: DocumentSuggestion; text: string }
+  /** `move`: the catalogue's signed sentence for the rewrite's reason (35f),
+   *  or null. */
+  | { kind: "rewrite"; item: DocumentSuggestion; text: string; move: string | null }
   | {
       kind: "praise";
       item: DocumentSuggestion;
       text: string;
       tentative: boolean;
       cueKeys: readonly string[];
+      /** The catalogue's signed line for this praise (35f), or null: the
+       *  sheet then keeps its constant per cue. */
+      line: string | null;
     }
   /** Nothing matched the moment (D1): the plain moment, said again. `coach`
    *  when the bookmark went to the coach as an error and nothing came back
@@ -179,9 +184,15 @@ export function practiseCardOf(
         text: item.quote.trim(),
         tentative: item.tentative === true,
         cueKeys: item.cueKeys ?? [],
+        line: item.praiseLine ?? null,
       };
     }
-    return { kind: "rewrite", item, text: (item.proposedText ?? "").trim() };
+    return {
+      kind: "rewrite",
+      item,
+      text: (item.proposedText ?? "").trim(),
+      move: item.rewriteMove ?? null,
+    };
   }
   if (!belowInBetween(judgement)) return null;
   const moment = items.find(isConfidentVoiceFeedback) ?? null;
@@ -204,7 +215,19 @@ export function practiseCardOf(
 export function overlayFooter(
   judgement: Judgement | null,
   canPractise: boolean,
-): { pill: "next" | "practise"; link: "skip" | "practise" | null } {
+  canAccept = false,
+): {
+  pill: "next" | "practise" | "accept";
+  link: "skip" | "practise" | "keep" | null;
+} {
+  // THE REWRITE IS ACCEPTED, THEN SAID (founder 2026-09-30, the rewrite
+  // amendment and C11; contract 29b): on an In-between, a No or a Not sure
+  // whose card is a rewrite still open, the one button accepts the words
+  // and opens the practise on them; "Keep my words" is the way out. A Yes
+  // never accepts anything.
+  if (canAccept && judgement !== "yes" && judgement !== null) {
+    return { pill: "accept", link: "keep" };
+  }
   if (judgement === "in_between") {
     return { pill: "next", link: canPractise ? "practise" : null };
   }
@@ -212,6 +235,40 @@ export function overlayFooter(
     return { pill: "practise", link: "skip" };
   }
   return { pill: "next", link: null };
+}
+
+/** Can the card be accepted (29b)? A rewrite with words to propose, still
+ *  open, on a judgement that is not Yes, with a host to write the decision. */
+export function canAcceptCard(
+  card: PractiseCard | null,
+  judgement: Judgement | null,
+  hasHost: boolean,
+): boolean {
+  return (
+    hasHost &&
+    card !== null &&
+    card.kind === "rewrite" &&
+    card.text.length > 0 &&
+    card.item.status !== "approved" &&
+    judgement !== null &&
+    judgement !== "yes" &&
+    judgement !== "audio_unclear"
+  );
+}
+
+/** The plain moment as the card to practise with one's own words (29b,
+ *  "Keep my words" below In-between). */
+export function ownWordsCard(
+  items: readonly DocumentSuggestion[],
+  paragraphText: string,
+): PractiseCard {
+  const moment = items.find(isConfidentVoiceFeedback) ?? null;
+  return {
+    kind: "plain",
+    item: moment,
+    text: moment?.quote.trim() || paragraphText,
+    coach: false,
+  };
 }
 
 /** Does Next open the helper-words picker (24e, B2)? After a Yes or an

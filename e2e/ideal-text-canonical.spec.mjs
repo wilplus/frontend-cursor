@@ -342,6 +342,79 @@ check(
   (await page.locator("text=So we moved the launch and it changed everything for us.").count()) === 1
 );
 
+/* -------- accepting the rewrite (founder 2026-09-30, C11; contract 29b) --- */
+const accepting = await browser.newPage({ viewport: { width: 520, height: 900 } });
+await accepting.emulateMedia({ reducedMotion: "reduce" });
+await accepting.goto(BASE, { waitUntil: "networkidle" });
+await accepting.waitForSelector("text=Garage pitch");
+await accepting.locator('button[aria-label="Feedback waiting — review it"]').click();
+await accepting.waitForSelector("text=Feedback");
+await dialog(accepting).locator("button", { hasText: /^In-between$/ }).click();
+await accepting.waitForTimeout(500);
+await accepting.waitForSelector('[data-testid="paragraph-sheet"]');
+check(
+  // The cold start (P1-7): an empty library and no coach. Below Yes the
+  // rewrite is the card, its words shown as text, the one button accepts
+  // them and the grey link keeps the speaker's own. No coach sentence.
+  "below Yes the rewrite card offers Accept and practise, with Keep my words under it",
+  (await dialog(accepting).locator('[data-testid="practise-card"][data-kind="rewrite"]').count()) === 1 &&
+    (await dialog(accepting).locator('[data-testid="paragraph-sheet-accept"]').count()) === 1 &&
+    (await dialog(accepting).locator("button", { hasText: /^Accept and practise$/ }).count()) === 1 &&
+    (await dialog(accepting).locator("button", { hasText: /^Keep my words$/ }).count()) === 1 &&
+    (await dialog(accepting).locator("button", { hasText: /^Skip$/ }).count()) === 0 &&
+    !(await dialog(accepting).innerText()).includes("Your coach is working")
+);
+await dialog(accepting).locator('[data-testid="paragraph-sheet-accept"]').click();
+await accepting.waitForSelector('[data-testid="practise-sheet"]');
+const acceptWrites = await calls(accepting);
+check(
+  // The acceptance is the owner's response on the rewrite item AND the
+  // document decision (the ledger bakes it); then the practise opens on
+  // the accepted words, and says so.
+  "Accept writes the response and the decision, then practises the accepted words",
+  acceptWrites.some(
+    (w) => w.url.includes("/feedback-response") &&
+      w.body.feedback_family === "rewrite_clarity" && w.body.response === "apply_suggestion"
+  ) &&
+    acceptWrites.some(
+      (w) => w.url.includes("suggestion-feedback") && w.body.action === "applied"
+    ) &&
+    // textContent, not innerText: the eyebrow is set in small caps by CSS.
+    (await accepting.locator('[data-testid="practise-say"]').evaluate((el) => el.textContent ?? "")).includes("Say it this way · accepted") &&
+    (await accepting.locator('[data-testid="practise-say"]').evaluate((el) => el.textContent ?? "")).includes("trusted the figures"),
+  JSON.stringify(acceptWrites.map((w) => [w.url, w.body]))
+);
+await accepting.locator('[data-testid="practise-sheet"] button[aria-label="Close"]').first().click();
+await accepting.waitForTimeout(600);
+check(
+  // L1 with the user's acceptance (29b): the accepted words are the
+  // paragraph's now, and History will show "Correction accepted".
+  "after Accept the paragraph on the page carries the accepted words",
+  (await accepting.locator("text=Nobody trusted the figures").count()) >= 1 &&
+    (await accepting.locator("text=Nobody believed the numbers").count()) === 0
+);
+await accepting.close();
+
+/* -------- the cold start's other half: a library with a video (P1-7) ------ */
+const stocked = await browser.newPage({ viewport: { width: 520, height: 900 } });
+await stocked.emulateMedia({ reducedMotion: "reduce" });
+await stocked.goto(`${BASE}?library=full`, { waitUntil: "networkidle" });
+await stocked.waitForSelector("text=Garage pitch");
+await stocked.locator('button[aria-label="Feedback waiting — review it"]').click();
+await stocked.waitForSelector("text=Feedback");
+await dialog(stocked).locator("button", { hasText: /^In-between$/ }).click();
+await stocked.waitForTimeout(500);
+await stocked.waitForSelector('[data-testid="paragraph-sheet"]');
+check(
+  // With a video in the library the exercise is the card (the follow-up
+  // matrix), not the rewrite, and there is nothing to accept.
+  "with a library video the exercise is the card and Accept is not offered",
+  (await dialog(stocked).locator('[data-testid="practise-card"][data-kind="exercise"]').count()) === 1 &&
+    (await dialog(stocked).innerText()).includes("Give the last four words") &&
+    (await dialog(stocked).locator("button", { hasText: /^Accept and practise$/ }).count()) === 0
+);
+await stocked.close();
+
 /* -------- a document with no stored parts still supports slide editing ---- */
 const fresh = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await fresh.emulateMedia({ reducedMotion: "reduce" });

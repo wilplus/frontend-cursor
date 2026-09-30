@@ -13,6 +13,7 @@ import { isConfidentVoiceFeedback } from "@/lib/willab/chunkSteps";
 import {
   asJudgementValue,
   belowInBetween,
+  canAcceptCard,
   historyRows,
   judgementTone,
   nextOpensPicker,
@@ -23,7 +24,13 @@ import {
   type LabelTone,
   type PractiseCard,
 } from "@/lib/willab/paragraphOverlay";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
+
+/** How Practise was reached (29b): the card as shown; the rewrite just
+ *  accepted (the heading says so); or the speaker's own words after "Keep
+ *  my words" below In-between. */
+export type PractiseMode = "card" | "accepted" | "own";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import MomentPlayer from "./MomentPlayer";
 import CoachVideo from "./CoachVideo";
@@ -210,19 +217,37 @@ function PractiseCardView({
           <p className="text-[17px] font-semibold leading-snug text-foreground">
             {card.text}
           </p>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {card.tentative ? COPY.praiseTentative : PRAISE_LEAD}
-          </p>
-          {praiseLines(card.cueKeys).map((line) => (
-            <p key={line} className="text-[15px] leading-relaxed text-foreground">
-              {line}
+          {/* THE SIGNED LINE WINS (35f): the catalogue's sentence for this
+              praise, when one exists; else the constant lead and the line
+              per cue. */}
+          {card.line ? (
+            <p data-testid="praise-line" className="text-[15px] leading-relaxed text-foreground">
+              {card.line}
             </p>
-          ))}
+          ) : (
+            <>
+              <p className="text-[15px] leading-relaxed text-foreground">
+                {card.tentative ? COPY.praiseTentative : PRAISE_LEAD}
+              </p>
+              {praiseLines(card.cueKeys).map((line) => (
+                <p key={line} className="text-[15px] leading-relaxed text-foreground">
+                  {line}
+                </p>
+              ))}
+            </>
+          )}
         </>
       ) : (
-        <p className="text-[17px] font-semibold leading-snug text-foreground">
-          {card.text}
-        </p>
+        <>
+          <p className="text-[17px] font-semibold leading-snug text-foreground">
+            {card.text}
+          </p>
+          {card.kind === "rewrite" && card.move ? (
+            <p data-testid="rewrite-move" className="text-[15px] leading-relaxed text-foreground">
+              {card.move}
+            </p>
+          ) : null}
+        </>
       )}
       {card.kind === "plain" && card.coach ? (
         /* WHERE PRACTISE WOULD SIT (founder 2026-09-29; kept by Q5): the
@@ -233,6 +258,137 @@ function PractiseCardView({
       ) : null}
     </div>
   );
+}
+
+/* ---- accept the rewrite (29b) ------------------------------------------- */
+
+/** ACCEPT AND PRACTISE (founder 2026-09-30, C11; contract 29b): the owner's
+ *  `apply_suggestion` response, then the host's decision on the document,
+ *  then the practise on the accepted words. A failed write says so and
+ *  leaves the card as it was. */
+function useAcceptRewrite(
+  card: PractiseCard | null,
+  moment: DocumentSuggestion | null,
+  judgement: Judgement | null,
+  onAccept: ((item: DocumentSuggestion) => Promise<boolean>) | null,
+  onPractise: ((
+    item: DocumentSuggestion,
+    answer: string | null,
+    mode?: PractiseMode,
+    card?: PractiseCard,
+  ) => void) | null | undefined,
+) {
+  const [accepting, setAccepting] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const accept = async () => {
+    if (!card || card.kind !== "rewrite" || !moment || !onAccept || accepting) return;
+    setAccepting(true);
+    setFailed(false);
+    const item = card.item;
+    const saved = item.takeSessionId && item.feedbackFamily
+      ? await saveTakeFeedbackResponse({
+          takeSessionId: item.takeSessionId,
+          feedbackId: item.id,
+          feedbackFamily: item.feedbackFamily,
+          response: "apply_suggestion",
+          candidateId: item.candidateId,
+          feedbackMembershipId: item.feedbackMembershipId,
+          feedbackExposureId: item.feedbackExposureId,
+        })
+      : { ok: true as const };
+    const applied = saved.ok ? await onAccept(item) : false;
+    setAccepting(false);
+    if (!saved.ok || !applied) {
+      setFailed(true);
+      return;
+    }
+    // The card as it was: the accept reassembles the document and the
+    // served rewrite may leave the paragraph, but the words to say are
+    // the ones just accepted.
+    onPractise?.(moment, judgement, "accepted", card);
+  };
+  return { accept, accepting, failed };
+}
+
+/** The one black button (B5 as overridden; 29b). */
+function FooterPill({
+  pill,
+  accepting,
+  nextLabel,
+  onAccept,
+  onPractise,
+  onNext,
+}: {
+  pill: "next" | "practise" | "accept";
+  accepting: boolean;
+  nextLabel: string;
+  onAccept: () => void;
+  onPractise: () => void;
+  onNext: () => void;
+}) {
+  if (pill === "accept") {
+    return (
+      <button
+        type="button"
+        data-testid="paragraph-sheet-accept"
+        onClick={onAccept}
+        disabled={accepting}
+        className={PILL}
+      >
+        {accepting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+        {COPY.pillAcceptPractise}
+      </button>
+    );
+  }
+  if (pill === "practise") {
+    return (
+      <button type="button" data-testid="paragraph-sheet-practise" onClick={onPractise} className={PILL}>
+        <Mic className="h-4 w-4" aria-hidden />
+        {COPY.pillPractise}
+      </button>
+    );
+  }
+  return (
+    <button type="button" data-testid="paragraph-sheet-next" onClick={onNext} className={PILL}>
+      {nextLabel}
+    </button>
+  );
+}
+
+/** The grey link under the pill (B5 as overridden; 29b). */
+function FooterLink({
+  link,
+  onSkip,
+  onPractise,
+  onKeep,
+}: {
+  link: "skip" | "practise" | "keep" | null;
+  onSkip: () => void;
+  onPractise: () => void;
+  onKeep: () => void;
+}) {
+  if (link === "skip") {
+    return (
+      <button type="button" data-testid="paragraph-sheet-skip" onClick={onSkip} className={LINK}>
+        {COPY.linkSkip}
+      </button>
+    );
+  }
+  if (link === "practise") {
+    return (
+      <button type="button" data-testid="paragraph-sheet-practise" onClick={onPractise} className={LINK}>
+        {COPY.pillPractise}
+      </button>
+    );
+  }
+  if (link === "keep") {
+    return (
+      <button type="button" data-testid="paragraph-sheet-keep" onClick={onKeep} className={LINK}>
+        {COPY.linkKeepMyWords}
+      </button>
+    );
+  }
+  return null;
 }
 
 /* ---- the saved words (state two) ---------------------------------------- */
@@ -479,6 +635,7 @@ export default function ParagraphSheet({
   pending = [],
   answer = null,
   onPractise,
+  onAccept = null,
   practiseEveryCard = false,
   onUseHelperWords,
   helperWordsHost = null,
@@ -506,7 +663,17 @@ export default function ParagraphSheet({
   answer?: string | null;
   /** Practise the card: the host opens the practise loop. Absent → no
    *  Practise. */
-  onPractise?: ((item: DocumentSuggestion, answer: string | null) => void) | null;
+  onPractise?: ((
+    item: DocumentSuggestion,
+    answer: string | null,
+    mode?: PractiseMode,
+    card?: PractiseCard,
+  ) => void) | null;
+  /** ACCEPT THE REWRITE (founder 2026-09-30, C11; contract 29b): the host
+   *  records the decision on the document (the ledger bakes it; a new
+   *  version). The sheet writes the owner's `apply_suggestion` response
+   *  first. Absent → the rewrite is a passage to practise, never accepted. */
+  onAccept?: ((item: DocumentSuggestion) => Promise<boolean>) | null;
   /** The host runs the practise loop for every kind of card (founder lock
    *  2026-09-30, B6: the exercise, the rewrite and the plain moment all
    *  reach the same screens). Without it only an exercise can be
@@ -549,6 +716,11 @@ export default function ParagraphSheet({
     [sheetData],
   );
   const moveOn = onDone ?? onClose;
+  // Hooks before any early return (the picker and the saved state return
+  // above the practise state, and a hook after them renders fewer hooks).
+  const card = sheetData ? practiseCardOf(items, judgement, text) : null;
+  const { accept, accepting, failed: acceptFailed } =
+    useAcceptRewrite(card, moment, judgement, onAccept, onPractise);
 
   if (picking && onUseHelperWords && helperWordsHost && headline) {
     return (
@@ -616,11 +788,11 @@ export default function ParagraphSheet({
      the same frame draws with the player and the button (audit 2026-09-29:
      a tap always opens something), and the label, the card and History fill
      in when the reads land. */
-  const card = sheetData ? practiseCardOf(items, judgement, text) : null;
   const canPractise =
     Boolean(onPractise) && Boolean(moment) && card !== null &&
     (practiseEveryCard || card.kind === "exercise");
-  const footer = overlayFooter(judgement, canPractise);
+  const canAccept = canPractise && canAcceptCard(card, judgement, Boolean(onAccept));
+  const footer = overlayFooter(judgement, canPractise, canAccept);
   const practise = () => {
     if (card && moment) onPractise?.(moment, judgement);
   };
@@ -628,25 +800,25 @@ export default function ParagraphSheet({
     if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);
     else moveOn();
   };
-  const pill = footer.pill === "practise" ? (
-    <button type="button" data-testid="paragraph-sheet-practise" onClick={practise} className={PILL}>
-      <Mic className="h-4 w-4" aria-hidden />
-      {COPY.pillPractise}
-    </button>
-  ) : (
-    <button type="button" data-testid="paragraph-sheet-next" onClick={next} className={PILL}>
-      {nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
-    </button>
+  /* KEEP MY WORDS (29b): on an In-between, Next as before; below it, the
+     practise on the speaker's own words. */
+  const keep = () => {
+    if (judgement === "in_between" || !moment) next();
+    else onPractise?.(moment, judgement, "own");
+  };
+  const pill = (
+    <FooterPill
+      pill={footer.pill}
+      accepting={accepting}
+      nextLabel={nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
+      onAccept={() => void accept()}
+      onPractise={practise}
+      onNext={next}
+    />
   );
-  const link = footer.link === "skip" ? (
-    <button type="button" data-testid="paragraph-sheet-skip" onClick={moveOn} className={LINK}>
-      {COPY.linkSkip}
-    </button>
-  ) : footer.link === "practise" ? (
-    <button type="button" data-testid="paragraph-sheet-practise" onClick={practise} className={LINK}>
-      {COPY.pillPractise}
-    </button>
-  ) : null;
+  const link = (
+    <FooterLink link={footer.link} onSkip={moveOn} onPractise={practise} onKeep={keep} />
+  );
 
   return (
     <SheetFrame
@@ -667,6 +839,9 @@ export default function ParagraphSheet({
         {player}
         <JudgementLabel judgement={judgement} />
         <PractiseCardView card={card} onStale={onDocumentChanged} />
+        {acceptFailed ? (
+          <p role="alert" className="text-[14px] text-destructive">{COPY.failApply}</p>
+        ) : null}
         {history}
       </div>
     </SheetFrame>

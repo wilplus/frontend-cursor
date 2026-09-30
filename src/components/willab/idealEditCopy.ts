@@ -183,6 +183,12 @@ export const CHUNK_SHEET_COPY = {
      without answering it and lands on the offer. */
   linkSkip: "Skip",
   linkBack: "Back",
+  /* THE REWRITE AMENDMENT (founder 2026-09-30, C11; contract 29b): the
+     rewrite card's one button accepts the clearer words and opens the
+     practise on them; the grey link keeps the speaker's own words. Both
+     strings are the founder's, from the accepted readiness design. */
+  pillAcceptPractise: "Accept and practise",
+  linkKeepMyWords: "Keep my words",
 
   /* --- card eyebrows ------------------------------------------------------ */
   cardWhatYouSaid: "What you said",
@@ -329,6 +335,10 @@ export const CHUNK_SHEET_COPY = {
      `cardSayItAgain`. */
   titlePractise: "Practise",
   cardSayItThisWay: "Say it this way",
+  /** The same heading once the words were accepted (29b), from the accepted
+   *  readiness design: the speaker is told the words on screen are now the
+   *  paragraph's. */
+  cardSayItThisWayAccepted: "Say it this way · accepted",
   fromYourAttempt: "From your attempt",
   /* --- THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, B9, D4, D5, Q2, Q3)
      Built from the mock as it stands (Q4 A). Its title is the eyebrow
