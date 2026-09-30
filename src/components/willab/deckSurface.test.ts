@@ -373,7 +373,7 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
     // The whole paragraph is the waiting bar's tap target too (founder
     // 2026-09-26); a settled answered/locked one still opens its own sheet.
-    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(unsettled \|\| opensParagraphSheet\(st\)/);
+    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(unsettled \|\| opensOwnSheet\(c\)/);
   });
 
   it("no sheet ends on a Lock screen any more", () => {

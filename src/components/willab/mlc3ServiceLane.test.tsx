@@ -358,9 +358,9 @@ describe("a served answer advances the ladder by itself", () => {
     // offers the way past it.
     expect(container.querySelector('[data-testid="service-exercise"]')).not.toBeNull();
     expect(container.textContent).toContain("Is this your voice in this recording?");
-    expect(buttonLabels()).toContain("Not now");
+    expect(buttonLabels()).toContain("Skip");
     // Not now is a way on, and the emphasis rung is still there behind it.
-    await click("Not now");
+    await click("Skip");
     expect(container.querySelector('[data-testid="service-exercise"]')).toBeNull();
     expect(buttonLabels()).toContain("Use these helper words");
   });

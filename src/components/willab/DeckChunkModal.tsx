@@ -177,6 +177,14 @@ interface DeckChunkModalProps {
   practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
+  /** THE HAND-OFF (founder lock 2026-09-30, B5, D1): on a sheet opened on
+   *  the judgement, the answer is the whole of this sheet. The host draws
+   *  the paragraph overlay next — the speaker's answer said back, the one
+   *  practise card, Practise or Next — and the helper words are chosen
+   *  from there. Absent, the ladder continues here as before (the coach's
+   *  surfaces, and a practise opened from the overlay, which still ends on
+   *  the helper words). */
+  onAnswered?: (answer: ConfidenceRatingValue) => void;
   /** Tap and go (founder 2026-09-28): the host runs a write the sheet no
    *  longer waits for, and reports a failure after the sheet has moved on.
    *  Without one, a failure shows in the sheet's own error line. */
@@ -391,7 +399,7 @@ function serviceExerciseFooter(
     icon: <Check className="h-4 w-4" aria-hidden />,
     pillDisabled: !settled,
     onPill: advance,
-    links: [{ label: COPY.linkNotNow, onClick: advance }],
+    links: [{ label: COPY.linkSkip, onClick: advance }],
   };
 }
 
@@ -404,7 +412,7 @@ function supersededFooter(advance: () => void): {
   onPill?: () => void;
   links: { label: string; onClick: () => void; disabled?: boolean }[];
 } {
-  return { pill: COPY.pillContinue, icon: null, onPill: advance, links: [] };
+  return { pill: COPY.pagerNext, icon: null, onPill: advance, links: [] };
 }
 
 /** Finish on the sheet's own accord: the host's onDone when it has one,
@@ -429,6 +437,23 @@ function behindRunner(
 
 function finishSheet(done: (() => void) | undefined, close: () => void): void {
   (done ?? close)();
+}
+
+/** Does the answer hand the paragraph to the overlay (founder lock
+ *  2026-09-30) rather than climb the ladder? Only on a sheet opened on the
+ *  question: a practise opened from the overlay, and a coach-reviewed moment
+ *  that opened on the exercise, keep their ladder to the helper words.
+ *  Module-level, so the sheet (frozen at the ratchet) gains no branch. */
+function handsOffAfterAnswer(
+  onAnswered: DeckChunkModalProps["onAnswered"],
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+  coachReviewStatus: string | null | undefined,
+): boolean {
+  return (
+    onAnswered !== undefined &&
+    !practiseAgain &&
+    coachReviewStatus !== "coach_reviewed"
+  );
 }
 
 /** A tapped word previews in the accent; a word a tap cannot reach under
@@ -457,6 +482,7 @@ export default function DeckChunkModal({
   saveBehind,
   practiseAgain = null,
   pager = null,
+  onAnswered,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -1244,6 +1270,12 @@ export default function DeckChunkModal({
     const answered = value === "yes" ? "yes" : "other";
     setJudgement(value);
     reportJudged(suggestion, answered);
+    /* THE HAND-OFF (founder lock 2026-09-30, B5): the answer is this sheet's
+       whole decision, and the paragraph overlay takes it from here. */
+    if (handsOffAfterAnswer(onAnswered, practiseAgain, coachReviewStatus)) {
+      onAnswered?.(value);
+      return;
+    }
     /* NO SEPARATE "DONE" STEP (founder 2026-09-15: "drop the Done step").
      *
      * Answering WAS the decision; the screen that followed held a thank-you
@@ -1504,7 +1536,7 @@ export default function DeckChunkModal({
     }
     if (step.kind === "praise") {
       return {
-        pill: COPY.pillContinue,
+        pill: COPY.pagerNext,
         icon: null,
         onPill: () => void acknowledgePraise(),
         links: [],
@@ -1533,7 +1565,7 @@ export default function DeckChunkModal({
       // THE COACH HAS IT: nothing to practise yet, so the only way on is on.
       if (step.id === "coach_request") {
         return {
-          pill: COPY.pillContinue,
+          pill: COPY.pagerNext,
           icon: null,
           onPill: () => advanceStep(),
           links: [],
@@ -1571,7 +1603,7 @@ export default function DeckChunkModal({
         onPill: () => exercise.practise(),
         links: [
           {
-            label: COPY.linkNotNow,
+            label: COPY.linkSkip,
             onClick: () => void exercise.notNow(),
             // The dismiss is awaited (Final Screens L2, audit 2026-09-29): the
             // link greys out and the pill spins until the server has it.

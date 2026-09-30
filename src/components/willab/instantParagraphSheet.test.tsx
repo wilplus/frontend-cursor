@@ -229,20 +229,20 @@ describe("held while the Take's feedback arrives", () => {
     render(stateWith([]), true);
     expect(container.innerHTML).toBe("");
     // The moment's unanswered item arrives with the feedback.
-    render(stateWith([{ id: "cv" }]), false);
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), false);
     expect(container.textContent).toBe("judgement sheet");
   });
 
   it("stops holding after the bounded wait", async () => {
     vi.useFakeTimers();
-    render(stateWith([{ id: "cv" }]), true);
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), true);
     expect(container.innerHTML).toBe("");
     await act(async () => { vi.advanceTimersByTime(OPEN_WAIT_MS); });
     expect(container.textContent).toBe("judgement sheet");
   });
 
   it("opens at once when the feedback is already there", () => {
-    render(stateWith([{ id: "cv" }]), false);
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), false);
     expect(container.textContent).toBe("judgement sheet");
   });
 });

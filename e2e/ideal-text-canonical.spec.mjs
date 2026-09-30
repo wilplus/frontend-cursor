@@ -84,48 +84,70 @@ check(
   })
 );
 
-/* ----------------------- rewrite is a proposed decision ------------------- */
-/* THE JUDGEMENT IS ALWAYS FIRST (§1), whatever order the payload used, and
-   since §4 a Yes is also what opens the emphasis step later in this walk. */
+/* ------------------ the judgement, then the paragraph overlay -------------- */
+/* THE JUDGEMENT IS ALWAYS FIRST (§1), whatever order the payload used. Since
+   the founder lock of 2026-09-30 (B5) the answer is the whole of the
+   judgement sheet: it hands the paragraph to its own overlay, where the
+   speaker's answer is said back as one small line, the rewrite is the one
+   practise card, and Next opens the helper words (24e). */
 await page.locator('button[aria-label="Feedback waiting — review it"]').click();
 await page.waitForSelector("text=Feedback");
 await dialog(page).locator("button", { hasText: /Yes — Confident/ }).click();
 await page.waitForTimeout(500);
-await page.waitForSelector("text=Suggestion");
+await page.waitForSelector('[data-testid="paragraph-sheet"]');
 check(
-  "rewrite feedback shows the exact source words and the replacement",
+  "the answer hands over to the paragraph overlay, titled as the lock names it",
+  (await dialog(page).locator("h2", { hasText: /^This paragraph$/ }).count()) === 1 &&
+    (await dialog(page).locator("text=Does this sound confident to you?").count()) === 0
+);
+check(
+  // D7: the speaker's own answer, in its colour, one line. Never the
+  // machine's read.
+  "the overlay says the judgement back as one small green line",
+  (await dialog(page).locator('[data-testid="judgement-label"][data-tone="green"]').count()) === 1 &&
+    (await dialog(page).locator('[data-testid="judgement-label"]').innerText()).includes("Confident")
+);
+check(
+  // B5, D6: the rewrite is the practise card — the exact replacement, under
+  // "Small rewrite" — and the paragraph text is not on the overlay.
+  "the rewrite is the one practise card, and the paragraph text stays on the page",
   await (async () => {
-    const text = await dialog(page).innerText();
+    const card = dialog(page).locator('[data-testid="practise-card"][data-kind="rewrite"]');
+    const text = (await card.count()) === 1 ? await card.innerText() : "";
+    const sheet = await dialog(page).innerText();
     return (
-      text.includes("WHAT YOU SAID") &&
-      text.includes("believed the numbers") &&
       text.includes("SMALL REWRITE") &&
-      text.includes("trusted the figures")
+      text.includes("trusted the figures") &&
+      !sheet.includes("Nobody believed the numbers")
     );
   })()
 );
 check(
   // The machine's whyLine() reason was removed from this sheet on 2026-09-15
   // (founder: delete the text "this makes your point easier to understand").
-  // The two cards above already show what was said and what is proposed.
-  "the sheet no longer explains the suggestion back to the speaker",
+  "the overlay does not explain the rewrite back to the speaker",
   !/easier to understand|flow better|cleaner finish|smoother/.test(
     await dialog(page).innerText()
   )
 );
 check(
-  // Two decisions (Final Screens, founder 2026-09-29): each screen carries
-  // ONE black pill — the verb of that screen — with the decline as a grey
-  // link beneath it, never a second button beside it. The "Edit myself"
-  // pencil is gone from the Small rewrite card.
-  "improvement offers its two decisions, one pill among them",
-  (await page.locator("button", { hasText: /^Apply$/ }).count()) === 1 &&
-    (await page.locator('button[aria-label="Edit myself"]').count()) === 0 &&
-    (await page.locator("button", { hasText: /^Keep my wording$/ }).count()) === 1 &&
-    (await page.locator("button", { hasText: /^Apply suggestion$/ }).count()) === 0
+  // B5 as overridden: on a Yes the button reads Next and nothing sits under
+  // it. Apply and Keep my wording are gone with the Suggestion screen (the
+  // rewrite is a passage to practise, never an edit, L1); "Not now" and
+  // "Continue" are retired (D10).
+  "on a Yes the overlay offers Next alone",
+  (await dialog(page).locator("button", { hasText: /^Next$/ }).count()) === 1 &&
+    (await dialog(page).locator("button", { hasText: /^Apply$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Keep my wording$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Practise$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Not now$/ }).count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Continue$/ }).count()) === 0
 );
-await page.locator("button", { hasText: /^Apply$/ }).click();
-await page.waitForTimeout(700);
+check(
+  "one collapsed History row sits at the bottom of the overlay",
+  (await dialog(page).locator('[data-testid="paragraph-history"]').count()) === 1
+);
 let writes = await calls(page);
 const responseWrites = writes.filter((entry) =>
   entry.url.includes("/feedback-response")
@@ -134,67 +156,50 @@ let suggestionWrites = writes.filter((entry) =>
   entry.url.includes("suggestion-feedback")
 );
 check(
-  // TWO family responses now, not one, and both are correct: the judgement
-  // wrote its own (confident_voice / yes) before this screen. So this asserts
-  // the REWRITE's write by family rather than by being the only one — a count
-  // of 1 was only ever true because the fixture had no confidence item.
-  "accepting the rewrite stores one immutable family response and one exact document decision",
-    responseWrites.filter((w) => w.body.feedback_family === "rewrite_clarity")
-      .length === 1 &&
-    responseWrites.some(
-      (w) => w.body.feedback_family === "confident_voice" && w.body.response === "yes"
-    ) &&
-    responseWrites.find((w) => w.body.feedback_family === "rewrite_clarity")
-      .body.response === "apply_suggestion" &&
-    suggestionWrites.length === 1 &&
-    suggestionWrites[0].body.action === "applied" &&
-    suggestionWrites[0].body.target === "document_replace" &&
-    suggestionWrites[0].body.quote === "believed the numbers" &&
-    suggestionWrites[0].body.proposed_text === "trusted the figures",
-  JSON.stringify({
-    responseWrites,
-    suggestionWrites,
-    dialog: await dialog(page).innerText(),
-  })
+  // The judgement wrote its own family response (confident_voice / yes) on
+  // the tap. Nothing was written for the rewrite: it was shown, not decided.
+  "the answer stores one immutable family response and no document decision",
+  responseWrites.some(
+    (w) => w.body.feedback_family === "confident_voice" && w.body.response === "yes"
+  ) &&
+    responseWrites.filter((w) => w.body.feedback_family === "rewrite_clarity").length === 0 &&
+    suggestionWrites.length === 0,
+  JSON.stringify({ responseWrites, suggestionWrites })
 );
 check(
-  // The accept lands in the document on the spot, and the brief real Undo
-  // follows the accepted words onto the lock card — it has no editor face to
-  // live on any more. It is not in the footer: that screen has one decision.
-  "the document changes immediately and Undo follows the accepted words",
-  (await page.locator("text=Nobody trusted the figures").count()) >= 1
+  // L1: a rewrite never rewrites the Paragraph. The words on the page are
+  // the speaker's own until the next Take.
+  "the document is unchanged by the rewrite card",
+  (await page.locator("text=Nobody believed the numbers").count()) >= 1 &&
+    (await page.locator("text=Nobody trusted the figures").count()) === 0
 );
 check(
-  "the resolved rewrite bookmark disappears",
+  "the answered bookmark disappears",
   (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
 );
 
-/* --------- the emphasis step, then the lock that promotes what it chose ---- */
-/* THE ROOT FACE IS GONE (founder 2026-09-15): the rooting phrase is chosen
-   BEFORE the lock, on its own step, and the lock promotes it.
-
-   Since §4 the step also requires a Yes — which this walk gave above. A
-   paragraph nobody judged skips step four entirely and locks with no anchor,
-   and THAT, not a Skip button, is how a paragraph ends up without an orange
-   phrase. The Skip this walk used to expect is gone with it (§5): the step has
-   no opt-out, because it only appears on a paragraph already judged Yes. */
+/* --------- Next opens the helper words, which save and lock at once -------- */
+/* THE ROOT FACE IS GONE (founder 2026-09-15): the rooting phrase is chosen on
+   its own step, and choosing it locks the words (Q24 B). Since the founder
+   lock of 2026-09-30 that step follows Next on the overlay, after a Yes or
+   an In-between (24e); a No or Not sure never reaches it. */
+await dialog(page).locator("button", { hasText: /^Next$/ }).click();
 await page.waitForSelector("text=Choose your helper words");
 check(
-  // This paragraph has no emphasis PROPOSAL — the style lane sits on the
-  // protected one below — so the step opens straight into tap-to-select.
-  "with nothing proposed, the emphasis step opens straight into choosing",
+  "Next after a Yes opens straight into choosing the words",
   (await dialog(page).locator("text=TAP THE WORDS").count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Use these helper words$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0
 );
 // Two taps make the phrase (founder 2026-09-26): the first word, then the
-// last one, and every word in between is marked.
-for (const word of ["trusted", "figures"]) {
+// last one, and every word in between is marked. Four words at most (B3).
+for (const word of ["believed", "numbers"]) {
   await dialog(page).locator("button", { hasText: new RegExp(`^${word}$`) }).first().click();
 }
 check(
   "tapped words preview in the accent, which is how a rooting phrase records",
-  (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3
+  (await dialog(page).locator("button.text-primary[aria-pressed='true']").count()) === 3 &&
+    (await dialog(page).locator("text=3 of 4 words").count()) === 1
 );
 // ONE SCREEN (founder 2026-09-25, Q24 B): "Use these helper words" locks the words
 // at once and the sheet closes. There is no Lock screen after it, and no
@@ -215,7 +220,7 @@ await page.waitForTimeout(300);
 writes = await calls(page);
 const lockWrites = writes.filter((entry) => entry.url.includes("/lock"));
 check(
-  "locking accepted words uses the paragraph lock wire with the full document identity",
+  "locking the words uses the paragraph lock wire with the full document identity",
   lockWrites.length === 1 &&
     lockWrites[0].body.locked === true &&
     typeof lockWrites[0].body.text_echo === "string" &&
@@ -224,11 +229,8 @@ check(
 check(
   // THE LOCK DOES NOT INVENT A DOCUMENT EDIT. Tapping words previews them in
   // the accent (asserted above) and promotes them through the anchor below —
-  // it does not fold a marker into the text. An earlier attempt did exactly
-  // that, and the slide-edit walk further down caught the cost: Lock then also
-  // saved the document, and the refetch churned an open editor so the next
-  // slide edit did not reach its save. The words the speaker picked belong in
-  // the SPAN that §5 stores, not in the paragraph.
+  // it does not fold a marker into the text. The words the speaker picked
+  // belong in the SPAN that §5 stores, not in the paragraph.
   "the lock carries the speaker's words as an anchor, not as an invented edit",
   lockWrites[0].body.parts.every(
     (part) =>
@@ -241,9 +243,9 @@ const rootWrites = writes.filter((entry) => entry.url.includes("/root"));
 check(
   "the lock promotes the chosen words itself, with no second question",
   rootWrites.length === 1 &&
-    rootWrites[0].body.phrase === "trusted the figures" &&
+    rootWrites[0].body.phrase === "believed the numbers" &&
     Number.isInteger(rootWrites[0].body.start) &&
-    rootWrites[0].body.end - rootWrites[0].body.start === "trusted the figures".length,
+    rootWrites[0].body.end - rootWrites[0].body.start === "believed the numbers".length,
   JSON.stringify(rootWrites)
 );
 
@@ -270,18 +272,22 @@ check(
   (await page.locator('button[aria-label*="Paragraph protected"]').count()) === 0 &&
     (await page.locator("button[data-status]").count()) === 0
 );
-/* THE PARAGRAPH'S OWN SHEET (founder 2026-09-25, Q26 B). A paragraph that was
-   answered or locked has no mark, but tapping its words opens its own sheet:
-   the helper words and the paragraph now at the top, the history below. No
-   Discard (Q6 A). */
+/* THE PARAGRAPH'S OWN SHEET, SAVED STATE (founder lock 2026-09-30, B8, D6). A
+   paragraph with saved helper words has no bar, but tapping its words opens
+   the saved screen: "Helper words saved", the words, History, one button.
+   Never the paragraph text. No Discard (Q6 A), no Lock. */
 await page
-  .locator('[data-opens-sheet="true"]', { hasText: "Nobody trusted the figures" })
+  .locator('[data-opens-sheet="true"]', { hasText: "Nobody believed the numbers" })
   .first()
   .click();
 await page.waitForSelector('[data-testid="paragraph-sheet"]');
 check(
-  "tapping a locked paragraph opens its own sheet with the paragraph as it is now",
-  (await page.locator('[data-testid="paragraph-now"]', { hasText: "Nobody trusted the figures" }).count()) === 1 &&
+  "tapping a saved paragraph opens its saved screen with the words, never the text",
+  (await dialog(page).locator("h2", { hasText: /^Helper words saved$/ }).count()) === 1 &&
+    (await page.locator('[data-testid="paragraph-helper-card"]', { hasText: "believed the numbers" }).count()) === 1 &&
+    !(await dialog(page).innerText()).includes("Nobody believed the numbers") &&
+    (await dialog(page).locator('[data-testid="judgement-label"]').count()) === 0 &&
+    (await dialog(page).locator('[data-testid="practise-card"]').count()) === 0 &&
     (await dialog(page).locator("button", { hasText: /^Discard$/ }).count()) === 0 &&
     (await dialog(page).locator("button", { hasText: /^Lock$/ }).count()) === 0
 );

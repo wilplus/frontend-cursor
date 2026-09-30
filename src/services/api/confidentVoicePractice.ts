@@ -248,7 +248,10 @@ export type JudgeResult =
   | {
       ok: true;
       practice: ConfidencePractice;
-      outcome: "again" | "adopt" | "closed";
+      /** "done": the attempt was judged Yes or In-between and the helper
+       *  words follow (founder lock 2026-09-30, B6). "adopt" is the name
+       *  the server used until then, read the same way. */
+      outcome: "again" | "done" | "closed";
       adopted: boolean;
       paragraph: string | null;
       attemptWords: string | null;
@@ -273,9 +276,9 @@ export async function judgeConfidencePracticeAttempt(
     );
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     const practice = mapConfidencePractice(data?.practice);
-    const outcome = data?.outcome;
+    const outcome = data?.outcome === "adopt" ? "done" : data?.outcome;
     if (!res.ok || !practice ||
-        (outcome !== "again" && outcome !== "adopt" && outcome !== "closed")) {
+        (outcome !== "again" && outcome !== "done" && outcome !== "closed")) {
       return {
         ok: false,
         error: typeof data?.error === "string" ? data.error : null,

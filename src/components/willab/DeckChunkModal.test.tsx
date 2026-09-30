@@ -277,7 +277,7 @@ describe("DeckChunkModal — F1 net", () => {
     expect(labels).not.toContain("Apply suggestion");
   });
 
-  it("the praise lane is read, not rated: one Continue and nothing to weigh", async () => {
+  it("the praise lane is read, not rated: one Next and nothing to weigh (D10: Next, not Continue)", async () => {
     // Founder 2026-09-15. A black CTA on a question about your own praise
     // does not merely bias the answer — it makes disagreeing feel like
     // refusing. So the rating is gone and the screen is titled Good job.
@@ -286,13 +286,13 @@ describe("DeckChunkModal — F1 net", () => {
     expect(text).toContain(praise.quote);
     expect(text).toContain(PRAISE_LEAD);
     const labels = buttonLabels();
-    expect(labels).toContain("Continue");
+    expect(labels).toContain("Next");
     for (const gone of ["Useful", "Not useful", "Apply", "Keep my wording"]) {
       expect(labels, gone).not.toContain(gone);
     }
   });
 
-  it("Continue still WRITES, or praise is offered again forever", async () => {
+  it("Next still WRITES, or praise is offered again forever", async () => {
     // The rating was what marked the item decided. Removing it without
     // replacing the write would re-offer this praise every time the paragraph
     // is opened — so Continue records an acknowledgement instead of a verdict.
@@ -302,7 +302,7 @@ describe("DeckChunkModal — F1 net", () => {
     const saved = vi.mocked(saveTakeFeedbackResponse);
     saved.mockClear();
     await render(praise);
-    await click("Continue");
+    await click("Next");
     expect(saved).toHaveBeenCalledTimes(1);
     expect(saved.mock.calls[0][0].response).toBe("acknowledged");
     expect(saved.mock.calls[0][0].feedbackId).toBe(praise.id);
@@ -383,7 +383,7 @@ describe("DeckChunkModal — F1 net", () => {
         await click("Keep my wording");
       } else if (text.includes(PRAISE_LEAD)) {
         decided.push("great_formulation");
-        await click("Continue");
+        await click("Next");
       } else {
         break;
       }
@@ -498,7 +498,7 @@ describe("DeckChunkModal — F1 net", () => {
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
     // The exercise step's own footer: one verb, one stacked link.
     expect(buttonLabels()).toContain("Practise");
-    expect(buttonLabels()).toContain("Not now");
+    expect(buttonLabels()).toContain("Skip");
     // Offered on a No, because the practice is matched to the clip rather than
     // awarded for a verdict.
   });
@@ -619,7 +619,7 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis });
     await click("Yes — Confident");     // feedback
     await click("Keep my wording");        // suggestion
-    await click("Continue");            // good job
+    await click("Next");            // good job
     expect(container.textContent).toContain("With emphasis");
     await click("Use these helper words");
     // "Use these helper words" locks at once and closes (Q24 B): no Lock screen and
@@ -863,7 +863,7 @@ describe("the ladder", () => {
     await renderLadder({ style: emphasis });
     await click("Yes — Confident");
     await click("Keep my wording");
-    await click("Continue");
+    await click("Next");
     await click("Choose different words");
     expect(container.textContent).toContain("Tap the words");
     // Inside the confident fragment ("We should ship it now"), which is the
@@ -1170,7 +1170,7 @@ describe("declining the exercise keeps the emphasis step", () => {
     });
     await click(answer);
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    await click("Not now");
+    await click("Skip");
   }
 
   it("Yes lands on Emphasis with no drill (the follow-up matrix, 2026-09-29)", async () => {
@@ -1194,14 +1194,14 @@ describe("declining the exercise keeps the emphasis step", () => {
     expect(buttonLabels()).toContain("Use these helper words");
   });
 
-  it("In-between then Not now lands on Emphasis, not Lock", async () => {
+  it("In-between then Skip lands on Emphasis, not Lock", async () => {
     // THE DEFECT, on an answer that keeps the drill.
     await openOnTheDrill("In-between");
     expect(container.textContent).toContain("Tap the words");
     expect(buttonLabels()).toContain("Use these helper words");
   });
 
-  it("No then Not now ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
+  it("No then Skip ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
     // Declining the drill leaves the No standing, and a No has neither the
     // helper-words step nor the Lock. Nothing is left on the ladder.
     vi.mocked(props.onClose).mockClear();

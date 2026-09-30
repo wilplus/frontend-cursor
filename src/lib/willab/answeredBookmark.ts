@@ -255,10 +255,24 @@ export function answeredView(args: {
  *  2026-09-26 (J10), a paragraph nobody gave feedback on, which opens on its
  *  latest text and its earlier Takes instead of doing nothing (clause 16: a
  *  bookmark is never an empty screen). */
-export function opensParagraphSheet(state: {
-  pending: readonly unknown[];
-  decided?: readonly unknown[];
-  locked?: boolean;
-}): boolean {
-  return state.pending.length === 0;
+export function opensParagraphSheet(
+  state: {
+    pending: readonly { feedbackFamily?: string | null; source?: string | null }[];
+    decided?: readonly unknown[];
+    locked?: boolean;
+  },
+  /** The paragraph's helper words are saved (founder lock 2026-09-30, B8,
+   *  D9): it is the saved screen whatever else rides it; nothing is judged
+   *  on it until the words are deleted. */
+  saved = false,
+): boolean {
+  if (saved) return true;
+  // A rewrite or a praise rides its moment (24f) and is shown on the
+  // paragraph's own sheet as the practise card (founder lock 2026-09-30,
+  // B5); only a Confident Voice judgement still waiting opens the question.
+  return !state.pending.some(
+    (item) =>
+      item.feedbackFamily === "confident_voice" ||
+      item.source === "confident_voice",
+  );
 }

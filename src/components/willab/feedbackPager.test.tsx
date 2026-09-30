@@ -47,6 +47,18 @@ describe("the bookmarks", () => {
     expect(list[1]).toMatchObject({ bundleId: "bundle-d", coach: true });
   });
 
+  it("a paragraph with saved helper words is a screen of the walk, in text order (founder lock 2026-09-30, B8)", () => {
+    const list = buildBookmarks(
+      [chunk("a"), chunk("b"), chunk("c"), chunk("d")],
+      (c) => FEEDBACK[c.part.id],
+      (id) => MARKERS[id],
+      (c) => c.part.id === "c",
+    );
+    // "c" has nothing waiting but its words are saved: passed with Next.
+    // "b" has neither: not a screen.
+    expect(list.map((b) => b.partId)).toEqual(["a", "c", "d"]);
+  });
+
   it("the link lands on the first coach-reviewed one, never a judgement-only one", () => {
     expect(landingIndex(bookmarks())).toBe(1);
     const noCoach = buildBookmarks([chunk("a")], (c) => FEEDBACK[c.part.id], () => undefined);
