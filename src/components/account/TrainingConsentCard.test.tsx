@@ -108,6 +108,17 @@ describe("once it is available", () => {
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("shows the founder's four lines above the sentence, before the switch", async () => {
+    await renderWith(state());
+    const lines = Array.from(container.querySelectorAll("li")).map((li) => li.textContent);
+    expect(lines).toEqual([...COPY.trainingBeforeLines]);
+    expect(COPY.trainingBeforeLines).toHaveLength(4);
+    expect(COPY.trainingBeforeLines[0]).toBe("Text only. Never your voice.");
+    const html = container.innerHTML;
+    expect(html.indexOf(COPY.trainingBeforeLines[3])).toBeLessThan(html.indexOf(SENTENCE));
+    expect(html.indexOf(SENTENCE)).toBeLessThan(html.indexOf(COPY.turnOn));
+  });
+
   it("turns on against exactly what was shown", async () => {
     await renderWith(state());
     api.setTrainingConsent.mockResolvedValue(state({ active: true }));

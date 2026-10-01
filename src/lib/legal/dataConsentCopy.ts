@@ -51,6 +51,16 @@ export const DATA_CONSENT_COPY = {
   trainingOffTitle: "Turn off training?",
   trainingOffBody:
     "Your training copies will be deleted. Anything already used to train stays in that training, but it won’t be used again.",
+  // Signed by the founder 2026-10-01 (counsel's wording, backend
+  // docs/LEARNING-DOORS.md and legal/phase1-2026.1/13-…-SIGNED-2026-10-01.md).
+  // The four lines above the switch, shown before it can be turned on; the
+  // switch's own sentence still comes from the backend, fingerprinted.
+  trainingBeforeLines: [
+    "Text only. Never your voice.",
+    "Off unless you turn it on. Saying no costs you nothing.",
+    "OpenAI trains the models for us, in the United States, under the European Commission’s standard contractual clauses.",
+    "Turning it off deletes your training copies and keeps you out of any new training. A model already trained stays.",
+  ],
   // Approved by the founder 2026-09-26 (backend N12, answer 3). Shown in
   // place of `intro` only while the training switch is offered: until then
   // `intro` stays, because it is still true.
