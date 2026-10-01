@@ -25,6 +25,20 @@ export const COACH_WALK_COPY = {
   bubbleOpen: "Open your queue",
   buttonQueue: "Your queue",
 
+  /* Students (founder 2026-10-01, Phase 0b) · proposed, held for sign-off */
+  buttonStudents: "Students",
+  studentsTitle: "Your students",
+  studentsEmpty: "No students yet.",
+  studentsNotACoach: "This account isn’t set up as a coach yet.",
+  studentsProfileFail: "Couldn’t load this student just now.",
+  studentsGoal: "Goal",
+  studentsTakes: "Takes",
+  studentsTake: (takeIndex: number | null) => (takeIndex ? `Take ${takeIndex}` : "Take"),
+  studentsNoTakes: "No Takes yet.",
+  studentsOpenWalk: "Open the walk",
+  studentsOpening: "Opening…",
+  studentsOpenFail: "Couldn’t open this Take just now.",
+
   /* the state words (P2-6): where the coach is with a moment */
   state: {
     judge_it: "Judge it",

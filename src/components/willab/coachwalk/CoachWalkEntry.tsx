@@ -14,7 +14,9 @@ import { useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CoachQueueOverlay from "./CoachQueueOverlay";
+import CoachStudentsOverlay from "./CoachStudentsOverlay";
 import CoachWalkOverlay from "./CoachWalkOverlay";
+import { COACH_STUDENTS_ENABLED } from "@/lib/willab/coachStudents";
 import { useMomentsQueue } from "./useMomentsQueue";
 import { speakersWaiting, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
@@ -44,21 +46,47 @@ export default function CoachWalkEntry({
 }) {
   const queue = useMomentsQueue(true);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [studentsOpen, setStudentsOpen] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   const waiting = speakersWaiting(queue.speakers);
 
   return (
     <>
       {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => setQueueOpen(true)} /> : null}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setQueueOpen(true)}
-        className="h-12 w-full gap-2 rounded-full"
-      >
-        <Users className="h-4 w-4" />
-        {COPY.buttonQueue}
-      </Button>
+      {/* Phase 0b (founder 2026-10-01): the Students button takes the place
+          the queue button had; the queue stays as the bubble above. Off, the
+          queue button stands where it always did. */}
+      {COACH_STUDENTS_ENABLED ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setStudentsOpen(true)}
+          data-testid="coach-students-button"
+          className="h-12 w-full gap-2 rounded-full"
+        >
+          <Users className="h-4 w-4" />
+          {COPY.buttonStudents}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setQueueOpen(true)}
+          className="h-12 w-full gap-2 rounded-full"
+        >
+          <Users className="h-4 w-4" />
+          {COPY.buttonQueue}
+        </Button>
+      )}
+      {studentsOpen ? (
+        <CoachStudentsOverlay
+          onClose={() => setStudentsOpen(false)}
+          onOpenTake={(speaker, take) => {
+            const first = take.moments[0]?.snippetId;
+            if (first) setOpen({ speaker, take, snippetId: first });
+          }}
+        />
+      ) : null}
       {queueOpen ? (
         <CoachQueueOverlay
           speakers={queue.speakers}
