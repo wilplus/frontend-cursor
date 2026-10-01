@@ -7,9 +7,9 @@ export const maxDuration = 60;
 
 /** Phase 4 (F4): the licensed corpus; GET lists, POST files one (multipart). */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  return relayJson(req, "/v2/coach/corpus-clips", "GET");
+  return relayJson(req, "/v2/coach/licensed-clips", "GET");
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  return relayForm(req, "/v2/coach/corpus-clips");
+  return relayForm(req, "/v2/coach/licensed-clips");
 }

@@ -10,5 +10,5 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { clipId: string } },
 ): Promise<NextResponse> {
-  return relayJson(req, `/v2/coach/corpus-clips/${encodeURIComponent(params.clipId)}/label`, "PUT");
+  return relayJson(req, `/v2/coach/licensed-clips/${encodeURIComponent(params.clipId)}/label`, "PUT");
 }

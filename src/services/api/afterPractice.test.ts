@@ -63,8 +63,8 @@ describe("the calls", () => {
       "src/app/api/v2/user/voice-album/[snippetId]/share/route.ts",
       "src/app/api/v2/coach/readings/route.ts",
       "src/app/api/v2/coach/readings/[readingId]/publish/route.ts",
-      "src/app/api/v2/coach/corpus-clips/route.ts",
-      "src/app/api/v2/coach/corpus-clips/[clipId]/label/route.ts",
+      "src/app/api/v2/coach/licensed-clips/route.ts",
+      "src/app/api/v2/coach/licensed-clips/[clipId]/label/route.ts",
     ];
     for (const route of routes) {
       const source = readFileSync(route, "utf8");
