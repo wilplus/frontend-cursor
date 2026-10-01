@@ -20,6 +20,7 @@ import { COACH_STUDENTS_ENABLED } from "@/lib/willab/coachStudents";
 import { useMomentsQueue } from "./useMomentsQueue";
 import { CoachAuditSheet, CoachBlockPickSheet } from "./CoachBlindSheet";
 import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
+import { fetchTakeBubbles, type TakeBubble } from "@/services/api/coachBubbles";
 import { speakersWaiting, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
@@ -40,6 +41,25 @@ export function CoachWalkBubble({ waiting, onOpen }: { waiting: number; onOpen: 
   );
 }
 
+/** Phase 0c (A2): one bubble per Take this coach has not walked yet. */
+export function CoachTakeBubble({ bubble, onOpen }: { bubble: TakeBubble; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-testid="coach-take-bubble"
+      className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm border border-border bg-muted px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/80"
+    >
+      <span className="text-[14px] font-semibold text-foreground">
+        {COPY.bubbleTake(bubble.name ?? bubble.pseudonym, bubble.takeIndex)}
+      </span>
+      <span className="mt-1 block text-[12px] text-muted-foreground">
+        {bubble.waitingForText ? COPY.bubbleTakeWaiting : COPY.bubbleTakeOpen}
+      </span>
+    </button>
+  );
+}
+
 export default function CoachWalkEntry({
   bubble = true,
 }: {
@@ -53,7 +73,25 @@ export default function CoachWalkEntry({
   const [audit, setAudit] = useState<ErrorAuditQueue | null>(null);
   const [picks, setPicks] = useState<BlockPickQueue | null>(null);
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | null>(null);
+  const [bubbles, setBubbles] = useState<TakeBubble[] | null>(null);
   const waiting = speakersWaiting(queue.speakers);
+
+  // Phase 0c: the Take bubbles follow the queue's refreshes; null while the
+  // backend is dark, and the thread then draws exactly as before.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTakeBubbles().then((next) => { if (!cancelled) setBubbles(next); });
+    return () => { cancelled = true; };
+  }, [queue.speakers]);
+
+  function openBubble(b: TakeBubble): void {
+    for (const speaker of queue.speakers) {
+      const take = speaker.takes.find((t) => t.sessionId === b.sessionId);
+      const first = take?.moments[0]?.snippetId ?? b.firstSnippetId;
+      if (take && first) { setOpen({ speaker, take, snippetId: first }); return; }
+    }
+    setQueueOpen(true);
+  }
 
   // The blind lines (6a, 8) ride the queue's opening; both read null while
   // the backend is dark, and the queue then draws exactly as before.
@@ -68,6 +106,9 @@ export default function CoachWalkEntry({
   return (
     <>
       {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => setQueueOpen(true)} /> : null}
+      {bubble && bubbles ? bubbles.map((b) => (
+        <CoachTakeBubble key={b.sessionId} bubble={b} onOpen={() => openBubble(b)} />
+      )) : null}
       {/* Phase 0b (founder 2026-10-01): the Students button takes the place
           the queue button had; the queue stays as the bubble above. Off, the
           queue button stands where it always did. */}
