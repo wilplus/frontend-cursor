@@ -16,6 +16,7 @@ import CoachVideoRecorder from "../CoachVideoRecorder";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import { newUploadKey, videoProvenance } from "@/services/api/coachVideoMeta";
 import { fetchTakeWord, saveTakeWord } from "@/services/api/coachWalk";
+import { draftTakeWord, type CoachWordDraft } from "@/services/api/coachPanel";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
 const PILL =
@@ -45,14 +46,24 @@ export default function CoachTakeWordSheet({
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<CoachWordDraft | null>(null);
+  const [blank, setBlank] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchTakeWord(sessionId).then((word) => {
-      if (cancelled || !word) return;
-      if (word.text) setText(word.text);
-      if (word.videoRef) setVideoRef(word.videoRef);
+    void fetchTakeWord(sessionId).then(async (word) => {
+      if (cancelled) return;
+      if (word?.text) setText(word.text);
+      if (word?.videoRef) setVideoRef(word.videoRef);
+      if (word?.text) return;
+      // Phase 7 (C5-a): a draft from the transcript, only once every moment
+      // is judged and only while the backend serves it; the coach edits
+      // every word, and "Start from blank" is the way out.
+      const next = await draftTakeWord(sessionId);
+      if (cancelled || !next) return;
+      setDraft(next);
+      setText((current) => (current === "" ? next.text : current));
     });
     return () => { cancelled = true; };
   }, [sessionId]);
@@ -105,6 +116,24 @@ export default function CoachTakeWordSheet({
           {COPY.takeWordEyebrow(pseudonym, takeIndex)}
         </span>
         <p className="text-[13px] text-muted-foreground">{COPY.takeWordHint}</p>
+        {draft ? (
+          <div className="flex items-center justify-between gap-2" data-testid="coach-word-draft">
+            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              {blank ? COPY.wordsEyebrowBlank : draft.label ?? COPY.wordsEyebrowDrafted}
+            </span>
+            {blank ? (
+              <button type="button" className="text-[13px] text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => { setBlank(false); setText(draft.text); }}>
+                {COPY.linkUseDraft}
+              </button>
+            ) : (
+              <button type="button" className="text-[13px] text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => { setBlank(true); setText(""); }}>
+                {COPY.linkStartBlank}
+              </button>
+            )}
+          </div>
+        ) : null}
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

@@ -17,6 +17,7 @@ import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
 import { answerCoachExerciseRequest, type CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
 import { answerWord, kindWord, type AnswerValue } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
+import CoachPreferenceBox from "./CoachPreferenceBox";
 
 const PILL =
   "flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
@@ -78,8 +79,9 @@ function AnswerChips({
   );
 }
 
-function ReadBody({ pseudonym, read, coachAnswer }: {
+function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, onMakeNew }: {
   pseudonym: string; read: MomentRead; coachAnswer: AnswerValue | null;
+  sessionId: string; snippetId: string; onMakeNew: () => void;
 }) {
   const spotted = read.request?.spotted ?? [];
   return (
@@ -108,6 +110,8 @@ function ReadBody({ pseudonym, read, coachAnswer }: {
           {libraryLine(read.request)}
         </span>
       </Box>
+      {/* Phase 1b (F8): drawn only when the backend serves it. */}
+      <CoachPreferenceBox sessionId={sessionId} snippetId={snippetId} onMakeNew={onMakeNew} />
       {read.speakerGoal ? (
         <Box eyebrow={COPY.readGoal(pseudonym)}>
           <span className="text-[14px] text-foreground">{read.speakerGoal}</span>
@@ -201,7 +205,9 @@ export default function CoachReadSheet({
         ) : read === null ? (
           <p role="alert" className="text-[14px] text-muted-foreground">{COPY.readFail}</p>
         ) : (
-          <ReadBody pseudonym={pseudonym} read={read} coachAnswer={coachAnswer} />
+          <ReadBody pseudonym={pseudonym} read={read} coachAnswer={coachAnswer}
+            sessionId={sessionId} snippetId={snippetId}
+            onMakeNew={() => { if (read.request && requestOpen(read.request)) onAnswer(read.request, read); }} />
         )}
       </div>
     </SheetFrame>
