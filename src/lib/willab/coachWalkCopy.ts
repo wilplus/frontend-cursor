@@ -203,4 +203,10 @@ export const COACH_WALK_COPY = {
   /* The blind lines in the queue (6a, 8): the titles and "Also waiting · blind"
      come from the backend's wording; this count is PROPOSED, for sign-off. */
   queueBlindWaiting: (n: number) => `${n} waiting`,
+
+  /* Phase 0c · a student's new Take as a bubble (A2). PROPOSED, for sign-off. */
+  bubbleTake: (who: string, takeIndex: number | null) =>
+    takeIndex ? `${who} · Take ${takeIndex}` : who,
+  bubbleTakeOpen: "Open the walk",
+  bubbleTakeWaiting: "Waiting for the text",
 } as const;
