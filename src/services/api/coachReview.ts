@@ -13,7 +13,6 @@ import {
   type ReadoutFeatures,
   type ReadoutSlide,
 } from "@/components/willab/readout";
-import { type Feeling } from "@/components/willab/willabFeelings";
 import { type CoachVideoMeta } from "@/services/api/coachVideoMeta";
 
 /** Append the Subsystem V capture fields to a coach-video upload form. The BFF
@@ -92,13 +91,6 @@ export interface CoachReviewSnippet {
   coachState: CoachSnippetState;
 }
 
-/** Pre-recording feeling captured before a take. Coach-only — AC-9. */
-export interface SessionFeeling {
-  feeling: Feeling;
-  takeIndex: number | null;
-  capturedAt: string;
-}
-
 /** Per-session review payload (§S.4). Identity is pseudonym + domain only. */
 export interface CoachReviewSession {
   sessionId: string;
@@ -107,25 +99,11 @@ export interface CoachReviewSession {
   topic: string;
   sentAt: string;
   state: "pending" | "in_progress" | "done";
-  overallMessage: string;
-  videoRef: string | null;
   /** The session's served deck PDF, for rendering each snippet's slide page.
    *  null when no deck was attached. */
   presentationRef: string | null;
-  /** THE DECK ITSELF (founder 2026-08-11) — every slide, in order. The BE has
-   *  always sent it; the mapper dropped it because nothing needed it. The
-   *  slide-correction control does: a coach saying "it was slide 3" has to be
-   *  able to name slide 3, INCLUDING a slide nobody spoke a word on — which
-   *  is exactly the slide a forgotten advance strands, and the one a picker
-   *  built from the snippets present could never offer. */
-  slides: ReadoutSlide[];
   snippets: CoachReviewSnippet[];
-  /** Pre-recording feelings (BE #108) — newest-first from feelings[]. Coach-only. */
-  feelings: SessionFeeling[];
-  /** FE-B — a persisted, unapproved ideal-text draft exists for this session's
-   *  arc: the coach's cue to open, review, approve, and publish. */
-  arcIdealReady: boolean;
-  /** The session's arc (rides with arc_ideal_ready); null on older payloads. */
+  /** The session's arc; null on older payloads. */
   arcId: string | null;
   /** True only after this coach has committed a blind answer (or an explicit
    *  abstention) for every evidence piece. Until then the backend redacts all
@@ -176,19 +154,6 @@ function pickCoachState(raw: unknown): CoachSnippetState {
       r.rating_unrateable === true || r.rating_value === "audio_unclear",
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
-  };
-}
-
-function pickFeeling(raw: unknown): SessionFeeling | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const f = r.feeling;
-  if (f !== "nervous" && f !== "excited" && f !== "calm" && f !== "unsure")
-    return null;
-  return {
-    feeling: f,
-    takeIndex: typeof r.take_index === "number" ? r.take_index : null,
-    capturedAt: typeof r.captured_at === "string" ? r.captured_at : "",
   };
 }
 
@@ -289,40 +254,16 @@ export function mapCoachReviewSession(raw: unknown): CoachReviewSession | null {
       state === "pending" || state === "in_progress" || state === "done"
         ? state
         : "pending",
-    overallMessage:
-      typeof r.overall_message === "string" ? r.overall_message : "",
-    videoRef: typeof r.video_ref === "string" ? r.video_ref : null,
     presentationRef:
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
         : null,
-    slides: Array.isArray(r.slides)
-      ? r.slides
-          .map((raw, i) => {
-            if (!raw || typeof raw !== "object") return null;
-            const sl = raw as Record<string, unknown>;
-            return {
-              // The deck's own order IS the index; a payload without one
-              // falls back to position rather than dropping the slide.
-              index: typeof sl.index === "number" ? sl.index : i,
-              title: typeof sl.title === "string" ? sl.title : "",
-              body: typeof sl.body === "string" ? sl.body : "",
-            };
-          })
-          .filter((sl): sl is ReadoutSlide => sl !== null)
-      : [],
     // FP-5 — re-reads (BE-2) are appended by the BE AFTER the spoken take and
     // must stay in that append order: they're revealed by "Next" at the tail of
     // the parent take's flow, never sorted back among the spoken snippets they
     // correct. So we slide-order the spoken snippets only and keep the reads in
     // their BE tail position. (Older packets have no reads → identical result.)
     snippets,
-    feelings: Array.isArray(r.feelings)
-      ? r.feelings
-          .map(pickFeeling)
-          .filter((f): f is SessionFeeling => f !== null)
-      : [],
-    arcIdealReady: r.arc_ideal_ready === true,
     arcId:
       typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
     // BLIND COACH (audit B4): only the server unlocks context. A payload
@@ -358,11 +299,10 @@ export async function fetchCoachReviewSession(
   return mapCoachReviewSession(data);
 }
 
-/** Upload a coach video for the session (§B.5 / §F.6). Multipart
- *  pass-through; BE reuses its user-video transport (storage bucket,
- *  MIME whitelist, size limits). Returns the persisted `video_ref` so
- *  the FE can update `CoachReviewSession.videoRef` and render the
- *  preview without a session refetch. */
+/** Upload a coach video for the session (§B.5 / §F.6): the Take word's video
+ *  (35g-6). Multipart pass-through; BE reuses its user-video transport
+ *  (storage bucket, MIME whitelist, size limits). Returns the persisted
+ *  `video_ref` so the sheet can show the preview without a refetch. */
 export async function uploadCoachVideo(
   sessionId: string,
   file: File,
@@ -391,37 +331,3 @@ export async function uploadCoachVideo(
   return typeof ref === "string" ? ref : null;
 }
 
-/** Save a per-snippet canonical feedback draft. The blind rating lane is
- * services/api/stateRatings.ts and never rides on this patch. */
-export async function saveCoachSnippet(
-  sessionId: string,
-  snippetId: string,
-  patch: CoachSnippetSavePatch,
-): Promise<CoachSnippetState | null> {
-  const body: Record<string, unknown> = {};
-  if (patch.note !== undefined) body.note = patch.note;
-  if (patch.tag !== undefined) body.tag = patch.tag;
-  if (patch.surfaced !== undefined) body.surfaced = patch.surfaced;
-
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(
-        sessionId,
-      )}/snippets/${encodeURIComponent(snippetId)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      },
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  if (!data || typeof data !== "object") return null;
-  // BE echoes the persisted coach_state for confirmation.
-  return pickCoachState((data as Record<string, unknown>).coach_state ?? data);
-}

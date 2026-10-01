@@ -29,17 +29,6 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const CLIENT = readFileSync("src/app/cms/new/page.client.tsx", "utf8");
-/** Source with comments stripped. The coach component EXPLAINS why the old
- *  label was wrong, so a bare `toContain` would trip over the explanation
- *  rather than the label. */
-function code(path: string): string {
-  return readFileSync(path, "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "")
-    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-}
-
-const COACH = code("src/components/willab/CoachConfidencePracticeReview.tsx");
 
 function full(over: Partial<LaneDraft> = {}): LaneDraft {
   return {
@@ -144,18 +133,6 @@ describe("slugify", () => {
 });
 
 describe("the doors into the lane", () => {
-  it("the coach panel links to its own exercise lane, not the CMS", () => {
-    expect(COACH).toContain('href="/coach/exercises?new=1"');
-    expect(COACH).not.toContain("/cms/new/exercise/1");
-    expect(COACH).toContain("Add to the library");
-  });
-
-  it("names the in-panel exercise for what it is", () => {
-    expect(COACH).toContain("Write one here");
-    expect(COACH).not.toContain("Just for them");
-    expect(COACH).not.toContain("Create new exercise");
-  });
-
   it("bounces to the CMS when the tab has no password, carrying where it was going", () => {
     expect(CLIENT).toContain("/cms?next=");
     expect(CLIENT).not.toContain('router.replace("/cms")');

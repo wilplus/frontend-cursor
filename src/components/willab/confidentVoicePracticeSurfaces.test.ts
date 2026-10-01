@@ -18,7 +18,6 @@ const modal = read("src/components/willab/DeckChunkModal.tsx");
 const exercise = read("src/components/willab/useConfidenceExercise.ts");
 const lounge = read("src/components/willab/Lounge.tsx");
 const api = read("src/services/api/confidentVoicePractice.ts");
-const coach = read("src/components/willab/CoachConfidencePracticeReview.tsx");
 const firstClient = read("src/components/willab/Mlc3FirstClientPractice.tsx");
 const practiceFlow = read("src/components/willab/usePracticeFlow.ts");
 const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
@@ -77,29 +76,6 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(lounge).toContain('message.metadata?.note === "confidence_practice_shared"');
     expect(lounge).toContain("Open exercise");
     expect(lounge).toContain("<ConfidencePracticeOverlay");
-  });
-
-  it("lets the professional coach select a reviewed exercise or draft a new one", () => {
-    // Relabelled 2026-09-16 (founder), and again 2026-09-25. Since decision 04
-    // the coach's own exercise IS filed into the library under this moment's
-    // error, so "Just for them" had come to say the opposite of what happens.
-    // "Write one here" (founder-approved 2026-09-25) says where it is made.
-    expect(coach).toContain("From the library");
-    expect(coach).toContain("Write one here");
-    expect(coach).not.toContain("Just for them");
-    // And the third door, which is the one that really does add to the
-    // catalogue: straight into the exercise lane, skipping the fork.
-    expect(coach).toContain("Add to the library");
-    // The coach panel's own lane since decision 4 (founder 2026-09-29).
-    expect(coach).toContain('href="/coach/exercises?new=1"');
-    expect(coach).toContain("Share with user");
-    expect(coach).toContain('kind: "custom"');
-    // One judgement screen everywhere (founder 2026-09-29, Q3/Q3a): the
-    // speaker's question and the shared five-answer instrument.
-    expect(coach).toContain("<ConfidenceLabelChips");
-    expect(coach).toContain("question={CHUNK_SHEET_COPY.confidenceQuestion}");
-    expect(coach).not.toContain("more confident?");
-    expect(coach).toContain("selectedAttemptDecision");
   });
 
   it("keeps unresolved capture bytes and identity until exact replay succeeds", () => {

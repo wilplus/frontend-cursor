@@ -12,16 +12,12 @@ import WillabSurface from "@/components/willab/WillabSurface";
  */
 export default function ChatPageClient({
   sessionId,
-  reviewSessionId,
-  reviewPiece,
   insightSessionId,
   bestPresentationArcId,
   idealTextArcId,
   idealTextFeedback = false,
 }: {
   sessionId: string | null;
-  reviewSessionId: string | null;
-  reviewPiece?: string | null;
   insightSessionId: string | null;
   bestPresentationArcId: string | null;
   idealTextArcId: string | null;
@@ -30,8 +26,6 @@ export default function ChatPageClient({
   return (
     <WillabSurface
       sessionId={sessionId}
-      reviewSessionId={reviewSessionId}
-      reviewPiece={reviewPiece}
       insightSessionId={insightSessionId}
       bestPresentationArcId={bestPresentationArcId}
       idealTextArcId={idealTextArcId}

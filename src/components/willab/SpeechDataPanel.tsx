@@ -5,7 +5,7 @@ import type { ReadoutFeatures } from "./readout";
 /* -------------------------------------------------------------------------- */
 /*  SpeechDataPanel — the collapsed acoustic "speech data" panel, SHARED        */
 /*  between the user Insights view (AuditInsights) and the coach review card    */
-/*  (CoachSnippetReviewCard) so both surfaces render the SAME figures the same  */
+/*  (the walk's Read screen, once the old card) so both render the SAME figures */
 /*  way. This is C1's literal ask ("the coach sees the same speech-data panel   */
 /*  the user gets") and the first concrete step of U13 (unify overlay parts     */
 /*  behind shared primitives instead of copy-pasted markup that drifts).        */

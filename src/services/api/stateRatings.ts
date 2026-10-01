@@ -14,7 +14,7 @@
 /*  BLIND (I1). The backend stamps `saw_model_output: false` on every row it   */
 /*  writes here, so a surface that shows the machine's read while collecting a */
 /*  rating would put a LIE in the corpus that is unrecoverable afterwards.     */
-/*  That is why CoachSnippetReviewCard carries no acoustic needle: the         */
+/*  That is why the Judge screen carries no acoustic needle: the              */
 /*  invariant is asserted server-side, so it has to be true client-side.       */
 /*                                                                            */
 /*  STRICT TYPES, no coercion — the backend refuses a coerced value and so do  */
@@ -36,22 +36,6 @@ export const CONFIDENCE_RATING_VALUES = [
 ] as const;
 export type ConfidenceRatingValue =
   (typeof CONFIDENCE_RATING_VALUES)[number];
-
-/** Q3 (founder 2026-09-29): any saved answer but Audio unclear opens the
- *  coach's practice review and exercise request. Yes, In-between, No and Not
- *  sure are answers about the moment; Audio unclear is an abstention, so the
- *  moment stays unrated and the door stays shut. The backend holds the same
- *  rule (`_practice_door_open`); this only decides what the card shows. */
-export function opensPracticeDoor(
-  value: ConfidenceRatingValue | null | undefined,
-  unrateable = false,
-): boolean {
-  return (
-    !unrateable &&
-    (value === "yes" || value === "in_between" ||
-      value === "no" || value === "not_sure")
-  );
-}
 
 /** The only state with a written operational definition today (§1.4). A state
  *  with no definition cannot ship — the backend refuses it by name. */

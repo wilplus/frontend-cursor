@@ -1,5 +1,5 @@
-/* Pins what the plan checkout, billing portal and coach slide-label clients
- * answer before and after they move onto bffFetch (audit D5): the
+/* Pins what the plan checkout and billing portal clients answer before and
+ * after they move onto bffFetch (audit D5): the
  * signed-out, network, refused and success cases, and exactly what each
  * sends. The test environment has no window, so the return URLs carry an
  * empty origin. */
@@ -9,7 +9,6 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));
 
 import { getAuthToken } from "@/lib/api/auth-client";
 import { TOKENS_COPY } from "@/components/tokens/copy";
-import { saveSnippetSlide } from "./snippetSlide";
 import { startBillingPortal, startPlanCheckout } from "./subscribe";
 
 const token = vi.mocked(getAuthToken);
@@ -123,33 +122,5 @@ describe("startBillingPortal", () => {
     await signedOutSendsNothing(startBillingPortal, {
       ok: false, reason: "error", message: "Sign in to manage your plan.",
     });
-  });
-});
-
-describe("saveSnippetSlide", () => {
-  it("puts the slide index, or null to withdraw it", async () => {
-    const fn = stubFetch(200, null);
-    expect(await saveSnippetSlide("s/1", 3)).toEqual({ ok: true, error: null });
-    expect(fn).toHaveBeenCalledWith("/api/v2/coach/snippets/s%2F1/slide", {
-      method: "PUT",
-      headers: { Authorization: "Bearer tok", "Content-Type": "application/json" },
-      body: JSON.stringify({ slide_index: 3 }),
-      cache: "no-store",
-    });
-    await saveSnippetSlide("s", null);
-    expect((fn.mock.calls[1]?.[1] as RequestInit).body)
-      .toBe(JSON.stringify({ slide_index: null }));
-  });
-
-  it("keeps a string refusal verbatim and nothing else", async () => {
-    stubFetch(400, { error: "Slide 9 is not in this deck." });
-    expect(await saveSnippetSlide("s", 9)).toEqual({
-      ok: false, error: "Slide 9 is not in this deck.",
-    });
-    stubFetch(500, { error: { detail: "x" } });
-    expect(await saveSnippetSlide("s", 1)).toEqual({ ok: false, error: null });
-    offline();
-    expect(await saveSnippetSlide("s", 1)).toEqual({ ok: false, error: null });
-    await signedOutSendsNothing(() => saveSnippetSlide("s", 1), { ok: false, error: null });
   });
 });
