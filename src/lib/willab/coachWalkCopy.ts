@@ -16,6 +16,8 @@ export const COACH_WALK_COPY = {
     `${takeIndex ? `Take ${takeIndex}` : "Take"} · ${moments} ${moments === 1 ? "moment" : "moments"}`,
   queueMoment: (index: number) => `Moment ${index}`,
   queueNextSpeaker: "Next speaker",
+  /* a Take whose bookmarks are not frozen yet (founder 2026-10-01, A1) */
+  queueWaitingForText: "Waiting for the text",
   queueNameError: "Name a speaking error",
   /* the one bubble in the Lounge, and the button under the thread */
   bubbleWaiting: (n: number) =>

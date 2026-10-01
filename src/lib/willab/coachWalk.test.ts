@@ -45,6 +45,17 @@ describe("mapMomentsQueue", () => {
     expect(speakersWaiting(mapMomentsQueue(RAW))).toBe(1);
     expect(mapMomentsQueue([])).toEqual([]);
   });
+
+  it("a Take waiting for its text is listed and counted, never absent (A1)", () => {
+    const out = mapMomentsQueue([{ pseudonym: "Calm Otter", waiting: 0, waiting_for_text: 1, takes: [
+      { session_id: "t-9", take_index: 1, sent_at: "2026-10-01T09:00:00Z", waiting: 0,
+        waiting_for_text: true, moments: [] },
+    ] }]);
+    expect(out[0].takes[0].waitingForText).toBe(true);
+    expect(out[0].takes[0].moments).toEqual([]);
+    expect(speakersWaiting(out)).toBe(1);
+    expect(mapMomentsQueue(RAW)[0].takes[0].waitingForText).toBe(false);
+  });
 });
 
 describe("the words", () => {
