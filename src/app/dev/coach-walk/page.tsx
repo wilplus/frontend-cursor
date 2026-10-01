@@ -81,7 +81,10 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
             session_id: TAKE, take_index: 2, sent_at: "2026-09-30T10:00:00Z", waiting: 2,
             moments: [SNIP_1, SNIP_2].map((id) => ({ snippet_id: id, state: state(id), ...(rated.has(id) ? { kind: kindOf(id) } : {}) })),
           }] },
-          { pseudonym: "Calm Otter", waiting: 0, takes: [] },
+          { pseudonym: "Calm Otter", waiting: 0, waiting_for_text: 1, takes: [{
+            session_id: "take-waiting", take_index: 1, sent_at: "2026-10-01T09:00:00Z", waiting: 0,
+            waiting_for_text: true, moments: [],
+          }] },
         ]) },
       { when: (c) => moment(c.url, "/moment"),
         reply: (c) => {

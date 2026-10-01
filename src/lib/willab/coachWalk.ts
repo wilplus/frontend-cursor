@@ -26,6 +26,9 @@ export interface QueueTake {
   sentAt: string;
   waiting: number;
   moments: QueueMoment[];
+  /** The bookmarks are not frozen yet: the Take is listed, never absent
+   *  (founder 2026-10-01, A1). */
+  waitingForText: boolean;
 }
 
 export interface QueueSpeaker {
@@ -74,6 +77,7 @@ function mapTake(raw: unknown): QueueTake | null {
     sentAt: typeof r.sent_at === "string" ? r.sent_at : "",
     waiting: typeof r.waiting === "number" ? r.waiting : countWaiting(moments),
     moments,
+    waitingForText: r.waiting_for_text === true,
   };
 }
 
@@ -105,9 +109,10 @@ export function countWaiting(moments: QueueMoment[]): number {
 }
 
 /** The one number the Lounge bubble shows: how many speakers have a moment
- *  waiting on this coach. A count of people to see, never of quality. */
+ *  waiting on this coach, or a Take still waiting for its text. A count of
+ *  people to see, never of quality. */
 export function speakersWaiting(queue: QueueSpeaker[]): number {
-  return queue.filter((s) => s.waiting > 0).length;
+  return queue.filter((s) => s.waiting > 0 || s.takes.some((t) => t.waitingForText)).length;
 }
 
 export function stateWord(state: MomentState): string {

@@ -42,8 +42,10 @@ const sheetText = () =>
 const bodyText = () => page.evaluate(() => document.body.textContent ?? "");
 
 /* ------------------------------ the door ----------------------------------- */
+// Two: Quiet Heron with moments to judge, Calm Otter with a Take still
+// waiting for its text (founder 2026-10-01, A1: listed, never absent).
 check("the bubble counts speakers waiting, in words",
-  (await page.locator('[data-testid="coach-walk-bubble"]').textContent()).includes("1 speaker waiting"));
+  (await page.locator('[data-testid="coach-walk-bubble"]').textContent()).includes("2 speakers waiting"));
 
 await page.locator('[data-testid="coach-walk-bubble"]').click();
 await page.waitForSelector('[data-testid="coach-queue"]');
@@ -51,6 +53,9 @@ const queueText = await page.locator('[data-testid="coach-queue"]').textContent(
 check("the queue lists the speaker, the take and one word per moment",
   queueText.includes("Quiet Heron") && queueText.includes("Take 2 · 2 moments") &&
   queueText.includes("Judge it") && queueText.includes("Calm Otter"));
+check("a take whose bookmarks are not frozen yet says so, with no moment to judge",
+  queueText.includes("Waiting for the text") &&
+  (await page.locator('[data-testid="coach-queue-waiting-for-text"]').count()) === 1);
 check("no kind is on the queue before a rating", !queueText.includes("Error"));
 
 /* ------------------------------ judge -------------------------------------- */

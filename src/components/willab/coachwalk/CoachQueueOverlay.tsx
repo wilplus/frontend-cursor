@@ -28,6 +28,11 @@ function TakeRows({
       <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary">
         {COPY.queueTake(take.takeIndex, take.moments.length)}
       </span>
+      {take.waitingForText ? (
+        <span data-testid="coach-queue-waiting-for-text" className="text-[13px] text-muted-foreground">
+          {COPY.queueWaitingForText}
+        </span>
+      ) : null}
       {take.moments.map((m, i) => {
         const open = isOpen(m.state);
         return (
