@@ -10,7 +10,7 @@
 /*  until group 4 lifts the switch.                                            */
 /* -------------------------------------------------------------------------- */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CoachQueueOverlay from "./CoachQueueOverlay";
@@ -18,6 +18,8 @@ import CoachStudentsOverlay from "./CoachStudentsOverlay";
 import CoachWalkOverlay from "./CoachWalkOverlay";
 import { COACH_STUDENTS_ENABLED } from "@/lib/willab/coachStudents";
 import { useMomentsQueue } from "./useMomentsQueue";
+import { CoachAuditSheet, CoachBlockPickSheet } from "./CoachBlindSheet";
+import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
 import { speakersWaiting, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
@@ -48,7 +50,20 @@ export default function CoachWalkEntry({
   const [queueOpen, setQueueOpen] = useState(false);
   const [studentsOpen, setStudentsOpen] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
+  const [audit, setAudit] = useState<ErrorAuditQueue | null>(null);
+  const [picks, setPicks] = useState<BlockPickQueue | null>(null);
+  const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | null>(null);
   const waiting = speakersWaiting(queue.speakers);
+
+  // The blind lines (6a, 8) ride the queue's opening; both read null while
+  // the backend is dark, and the queue then draws exactly as before.
+  useEffect(() => {
+    if (!queueOpen) return;
+    let cancelled = false;
+    void fetchErrorAudit().then((next) => { if (!cancelled) setAudit(next); });
+    void fetchBlockPicks().then((next) => { if (!cancelled) setPicks(next); });
+    return () => { cancelled = true; };
+  }, [queueOpen]);
 
   return (
     <>
@@ -93,7 +108,16 @@ export default function CoachWalkEntry({
           loading={queue.loading}
           onClose={() => setQueueOpen(false)}
           onOpenMoment={(speaker, take, snippetId) => setOpen({ speaker, take, snippetId })}
+          blind={{ audit, picks, onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks") }}
         />
+      ) : null}
+      {blindOpen === "audit" && audit ? (
+        <CoachAuditSheet queue={audit} onClose={() => setBlindOpen(null)}
+          onDone={() => { setBlindOpen(null); setAudit(null); }} />
+      ) : null}
+      {blindOpen === "picks" && picks ? (
+        <CoachBlockPickSheet queue={picks} onClose={() => setBlindOpen(null)}
+          onDone={() => { setBlindOpen(null); setPicks(null); }} />
       ) : null}
       {open ? (
         <CoachWalkOverlay

@@ -15,6 +15,42 @@ import { ChevronRight, Check } from "lucide-react";
 import { SheetFrame } from "../ParagraphSheet";
 import { isOpen, stateWord, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
+import type { BlockPickQueue, ErrorAuditQueue } from "@/services/api/coachPanel";
+
+/** The coach's blind lines (6a, 8): drawn only when the backend serves them. */
+export interface BlindLines {
+  audit: ErrorAuditQueue | null;
+  picks: BlockPickQueue | null;
+  onOpenAudit: () => void;
+  onOpenPicks: () => void;
+}
+
+function BlindRow({ title, count, onOpen }: { title: string; count: number; onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen} data-testid="coach-queue-blind"
+      className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-left transition-colors hover:bg-muted">
+      <span className="flex flex-col">
+        <span className="text-[14px] font-semibold text-foreground">{title}</span>
+        <span className="text-[12px] text-muted-foreground">{COPY.queueBlindWaiting(count)}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+    </button>
+  );
+}
+
+function BlindSection({ blind }: { blind: BlindLines }) {
+  const audit = blind.audit && blind.audit.items.length > 0 ? blind.audit : null;
+  const picks = blind.picks && blind.picks.items.length > 0 ? blind.picks : null;
+  if (!audit && !picks) return null;
+  const line = audit?.wording.queue_line ?? picks?.wording.queue_line ?? "";
+  return (
+    <section className="flex flex-col gap-3" data-testid="coach-queue-blind-section">
+      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{line}</span>
+      {audit ? <BlindRow title={audit.wording.title ?? ""} count={audit.items.length} onOpen={blind.onOpenAudit} /> : null}
+      {picks ? <BlindRow title={picks.wording.short_title ?? picks.wording.title ?? ""} count={picks.items.length} onOpen={blind.onOpenPicks} /> : null}
+    </section>
+  );
+}
 
 function TakeRows({
   speaker, take, onOpenMoment,
@@ -67,11 +103,13 @@ export default function CoachQueueOverlay({
   loading,
   onOpenMoment,
   onClose,
+  blind = null,
 }: {
   speakers: QueueSpeaker[];
   loading: boolean;
   onOpenMoment: (speaker: QueueSpeaker, take: QueueTake, snippetId: string) => void;
   onClose: () => void;
+  blind?: BlindLines | null;
 }) {
   return (
     <SheetFrame
@@ -90,6 +128,7 @@ export default function CoachQueueOverlay({
         {speakers.length === 0 && !loading ? (
           <p className="text-[14px] text-muted-foreground">{COPY.queueEmpty}</p>
         ) : null}
+        {blind ? <BlindSection blind={blind} /> : null}
         {speakers.map((speaker, i) => (
           <section key={`${speaker.pseudonym}:${i}`} className="flex flex-col gap-3">
             {i > 0 ? (

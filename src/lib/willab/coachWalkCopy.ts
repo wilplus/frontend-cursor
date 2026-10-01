@@ -186,4 +186,21 @@ export const COACH_WALK_COPY = {
   patternNeeded: "Pick one pattern.",
   lanePassage: "From the library’s own exercises for this pattern",
   laneEyebrowDrafted: "Drafted from the library · edit every word",
+
+  /* Phase 1b · the coach's exercise preference (founder 2026-10-01, B1 approved exactly) */
+  prefServed: "Served to the speaker",
+  prefTreats: (treats: string[]) => `Treats: ${treats.join(", ")}`,
+  prefKeep: "Keep it",
+  prefSwap: "Swap it",
+  prefNew: "Make a new one",
+  prefSwapHint: "Swap it · these all fit this moment · shown in random order",
+  prefChoose: "Choose",
+  prefChosen: "Chosen",
+  prefServedTag: "served",
+  prefUseThisOne: "Use this one",
+  prefNotHere: "Not here? Make a new one from the library.",
+
+  /* The blind lines in the queue (6a, 8): the titles and "Also waiting · blind"
+     come from the backend's wording; this count is PROPOSED, for sign-off. */
+  queueBlindWaiting: (n: number) => `${n} waiting`,
 } as const;
