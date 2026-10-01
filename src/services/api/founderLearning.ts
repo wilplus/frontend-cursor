@@ -19,6 +19,10 @@ import type { ConfidenceRatingValue } from "./stateRatings";
 
 export type FounderResult<T> = { ok: true; value: T } | { ok: false; code: string; status: number };
 
+/** The pair surfaces' one question takes three answers (ML-10). */
+export const PAIR_JUDGEMENTS = ["yes", "no", "not_sure"] as const;
+export type PairJudgement = (typeof PAIR_JUDGEMENTS)[number];
+
 async function readJson(response: Response): Promise<Record<string, unknown>> {
   try {
     const value = (await response.json()) as unknown;
@@ -61,15 +65,23 @@ export interface WeeklyRun {
 
 export interface GoldenCounts {
   surface: string;
+  /** "clip" judges a recording with the coach's instrument; "pair" judges
+   *  the coach's final text for a passage (ML-10). */
+  kind: "clip" | "pair";
   count: number;
   setSize: number;
   sealed: { count: number; sha256: string; sealed_at: string } | null;
+  /** False when erasure took a moment out of a sealed set: the founder
+   *  judges a replacement and re-seals. */
+  sealedIntact: boolean | null;
 }
 
 export interface GoldenMoment {
   snippetId: string;
   takeSessionId: string | null;
   passage: string;
+  /** The coach's final for a pair surface; null for a clip. */
+  final: string | null;
   audioUrl: string | null;
   startOffsetMs: number;
   durationMs: number;
@@ -81,11 +93,13 @@ export function mapGoldenCounts(raw: unknown): GoldenCounts | null {
   const sealed = r.sealed && typeof r.sealed === "object" ? (r.sealed as Record<string, unknown>) : null;
   return {
     surface: String(r.surface ?? ""),
+    kind: r.kind === "pair" ? "pair" : "clip",
     count: typeof r.count === "number" ? r.count : 0,
     setSize: typeof r.set_size === "number" ? r.set_size : 50,
     sealed: sealed
       ? { count: Number(sealed.count ?? 0), sha256: String(sealed.sha256 ?? ""), sealed_at: String(sealed.sealed_at ?? "") }
       : null,
+    sealedIntact: typeof r.sealed_intact === "boolean" ? r.sealed_intact : null,
   };
 }
 
@@ -97,6 +111,7 @@ export function mapGoldenMoment(raw: unknown): GoldenMoment | null {
     snippetId: r.snippet_id,
     takeSessionId: typeof r.take_session_id === "string" ? r.take_session_id : null,
     passage: typeof r.passage === "string" ? r.passage : "",
+    final: typeof r.final === "string" && r.final ? r.final : null,
     audioUrl: typeof r.audio_url === "string" ? r.audio_url : null,
     startOffsetMs: typeof r.start_offset_ms === "number" ? r.start_offset_ms : 0,
     durationMs: typeof r.duration_ms === "number" ? r.duration_ms : 0,
@@ -131,7 +146,7 @@ export const founderLearning = {
   golden: () => call("/api/v2/research/golden", { method: "GET" }, mapSets),
   nextMoment: (surface: string) =>
     call(`/api/v2/research/golden/${encodeURIComponent(surface)}/next`, { method: "GET" }, (b) => mapGoldenMoment(b.moment)),
-  judge: (surface: string, body: { snippet_id: string; take_session_id: string | null; value: ConfidenceRatingValue }) =>
+  judge: (surface: string, body: { snippet_id: string; take_session_id: string | null; value: ConfidenceRatingValue | PairJudgement }) =>
     call(`/api/v2/research/golden/${encodeURIComponent(surface)}/judgements`, { method: "POST", ...json(body) }, (b) =>
       mapGoldenCounts(b.judged)),
   seal: (surface: string) =>

@@ -3,7 +3,8 @@
 /* -------------------------------------------------------------------------- */
 /*  The research screen (founder 2026-09-30, L4 to L9; ML-7): datasets per    */
 /*  surface, the label quorum, exclusions, exports, evaluations, promotions,  */
-/*  drift, monitors and the golden set. Every panel whose door is closed     */
+/*  training runs, drift, monitors and the golden set (pair surfaces judged  */
+/*  on their own instrument, ML-10). Every panel whose door is closed        */
 /*  says so in words rather than showing a zero that reads as a measurement. */
 /*  Read-only for the research role; the golden judging is the founder's.    */
 /* -------------------------------------------------------------------------- */
@@ -61,6 +62,71 @@ function Labels({ labels }: { labels: Raw }) {
       <div><dt className="text-[11px] text-muted-foreground">two-human agreement</dt><dd className="text-sm font-semibold tabular-nums">{agreement}</dd></div>
       <div><dt className="text-[11px] text-muted-foreground">Cohen&rsquo;s κ</dt><dd className="text-sm font-semibold tabular-nums">{kappa ?? `— (from ${n(labels.kappa_from)} labels)`}</dd></div>
     </dl>
+  );
+}
+
+function Evaluations({ rows }: { rows: Raw[] }) {
+  if (rows.length === 0) return null;
+  const pct = (v: unknown) => (typeof v === "number" ? `${Math.round(v * 100)}%` : "—");
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Surface</th>
+            <th className="px-3 py-2 font-medium">Candidate</th>
+            <th className="px-3 py-2 font-medium">Candidate · baseline</th>
+            <th className="px-3 py-2 font-medium">Reproduces withdrawn text</th>
+            <th className="px-3 py-2 font-medium">Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border">
+              <td className="px-3 py-2">{str(r.surface) ?? "—"}</td>
+              <td className="px-3 py-2 font-mono text-[11px]">{str(r.candidate_model) ?? "—"}</td>
+              <td className="px-3 py-2 tabular-nums">{pct(r.candidate_mean_f1)} · {pct(r.baseline_mean_f1)}</td>
+              <td className="px-3 py-2">{r.regurgitation_ok === false ? "yes" : r.regurgitation_ok === true ? "no" : "—"}</td>
+              <td className="px-3 py-2">{r.passed === true ? "passed" : r.passed === false ? "not passed" : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TrainingRuns({ rows }: { rows: Raw[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <ul className="grid gap-1 text-sm">
+      {rows.map((r, i) => (
+        <li key={i} className="flex flex-wrap justify-between gap-2 border-t border-border py-1.5 first:border-t-0">
+          <span>{str(r.surface) ?? "—"} · {str(r.started_at)?.slice(0, 10) ?? "—"}</span>
+          <span className="text-muted-foreground">
+            {str(r.status) ?? "—"} · {n(r.item_count)} pairs
+            {str(r.withdrawn_at) ? " · an owner withdrew" : ""}
+            {str(r.files_deleted_at) ? " · files deleted" : ""}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PromotionHistory({ rows }: { rows: Raw[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <ul className="grid gap-1 text-sm">
+      {rows.map((r, i) => (
+        <li key={i} className="flex flex-wrap justify-between gap-2 border-t border-border py-1.5">
+          <span>{str(r.surface) ?? "—"} · {str(r.promoted_at)?.slice(0, 10) ?? "—"} · {str(r.promoted_by) ?? "—"}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">
+            {str(r.candidate_model) ?? "—"}{str(r.killed_at) ? ` · killed: ${str(r.kill_reason) ?? ""}` : ""}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -163,9 +229,15 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
             <ul className="text-sm">{runs.map((run, i) => <li key={i} className="flex flex-wrap justify-between gap-2"><span>{str(run.started_at)?.slice(0, 10) ?? "—"} · {str(run.status) ?? "—"}</span><span className="tabular-nums">{n(run.exported_count)}</span></li>)}</ul>
           ) : null}
         </Panel>
-        <Panel title="Evaluations" note={str(obj(view.evaluations).note)} />
-        <Panel title="Promotions" note="What each contract surface serves today; a history table comes with door 4.">
+        <Panel title="Evaluations" note={str(obj(view.evaluations).note)}>
+          <Evaluations rows={arr(obj(view.evaluations).reports)} />
+        </Panel>
+        <Panel title="Training runs" note={str(obj(view.training).note)}>
+          <TrainingRuns rows={arr(obj(view.training).runs)} />
+        </Panel>
+        <Panel title="Promotions" note="What each contract surface serves today, then the history door 4 writes.">
           <Promotions rows={arr(view.promotions)} />
+          <PromotionHistory rows={arr(view.promotion_history)} />
         </Panel>
         <Panel title="Drift" note={str(obj(view.drift).note)} />
         <Panel title="Monitors" note={str(obj(view.monitors).note)} />

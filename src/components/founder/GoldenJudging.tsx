@@ -10,9 +10,51 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CoachJudgeInstrument from "@/components/willab/coachwalk/CoachJudgeInstrument";
-import { founderLearning, type GoldenCounts, type GoldenMoment } from "@/services/api/founderLearning";
+import { founderLearning, PAIR_JUDGEMENTS, type GoldenCounts, type GoldenMoment, type PairJudgement } from "@/services/api/founderLearning";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { Meter } from "./FounderFrame";
+
+/* The founder's screen, not a speaker's: these words are the founder's own
+ * instrument for the pair surfaces (ML-10) and reach nobody else. */
+const PAIR_COPY = {
+  question: "Is this the right answer for this passage?",
+  passage: "The passage, as spoken",
+  final: "The coach's answer",
+  answers: { yes: "Yes", no: "No", not_sure: "Not sure" } as Record<PairJudgement, string>,
+  exhausted: "No unjudged pair with a passage is left for this surface.",
+  changed: "Erasure removed a moment from the sealed set. Judge a replacement and seal again.",
+} as const;
+
+function PairInstrument({ moment, saving, onPick }: { moment: GoldenMoment; saving: boolean; onPick: (value: PairJudgement) => void }) {
+  return (
+    <div className="grid gap-3">
+      <div>
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{PAIR_COPY.passage}</div>
+        <p className="mt-1 text-sm leading-relaxed">{moment.passage}</p>
+      </div>
+      <div className="rounded-xl bg-muted p-3">
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{PAIR_COPY.final}</div>
+        <p className="mt-1 text-sm leading-relaxed">{moment.final}</p>
+      </div>
+      <div role="group" aria-label={PAIR_COPY.question}>
+        <p className="text-sm font-medium">{PAIR_COPY.question}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {PAIR_JUDGEMENTS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              disabled={saving}
+              onClick={() => onPick(value)}
+              className="rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            >
+              {PAIR_COPY.answers[value]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function GoldenJudging({ surface, counts, onChange }: { surface: string; counts: GoldenCounts; onChange: () => void }) {
   const [open, setOpen] = useState(false);
@@ -34,7 +76,7 @@ export default function GoldenJudging({ surface, counts, onChange }: { surface: 
     if (open && moment === null) void next();
   }, [open, moment, next]);
 
-  async function pick(value: ConfidenceRatingValue) {
+  async function pick(value: ConfidenceRatingValue | PairJudgement) {
     if (!moment || moment === "exhausted") return;
     setSaving(true);
     setError(null);
@@ -56,7 +98,7 @@ export default function GoldenJudging({ surface, counts, onChange }: { surface: 
     onChange();
   }
 
-  const done = counts.sealed !== null;
+  const done = counts.sealed !== null && counts.sealedIntact !== false;
   return (
     <div className="rounded-xl border border-border p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -90,13 +132,16 @@ export default function GoldenJudging({ surface, counts, onChange }: { surface: 
           </button>
         </div>
       )}
+      {counts.sealedIntact === false ? <p className="mt-2 text-sm text-muted-foreground">{PAIR_COPY.changed}</p> : null}
       {error ? <p className="mt-2 text-sm text-muted-foreground">{error}</p> : null}
       {open && !done ? (
         <div className="mt-4 border-t border-border pt-4">
           {moment === "exhausted" ? (
-            <p className="text-sm text-muted-foreground">No unjudged moment is left in the coach-labelled pool.</p>
+            <p className="text-sm text-muted-foreground">{counts.kind === "pair" ? PAIR_COPY.exhausted : "No unjudged moment is left in the coach-labelled pool."}</p>
           ) : moment === null ? (
             <p className="text-sm text-muted-foreground">Reading the next moment…</p>
+          ) : counts.kind === "pair" && moment.final ? (
+            <PairInstrument moment={moment} saving={saving} onPick={(value) => void pick(value)} />
           ) : (
             <div className="grid gap-3">
               <CoachJudgeInstrument
