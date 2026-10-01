@@ -1,5 +1,11 @@
 # Coach review flow — judgement first, one action per screen
 
+> **Retired 2026-10-01.** The take-review overlay, its per-snippet card, the
+> wrap-up page and the arc-level delivery this flow describes were removed
+> on the founder's "do P2-19 now" (founder lock 2026-09-30, B3 to B6;
+> contract 65). The coach's walk (`src/components/willab/coachwalk/`,
+> contract 35g-5) and the Take word (35g-6) replaced them. Kept as history.
+
 **Status:** founder-specified 2026-09-18. Every fork below was decided explicitly;
 where this spec reverses an earlier call, it says so.
 

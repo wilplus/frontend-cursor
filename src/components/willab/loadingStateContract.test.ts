@@ -85,11 +85,8 @@ describe("the app-wide loading contract", () => {
       "src/app/audits/page.client.tsx",
       "src/app/coach/corpus/page.client.tsx",
       "src/components/willab/RaterLanguageGate.tsx",
-      "src/components/willab/CoachReviewOverlay.tsx",
       "src/components/willab/ConfidencePracticeOverlay.tsx",
       "src/components/willab/LibraryOverlay.tsx",
-      "src/components/willab/StudentDetailOverlay.tsx",
-      "src/components/willab/StudentRosterOverlay.tsx",
       "src/components/willab/SendGate.tsx",
     ];
     for (const surface of blockingSurfaces) {

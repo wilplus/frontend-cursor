@@ -27,18 +27,10 @@ export default function ChatPage({
   // session. For now we forward both so existing email links keep
   // working until backend stops emitting them.
   const sessionId = firstQueryValue(searchParams.session);
-  // U12 — coach email deep-link: `?review=<id>` opens the in-Lounge
-  // CoachReviewOverlay for that session on mount (the param N1's redirect
-  // preserved). Distinct from `?session=` (user review→roleplay loop); coach-
-  // gated downstream, ignored for non-coaches.
-  const reviewSessionId = firstQueryValue(searchParams.review);
-  // ...and WHERE in that review. The exercise CMS sends the coach back with
-  // this (returnTo), so they resume on the piece they left rather than at the
-  // top of the queue. 1-based, like the CMS's own step segment.
-  const reviewPiece = firstQueryValue(searchParams.piece);
   // D3 — user results email deep-link: `?insight=<id>` opens the in-Lounge
   // InsightsOverlay for that session on mount. User-side (the ResultsReadyEmail
-  // CTA); distinct from the coach `?review=`.
+  // CTA). The coach's `?review=` deep link left with the take-review overlay
+  // (founder 2026-09-30, B3; P2-19).
   const insightSessionId = firstQueryValue(searchParams.insight);
   // C — best-presentation deep-link: `?arc=<arc_id>` opens the in-Lounge
   // BestPresentationOverlay for that arc on mount (the "best presentation ready"
@@ -57,8 +49,6 @@ export default function ChatPage({
     <Suspense fallback={<LoadingState placement="viewport" />}>
       <ChatPageClient
         sessionId={sessionId}
-        reviewSessionId={reviewSessionId}
-        reviewPiece={reviewPiece}
         insightSessionId={insightSessionId}
         bestPresentationArcId={bestPresentationArcId}
         idealTextArcId={idealTextArcId}

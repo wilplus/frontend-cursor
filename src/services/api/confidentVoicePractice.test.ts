@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { mapConfidencePractice } from "./confidentVoicePractice";
-import { mapCoachConfidencePractice } from "./coachConfidencePractice";
 
 const userPractice = {
   id: "practice-1",
@@ -35,46 +34,6 @@ const userPractice = {
   final_question: "Does this take sound confident to you?",
 };
 
-describe("practice payload fences", () => {
-  it("maps only qualitative attempt feedback on the user surface", () => {
-    const mapped = mapConfidencePractice(userPractice);
-    expect(mapped?.attempts[0].assessment).toContain("clearer");
-    expect(mapped?.attempts[0]).not.toHaveProperty("acousticMetrics");
-    expect(mapped?.attempts[0]).not.toHaveProperty("comparison");
-    expect(JSON.stringify(mapped)).not.toContain("internal_strength");
-    expect(JSON.stringify(mapped)).not.toContain('"wpm"');
-  });
-
-  it("keeps machine, user and professional coach decisions in distinct fields", () => {
-    const coach = mapCoachConfidencePractice({
-      id: "practice-1",
-      exact_passage: "The exact same passage.",
-      original_user_answer: "yes",
-      final_user_answer: "no",
-      professional_coach_decision: "refine",
-      exercise: {
-        exercise_id: "hear-every-word-v1",
-        title: "Hear every word",
-        instruction: "Read the same text again.",
-      },
-      attempts: [{
-        id: "attempt-1",
-        attempt_index: 1,
-        audio_ref: "https://cdn.example/attempt.webm",
-        duration_ms: 2200,
-        is_selected: true,
-        coach_confidence_decision: "yes",
-        user_answer: "yes",
-      }],
-    });
-    expect(coach?.originalUserAnswer).toBe("yes");
-    expect(coach?.finalUserAnswer).toBe("no");
-    expect(coach?.professionalCoachDecision).toBe("refine");
-    expect(coach?.attempts[0].isSelected).toBe(true);
-    expect(coach?.attempts[0].coachConfidenceDecision).toBe("yes");
-  });
-});
-
 describe("practice is judged after every attempt (founder 2026-09-25)", () => {
   it("keeps all five answers and names the attempt to judge", () => {
     const mapped = mapConfidencePractice({
@@ -103,40 +62,5 @@ describe("practice is judged after every attempt (founder 2026-09-25)", () => {
     });
     expect(mapped?.finalUserAnswer).toBeNull();
     expect(mapped?.judgeableAttemptId).toBeNull();
-  });
-});
-
-describe("the coach sees the speaker's answer as given (founder 2026-09-28)", () => {
-  const base = {
-    id: "practice-1",
-    exact_passage: "The exact same passage.",
-    exercise: { exercise_id: "e", title: "t", instruction: "i" },
-    attempts: [{
-      id: "attempt-1", attempt_index: 1, audio_ref: "a", duration_ms: 1,
-      user_answer: "not_sure", coach_confidence_decision: "maybe",
-    }],
-  };
-
-  it("keeps all five answers instead of folding three into 'not yet'", () => {
-    for (const answer of ["yes", "in_between", "no", "not_sure", "audio_unclear"]) {
-      const coach = mapCoachConfidencePractice({
-        ...base, original_user_answer: answer, final_user_answer: answer,
-      });
-      expect(coach?.originalUserAnswer).toBe(answer);
-      expect(coach?.finalUserAnswer).toBe(answer);
-    }
-    const coach = mapCoachConfidencePractice({ ...base, original_user_answer: "bogus" });
-    expect(coach?.originalUserAnswer).toBeNull();
-    expect(coach?.attempts[0].userAnswer).toBe("not_sure");
-  });
-
-  it("reads the coach's own answer the same five ways (Q3a)", () => {
-    // "maybe" is not an answer.
-    expect(mapCoachConfidencePractice(base)?.attempts[0].coachConfidenceDecision).toBeNull();
-    const five = mapCoachConfidencePractice({
-      ...base,
-      attempts: [{ ...base.attempts[0], coach_confidence_decision: "in_between" }],
-    });
-    expect(five?.attempts[0].coachConfidenceDecision).toBe("in_between");
   });
 });

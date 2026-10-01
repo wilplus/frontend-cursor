@@ -6,14 +6,9 @@ import Link from "next/link";
 import { Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
-import CoachDoor from "./coachwalk/CoachDoor";
-import { coachModes } from "@/lib/willab/coachWalk";
+import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import {
-  groupReviewQueueByStudent,
-  type ReviewStudentGroup,
-} from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   batchTake,
@@ -59,13 +54,6 @@ import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
-import StudentRosterOverlay from "./StudentRosterOverlay";
-import StudentDetailOverlay from "./StudentDetailOverlay";
-import CoachReviewOverlay from "./CoachReviewOverlay";
-import CoachDeliveryOverlay from "./CoachDeliveryOverlay";
-import { useJudgeWalk } from "./useJudgeWalk";
-import RaterLanguageGate from "./RaterLanguageGate";
-import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import {
   clearExploreArc,
   readExploreArc,
@@ -74,8 +62,6 @@ import {
 import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
-import { useReviewQueue } from "./useReviewQueue";
-import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import LoungeTopUpCard from "./LoungeTopUpCard";
 import ConfidencePracticeOverlay from "./ConfidencePracticeOverlay";
 import {
@@ -127,48 +113,12 @@ import { usePinThreadBottom } from "./usePinThreadBottom";
 
 /** Discriminated union of items rendered in the Lounge thread. Carries the
  *  sort key + react key explicitly so the merge stays type-safe. */
-type ThreadItem =
-  | {
-      kind: "message";
-      sortKey: string;
-      reactKey: string;
-      message: LoungeMessage;
-    }
-  | {
-      kind: "review";
-      sortKey: string;
-      reactKey: string;
-      // FP-4 — one item per student (grouped), not per session.
-      group: ReviewStudentGroup;
-    };
-
-/** ?piece=<n> from the exercise CMS's returnTo. Anything that is not a real
- *  1-based position is simply no resume position. */
-function parseReviewPiece(raw: string | null | undefined): number | null {
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/** The delivery flow's mount, with its own presence check, so the hub renders
- *  it unconditionally. */
-function CoachDeliveryMount({
-  arcId,
-  onPublished,
-  onClose,
-}: {
-  arcId: string | null;
-  onPublished: (sessionIds: string[]) => void;
-  onClose: () => void;
-}) {
-  if (!arcId) return null;
-  return (
-    <CoachDeliveryOverlay
-      arcId={arcId}
-      onPublished={onPublished}
-      onClose={onClose}
-    />
-  );
-}
+type ThreadItem = {
+  kind: "message";
+  sortKey: string;
+  reactKey: string;
+  message: LoungeMessage;
+};
 
 /** Which take's failed note is on screen, if any. Under the Lab the Lab owns
  *  the wait, so no recheck runs there. Pure, so the sheet's own function does
@@ -187,8 +137,6 @@ export default function Lounge({
   onStartNewProject,
   onStartInProject,
   dispatch,
-  initialReviewSessionId = null,
-  initialReviewPiece = null,
   initialBestPresentationArcId = null,
   initialIdealTextArcId = null,
   initialIdealTextFeedback = false,
@@ -204,12 +152,6 @@ export default function Lounge({
   onStartInProject?: () => void;
   /** What happened; useWillabFlow's table decides the state. */
   dispatch: (event: WillabEvent) => void;
-  /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
-   *  that session once on mount. Coach-gated; ignored for non-coaches. */
-  initialReviewSessionId?: string | null;
-  /** U12b — 1-based piece to resume the judgement queue on, from
-   *  /chat?review=<id>&piece=<n>. The exercise CMS returns the coach this way. */
-  initialReviewPiece?: string | null;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
    *  for that arc once on mount. */
   initialBestPresentationArcId?: string | null;
@@ -265,7 +207,6 @@ export default function Lounge({
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
   // E3 — coach-only student roster overlay.
-  const [rosterOpen, setRosterOpen] = useState(false);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -284,61 +225,10 @@ export default function Lounge({
   // tampered FE flag wouldn't get past the upstream wall). Non-coach users
   // see exactly the same Lounge as today.
   const { isCoach } = useUserProfile();
-  // The coach's walk (founder 2026-09-30; on since group 4): one queue of
-  // moments instead of the per-student bubbles and the roster.
-  const { walkOn, legacyCoach } = coachModes(isCoach);
-  const reviewQueue = useReviewQueue(legacyCoach);
-  // §F.2 — overlay sessionId. null = closed. Setting to a sessionId mounts
-  // the CoachReviewOverlay over the Lounge; closing it returns to the chat
-  // thread underneath with no remount of the queue.
-  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
-  // FP-9 — the student's one door leads with judgement: take by take, then
-  // straight to the arc's delivery. The Feedbacks review that used to sit
-  // between them is retired (founder 2026-09-30, B1; contract 63).
-  const judge = useJudgeWalk({
-    onOpenTake: setReviewSessionId,
-    onComplete: (arcId) => {
-      setReviewSessionId(null);
-      void reviewQueue.refresh();
-      setDeliveryArcId(arcId);
-    },
-  });
-  // FP-9 — the arc-level delivery flow (wrap up → ideal text → message → send).
-  const [deliveryArcId, setDeliveryArcId] = useState<string | null>(null);
-  // Bumped after a delivery so StudentDetailOverlay refetches: the coach lands
-  // back on the student expecting the take to read Done, and the detail is a
-  // separate read from the queue.
-  const [detailNonce, setDetailNonce] = useState(0);
-  // FP-4 — a student-grouped review bubble opens either the full
-  // StudentDetailOverlay (when the group carries a user_id) or, pre-BE-4, the
-  // local recordings list built from the group's queue rows.
-  const [studentDetail, setStudentDetail] = useState<{
-    id: string;
-    pseudonym: string;
-  } | null>(null);
-  // Hold only the group KEY, not the group object — the live group is looked up
-  // from reviewGroups each render so the open overlay stays fresh (FP-4 review).
-  const [reviewGroupKey, setReviewGroupKey] = useState<string | null>(null);
-
-  // Interleave the coach's review queue rows with regular Lounge messages so
-  // a "new session ready to label" bubble appears chronologically alongside
-  // the rest of the chat — that's the §3 design ("message in his chat from
-  // that user"). Sort by created_at / sent_at ascending so oldest sits at
-  // the top and newest at the bottom (matching how the existing thread
-  // already reads).
-  // FP-4 — the review queue collapsed to one group per student. Derived from
-  // the LIVE rows so an open ReviewGroupOverlay reflects a just-published take
-  // (its row flips to done → the group's rows update) rather than a frozen
-  // snapshot taken at open time.
-  const reviewGroups = useMemo<ReviewStudentGroup[]>(
-    () => (legacyCoach ? groupReviewQueueByStudent(reviewQueue.rows) : []),
-    [legacyCoach, reviewQueue.rows],
-  );
-  // The live group behind an open ReviewGroupOverlay (null when none open or the
-  // group emptied out). Looked up by key so it tracks row-state changes.
-  const activeReviewGroup = reviewGroupKey
-    ? (reviewGroups.find((g) => g.key === reviewGroupKey) ?? null)
-    : null;
+  // The coach's walk (founder 2026-09-30; on since group 4) is the coach's
+  // one door, under the thread. The per-student bubbles, the roster, the
+  // take-review overlay and the arc-level delivery that once hung off this
+  // hub are gone (founder 2026-09-30, B3 to B6; P2-19).
 
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
@@ -359,65 +249,14 @@ export default function Lounge({
         message: m,
       });
     }
-    if (legacyCoach) {
-      // FP-4 — one item per student, sorted by the group's earliest-waiting
-      // session.
-      for (const group of reviewGroups) {
-        items.push({
-          kind: "review",
-          sortKey: group.earliestSentAt || "",
-          reactKey: `review:${group.key}`,
-          group,
-        });
-      }
-    }
     // SD — the audit-progress line ("N more takes to the full training") is
     // retired with the 3-take arc: takes are open-ended now.
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, legacyCoach, reviewGroups]);
+  }, [messages]);
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
-
-  // §F.2 — open the review overlay over the Lounge. No navigation: the chat
-  // thread stays mounted beneath the overlay so closing returns the coach
-  // to the same scroll position, same queue, same chat history. The
-  // overlay refetches via useCoachReview on its own.
-  function openReview(sessionId: string): void {
-    setReviewSessionId(sessionId);
-  }
-
-  function closeReview(): void {
-    judge.stop();
-    setReviewSessionId(null);
-    // Refresh the queue so the bubble's state badge (pending → in_progress)
-    // reflects any per-snippet saves the coach made inside the overlay.
-    void reviewQueue.refresh();
-  }
-
-  // FP-4 — a per-student review bubble opens that student's recordings list.
-  // With a user_id (BE-4) → the full StudentDetailOverlay (goal, ideal-ready
-  // cues, whole history). Without one, a lone session opens its review directly
-  // (no regression), and a multi-session group opens the local list built from
-  // the queue rows. Either way each recording still opens CoachReviewOverlay.
-  function openReviewGroup(group: ReviewStudentGroup): void {
-    // T4 — an annotation upload is never a student: open its own session
-    // directly, NEVER a per-student roster detail (its user_id, if any, must not
-    // route here). Grouping already nulls the id; this guard makes the
-    // destination explicit and stays correct even if a group ever backfills one.
-    if (group.annotationMode) {
-      if (group.rows[0]) openReview(group.rows[0].sessionId);
-      return;
-    }
-    if (group.userId) {
-      setStudentDetail({ id: group.userId, pseudonym: group.pseudonym });
-    } else if (group.rows.length === 1) {
-      openReview(group.rows[0].sessionId);
-    } else {
-      setReviewGroupKey(group.key);
-    }
-  }
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
   // that the top banner is gone: open the overlay, and if we were in the unread
@@ -486,19 +325,6 @@ export default function Lounge({
     );
     (onStartInProject ?? onStart)();
   }
-
-  // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
-  // that session once on mount. Coach-gated (isCoach is the render gate; the BE
-  // role-gates the endpoint regardless). Fire-once so closing it doesn't
-  // immediately reopen; isCoach can resolve async, so the effect re-runs when it
-  // flips true.
-  const deepLinkOpenedRef = useRef(false);
-  useEffect(() => {
-    if (deepLinkOpenedRef.current || !isCoach || !initialReviewSessionId)
-      return;
-    deepLinkOpenedRef.current = true;
-    setReviewSessionId(initialReviewSessionId);
-  }, [isCoach, initialReviewSessionId]);
 
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
   // overlay for that session once on mount. Not coach-gated (InsightsOverlay
@@ -1405,38 +1231,30 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStart} />
         ) : (
-          threadItems.map((item, i) =>
-            item.kind === "message" ? (
-              <Bubble
-                key={item.reactKey}
-                message={item.message}
-                onOpenBestPresentation={(arcId) =>
-                  setBestPresentationArcId(arcId)
-                }
-                onOpenTranscripts={() => setLibraryOpen(true)}
-                onOpenFeedback={setFeedbackTarget}
-                onOpenIdealText={openIdealText}
-                latestForArc={latestIdealIds.has(item.message.client_id)}
-                onRetryIdealText={retryIdealTextFromCard}
-                onOpenConfidencePractice={setConfidencePracticeId}
-                onContinueProject={continueJourneyProject}
-                onChip={onChip}
-                activeOffer={activeOffer}
-                onOpenOffer={setActiveOffer}
-                animate={
-                  i === threadItems.length - 1 &&
-                  baselineRef.current !== null &&
-                  !baselineRef.current.has(item.message.client_id)
-                }
-              />
-            ) : (
-              <CoachReviewGroupBubble
-                key={item.reactKey}
-                group={item.group}
-                onOpen={openReviewGroup}
-              />
-            ),
-          )
+          threadItems.map((item, i) => (
+            <Bubble
+              key={item.reactKey}
+              message={item.message}
+              onOpenBestPresentation={(arcId) =>
+                setBestPresentationArcId(arcId)
+              }
+              onOpenTranscripts={() => setLibraryOpen(true)}
+              onOpenFeedback={setFeedbackTarget}
+              onOpenIdealText={openIdealText}
+              latestForArc={latestIdealIds.has(item.message.client_id)}
+              onRetryIdealText={retryIdealTextFromCard}
+              onOpenConfidencePractice={setConfidencePracticeId}
+              onContinueProject={continueJourneyProject}
+              onChip={onChip}
+              activeOffer={activeOffer}
+              onOpenOffer={setActiveOffer}
+              animate={
+                i === threadItems.length - 1 &&
+                baselineRef.current !== null &&
+                !baselineRef.current.has(item.message.client_id)
+              }
+            />
+          ))
         )}
 
         {/* Out of tokens — the paid plans as tappable chips, one tap to
@@ -1450,14 +1268,9 @@ export default function Lounge({
         {botThinking && <TypingDots />}
       </div>
 
-      {/* E3 — coach-only entry to the student roster (pseudonymized). Coaches
-          can still record, so this sits above the record CTA, not instead of it. */}
-      {isCoach && (
-        <CoachDoor
-          walkOn={walkOn}
-          onOpenRoster={() => setRosterOpen(true)}
-        />
-      )}
+      {/* The coach's one door (founder 2026-09-30, A1): the walk. Coaches can
+          still record, so this sits above the record CTA, not instead of it. */}
+      {isCoach && <CoachWalkEntry />}
 
       {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
           locked phone) keeps finishing server-side — this chip resumes a calm
@@ -1761,81 +1574,6 @@ export default function Lounge({
           }}
         />
       )}
-      {rosterOpen && (
-        <StudentRosterOverlay
-          onClose={() => setRosterOpen(false)}
-          onOpenReview={openReview}
-          // Same one door as the detail overlay below: judgement first (the
-          // roster renders its own detail and passes this straight through).
-          onOpenJudge={judge.start}
-        />
-      )}
-      {/* FP-4 — per-student drill-down opened from a grouped review bubble.
-          Mounted BEFORE the review overlay so a review opened from here stacks
-          on top (equal z-index → DOM order wins). */}
-      {studentDetail && (
-        <StudentDetailOverlay
-          key={`${studentDetail.id}:${detailNonce}`}
-          userId={studentDetail.id}
-          fallbackPseudonym={studentDetail.pseudonym}
-          onClose={() => {
-            setStudentDetail(null);
-            void reviewQueue.refresh();
-          }}
-          onOpenReview={openReview}
-          // The one door leads with judgement.
-          onOpenJudge={judge.start}
-        />
-      )}
-      {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
-          user_id. Uses the LIVE group (looked up by key) so a take published
-          from the stacked review overlay flips to Delivered here on return. */}
-      {activeReviewGroup && (
-        <ReviewGroupOverlay
-          group={activeReviewGroup}
-          onClose={() => {
-            setReviewGroupKey(null);
-            void reviewQueue.refresh();
-          }}
-          onOpenReview={openReview}
-        />
-      )}
-      <CoachDeliveryMount
-        arcId={deliveryArcId}
-        onPublished={(sessionIds) => {
-          // ONE delivery covers the whole arc, so every take goes done —
-          // markDone takes a single session, and marking only one would land
-          // the coach on a student that reads Done for take 1 and pending for
-          // take 2.
-          sessionIds.forEach((id) => reviewQueue.markDone(id));
-          setDetailNonce((n) => n + 1);
-        }}
-        onClose={() => {
-          setDeliveryArcId(null);
-          void reviewQueue.refresh();
-        }}
-      />
-
-      {reviewSessionId && (
-        <RaterLanguageGate onClose={closeReview}>
-          {/* The take review is per-recording work only now: judging, notes,
-              surfacing, re-cut. Delivery — the ideal text, the message and the
-              publish — is CoachDeliveryOverlay, reached from the Feedbacks
-              review, because the student receives ONE analysis per arc. */}
-          <CoachReviewOverlay
-            // Keyed by session: walking take 1 → take 2 swaps the id in place,
-            // and without a remount the queue keeps take 1's cursor — opening
-            // take 2 past its own last piece, with no forward control at all.
-            key={reviewSessionId}
-            sessionId={reviewSessionId}
-            onClose={closeReview}
-            initialPiece={parseReviewPiece(initialReviewPiece)}
-            completeLabel={judge.completeLabel}
-            onQueueComplete={judge.onQueueComplete}
-          />
-        </RaterLanguageGate>
-      )}
-
       {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
           panel lives here). Mounted AFTER every overlay that opens into it
           (roster / student detail / review wrap-up all call

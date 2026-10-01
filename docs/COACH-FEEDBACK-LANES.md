@@ -1,5 +1,13 @@
 # The two coach feedback lanes
 
+> **Partly retired 2026-10-01.** The host, card, hook and publish client this
+> document names for the review lane (`CoachReviewOverlay`,
+> `CoachSnippetReviewCard`, `useCoachReview`, `publishWillabSession`) were
+> removed with the arc-level delivery on the founder's "do P2-19 now"
+> (founder lock 2026-09-30, B3 to B6; contract 65). The blind rating lane's
+> rule stands: the walk's Judge screen writes the one instrument through
+> `stateRatings.ts`, and nothing else rides on it.
+
 There are two channels through which a coach gives feedback. They look similar
 on screen and they now share their chrome, but they are **separate surfaces on
 purpose** and merging them is a fence breach, not a refactor.

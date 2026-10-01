@@ -6,7 +6,6 @@
   "src/components/auth/UpdatePasswordForm.tsx:Async arrow function#1": 33,
   "src/components/ceo/CeoIntelligence.tsx:Function 'CeoIntelligence'": 26,
   "src/components/life/PanelUpload.tsx:Function 'PanelUpload'": 30,
-  "src/components/willab/CoachConfidencePracticeReview.tsx:Function 'CoachConfidencePracticeReview'": 30,
   "src/components/willab/ConfidentMomentExercisePanel.tsx:Function 'ConfidentMomentExercisePanel'": 35,
   "src/components/willab/DeckChunkModal.tsx:Function 'DeckChunkModal'": 37,
   "src/components/willab/IdealTextOverlay.tsx:Function 'IdealTextOverlay'": 43,

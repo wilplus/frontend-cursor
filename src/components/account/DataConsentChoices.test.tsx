@@ -29,7 +29,6 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => {
 import DataConsentChoices from "./DataConsentChoices";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import { mapConsentChoices, type ConsentChoices } from "@/services/api/consentChoices";
-import { SpeakerPracticeOffNote } from "@/components/willab/coachMomentErrors";
 
 const SRC = join(process.cwd(), "src");
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
@@ -181,34 +180,6 @@ describe("around the page", () => {
     const route = read("app/api/v2/processing-authorization/[[...path]]/route.ts");
     expect(route).toContain('choices: ["GET", "POST"]');
     expect(route).not.toContain("data-rights: [");
-  });
-
-  it("the coach is told when the speaker has practice off, and only then", () => {
-    act(() => root.render(createElement(SpeakerPracticeOffNote, { enabled: true, speakerOff: true })));
-    expect(container.textContent).toBe(COPY.coachSpeakerOff);
-    act(() => root.render(createElement(SpeakerPracticeOffNote, { enabled: true, speakerOff: false })));
-    expect(container.textContent).toBe("");
-    act(() => root.render(createElement(SpeakerPracticeOffNote, { enabled: false, speakerOff: true })));
-    expect(container.textContent).toBe("");
-  });
-
-  it("the coach fetch reports a speaker with practice off", async () => {
-    const actual = await vi.importActual<typeof import("@/services/api/coachConfidencePractice")>(
-      "@/services/api/coachConfidencePractice",
-    );
-    const onSpeakerOff = vi.fn();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: () => Promise.resolve({ code: "SPEAKER_PRACTICE_OFF" }),
-    }));
-    try {
-      const out = await actual.fetchCoachConfidencePractice("s", "sn", { onSpeakerOff });
-      expect(out).toBeNull();
-      expect(onSpeakerOff).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 
   it("the record screen says why recording is off", () => {

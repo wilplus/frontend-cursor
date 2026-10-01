@@ -173,10 +173,4 @@ describe("the doors", () => {
     expect(client).not.toContain("useSearchParams");
   });
 
-  it("the review hands off to the coach lane, not the CMS", () => {
-    const review = readFileSync("src/components/willab/CoachReviewOverlay.tsx", "utf8");
-    expect(review).toContain("/coach/exercises?new=1&returnTo=");
-    const panel = readFileSync("src/components/willab/CoachExerciseRequestPanel.tsx", "utf8");
-    expect(panel).toContain('href="/coach/exercises?new=1"');
-  });
 });

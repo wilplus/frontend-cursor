@@ -26,7 +26,6 @@ import {
 const SRC = join(fileURLToPath(new URL("../../", import.meta.url)));
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 
-const CARD = join("components", "willab", "CoachSnippetReviewCard.tsx");
 const READOUT = join(
   "components",
   "willab",
@@ -44,10 +43,6 @@ function code(rel: string): string {
 }
 
 describe("the blind labeling surface shows no machine read", () => {
-  it("the labeler card never passes an acoustic read down", () => {
-    expect(code(CARD)).not.toMatch(/acousticRead|features=\{/);
-  });
-
   it("the readout block cannot ACCEPT a machine read at all", () => {
     // Props gone, not merely unused: an optional prop is a door back in.
     const src = code(READOUT);
@@ -60,102 +55,6 @@ describe("the blind labeling surface shows no machine read", () => {
     const src = code(READOUT);
     expect(src).not.toContain("Potentiometer");
     expect(src).not.toContain("potentiometer");
-  });
-
-  it("the labeler card renders the question it is asking", () => {
-    // Without the question on screen the fixed answer space is unanchored:
-    // "Yes" to what? The state carries the question, never the answer labels.
-    expect(code(CARD)).toContain("CONFIDENCE_QUESTION");
-  });
-
-  /** The blind tree moved out of the card's own body into renderBlindPiece
-   *  (2026-09-18, to keep the card under the complexity ratchet). The fence is
-   *  unchanged, so it follows the markup rather than relaxing: the gate must
-   *  still RETURN before any contextual control is constructed, and the thing
-   *  it returns must still be blind. */
-  const blindPieceBody = () => {
-    const src = code(CARD);
-    const start = src.indexOf("function renderBlindPiece(");
-    expect(start).toBeGreaterThan(-1);
-    return src.slice(start, src.indexOf("\nexport default function", start));
-  };
-
-  it("returns a blind-only tree before constructing contextual controls", () => {
-    const src = code(CARD);
-    const gateStart = src.indexOf("if (!contextUnlocked)");
-    const fullPassStart = src.indexOf("const rated =", gateStart);
-    expect(gateStart).toBeGreaterThan(-1);
-    expect(fullPassStart).toBeGreaterThan(gateStart);
-    // Nothing contextual between the gate and the early return.
-    const gate = src.slice(gateStart, fullPassStart);
-    expect(gate).toContain("return renderBlindPiece(");
-
-    const blindPass = gate + blindPieceBody();
-    expect(blindPass).toContain("ConfidenceEvidenceReadout");
-    expect(blindPass).toContain("instrument");
-    /* THE SLIDE LEFT THIS LIST ON 2026-09-24, and it is the only thing that
-       ever has. A founder override, taken after being shown the fence and the
-       compliant alternative: "I want as a coach to see the slide at the top;
-       to know on which slide they are talking about." Only the founder can
-       move this fence, which is why the list shrinks by exactly one name and
-       says so rather than the assertion quietly being dropped.
-
-       The fence is not relaxed anywhere else. Everything below still says
-       something ABOUT the speaker or belongs to the coach's own authoring, and
-       none of it may be constructed before the answer. What pays for the
-       slide is server-side: the rating write stamps `saw_slide`, so a
-       voice-only label and a voice-plus-slide label stay distinguishable in
-       the corpus. */
-    for (const contextual of [
-      "SnippetSlideCorrection",
-      "CoachConfidencePracticeReview",
-      "Coach note",
-      "toggleSurfaced",
-    ]) {
-      expect(blindPass).not.toContain(contextual);
-    }
-  });
-
-  it("reads the speaker's answer from the server-gated field", () => {
-    /* Founder 2026-09-24: "what the user judged AFTER I judge it." The gate
-       is the server's — `owner_answer` arrives empty until this coach has
-       committed, exactly as the transcript does — so the fence here is that
-       the blind tree reads THAT field and never reaches for an ungated one.
-       A component that hid it with CSS would put the speaker's answer in the
-       network payload of a coach who has not answered yet. */
-    const blindPass = blindPieceBody();
-    expect(blindPass).toContain("snippet.ownerAnswer");
-    expect(blindPass).not.toContain("coachState.ratingValue");
-  });
-
-  it("shows the bookmark as a bare word, never as its tier", () => {
-    /* Founder 2026-09-24: "a small label on the snippet saying that this is
-       the bookmarked; without stating that it's confident or not." The tier
-       behind a bookmark IS the machine's read — green for the Take's most
-       confident, orange for the rest — so the word may cross and the tier may
-       not. This pins that the blind tree learned only the boolean. */
-    const blindPass = blindPieceBody();
-    expect(blindPass).toContain("snippet.bookmarked");
-    for (const tell of [
-      "most_confident",
-      "bookmarkTier",
-      "exercise\"",
-      "text-success",
-      "bg-primary",
-    ]) {
-      expect(blindPass).not.toContain(tell);
-    }
-  });
-
-  it("withholds exact words until the server confirms the answer", () => {
-    const card = code(CARD);
-    const blindPass = blindPieceBody();
-    expect(blindPass).toContain("transcript={revealedTranscript}");
-    expect(blindPass).not.toContain("transcript={snippet.transcript}");
-    expect(card).toContain("setRevealedTranscript(result.transcript");
-
-    const readout = code(READOUT);
-    expect(readout).toContain("transcriptRevealed && transcript");
   });
 
   it("uses the same saved-answer transcript gate in the corpus", () => {
@@ -175,11 +74,10 @@ describe("the blind labeling surface shows no machine read", () => {
 
 describe("the F2 direction construct is purged from the FE", () => {
   const FILES = [
-    CARD,
     READOUT,
-    join("components", "willab", "CoachReviewOverlay.tsx"),
+    INSTRUMENT,
+    join("components", "willab", "coachwalk", "CoachJudgeInstrument.tsx"),
     join("services", "api", "coachReview.ts"),
-    join("services", "api", "publishWillabSession.ts"),
   ];
 
   it("no file in the labeling flow still speaks of directions", () => {
@@ -196,25 +94,6 @@ describe("the F2 direction construct is purged from the FE", () => {
       const src = code(rel);
       expect(src, rel).not.toMatch(/"challenge"|"threat"/);
     }
-  });
-});
-
-describe("the card resumes the coach's OWN answer", () => {
-  it("seeds its rating state from the persisted coach state", () => {
-    // The amnesia fix. Without this the card reopened as unanswered, and a
-    // coach either re-rated from scratch — a second, non-independent look at
-    // one clip — or skipped it as already done and left it unrated.
-    const src = code(CARD);
-    expect(src).toContain("seeded.ratingValue");
-    expect(src).toContain("seeded.ratingUnrateable");
-  });
-
-  it("never reads a rating that is not the coach's own", () => {
-    // The BE scopes the read to the authenticated rater. Nothing here may
-    // reach for a panel/other-rater shape — that would anchor the next label
-    // exactly the way a visible machine read would.
-    const src = code(CARD);
-    expect(src).not.toMatch(/otherRat|panelRating|allRatings|raters\b/);
   });
 });
 

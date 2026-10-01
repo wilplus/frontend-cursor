@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 /*                                                                            */
 /*  There are two coach feedback lanes, and they stay separate SURFACES        */
 /*  (N1 / BLIND COACH):                                                        */
-/*    - the BLIND labeler   CoachReviewOverlay → CoachSnippetReviewCard        */
+/*    - the BLIND labeler   the walk's Judge screen (CoachJudgeInstrument)    */
 /*                                                                            */
 /*  Separate surfaces, not separate design languages. Both lanes were drawing  */
 /*  the same pill, badge, eyebrow, error line and card from scratch. The star  */
