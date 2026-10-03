@@ -1,4 +1,9 @@
-import { GUEST_OWNER_HEADER, readGuestOwnerToken } from "./projects";
+import {
+  GUEST_OWNER_HEADER,
+  ensureGuestOwnerToken,
+  forgetMintedOnlyGuestOwnerToken,
+  markGuestOwnerUsed,
+} from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -122,20 +127,33 @@ function policyOf(row: Record<string, unknown>): ProcessingPolicy | null {
   };
 }
 
-function headers(): Record<string, string> {
-  const token = readGuestOwnerToken();
+/** The guest identity every call here carries, minted first for a visitor who
+ *  has none and no account (see ensureGuestOwnerToken). */
+async function headers(): Promise<Record<string, string>> {
+  const token = await ensureGuestOwnerToken();
   return token ? { [GUEST_OWNER_HEADER]: token } : {};
+}
+
+async function readAuthorizationRow(): Promise<Record<string, unknown> | null> {
+  const sent = await headers();
+  const response = await fetch("/api/v2/processing-authorization", {
+    method: "GET",
+    headers: sent,
+    cache: "no-store",
+  });
+  return asRecord(await response.json().catch(() => null));
 }
 
 export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   let row: Record<string, unknown> | null;
   try {
-    const response = await fetch("/api/v2/processing-authorization", {
-      method: "GET",
-      headers: headers(),
-      cache: "no-store",
-    });
-    row = asRecord(await response.json().catch(() => null));
+    row = await readAuthorizationRow();
+    // A refused identity that holds nothing is replaced once. A used one is
+    // kept: the same answer also comes from a failed principal read, and
+    // dropping it would lose the guest's work (forgetMintedOnlyGuestOwnerToken).
+    if (str(row?.code) === "INVALID_GUEST_OWNER" && forgetMintedOnlyGuestOwnerToken()) {
+      row = await readAuthorizationRow();
+    }
   } catch {
     return { kind: "error", message: "The agreement could not be loaded." };
   }
@@ -144,6 +162,9 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   const code = str(row.code) || "PROCESSING_POLICY_INACTIVE";
   const policy = policyOf(row);
   if (!policy) return { kind: "unavailable", code };
+  // The guest's acceptance is on record even when its own response was lost:
+  // the identity now holds something and must be claimed, never dropped.
+  if (row.authorized === true) await markGuestOwnerUsed();
   return row.authorized === true
     ? { kind: "authorized", policy }
     : {
@@ -206,7 +227,7 @@ export async function acceptAuthorization(
   try {
     response = await fetch("/api/v2/processing-authorization", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json", ...(await headers()) },
       body: JSON.stringify(body),
     });
     row = asRecord(await response.json().catch(() => null));
@@ -220,6 +241,7 @@ export async function acceptAuthorization(
   const code = str(row?.code);
   if (code === "PROCESSING_POLICY_STALE") return { kind: "stale" };
   if (response.ok && row?.authorized === true) {
+    await markGuestOwnerUsed();
     return {
       kind: "accepted",
       receiptId: str(row.receipt_id),
@@ -250,7 +272,7 @@ export async function recordAiNoticeRendered(input: {
   try {
     const response = await fetch("/api/v2/processing-authorization/ai-rendered", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json", ...(await headers()) },
       body: JSON.stringify({
         ai_notice_version: input.aiNoticeVersion,
         surface: input.surface,

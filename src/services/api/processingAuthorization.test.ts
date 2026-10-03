@@ -1,4 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Signed in unless a test says otherwise: a session never mints a guest
+// identity, so the wire below is exactly the acceptance contract's own.
+let authToken: string | null = "session-token";
+vi.mock("@/lib/api/auth-client", () => ({
+  getAuthToken: () => Promise.resolve(authToken),
+}));
+
+import { __resetGuestOwnerMemoryForTests } from "./projects";
 import {
   acceptAuthorization,
   fetchAuthorization,
@@ -65,6 +74,8 @@ function stubFetch(handler: (url: string, init?: RequestInit) => unknown) {
 }
 
 beforeEach(() => {
+  authToken = "session-token";
+  __resetGuestOwnerMemoryForTests();
   vi.stubGlobal("localStorage", {
     getItem: () => null,
     setItem: () => undefined,
@@ -323,5 +334,157 @@ describe("the AI notice exposure receipt", () => {
       clientRenderId: "render-1",
       clientVersion: "web-1",
     })).resolves.toBe(false);
+  });
+});
+
+describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
+  // Under PLF1 enforce a visitor with no account and no stored guest token
+  // got "A verified owner is required." on the acceptance read and on project
+  // creation, so they never saw the Terms and never recorded. The client now
+  // mints the guest identity first and carries it on every call.
+  let store: Record<string, string>;
+
+  beforeEach(() => {
+    authToken = null;
+    store = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    });
+  });
+
+  it("mints the guest identity, stores it, then reads the policy with it", async () => {
+    const spy = stubFetch((url) =>
+      url.endsWith("/principal")
+        ? { owner_principal_id: "guest-1", is_guest: true, guest_owner_token: "guest-token" }
+        : policyRow(),
+    );
+    const status = await fetchAuthorization();
+    expect(status.kind).toBe("acceptance_required");
+    expect(String(spy.mock.calls[0][0])).toBe("/api/v2/processing-authorization/principal");
+    expect(spy.mock.calls[0][1]?.method).toBe("POST");
+    const read = spy.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(read["X-Willab-Guest-Owner"]).toBe("guest-token");
+    expect(Object.values(store)).toContain("guest-token");
+  });
+
+  it("mints once: a stored identity is reused, and so is one in flight", async () => {
+    const spy = stubFetch((url) =>
+      url.endsWith("/principal")
+        ? { owner_principal_id: "guest-1", is_guest: true, guest_owner_token: "guest-token" }
+        : policyRow(),
+    );
+    await Promise.all([fetchAuthorization(), fetchAuthorization()]);
+    await fetchAuthorization();
+    const mints = spy.mock.calls.filter(([u]) => String(u).endsWith("/principal"));
+    expect(mints).toHaveLength(1);
+  });
+
+  it("carries the guest identity on the acceptance itself", async () => {
+    store["willab_guest_owner:v1"] = "stored-token";
+    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
+    const status = await fetchAuthorization();
+    expect(status.kind).toBeDefined();
+    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
+    const read = spy.mock.calls[0][1]?.headers as Record<string, string>;
+    expect(read["X-Willab-Guest-Owner"]).toBe("stored-token");
+  });
+
+  it("a signed-in person never mints a guest identity", async () => {
+    authToken = "session-token";
+    const spy = stubFetch(() => policyRow());
+    await fetchAuthorization();
+    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
+  });
+
+  it("a failed mint leaves the read as it was before", async () => {
+    const spy = vi.fn(async (url: string) => {
+      if (url.endsWith("/principal")) throw new Error("offline");
+      return { ok: true, json: async () => policyRow() } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", spy);
+    expect((await fetchAuthorization()).kind).toBe("acceptance_required");
+    const read = spy.mock.calls[1] as unknown as [string, RequestInit];
+    expect((read[1].headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBeUndefined();
+  });
+
+  it("a refused identity that holds nothing is dropped and minted again", async () => {
+    store["willab_guest_owner:v1"] = "stale-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
+    let reads = 0;
+    const spy = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/principal")) {
+        return { ok: true, json: async () => ({ is_guest: true, guest_owner_token: "fresh-token" }) } as unknown as Response;
+      }
+      reads += 1;
+      const sent = (init?.headers as Record<string, string>)["X-Willab-Guest-Owner"];
+      const body = sent === "fresh-token"
+        ? policyRow()
+        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" };
+      return { ok: sent === "fresh-token", json: async () => body } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", spy);
+    expect((await fetchAuthorization()).kind).toBe("acceptance_required");
+    expect(reads).toBe(2);
+    expect(store["willab_guest_owner:v1"]).toBe("fresh-token");
+  });
+
+  it("the acceptance and the AI-notice receipt carry the same identity", async () => {
+    store["willab_guest_owner:v1"] = "stored-token";
+    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
+    const status = await fetchAuthorization();
+    expect(status.kind).toBeDefined();
+    await recordAiNoticeRendered({ aiNoticeVersion: "1.0", surface: "s", clientRenderId: "c", clientVersion: "v" });
+    for (const [, init] of spy.mock.calls) {
+      expect((init?.headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBe("stored-token");
+    }
+  });
+
+  it("a refused identity that holds the guest's work is kept, never reminted", async () => {
+    // The backend also answers INVALID_GUEST_OWNER when its principal read
+    // fails; dropping a used identity on that would lose the guest's work.
+    store["willab_guest_owner:v1"] = "used-token";
+    const spy = stubFetch((url) =>
+      url.endsWith("/principal")
+        ? { guest_owner_token: "should-not-mint" }
+        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" },
+    );
+    await fetchAuthorization();
+    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
+    expect(store["willab_guest_owner:v1"]).toBe("used-token");
+  });
+
+  it("a guest's acceptance marks the identity used; a signed-in one does not", async () => {
+    store["willab_guest_owner:v1"] = "minted-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
+    const policy = (await (async () => {
+      stubFetch(() => policyRow());
+      const st = await fetchAuthorization();
+      return st.kind === "acceptance_required" ? st.policy : null;
+    })())!;
+    const accept = () => acceptAuthorization({
+      policy, countryOfResidence: "pl", locale: "en", clientVersion: "v",
+      idempotencyKey: "k", optionalPurposes: [],
+    } as Parameters<typeof acceptAuthorization>[0]);
+    stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
+    authToken = "session-token";
+    await accept();
+    expect(store["willab_guest_owner_minted_only:v1"]).toBe("1");
+    authToken = null;
+    await accept();
+    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
+  });
+
+  it("an acceptance whose response was lost still marks the identity used on the next read", async () => {
+    store["willab_guest_owner:v1"] = "minted-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
+    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_AUTHORIZED" }));
+    expect((await fetchAuthorization()).kind).toBe("authorized");
+    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
   });
 });
