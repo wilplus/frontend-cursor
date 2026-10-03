@@ -1,4 +1,4 @@
-import { GUEST_OWNER_HEADER, readGuestOwnerToken } from "./projects";
+import { GUEST_OWNER_HEADER, ensureGuestOwnerToken } from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -122,8 +122,10 @@ function policyOf(row: Record<string, unknown>): ProcessingPolicy | null {
   };
 }
 
-function headers(): Record<string, string> {
-  const token = readGuestOwnerToken();
+/** The guest identity every call here carries, minted first for a visitor who
+ *  has none and no account (see ensureGuestOwnerToken). */
+async function headers(): Promise<Record<string, string>> {
+  const token = await ensureGuestOwnerToken();
   return token ? { [GUEST_OWNER_HEADER]: token } : {};
 }
 
@@ -132,7 +134,7 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   try {
     const response = await fetch("/api/v2/processing-authorization", {
       method: "GET",
-      headers: headers(),
+      headers: await headers(),
       cache: "no-store",
     });
     row = asRecord(await response.json().catch(() => null));
@@ -206,7 +208,7 @@ export async function acceptAuthorization(
   try {
     response = await fetch("/api/v2/processing-authorization", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json", ...(await headers()) },
       body: JSON.stringify(body),
     });
     row = asRecord(await response.json().catch(() => null));
@@ -250,7 +252,7 @@ export async function recordAiNoticeRendered(input: {
   try {
     const response = await fetch("/api/v2/processing-authorization/ai-rendered", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json", ...(await headers()) },
       body: JSON.stringify({
         ai_notice_version: input.aiNoticeVersion,
         surface: input.surface,
