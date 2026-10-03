@@ -9,72 +9,93 @@ const GUEST_OWNER_KEY = "willab_guest_owner:v1";
 // performGuestProjectClaim).
 const MINTED_ONLY_KEY = "willab_guest_owner_minted_only:v1";
 
-// The same values in memory, for a browser whose storage refuses writes
-// (Safari private mode): the identity must still hold for this tab, or every
-// call would mint a different owner and the project would be refused.
+// The same values in memory, used ONLY while this tab's storage refuses
+// writes (Safari private mode): the identity must still hold for the tab, or
+// every call would mint a different owner and the project would be refused.
+// While storage works it is the one truth, shared by every tab, so a clear or
+// a "used" mark made in another tab is never overridden by this tab's memory.
+let storageWritable = true;
 let memoryToken: string | null = null;
 let memoryMintedOnly = false;
 
-export function readGuestOwnerToken(): string | null {
+function storageGet(key: string): string | null {
   try {
-    return localStorage.getItem(GUEST_OWNER_KEY) ?? memoryToken;
+    return localStorage.getItem(key);
   } catch {
-    return memoryToken;
+    return null;
   }
+}
+
+function storageSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+    storageWritable = true;
+  } catch {
+    storageWritable = false;
+  }
+}
+
+function storageRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {}
+}
+
+export function readGuestOwnerToken(): string | null {
+  return storageWritable ? storageGet(GUEST_OWNER_KEY) : memoryToken;
 }
 
 function writeGuestOwnerToken(token: string): void {
   memoryToken = token;
-  try {
-    localStorage.setItem(GUEST_OWNER_KEY, token);
-  } catch {
-    // The request can still complete; a later guest take will ask to sign in.
-  }
+  // The request can still complete when storage refuses; the tab keeps the
+  // identity in memory (above).
+  storageSet(GUEST_OWNER_KEY, token);
 }
 
 function clearGuestOwnerToken(): void {
   memoryToken = null;
   memoryMintedOnly = false;
-  try {
-    localStorage.removeItem(GUEST_OWNER_KEY);
-    localStorage.removeItem(MINTED_ONLY_KEY);
-  } catch {}
+  storageRemove(GUEST_OWNER_KEY);
+  storageRemove(MINTED_ONLY_KEY);
 }
 
 function isMintedOnly(): boolean {
-  try {
-    return localStorage.getItem(MINTED_ONLY_KEY) === "1" || memoryMintedOnly;
-  } catch {
-    return memoryMintedOnly;
-  }
+  return storageWritable
+    ? storageGet(MINTED_ONLY_KEY) === "1"
+    : memoryMintedOnly;
 }
 
 function setMintedOnly(): void {
   memoryMintedOnly = true;
-  try {
-    localStorage.setItem(MINTED_ONLY_KEY, "1");
-  } catch {}
+  storageSet(MINTED_ONLY_KEY, "1");
 }
 
 /** The guest identity now carries something of the guest's own (an
- *  acceptance or a project), so a later sign-in claims it as before. */
-export function markGuestOwnerUsed(): void {
+ *  acceptance or a project), so a later sign-in claims it as before. Only a
+ *  guest's act counts: a signed-in person's acceptance or project belongs to
+ *  their account, never to a guest token left in storage. */
+export async function markGuestOwnerUsed(): Promise<void> {
+  if (await getAuthToken()) return;
   memoryMintedOnly = false;
-  try {
-    localStorage.removeItem(MINTED_ONLY_KEY);
-  } catch {}
+  storageRemove(MINTED_ONLY_KEY);
 }
 
 /** Test-only: forget the in-memory copies between cases. */
 export function __resetGuestOwnerMemoryForTests(): void {
+  storageWritable = true;
   memoryToken = null;
   memoryMintedOnly = false;
 }
 
-/** Drop a stored guest identity the backend no longer accepts (claimed,
- *  deleted), so the next call mints a fresh one instead of failing forever. */
-export function forgetGuestOwnerToken(): void {
+/** Drop a guest identity the backend refused, but ONLY one that holds
+ *  nothing (minted, never used). The backend answers INVALID_GUEST_OWNER on a
+ *  failed principal read too, so dropping a used identity on that answer
+ *  would erase the only key to a guest's acceptance, projects and Takes after
+ *  one database hiccup. Returns whether it dropped anything. */
+export function forgetMintedOnlyGuestOwnerToken(): boolean {
+  if (!readGuestOwnerToken() || !isMintedOnly()) return false;
   clearGuestOwnerToken();
+  return true;
 }
 
 /** A first-time visitor's guest identity, minted before anything else needs it.
@@ -185,7 +206,7 @@ export async function createProject(
       ? body.guest_owner_token
       : null;
   if (issuedGuestOwnerToken) writeGuestOwnerToken(issuedGuestOwnerToken);
-  markGuestOwnerUsed();
+  if (!authToken) await markGuestOwnerUsed();
   return {
     kind: "ok",
     projectId: body.project_id,

@@ -413,8 +413,9 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     expect((read[1].headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBeUndefined();
   });
 
-  it("a stored identity the backend rejects is dropped and minted again", async () => {
+  it("a refused identity that holds nothing is dropped and minted again", async () => {
     store["willab_guest_owner:v1"] = "stale-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
     let reads = 0;
     const spy = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/principal")) {
@@ -442,5 +443,40 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     for (const [, init] of spy.mock.calls) {
       expect((init?.headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBe("stored-token");
     }
+  });
+
+  it("a refused identity that holds the guest's work is kept, never reminted", async () => {
+    // The backend also answers INVALID_GUEST_OWNER when its principal read
+    // fails; dropping a used identity on that would lose the guest's work.
+    store["willab_guest_owner:v1"] = "used-token";
+    const spy = stubFetch((url) =>
+      url.endsWith("/principal")
+        ? { guest_owner_token: "should-not-mint" }
+        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" },
+    );
+    await fetchAuthorization();
+    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
+    expect(store["willab_guest_owner:v1"]).toBe("used-token");
+  });
+
+  it("a guest's acceptance marks the identity used; a signed-in one does not", async () => {
+    store["willab_guest_owner:v1"] = "minted-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
+    const policy = (await (async () => {
+      stubFetch(() => policyRow());
+      const st = await fetchAuthorization();
+      return st.kind === "acceptance_required" ? st.policy : null;
+    })())!;
+    const accept = () => acceptAuthorization({
+      policy, countryOfResidence: "pl", locale: "en", clientVersion: "v",
+      idempotencyKey: "k", optionalPurposes: [],
+    } as Parameters<typeof acceptAuthorization>[0]);
+    stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
+    authToken = "session-token";
+    await accept();
+    expect(store["willab_guest_owner_minted_only:v1"]).toBe("1");
+    authToken = null;
+    await accept();
+    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
   });
 });

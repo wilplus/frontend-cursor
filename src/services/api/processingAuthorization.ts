@@ -1,7 +1,7 @@
 import {
   GUEST_OWNER_HEADER,
   ensureGuestOwnerToken,
-  forgetGuestOwnerToken,
+  forgetMintedOnlyGuestOwnerToken,
   markGuestOwnerUsed,
 } from "./projects";
 
@@ -148,10 +148,10 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   let row: Record<string, unknown> | null;
   try {
     row = await readAuthorizationRow();
-    // A stored guest identity the backend no longer accepts (claimed or
-    // deleted) would otherwise fail every read forever: drop it, mint once.
-    if (str(row?.code) === "INVALID_GUEST_OWNER") {
-      forgetGuestOwnerToken();
+    // A refused identity that holds nothing is replaced once. A used one is
+    // kept: the same answer also comes from a failed principal read, and
+    // dropping it would lose the guest's work (forgetMintedOnlyGuestOwnerToken).
+    if (str(row?.code) === "INVALID_GUEST_OWNER" && forgetMintedOnlyGuestOwnerToken()) {
       row = await readAuthorizationRow();
     }
   } catch {
@@ -238,7 +238,7 @@ export async function acceptAuthorization(
   const code = str(row?.code);
   if (code === "PROCESSING_POLICY_STALE") return { kind: "stale" };
   if (response.ok && row?.authorized === true) {
-    markGuestOwnerUsed();
+    await markGuestOwnerUsed();
     return {
       kind: "accepted",
       receiptId: str(row.receipt_id),

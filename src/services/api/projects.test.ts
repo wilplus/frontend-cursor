@@ -133,7 +133,7 @@ describe("a minted guest identity (F1 Repair Plan Phase 0.5)", () => {
   it("once the guest has accepted, sign-in claims it as before", async () => {
     vi.stubGlobal("fetch", mintThen(() => ({})));
     await ensureGuestOwnerToken();
-    markGuestOwnerUsed();
+    await markGuestOwnerUsed();
     authToken = "access-token";
     const fetchMock = vi.fn(() => Promise.resolve({ ok: true }));
     vi.stubGlobal("fetch", fetchMock);
@@ -175,5 +175,31 @@ describe("a minted guest identity (F1 Repair Plan Phase 0.5)", () => {
     const create = fetchMock.mock.calls.find(([u]) => u === "/api/v2/projects") as unknown as
       [string, RequestInit];
     expect((create[1].headers as Record<string, string>)[GUEST_OWNER_HEADER]).toBe(TOKEN);
+  });
+
+  it("a guest used in another tab is claimed, not dropped, from this tab", async () => {
+    // Tab A minted; tab B accepted and cleared the shared flag. Tab A's own
+    // memory must not overrule the shared storage on sign-in.
+    vi.stubGlobal("fetch", mintThen(() => ({})));
+    await ensureGuestOwnerToken();
+    store.delete("willab_guest_owner_minted_only:v1");
+    authToken = "access-token";
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await claimGuestProjects()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v2/projects/claim",
+      expect.objectContaining({
+        headers: expect.objectContaining({ [GUEST_OWNER_HEADER]: TOKEN }),
+      }),
+    );
+  });
+
+  it("a signed-in person's project never marks a leftover guest identity as used", async () => {
+    vi.stubGlobal("fetch", mintThen(() => ({ project_id: "project-1" })));
+    await ensureGuestOwnerToken();
+    authToken = "access-token";
+    await createProject({ displayName: "Talk", setup: {} });
+    expect(store.get("willab_guest_owner_minted_only:v1")).toBe("1");
   });
 });
