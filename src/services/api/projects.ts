@@ -2,16 +2,29 @@ import { getAuthToken } from "@/lib/api/auth-client";
 
 export const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 const GUEST_OWNER_KEY = "willab_guest_owner:v1";
+// Set while the guest identity was only minted and nothing has been done with
+// it yet (no acceptance, no project). Such an identity is never claimed into
+// an account on sign-in: claiming an empty guest would make the account's
+// acquisition identity a principal that never acquired anything (see
+// performGuestProjectClaim).
+const MINTED_ONLY_KEY = "willab_guest_owner_minted_only:v1";
+
+// The same values in memory, for a browser whose storage refuses writes
+// (Safari private mode): the identity must still hold for this tab, or every
+// call would mint a different owner and the project would be refused.
+let memoryToken: string | null = null;
+let memoryMintedOnly = false;
 
 export function readGuestOwnerToken(): string | null {
   try {
-    return localStorage.getItem(GUEST_OWNER_KEY);
+    return localStorage.getItem(GUEST_OWNER_KEY) ?? memoryToken;
   } catch {
-    return null;
+    return memoryToken;
   }
 }
 
 function writeGuestOwnerToken(token: string): void {
+  memoryToken = token;
   try {
     localStorage.setItem(GUEST_OWNER_KEY, token);
   } catch {
@@ -20,9 +33,48 @@ function writeGuestOwnerToken(token: string): void {
 }
 
 function clearGuestOwnerToken(): void {
+  memoryToken = null;
+  memoryMintedOnly = false;
   try {
     localStorage.removeItem(GUEST_OWNER_KEY);
+    localStorage.removeItem(MINTED_ONLY_KEY);
   } catch {}
+}
+
+function isMintedOnly(): boolean {
+  try {
+    return localStorage.getItem(MINTED_ONLY_KEY) === "1" || memoryMintedOnly;
+  } catch {
+    return memoryMintedOnly;
+  }
+}
+
+function setMintedOnly(): void {
+  memoryMintedOnly = true;
+  try {
+    localStorage.setItem(MINTED_ONLY_KEY, "1");
+  } catch {}
+}
+
+/** The guest identity now carries something of the guest's own (an
+ *  acceptance or a project), so a later sign-in claims it as before. */
+export function markGuestOwnerUsed(): void {
+  memoryMintedOnly = false;
+  try {
+    localStorage.removeItem(MINTED_ONLY_KEY);
+  } catch {}
+}
+
+/** Test-only: forget the in-memory copies between cases. */
+export function __resetGuestOwnerMemoryForTests(): void {
+  memoryToken = null;
+  memoryMintedOnly = false;
+}
+
+/** Drop a stored guest identity the backend no longer accepts (claimed,
+ *  deleted), so the next call mints a fresh one instead of failing forever. */
+export function forgetGuestOwnerToken(): void {
+  clearGuestOwnerToken();
 }
 
 /** A first-time visitor's guest identity, minted before anything else needs it.
@@ -67,7 +119,10 @@ async function mintGuestOwnerToken(): Promise<string | null> {
     > | null;
     const token =
       typeof body?.guest_owner_token === "string" ? body.guest_owner_token : null;
-    if (token) writeGuestOwnerToken(token);
+    if (token) {
+      writeGuestOwnerToken(token);
+      setMintedOnly();
+    }
     return token ?? readGuestOwnerToken();
   } catch {
     return null;
@@ -130,6 +185,7 @@ export async function createProject(
       ? body.guest_owner_token
       : null;
   if (issuedGuestOwnerToken) writeGuestOwnerToken(issuedGuestOwnerToken);
+  markGuestOwnerUsed();
   return {
     kind: "ok",
     projectId: body.project_id,
@@ -149,6 +205,14 @@ let claimInFlight: Promise<boolean> | null = null;
 async function performGuestProjectClaim(): Promise<boolean> {
   const guestHeaders = guestOwnerHeaders();
   if (!guestHeaders[GUEST_OWNER_HEADER]) return true;
+  // An identity that was only minted holds nothing to move. Claiming it would
+  // record a claim event that the backend's acquisition resolver prefers over
+  // the account itself, binding the account's acceptance and recordings to an
+  // empty guest. Drop it instead.
+  if (isMintedOnly()) {
+    clearGuestOwnerToken();
+    return true;
+  }
   const authToken = await getAuthToken();
   if (!authToken) return false;
   try {

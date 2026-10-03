@@ -7,6 +7,7 @@ vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: () => Promise.resolve(authToken),
 }));
 
+import { __resetGuestOwnerMemoryForTests } from "./projects";
 import {
   acceptAuthorization,
   fetchAuthorization,
@@ -74,6 +75,7 @@ function stubFetch(handler: (url: string, init?: RequestInit) => unknown) {
 
 beforeEach(() => {
   authToken = "session-token";
+  __resetGuestOwnerMemoryForTests();
   vi.stubGlobal("localStorage", {
     getItem: () => null,
     setItem: () => undefined,
@@ -409,5 +411,36 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     expect((await fetchAuthorization()).kind).toBe("acceptance_required");
     const read = spy.mock.calls[1] as unknown as [string, RequestInit];
     expect((read[1].headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBeUndefined();
+  });
+
+  it("a stored identity the backend rejects is dropped and minted again", async () => {
+    store["willab_guest_owner:v1"] = "stale-token";
+    let reads = 0;
+    const spy = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/principal")) {
+        return { ok: true, json: async () => ({ is_guest: true, guest_owner_token: "fresh-token" }) } as unknown as Response;
+      }
+      reads += 1;
+      const sent = (init?.headers as Record<string, string>)["X-Willab-Guest-Owner"];
+      const body = sent === "fresh-token"
+        ? policyRow()
+        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" };
+      return { ok: sent === "fresh-token", json: async () => body } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", spy);
+    expect((await fetchAuthorization()).kind).toBe("acceptance_required");
+    expect(reads).toBe(2);
+    expect(store["willab_guest_owner:v1"]).toBe("fresh-token");
+  });
+
+  it("the acceptance and the AI-notice receipt carry the same identity", async () => {
+    store["willab_guest_owner:v1"] = "stored-token";
+    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
+    const status = await fetchAuthorization();
+    expect(status.kind).toBeDefined();
+    await recordAiNoticeRendered({ aiNoticeVersion: "1.0", surface: "s", clientRenderId: "c", clientVersion: "v" });
+    for (const [, init] of spy.mock.calls) {
+      expect((init?.headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBe("stored-token");
+    }
   });
 });

@@ -7,9 +7,12 @@ vi.mock("@/lib/api/auth-client", () => ({
 
 import {
   GUEST_OWNER_HEADER,
+  __resetGuestOwnerMemoryForTests,
   claimGuestProjects,
   createProject,
+  ensureGuestOwnerToken,
   guestOwnerHeaders,
+  markGuestOwnerUsed,
 } from "./projects";
 
 const store = new Map<string, string>();
@@ -17,6 +20,7 @@ const store = new Map<string, string>();
 beforeEach(() => {
   authToken = null;
   store.clear();
+  __resetGuestOwnerMemoryForTests();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => store.set(key, value),
@@ -95,5 +99,81 @@ describe("canonical project ownership client", () => {
         }),
       })
     );
+  });
+});
+
+describe("a minted guest identity (F1 Repair Plan Phase 0.5)", () => {
+  const TOKEN = "principal.minted-secret-that-is-long-enough";
+  const mintThen = (rest: (url: string) => unknown) =>
+    vi.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            url.endsWith("/principal")
+              ? { owner_principal_id: "p", is_guest: true, guest_owner_token: TOKEN }
+              : rest(url),
+          ),
+      }),
+    );
+
+  it("an identity only minted is dropped on sign-in, never claimed", async () => {
+    // Claiming an empty guest would bind the account's acceptance and every
+    // later recording to a principal that never acquired anything.
+    vi.stubGlobal("fetch", mintThen(() => ({})));
+    await ensureGuestOwnerToken();
+    authToken = "access-token";
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await claimGuestProjects()).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(guestOwnerHeaders()).toEqual({});
+  });
+
+  it("once the guest has accepted, sign-in claims it as before", async () => {
+    vi.stubGlobal("fetch", mintThen(() => ({})));
+    await ensureGuestOwnerToken();
+    markGuestOwnerUsed();
+    authToken = "access-token";
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await claimGuestProjects()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v2/projects/claim",
+      expect.objectContaining({
+        headers: expect.objectContaining({ [GUEST_OWNER_HEADER]: TOKEN }),
+      }),
+    );
+  });
+
+  it("a project the guest created makes the identity theirs to claim", async () => {
+    vi.stubGlobal("fetch", mintThen(() => ({ project_id: "project-1" })));
+    await ensureGuestOwnerToken();
+    await createProject({ displayName: "Talk", setup: {} });
+    authToken = "access-token";
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await claimGuestProjects();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("with storage refused, one identity holds for the whole tab", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("storage unavailable");
+      },
+      removeItem: () => undefined,
+    });
+    const fetchMock = mintThen(() => ({ project_id: "project-1" }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await ensureGuestOwnerToken()).toBe(TOKEN);
+    expect(await ensureGuestOwnerToken()).toBe(TOKEN);
+    await createProject({ displayName: "Talk", setup: {} });
+    const mints = fetchMock.mock.calls.filter(([u]) => String(u).endsWith("/principal"));
+    expect(mints).toHaveLength(1);
+    const create = fetchMock.mock.calls.find(([u]) => u === "/api/v2/projects") as unknown as
+      [string, RequestInit];
+    expect((create[1].headers as Record<string, string>)[GUEST_OWNER_HEADER]).toBe(TOKEN);
   });
 });

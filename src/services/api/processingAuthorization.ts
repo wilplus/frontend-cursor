@@ -1,4 +1,9 @@
-import { GUEST_OWNER_HEADER, ensureGuestOwnerToken } from "./projects";
+import {
+  GUEST_OWNER_HEADER,
+  ensureGuestOwnerToken,
+  forgetGuestOwnerToken,
+  markGuestOwnerUsed,
+} from "./projects";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -129,15 +134,26 @@ async function headers(): Promise<Record<string, string>> {
   return token ? { [GUEST_OWNER_HEADER]: token } : {};
 }
 
+async function readAuthorizationRow(): Promise<Record<string, unknown> | null> {
+  const sent = await headers();
+  const response = await fetch("/api/v2/processing-authorization", {
+    method: "GET",
+    headers: sent,
+    cache: "no-store",
+  });
+  return asRecord(await response.json().catch(() => null));
+}
+
 export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   let row: Record<string, unknown> | null;
   try {
-    const response = await fetch("/api/v2/processing-authorization", {
-      method: "GET",
-      headers: await headers(),
-      cache: "no-store",
-    });
-    row = asRecord(await response.json().catch(() => null));
+    row = await readAuthorizationRow();
+    // A stored guest identity the backend no longer accepts (claimed or
+    // deleted) would otherwise fail every read forever: drop it, mint once.
+    if (str(row?.code) === "INVALID_GUEST_OWNER") {
+      forgetGuestOwnerToken();
+      row = await readAuthorizationRow();
+    }
   } catch {
     return { kind: "error", message: "The agreement could not be loaded." };
   }
@@ -222,6 +238,7 @@ export async function acceptAuthorization(
   const code = str(row?.code);
   if (code === "PROCESSING_POLICY_STALE") return { kind: "stale" };
   if (response.ok && row?.authorized === true) {
+    markGuestOwnerUsed();
     return {
       kind: "accepted",
       receiptId: str(row.receipt_id),
