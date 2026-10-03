@@ -87,7 +87,7 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
 **F1 — THE MVP, THE CRITICAL PATH.** voice → durable Recording Attempt →
 perfect transcript segmented exactly 1:1 per slide → project-specific Ideal Text
 after Take 1 → evidence-backed Manager Feedback after every Take. Ideal Text is
-the sole canonical presentation document. Each Take rewrites each Paragraph
+the sole canonical presentation document. Each Take rewrites each Slide it spoke
 from exactly what was said in the latest Take; locked helper words persist until the
 user picks new ones, and every version stays in the Paragraph's history.
 - **Three load-bearing pieces:** **(a)** perfect per-slide transcription,
@@ -110,8 +110,8 @@ recording. Owner answers are routing signals, never blind training labels.
 [`docs/CANONICAL_PRODUCT_CONTRACT.md`](docs/CANONICAL_PRODUCT_CONTRACT.md)):
 - **L1 — One canonical document that follows the speaker** (founder amended
   2026-09-25). Ideal Text is the one persistent document. Take 1 creates it; each
-  later Take rewrites each Paragraph from exactly what was said in that Take —
-  never a best-of assembly; an unspoken Paragraph keeps its last version. The lock
+  later Take rewrites each Slide it spoke from exactly what was said in that Take —
+  never a best-of assembly; an unspoken Slide keeps its last version (N29). The lock
   keeps the helper words, which persist until the user picks new ones. Every
   version stays in the Paragraph's history. Best Presentation remains retired.
 - **L2 — Manager-gated Feedback.** Detectors create Candidates; only Manager-
