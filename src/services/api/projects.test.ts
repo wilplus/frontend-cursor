@@ -202,4 +202,20 @@ describe("a minted guest identity (F1 Repair Plan Phase 0.5)", () => {
     await createProject({ displayName: "Talk", setup: {} });
     expect(store.get("willab_guest_owner_minted_only:v1")).toBe("1");
   });
+
+  it("a late mint never overwrites an identity another tab stored meanwhile", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      await held;
+      return { ok: true, json: async () => (url.endsWith("/principal")
+        ? { guest_owner_token: "late-token" } : {}) } as unknown as Response;
+    }));
+    const pending = ensureGuestOwnerToken();
+    store.set("willab_guest_owner:v1", "other-tab-used-token");
+    release();
+    expect(await pending).toBe("other-tab-used-token");
+    expect(store.get("willab_guest_owner:v1")).toBe("other-tab-used-token");
+    expect(store.has("willab_guest_owner_minted_only:v1")).toBe(false);
+  });
 });

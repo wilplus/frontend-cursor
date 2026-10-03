@@ -140,11 +140,16 @@ async function mintGuestOwnerToken(): Promise<string | null> {
     > | null;
     const token =
       typeof body?.guest_owner_token === "string" ? body.guest_owner_token : null;
+    // Another tab may have stored (and used) an identity while this mint was
+    // in flight: keep that one, never overwrite a guest's work with an empty
+    // identity.
+    const already = readGuestOwnerToken();
+    if (already) return already;
     if (token) {
       writeGuestOwnerToken(token);
       setMintedOnly();
     }
-    return token ?? readGuestOwnerToken();
+    return token;
   } catch {
     return null;
   }

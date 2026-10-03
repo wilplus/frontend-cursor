@@ -162,6 +162,9 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
   const code = str(row.code) || "PROCESSING_POLICY_INACTIVE";
   const policy = policyOf(row);
   if (!policy) return { kind: "unavailable", code };
+  // The guest's acceptance is on record even when its own response was lost:
+  // the identity now holds something and must be claimed, never dropped.
+  if (row.authorized === true) await markGuestOwnerUsed();
   return row.authorized === true
     ? { kind: "authorized", policy }
     : {

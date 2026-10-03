@@ -479,4 +479,12 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     await accept();
     expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
   });
+
+  it("an acceptance whose response was lost still marks the identity used on the next read", async () => {
+    store["willab_guest_owner:v1"] = "minted-token";
+    store["willab_guest_owner_minted_only:v1"] = "1";
+    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_AUTHORIZED" }));
+    expect((await fetchAuthorization()).kind).toBe("authorized");
+    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
+  });
 });
