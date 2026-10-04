@@ -28,7 +28,12 @@ vi.mock("@/services/api/idealText", async (importOriginal) => {
 });
 
 import IdealTextReadout from "./IdealTextReadout";
-import { GUEST_SIGN_UP_COPY, useGuestGate } from "./GuestSignUpDialog";
+import {
+  GUEST_SIGN_UP_COPY,
+  GuestGateContext,
+  useGuestBlock,
+  useGuestGate,
+} from "./GuestSignUpDialog";
 import {
   fetchIdealTextCore,
   fetchIdealTextForDisplay,
@@ -170,14 +175,19 @@ describe("A guest reads the whole page (founder 2026-10-04, Phase 0.6)", () => {
 });
 
 describe("useGuestGate — sign-up stands in front of the steps that need an account", () => {
-  type Probe = { run: () => string; ask: () => void };
+  type Probe = {
+    run: () => string;
+    ask: (then?: "journey_next_steps") => void;
+    block: () => boolean;
+  };
   let probe: Probe | null = null;
   const onSignUp = vi.fn();
+  const onSignUpForNextSteps = vi.fn();
   const step = vi.fn(() => "done");
 
   function Harness(props: { signedIn: boolean | null; arcId: string | null }) {
-    const gate = useGuestGate({ ...props, onSignUp });
-    probe = { run: gate.gate(step, "refused"), ask: gate.ask };
+    const gate = useGuestGate({ ...props, onSignUp, onSignUpForNextSteps });
+    probe = { run: gate.gate(step, "refused"), ask: gate.ask, block: gate.block };
     return createElement("div", null, gate.dialog);
   }
 
@@ -194,7 +204,36 @@ describe("useGuestGate — sign-up stands in front of the steps that need an acc
 
   beforeEach(() => {
     onSignUp.mockClear();
+    onSignUpForNextSteps.mockClear();
     step.mockClear();
+  });
+
+  it("See next steps opens the same dialog and carries the step through sign-up", () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    mount(false, "arc-1");
+    act(() => probe?.ask("journey_next_steps"));
+    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
+    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
+    expect(onSignUpForNextSteps).toHaveBeenCalledTimes(1);
+    expect(onSignUp).not.toHaveBeenCalled();
+  });
+
+  it("practise inside a sheet is stopped for a guest and the dialog opens", () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    mount(false, "arc-1");
+    let blocked = false;
+    act(() => {
+      blocked = probe?.block() ?? false;
+    });
+    expect(blocked).toBe(true);
+    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
+    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("an account's practise is never stopped", () => {
+    mount(true, "arc-1");
+    expect(probe?.block()).toBe(false);
   });
 
   it("an account's step runs untouched", () => {
@@ -232,5 +271,32 @@ describe("useGuestGate — sign-up stands in front of the steps that need an acc
     localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
     mount(false, null);
     expect(probe?.run()).toBe("done");
+  });
+});
+
+describe("useGuestBlock — the gate as the sheets see it", () => {
+  let seen: (() => boolean) | null = null;
+  function Reader() {
+    seen = useGuestBlock();
+    return null;
+  }
+
+  it("is never blocked outside a guest's page (no provider)", () => {
+    act(() => {
+      root.render(createElement(Reader));
+    });
+    expect(seen?.()).toBe(false);
+  });
+
+  it("asks the page's gate when one is provided", () => {
+    const block = vi.fn(() => true);
+    act(() => {
+      root.render(
+        createElement(GuestGateContext.Provider, { value: block },
+          createElement(Reader)),
+      );
+    });
+    expect(seen?.()).toBe(true);
+    expect(block).toHaveBeenCalledTimes(1);
   });
 });

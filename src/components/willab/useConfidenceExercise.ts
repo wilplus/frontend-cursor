@@ -36,6 +36,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useGuestBlock } from "./GuestSignUpDialog";
 import type {
   ConfidentVoicePracticeOffer,
   DocumentSuggestion,
@@ -129,6 +130,7 @@ export function useConfidenceExercise(args: {
   const { snippetId, offer, evidence, originalUserAnswer, onFinished } = args;
   const passage = args.passage ?? { kind: "exercise" };
   const mic = useDualCaptureMic({ transcript: false });
+  const guestBlock = useGuestBlock();
   const [practice, setPractice] = useState<ConfidencePractice | null>(null);
   const [screen, setScreen] = useState<ExerciseScreen>("offer");
   const [returned, setReturned] = useState(false);
@@ -221,6 +223,10 @@ export function useConfidenceExercise(args: {
   }, [mic.state]);
 
   const practise = useCallback(() => {
+    // A guest is asked to sign up first (founder 2026-10-04: "when you see
+    // the feedback and you click practice, the practice actually prompts you
+    // to sign up").
+    if (guestBlock()) return;
     // Deliberately NOT `finalReady ? judgement : record`. That conditional is
     // what made Practise resume a judged attempt instead of recording a new
     // one. Recording is the only thing this button does.
@@ -228,7 +234,7 @@ export function useConfidenceExercise(args: {
     setScreen("offer");
     setRecording(true);
     void mic.start();
-  }, [mic]);
+  }, [mic, guestBlock]);
 
   const stop = useCallback(() => {
     void mic.stop();

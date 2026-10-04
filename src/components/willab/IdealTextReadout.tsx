@@ -44,7 +44,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import AiGeneratedNote from "./AiGeneratedNote";
-import { useGuestGate } from "./GuestSignUpDialog";
+import { GuestGateContext, useGuestGate } from "./GuestSignUpDialog";
 import {
   aiGeneratedAttrs,
   copyAiGeneratedText,
@@ -171,7 +171,12 @@ export default function IdealTextReadout({
   // A GUEST READS THE WHOLE PAGE (founder 2026-10-04, Phase 0.6): the same
   // document, slides and sheets as an account; every step that keeps or
   // changes something asks to sign up first (see GuestSignUpDialog).
-  const guestGate = useGuestGate({ signedIn, arcId, onSignUp });
+  const guestGate = useGuestGate({
+    signedIn,
+    arcId,
+    onSignUp,
+    onSignUpForNextSteps,
+  });
   const { gate, canRead } = guestGate;
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
@@ -985,7 +990,9 @@ export default function IdealTextReadout({
         reviewWaiting={waiting}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={gate(onReRead, undefined)}
-        onSeeNextStepsAsGuest={guestGate.forGuest(onSignUpForNextSteps ?? onSignUp)}
+        onSeeNextStepsAsGuest={guestGate.forGuest(() =>
+          guestGate.ask("journey_next_steps"),
+        )}
         onSeeNextSteps={() => {
           void reloadLounge();
           notifyThreadToLatest();
@@ -1067,6 +1074,7 @@ export default function IdealTextReadout({
         // A minimum here is what pushed the page past the viewport and gave
         // the screen a second scroll (founder 2026-08-11).
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <GuestGateContext.Provider value={guestGate.block}>
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
@@ -1101,6 +1109,7 @@ export default function IdealTextReadout({
             decisionHistory={sd.decisionHistory}
             onApplyStyle={gate(applyStyle, REFUSED)}
           />
+          </GuestGateContext.Provider>
         </div>
       ) : (
         // FE-1 — this fallback (no SD payload: guest, or the flag off) used to
