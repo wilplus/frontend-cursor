@@ -21,7 +21,9 @@ const dialog = (page) => page.locator('[role="dialog"]');
 const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await page.emulateMedia({ reducedMotion: "reduce" });
-await page.goto(BASE, { waitUntil: "networkidle" });
+// The moment was read confident (24e-1): its sheet opens on the feedback,
+// then Next asks the judgement.
+await page.goto(`${BASE}?tier=confident`, { waitUntil: "networkidle" });
 await page.waitForSelector("text=Garage pitch");
 
 /* ------------------------ page-level visual contract ---------------------- */
@@ -47,7 +49,7 @@ check(
 );
 check(
   "and it describes the feedback waiting there, in words",
-  (await page.locator('button[aria-label="Feedback waiting — review it"]').count()) === 1 &&
+  (await page.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 1 &&
     (await page.locator('button[aria-label*="Paragraph protected"]').count()) === 0
 );
 check(
@@ -84,13 +86,23 @@ check(
   })
 );
 
-/* ------------------ the judgement, then the paragraph overlay -------------- */
-/* THE JUDGEMENT IS ALWAYS FIRST (§1), whatever order the payload used. Since
-   the founder lock of 2026-09-30 (B5) the answer is the whole of the
-   judgement sheet: it hands the paragraph to its own overlay, where the
-   speaker's answer is said back as one small line, the rewrite is the one
-   practise card, and Next opens the helper words (24e). */
-await page.locator('button[aria-label="Feedback waiting — review it"]').click();
+/* --------------- the feedback, then the judgement, then the overlay -------- */
+/* JUDGEMENT AFTER FEEDBACK (contract 24e-1; F1 Repair Plan Phase 6): opening
+   a bookmark never asks for a judgement first. The machine's read chooses
+   the feedback; on a confident moment the judgement comes right after it,
+   on Next. The answer then hands the paragraph to its own overlay, where
+   the speaker's answer is said back as one small line and Next opens the
+   helper words (24e). */
+await page.locator('button[aria-label^="Feedback waiting — review it"]').click();
+await page.waitForSelector('[data-testid="paragraph-sheet"]');
+check(
+  "the bookmark opens on the feedback, not on the question",
+  (await dialog(page).locator("text=Does this sound confident to you?").count()) === 0 &&
+    (await dialog(page).locator('[data-testid="judgement-label"]').count()) === 0 &&
+    (await dialog(page).locator('[data-testid="practise-card"][data-kind="rewrite"]').count()) === 0 &&
+    (await dialog(page).locator("button", { hasText: /^Next$/ }).count()) === 1
+);
+await dialog(page).locator("button", { hasText: /^Next$/ }).click();
 await page.waitForSelector("text=Feedback");
 await dialog(page).locator("button", { hasText: /Yes — Confident/ }).click();
 await page.waitForTimeout(500);
@@ -108,19 +120,13 @@ check(
     (await dialog(page).locator('[data-testid="judgement-label"]').innerText()).includes("Confident")
 );
 check(
-  // B5, D6: the rewrite is the practise card — the exact replacement, under
-  // "Small rewrite" — and the paragraph text is not on the overlay.
-  "the rewrite is the one practise card, and the paragraph text stays on the page",
-  await (async () => {
-    const card = dialog(page).locator('[data-testid="practise-card"][data-kind="rewrite"]');
-    const text = (await card.count()) === 1 ? await card.innerText() : "";
-    const sheet = await dialog(page).innerText();
-    return (
-      text.includes("SMALL REWRITE") &&
-      text.includes("trusted the figures") &&
-      !sheet.includes("Nobody believed the numbers")
-    );
-  })()
+  // The matrix on a Yes (24f; Phase 6): the praise where the machine found
+  // one, and nothing else -- the rewrite is not shown on a Yes. This
+  // fixture's moment carries no praise, so no card. The paragraph text is
+  // not on the overlay (D6).
+  "on a Yes the rewrite is not shown, and the paragraph text stays on the page",
+  (await dialog(page).locator('[data-testid="practise-card"]').count()) === 0 &&
+    !(await dialog(page).innerText()).includes("Nobody believed the numbers")
 );
 check(
   // The machine's whyLine() reason was removed from this sheet on 2026-09-15
@@ -345,24 +351,28 @@ check(
 /* -------- accepting the rewrite (founder 2026-09-30, C11; contract 29b) --- */
 const accepting = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await accepting.emulateMedia({ reducedMotion: "reduce" });
-await accepting.goto(BASE, { waitUntil: "networkidle" });
+await accepting.goto(`${BASE}?tier=weak`, { waitUntil: "networkidle" });
 await accepting.waitForSelector("text=Garage pitch");
-await accepting.locator('button[aria-label="Feedback waiting — review it"]').click();
-await accepting.waitForSelector("text=Feedback");
-await dialog(accepting).locator("button", { hasText: /^In-between$/ }).click();
-await accepting.waitForTimeout(500);
+// A weak read with nothing to practise draws no bar (B7): the paragraph is
+// plain text and is its own tap target.
+await accepting
+  .locator('[data-opens-sheet="true"]', { hasText: "Nobody believed the numbers" })
+  .first()
+  .click();
 await accepting.waitForSelector('[data-testid="paragraph-sheet"]');
 check(
-  // The cold start (P1-7): an empty library and no coach. Below Yes the
-  // rewrite is the card, its words shown as text, the one button accepts
-  // them and the grey link keeps the speaker's own. No coach sentence.
-  "below Yes the rewrite card offers Accept and practise, with Keep my words under it",
+  // The cold start (P1-7): an empty library and no coach. A moment read
+  // weak opens on the rewrite (24e-1), its words shown as text, the one
+  // button accepts them and the grey link keeps the speaker's own. No coach
+  // sentence, and no question before it.
+  "a moment that needed work opens on the rewrite, Accept and practise with Keep my words under it",
   (await dialog(accepting).locator('[data-testid="practise-card"][data-kind="rewrite"]').count()) === 1 &&
     (await dialog(accepting).locator('[data-testid="paragraph-sheet-accept"]').count()) === 1 &&
     (await dialog(accepting).locator("button", { hasText: /^Accept and practise$/ }).count()) === 1 &&
     (await dialog(accepting).locator("button", { hasText: /^Keep my words$/ }).count()) === 1 &&
     (await dialog(accepting).locator("button", { hasText: /^Skip$/ }).count()) === 0 &&
-    !(await dialog(accepting).innerText()).includes("Your coach is working")
+    !(await dialog(accepting).innerText()).includes("Your coach is working") &&
+    (await dialog(accepting).locator("text=Does this sound confident to you?").count()) === 0
 );
 await dialog(accepting).locator('[data-testid="paragraph-sheet-accept"]').click();
 await accepting.waitForSelector('[data-testid="practise-sheet"]');
@@ -398,20 +408,28 @@ await accepting.close();
 /* -------- the cold start's other half: a library with a video (P1-7) ------ */
 const stocked = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await stocked.emulateMedia({ reducedMotion: "reduce" });
-await stocked.goto(`${BASE}?library=full`, { waitUntil: "networkidle" });
+await stocked.goto(`${BASE}?library=full&tier=weak`, { waitUntil: "networkidle" });
 await stocked.waitForSelector("text=Garage pitch");
-await stocked.locator('button[aria-label="Feedback waiting — review it"]').click();
-await stocked.waitForSelector("text=Feedback");
-await dialog(stocked).locator("button", { hasText: /^In-between$/ }).click();
-await stocked.waitForTimeout(500);
+await stocked.locator('button[aria-label^="Feedback waiting — review it"]').click();
 await stocked.waitForSelector('[data-testid="paragraph-sheet"]');
 check(
-  // With a video in the library the exercise is the card (the follow-up
-  // matrix), not the rewrite, and there is nothing to accept.
-  "with a library video the exercise is the card and Accept is not offered",
+  // With a video in the library the exercise is the card the weak read
+  // opens on (the follow-up matrix), not the rewrite: Practise, Skip under
+  // it, and nothing to accept.
+  "with a library video the exercise is the card, Practise and Skip, no Accept",
   (await dialog(stocked).locator('[data-testid="practise-card"][data-kind="exercise"]').count()) === 1 &&
     (await dialog(stocked).innerText()).includes("Give the last four words") &&
+    (await dialog(stocked).locator('[data-testid="paragraph-sheet-practise"]').count()) >= 1 &&
+    (await dialog(stocked).locator('[data-testid="paragraph-sheet-skip"]').count()) === 1 &&
     (await dialog(stocked).locator("button", { hasText: /^Accept and practise$/ }).count()) === 0
+);
+await dialog(stocked).locator('[data-testid="paragraph-sheet-practise"]').first().click();
+await stocked.waitForSelector('[data-testid="practise-sheet"]');
+check(
+  // Practise opens the card shown (close-out audit 2026-10-04): the exercise.
+  "Practise on the exercise opens the practise loop on the exercise",
+  // textContent, not innerText: the sheet fades in under reduced motion too.
+  (await stocked.locator('[data-testid="practise-sheet"]').evaluate((el) => el.textContent ?? "")).includes("Give the last four words")
 );
 await stocked.close();
 
