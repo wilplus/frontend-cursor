@@ -877,8 +877,10 @@ export default function ParagraphSheet({
     (practiseEveryCard || card.kind === "exercise");
   const canAccept = canPractise && acceptableAt(opening, card, judgement, Boolean(onAccept));
   const footer = footerAt(opening, judgement, canPractise, canAccept);
+  // The card shown is the card practised: before any judgement (24e-1) the
+  // host could not re-derive it from the answer.
   const practise = () => {
-    if (card && moment) practiseHandler?.(moment, judgement);
+    if (card && moment) practiseHandler?.(moment, judgement, undefined, card);
   };
   const pickerNext = () => {
     if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);
@@ -895,7 +897,7 @@ export default function ParagraphSheet({
     <FooterPill
       pill={footer.pill}
       accepting={accepting}
-      nextLabel={nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
+      nextLabel={opening || nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
       onAccept={() => void accept()}
       onPractise={practise}
       onNext={next}

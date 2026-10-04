@@ -119,7 +119,11 @@ const praiseNote = {
   status: null, snippetId: "snip-1", takeSessionId: "take-1",
 } as unknown as DocumentSuggestion;
 
-async function open(moment: DocumentSuggestion, notes: DocumentSuggestion[] = []) {
+async function open(
+  moment: DocumentSuggestion,
+  notes: DocumentSuggestion[] = [],
+  practiseHost: { onLockIn: () => Promise<never>; onHelperWordsSaved: () => void } | null = null,
+) {
   const onSkip = vi.fn();
   const items = [moment, ...notes];
   const s = chunkStateFor(
@@ -134,7 +138,7 @@ async function open(moment: DocumentSuggestion, notes: DocumentSuggestion[] = []
     root.render(
       createElement(OpenChunkSheet, {
         state: s, arcId: "arc-1", takeSessionId: "take-1", headline: null,
-        onClose: vi.fn(), onSkip,
+        onClose: vi.fn(), onSkip, practiseHost,
         renderSheet: () => createElement("div", { "data-testid": "judge" }),
       }),
     );
@@ -173,5 +177,23 @@ describe("judgement after feedback (24e-1)", () => {
     await open({ ...answered, status: null, bookmarkTier: "weak" } as DocumentSuggestion);
     await open({ ...answered, status: null, bookmarkTier: "weak" } as DocumentSuggestion);
     expect(vi.mocked(reportMomentEvent).mock.calls.filter((c) => c[1] === "opened")).toHaveLength(1);
+  });
+
+  it("Practise opens the card shown, a library exercise included", async () => {
+    const library = {
+      ...answered, status: null, bookmarkTier: "weak",
+      practiceExercise: { ...(answered as DocumentSuggestion).practiceExercise, chosenByCoach: false },
+    } as DocumentSuggestion;
+    await open(library, [], { onLockIn: vi.fn(), onHelperWordsSaved: vi.fn() });
+    expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("exercise");
+    await act(async () =>
+      (container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement).click());
+    expect(container.querySelector('[data-testid="practise-sheet"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="judge"]')).toBeNull();
+  });
+
+  it("Next before the judgement reads Next, also on the last moment", async () => {
+    await open({ ...answered, status: null, bookmarkTier: "confident" } as DocumentSuggestion, [praiseNote]);
+    expect(container.querySelector('[data-testid="paragraph-sheet-next"]')?.textContent).toBe("Next");
   });
 });
