@@ -24,7 +24,7 @@ import {
   type LabelTone,
   type PractiseCard,
 } from "@/lib/willab/paragraphOverlay";
-import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+import { acceptOutcome, saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
 
 /** How Practise was reached (29b): the card as shown; the rewrite just
@@ -304,7 +304,10 @@ function useAcceptRewrite(
           feedbackExposureId: item.feedbackExposureId,
         })
       : { ok: true as const };
-    const applied = saved.ok ? await onAccept(item) : false;
+    const outcome = saved.ok ? acceptOutcome(saved.textUpdate) : "refused";
+    const applied = outcome === "refused"
+      ? false
+      : await onAccept(outcome === "server" ? { ...item, acceptedOnServer: true } : item);
     setAccepting(false);
     if (!saved.ok || !applied) {
       setFailed(true);

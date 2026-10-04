@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-/* PERSONALISED PRACTICE OFF (F1 Repair Plan Phase 4, wiring only): every
-   practice route answers 403 CONSENT_CHOICE_OFF, and the speaker used to
-   record a whole attempt before hearing so. With the choice off the
-   paragraph sheet offers no Practise -- and so no "Accept and practise",
-   whose one button promises the practise -- and its footer is Next. */
+/* AN ACCEPTED REWRITE IS A PARAGRAPH VERSION (F1 Repair Plan Phase 4, P1-1;
+   contract 29b). The server writes the words from the V3 freeze and says
+   what it did in `text_update`: written, the page is told so and sends no
+   ledger decision of its own; refused, the sheet says the accept was not
+   saved and nothing changes. */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,10 +14,11 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
 import { readPractiseOffered } from "@/services/api/consentChoices";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 
 vi.mock("@/services/api/consentChoices", () => ({
   practiseOfferedNow: vi.fn(() => null),
-  readPractiseOffered: vi.fn(async () => false),
+  readPractiseOffered: vi.fn(async () => true),
 }));
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -113,6 +114,7 @@ afterEach(async () => {
 });
 
 const closeSheet = vi.fn();
+const onAccept = vi.fn(async (_item: DocumentSuggestion) => true);
 type SheetProps = Parameters<typeof OpenChunkSheet>[0];
 
 const rewrite = {
@@ -158,7 +160,7 @@ async function open(
         takeSessionId: "take-1",
         headline: null,
         onUseHelperWords: vi.fn(async () => true),
-        onAccept: vi.fn(async () => true),
+        onAccept,
         onClose: closeSheet,
         practiseHost: { onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })), onHelperWordsSaved: vi.fn() },
         renderSheet: (practiseAgain: Parameters<SheetProps["renderSheet"]>[0]) =>
@@ -176,41 +178,36 @@ async function open(
   });
 }
 
-const testIds = () =>
-  Array.from(container.querySelectorAll("[data-testid^='paragraph-sheet-']"))
-    .map((el) => el.getAttribute("data-testid"));
 
-describe("Personalised practice off", () => {
-  it("reads the choice", async () => {
-    await open("not_sure");
-    expect(readPractiseOffered).toHaveBeenCalled();
+async function accept(textUpdate: string | undefined) {
+  onAccept.mockClear();
+  vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce(
+    textUpdate === undefined ? { ok: true } : { ok: true, textUpdate });
+  await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [
+    { ...rewrite, takeSessionId: "take-1", feedbackFamily: "rewrite_clarity" } as DocumentSuggestion,
+  ]);
+  const button = container.querySelector('[data-testid="paragraph-sheet-accept"]') as HTMLButtonElement;
+  expect(button).not.toBeNull();
+  await act(async () => button.click());
+}
+
+describe("accepting a rewrite", () => {
+  it("the server wrote it: the page is told and refreshes", async () => {
+    await accept("applied");
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(onAccept.mock.calls[0][0].acceptedOnServer).toBe(true);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it("a Not sure offers Next, never Practise or Skip", async () => {
-    await open("not_sure");
-    expect(testIds()).toContain("paragraph-sheet-next");
-    expect(testIds()).not.toContain("paragraph-sheet-practise");
-    expect(testIds()).not.toContain("paragraph-sheet-skip");
+  it("the server refused: nothing changes and the sheet says so", async () => {
+    await accept("protected");
+    expect(onAccept).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  it("an In-between offers Next with no Practise link", async () => {
-    await open("in_between");
-    expect(testIds()).toContain("paragraph-sheet-next");
-    expect(testIds()).not.toContain("paragraph-sheet-practise");
-  });
-
-  it("a rewrite is not offered as Accept and practise", async () => {
-    await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [rewrite]);
-    expect(testIds()).not.toContain("paragraph-sheet-accept");
-    expect(testIds()).not.toContain("paragraph-sheet-practise");
-    expect(testIds()).toContain("paragraph-sheet-next");
-  });
-});
-
-describe("control: with the choice on", () => {
-  it("the same rewrite is offered as Accept and practise", async () => {
-    vi.mocked(readPractiseOffered).mockResolvedValueOnce(true);
-    await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [rewrite]);
-    expect(testIds()).toContain("paragraph-sheet-accept");
+  it("an older backend: the page decides as before", async () => {
+    await accept(undefined);
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(onAccept.mock.calls[0][0].acceptedOnServer).toBeUndefined();
   });
 });

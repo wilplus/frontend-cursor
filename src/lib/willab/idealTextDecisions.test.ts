@@ -212,3 +212,25 @@ describe("the served-list bookkeeping", () => {
     expect(withStyleApproved(null, "a")).toBeNull();
   });
 });
+
+describe("an accept the server already wrote (Phase 4, P1-1)", () => {
+  it("sends no ledger decision", async () => {
+    const api = {
+      decideBlock: vi.fn(),
+      decidePriorTake: vi.fn(),
+      sendSuggestionFeedback: vi.fn(async () => ({ saved: true })),
+    } as unknown as DecisionApi;
+    expect(await postTrackedDecision(ARC, suggestion({ acceptedOnServer: true }), "accept", api)).toBe("ok");
+    expect(api.sendSuggestionFeedback).not.toHaveBeenCalled();
+  });
+
+  it("a keep still goes where it went", async () => {
+    const api = {
+      decideBlock: vi.fn(),
+      decidePriorTake: vi.fn(),
+      sendSuggestionFeedback: vi.fn(async () => ({ saved: true })),
+    } as unknown as DecisionApi;
+    await postTrackedDecision(ARC, suggestion({ acceptedOnServer: true }), "keep", api);
+    expect(api.sendSuggestionFeedback).toHaveBeenCalledTimes(1);
+  });
+});

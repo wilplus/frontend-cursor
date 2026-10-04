@@ -85,3 +85,26 @@ describe("the superseded-Take refusal (backend #597)", () => {
     expect("reason" in result).toBe(false);
   });
 });
+
+describe("an accepted rewrite's text update (Phase 4, P1-1)", () => {
+  it("carries the server's text_update", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, json: async () => ({ saved: true, text_update: "protected" }),
+    })));
+    expect(await saveTakeFeedbackResponse({
+      takeSessionId: "take-1", feedbackId: "rw-1",
+      feedbackFamily: "rewrite_clarity", response: "apply_suggestion",
+    })).toEqual({ ok: true, textUpdate: "protected" });
+  });
+
+  it("reads the outcome", async () => {
+    const { acceptOutcome } = await import("./takeFeedback");
+    expect(acceptOutcome("applied")).toBe("server");
+    expect(acceptOutcome("already_applied")).toBe("server");
+    expect(acceptOutcome(undefined)).toBe("legacy");
+    expect(acceptOutcome("not_found")).toBe("legacy");
+    for (const refused of ["protected", "stale", "failed", "anything"]) {
+      expect(acceptOutcome(refused)).toBe("refused");
+    }
+  });
+});

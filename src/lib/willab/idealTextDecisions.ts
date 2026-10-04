@@ -80,6 +80,11 @@ export async function postTrackedDecision(
   api: DecisionApi = liveDecisionApi,
 ): Promise<DecisionOutcome> {
   const accept = d === "accept";
+  // THE SERVER ALREADY WROTE IT (F1 Repair Plan Phase 4, P1-1): an accepted
+  // V3 rewrite is a Paragraph version written by the answer route from the
+  // freeze that served it. The ledger star keyed the wrong words for these
+  // items and bakes "forever forward", so it is not sent.
+  if (accept && s.acceptedOnServer) return "ok";
   if (s.source === "new_take") {
     if (!arcId || s.blockKey === null || !s.takeSessionId) return "undecidable";
     return (
