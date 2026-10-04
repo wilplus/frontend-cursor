@@ -89,4 +89,35 @@ describe("buildPresentationDocument", () => {
     expect(document[0].rows[0].rootType).toBe("flagship");
     expect(document[1].rows[0].rootPhrase).toBe("");
   });
+
+  // Phase 5: words saved on the Slide (practice, an earlier Take) reach the
+  // delivery and the export, as the page draws them.
+  it("takes each paragraph's helper words from the page's headlines first", () => {
+    const withPart = (p: IdealPiece, partId: string): IdealPiece => ({ ...p, partId });
+    const document = buildPresentationDocument({
+      text: "Opening words\n\nClosing words",
+      pieces: [withPart(piece(0, 0, "flagship"), "part-a"), withPart(piece(1, 1), "part-b")],
+      presentationRef: null,
+      pageCount: null,
+      slideTitles: null,
+      headlines: new Map([["part-b", "closing words"]]),
+    });
+    const rows = document.flatMap((slide) => slide.rows);
+    expect(rows.map((r) => [r.rootPhrase, r.rootType])).toEqual([
+      ["Root 0", "flagship"],
+      ["closing words", "flagship"],
+    ]);
+  });
+
+  it("without headlines reads the pieces as before", () => {
+    const document = buildPresentationDocument({
+      text: "Opening words\n\nClosing words",
+      pieces: [piece(0, 0, "flagship"), piece(1, 1)],
+      presentationRef: null,
+      pageCount: null,
+      slideTitles: null,
+    });
+    const rows = document.flatMap((slide) => slide.rows);
+    expect(rows.map((r) => r.rootPhrase)).toEqual(["Root 0", ""]);
+  });
 });

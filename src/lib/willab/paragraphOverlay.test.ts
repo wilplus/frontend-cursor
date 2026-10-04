@@ -176,6 +176,40 @@ describe("History (Q1)", () => {
   it("is empty with no history", () => {
     expect(historyRows(null, "Take")).toEqual([]);
   });
+
+  // A DELETED SET STAYS IN HISTORY (B4/D4, contract 13; Phase 5).
+  it("keeps a set deleted during an earlier Take on that Take's row", () => {
+    const deleted: ParagraphHistory = {
+      ...history,
+      helperWords: [
+        { phrases: ["nine days"], at: "2026-09-01T11:00:00Z" },
+        { phrases: [], at: "2026-09-01T12:00:00Z" },
+        { phrases: ["two days"], at: "2026-09-02T11:00:00Z" },
+      ],
+    };
+    expect(historyRows(deleted, "Take")).toEqual([
+      { label: "Take 2", answer: "in_between", helperWords: "two days" },
+      { label: "Take 1", answer: "no", helperWords: "nine days" },
+    ]);
+  });
+
+  it("shows the newest Take's row when its words were deleted", () => {
+    const deleted: ParagraphHistory = {
+      ...history,
+      helperWords: [
+        ...history.helperWords,
+        { phrases: ["two days now"], at: "2026-09-03T11:00:00Z" },
+        { phrases: [], at: "2026-09-03T12:00:00Z" },
+      ],
+    };
+    expect(historyRows(deleted, "Take")[0]).toEqual(
+      { label: "Take 3", answer: null, helperWords: "two days now" },
+    );
+  });
+
+  it("does not show the newest Take while its words still stand", () => {
+    expect(historyRows(history, "Take").map((r) => r.label)).toEqual(["Take 2", "Take 1"]);
+  });
 });
 
 describe("accepting a rewrite (founder 2026-09-30, C11; contract 29b)", () => {

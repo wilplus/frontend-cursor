@@ -20,6 +20,18 @@ export function useParagraphHeadlines(
   return useHeadlineRead(arcId, document, sheetOpen, 0).headlines;
 }
 
+/** The page's helper words for Presentation Mode and export (F1 Repair Plan
+ *  Phase 5), read only while one of them is open. */
+export function useDeliveryHeadlines(
+  arcId: string | null,
+  document: string,
+  presenting: boolean,
+  exporting: boolean,
+): Map<string, string> {
+  const open = presenting || exporting;
+  return useParagraphHeadlines(open ? arcId : null, document, false);
+}
+
 /** The read itself. `refresh` asks for a fresh read; `readOf` says which
  *  refresh the current map answers, so a read that started before a save
  *  landed is never taken as confirming it. */

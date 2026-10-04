@@ -80,6 +80,14 @@ function shouldAsk(value: TrainingConsent | null): value is TrainingConsent {
   return Boolean(value?.available && value.copy && !value.active);
 }
 
+/** Whether the question would be asked, from the read already made this
+ *  Lab entry: false when the read says there is nothing to ask, null while
+ *  it is still in flight (F1 Repair Plan Phase 5: lets "Record Take 2" start
+ *  the mic inside its own tap when nothing is asked). */
+export function trainingAskNeeded(): boolean | null {
+  return settled ? shouldAsk(settled.value) : null;
+}
+
 /** The three pre-recording screens render through this: the question first,
  *  the screen once answered or skipped. `asked` lives in the overlay so one
  *  answer covers every pre-recording screen of the same Lab entry. */
@@ -94,6 +102,28 @@ export function TrainingAskGate({
 }) {
   if (asked) return <>{children}</>;
   return <TrainingAsk onDone={onDone} />;
+}
+
+/** "Record Take 2" from the text in the Lab (N28): run the next Take now when
+ *  the read says there is nothing to ask (inside the same tap), else ask. */
+export function askThenRun(run: () => void, ask: () => void): void {
+  if (trainingAskNeeded() === false) run();
+  else ask();
+}
+
+/** The text after a Take, or the question in front of the next Take while
+ *  `asking` (N28). */
+export function NextTakeGate({
+  asking,
+  onDone,
+  children,
+}: {
+  asking: boolean;
+  onDone: () => void;
+  children?: ReactNode;
+}) {
+  if (asking) return <TrainingAsk onDone={onDone} />;
+  return <>{children}</>;
 }
 
 export default function TrainingAsk({ onDone }: { onDone: () => void }) {
@@ -131,7 +161,11 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
     setFailed(false);
     const next = await setTrainingConsent(true, shown);
     setBusy(false);
-    if (next?.active) onDone();
+    if (next?.active) {
+      // The next ask this entry (Record Take 2, N28) reads the yes.
+      settled = { value: next };
+      onDone();
+    }
     else setFailed(true);
   };
 
