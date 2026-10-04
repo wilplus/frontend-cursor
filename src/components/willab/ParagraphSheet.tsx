@@ -645,6 +645,7 @@ export default function ParagraphSheet({
   onPractise,
   onAccept = null,
   practiseEveryCard = false,
+  practiseOff = false,
   onUseHelperWords,
   helperWordsHost = null,
   startPicking = false,
@@ -687,6 +688,10 @@ export default function ParagraphSheet({
    *  reach the same screens). Without it only an exercise can be
    *  practised — the host then opens the judgement sheet's exercise step. */
   practiseEveryCard?: boolean;
+  /** Personalised practice is off (F1 Repair Plan Phase 4): no Practise on
+   *  any card, and so no "Accept and practise" either -- its one button
+   *  promises the practise. The footer is the no-practise one (Next). */
+  practiseOff?: boolean;
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
    *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
@@ -724,11 +729,12 @@ export default function ParagraphSheet({
     [sheetData],
   );
   const moveOn = onDone ?? onClose;
+  const practiseHandler = practiseOff ? null : onPractise;
   // Hooks before any early return (the picker and the saved state return
   // above the practise state, and a hook after them renders fewer hooks).
   const card = sheetData ? practiseCardOf(items, judgement, text) : null;
   const { accept, accepting, failed: acceptFailed } =
-    useAcceptRewrite(card, moment, judgement, onAccept, onPractise);
+    useAcceptRewrite(card, moment, judgement, onAccept, practiseHandler);
 
   if (picking && onUseHelperWords && helperWordsHost && headline) {
     return (
@@ -797,12 +803,12 @@ export default function ParagraphSheet({
      a tap always opens something), and the label, the card and History fill
      in when the reads land. */
   const canPractise =
-    Boolean(onPractise) && Boolean(moment) && card !== null &&
+    Boolean(practiseHandler) && Boolean(moment) && card !== null &&
     (practiseEveryCard || card.kind === "exercise");
   const canAccept = canPractise && canAcceptCard(card, judgement, Boolean(onAccept));
   const footer = overlayFooter(judgement, canPractise, canAccept);
   const practise = () => {
-    if (card && moment) onPractise?.(moment, judgement);
+    if (card && moment) practiseHandler?.(moment, judgement);
   };
   const next = () => {
     if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);
@@ -812,7 +818,7 @@ export default function ParagraphSheet({
      practise on the speaker's own words. */
   const keep = () => {
     if (judgement === "in_between" || !moment) next();
-    else onPractise?.(moment, judgement, "own");
+    else practiseHandler?.(moment, judgement, "own");
   };
   const pill = (
     <FooterPill

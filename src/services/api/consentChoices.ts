@@ -85,8 +85,39 @@ export async function setConsentChoice(
       }),
     });
     if (!res.ok) return null;
+    // The sheets' Practise follows the choice now in force.
+    forgetPractiseOffered();
     return mapConsentChoices(await res.json().catch(() => null));
   } catch {
     return null;
   }
+}
+
+/* Whether Practise may be offered on the speaker's sheets (F1 Repair Plan
+ * Phase 4). False only when Personalised practice is explicitly off; unknown
+ * (no agreement yet, a failed read) leaves the server to decide, as before.
+ * Read once per page and dropped whenever a choice changes. */
+let practiseKnown: boolean | null = null;
+let practiseInFlight: Promise<boolean> | null = null;
+
+export function practiseOfferedNow(): boolean | null {
+  return practiseKnown;
+}
+
+export function readPractiseOffered(): Promise<boolean> {
+  practiseInFlight ??= fetchConsentChoices()
+    .then((choices) => {
+      practiseKnown = !(
+        choices?.hasReceipt === true && choices.personalisedPractice === false
+      );
+      return practiseKnown;
+    })
+    .finally(() => {
+      practiseInFlight = null;
+    });
+  return practiseInFlight;
+}
+
+export function forgetPractiseOffered(): void {
+  practiseKnown = null;
 }

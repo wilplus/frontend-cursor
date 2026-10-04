@@ -24,8 +24,9 @@
  *
  *  so once an attempt was judged-ready, pressing Practise took you BACK to the
  *  judgement of the attempt you had just walked away from. `offer.resume` did
- *  the same thing on mount. Both are gone: begin() always records. Attempts
- *  stay capped by `attemptsRemaining`, and this is what spends one.
+ *  the same thing on mount. Both are gone: begin() always records. There is
+ *  no attempt cap (founder lock 2026-09-30, D2); `attemptNumber` numbers
+ *  the recording.
  *
  *  WHAT THE SERVER DECIDES AND DOES NOT SAY. Every attempt is assessed
  *  server-side, and the server picks which one is worth judging. That happens
