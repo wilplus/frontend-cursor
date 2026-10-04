@@ -293,6 +293,28 @@ function authHeaders(token: string | null): Record<string, string> {
   return token ? { Authorization: "Bearer " + token } : {};
 }
 
+/** A guest's upload the Worker forwarded WITHOUT the guest identity.
+ *
+ *  The Cloudflare upload Worker is deployed by hand (cloudflare/upload-proxy,
+ *  `wrangler deploy`), and a Worker older than 2026-08-24 drops the
+ *  X-Willab-Guest-Owner header: the backend then sees an anonymous upload and
+ *  refuses it at the gate with "A verified owner is required." before
+ *  anything is stored (founder, 2026-10-04: every new guest's first Take
+ *  failed here). The refusal happens before the view runs, so sending the
+ *  same take once more through the BFF lane, which forwards the identity, is
+ *  safe. Signed-in uploads carry Authorization and never take this path. */
+async function workerDroppedGuestOwner(
+  response: Response,
+  headers: Record<string, string>,
+): Promise<boolean> {
+  if (!headers[GUEST_OWNER_HEADER] || headers.Authorization) return false;
+  if (response.status !== 401 && response.status !== 403) return false;
+  const body = (await response.clone().json().catch(() => null)) as {
+    code?: unknown;
+  } | null;
+  return body?.code === "INVALID_GUEST_OWNER" || body?.code === "OWNER_REQUIRED";
+}
+
 async function postLabUpload(
   form: FormData,
   headers: Record<string, string>,
@@ -311,7 +333,11 @@ async function postLabUpload(
   if (!proxyBase) return post("/api/v2/lab/recordings");
 
   try {
-    return await post(proxyBase + "/v2/lab/recordings");
+    const viaWorker = await post(proxyBase + "/v2/lab/recordings");
+    if (await workerDroppedGuestOwner(viaWorker, headers)) {
+      return post("/api/v2/lab/recordings");
+    }
+    return viaWorker;
   } catch (error) {
     // AN ABORT IS NOT A TRANSPORT FAILURE, and the difference is load-bearing
     // here: the catch below exists to retry a CORS / DNS / offline-Worker
