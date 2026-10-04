@@ -54,7 +54,12 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
-import { TrainingAskGate, prefetchTrainingAsk, resetTrainingAsk } from "./TrainingAsk";
+import TrainingAsk, {
+  TrainingAskGate,
+  prefetchTrainingAsk,
+  resetTrainingAsk,
+  trainingAskNeeded,
+} from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import {
   clearExploreArc,
@@ -321,6 +326,11 @@ export default function LabOverlay({
      "each time you are starting a take" is this component's lifetime. */
   const [trainingAsked, setTrainingAsked] = useState(false);
   const markTrainingAsked = useCallback(() => setTrainingAsked(true), []);
+  /* "Record Take 2" from the text in the Lab asks too (N28; F1 Repair Plan
+     Phase 5). That path goes straight back to the mic, past every
+     pre-recording screen, so the question is put in front of it here. The
+     question moves straight on when there is nothing to ask. */
+  const [askBeforeNextTake, setAskBeforeNextTake] = useState(false);
   // Read the switch as the Lab opens, so the question (or the screen) is
   // ready when the speaker gets there; read afresh on the next entry.
   useEffect(() => {
@@ -1247,6 +1257,48 @@ export default function LabOverlay({
     onClose();
   }
 
+  function startNextTakeHere() {
+    // A re-read is just the next take on THIS presentation: keep the
+    // deck (context) and arc (arcTakeIndex was already advanced on the
+    // prior upload), drop the current take's readout/session/blob, and
+    // drop back to the mic. The BE reconciles the real take index on
+    // upload. Clear the parked readout so it can't restore over the
+    // new take; startPendingRef lets the mic-state effect re-init the
+    // slide timeline at the real recording start.
+    clearParked();
+    setReadout(null);
+    setLabSessionId(null);
+    setBlob(null);
+    uploadStartedRef.current = false;
+    pendingCarryRef.current = null;
+    setPollSessionId(null);
+    setPollSlow(false);
+    startPendingRef.current = true;
+    // THE BUTTON THE FOUNDER PRESSED (2026-08-12): "after clicking
+    // the record button - it yet again opens up the waiting screen
+    // instead of just bringing me to the recording page". The mic
+    // has been parked on {status:"stopped", audioBlob:<last take>}
+    // since that take ended, so entering lab_recording let the
+    // stop→processing branch fire on the PREVIOUS blob and bounce
+    // straight back out. Reset to idle first — RecordingPhase's
+    // "Getting your mic ready…" covers idle while getUserMedia
+    // resolves, which is the screen he was asking for.
+    cancelMic();
+    dispatch("take_started");
+    void mic.start();
+  }
+
+  /** "Record Take 2" from the text: the learning question first (N28),
+   *  unless the read already says there is nothing to ask, in which case the
+   *  mic starts inside this same tap. */
+  function askThenStartNextTake() {
+    if (trainingAskNeeded() === false) {
+      startNextTakeHere();
+      return;
+    }
+    setAskBeforeNextTake(true);
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
       setDiscardConfirm("recording");
@@ -1551,7 +1603,7 @@ export default function LabOverlay({
             auto-applied, editable, pending-verification badge; delivery to the
             coach is automatic (no Approve rows, no Send button). Replaces the
             per-piece approve walker (ReadoutCard). */}
-        {state === "readout" && (
+        {state === "readout" && !askBeforeNextTake && (
           <IdealTextReadout
             payload={
               readout ?? {
@@ -1593,35 +1645,16 @@ export default function LabOverlay({
             // "See next steps" as a guest: sign up, then the step is taken
             // as the account (founder 2026-10-04, Phase 0.6).
             onSignUpForNextSteps={() => startUnsignedSend("journey_next_steps")}
-            onReRead={() => {
-              // A re-read is just the next take on THIS presentation: keep the
-              // deck (context) and arc (arcTakeIndex was already advanced on the
-              // prior upload), drop the current take's readout/session/blob, and
-              // drop back to the mic. The BE reconciles the real take index on
-              // upload. Clear the parked readout so it can't restore over the
-              // new take; startPendingRef lets the mic-state effect re-init the
-              // slide timeline at the real recording start.
-              clearParked();
-              setReadout(null);
-              setLabSessionId(null);
-              setBlob(null);
-              uploadStartedRef.current = false;
-              pendingCarryRef.current = null;
-              setPollSessionId(null);
-              setPollSlow(false);
-              startPendingRef.current = true;
-              // THE BUTTON THE FOUNDER PRESSED (2026-08-12): "after clicking
-              // the record button - it yet again opens up the waiting screen
-              // instead of just bringing me to the recording page". The mic
-              // has been parked on {status:"stopped", audioBlob:<last take>}
-              // since that take ended, so entering lab_recording let the
-              // stop→processing branch fire on the PREVIOUS blob and bounce
-              // straight back out. Reset to idle first — RecordingPhase's
-              // "Getting your mic ready…" covers idle while getUserMedia
-              // resolves, which is the screen he was asking for.
-              cancelMic();
-              dispatch("take_started");
-              void mic.start();
+            onReRead={askThenStartNextTake}
+          />
+        )}
+
+        {state === "readout" && askBeforeNextTake && (
+          <TrainingAsk
+            onDone={() => {
+              setAskBeforeNextTake(false);
+              markTrainingAsked();
+              startNextTakeHere();
             }}
           />
         )}

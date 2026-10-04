@@ -50,6 +50,7 @@ import {
   copyAiGeneratedText,
 } from "@/lib/willab/aiGeneratedMark";
 import OverlayCloseButton from "./OverlayCloseButton";
+import { useReadoutPartHandlers } from "./useReadoutPartHandlers";
 import ProcessingWait from "./ProcessingWait";
 import AdditionsPanel from "./AdditionsPanel";
 import {
@@ -885,6 +886,18 @@ export default function IdealTextReadout({
   );
 
 
+  // Phase 5: the three handlers the main text page passes (see the hook).
+  const partHandlers = useReadoutPartHandlers({
+    arcIdRef,
+    textRef,
+    partsRef,
+    setParts: (nextParts) => setSd((prev) => (prev ? { ...prev, parts: nextParts } : prev)),
+    refetch: () => {
+      sdGenRef.current++;
+      setSdNonce((n) => n + 1);
+    },
+  });
+
   const deckSetRootPhrase = useCallback(
     async (
       chunk: DeckChunk,
@@ -1101,6 +1114,11 @@ export default function IdealTextReadout({
             onKeepMine={gate((s) => decideTracked(s, "keep"), REFUSED)}
             onLockPart={gate(deckLockPart, LOCK_REFUSED)}
             onSetRootPhrase={gate(deckSetRootPhrase, REFUSED)}
+            onUnlockPart={gate(partHandlers.unlockPart, REFUSED)}
+            onSetHelperWordsFromTake={gate(partHandlers.setHelperWordsFromTake, REFUSED)}
+            onJudged={(s, decided) =>
+              setSd((prev) => withSuggestionStatus(prev, s.id, decided))
+            }
             onEditSlide={gate(deckEditSlide, REFUSED)}
             coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,

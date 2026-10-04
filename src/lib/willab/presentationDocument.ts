@@ -42,12 +42,18 @@ export function buildPresentationDocument({
   presentationRef,
   pageCount,
   slideTitles,
+  headlines = null,
 }: {
   text: string;
   pieces: IdealPiece[] | null;
   presentationRef: string | null;
   pageCount: number | null;
   slideTitles: string[] | null;
+  /** Each paragraph's helper words by part id, as the page draws them (F1
+   *  Repair Plan Phase 5): words saved from practice or an earlier Take live
+   *  on the Slide, not on the paragraph's piece, and used to be dropped
+   *  here. Wins over the piece's own words when present. */
+  headlines?: ReadonlyMap<string, string> | null;
 }): PresentationDocumentSlide[] {
   const paragraphs = splitBadgeParagraphSpans(text);
   const pieceByKey = new Map((pieces ?? []).map((piece) => [piece.pieceKey, piece]));
@@ -68,16 +74,15 @@ export function buildPresentationDocument({
       candidatePage >= pageCount
         ? null
         : candidatePage;
+    const headline = piece?.partId ? headlines?.get(piece.partId) ?? "" : "";
+    const own = piece?.rootType === "flagship" ? (piece.rootPhrase ?? "") : "";
+    const rootPhrase = headline || own;
     return {
       page,
       value: {
         key: paragraph.start,
-        rootPhrase:
-          piece?.rootType === "flagship" ? (piece.rootPhrase ?? "") : "",
-        rootType:
-          piece?.rootType === "flagship"
-            ? ("flagship" as const)
-            : ("neutral" as const),
+        rootPhrase,
+        rootType: rootPhrase ? ("flagship" as const) : ("neutral" as const),
         idealText: paragraph.text,
       },
     };

@@ -35,6 +35,7 @@ import TrainingAsk, {
   TrainingAskGate,
   prefetchTrainingAsk,
   resetTrainingAsk,
+  trainingAskNeeded,
 } from "./TrainingAsk";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
@@ -187,3 +188,39 @@ describe("never a blank screen (founder 2026-10-04)", () => {
   });
 });
 
+/* "Record Take 2" asks too (N28; F1 Repair Plan Phase 5): it reads whether
+   the question would be asked without waiting, so the mic can start inside
+   the same tap when there is nothing to ask. */
+describe("trainingAskNeeded", () => {
+  it("is unknown before the read lands", () => {
+    expect(trainingAskNeeded()).toBeNull();
+  });
+
+  it("is false once the switch is already on", async () => {
+    api.fetchTrainingConsent.mockResolvedValue(state({ active: true }));
+    prefetchTrainingAsk();
+    await act(async () => {});
+    expect(trainingAskNeeded()).toBe(false);
+  });
+
+  it("is true while the question is open", async () => {
+    api.fetchTrainingConsent.mockResolvedValue(state());
+    prefetchTrainingAsk();
+    await act(async () => {});
+    expect(trainingAskNeeded()).toBe(true);
+  });
+
+  it("a yes counts for the next ask in the same entry", async () => {
+    api.fetchTrainingConsent.mockResolvedValue(state());
+    api.setTrainingConsent.mockResolvedValue(state({ active: true }));
+    prefetchTrainingAsk();
+    await act(async () => root.render(createElement(TrainingAsk, { onDone: done })));
+    await act(async () => {});
+    const yes = Array.from(container.querySelectorAll("button")).find(
+      (b) => b.textContent === TRAINING_ASK_COPY.yes,
+    ) as HTMLButtonElement;
+    await act(async () => yes.click());
+    expect(done).toHaveBeenCalled();
+    expect(trainingAskNeeded()).toBe(false);
+  });
+});

@@ -293,15 +293,33 @@ function time(value: string | null): number {
   return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
 }
 
-/** The helper words in force while a version stood: the last set written
- *  before the next version replaced it (mirrors answeredBookmark). */
+/** The helper words a version held: the last set saved before the next
+ *  version replaced it (mirrors answeredBookmark). A DELETED SET STAYS IN
+ *  HISTORY (founder lock 2026-09-30, B4/D4; contract 13; F1 Repair Plan
+ *  Phase 5): a delete is logged as an empty set, and an empty set no longer
+ *  wipes the words the version held before it. */
 function helperWordsBefore(history: ParagraphHistory, until: number): string | null {
   let current: string[] = [];
   for (const set of history.helperWords) {
     if (time(set.at) >= until) break;
-    current = set.phrases.map((p) => p.trim()).filter(Boolean);
+    const phrases = set.phrases.map((p) => p.trim()).filter(Boolean);
+    if (phrases.length > 0) current = phrases;
   }
   return current.length > 0 ? current.join(" · ") : null;
+}
+
+/** Whether the words saved while the newest version stands were deleted
+ *  since: then that version's row is History too, not the Take on screen
+ *  alone, or the deleted set would vanish. */
+function deletedSinceNewest(history: ParagraphHistory, since: number): boolean {
+  let held = false;
+  let last: string[] | null = null;
+  for (const set of history.helperWords) {
+    if (time(set.at) < since) continue;
+    last = set.phrases.map((p) => p.trim()).filter(Boolean);
+    if (last.length > 0) held = true;
+  }
+  return held && last !== null && last.length === 0;
 }
 
 export function historyRows(
@@ -318,6 +336,9 @@ export function historyRows(
       i + 1 < versions.length ? time(versions[i + 1].at) : Number.POSITIVE_INFINITY,
     ),
   }));
-  // Newest first, and the newest itself is the Take on screen, not history.
-  return rows.reverse().slice(1);
+  // Newest first, and the newest itself is the Take on screen, not history
+  // -- unless words saved during it were deleted since (Phase 5).
+  const newest = versions[versions.length - 1];
+  const keepNewest = newest ? deletedSinceNewest(history, time(newest.at)) : false;
+  return keepNewest ? rows.reverse() : rows.reverse().slice(1);
 }

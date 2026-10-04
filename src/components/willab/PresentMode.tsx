@@ -50,6 +50,7 @@ export default function PresentMode({
   slideTitles = null,
   onClose,
   exportFormat = null,
+  headlines = null,
 }: {
   /** The served ideal text, marker syntax and all. */
   text: string;
@@ -61,6 +62,9 @@ export default function PresentMode({
   onClose: () => void;
   /** Export preview has only X + one format-specific Download action. */
   exportFormat?: PresentationExportFormat | null;
+  /** The page's helper words by part id (Phase 5), so Slide-saved words
+   *  reach the delivery and the export too. */
+  headlines?: ReadonlyMap<string, string> | null;
 }) {
   // The device Back gesture exits present mode rather than the whole app —
   // same LIFO contract every willab overlay follows.
@@ -75,8 +79,9 @@ export default function PresentMode({
         presentationRef,
         pageCount,
         slideTitles,
+        headlines,
       }),
-    [pageCount, pieces, presentationRef, slideTitles, text]
+    [headlines, pageCount, pieces, presentationRef, slideTitles, text]
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
