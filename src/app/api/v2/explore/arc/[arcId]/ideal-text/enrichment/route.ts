@@ -15,7 +15,7 @@ export async function GET(
   if (sections) query.set("sections", sections);
   return callBackend(
     `/v2/explore/arc/${arcId}/ideal-text/enrichment?${query.toString()}`,
-    { method: "GET" },
+    { method: "GET", guestOwnerFrom: request },
   );
 }
 

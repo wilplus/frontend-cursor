@@ -10,8 +10,8 @@ export async function GET(
 ) {
   const arcId = encodeURIComponent(params.arcId);
   const partId = encodeURIComponent(params.partId);
-  void request;
   return callBackend(`/v2/explore/arc/${arcId}/parts/${partId}/history`, {
     method: "GET",
+    guestOwnerFrom: request,
   });
 }

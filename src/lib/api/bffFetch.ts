@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "@/services/api/projects";
 
 /* -------------------------------------------------------------------------- */
 /*  bffFetch — one call to our own /api BFF (audit D5, 2026-09-28)             */
@@ -9,8 +10,8 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /*  with each client (null, false, a typed result), so moving a client onto    */
 /*  this changes none of its answers.                                          */
 /*                                                                            */
-/*  Clients that fall back to guest headers when signed out keep their own     */
-/*  plumbing for now; that path is not modelled here.                          */
+/*  `guest: true` (Phase 0.6) sends the guest owner token when there is no     */
+/*  session token -- only on reads the backend opens to a project's guest.     */
 /* -------------------------------------------------------------------------- */
 
 export interface BffRequest {
@@ -23,6 +24,9 @@ export interface BffRequest {
    *  "optional": send anyway, without the Bearer header, and let the session
    *  cookie authenticate. */
   auth?: "required" | "optional";
+  /** With no session token, send the guest owner token (implies "optional").
+   *  Only for reads the backend opens to a project's own guest (Phase 0.6). */
+  guest?: boolean;
 }
 
 export type BffResult =
@@ -46,6 +50,7 @@ function requestInit(request: BffRequest, token: string | null): RequestInit {
   const headers: Record<string, string> = {};
   if (request.json !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
+  else if (request.guest) Object.assign(headers, guestOwnerHeaders());
   const init: RequestInit = { headers };
   if (request.method) init.method = request.method;
   if (request.json !== undefined) init.body = JSON.stringify(request.json);
@@ -59,7 +64,9 @@ export async function bffFetch(
   request: BffRequest = {},
 ): Promise<BffResult> {
   const token = await getAuthToken();
-  if (!token && request.auth !== "optional") return { kind: "unauthenticated" };
+  if (!token && request.auth !== "optional" && !request.guest) {
+    return { kind: "unauthenticated" };
+  }
   let response: Response;
   try {
     response = await fetch(path, requestInit(request, token));

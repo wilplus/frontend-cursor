@@ -181,6 +181,8 @@ export async function fetchBestPresentation(
   opts: { source?: "deck-ref-fallback" } = {}
 ): Promise<BestPresentationResult | BestPresentationPreparing | null> {
   const headers = await authHeaders();
+  // A guest reads its own project's deck (Phase 0.6).
+  if (!headers.Authorization) Object.assign(headers, guestOwnerHeaders());
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   const query = opts.source ? `?source=${encodeURIComponent(opts.source)}` : "";

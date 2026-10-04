@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: { arcId: string } },
 ) {
   const arcId = encodeURIComponent(params.arcId);
-  void request;
   return callBackend(`/v2/explore/arc/${arcId}/recording-roots`, {
     method: "GET",
+    guestOwnerFrom: request,
   });
 }

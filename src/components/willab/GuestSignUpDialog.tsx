@@ -1,50 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { readGuestOwnerToken } from "@/services/api/projects";
 
-/** A guest is asked to sign up without having to look for the button
- *  (founder 2026-10-04: "prompt the user with a sign up page; and not wait
- *  for them to click it").
+/** A guest reads the whole page and is asked to sign up at the step that
+ *  needs an account (founder 2026-10-04, F1 Repair Plan Phase 0.6):
  *
- *  WHY. A guest's Take ends at plain text: no Feedback, no Take 2, and once
- *  they leave the screen the text cannot be reopened until the project
- *  belongs to an account. The "Create an account to keep this text" button
- *  under the text was the only way on, and a guest had to find it.
+ *    "You need to show the full feedback ... and then when they click on the
+ *     text, the bookmark should open, the feedback should open. And then when
+ *     they want to practice, then show you need to sign up. That should be
+ *     the order."
  *
- *  WHEN (founder's pick, "when the text is ready"): the guest sees their text
- *  first, and the dialog opens over it by itself a moment later. "Not now"
- *  returns to the text, where the button under it stays. It opens once per
- *  readout, so closing it is respected. */
-export const GUEST_SIGN_UP_DELAY_MS = 2000;
+ *  So nothing opens by itself. Reading is free: the text, the slides, the
+ *  bars, the paragraph sheet and its history. The steps that keep or change
+ *  something -- practise, Record Take 2, locking helper words, editing,
+ *  deciding a suggestion -- open this dialog instead, because each of them
+ *  writes to an account the guest does not have yet. "Not now" returns to
+ *  the page exactly as it was.
+ *
+ *  `useGuestGate` is the one switch: an account gets every callback back
+ *  untouched; a guest gets each one replaced by "ask, and refuse". */
 
 export const GUEST_SIGN_UP_COPY = {
-  title: "Keep your text",
-  body: "Create an account to keep this text, get your feedback and record Take 2.",
+  title: "Create an account to continue",
+  body: "Practising, recording Take 2 and keeping your changes need an account. Your recording comes with you.",
   primary: "Create an account",
   secondary: "Not now",
 } as const;
 
 export default function GuestSignUpDialog({
-  armed,
+  open,
   onSignUp,
+  onClose,
 }: {
-  /** True once a guest's text is on screen. */
-  armed: boolean;
+  open: boolean;
   onSignUp: () => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    if (!armed || shown) return;
-    const timer = window.setTimeout(() => {
-      setOpen(true);
-      setShown(true);
-    }, GUEST_SIGN_UP_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [armed, shown]);
-
   if (!open) return null;
   return (
     <div
@@ -74,7 +67,7 @@ export default function GuestSignUpDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={onClose}
             className="h-12 w-full rounded-full text-[15px] font-medium"
           >
             {GUEST_SIGN_UP_COPY.secondary}
@@ -83,4 +76,56 @@ export default function GuestSignUpDialog({
       </div>
     </div>
   );
+}
+
+export interface GuestGate {
+  /** A signed-out reader holding the guest identity for this project. */
+  guest: boolean;
+  /** The page may be read: an account, or this project's guest. */
+  canRead: boolean;
+  /** The plain fallback's own sign-up button shows: signed out and no page
+   *  could be read. */
+  plainSignUp: (pageLoaded: boolean) => boolean;
+  /** Open the dialog. */
+  ask: () => void;
+  /** An account gets `fn` back; a guest gets "open the dialog, answer
+   *  `refused`" -- the step never reaches a route that needs an account. */
+  gate: <A extends unknown[], R>(fn: (...args: A) => R, refused: R) => (...args: A) => R;
+  /** The dialog itself, rendered once by the host (null for an account). */
+  dialog: React.ReactNode;
+}
+
+export function useGuestGate({
+  signedIn,
+  arcId,
+  onSignUp,
+}: {
+  signedIn: boolean | null;
+  arcId: string | null;
+  onSignUp: () => void;
+}): GuestGate {
+  const guest = signedIn === false && !!arcId && !!readGuestOwnerToken();
+  const [open, setOpen] = useState(false);
+  const ask = useCallback(() => setOpen(true), []);
+  const gate = useCallback(
+    <A extends unknown[], R>(fn: (...args: A) => R, refused: R) =>
+      guest
+        ? (..._args: A): R => {
+            setOpen(true);
+            return refused;
+          }
+        : fn,
+    [guest],
+  );
+  const dialog = guest ? (
+    <GuestSignUpDialog
+      open={open}
+      onSignUp={onSignUp}
+      onClose={() => setOpen(false)}
+    />
+  ) : null;
+  const canRead = signedIn === true || guest;
+  const plainSignUp = (pageLoaded: boolean) =>
+    signedIn === false && !pageLoaded;
+  return { guest, canRead, plainSignUp, ask, gate, dialog };
 }

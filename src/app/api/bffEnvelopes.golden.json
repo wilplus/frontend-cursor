@@ -4017,11 +4017,14 @@
     },
     "no_token": {
       "body": {
-        "error": "Not authenticated"
+        "items": [
+          1
+        ],
+        "ok": true
       },
       "cacheControl": null,
       "contentType": "application/json",
-      "status": 401
+      "status": 200
     },
     "no_url": {
       "body": {
@@ -5537,11 +5540,14 @@
     },
     "no_token": {
       "body": {
-        "error": "Not authenticated"
+        "items": [
+          1
+        ],
+        "ok": true
       },
       "cacheControl": null,
       "contentType": "application/json",
-      "status": 401
+      "status": 200
     },
     "no_url": {
       "body": {

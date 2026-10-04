@@ -137,6 +137,8 @@ export async function getAccessToken(): Promise<string | null> {
 /** The header that joins a BFF hop to the backend's log lines, Sentry events
  *  and queued jobs (audit A1). Flask binds it for the request and echoes it. */
 export const REQUEST_ID_HEADER = "X-Request-Id";
+/** The signed guest owner token (Phase 0.5/0.6). */
+export const GUEST_OWNER_HEADER = "X-Willab-Guest-Owner";
 const REQUEST_ID = /^[A-Za-z0-9._-]{1,64}$/;
 
 function newRequestId(): string {
@@ -233,6 +235,11 @@ export async function callBackend(
     token?: string | null;
     failures?: Failures;
     relay?: Relay;
+    /** Phase 0.6 (founder 2026-10-04: a guest sees the whole page). With no
+     *  session token, forward this request's guest owner token, and accept
+     *  either one. Only for reads the backend opens to a project's guest;
+     *  the backend proves the token and the ownership. */
+    guestOwnerFrom?: { headers: Headers };
   } = {}
 ): Promise<NextResponse> {
   const {
@@ -240,16 +247,24 @@ export async function callBackend(
     token: tokenOverride,
     failures = {},
     relay = relayVerbatim,
+    guestOwnerFrom,
     ...rest
   } = init;
   const token =
     tokenOverride !== undefined ? tokenOverride : await getAccessToken();
+  const guestOwner = token
+    ? null
+    : guestOwnerFrom?.headers.get(GUEST_OWNER_HEADER) || null;
 
-  if (requireAuth && !token) {
+  if (requireAuth && !token && !guestOwner) {
     return failure(failures.unauthenticated ?? DEFAULT_FAILURES.unauthenticated);
   }
 
-  const [otherHeaders, requestId] = await resolveRequestId(rest.headers);
+  const [otherHeaders, requestId] = await resolveRequestId(
+    guestOwner
+      ? { ...(rest.headers ?? {}), [GUEST_OWNER_HEADER]: guestOwner }
+      : rest.headers
+  );
   let upstream: Response;
   try {
     upstream = await backendFetch(path, {
