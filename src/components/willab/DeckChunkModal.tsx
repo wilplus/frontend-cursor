@@ -14,6 +14,7 @@ import {
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
+import { useGuestBlock } from "./GuestSignUpDialog";
 import { RichText } from "./RichText";
 import CoachVideo from "./CoachVideo";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -767,6 +768,9 @@ export default function DeckChunkModal({
   // part's words change UNDER the modal (an accept reassembles the document)
   // — but never over something the student has typed.
   const [draft, setDraft] = useState(chunk.part.text);
+  // A guest's answer asks to sign up first (founder 2026-10-04, N32): the
+  // Feedback is free to read; saving an answer needs an account.
+  const guestBlock = useGuestBlock();
   const dirtyRef = useRef(false);
   useEffect(() => {
     if (!dirtyRef.current) setDraft(chunk.part.text);
@@ -774,6 +778,7 @@ export default function DeckChunkModal({
 
 
   async function recordFeedbackResponse(response: FeedbackResponse): Promise<boolean> {
+    if (guestBlock()) return false;
     if (!suggestion?.takeSessionId || !suggestion.feedbackFamily) return false;
     const result = await saveTakeFeedbackResponse({
       takeSessionId: suggestion.takeSessionId,
@@ -1227,6 +1232,7 @@ export default function DeckChunkModal({
   const [agreeSaved, setAgreeSaved] = useState(false);
 
   function sendAgreement(value: ConfidenceRatingValue) {
+    if (guestBlock()) return;
     const snippetId = suggestion?.snippetId;
     const takeSessionId = suggestion?.takeSessionId;
     if (!suggestion || !snippetId || !takeSessionId) return;

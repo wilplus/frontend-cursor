@@ -1233,6 +1233,11 @@ export type IdealTextResult =
        *  `changes`; surfaced only inside the chunk modal, never as an
        *  underline. null = absent (older BE / none pending). */
       styleChanges: DocumentSuggestion[] | null;
+      /** V3 could not make this Take's Feedback (F1 Repair Plan Phase 2,
+       *  contract 24h): the server serves no stand-in rows and says so. The
+       *  page retries once, then shows its notice with Try again. The reason
+       *  is a diagnostic code and is never shown. Absent/false = no failure. */
+      feedbackFailed?: boolean;
       /** PROPOSAL HISTORY (slice 2) — the arc's decided proposals that
        *  still carry their text, newest first. null = absent. */
       decisionHistory: DecisionHistoryEntry[] | null;
@@ -1599,6 +1604,7 @@ function mapSingleIdealTextFetchResult(
     // rendered ungated (founder 2026-08-10, sole-gatekeeper rip).
     suggestions: mapDocumentSuggestions(body.changes),
     styleChanges: mapDocumentSuggestions(body.style_changes),
+    feedbackFailed: feedbackFailedIn(body),
     decisionHistory: mapDecisionHistory(body.decision_history),
     // `is_saved` is the BE's field; `saved` tolerated as an alias so a
     // rename cannot silently strand the whole save lane.
@@ -1924,6 +1930,18 @@ function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | n
     parts,
     currentBundleTextUpdateBinding,
   };
+}
+
+/** `feedback_status: { state: "failed" }` on a payload or its document
+ *  layers (Phase 2). Anything else -- absent, malformed -- is not a failure. */
+function feedbackFailedIn(source: unknown): boolean {
+  if (!source || typeof source !== "object") return false;
+  const status = (source as Record<string, unknown>).feedback_status;
+  return (
+    !!status &&
+    typeof status === "object" &&
+    (status as Record<string, unknown>).state === "failed"
+  );
 }
 
 /** The reader's identity for the page's three reads (Phase 0.6, founder
@@ -2288,6 +2306,7 @@ export function mergeIdealTextEnrichment(
     styleChanges: layers
       ? mapDocumentSuggestions(layers.style_changes)
       : core.styleChanges,
+    feedbackFailed: layers ? feedbackFailedIn(layers) : core.feedbackFailed,
     saved: layers
       ? typeof layers.is_saved === "boolean"
         ? layers.is_saved

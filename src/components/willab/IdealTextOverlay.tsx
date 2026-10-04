@@ -92,6 +92,7 @@ import {
   type Part,
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
+import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type {
   ConfidentMomentOwnerEdit,
@@ -186,6 +187,8 @@ export default function IdealTextOverlay({
     suggestions: DocumentSuggestion[] | null;
     /** Slice 2 — the post-lock style lane + the decided-proposal history. */
     styleChanges: DocumentSuggestion[] | null;
+    /** Phase 2: V3 could not make this Take's Feedback. */
+    feedbackFailed: boolean;
     decisionHistory: DecisionHistoryEntry[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
@@ -360,6 +363,7 @@ export default function IdealTextOverlay({
         pieces: r.pieces,
         suggestions: r.suggestions,
         styleChanges: r.styleChanges,
+        feedbackFailed: r.feedbackFailed === true,
         decisionHistory: r.decisionHistory,
         saved: r.saved,
         keyPoints: r.keyPoints,
@@ -1093,6 +1097,10 @@ export default function IdealTextOverlay({
               something and it retries.
             </p>
           ) : null}
+          <FeedbackFailedNotice
+            failed={sd.feedbackFailed}
+            onRetry={() => setRefetchNonce((n) => n + 1)}
+          />
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}

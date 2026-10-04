@@ -67,6 +67,7 @@ import {
   type Part,
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
+import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu from "./IdealTextMenu";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -208,6 +209,8 @@ export default function IdealTextReadout({
     suggestions: DocumentSuggestion[] | null;
     /** Slice 2 — the post-lock style lane + the decided-proposal history. */
     styleChanges: DocumentSuggestion[] | null;
+    /** Phase 2: V3 could not make this Take's Feedback. */
+    feedbackFailed: boolean;
     decisionHistory: DecisionHistoryEntry[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
@@ -373,6 +376,7 @@ export default function IdealTextReadout({
         pieces: r.pieces,
         suggestions: r.suggestions,
         styleChanges: r.styleChanges,
+        feedbackFailed: r.feedbackFailed === true,
         decisionHistory: r.decisionHistory,
         saved: r.saved,
         keyPoints: r.keyPoints,
@@ -1074,6 +1078,10 @@ export default function IdealTextReadout({
         // A minimum here is what pushed the page past the viewport and gave
         // the screen a second scroll (founder 2026-08-11).
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <FeedbackFailedNotice
+            failed={sd.feedbackFailed}
+            onRetry={() => setSdNonce((n) => n + 1)}
+          />
           <GuestGateContext.Provider value={guestGate.block}>
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
