@@ -20,12 +20,22 @@ const api = vi.hoisted(() => ({
   setTrainingConsent: vi.fn(),
 }));
 
+let authToken: string | null = "session-token";
+vi.mock("@/lib/api/auth-client", () => ({
+  getAuthToken: () => Promise.resolve(authToken),
+}));
+
 vi.mock("@/services/api/trainingConsent", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/api/trainingConsent")>();
   return { ...actual, ...api };
 });
 
-import TrainingAsk, { TRAINING_ASK_COPY, TrainingAskGate } from "./TrainingAsk";
+import TrainingAsk, {
+  TRAINING_ASK_COPY,
+  TrainingAskGate,
+  prefetchTrainingAsk,
+  resetTrainingAsk,
+} from "./TrainingAsk";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
 
@@ -52,6 +62,8 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   done = vi.fn<() => void>();
+  authToken = "session-token";
+  resetTrainingAsk();
   api.fetchTrainingConsent.mockReset();
   api.setTrainingConsent.mockReset();
 });
@@ -61,7 +73,9 @@ afterEach(() => {
   container.remove();
 });
 
-const flush = () => act(async () => { await Promise.resolve(); });
+const flush = () => act(async () => {
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+});
 const button = (label: string) =>
   Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
     .find((b) => b.textContent === label);
@@ -76,7 +90,6 @@ describe("passes straight through", () => {
   it("when the backend keeps the switch closed", async () => {
     await renderWith(null);
     expect(done).toHaveBeenCalledTimes(1);
-    expect(container.innerHTML).toBe("");
   });
 
   it("when there is no training policy", async () => {
@@ -87,7 +100,7 @@ describe("passes straight through", () => {
   it("when the learning is already on", async () => {
     await renderWith(state({ active: true }));
     expect(done).toHaveBeenCalledTimes(1);
-    expect(container.innerHTML).toBe("");
+    expect(container.querySelector("h2")).toBeNull();
   });
 });
 
@@ -147,3 +160,30 @@ describe("the gate over the pre-recording screens", () => {
     expect(container.querySelector("h2")).toBeNull();
   });
 });
+
+describe("never a blank screen (founder 2026-10-04)", () => {
+  it("a guest is never asked and never waits: no read at all", async () => {
+    authToken = null;
+    await renderWith(state());
+    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it("while the read is in flight the loading state shows, not an empty screen", async () => {
+    api.fetchTrainingConsent.mockReturnValue(new Promise(() => undefined));
+    act(() => root.render(createElement(TrainingAsk, { onDone: done })));
+    await flush();
+    expect(container.innerHTML).not.toBe("");
+    expect(container.querySelector("h2")).toBeNull();
+  });
+
+  it("read as the Lab opens, the question is there on the first frame", async () => {
+    api.fetchTrainingConsent.mockResolvedValue(state());
+    prefetchTrainingAsk();
+    await flush();
+    act(() => root.render(createElement(TrainingAsk, { onDone: done })));
+    expect(container.querySelector("h2")?.textContent).toBe("Turn on the learning?");
+    expect(api.fetchTrainingConsent).toHaveBeenCalledTimes(1);
+  });
+});
+
