@@ -122,7 +122,10 @@ vi.mock("@/services/api/mlc3FirstClient", async (load) => {
     fetchServiceCoachGuidance: vi.fn(async () => ({ ok: true, value: [] })),
   };
 });
-vi.mock("@/services/api/takeFeedback", () => ({ saveTakeFeedbackResponse }));
+vi.mock("@/services/api/takeFeedback", async (load) => {
+  const actual = await load<typeof import("@/services/api/takeFeedback")>();
+  return { ...actual, saveTakeFeedbackResponse };
+});
 
 const TEXT =
   "We should ship it now because the data is clear and the team is ready.";

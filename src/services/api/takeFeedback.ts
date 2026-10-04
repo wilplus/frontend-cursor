@@ -32,7 +32,12 @@ export const FROZEN_SET_MISMATCH =
   "feedback item is not in this Take's frozen set";
 
 export type SaveTakeFeedbackResult =
-  | { ok: true }
+  | {
+      ok: true;
+      /** An accepted V3 rewrite only: what the server did to the Paragraph
+       *  (F1 Repair Plan Phase 4, P1-1) -- see `acceptOutcome`. */
+      textUpdate?: string;
+    }
   | {
       ok: false;
       error: string | null;
@@ -73,11 +78,35 @@ export async function saveTakeFeedbackResponse(input: {
     }
   );
   if (result.kind !== "response") return { ok: false, error: null };
-  if (result.ok) return { ok: true };
+  if (result.ok) {
+    const body = result.body as Record<string, unknown> | null;
+    return typeof body?.text_update === "string"
+      ? { ok: true, textUpdate: body.text_update }
+      : { ok: true };
+  }
   const body = result.body as Record<string, unknown> | null;
   const error = typeof body?.error === "string" ? body.error : null;
   if (result.status === 400 && error === FROZEN_SET_MISMATCH) {
     return { ok: false, error, reason: "superseded" };
   }
   return { ok: false, error };
+}
+
+/** What an accepted rewrite's answer means for the page (F1 Repair Plan
+ *  Phase 4, P1-1; contract 29b). The server writes the accepted words as a
+ *  new Paragraph version from the V3 freeze that served the item:
+ *
+ *  - "server": it did (or already had) -- the page refetches and sends no
+ *    ledger decision of its own;
+ *  - "refused": it could not (helper words or a lock on the Paragraph, the
+ *    words moved, a writer failure) and no word changed -- the sheet says
+ *    the accept was not saved;
+ *  - "legacy": the item is not a V3 rewrite the server knows, or an older
+ *    backend answered -- the page decides as before. */
+export function acceptOutcome(
+  textUpdate: string | undefined,
+): "server" | "refused" | "legacy" {
+  if (textUpdate === "applied" || textUpdate === "already_applied") return "server";
+  if (textUpdate === undefined || textUpdate === "not_found") return "legacy";
+  return "refused";
 }

@@ -71,9 +71,10 @@ vi.mock("@/services/api/mlc3FirstClient", async (load) => {
   const actual = await load<typeof import("@/services/api/mlc3FirstClient")>();
   return { ...actual, mlc3FirstClientPresentationEnabled: false };
 });
-vi.mock("@/services/api/takeFeedback", () => ({
-  saveTakeFeedbackResponse: vi.fn(async () => ({ ok: true })),
-}));
+vi.mock("@/services/api/takeFeedback", async (load) => {
+  const actual = await load<typeof import("@/services/api/takeFeedback")>();
+  return { ...actual, saveTakeFeedbackResponse: vi.fn(async () => ({ ok: true })) };
+});
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));

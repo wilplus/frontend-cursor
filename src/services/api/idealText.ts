@@ -227,6 +227,10 @@ export interface ConfidentVoicePracticeOffer {
 
 export interface DocumentSuggestion {
   id: string;
+  /** Set by the sheet when the server already wrote this accepted rewrite
+   *  into its Paragraph (Phase 4, P1-1): the host then sends no ledger
+   *  decision, only refreshes. Never served. */
+  acceptedOnServer?: boolean;
   /** Opaque canonical response identity. These three travel together; they
    * bind a click to one frozen candidate rather than a reusable display key. */
   candidateId?: string | null;
