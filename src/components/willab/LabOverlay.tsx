@@ -54,11 +54,12 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
-import TrainingAsk, {
+import {
+  NextTakeGate,
   TrainingAskGate,
+  askThenRun,
   prefetchTrainingAsk,
   resetTrainingAsk,
-  trainingAskNeeded,
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import {
@@ -1292,11 +1293,7 @@ export default function LabOverlay({
    *  unless the read already says there is nothing to ask, in which case the
    *  mic starts inside this same tap. */
   function askThenStartNextTake() {
-    if (trainingAskNeeded() === false) {
-      startNextTakeHere();
-      return;
-    }
-    setAskBeforeNextTake(true);
+    askThenRun(startNextTakeHere, () => setAskBeforeNextTake(true));
   }
 
   function handleClose() {
@@ -1603,7 +1600,15 @@ export default function LabOverlay({
             auto-applied, editable, pending-verification badge; delivery to the
             coach is automatic (no Approve rows, no Send button). Replaces the
             per-piece approve walker (ReadoutCard). */}
-        {state === "readout" && !askBeforeNextTake && (
+        {state === "readout" && (
+          <NextTakeGate
+            asking={askBeforeNextTake}
+            onDone={() => {
+              setAskBeforeNextTake(false);
+              markTrainingAsked();
+              startNextTakeHere();
+            }}
+          >
           <IdealTextReadout
             payload={
               readout ?? {
@@ -1647,17 +1652,10 @@ export default function LabOverlay({
             onSignUpForNextSteps={() => startUnsignedSend("journey_next_steps")}
             onReRead={askThenStartNextTake}
           />
+          </NextTakeGate>
         )}
 
-        {state === "readout" && askBeforeNextTake && (
-          <TrainingAsk
-            onDone={() => {
-              setAskBeforeNextTake(false);
-              markTrainingAsked();
-              startNextTakeHere();
-            }}
-          />
-        )}
+
 
         {(state === "sendgate_unsigned" || state === "sendgate_signed") && (
           <SendGate

@@ -1,6 +1,6 @@
 "use client";
 
-import { useParagraphHeadlines } from "@/components/willab/useSlideHeadlines";
+import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -537,11 +537,7 @@ export default function IdealTextOverlay({
   const displayText = notes ?? ideal?.text ?? "";
   // Phase 5: the page's helper words by part id, read only while delivering
   // or exporting, so words saved on the Slide reach both.
-  const deliveryHeadlines = useParagraphHeadlines(
-    presenting || exporting ? arcId : null,
-    displayText,
-    false,
-  );
+  const deliveryHeadlines = useDeliveryHeadlines(arcId, displayText, presenting, exporting);
 
   /* THE DECK'S INPUTS HAVE TO KEEP THEIR IDENTITY (2026-09-19, reported as
    * "very laggy… bugging shaking screen when I scroll" and "it shows part of

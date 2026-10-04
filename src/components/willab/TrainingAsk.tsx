@@ -104,6 +104,28 @@ export function TrainingAskGate({
   return <TrainingAsk onDone={onDone} />;
 }
 
+/** "Record Take 2" from the text in the Lab (N28): run the next Take now when
+ *  the read says there is nothing to ask (inside the same tap), else ask. */
+export function askThenRun(run: () => void, ask: () => void): void {
+  if (trainingAskNeeded() === false) run();
+  else ask();
+}
+
+/** The text after a Take, or the question in front of the next Take while
+ *  `asking` (N28). */
+export function NextTakeGate({
+  asking,
+  onDone,
+  children,
+}: {
+  asking: boolean;
+  onDone: () => void;
+  children?: ReactNode;
+}) {
+  if (asking) return <TrainingAsk onDone={onDone} />;
+  return <>{children}</>;
+}
+
 export default function TrainingAsk({ onDone }: { onDone: () => void }) {
   const [shown, setShown] = useState<TrainingConsent | null>(() =>
     settled && shouldAsk(settled.value) ? settled.value : null,
