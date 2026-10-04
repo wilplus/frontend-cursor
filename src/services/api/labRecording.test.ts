@@ -493,6 +493,50 @@ describe("submitLabRecording — Cloudflare upload-proxy routing", () => {
     ]);
   });
 
+  // Founder 2026-10-04: a hand-deployed Worker older than 2026-08-24 drops
+  // X-Willab-Guest-Owner, so every new guest's first Take was refused with
+  // "A verified owner is required." The gate refuses before anything is
+  // stored, so the BFF lane, which forwards the identity, gets it once more.
+  const refused = (code: string) => {
+    const body = { code, error: "A verified owner is required." };
+    const response = {
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve(body),
+    } as unknown as Response;
+    (response as unknown as { clone: () => Response }).clone = () => response;
+    return Promise.resolve(response);
+  };
+
+  it("a guest refused at the Worker for a missing identity goes once through the BFF lane", async () => {
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
+    const sent: Array<[string, Headers]> = [];
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      sent.push([url, new Headers(init?.headers)]);
+      return url.startsWith("https://upload.example.com")
+        ? refused("INVALID_GUEST_OWNER")
+        : okResponse();
+    });
+    const res = await submitLabRecording({ ...baseInput(), guestOwnerToken: "guest-token" });
+    expect(res.kind).toBe("ok");
+    expect(sent.map(([u]) => u)).toEqual([
+      "https://upload.example.com/v2/lab/recordings",
+      "/api/v2/lab/recordings",
+    ]);
+    expect(sent[1][1].get("X-Willab-Guest-Owner")).toBe("guest-token");
+  });
+
+  it("any other refusal at the Worker is not resent", async () => {
+    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      urls.push(url);
+      return refused("PROCESSING_AUTHORIZATION_REQUIRED");
+    });
+    await submitLabRecording({ ...baseInput(), guestOwnerToken: "guest-token" });
+    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
+  });
+
   it("uses only the BFF lane when the env is unset", async () => {
     const urls: string[] = [];
     vi.stubGlobal("fetch", (url: string) => {
