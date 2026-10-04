@@ -1586,7 +1586,10 @@ export default function LabOverlay({
               clearParked();
               if (labSessionId) setReviewPending(labSessionId);
             }}
-            onSignUp={() => dispatch("sign_up_to_send")}
+            // Straight to the sign-up page (founder 2026-10-04): the guest has
+            // already been asked over their text, so the "One quick step"
+            // page in between was a second ask with nothing new in it.
+            onSignUp={startUnsignedSend}
             onReRead={() => {
               // A re-read is just the next take on THIS presentation: keep the
               // deck (context) and arc (arcTakeIndex was already advanced on the

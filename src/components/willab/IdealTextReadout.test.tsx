@@ -18,6 +18,10 @@ vi.mock("./LoungeThreadContext", () => ({
 vi.mock("./useArcDeckRef", () => ({ useArcDeckRef: () => null }));
 
 import IdealTextReadout from "./IdealTextReadout";
+import {
+  GUEST_SIGN_UP_COPY,
+  GUEST_SIGN_UP_DELAY_MS,
+} from "./GuestSignUpDialog";
 import type { ReadoutPayload } from "./readout";
 
 const payload = {
@@ -87,5 +91,71 @@ describe("IdealTextReadout — a guest's text (no SD payload)", () => {
         '[data-testid="readout-plain-scroller"]'
       )
     ).toBe(scroller);
+  });
+});
+
+describe("IdealTextReadout — a guest is asked to sign up (founder 2026-10-04)", () => {
+  function renderGuest(onSignUp: () => void) {
+    act(() => {
+      root.render(
+        createElement(IdealTextReadout, {
+          payload,
+          sessionId: null,
+          signedIn: false,
+          onAutoSent: () => {},
+          onSignUp,
+        })
+      );
+    });
+  }
+  const dialog = () => host.querySelector('[role="dialog"]');
+  const button = (label: string) =>
+    Array.from(dialog()?.querySelectorAll("button") ?? []).find(
+      (b) => b.textContent === label
+    );
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows the text first, then opens the sign-up by itself", () => {
+    vi.useFakeTimers();
+    renderGuest(() => {});
+    expect(host.textContent).toContain("far below the fold");
+    expect(dialog()).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(GUEST_SIGN_UP_DELAY_MS);
+    });
+    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
+  });
+
+  it("goes to sign-up from the dialog", () => {
+    vi.useFakeTimers();
+    const onSignUp = vi.fn();
+    renderGuest(onSignUp);
+    act(() => {
+      vi.advanceTimersByTime(GUEST_SIGN_UP_DELAY_MS);
+    });
+    act(() => {
+      button(GUEST_SIGN_UP_COPY.primary)?.click();
+    });
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("'Not now' returns to the text and does not ask again", () => {
+    vi.useFakeTimers();
+    renderGuest(() => {});
+    act(() => {
+      vi.advanceTimersByTime(GUEST_SIGN_UP_DELAY_MS);
+    });
+    act(() => {
+      button(GUEST_SIGN_UP_COPY.secondary)?.click();
+    });
+    expect(dialog()).toBeNull();
+    expect(host.textContent).toContain("far below the fold");
+    act(() => {
+      vi.advanceTimersByTime(GUEST_SIGN_UP_DELAY_MS * 5);
+    });
+    expect(dialog()).toBeNull();
   });
 });

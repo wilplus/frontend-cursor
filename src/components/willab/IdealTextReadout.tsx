@@ -44,6 +44,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import AiGeneratedNote from "./AiGeneratedNote";
+import GuestSignUpDialog from "./GuestSignUpDialog";
 import {
   aiGeneratedAttrs,
   copyAiGeneratedText,
@@ -1138,13 +1139,16 @@ export default function IdealTextReadout({
       {/* FE-6 — a guest's edits are local-only (persistence arms on the SD
           fetch, which needs auth), so the CTA must not promise saving. */}
       {signedIn === false ? (
-        <Button
-          type="button"
-          onClick={onSignUp}
-          className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-        >
-          Create an account to keep this text
-        </Button>
+        <>
+          <GuestSignUpDialog armed={text.trim().length > 0} onSignUp={onSignUp} />
+          <Button
+            type="button"
+            onClick={onSignUp}
+            className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+          >
+            Create an account to keep this text
+          </Button>
+        </>
       ) : sd && arcId && onReRead ? (
         // MASTER DOCUMENT — Save, then the next official take. Reading the
         // text back into the mic used to sit between them; retired (founder
