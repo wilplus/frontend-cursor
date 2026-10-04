@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useGuestBlock } from "./GuestSignUpDialog";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { useBuiltAndOn } from "@/hooks/useRingState";
 import { RING_FEATURES } from "@/services/api/rings";
@@ -67,6 +68,7 @@ function confidenceAnswer(value: ConfidenceRatingValue): FiveStateConfidence {
  *  has to call the hook (hooks cannot be conditional), and the flow then
  *  reports `active: false` and does nothing. */
 export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
+  const guestBlock = useGuestBlock();
   const identity = suggestion?.firstClientService ?? null;
   // The building switch says this build carries the service lane; the ring
   // (the backend rings migration, `exercise_service_ui` in features_on) says whether THIS
@@ -263,6 +265,8 @@ export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
   }, [busy, feedbackResponseBindingId, identity]);
 
   const openPractice = useCallback(async () => {
+    // A guest is asked to sign up first (Phase 0.6).
+    if (guestBlock()) return;
     if (!offer || !identity || !suggestion?.quote.trim() || busy) return;
     setBusy(true);
     setError(null);
@@ -286,7 +290,7 @@ export function usePracticeFlow(suggestion: DocumentSuggestion | null) {
       return;
     }
     setPractice(loaded.value);
-  }, [busy, identity, offer, suggestion?.quote]);
+  }, [busy, identity, offer, suggestion?.quote, guestBlock]);
 
   const startRecording = useCallback(async () => {
     if (activeCapture.current) {

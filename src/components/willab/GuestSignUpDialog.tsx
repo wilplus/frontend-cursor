@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { readGuestOwnerToken } from "@/services/api/projects";
 
@@ -41,7 +41,9 @@ export default function GuestSignUpDialog({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
+      // Above the Feedback and paragraph sheets (z-50): practise is asked
+      // from inside them.
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-foreground/35 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="guest-sign-up-title"
@@ -78,6 +80,17 @@ export default function GuestSignUpDialog({
   );
 }
 
+/** The page's guest gate, for steps asked deep inside the sheets (practise).
+ *  Provided by IdealTextReadout only; an account's page has none. */
+export const GuestGateContext = createContext<(() => boolean) | null>(null);
+const NEVER_BLOCKED = () => false;
+
+/** `block()`: true -- and the sign-up dialog opens -- when the reader is a
+ *  guest, so the caller stops; false for an account, which goes on. */
+export function useGuestBlock(): () => boolean {
+  return useContext(GuestGateContext) ?? NEVER_BLOCKED;
+}
+
 export interface GuestGate {
   /** A signed-out reader holding the guest identity for this project. */
   guest: boolean;
@@ -88,8 +101,12 @@ export interface GuestGate {
   plainSignUp: (pageLoaded: boolean) => boolean;
   /** `fn` for a guest, undefined for an account: a step only a guest takes. */
   forGuest: <F>(fn: F) => F | undefined;
-  /** Open the dialog. */
-  ask: () => void;
+  /** Open the dialog. "journey_next_steps": its Create an account carries
+   *  "See next steps" through sign-up (founder 2026-10-04: "that should also
+   *  prompt the sign up. Same page."). */
+  ask: (then?: "journey_next_steps") => void;
+  /** For `GuestGateContext`: open the dialog and answer true for a guest. */
+  block: () => boolean;
   /** An account gets `fn` back; a guest gets "open the dialog, answer
    *  `refused`" -- the step never reaches a route that needs an account. */
   gate: <A extends unknown[], R>(fn: (...args: A) => R, refused: R) => (...args: A) => R;
@@ -101,28 +118,43 @@ export function useGuestGate({
   signedIn,
   arcId,
   onSignUp,
+  onSignUpForNextSteps,
 }: {
   signedIn: boolean | null;
   arcId: string | null;
   onSignUp: () => void;
+  onSignUpForNextSteps?: () => void;
 }): GuestGate {
   const guest = signedIn === false && !!arcId && !!readGuestOwnerToken();
   const [open, setOpen] = useState(false);
-  const ask = useCallback(() => setOpen(true), []);
+  const [then, setThen] = useState<"journey_next_steps" | undefined>();
+  const ask = useCallback((next?: "journey_next_steps") => {
+    setThen(next);
+    setOpen(true);
+  }, []);
+  const block = useCallback(() => {
+    if (!guest) return false;
+    ask();
+    return true;
+  }, [guest, ask]);
   const gate = useCallback(
     <A extends unknown[], R>(fn: (...args: A) => R, refused: R) =>
       guest
         ? (..._args: A): R => {
-            setOpen(true);
+            ask();
             return refused;
           }
         : fn,
-    [guest],
+    [guest, ask],
   );
+  const signUp =
+    then === "journey_next_steps" && onSignUpForNextSteps
+      ? onSignUpForNextSteps
+      : onSignUp;
   const dialog = guest ? (
     <GuestSignUpDialog
       open={open}
-      onSignUp={onSignUp}
+      onSignUp={signUp}
       onClose={() => setOpen(false)}
     />
   ) : null;
@@ -130,5 +162,5 @@ export function useGuestGate({
   const plainSignUp = (pageLoaded: boolean) =>
     signedIn === false && !pageLoaded;
   const forGuest = <F,>(fn: F): F | undefined => (guest ? fn : undefined);
-  return { guest, canRead, plainSignUp, forGuest, ask, gate, dialog };
+  return { guest, canRead, plainSignUp, forGuest, ask, block, gate, dialog };
 }
