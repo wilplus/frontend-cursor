@@ -16,8 +16,23 @@ vi.mock("./LoungeThreadContext", () => ({
   useLoungeThreadCtx: () => ({ reload: vi.fn() }),
 }));
 vi.mock("./useArcDeckRef", () => ({ useArcDeckRef: () => null }));
+vi.mock("@/services/api/idealText", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/api/idealText")>();
+  const pending = () => Promise.resolve({ kind: "pending" as const });
+  return {
+    ...actual,
+    fetchIdealTextCore: vi.fn(pending),
+    fetchIdealTextForDisplay: vi.fn(pending),
+  };
+});
 
 import IdealTextReadout from "./IdealTextReadout";
+import { GUEST_SIGN_UP_COPY, useGuestGate } from "./GuestSignUpDialog";
+import {
+  fetchIdealTextCore,
+  fetchIdealTextForDisplay,
+} from "@/services/api/idealText";
 import type { ReadoutPayload } from "./readout";
 
 const payload = {
@@ -51,7 +66,12 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  localStorage.clear();
+  vi.mocked(fetchIdealTextCore).mockClear();
+  vi.mocked(fetchIdealTextForDisplay).mockClear();
 });
+
+const GUEST_TOKEN = "3f1c2a54-9b7e-4c1d-8a2f-6e5d4c3b2a10." + "s".repeat(43);
 
 function paragraph(text: string): Element {
   const found = Array.from(host.querySelectorAll("p, span, div")).find(
@@ -87,5 +107,130 @@ describe("IdealTextReadout — a guest's text (no SD payload)", () => {
         '[data-testid="readout-plain-scroller"]'
       )
     ).toBe(scroller);
+  });
+});
+
+describe("A guest reads the whole page (founder 2026-10-04, Phase 0.6)", () => {
+  it("reads the full document for a guest that holds its identity", async () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    await act(async () => {
+      root.render(
+        createElement(IdealTextReadout, {
+          payload,
+          sessionId: "take-1",
+          arcId: "arc-1",
+          signedIn: false,
+          onAutoSent: () => {},
+          onSignUp: () => {},
+        })
+      );
+    });
+    // The first read is the display read (or the core read when the bundle
+    // flag is on); either way the guest's page is read, not skipped.
+    const reads = [
+      ...vi.mocked(fetchIdealTextCore).mock.calls,
+      ...vi.mocked(fetchIdealTextForDisplay).mock.calls,
+    ];
+    expect(reads.map((call) => call[0])).toContain("arc-1");
+  });
+
+  it("opens nothing by itself", async () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    await act(async () => {
+      root.render(
+        createElement(IdealTextReadout, {
+          payload,
+          sessionId: "take-1",
+          arcId: "arc-1",
+          signedIn: false,
+          onAutoSent: () => {},
+          onSignUp: () => {},
+        })
+      );
+    });
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("without a guest identity, a signed-out reader keeps the plain text", async () => {
+    await act(async () => {
+      root.render(
+        createElement(IdealTextReadout, {
+          payload,
+          sessionId: null,
+          arcId: "arc-1",
+          signedIn: false,
+          onAutoSent: () => {},
+          onSignUp: () => {},
+        })
+      );
+    });
+    expect(fetchIdealTextCore).not.toHaveBeenCalled();
+    expect(fetchIdealTextForDisplay).not.toHaveBeenCalled();
+  });
+});
+
+describe("useGuestGate — sign-up stands in front of the steps that need an account", () => {
+  type Probe = { run: () => string; ask: () => void };
+  let probe: Probe | null = null;
+  const onSignUp = vi.fn();
+  const step = vi.fn(() => "done");
+
+  function Harness(props: { signedIn: boolean | null; arcId: string | null }) {
+    const gate = useGuestGate({ ...props, onSignUp });
+    probe = { run: gate.gate(step, "refused"), ask: gate.ask };
+    return createElement("div", null, gate.dialog);
+  }
+
+  function mount(signedIn: boolean | null, arcId: string | null) {
+    act(() => {
+      root.render(createElement(Harness, { signedIn, arcId }));
+    });
+  }
+  const dialog = () => host.querySelector('[role="dialog"]');
+  const button = (label: string) =>
+    Array.from(dialog()?.querySelectorAll("button") ?? []).find(
+      (b) => b.textContent === label
+    );
+
+  beforeEach(() => {
+    onSignUp.mockClear();
+    step.mockClear();
+  });
+
+  it("an account's step runs untouched", () => {
+    mount(true, "arc-1");
+    expect(probe?.run()).toBe("done");
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(dialog()).toBeNull();
+  });
+
+  it("a guest's step asks to sign up and never runs", () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    mount(false, "arc-1");
+    let answer = "";
+    act(() => {
+      answer = probe?.run() ?? "";
+    });
+    expect(answer).toBe("refused");
+    expect(step).not.toHaveBeenCalled();
+    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
+  });
+
+  it("Create an account goes to sign-up; Not now returns to the page", () => {
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    mount(false, "arc-1");
+    act(() => probe?.ask());
+    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
+    expect(onSignUp).toHaveBeenCalledTimes(1);
+    act(() => button(GUEST_SIGN_UP_COPY.secondary)?.click());
+    expect(dialog()).toBeNull();
+  });
+
+  it("is not a guest without the guest identity or a project", () => {
+    mount(false, "arc-1");
+    expect(probe?.run()).toBe("done");
+    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
+    mount(false, null);
+    expect(probe?.run()).toBe("done");
   });
 });

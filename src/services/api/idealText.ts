@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "@/services/api/projects";
 import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import {
@@ -1925,6 +1926,15 @@ function mapConfidentMomentOwnerEdit(raw: unknown): ConfidentMomentOwnerEdit | n
   };
 }
 
+/** The reader's identity for the page's three reads (Phase 0.6, founder
+ *  2026-10-04: a guest sees the whole page). An account's token when signed
+ *  in; otherwise the guest owner token, which the backend accepts on exactly
+ *  these reads and only for the guest's own project. */
+async function ownerReadHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : guestOwnerHeaders();
+}
+
 /** Fast, strict document read. It never triggers composition or enrichment —
  *  EXCEPT when there is no prepared snapshot yet (404), where it falls back to
  *  the composing read below (founder 2026-09-26: "why is my ideal text gated
@@ -1937,9 +1947,7 @@ export async function fetchIdealTextCore(
   arcId: string,
 ): Promise<IdealTextResult> {
   const startedAt = typeof performance === "undefined" ? 0 : performance.now();
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = await ownerReadHeaders();
   let response: Response;
   try {
     response = await fetch(
@@ -2021,9 +2029,7 @@ export function mapRecordingRootsPayload(
 export async function fetchRecordingRoots(
   arcId: string,
 ): Promise<RecordingRootsResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = await ownerReadHeaders();
   let response: Response;
   try {
     response = await fetch(
@@ -2050,9 +2056,7 @@ export async function fetchIdealTextEnrichment(
   sections?: readonly string[],
 ): Promise<IdealTextEnrichmentResult> {
   const startedAt = typeof performance === "undefined" ? 0 : performance.now();
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = await ownerReadHeaders();
   const query = new URLSearchParams({
     document_snapshot_id: documentSnapshotId,
   });

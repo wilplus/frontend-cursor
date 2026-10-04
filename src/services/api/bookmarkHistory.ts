@@ -136,9 +136,11 @@ export function mapOwnerAnswers(body: unknown): OwnerAnswer[] {
 }
 
 async function getJson(url: string): Promise<unknown | null> {
-  // Signed out still reads: the session cookie may authenticate.
+  // Signed out still reads: the session cookie may authenticate, and a
+  // guest reads its own project's history and answers (Phase 0.6).
   const result = await bffFetch(url, {
     auth: "optional",
+    guest: true,
     credentials: "include",
     cache: "no-store",
   });

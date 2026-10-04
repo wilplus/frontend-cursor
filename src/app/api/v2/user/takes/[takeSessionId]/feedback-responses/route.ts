@@ -9,9 +9,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { takeSessionId: string } }
 ) {
-  void req;
   const take = encodeURIComponent(params.takeSessionId);
   return callBackend(`/v2/user/takes/${take}/feedback-responses`, {
     method: "GET",
+    guestOwnerFrom: req,
   });
 }

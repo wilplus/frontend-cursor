@@ -441,3 +441,37 @@ describe("request id — one per BFF hop (audit A1)", () => {
     expect(res.headers.get("X-Request-Id")).toBe(sent);
   });
 });
+
+describe("callBackend — guestOwnerFrom (Phase 0.6: a guest reads its own page)", () => {
+  const GUEST = "3f1c2a54-9b7e-4c1d-8a2f-6e5d4c3b2a10." + "s".repeat(43);
+  const from = (token: string | null) => ({
+    headers: new Headers(token ? { "X-Willab-Guest-Owner": token } : {}),
+  });
+
+  it("forwards the guest token when there is no session", async () => {
+    ctx.headerToken = null;
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ ok: 1 }));
+    const res = await callBackend("/v2/x", { guestOwnerFrom: from(GUEST) });
+    expect(res.status).toBe(200);
+    expect(calls[0].init.headers?.["X-Willab-Guest-Owner"]).toBe(GUEST);
+    expect(calls[0].init.headers?.Authorization).toBeUndefined();
+  });
+
+  it("an account never sends the guest token along", async () => {
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({ ok: 1 }));
+    await callBackend("/v2/x", { guestOwnerFrom: from(GUEST) });
+    expect(calls[0].init.headers?.Authorization).toBe("Bearer hdr-token");
+    expect(calls[0].init.headers?.["X-Willab-Guest-Owner"]).toBeUndefined();
+  });
+
+  it("with neither, nothing is sent", async () => {
+    ctx.headerToken = null;
+    const { callBackend } = await load();
+    const calls = stubFetch(() => json({}));
+    const res = await callBackend("/v2/x", { guestOwnerFrom: from(null) });
+    expect(res.status).toBe(401);
+    expect(calls).toHaveLength(0);
+  });
+});

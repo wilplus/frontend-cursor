@@ -87,7 +87,9 @@ describe("the waiting screen carries nothing but the wait", () => {
     // readout does not own the label: it hands `onReRead` to IdealTextActions
     // (which carries the founder's "Record the next take"), and falls back to
     // its own small mic when there is no master-document payload.
-    expect(READOUT).toMatch(/onNewTake=\{onReRead\}/);
+    // Phase 0.6: a guest's Record Take 2 asks to sign up first; the
+    // affordance itself is the same button for everyone.
+    expect(READOUT).toMatch(/onNewTake=\{gate\(onReRead, undefined\)\}/);
     expect(code("src/components/willab/IdealTextActions.tsx"))
       .toMatch(/Record the next take/);
   });

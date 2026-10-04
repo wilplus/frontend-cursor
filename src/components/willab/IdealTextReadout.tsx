@@ -44,6 +44,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedParagraphs from "./MarkedParagraphs";
 import IdealTextHeading from "./IdealTextHeading";
 import AiGeneratedNote from "./AiGeneratedNote";
+import { useGuestGate } from "./GuestSignUpDialog";
 import {
   aiGeneratedAttrs,
   copyAiGeneratedText,
@@ -99,6 +100,13 @@ import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
  *  serves the verbatim words and offers each polish as an approvable star, so
  *  a client-side rewrite here would undo exactly what that feature fixes.
  *  The ONLY text mutations are now user-approved star folds. */
+/** What a guest's write step answers after asking to sign up (Phase 0.6). */
+const REFUSED: Promise<boolean> = Promise.resolve(false);
+const LOCK_REFUSED: Promise<LockResult> = Promise.resolve({
+  outcome: "failed",
+  rootPhraseProposal: null,
+});
+
 export function composeIdealText(payload: ReadoutPayload): string {
   const parts: string[] = [];
   if (payload.instantChunks.length > 0) {
@@ -156,6 +164,11 @@ export default function IdealTextReadout({
   onClose?: () => void;
 }) {
   const { reload: reloadLounge } = useLoungeThreadCtx();
+  // A GUEST READS THE WHOLE PAGE (founder 2026-10-04, Phase 0.6): the same
+  // document, slides and sheets as an account; every step that keeps or
+  // changes something asks to sign up first (see GuestSignUpDialog).
+  const guestGate = useGuestGate({ signedIn, arcId, onSignUp });
+  const { gate, canRead } = guestGate;
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   /* REVIEW FEEDBACK (founder 2026-09-26): the deck reports whether a moment
@@ -305,7 +318,7 @@ export default function IdealTextReadout({
   // untouched — a dirty edit always wins (locked rule), and a saved user_edit
   // is what the BE serves back anyway.
   useEffect(() => {
-    if (!signedIn || !arcId) return;
+    if (!canRead || !arcId) return;
     // SPEC-lockin-loop §1 (W4's rule, applied here) — a fetch during the
     // document phase would come back with the PRIOR take's document and this
     // screen would adopt it as current (handoff §6.4 S3-in-Lab: "fetches
@@ -337,8 +350,9 @@ export default function IdealTextReadout({
         r.parts && r.parts.length > 0
           ? r.parts
           : (partsFromCorePieces(r.pieces) ?? r.parts);
-      persistArmedRef.current = true;
-      setCanPersist(true);
+      // A guest's edits stay local: saving needs an account (Phase 0.6).
+      persistArmedRef.current = signedIn === true;
+      setCanPersist(signedIn === true);
       setSd({
         ideal: r.ideal,
         status: r.status,
@@ -416,7 +430,7 @@ export default function IdealTextReadout({
     return () => {
       active = false;
     };
-  }, [signedIn, arcId, analysisPending, sdNonce, refreshVariants]);
+  }, [signedIn, arcId, analysisPending, sdNonce, refreshVariants, canRead]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
   // Each chained save reads textRef at execution, so the newest words always
@@ -966,7 +980,7 @@ export default function IdealTextReadout({
         journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
         onReview={() => setReviewRequest((n) => n + 1)}
-        onNewTake={onReRead}
+        onNewTake={gate(onReRead, undefined)}
         onSeeNextSteps={() => {
           void reloadLounge();
           notifyThreadToLatest();
@@ -1027,7 +1041,7 @@ export default function IdealTextReadout({
 
       {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
           the readout always shows the full text. */}
-      {signedIn && arcId && !sdSettled ? (
+      {canRead && arcId && !sdSettled ? (
         // FE-3 — hold until the served text + its stars are in hand, so they
         // land together instead of the text rendering then stars popping in.
         <p className="py-10 text-center text-[13px] text-muted-foreground">
@@ -1061,12 +1075,12 @@ export default function IdealTextReadout({
             piecePartIds={piecePartIds}
             slideTitles={sd.slideTitles ?? undefined}
             presentationRef={deckRef}
-            onAccept={(s) => decideTracked(s, "accept")}
-            onUndoAccept={undoTracked}
-            onKeepMine={(s) => decideTracked(s, "keep")}
-            onLockPart={deckLockPart}
-            onSetRootPhrase={deckSetRootPhrase}
-            onEditSlide={deckEditSlide}
+            onAccept={gate((s) => decideTracked(s, "accept"), REFUSED)}
+            onUndoAccept={gate(undoTracked, REFUSED)}
+            onKeepMine={gate((s) => decideTracked(s, "keep"), REFUSED)}
+            onLockPart={gate(deckLockPart, LOCK_REFUSED)}
+            onSetRootPhrase={gate(deckSetRootPhrase, REFUSED)}
+            onEditSlide={gate(deckEditSlide, REFUSED)}
             coachMoments={(sd.ideal.keyMoments ?? []).map((m) => ({
               snippetId: m.snippetId,
               anchor: m.anchor,
@@ -1080,7 +1094,7 @@ export default function IdealTextReadout({
             onConfidentMomentChanged={() => setSdNonce((value) => value + 1)}
             styleChanges={dirty ? [] : sd.styleChanges}
             decisionHistory={sd.decisionHistory}
-            onApplyStyle={applyStyle}
+            onApplyStyle={gate(applyStyle, REFUSED)}
           />
         </div>
       ) : (
@@ -1109,7 +1123,7 @@ export default function IdealTextReadout({
       {sd && arcId && sd.additions.length > 0 ? (
         <AdditionsPanel
           additions={sd.additions}
-          onDecide={decideAddition}
+          onDecide={gate(decideAddition, REFUSED)}
           textSizeClass="text-[17px]"
         />
       ) : null}
@@ -1135,9 +1149,13 @@ export default function IdealTextReadout({
           speaker mid-F1-loop and read as though their words were at risk.
           The failure is still handled — it is just not the speaker's to
           carry. */}
-      {/* FE-6 — a guest's edits are local-only (persistence arms on the SD
-          fetch, which needs auth), so the CTA must not promise saving. */}
-      {signedIn === false ? (
+      {/* FE-6 — a guest's edits are local-only, so the CTA must not promise
+          saving. Phase 0.6: a guest whose page loaded gets the account's own
+          next step (Review feedback / Record Take 2), and the steps that need
+          an account ask to sign up (guestGate). This button is left only for
+          the plain fallback, when no page could be read. */}
+      {guestGate.dialog}
+      {guestGate.plainSignUp(sd !== null) ? (
         <Button
           type="button"
           onClick={onSignUp}

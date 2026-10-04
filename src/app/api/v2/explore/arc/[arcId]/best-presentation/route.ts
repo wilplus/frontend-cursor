@@ -37,5 +37,6 @@ export async function GET(
     method: "GET",
     failures: FAILURES,
     relay: RELAY,
+    guestOwnerFrom: req,
   });
 }

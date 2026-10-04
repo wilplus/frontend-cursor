@@ -21,7 +21,7 @@ const FAILURES: Failures = {
 const RELAY = relayStrict({ empty: "bare" });
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
   const id = encodeURIComponent(params.arcId);
@@ -29,5 +29,6 @@ export async function GET(
     method: "GET",
     failures: FAILURES,
     relay: RELAY,
+    guestOwnerFrom: req,
   });
 }
