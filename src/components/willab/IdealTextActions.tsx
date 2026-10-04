@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
@@ -45,6 +45,7 @@ export default function IdealTextActions({
   onSeeNextStepsAsGuest,
   reviewWaiting = false,
   onReview,
+  endCard = false,
 }: {
   arcId: string;
   /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
@@ -64,50 +65,22 @@ export default function IdealTextActions({
   reviewWaiting?: boolean;
   /** Walk the waiting moments, from the first one in text order. */
   onReview?: () => void;
+  /** The walk's end card (J4): the next Take only. */
+  endCard?: boolean;
 }) {
   const [openingJourney, setOpeningJourney] = useState(false);
 
   const guidedTake =
     typeof takeCount === "number" && takeCount >= 1 && takeCount <= 3;
-  /* THE KEY MOMENT MUST NOT GUESS (founder 2026-09-18).
-   *
-   * REPORTED: "for a moment Record take 2 and then next steps" — and on a
-   * take that had just finished, the wrong one stayed until the app was
-   * closed and reopened.
-   *
-   * `journeyNextStepsSeen` is `boolean | null`, and null means NOT KNOWN YET.
-   * The old test was `journeyNextStepsSeen === false`, which reads null and
-   * true identically — so while the answer was still in flight the screen
-   * confidently offered the record button, the one action that skips the
-   * hand-off entirely. It is the hinge of record -> Take -> next Take, so
-   * being wrong here for a second is worse than being blank for a second.
-   *
-   * Why the answer can be slow, and can never arrive: on a fresh open the
-   * document comes from `fetchIdealTextForDisplay`, whose body carries
-   * `journey_next_steps_seen` directly. Every later read uses
-   * `fetchIdealTextCore`, which does NOT carry it — it arrives as the
-   * asynchronous `journey` enrichment section, and `mergeIdealTextEnrichment`
-   * drops every section whose `documentSnapshotId` does not equal the core's.
-   * A take publishes a new snapshot, so that equality is exactly what a
-   * just-finished take is most likely to miss. That is the cold-open/restart
-   * asymmetry, and it is filed separately — this component's job is only to
-   * stop asserting an answer it does not have.
-   *
-   * BOUNDED, so the screen can never be dead: if the answer is still missing
-   * after the grace window the record button returns, because a guided take
-   * with no action at all is worse than the pre-existing behaviour. */
-  const journeyKnown = typeof journeyNextStepsSeen === "boolean";
-  const [journeyGraceOver, setJourneyGraceOver] = useState(false);
-  useEffect(() => {
-    if (journeyKnown) return;
-    setJourneyGraceOver(false);
-    const timer = setTimeout(() => setJourneyGraceOver(true), 5000);
-    return () => clearTimeout(timer);
-  }, [journeyKnown, arcId, takeCount]);
-  const showNextSteps = guidedTake && journeyNextStepsSeen === false;
-  /** Neither button, rather than the wrong one, while the answer is in
-   *  flight. Only ever true inside the guided 1–3 window. */
-  const decidingNextSteps = guidedTake && !journeyKnown && !journeyGraceOver;
+  const showNextSteps = !endCard && guidedTake && journeyNextStepsSeen === false;
+  /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
+   * J1: after a Take the speaker lands on the text and taps "Review
+   * feedback" -- so it is never hidden behind "See next steps", and neither
+   * is the next Take. "See next steps" stays reachable as the quiet link
+   * underneath on the guided Takes. J4: the walk's end card offers the next
+   * Take as its one button ("Back to the text" is its link). Nothing waits
+   * on the journey answer any more, so nothing is blanked while it loads. */
+  const review = !endCard && reviewWaiting && Boolean(onReview);
   const nextRecordingLabel =
     takeCount === 1
       ? "Record Take 2"
@@ -128,26 +101,7 @@ export default function IdealTextActions({
 
   return (
     <div className="mt-1 flex flex-col items-stretch gap-2 border-t border-border pt-4">
-      {showNextSteps ? (
-        <Button
-          type="button"
-          onClick={() => void seeNextSteps()}
-          disabled={openingJourney}
-          className="h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-        >
-          {openingJourney ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          ) : null}
-          See next steps
-        </Button>
-      ) : null}
-
-      {/* The next move. While a moment waits: Review feedback, and the next
-          take as a quiet link beneath it — never removed, because the loop
-          must not wait on feedback. Once nothing waits: the next take is the
-          main button. Disabled rather than removed when the BE closes its
-          gate, so the entry to the record loop never silently disappears. */}
-      {!showNextSteps && !decidingNextSteps && reviewWaiting && onReview ? (
+      {review ? (
         <Button
           type="button"
           onClick={onReview}
@@ -156,20 +110,36 @@ export default function IdealTextActions({
           Review feedback
         </Button>
       ) : null}
-      {!showNextSteps && !decidingNextSteps ? (
+      {/* The next Take: never removed, because the loop must not wait on
+          feedback; a quiet link while a moment waits, the main button
+          otherwise. Disabled rather than removed when the BE closes its
+          gate, so the entry to the record loop never silently disappears. */}
+      <Button
+        type="button"
+        onClick={onNewTake}
+        disabled={canRecordTake === false}
+        variant={review ? "ghost" : "default"}
+        className={
+          review
+            ? "h-9 w-full rounded-full text-[14px] font-normal text-muted-foreground"
+            : "h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+        }
+      >
+        <Mic className="mr-2 h-4 w-4" aria-hidden />
+        {nextRecordingLabel}
+      </Button>
+      {showNextSteps ? (
         <Button
           type="button"
-          onClick={onNewTake}
-          disabled={canRecordTake === false}
-          variant={reviewWaiting && onReview ? "ghost" : "default"}
-          className={
-            reviewWaiting && onReview
-              ? "h-9 w-full rounded-full text-[14px] font-normal text-muted-foreground"
-              : "h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-          }
+          variant="ghost"
+          onClick={() => void seeNextSteps()}
+          disabled={openingJourney}
+          className="h-9 w-full rounded-full text-[14px] font-normal text-muted-foreground"
         >
-          <Mic className="mr-2 h-4 w-4" aria-hidden />
-          {nextRecordingLabel}
+          {openingJourney ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+          ) : null}
+          See next steps
         </Button>
       ) : null}
       {canRecordTake === false ? (

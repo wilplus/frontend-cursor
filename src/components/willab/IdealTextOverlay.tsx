@@ -1023,7 +1023,7 @@ export default function IdealTextOverlay({
   /** The loop's next step — the bottom bar, and the card after the last
    *  moment of the walk (founder 2026-09-26), from one place so the two can
    *  never offer different next steps. */
-  function nextStep(waiting: boolean): React.ReactNode {
+  function nextStep(waiting: boolean, endCard = false): React.ReactNode {
     if (!sd || !onReadAloud) return null;
     return (
       <IdealTextActions
@@ -1032,6 +1032,7 @@ export default function IdealTextOverlay({
         takeCount={sd.takeCount}
         journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
+        endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={() => onReadAloud(sd.version)}
         onSeeNextSteps={() => {
@@ -1109,7 +1110,7 @@ export default function IdealTextOverlay({
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
-            renderNextStep={() => nextStep(false)}
+            renderNextStep={() => nextStep(false, true)}
             openFeedback={initialMode === "feedback"}
             chrome="stage"
             document={displayText}
