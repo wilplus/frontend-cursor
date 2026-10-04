@@ -130,6 +130,7 @@ export default function IdealTextReadout({
   signedIn,
   onAutoSent,
   onSignUp,
+  onSignUpForNextSteps,
   onReRead,
   onClose,
   analysisPending = false,
@@ -153,6 +154,9 @@ export default function IdealTextReadout({
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
   onSignUp: () => void;
+  /** A guest's "See next steps": sign up, then the step is taken as the
+   *  account (Phase 0.6). Absent → the guest is sent to plain sign-up. */
+  onSignUpForNextSteps?: () => void;
   /** Re-read: reading this ideal text aloud is just the next take — the host
    *  drops us back into the record flow for this presentation, and the reading
    *  sharpens the text. Absent → the re-read block hides. */
@@ -981,6 +985,7 @@ export default function IdealTextReadout({
         reviewWaiting={waiting}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={gate(onReRead, undefined)}
+        onSeeNextStepsAsGuest={guestGate.forGuest(onSignUpForNextSteps ?? onSignUp)}
         onSeeNextSteps={() => {
           void reloadLounge();
           notifyThreadToLatest();

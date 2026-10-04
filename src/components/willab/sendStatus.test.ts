@@ -53,6 +53,22 @@ describe("sendStatus — pending send", () => {
   });
 });
 
+describe("sendStatus — the step a guest asked for before signing up", () => {
+  it("carries 'See next steps' through sign-up (Phase 0.6)", () => {
+    setPendingSend("p1", "t1", "journey_next_steps");
+    expect(getPendingSend()).toEqual({
+      projectId: "p1",
+      takeId: "t1",
+      then: "journey_next_steps",
+    });
+  });
+
+  it("a plain sign-up carries no step", () => {
+    setPendingSend("p1", "t1");
+    expect(getPendingSend()).toEqual({ projectId: "p1", takeId: "t1" });
+  });
+});
+
 describe("sendStatus — review pending flag", () => {
   it("sets, reads, clears", () => {
     expect(hasReviewPending()).toBe(false);

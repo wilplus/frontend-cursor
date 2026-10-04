@@ -42,10 +42,17 @@ function del(key: string): void {
 export interface PendingCoachSend {
   projectId: string;
   takeId: string;
+  /** The step the guest asked for before signing up, taken right after it
+   *  (Phase 0.6): "See next steps" continues as if pressed signed in. */
+  then?: "journey_next_steps";
 }
 
-export function setPendingSend(projectId: string, takeId: string): void {
-  set(SEND_KEY, JSON.stringify({ projectId, takeId }));
+export function setPendingSend(
+  projectId: string,
+  takeId: string,
+  then?: PendingCoachSend["then"],
+): void {
+  set(SEND_KEY, JSON.stringify(then ? { projectId, takeId, then } : { projectId, takeId }));
 }
 export function getPendingSend(): PendingCoachSend | null {
   const raw = get(SEND_KEY);
@@ -61,7 +68,9 @@ export function getPendingSend(): PendingCoachSend | null {
     ) {
       return null;
     }
-    return { projectId: value.projectId, takeId: value.takeId };
+    return value.then === "journey_next_steps"
+      ? { projectId: value.projectId, takeId: value.takeId, then: value.then }
+      : { projectId: value.projectId, takeId: value.takeId };
   } catch {
     // Old bare-session handoffs depended on retired ownerless claiming.
     return null;

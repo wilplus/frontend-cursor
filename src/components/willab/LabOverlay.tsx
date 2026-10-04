@@ -1098,7 +1098,7 @@ export default function LabOverlay({
   // "already have an account? sign in" as the secondary link.
   // The global pending sender claims the guest-owned graph on any post-auth
   // landing, then sends this exact Project Take through the strict endpoint.
-  function startUnsignedSend() {
+  function startUnsignedSend(then?: "journey_next_steps") {
     if (readout && labSessionId && arcId) {
       writeParked({
         projectId: arcId,
@@ -1106,7 +1106,7 @@ export default function LabOverlay({
         topic: context?.topic ?? "",
         readout,
       });
-      setPendingSend(arcId, labSessionId);
+      setPendingSend(arcId, labSessionId, then);
     }
     // Suppress useBackDismiss's unmount history.back() BEFORE we close +
     // navigate. LabOverlay pushes a throwaway history entry while open and
@@ -1589,7 +1589,10 @@ export default function LabOverlay({
             // Straight to the sign-up page (founder 2026-10-04): the guest has
             // already been asked over their text, so the "One quick step"
             // page in between was a second ask with nothing new in it.
-            onSignUp={startUnsignedSend}
+            onSignUp={() => startUnsignedSend()}
+            // "See next steps" as a guest: sign up, then the step is taken
+            // as the account (founder 2026-10-04, Phase 0.6).
+            onSignUpForNextSteps={() => startUnsignedSend("journey_next_steps")}
             onReRead={() => {
               // A re-read is just the next take on THIS presentation: keep the
               // deck (context) and arc (arcTakeIndex was already advanced on the
