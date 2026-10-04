@@ -86,6 +86,8 @@ export interface GuestGate {
   /** The plain fallback's own sign-up button shows: signed out and no page
    *  could be read. */
   plainSignUp: (pageLoaded: boolean) => boolean;
+  /** `fn` for a guest, undefined for an account: a step only a guest takes. */
+  forGuest: <F>(fn: F) => F | undefined;
   /** Open the dialog. */
   ask: () => void;
   /** An account gets `fn` back; a guest gets "open the dialog, answer
@@ -127,5 +129,6 @@ export function useGuestGate({
   const canRead = signedIn === true || guest;
   const plainSignUp = (pageLoaded: boolean) =>
     signedIn === false && !pageLoaded;
-  return { guest, canRead, plainSignUp, ask, gate, dialog };
+  const forGuest = <F,>(fn: F): F | undefined => (guest ? fn : undefined);
+  return { guest, canRead, plainSignUp, forGuest, ask, gate, dialog };
 }

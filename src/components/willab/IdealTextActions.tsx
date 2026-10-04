@@ -42,6 +42,7 @@ export default function IdealTextActions({
   takeCount = null,
   journeyNextStepsSeen = null,
   onSeeNextSteps,
+  onSeeNextStepsAsGuest,
   reviewWaiting = false,
   onReview,
 }: {
@@ -54,6 +55,11 @@ export default function IdealTextActions({
   takeCount?: number | null;
   journeyNextStepsSeen?: boolean | null;
   onSeeNextSteps?: () => void;
+  /** A guest (Phase 0.6, founder 2026-10-04): "clicking see the next steps
+   *  should open the sign up page and then should continue seamlessly as if
+   *  I clicked it as a logged in person". Saving the step needs an account,
+   *  so the guest goes to sign-up and the step is taken after it. */
+  onSeeNextStepsAsGuest?: () => void;
   /** A moment of this Take still waits for the speaker's judgement. */
   reviewWaiting?: boolean;
   /** Walk the waiting moments, from the first one in text order. */
@@ -112,6 +118,7 @@ export default function IdealTextActions({
           : "Record the next take";
 
   const seeNextSteps = async () => {
+    if (onSeeNextStepsAsGuest) return onSeeNextStepsAsGuest();
     if (openingJourney) return;
     setOpeningJourney(true);
     const ok = await postJourneyNextSteps(arcId);

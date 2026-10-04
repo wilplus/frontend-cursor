@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import { claimGuestProjects } from "@/services/api/projects";
+import { postJourneyNextSteps } from "@/services/api/journeyNextSteps";
 import { mergeLocalLoungeThreadToServer } from "@/lib/funnel/loungeLocalThread";
 import { clearParked } from "./willabParked";
 import {
@@ -36,6 +37,12 @@ export default function PendingCoachSend() {
         }
         const result = await sendTakeToCoach(pending.projectId, pending.takeId);
         if (result.kind === "sent") {
+          // The step the guest pressed before signing up, taken now as the
+          // account (Phase 0.6). Best-effort: the Lounge it lands on is the
+          // same either way, and the take is already delivered.
+          if (pending.then === "journey_next_steps") {
+            await postJourneyNextSteps(pending.projectId).catch(() => false);
+          }
           clearPendingSend();
           clearParked();
           setReviewPending(pending.takeId);

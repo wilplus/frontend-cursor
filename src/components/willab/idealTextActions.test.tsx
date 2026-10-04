@@ -26,6 +26,7 @@ vi.mock("@/services/api/journeyNextSteps", () => ({
 }));
 
 import IdealTextActions from "./IdealTextActions";
+import { postJourneyNextSteps } from "@/services/api/journeyNextSteps";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -130,5 +131,43 @@ describe("one next step at the bottom (founder 2026-09-26)", () => {
   it("no longer offers Save at the bottom — it lives in the header menu", () => {
     render({ takeCount: 4, journeyNextStepsSeen: true });
     expect(host.textContent).not.toContain("Save the ideal text");
+  });
+});
+
+/* A GUEST'S "SEE NEXT STEPS" GOES TO SIGN-UP (founder 2026-10-04): "the CTA
+ * is not clickable, like nothing happens ... clicking see the next steps
+ * should open the sign up page and then should continue seamlessly as if I
+ * clicked it as a logged in person." The step saves through an account-only
+ * route, so for a guest it failed silently; the guest now goes to sign-up and
+ * PendingCoachSend takes the step after it. */
+describe("See next steps, account and guest (Phase 0.6)", () => {
+  const GUIDED = { takeCount: 1, journeyNextStepsSeen: false };
+  const nextSteps = () =>
+    Array.from(host.querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("See next steps"),
+    );
+
+  beforeEach(() => vi.mocked(postJourneyNextSteps).mockClear());
+
+  it("an account takes the step and moves on", async () => {
+    const onSeeNextSteps = vi.fn();
+    render({ ...GUIDED, onSeeNextSteps });
+    await act(async () => {
+      nextSteps()?.click();
+    });
+    expect(postJourneyNextSteps).toHaveBeenCalledWith("arc-1");
+    expect(onSeeNextSteps).toHaveBeenCalledTimes(1);
+  });
+
+  it("a guest goes to sign-up and nothing is posted as a guest", async () => {
+    const onSeeNextSteps = vi.fn();
+    const onSeeNextStepsAsGuest = vi.fn();
+    render({ ...GUIDED, onSeeNextSteps, onSeeNextStepsAsGuest });
+    await act(async () => {
+      nextSteps()?.click();
+    });
+    expect(onSeeNextStepsAsGuest).toHaveBeenCalledTimes(1);
+    expect(postJourneyNextSteps).not.toHaveBeenCalled();
+    expect(onSeeNextSteps).not.toHaveBeenCalled();
   });
 });
