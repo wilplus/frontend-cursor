@@ -28,8 +28,10 @@ describe("the processing-to-Ideal-Text journey", () => {
     );
     expect(LAB).not.toContain("View Ideal Text and feedback");
     expect(LAB).not.toContain("Your feedback is ready");
-    expect(LOUNGE).toMatch(
-      /onSettled:\s*\(take\)[\s\S]*openIdealText\(take\.arcId, "notebook"\)/,
+    // J2 (founder 2026-09-29; Phase 7): the Lounge no longer opens the
+    // text by itself when a Take settles.
+    expect(LOUNGE).not.toMatch(
+      /onSettled:\s*\(take\)[^}]*openIdealText\(/,
     );
   });
 

@@ -751,12 +751,11 @@ export default function Lounge({
     enabled: !isLabOverlay(state),
     onSettled: (take) => {
       setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
-      // Completion owns a document destination, not a chat destination. The
-      // settled Take is passed across the marker-clear boundary so this opens
-      // the exact freshly assembled Ideal Text rather than returning to a
-      // conversational bubble that may still be refreshing.
+      // LEAVE AND COME BACK (J2, founder 2026-09-29; Phase 7): the text no
+      // longer opens by itself when the Take settles -- the speaker may be
+      // anywhere. The reload brings the Take's bubble with its button to the
+      // text, where "Review feedback" waits (J1).
       void reload();
-      if (take.arcId) openIdealText(take.arcId, "notebook");
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -1861,7 +1860,10 @@ function Bubble({
     const journeyActions =
       journey && Array.isArray(message.metadata?.actions)
         ? message.metadata.actions.filter(
-            (value): value is string => typeof value === "string",
+            // J5 (founder 2026-09-29; Phase 7): Presentation Mode is entered
+            // from the text's ⋯ menu only.
+            (value): value is string =>
+              typeof value === "string" && value !== "presentation_mode",
           )
         : [];
     const journeyArc =

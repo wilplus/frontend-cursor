@@ -996,7 +996,7 @@ export default function IdealTextReadout({
 
   /** The loop's next step — the bottom bar, and the card after the last
    *  moment of the walk (founder 2026-09-26), from one place. */
-  function nextStep(waiting: boolean): React.ReactNode {
+  function nextStep(waiting: boolean, endCard = false): React.ReactNode {
     if (!sd || !arcId || !onReRead) return null;
     return (
       <IdealTextActions
@@ -1005,6 +1005,7 @@ export default function IdealTextReadout({
         takeCount={sd.takeCount}
         journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
+        endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={gate(onReRead, undefined)}
         onSeeNextStepsAsGuest={guestGate.forGuest(() =>
@@ -1100,7 +1101,7 @@ export default function IdealTextReadout({
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
-            renderNextStep={() => nextStep(false)}
+            renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={text}
             parts={partsRef.current ?? sd.parts}

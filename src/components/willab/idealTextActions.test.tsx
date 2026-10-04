@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  THE KEY MOMENT MUST NOT GUESS                                              */
+/*  THE NEXT MOVE (J1/J4 as of 2026-10-04; formerly THE KEY MOMENT MUST NOT   */
+/*  GUESS, retired with the hand-off gate it described).                     */
 /*  (reported from real use 2026-09-18: "for a moment Record take 2 and then   */
 /*   next steps ... i want it without this lag and without closing the app")   */
 /*                                                                            */
@@ -59,54 +60,42 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("the next-step decision", () => {
-  it("offers neither button while the answer is still in flight", () => {
-    // THE BUG. takeCount has landed, journeyNextStepsSeen has not. The screen
-    // used to answer "Record Take 2" here with no basis for it.
+describe("journey decisions J1 and J4 (founder 2026-09-29; Phase 7)", () => {
+  const labels = () => [...host.querySelectorAll("button")].map((b) => b.textContent?.trim());
+
+  it("J1: Review feedback and the next Take are never hidden behind next steps", () => {
+    render({ takeCount: 1, journeyNextStepsSeen: false, reviewWaiting: true, onReview: vi.fn() });
+    expect(labels()).toEqual(["Review feedback", "Record Take 2", "See next steps"]);
+  });
+
+  it("offers the next Take while the journey answer is still in flight", () => {
     render({ takeCount: 1, journeyNextStepsSeen: null });
-    expect(host.textContent).not.toContain("Record Take 2");
+    expect(host.textContent).toContain("Record Take 2");
     expect(host.textContent).not.toContain("See next steps");
   });
 
-  it("offers next steps the moment the answer says it is unseen", () => {
-    render({ takeCount: 1, journeyNextStepsSeen: null });
-    render({ takeCount: 1, journeyNextStepsSeen: false });
-    expect(host.textContent).toContain("See next steps");
-    expect(host.textContent).not.toContain("Record Take 2");
+  it("See next steps is the quiet link under the next Take on a guided Take", () => {
+    render({ takeCount: 2, journeyNextStepsSeen: false });
+    expect(labels()).toEqual(["Record Take 3", "See next steps"]);
   });
 
-  it("offers the next take once the answer says it is already seen", () => {
+  it("offers no next steps once seen", () => {
     render({ takeCount: 1, journeyNextStepsSeen: true });
     expect(host.textContent).toContain("Record Take 2");
     expect(host.textContent).not.toContain("See next steps");
   });
 
-  it("never blanks a take outside the guided window", () => {
-    // The withholding is scoped to takes 1-3. A fourth take has no hand-off
-    // to wait for, so an unknown answer must not cost it its record button.
-    render({ takeCount: 4, journeyNextStepsSeen: null });
-    expect(host.textContent).toContain("Record again");
+  it("never offers next steps outside the guided window", () => {
+    render({ takeCount: 4, journeyNextStepsSeen: false });
+    expect(labels()).toEqual(["Record again"]);
   });
 
-  it("gives the record button back if the answer never arrives", () => {
-    // Bounded: a guided take with no action at all is worse than the
-    // behaviour this replaces.
-    render({ takeCount: 1, journeyNextStepsSeen: null });
-    expect(host.textContent).not.toContain("Record Take 2");
-    act(() => {
-      vi.advanceTimersByTime(5000);
+  it("J4: the end card offers the next Take only", () => {
+    render({
+      takeCount: 1, journeyNextStepsSeen: false, reviewWaiting: true,
+      onReview: vi.fn(), endCard: true,
     });
-    expect(host.textContent).toContain("Record Take 2");
-  });
-
-  it("does not start the clock once the answer is known", () => {
-    // A known answer must never be walked back by a stale timer.
-    render({ takeCount: 1, journeyNextStepsSeen: false });
-    act(() => {
-      vi.advanceTimersByTime(20000);
-    });
-    expect(host.textContent).toContain("See next steps");
-    expect(host.textContent).not.toContain("Record Take 2");
+    expect(labels()).toEqual(["Record Take 2"]);
   });
 });
 
