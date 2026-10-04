@@ -62,6 +62,14 @@ const libraryFull =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).get("library") === "full";
 
+/** ?tier=confident | weak — THE MACHINE'S READ of the moment (24e-1, F1
+ *  Repair Plan Phase 6): the sheet opens on the feedback that read chooses
+ *  and the judgement comes after it. Without it the read is unknown. */
+const tier =
+  typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("tier")
+    : null;
+
 function payload() {
   const p1 = decided === "approved" ? P1_AFTER : P1;
   // An applied emphasis is FOLDED INTO THE TEXT server-side, as marker
@@ -117,6 +125,7 @@ function payload() {
     why_key: "confidence",
     status: "pending",
     visual: "underline",
+    ...(tier === "confident" || tier === "weak" ? { bookmark_tier: tier } : {}),
     // A CLIP, because a Confident Voice item nobody can hear is not asked
     // (founder 2026-09-29): without one the harness would show no moment.
     snippet_audio_ref: silentWavDataUri(),

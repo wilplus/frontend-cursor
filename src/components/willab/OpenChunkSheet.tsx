@@ -17,6 +17,7 @@ import type {
 } from "@/lib/willab/deckChunks";
 import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
 import { usePractiseOffered } from "@/components/willab/usePractiseOffered";
+import { useFeedbackFirst } from "@/components/willab/useFeedbackFirst";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -56,6 +57,7 @@ export default function OpenChunkSheet({
   onUseHelperWords,
   onAccept = null,
   onDone = null,
+  onSkip = null,
   pager = null,
   slideLabel = null,
   onDocumentChanged = null,
@@ -76,6 +78,8 @@ export default function OpenChunkSheet({
   onAccept?: ((item: DocumentSuggestion) => Promise<boolean>) | null;
   /** The paragraph's own sheet finished on its own: the host moves on. */
   onDone?: (() => void) | null;
+  /** A waiting moment was skipped unanswered (24e-1): move on, no toast. */
+  onSkip?: (() => void) | null;
   pager?: Pager | null;
   /** Where the paragraph sits ("Slide 2"), for the sheet's header. */
   slideLabel?: string | null;
@@ -130,6 +134,13 @@ export default function OpenChunkSheet({
   useEffect(() => {
     if (!held && ownSheet === null) setOwnSheet(opensParagraphSheet(state, saved));
   }, [held, ownSheet, state, saved]);
+  // 24e-1 (Phase 6): a waiting moment opens on its feedback, not the question.
+  const first = useFeedbackFirst({
+    waiting: ownSheet === false && practiseAgain === null,
+    items: [...state.decided, ...state.pending],
+    text: state.chunk.part.text,
+    onDone: onSkip ?? onDone ?? onClose,
+  });
   if (ownSheet === null) return null;
   if (practiseAgain && practiseHost) {
     const judgement = asJudgementValue(practiseAgain.answer);
@@ -157,12 +168,13 @@ export default function OpenChunkSheet({
       );
     }
   }
-  if (practiseAgain || !ownSheet) {
+  if (practiseAgain || (!ownSheet && !first.awaiting)) {
     return (
       <>
         {renderSheet(practiseAgain, (answer) => {
           setAnswered(answer);
           setOwnSheet(true);
+          first.stopAsking();
         })}
       </>
     );
@@ -185,6 +197,7 @@ export default function OpenChunkSheet({
       // No Practise when Personalised practice is off (Phase 4, wiring
       // only); the accept stays.
       practiseOff={!practiseOffered}
+      awaiting={first.awaiting}
       onUseHelperWords={onUseHelperWords}
       helperWordsHost={helperWordsHost}
       startPicking={startPicking}

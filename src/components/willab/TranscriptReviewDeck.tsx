@@ -647,6 +647,13 @@ export default function TranscriptReviewDeck({
     else closeSheets();
   }, [walk.pager, closeSheets]);
 
+  /* A SKIPPED MOMENT MOVES ON QUIETLY (24e-1; Phase 6): nothing was saved,
+     so no "Answer saved". */
+  const sheetSkipped = useCallback(() => {
+    if (walk.pager) walk.pager.onNext();
+    else closeSheets();
+  }, [walk.pager, closeSheets]);
+
   /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
      moments from the first one in text order — the same walk a tap on a
      bar joins, the same sheets. "Waiting" is exactly the bar's condition, so
@@ -1456,6 +1463,7 @@ export default function TranscriptReviewDeck({
           onAccept={onAccept}
           onClose={closeWalk}
           onDone={sheetDone}
+          onSkip={sheetSkipped}
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
           feedbackPending={feedbackPending}

@@ -147,11 +147,11 @@ export function passageOf(card: PractiseCard): {
   }
 }
 
-/** The five answers as the practice API names them; "other" and null
- *  (the older coarse paths) are sent as No, the answer that opens
- *  nothing. */
-function practiceAnswerOf(judgement: Judgement | null): PracticeAnswer {
-  return judgement ?? "no";
+/** The speaker's answer about the original, as given -- or none: a practice
+ *  may start before any judgement (24e-1, 29a; F1 Repair Plan Phase 6), and
+ *  a made-up "no" there was a judgement the speaker never gave. */
+function practiceAnswerOf(judgement: Judgement | null): PracticeAnswer | null {
+  return judgement;
 }
 
 function tokenTone(picked: boolean, reachable: boolean): string {

@@ -189,7 +189,7 @@ export async function startConfidencePractice(
   snippetId: string,
   offer: ConfidentVoicePracticeOffer | null,
   evidence: NonNullable<import("@/services/api/idealText").DocumentSuggestion["evidence"]>,
-  originalUserAnswer: PracticeAnswer,
+  originalUserAnswer: PracticeAnswer | null,
   passage: PracticePassage = { kind: "exercise" },
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders(true);
@@ -205,7 +205,8 @@ export async function startConfidencePractice(
             ? { exercise_id: offer?.exerciseId }
             : { passage: passage.passage ?? undefined,
                 feedback_id: passage.feedbackId ?? undefined }),
-          original_user_answer: originalUserAnswer,
+          // Absent before any judgement (24e-1): never a made-up answer.
+          ...(originalUserAnswer ? { original_user_answer: originalUserAnswer } : {}),
           evidence: {
             project_id: evidence.projectId,
             take_session_id: evidence.takeSessionId,

@@ -174,7 +174,11 @@ export function practiseCardOf(
   }
   const rewrite = rewriteOf(items);
   const praise = praiseOf(items);
-  const ordered = judgement === "yes" ? [praise, rewrite] : [rewrite, praise];
+  // THE MATRIX ON A YES (24f; F1 Repair Plan Phase 6): a Yes shows the
+  // praise where the machine found one and nothing else -- a Yes on a moment
+  // read weak used to fall through to the rewrite, where the matrix says
+  // nothing now.
+  const ordered = judgement === "yes" ? [praise] : [rewrite, praise];
   for (const item of ordered) {
     if (!item) continue;
     if (item === praise) {
@@ -342,3 +346,66 @@ export function historyRows(
   const keepNewest = newest ? deletedSinceNewest(history, time(newest.at)) : false;
   return keepNewest ? rows.reverse() : rows.reverse().slice(1);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  JUDGEMENT AFTER FEEDBACK (contract 24e-1; F1 Repair Plan Phase 6).        */
+/*                                                                            */
+/*  "Opening a bookmark never asks for a judgment first. The machine's read  */
+/*  chooses the feedback. The speaker judges themselves after it: on a       */
+/*  confident moment right after the praise, on a moment that needed work    */
+/*  after each practice attempt." The paragraph sheet opens on the card the  */
+/*  machine's read chooses, with the strings and footer pieces it already    */
+/*  has: on a confident moment Next asks the judgement; on a moment that     */
+/*  needed work the card is practised (each attempt judged in the practise   */
+/*  loop) or skipped. FEEDBACK_FIRST is the one switch back to the old       */
+/*  order.                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export const FEEDBACK_FIRST = true;
+
+export type MachineRead = "confident" | "weak" | null;
+
+/** The machine's read of the moment, from the tier V3 served it with. */
+export function machineReadOf(items: readonly DocumentSuggestion[]): MachineRead {
+  const moment = items.find(isConfidentVoiceFeedback);
+  if (moment?.bookmarkTier === "confident") return "confident";
+  if (moment?.bookmarkTier === "weak") return "weak";
+  return null;
+}
+
+/** The card before any judgement: the praise on a confident moment; on a
+ *  moment that needed work the exercise matched to its clip, else the
+ *  rewrite, else the moment to say again; a moment the machine could not
+ *  read shows its rewrite if it has one. */
+export function feedbackFirstCard(
+  items: readonly DocumentSuggestion[],
+  read: MachineRead,
+  paragraphText: string,
+): PractiseCard | null {
+  if (read === "confident") return practiseCardOf(items, "yes", paragraphText);
+  if (read === "weak") return practiseCardOf(items, "no", paragraphText);
+  const rewrite = practiseCardOf(items, "no", paragraphText);
+  return rewrite?.kind === "rewrite" ? rewrite : null;
+}
+
+/** The button before any judgement: on a confident moment, or with nothing
+ *  to practise, Next (it asks the judgement); a rewrite still open, Accept
+ *  and practise with Keep my words (29b); anything else practisable,
+ *  Practise with Skip. */
+export function feedbackFirstFooter(
+  read: MachineRead,
+  canPractise: boolean,
+  canAccept: boolean,
+): { pill: "next" | "practise" | "accept"; link: "skip" | "practise" | "keep" | null } {
+  if (read === "confident" || !canPractise) return { pill: "next", link: null };
+  if (canAccept) return { pill: "accept", link: "keep" };
+  return { pill: "practise", link: "skip" };
+}
+
+/** What was on screen at the open, for the backend's record (0408). */
+export function shownAtOpen(card: PractiseCard | null): ("praise" | "rewrite" | "exercise" | "coach_request")[] {
+  if (!card) return [];
+  if (card.kind === "plain") return card.coach ? ["coach_request"] : [];
+  return [card.kind];
+}
+
