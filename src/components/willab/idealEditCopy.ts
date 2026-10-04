@@ -46,6 +46,11 @@ export const IDEAL_EDIT_COPY = {
   recordUnavailable: "Recording another take is not available right now.",
 
   /* --- failures ---------------------------------------------------------- */
+  /* --- V3 could not make the Feedback (Phase 2; signed off 2026-10-04) --- */
+  feedbackFailed:
+    "We couldn't prepare your feedback this time. Your text is saved.",
+  feedbackRetry: "Try again",
+
   tooLong:
     "That is longer than this text can hold. Nothing was lost, trim it a little and it saves.",
 

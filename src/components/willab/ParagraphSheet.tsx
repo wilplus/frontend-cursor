@@ -32,6 +32,7 @@ export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
  *  my words" below In-between. */
 export type PractiseMode = "card" | "accepted" | "own";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
+import { useGuestBlock } from "./GuestSignUpDialog";
 import MomentPlayer from "./MomentPlayer";
 import CoachVideo from "./CoachVideo";
 import HelperWordsSheet from "./HelperWordsSheet";
@@ -285,7 +286,9 @@ function useAcceptRewrite(
 ) {
   const [accepting, setAccepting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const guestBlock = useGuestBlock();
   const accept = async () => {
+    if (guestBlock()) return;
     if (!card || card.kind !== "rewrite" || !moment || !onAccept || accepting) return;
     setAccepting(true);
     setFailed(false);
