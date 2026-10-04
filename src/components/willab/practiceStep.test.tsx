@@ -358,6 +358,28 @@ describe("the practice judgement", () => {
   });
 });
 
+/* NO ATTEMPT CAP (founder lock 2026-09-30, D2; F1 Repair Plan Phase 4): the
+   recording after the third is "Attempt 4". It was numbered from a remaining
+   count that stops at zero, so every recording from the third on read
+   "Attempt 3". */
+describe("the attempt after the third", () => {
+  it("is numbered 4, not 3", async () => {
+    const three = [1, 2, 3].map((n) => ({ ...attempt, id: `att-${n}`, attemptIndex: n }));
+    practiceApi.judgeConfidencePracticeAttempt.mockResolvedValue({
+      ok: true, practice: { ...withAttempt, attempts: three, attemptsRemaining: 0, judgeableAttemptId: "att-3" },
+      outcome: "again", adopted: false, paragraph: null, attemptWords: null,
+    });
+    await openOnTheOffer();
+    await click("Practise");
+    await stopWithAudio();
+    await click("No — Not confident");
+    await click("Done");
+    await click("Practise again");
+    expect(recording()?.textContent).toContain("Attempt 4");
+    expect(recording()?.textContent).not.toContain("Attempt 3");
+  });
+});
+
 /* THE BOOKMARK WITH NO EXERCISE (founder 2026-09-29): a No no longer leads
    nowhere. The server sends the bookmark to the coach when the answer saves;
    the sheet says so on the Exercise screen, and Continue is the way on. */

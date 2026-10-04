@@ -16,6 +16,7 @@ import type {
   CoachMomentLite,
 } from "@/lib/willab/deckChunks";
 import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
+import { usePractiseOffered } from "@/components/willab/usePractiseOffered";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -119,6 +120,7 @@ export default function OpenChunkSheet({
   // also decides WHICH sheet correctly: an unanswered moment that is still
   // on its way must open the judgement sheet, not the paragraph's own.
   const held = useBoundedWait(feedbackPending);
+  const practiseOffered = usePractiseOffered();
   // Decided ONCE, when the sheet opens. Answering inside the judgement sheet
   // empties the paragraph's pending list; reading it live would swap the
   // sheet for the history halfway down the ladder. The hand-off is the one
@@ -180,6 +182,9 @@ export default function OpenChunkSheet({
       }
       onAccept={onAccept}
       practiseEveryCard={practiseHost !== null}
+      // No Practise when Personalised practice is off (Phase 4, wiring
+      // only); the accept stays.
+      practiseOff={!practiseOffered}
       onUseHelperWords={onUseHelperWords}
       helperWordsHost={helperWordsHost}
       startPicking={startPicking}

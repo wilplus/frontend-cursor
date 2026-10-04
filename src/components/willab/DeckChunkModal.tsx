@@ -209,13 +209,6 @@ function initialInventory(
     .slice(0, 3);
 }
 
-/** Which attempt the live recording is: three are allowed per practice, so
- *  the one being recorded is the next after those already spent. A position,
- *  never a score (AC-9). */
-function practiceAttemptNumber(attemptsRemaining: number): number {
-  return Math.min(3, Math.max(1, 4 - attemptsRemaining));
-}
-
 /** Full height on every step (Final Screens: one sheet height for the whole
  *  walk; founder 2026-09-28: "the overlay is not even full height"). The
  *  speaker may still pull it down to the lower detent, and the steps that
@@ -1769,7 +1762,12 @@ export default function DeckChunkModal({
       exercise.recording ? (
         <PracticeRecordingView
           instruction={exerciseItem.practiceExercise.instruction ?? null}
-          attempt={practiceAttemptNumber(exercise.attemptsRemaining)}
+          // The next after those already saved, with no ceiling (founder lock
+          // 2026-09-30, D2: attempt 10 works like attempt 1). It was read
+          // back from a remaining count capped at three, so from the third
+          // attempt on every recording said "Attempt 3". A position, never a
+          // score (AC-9).
+          attempt={exercise.attemptNumber}
         />
       ) :
       /* THE OFFER (Ideal Text Final Screens L2, founder 2026-09-29 "as
