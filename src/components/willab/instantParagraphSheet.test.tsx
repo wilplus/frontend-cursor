@@ -225,24 +225,31 @@ describe("held while the Take's feedback arrives", () => {
       renderSheet: () => createElement("p", { "data-testid": "judgement" }, "judgement sheet"),
     })));
 
+  // 24e-1 (Phase 6): a waiting moment opens on its feedback -- the
+  // paragraph's own sheet -- and the judgement sheet only on Next.
+  const opensOnFeedback = () => {
+    expect(container.textContent).not.toBe("judgement sheet");
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
+  };
+
   it("opens nothing until the feedback lands, then the sheet the moment needs", () => {
     render(stateWith([]), true);
     expect(container.innerHTML).toBe("");
     // The moment's unanswered item arrives with the feedback.
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), false);
-    expect(container.textContent).toBe("judgement sheet");
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), false);
+    opensOnFeedback();
   });
 
   it("stops holding after the bounded wait", async () => {
     vi.useFakeTimers();
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), true);
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), true);
     expect(container.innerHTML).toBe("");
     await act(async () => { vi.advanceTimersByTime(OPEN_WAIT_MS); });
-    expect(container.textContent).toBe("judgement sheet");
+    opensOnFeedback();
   });
 
   it("opens at once when the feedback is already there", () => {
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice" }]), false);
-    expect(container.textContent).toBe("judgement sheet");
+    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), false);
+    opensOnFeedback();
   });
 });

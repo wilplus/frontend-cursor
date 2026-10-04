@@ -13,6 +13,10 @@ import {
   overlayFooter,
   ownWordsCard,
   practiseCardOf,
+  feedbackFirstCard,
+  feedbackFirstFooter,
+  machineReadOf,
+  shownAtOpen,
 } from "./paragraphOverlay";
 
 const TEXT = "We should ship it now because the data is clear.";
@@ -90,9 +94,10 @@ describe("the practise card (B5, D1, D3)", () => {
     }
   });
 
-  it("a Yes never opens the library exercise; the praise leads, then the rewrite", () => {
+  it("a Yes never opens the library exercise; the praise shows, and a rewrite never does (24f)", () => {
     expect(practiseCardOf([withExercise, rewrite, praise], "yes", TEXT)?.kind).toBe("praise");
-    expect(practiseCardOf([withExercise, rewrite], "yes", TEXT)?.kind).toBe("rewrite");
+    // Phase 6: a Yes on a moment read weak shows nothing now (the matrix).
+    expect(practiseCardOf([withExercise, rewrite], "yes", TEXT)).toBeNull();
     expect(practiseCardOf([withExercise], "yes", TEXT)).toBeNull();
   });
 
@@ -250,5 +255,42 @@ describe("accepting a rewrite (founder 2026-09-30, C11; contract 29b)", () => {
       kind: "plain", item: moment, text: "We should ship it now", coach: false,
     });
     expect(ownWordsCard([rewrite], TEXT)).toMatchObject({ kind: "plain", item: null, text: TEXT });
+  });
+});
+
+/* JUDGEMENT AFTER FEEDBACK (24e-1; Phase 6): the card and the button before
+   any judgement. */
+describe("feedback first", () => {
+  const tier = (item: DocumentSuggestion, bookmarkTier: "confident" | "weak") =>
+    ({ ...item, bookmarkTier }) as DocumentSuggestion;
+
+  it("reads the machine from the moment's tier", () => {
+    expect(machineReadOf([tier(moment, "confident")])).toBe("confident");
+    expect(machineReadOf([tier(moment, "weak")])).toBe("weak");
+    expect(machineReadOf([moment])).toBeNull();
+  });
+
+  it("a confident moment opens on its praise, and Next asks the judgement", () => {
+    const items = [tier(moment, "confident"), praise, rewrite];
+    expect(feedbackFirstCard(items, "confident", TEXT)?.kind).toBe("praise");
+    expect(feedbackFirstFooter("confident", true, false)).toEqual({ pill: "next", link: null });
+  });
+
+  it("a moment that needed work opens on its exercise, else its rewrite, else itself", () => {
+    expect(feedbackFirstCard([tier(withExercise, "weak"), rewrite], "weak", TEXT)?.kind).toBe("exercise");
+    expect(feedbackFirstCard([tier(moment, "weak"), rewrite], "weak", TEXT)?.kind).toBe("rewrite");
+    expect(feedbackFirstCard([tier(moment, "weak")], "weak", TEXT)?.kind).toBe("plain");
+    expect(feedbackFirstFooter("weak", true, false)).toEqual({ pill: "practise", link: "skip" });
+    expect(feedbackFirstFooter("weak", true, true)).toEqual({ pill: "accept", link: "keep" });
+  });
+
+  it("nothing to practise reads Next, which asks the judgement", () => {
+    expect(feedbackFirstFooter("weak", false, false)).toEqual({ pill: "next", link: null });
+    expect(feedbackFirstCard([moment], null, TEXT)).toBeNull();
+  });
+
+  it("reports what was on screen", () => {
+    expect(shownAtOpen(null)).toEqual([]);
+    expect(shownAtOpen(feedbackFirstCard([tier(moment, "weak"), rewrite], "weak", TEXT))).toEqual(["rewrite"]);
   });
 });

@@ -23,6 +23,11 @@ import {
   type Judgement,
   type LabelTone,
   type PractiseCard,
+  FEEDBACK_FIRST,
+  feedbackFirstCard,
+  feedbackFirstFooter,
+  machineReadOf,
+  type MachineRead,
 } from "@/lib/willab/paragraphOverlay";
 import { acceptOutcome, saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
@@ -319,6 +324,61 @@ function useAcceptRewrite(
     onPractise?.(moment, judgement, "accepted", card);
   };
   return { accept, accepting, failed };
+}
+
+/** Before any judgement on a waiting moment (24e-1; Phase 6): the machine's
+ *  read of it, which chooses the card and the button; undefined otherwise. */
+function openingOf(
+  awaiting: { onJudge: () => void; onSkip: () => void } | null,
+  judgement: Judgement | null,
+  items: readonly DocumentSuggestion[],
+): { read: MachineRead } | undefined {
+  if (!FEEDBACK_FIRST || !awaiting || judgement !== null) return undefined;
+  return { read: machineReadOf(items) };
+}
+
+function cardAt(
+  opening: { read: MachineRead } | undefined,
+  items: readonly DocumentSuggestion[],
+  judgement: Judgement | null,
+  text: string,
+): PractiseCard | null {
+  return opening
+    ? feedbackFirstCard(items, opening.read, text)
+    : practiseCardOf(items, judgement, text);
+}
+
+/** Accept on the card before any judgement too (29b; 24e-1). */
+function acceptableAt(
+  opening: { read: MachineRead } | undefined,
+  card: PractiseCard | null,
+  judgement: Judgement | null,
+  hasHost: boolean,
+): boolean {
+  return canAcceptCard(card, opening ? "no" : judgement, hasHost);
+}
+
+/** Before any judgement Next asks it and Skip settles the moment unanswered
+ *  (24e-1); after it, as before. */
+function actionsAt(
+  opening: { read: MachineRead } | undefined,
+  awaiting: { onJudge: () => void; onSkip: () => void } | null,
+  next: () => void,
+  moveOn: () => void,
+): { next: () => void; skip: () => void } {
+  if (!opening || !awaiting) return { next, skip: moveOn };
+  return { next: awaiting.onJudge, skip: awaiting.onSkip };
+}
+
+function footerAt(
+  opening: { read: MachineRead } | undefined,
+  judgement: Judgement | null,
+  canPractise: boolean,
+  canAccept: boolean,
+): ReturnType<typeof overlayFooter> {
+  return opening
+    ? feedbackFirstFooter(opening.read, canPractise, canAccept)
+    : overlayFooter(judgement, canPractise, canAccept);
 }
 
 /** The one black button (B5 as overridden; 29b). */
@@ -649,6 +709,7 @@ export default function ParagraphSheet({
   onAccept = null,
   practiseEveryCard = false,
   practiseOff = false,
+  awaiting = null,
   onUseHelperWords,
   helperWordsHost = null,
   startPicking = false,
@@ -695,6 +756,11 @@ export default function ParagraphSheet({
    *  any card, and so no "Accept and practise" either -- its one button
    *  promises the practise. The footer is the no-practise one (Next). */
   practiseOff?: boolean;
+  /** JUDGEMENT AFTER FEEDBACK (24e-1; Phase 6): the moment is still waiting
+   *  for the speaker. The sheet opens on the machine's feedback; `onJudge`
+   *  asks the judgement (Next on a confident moment), `onSkip` settles the
+   *  moment without one. */
+  awaiting?: { onJudge: () => void; onSkip: () => void } | null;
   /** Save the tapped words and lock them (Q24 B). Resolves true when both
    *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
@@ -735,7 +801,8 @@ export default function ParagraphSheet({
   const practiseHandler = practiseOff ? null : onPractise;
   // Hooks before any early return (the picker and the saved state return
   // above the practise state, and a hook after them renders fewer hooks).
-  const card = sheetData ? practiseCardOf(items, judgement, text) : null;
+  const opening = openingOf(awaiting, judgement, items);
+  const card = sheetData ? cardAt(opening, items, judgement, text) : null;
   const { accept, accepting, failed: acceptFailed } =
     useAcceptRewrite(card, moment, judgement, onAccept, practiseHandler);
 
@@ -808,15 +875,16 @@ export default function ParagraphSheet({
   const canPractise =
     Boolean(practiseHandler) && Boolean(moment) && card !== null &&
     (practiseEveryCard || card.kind === "exercise");
-  const canAccept = canPractise && canAcceptCard(card, judgement, Boolean(onAccept));
-  const footer = overlayFooter(judgement, canPractise, canAccept);
+  const canAccept = canPractise && acceptableAt(opening, card, judgement, Boolean(onAccept));
+  const footer = footerAt(opening, judgement, canPractise, canAccept);
   const practise = () => {
     if (card && moment) practiseHandler?.(moment, judgement);
   };
-  const next = () => {
+  const pickerNext = () => {
     if (nextOpensPicker(judgement, headline) && onUseHelperWords) setPicking(true);
     else moveOn();
   };
+  const { next, skip } = actionsAt(opening, awaiting, pickerNext, moveOn);
   /* KEEP MY WORDS (29b): on an In-between, Next as before; below it, the
      practise on the speaker's own words. */
   const keep = () => {
@@ -834,7 +902,7 @@ export default function ParagraphSheet({
     />
   );
   const link = (
-    <FooterLink link={footer.link} onSkip={moveOn} onPractise={practise} onKeep={keep} />
+    <FooterLink link={footer.link} onSkip={skip} onPractise={practise} onKeep={keep} />
   );
 
   return (

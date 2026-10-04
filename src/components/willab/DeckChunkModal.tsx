@@ -1393,7 +1393,8 @@ export default function DeckChunkModal({
     // The speaker's answer about the original, as given (founder 2026-09-28).
     // It used to be folded to yes/no, so an In-between or a Not sure reached
     // the practice record, and the coach, as a No.
-    originalUserAnswer: practiceChipValue(judgement) ?? "no",
+    // None before any judgement (24e-1; Phase 6), never a made-up "no".
+    originalUserAnswer: practiceChipValue(judgement),
     onFinished: onExerciseFinished,
   });
   // Each attempt is judged afresh: the chips empty whenever a new attempt

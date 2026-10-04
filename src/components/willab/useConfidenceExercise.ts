@@ -116,8 +116,9 @@ export function useConfidenceExercise(args: {
   snippetId: string | null;
   offer: ConfidentVoicePracticeOffer | null;
   evidence: Evidence | null;
-  /** The speaker's answer about the original clip, as given: all five. */
-  originalUserAnswer: PracticeAnswer;
+  /** The speaker's answer about the original clip, as given: all five, or
+   *  null when the practice starts before any judgement (24e-1). */
+  originalUserAnswer: PracticeAnswer | null;
   /** What is practised (founder lock 2026-09-30, D1): the library exercise
    *  (the default, and it needs `offer`), the rewrite's words, or the plain
    *  moment. */

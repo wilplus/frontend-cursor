@@ -440,6 +440,12 @@ describe("the hand-off (founder lock 2026-09-30, B5)", () => {
         }),
       );
     });
+    // 24e-1 (Phase 6): the bookmark opens on its feedback, never on the
+    // question; Next asks the judgement.
+    expect(container.textContent).not.toContain("Does this sound confident to you?");
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
+    await act(async () =>
+      (container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement).click());
     expect(container.textContent).toContain("Does this sound confident to you?");
     const no = Array.from(container.querySelectorAll("button")).find(
       (b) => b.textContent?.trim() === "No — Not confident",
@@ -486,8 +492,12 @@ describe("the sheet is chosen once, when it opens", () => {
       });
     await renderWith(make(pending, [], [pending.id]));
     await renderWith(make(answered, [answered.id], []));
+    // Still the waiting moment's sheet (24e-1: it opens on the feedback),
+    // never swapped for the history: Next still asks the judgement.
+    expect(container.querySelector('[data-testid="judge"]')).toBeNull();
+    await act(async () =>
+      (container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement).click());
     expect(container.querySelector('[data-testid="judge"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
   });
 });
 
