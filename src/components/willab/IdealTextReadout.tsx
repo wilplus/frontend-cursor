@@ -1087,7 +1087,19 @@ export default function IdealTextReadout({
         // FE-1 — this fallback (no SD payload: guest, or the flag off) used to
         // print `text` raw, markers and all. It is the same document, so it
         // gets the same renderer.
-        <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
+        //
+        // ITS OWN SCROLLER (founder 2026-10-04, a guest's first Take on a
+        // phone: "I can not scroll it"). The Lab band is `overflow-hidden` on
+        // this screen because the deck scrolls itself; this branch has no
+        // deck, so without a scroller of its own every paragraph below the
+        // fold, and the button under them, was cut off and unreachable.
+        <div
+          data-ideal-text-wheel-native
+          data-testid="readout-plain-scroller"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+        >
+          <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
+        </div>
       )}
 
       {/* MATERIAL RECOVERY — words the speaker SAID on a slide their script
