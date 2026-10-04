@@ -13,6 +13,7 @@ failure.
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
+| `guest-first-visit.spec.mjs` | `/chat` as a brand-new guest (REAL surface) | `BASE_URL` → `:3142` |
 
 The five `/dev/*` harness pages stub their own network, so no backend is
 needed for them. **record-flow drives the real record flow at `/chat`** on a

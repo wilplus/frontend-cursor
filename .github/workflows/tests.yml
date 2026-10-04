@@ -171,6 +171,12 @@ jobs:
       - name: The record flow in a real browser
         run: BASE_URL=http://localhost:3140 node e2e/record-flow.spec.mjs
 
+      # A brand-new guest must reach the Terms (F1 Repair Plan Phase 0.5,
+      # 2026-10-03): under PLF1 enforce nothing minted a guest identity, so a
+      # first-time visitor could neither accept nor record.
+      - name: A first-time guest reaches the Terms in a real browser
+        run: BASE_URL=http://localhost:3140 node e2e/guest-first-visit.spec.mjs
+
       - name: Server logs on failure
         if: failure()
         run: |
