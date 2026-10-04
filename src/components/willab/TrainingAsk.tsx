@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { getAuthToken } from "@/lib/api/auth-client";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
+import LoadingState from "./LoadingState";
 import {
   fetchTrainingConsent,
   setTrainingConsent,
@@ -37,9 +39,19 @@ export const TRAINING_ASK_COPY = {
 } as const;
 
 /** The read must never hold a Take hostage. */
-const READ_TIMEOUT_MS = 4000;
+const READ_TIMEOUT_MS = 2500;
 
-function readWithTimeout(): Promise<TrainingConsent | null> {
+/* ONE READ PER LAB ENTRY, STARTED WHEN THE LAB OPENS (founder 2026-10-04: the
+   screen sat blank while the read was in flight). LabOverlay calls
+   prefetchTrainingAsk() on mount, so by the time the speaker has picked a
+   project the answer is usually in and the question, or the screen it guards,
+   appears at once. A guest never reads at all: the training switch belongs
+   to an account, so there is nothing to ask. */
+let pending: Promise<TrainingConsent | null> | null = null;
+let settled: { value: TrainingConsent | null } | null = null;
+
+async function readOnce(): Promise<TrainingConsent | null> {
+  if (!(await getAuthToken())) return null;
   return new Promise((resolve) => {
     const timer = window.setTimeout(() => resolve(null), READ_TIMEOUT_MS);
     void fetchTrainingConsent().then((value) => {
@@ -47,6 +59,25 @@ function readWithTimeout(): Promise<TrainingConsent | null> {
       resolve(value);
     });
   });
+}
+
+export function prefetchTrainingAsk(): void {
+  if (pending) return;
+  settled = null;
+  pending = readOnce().then((value) => {
+    settled = { value };
+    return value;
+  });
+}
+
+/** The Lab closed: the next entry reads afresh (a yes elsewhere counts). */
+export function resetTrainingAsk(): void {
+  pending = null;
+  settled = null;
+}
+
+function shouldAsk(value: TrainingConsent | null): value is TrainingConsent {
+  return Boolean(value?.available && value.copy && !value.active);
 }
 
 /** The three pre-recording screens render through this: the question first,
@@ -66,16 +97,23 @@ export function TrainingAskGate({
 }
 
 export default function TrainingAsk({ onDone }: { onDone: () => void }) {
-  const [shown, setShown] = useState<TrainingConsent | null>(null);
+  const [shown, setShown] = useState<TrainingConsent | null>(() =>
+    settled && shouldAsk(settled.value) ? settled.value : null,
+  );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    if (settled) {
+      if (!shouldAsk(settled.value)) onDone();
+      return;
+    }
     let alive = true;
-    void readWithTimeout().then((value) => {
+    prefetchTrainingAsk();
+    void pending?.then((value) => {
       if (!alive) return;
-      if (!value?.available || !value.copy || value.active) onDone();
-      else setShown(value);
+      if (shouldAsk(value)) setShown(value);
+      else onDone();
     });
     return () => {
       alive = false;
@@ -84,7 +122,9 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!shown) return null;
+  // Never a blank screen: the rare read still in flight shows the loading
+  // state for at most READ_TIMEOUT_MS.
+  if (!shown) return <LoadingState placement="surface" />;
 
   const yes = async () => {
     setBusy(true);

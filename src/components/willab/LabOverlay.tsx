@@ -54,7 +54,7 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabEvent, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import RecordingSetup from "./RecordingSetup";
-import { TrainingAskGate } from "./TrainingAsk";
+import { TrainingAskGate, prefetchTrainingAsk, resetTrainingAsk } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import {
   clearExploreArc,
@@ -321,6 +321,12 @@ export default function LabOverlay({
      "each time you are starting a take" is this component's lifetime. */
   const [trainingAsked, setTrainingAsked] = useState(false);
   const markTrainingAsked = useCallback(() => setTrainingAsked(true), []);
+  // Read the switch as the Lab opens, so the question (or the screen) is
+  // ready when the speaker gets there; read afresh on the next entry.
+  useEffect(() => {
+    prefetchTrainingAsk();
+    return resetTrainingAsk;
+  }, []);
   const [recordingRoots, setRecordingRoots] = useState<
     Array<{ slideIndex: number; text: string; type: "flagship" | "neutral" }>
   >([]);
