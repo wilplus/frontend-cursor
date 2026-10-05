@@ -38,6 +38,7 @@ import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
 import {
+  idealTextReadyDraft,
   idealTextUnconfirmedDraft,
   readoutSummaryDraft,
 } from "./loungeReports";
@@ -1012,6 +1013,15 @@ export default function LabOverlay({
     // captures the pre-assembly document version and lets the first document
     // probe prove the new Ideal Text landed instead of waiting for the cap.
     enabled: state === "lab_processing" || state === "readout",
+    onSettled: (take) => {
+      if (signedIn === false && take.arcId) {
+        void appendToThread(idealTextReadyDraft({
+          arcId: take.arcId,
+          version: take.takeIndex,
+          topic: context?.topic,
+        }));
+      }
+    },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
         void publishIdealTextUnconfirmed({

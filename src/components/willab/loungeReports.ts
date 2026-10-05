@@ -61,6 +61,33 @@ export function readoutSummaryDraft(input: {
   };
 }
 
+/** The server's "ready" wording for a new Ideal Text version
+ *  (services/arc_notifications.py, `fire_ideal_text_ready`), signed. */
+export const IDEAL_TEXT_READY_BODY = "Your ideal text is ready.";
+
+/** A GUEST'S "YOUR TEXT IS READY" BUBBLE (founder live test 2026-10-05).
+ *  The server posts this bubble into a signed-in speaker's Lounge; a guest's
+ *  Lounge lives in the browser, so it never arrived and a guest had no way
+ *  back to the text. The page posts the same bubble, the same words and the
+ *  same metadata the card reads, when a guest's text is ready. */
+export function idealTextReadyDraft(input: {
+  arcId: string;
+  version: number | null;
+  topic?: string;
+}): LoungeMessageDraft {
+  return {
+    role: "bot",
+    kind: "ideal_text",
+    body: IDEAL_TEXT_READY_BODY,
+    metadata: {
+      arc_id: input.arcId,
+      variant: "ready",
+      version: input.version,
+      topic: input.topic,
+    },
+  };
+}
+
 /** Take 1's analysis persisted, but its canonical document was not confirmed.
  *  The session UUID matches the backend writer, so timeout, reconnect, and
  *  repeated retries converge on one durable terminal card. */
