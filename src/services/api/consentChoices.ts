@@ -94,9 +94,12 @@ export async function setConsentChoice(
 }
 
 /* Whether Practise may be offered on the speaker's sheets (F1 Repair Plan
- * Phase 4). False only when Personalised practice is explicitly off; unknown
- * (no agreement yet, a failed read) leaves the server to decide, as before.
- * Read once per page and dropped whenever a choice changes. */
+ * Phase 4). False when Personalised practice is explicitly off, and also when
+ * sensitive information is withdrawn (B6-3): withdrawing it stops NEW
+ * recording, a practice attempt is new recording, and the attempt route
+ * requires both choices. Unknown (no agreement yet, a failed read) leaves the
+ * server to decide, as before. Read once per page and dropped whenever a
+ * choice changes. */
 let practiseKnown: boolean | null = null;
 let practiseInFlight: Promise<boolean> | null = null;
 
@@ -108,7 +111,9 @@ export function readPractiseOffered(): Promise<boolean> {
   practiseInFlight ??= fetchConsentChoices()
     .then((choices) => {
       practiseKnown = !(
-        choices?.hasReceipt === true && choices.personalisedPractice === false
+        choices?.hasReceipt === true &&
+        (choices.personalisedPractice === false ||
+          choices.sensitiveInformation === false)
       );
       return practiseKnown;
     })
