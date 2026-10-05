@@ -7,6 +7,9 @@
 /*  on their own instrument, ML-10). Every panel whose door is closed        */
 /*  says so in words rather than showing a zero that reads as a measurement. */
 /*  Read-only for the research role; the golden judging is the founder's.    */
+/*  Datasets carry the drafts shown, the consent-authorised share and the    */
+/*  splits the releases assigned; Drift is the weekly PSI 2x2 the weekly job */
+/*  stored; Monitors is the confidence readiness check read now (ML-DONE-2). */
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useState } from "react";
@@ -32,6 +35,14 @@ function n(value: unknown): string {
   return typeof value === "number" ? new Intl.NumberFormat().format(value) : "—";
 }
 
+function share(value: unknown): string | null {
+  return typeof value === "number" ? `${Math.round(value * 100)}%` : null;
+}
+
+function codes(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
 function Datasets({ datasets }: { datasets: Raw }) {
   const entries = Object.entries(datasets);
   if (entries.length === 0) return <p className="text-sm text-muted-foreground">No pair surface reported.</p>;
@@ -39,11 +50,15 @@ function Datasets({ datasets }: { datasets: Raw }) {
     <ul className="grid gap-2 sm:grid-cols-3">
       {entries.map(([surface, raw]) => {
         const d = obj(raw);
+        const consented = share(d.consent_authorised_share);
+        const splits = d.splits && typeof d.splits === "object" ? obj(d.splits) : null;
         return (
           <li key={surface} className="rounded-xl border border-border p-3 text-sm">
             <div className="font-medium">{surface}</div>
-            <div className="mt-1 tabular-nums text-muted-foreground">{n(d.pairs)} pairs · {n(d.unexported)} unexported · {arr(d.releases).length} releases</div>
+            <div className="mt-1 tabular-nums text-muted-foreground">{n(d.pairs)} pairs · {n(d.exposures)} drafts shown · {n(d.unexported)} unexported · {arr(d.releases).length} releases</div>
+            {consented ? <p className="mt-1 text-xs tabular-nums text-muted-foreground">consent-authorised: {consented}</p> : null}
             {str(d.consent_note) ? <p className="mt-1 text-xs text-muted-foreground">{str(d.consent_note)}</p> : null}
+            {splits ? <p className="mt-1 text-xs tabular-nums text-muted-foreground">splits: train {n(splits.train)} · validation {n(splits.validation)} · test {n(splits.test)}</p> : null}
             {str(d.splits_note) ? <p className="mt-1 text-xs text-muted-foreground">{str(d.splits_note)}</p> : null}
           </li>
         );
@@ -92,6 +107,58 @@ function Evaluations({ rows }: { rows: Raw[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function Drift({ drift }: { drift: Raw }) {
+  const rows = arr(drift.dimensions);
+  if (rows.length === 0) return null;
+  return (
+    <div className="overflow-x-auto">
+      <p className="mb-2 text-sm">
+        week of {str(drift.week_start) ?? "—"} · most urgent: {str(drift.worst) ?? "—"}
+      </p>
+      <table className="w-full text-sm">
+        <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium">Dimension</th>
+            <th className="px-3 py-2 font-medium">Reading</th>
+            <th className="px-3 py-2 font-medium">Inputs (PSI)</th>
+            <th className="px-3 py-2 font-medium">Decisions</th>
+            <th className="px-3 py-2 font-medium">Sessions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={String(r.dimension)} className="border-t border-border">
+              <td className="px-3 py-2">{str(r.dimension) ?? "—"}</td>
+              <td className="px-3 py-2">{str(r.triage) ?? "—"}</td>
+              <td className="px-3 py-2 tabular-nums">{str(r.psi_band) ?? "—"}{typeof r.psi === "number" ? ` · ${r.psi.toFixed(3)}` : ""}</td>
+              <td className="px-3 py-2">{str(r.chart_signal) ?? "—"}</td>
+              <td className="px-3 py-2 tabular-nums">{n(r.n_sessions)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Monitors({ monitors }: { monitors: Raw }) {
+  const canary = obj(monitors.confidence_canary);
+  if (Object.keys(canary).length === 0) return null;
+  const blockers = codes(canary.blocker_codes);
+  const warnings = codes(canary.warning_codes);
+  return (
+    <div className="grid gap-1 text-sm">
+      <div className="flex flex-wrap justify-between gap-2">
+        <span>Confidence readiness · {str(canary.cutover_mode) ?? "—"}</span>
+        <span className={canary.ready === true ? "font-medium" : "text-muted-foreground"}>{canary.ready === true ? "ready" : "blocked"}</span>
+      </div>
+      {blockers.length > 0 ? <p className="text-xs text-muted-foreground">blockers: {blockers.join(", ")}</p> : null}
+      {warnings.length > 0 ? <p className="text-xs text-muted-foreground">warnings: {warnings.join(", ")}</p> : null}
+      <p className="text-xs text-muted-foreground">read {str(canary.read_at)?.slice(0, 16).replace("T", " ") ?? "—"} UTC</p>
     </div>
   );
 }
@@ -183,6 +250,8 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
   const runs = arr(exports.annotation_runs);
   const releases = arr(exports.pair_exports);
   const weekly = arr(view.weekly);
+  const drift = obj(view.drift);
+  const monitors = obj(view.monitors);
   const unavailable = Array.isArray(view.unavailable) ? view.unavailable.map(String) : [];
   return (
     <FounderFrame title="Research" line="read-only · the research role and the founder · pseudonyms only">
@@ -239,8 +308,12 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
           <Promotions rows={arr(view.promotions)} />
           <PromotionHistory rows={arr(view.promotion_history)} />
         </Panel>
-        <Panel title="Drift" note={str(obj(view.drift).note)} />
-        <Panel title="Monitors" note={str(obj(view.monitors).note)} />
+        <Panel title="Drift" note={str(drift.note)}>
+          {arr(drift.dimensions).length > 0 ? <Drift drift={drift} /> : null}
+        </Panel>
+        <Panel title="Monitors" note={str(monitors.note)}>
+          {Object.keys(obj(monitors.confidence_canary)).length > 0 ? <Monitors monitors={monitors} /> : null}
+        </Panel>
         <Panel title="Golden set" note={founder ? "Fifty moments per surface, judged by the founder on the coach's instrument, then sealed with a hash." : "The founder's judgements; sealed sets are read by the evaluation."}>
           <ul className="grid gap-2">
             {Object.entries(golden).map(([surface, counts]) =>
