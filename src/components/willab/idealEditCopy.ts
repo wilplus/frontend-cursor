@@ -295,11 +295,11 @@ export const CHUNK_SHEET_COPY = {
   historyHelperWords: "Helper words",
   /* --- Back / Next across the bookmarks (founder 2026-09-25, Q31 B / Q32 A) -
      The coach panel's own footer words, copied so the two read as one
-     product. The right-hand button always says Next, and Done on the last
-     bookmark, where it closes the sheet. */
+     product. The right-hand button says Next on every bookmark, the last
+     one too (founder 2026-10-05, N48.3 Q8 A: "Done" becomes "Next"; it read
+     Done on the last bookmark until then). */
   pagerBack: "Back",
   pagerNext: "Next",
-  pagerDone: "Done",
   /* Founder 2026-09-26 (Ideal Text redesign, accepted screens): the walk's
      position in the sheet header, "Slide 2 · moment 1 of 4". It counts
      positions in the walk, as Back / Next always did — never problems found

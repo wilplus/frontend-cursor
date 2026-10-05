@@ -118,10 +118,12 @@ export function landingIndex(bookmarks: readonly Bookmark[]): number {
  *  sheet, under the step's own black button — two black buttons stacked, and
  *  the reader could not tell which one moved on. Now the step's button is
  *  the only black one, and the walk is a slim header: ‹ Slide 2 · moment 1
- *  of 4 ›. Back is off on the first; on the last the › is Done (Q32 A). */
+ *  of 4 ›. Back is off on the first. The › is "Next" on every screen, the
+ *  last one too, where it leads to the end card (founder 2026-10-05, N48.3
+ *  Q8 A: "Done" becomes "Next" on these screens; lock B8: "The end card
+ *  follows the last screen"); until then it read Done there (Q32 A). */
 export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined }) {
   if (!pager) return null;
-  const last = pager.index >= pager.total - 1;
   const position =
     pager.position ?? `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`;
   return (
@@ -145,7 +147,7 @@ export function FeedbackPagerBar({ pager }: { pager: Pager | null | undefined })
       <button
         type="button"
         onClick={pager.onNext}
-        aria-label={last ? COPY.pagerDone : COPY.pagerNext}
+        aria-label={COPY.pagerNext}
         className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <ChevronRight className="h-5 w-5" aria-hidden />
