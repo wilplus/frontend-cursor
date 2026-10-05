@@ -14,9 +14,9 @@
 /*  And, new with Archive:                                                    */
 /*    7. archived projects are listed, marked, and can be unarchived.         */
 /*  And, new with Wave 3 (founder 2026-10-05, N48.4 Q17 A; TC-7b):            */
-/*    8. with an active training yes the confirm says the N10 sentence in     */
-/*       place of N8's body, and only then, and only once it is signed again  */
-/*       (PROJECT_DELETE_TRAINING_SENTENCE_ENABLED, off: it is untrue today); */
+/*    8. with an active training yes the confirm ends with the signed "A     */
+/*       model already trained stays." (W5 A, N50; it retired N10's          */
+/*       sentence), and only then;                                            */
 /*    9. the backend's `cancellable` decides whether Cancel deletion shows;   */
 /*   10. the 7-day window's words (PROPOSED) show only once switched on.      */
 /* -------------------------------------------------------------------------- */
@@ -24,7 +24,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const flag = vi.hoisted(() => ({ on: true, trainingSentence: true }));
+const flag = vi.hoisted(() => ({ on: true }));
 const api = vi.hoisted(() => ({
   fetchTrainings: vi.fn(),
   unarchiveProject: vi.fn(),
@@ -39,9 +39,6 @@ vi.mock("@/lib/willab/projectDeletionCopy", async (importOriginal) => {
     ...actual,
     get PROJECT_DELETE_ENABLED() {
       return flag.on;
-    },
-    get PROJECT_DELETE_TRAINING_SENTENCE_ENABLED() {
-      return flag.trainingSentence;
     },
   };
 });
@@ -91,7 +88,6 @@ let root: Root;
 
 beforeEach(() => {
   flag.on = true;
-  flag.trainingSentence = true;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -208,7 +204,7 @@ describe("a pending deletion", () => {
   });
 });
 
-describe("the honest delete copy for an active training yes (N10, TC-7b)", () => {
+describe("the training line for an active training yes (W5 A, TC-7b)", () => {
   async function confirmFor(training: unknown): Promise<HTMLElement> {
     api.fetchTrainingConsent.mockResolvedValue(training);
     await openWith([project()]);
@@ -216,19 +212,18 @@ describe("the honest delete copy for an active training yes (N10, TC-7b)", () =>
     return document.querySelector('[role="dialog"]') as HTMLElement;
   }
 
-  it("says the signed N10 sentence in place of N8's body when the yes is active", async () => {
+  it("ends N8's body with the signed line when the yes is active", async () => {
     const dialog = await confirmFor({
       available: true, active: true, policyVersion: "t-1",
       copy: "Use my practice text...", copySha256: "x",
     });
     expect(api.fetchTrainingConsent).toHaveBeenCalledTimes(1);
-    expect(dialog.textContent).toContain(
-      "Your project will be deleted. Recordings you shared for training stay until you withdraw that permission.",
-    );
-    expect(dialog.textContent).not.toContain(COPY.body);
+    expect(dialog.textContent).toContain(`${COPY.body} ${LEAVING_COPY.trainingModelStays}`);
+    // N10's retired sentence is gone from the code, never just hidden.
+    expect(dialog.textContent).not.toContain("Recordings you shared for training");
   });
 
-  it("keeps N8's body with the switch off, unavailable, or unreadable", async () => {
+  it("keeps N8's body alone with the switch off, unavailable, or unreadable", async () => {
     for (const training of [
       { available: true, active: false, policyVersion: "t-1", copy: "c", copySha256: "x" },
       { available: false, active: false, policyVersion: null, copy: null, copySha256: null },
@@ -236,7 +231,7 @@ describe("the honest delete copy for an active training yes (N10, TC-7b)", () =>
     ]) {
       const dialog = await confirmFor(training);
       expect(dialog.textContent).toContain(COPY.body);
-      expect(dialog.textContent).not.toContain(COPY.withTraining);
+      expect(dialog.textContent).not.toContain(LEAVING_COPY.trainingModelStays);
       await act(async () => button("Cancel", dialog)?.click());
       act(() => root.unmount());
       root = createRoot(container);
@@ -248,40 +243,20 @@ describe("the honest delete copy for an active training yes (N10, TC-7b)", () =>
     await openWith([project()]);
     expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
   });
-
-  it("is not read, and N8's body stays, until the N10 sentence is signed again", async () => {
-    flag.trainingSentence = false;
-    const dialog = await confirmFor({
-      available: true, active: true, policyVersion: "t-1",
-      copy: "Use my practice text...", copySha256: "x",
-    });
-    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
-    expect(dialog.textContent).toContain(COPY.body);
-    expect(dialog.textContent).not.toContain(COPY.withTraining);
-  });
 });
 
 describe("the confirm's words", () => {
-  it("N10 replaces N8's body exactly; the window, once on, follows either", () => {
+  it("N8's body, or its first sentence and the window; a yes adds the line at the end", () => {
     expect(COPY.body.startsWith(COPY.bodyFirstSentence)).toBe(true);
     expect(projectConfirmBody(false, false)).toBe(COPY.body);
-    expect(projectConfirmBody(true, false)).toBe(COPY.withTraining);
+    expect(projectConfirmBody(true, false)).toBe(
+      `${COPY.body} ${LEAVING_COPY.trainingModelStays}`,
+    );
     expect(projectConfirmBody(false, true)).toBe(
       `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow}`,
     );
     expect(projectConfirmBody(true, true)).toBe(
-      `${COPY.withTraining} ${LEAVING_COPY.projectWindow}`,
-    );
-  });
-
-  it("an active yes changes nothing while the N10 sentence waits to be signed again", async () => {
-    const actual = await vi.importActual<typeof import("@/lib/willab/projectDeletionCopy")>(
-      "@/lib/willab/projectDeletionCopy",
-    );
-    expect(actual.PROJECT_DELETE_TRAINING_SENTENCE_ENABLED).toBe(false);
-    expect(projectConfirmBody(true, false, false)).toBe(COPY.body);
-    expect(projectConfirmBody(true, true, false)).toBe(
-      `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow}`,
+      `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow} ${LEAVING_COPY.trainingModelStays}`,
     );
   });
 

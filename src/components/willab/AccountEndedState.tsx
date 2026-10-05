@@ -26,8 +26,8 @@ import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 /*  it is outside the gate, so the person's choices and data stay reachable.  */
 /*                                                                            */
 /*  Rendered only while ENDED_STATE_ENABLED is on; the cancel only while      */
-/*  ACCOUNT_DELETION_CANCEL_ENABLED is too. Both wait for the founder's words */
-/*  (leavingCopy.ts, PROPOSED).                                               */
+/*  ACCOUNT_DELETION_CANCEL_ENABLED is too. Both are on since the founder     */
+/*  signed their words (W1, W2, S1 A; N50; leavingCopy.ts).                   */
 /* -------------------------------------------------------------------------- */
 
 /** The one line. An account deletion with a date still ahead names the day;
