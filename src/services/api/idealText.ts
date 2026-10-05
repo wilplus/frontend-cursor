@@ -280,6 +280,14 @@ export interface DocumentSuggestion {
      *  Only an error carries a promise the sheet may say out loud. */
     kind: "error" | "praise" | "rewrite" | "ambiguity";
   } | null;
+  /** THE CARD THE MATRIX NAMES (founder 2026-10-05, N48.1, Wave 1 step 1).
+   *  The follow-up matrix's cell for this moment at the open, computed by
+   *  the backend with the same rule the open itself runs: the page cannot,
+   *  because it is never told whether a problem fired (AC-9). A routing
+   *  word only, never a read or a score. Absent (older backend, a clip the
+   *  machine could not read, no coach to keep the promise): the overlay
+   *  keeps its own rule. */
+  openCard?: OpenCardName | null;
   /** A problem was recognised on this clip and nothing in the library
    *  targets it yet (founder 2026-09-29): a Yes, In-between or Not sure
    *  sends the bookmark to the coach too, and the sheet says so. A No sends
@@ -492,6 +500,14 @@ const LEGACY_TIERS: Record<string, BookmarkTierName> = {
   exercise: "weak",
   most_confident: "confident",
 };
+/** The cards a moment may open on (`judgement_follow_up.OPEN_CARDS`). */
+export type OpenCardName = "praise" | "exercise" | "coach_request" | "rewrite";
+const OPEN_CARDS: readonly OpenCardName[] = [
+  "praise",
+  "exercise",
+  "coach_request",
+  "rewrite",
+];
 function readBookmarkTier(value: unknown): BookmarkTierName | null {
   const tier = readEnum(value, BOOKMARK_TIERS);
   if (tier === null) return null;
@@ -746,6 +762,7 @@ function mapDocumentSuggestion(item: unknown): DocumentSuggestion | null {
     bookmarkTier: readBookmarkTier(record.bookmark_tier),
     practicePrompt: record.practice_prompt === true,
     coachRequest: mapCoachRequest(record.coach_request),
+    openCard: readEnum(record.open_card, OPEN_CARDS),
     problemRecognised: record.problem_recognised === true,
     blockId: readNonEmptyString(record.block_id),
     device,

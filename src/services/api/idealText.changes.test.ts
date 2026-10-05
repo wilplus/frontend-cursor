@@ -415,3 +415,34 @@ describe("Confident Voice micro-practice mapping", () => {
     }]);
   });
 });
+
+/* THE CARD THE MATRIX NAMES (founder 2026-10-05, N48.1, Wave 1 step 1):
+   `open_card` is a closed routing enum; anything else maps to null. */
+describe("mapDocumentSuggestions — open_card", () => {
+  const cv = {
+    id: "cv1",
+    snippet_id: "snip-1",
+    take_session_id: "t1",
+    kind: "advice",
+    device: "emphasis",
+    source: "confident_voice",
+    feedback_family: "confident_voice",
+    span: { start: 2, end: 7 },
+    quote: "think",
+    bookmark_tier: "weak",
+  };
+
+  it.each(["praise", "exercise", "coach_request", "rewrite"] as const)(
+    "maps %s",
+    (value) => {
+      const out = mapDocumentSuggestions([{ ...cv, open_card: value }]);
+      expect(out![0].openCard).toBe(value);
+    },
+  );
+
+  it("absent or unknown is null, and never a number", () => {
+    expect(mapDocumentSuggestions([cv])![0].openCard).toBeNull();
+    expect(mapDocumentSuggestions([{ ...cv, open_card: "score" }])![0].openCard).toBeNull();
+    expect(mapDocumentSuggestions([{ ...cv, open_card: 0.7 }])![0].openCard).toBeNull();
+  });
+});

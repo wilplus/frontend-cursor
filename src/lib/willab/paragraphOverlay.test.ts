@@ -294,3 +294,96 @@ describe("feedback first", () => {
     expect(shownAtOpen(feedbackFirstCard([tier(moment, "weak"), rewrite], "weak", TEXT))).toEqual(["rewrite"]);
   });
 });
+
+/* THE CARD THE MATRIX NAMES (founder 2026-10-05, N48.1, Wave 1 step 1): the
+   backend serves `openCard`, the follow-up matrix's cell at the open, and the
+   overlay opens that card -- on the first open, on a reopen, and after an
+   In-between, a No or a Not sure. Absent, today's rule holds. */
+describe("the card the matrix names (openCard)", () => {
+  type Open = DocumentSuggestion["openCard"];
+  const routed = (
+    base: DocumentSuggestion,
+    openCard: Open,
+    bookmarkTier: "confident" | "weak" | null = "weak",
+    over: Partial<DocumentSuggestion> = {},
+  ) => ({ ...base, openCard, bookmarkTier, ...over }) as DocumentSuggestion;
+
+  it("coach_request opens the plain moment with the coach's sentence, not the rewrite", () => {
+    const items = [routed(moment, "coach_request"), rewrite, praise];
+    const card = feedbackFirstCard(items, "weak", TEXT);
+    expect(card).toMatchObject({ kind: "plain", coach: true, text: "We should ship it now" });
+    expect(shownAtOpen(card)).toEqual(["coach_request"]);
+  });
+
+  it("coach_request holds on a reopen, with the request served open as an error", () => {
+    const items = [
+      routed(moment, "coach_request", "weak", {
+        coachRequest: { status: "open", kind: "error" },
+      }),
+      rewrite,
+    ];
+    expect(feedbackFirstCard(items, "weak", TEXT)).toMatchObject({ kind: "plain", coach: true });
+  });
+
+  it("coach_request says no sentence once the coach answered, or under another kind", () => {
+    const answered = [
+      routed(moment, "coach_request", "weak", {
+        coachRequest: { status: "answered", kind: "error" },
+      }),
+      rewrite,
+    ];
+    expect(feedbackFirstCard(answered, "weak", TEXT)).toMatchObject({ kind: "plain", coach: false });
+    const ambiguity = [
+      routed(moment, "coach_request", "weak", {
+        coachRequest: { status: "open", kind: "ambiguity" },
+      }),
+    ];
+    expect(feedbackFirstCard(ambiguity, "weak", TEXT)).toMatchObject({ kind: "plain", coach: false });
+  });
+
+  it("exercise opens the exercise", () => {
+    const items = [routed(withExercise, "exercise"), rewrite];
+    expect(feedbackFirstCard(items, "weak", TEXT)?.kind).toBe("exercise");
+  });
+
+  it("praise opens the praise, even with a rewrite on the paragraph", () => {
+    const items = [routed(moment, "praise", "confident"), rewrite, praise];
+    expect(feedbackFirstCard(items, "confident", TEXT)?.kind).toBe("praise");
+  });
+
+  it("rewrite opens the rewrite, even with an exercise on the moment", () => {
+    const items = [routed(withExercise, "rewrite"), rewrite];
+    expect(feedbackFirstCard(items, "weak", TEXT)?.kind).toBe("rewrite");
+  });
+
+  it("a named card that is not on the paragraph falls back to today's rule", () => {
+    expect(feedbackFirstCard([routed(moment, "rewrite")], "weak", TEXT)?.kind).toBe("plain");
+    expect(feedbackFirstCard([routed(moment, "praise", "confident"), rewrite], "confident", TEXT)).toBeNull();
+    expect(feedbackFirstCard([routed(moment, "exercise"), rewrite], "weak", TEXT)?.kind).toBe("rewrite");
+    expect(feedbackFirstCard([routed(moment, "rewrite", null)], null, TEXT)).toBeNull();
+  });
+
+  it("absent, today's rule: a weak moment with a rewrite opens the rewrite", () => {
+    const items = [routed(moment, null), rewrite];
+    expect(feedbackFirstCard(items, "weak", TEXT)?.kind).toBe("rewrite");
+    expect(practiseCardOf(items, "no", TEXT)?.kind).toBe("rewrite");
+  });
+
+  it("an exercise the coach chose rides the moment whatever the cell", () => {
+    const chosen = {
+      ...withExercise,
+      practiceExercise: { ...withExercise.practiceExercise!, chosenByCoach: true },
+    } as DocumentSuggestion;
+    const items = [routed(chosen, "praise", "confident"), praise];
+    expect(feedbackFirstCard(items, "confident", TEXT)?.kind).toBe("exercise");
+  });
+
+  it("after In-between, No or Not sure the named card leads too; Yes and Audio unclear keep their rule", () => {
+    const items = [routed(moment, "coach_request"), rewrite, praise];
+    for (const judgement of ["in_between", "no", "not_sure"] as const) {
+      expect(practiseCardOf(items, judgement, TEXT)).toMatchObject({ kind: "plain", coach: true });
+    }
+    expect(practiseCardOf(items, "yes", TEXT)?.kind).toBe("praise");
+    expect(practiseCardOf(items, "audio_unclear", TEXT)).toBeNull();
+  });
+});
