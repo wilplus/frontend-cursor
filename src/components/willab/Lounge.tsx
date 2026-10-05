@@ -53,7 +53,6 @@ import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
-import BestPresentationOverlay from "./BestPresentationOverlay";
 import {
   clearExploreArc,
   readExploreArc,
@@ -197,10 +196,6 @@ export default function Lounge({
   const lifeTags = useLifeTags(thread.signedIn);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // F2 — best-presentation overlay. arcId drives which arc to show.
-  const [bestPresentationArcId, setBestPresentationArcId] = useState<
-    string | null
-  >(null);
   // F2/F7 — the offer (install / legacy joke) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
@@ -330,14 +325,16 @@ export default function Lounge({
   // overlay for that session once on mount. Not coach-gated (InsightsOverlay
   // fetches the owner-auth readout); fire-once so closing it doesn't reopen.
 
-  // C — best-presentation deep-link (/chat?arc=<arc_id>): open the
-  // BestPresentationOverlay for that arc once on mount; fire-once so closing it
-  // doesn't reopen.
+  // C — the old best-presentation deep-link (/chat?arc=<arc_id>). Best
+  // Presentation is retired (L1; second plan, 2026-10-05): the link opens the
+  // arc's Ideal Text instead, once on mount, so closing it doesn't reopen.
   const bestPresLinkOpenedRef = useRef(false);
   useEffect(() => {
     if (bestPresLinkOpenedRef.current || !initialBestPresentationArcId) return;
     bestPresLinkOpenedRef.current = true;
-    setBestPresentationArcId(initialBestPresentationArcId);
+    openIdealText(initialBestPresentationArcId);
+    // openIdealText is a plain function of this render; the link fires once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBestPresentationArcId]);
 
   // THE COACH-FEEDBACK EMAIL LANDS ON THE TEXT ITSELF (founder 2026-08-15:
@@ -1244,7 +1241,7 @@ export default function Lounge({
               key={item.reactKey}
               message={item.message}
               onOpenBestPresentation={(arcId) =>
-                setBestPresentationArcId(arcId)
+                openIdealText(arcId)
               }
               onOpenTranscripts={() => setLibraryOpen(true)}
               // A GUEST'S WAY BACK TO THE TEXT (founder live test
@@ -1561,7 +1558,7 @@ export default function Lounge({
       {libraryOpen && (
         <LibraryOverlay
           onClose={() => setLibraryOpen(false)}
-          onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenBestPresentation={(arcId) => openIdealText(arcId)}
           onRecordAnother={(arc) => {
             // Continue this deck's arc: seed the explore-arc (id + next index +
             // deck) so the Lab carries arc_id and pre-fills the deck, then open
@@ -1586,45 +1583,6 @@ export default function Lounge({
             // The arc is seeded immediately above — never ask WHICH project
             // (the picker's new-topic exit would clear it, and the take would
             // mint a new project instead of joining this one — review R-pp0).
-            (onStartInProject ?? onStart)();
-          }}
-        />
-      )}
-      {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
-          panel lives here). Mounted AFTER every overlay that opens into it
-          (roster / student detail / review wrap-up all call
-          setBestPresentationArcId), and nothing this mount renders opens on top
-          of it. Equal z-40 → later in DOM wins, so it paints ABOVE the overlay
-          it was opened from (that was the P0 "nothing happens" bug — it used to
-          render first and hide behind an opaque z-40 sibling). Mount order also
-          puts it above those openers in the LIFO back-dismiss stack. (The star
-          verdict overlay below is a sibling, not an opener — neither ever opens
-          the other, so their relative order carries no weight.) */}
-      {bestPresentationArcId && (
-        <BestPresentationOverlay
-          arcId={bestPresentationArcId}
-          onClose={() => setBestPresentationArcId(null)}
-          onRecordNext={(takesDone) => {
-            // Seed the arc THIS progress bar belongs to, so the take lands in
-            // it (and "Take N of 3" + the interstitial parity read true) even
-            // when localStorage holds a different / no arc.
-            if (
-              bestPresentationArcId &&
-              readExploreArc(userId)?.arcId !== bestPresentationArcId
-            ) {
-              // FE-1 — carry the arc's session id so the Lab can restore its
-              // deck from the server (this seed omits the deck; localStorage was
-              // lost or holds a different arc).
-              writeExploreArc(
-                userId,
-                bestPresentationArcId,
-                takesDone + 1,
-                undefined,
-                latestArcSessionId(bestPresentationArcId),
-              );
-            }
-            setBestPresentationArcId(null);
-            // Seeded above — same rule as the library entry (review R-pp0).
             (onStartInProject ?? onStart)();
           }}
         />
