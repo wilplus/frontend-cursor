@@ -207,6 +207,32 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     expect(pager()).toBeNull();
   });
 
+  it("a Take 1 word shared after Take 2 was recorded reaches the speaker once, labelled Take 1", async () => {
+    // Coach review is asynchronous: Take 2 is on screen (takeSessionId
+    // "take-2"), and the backend serves the earlier Take's word carrying
+    // its own Take.
+    const late: CoachMessage = {
+      text: "Take one: the pause worked.", videoUrl: null, takeIndex: 1,
+      publishedAt: "2026-10-05T12:00:00Z", takeSessionId: "take-1",
+    };
+    const waiting = vi.fn();
+    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: waiting, reviewRequest: 0 });
+    expect(step0()).toBeNull();
+    expect(waiting).toHaveBeenLastCalledWith(true);
+    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: waiting, reviewRequest: 1 });
+    // The existing Step 0 header names the word's own Take (L8-1).
+    expect(step0()?.querySelector('[data-testid="feedback-pager"]')?.textContent)
+      .toContain("Your coach · Take 1");
+    expect(step0()?.textContent).toContain(late.text);
+    expect(waiting).toHaveBeenLastCalledWith(false);
+    // Once: a fresh page with the same word keeps nothing waiting.
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    const again = vi.fn();
+    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: again });
+    expect(again).toHaveBeenLastCalledWith(false);
+  });
+
   it("a word already seen on this device keeps nothing on the page once every moment is answered", async () => {
     markCoachWordSeen(coachWordKey("arc-1", WORD));
     const waiting = vi.fn();
