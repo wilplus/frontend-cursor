@@ -148,29 +148,114 @@ function praiseOf(items: readonly DocumentSuggestion[]): DocumentSuggestion | nu
   return items.find((item) => isPraiseFeedback(item) && item.quote.trim()) ?? null;
 }
 
+function exerciseCard(exercise: DocumentSuggestion, paragraphText: string): PractiseCard | null {
+  const offer = exercise.practiceExercise;
+  if (!offer) return null;
+  return {
+    kind: "exercise",
+    item: exercise,
+    video: offer.explanationVideoRef ?? null,
+    instruction: (offer.instruction ?? "").trim() || null,
+    passage: offer.passage || exercise.quote || paragraphText,
+  };
+}
+
+function praiseCard(item: DocumentSuggestion): PractiseCard {
+  return {
+    kind: "praise",
+    item,
+    text: item.quote.trim(),
+    tentative: item.tentative === true,
+    cueKeys: item.cueKeys ?? [],
+    line: item.praiseLine ?? null,
+  };
+}
+
+function rewriteCard(item: DocumentSuggestion): PractiseCard {
+  return {
+    kind: "rewrite",
+    item,
+    text: (item.proposedText ?? "").trim(),
+    move: item.rewriteMove ?? null,
+  };
+}
+
+/** May the coach's sentence ride this moment? The request rises when the
+ *  moment opens (0408), so before it is served it is on its way; once
+ *  served, only an open error is a promise the coach keeps (Q6). */
+function coachKeepsIt(moment: DocumentSuggestion): boolean {
+  const request = moment.coachRequest;
+  if (!request) return true;
+  return request.status === "open" && request.kind === "error";
+}
+
+/** THE CARD THE MATRIX NAMES (founder 2026-10-05, N48.1, Wave 1 step 1).
+ *
+ *  The backend serves `openCard`, the follow-up matrix's cell for the
+ *  moment at the open, because the cell needs whether a problem fired and
+ *  that never reaches the page (AC-9). It is honoured where the card it
+ *  names exists; the coach's request is the plain moment with the signed
+ *  sentence (Q5), which the backend names only with a coach on the panel.
+ *  Null keeps the overlay's own rule: no `openCard`, the card it names is
+ *  not on the paragraph, or an exercise the coach chose, which rides the
+ *  moment whatever the cell (24f). */
+export function routedCard(
+  items: readonly DocumentSuggestion[],
+  paragraphText: string,
+): PractiseCard | null {
+  const moment = items.find(isConfidentVoiceFeedback) ?? null;
+  const open = moment?.openCard ?? null;
+  if (!moment || !open) return null;
+  const exercise = exerciseOf(items);
+  if (exercise?.practiceExercise?.chosenByCoach === true) return null;
+  switch (open) {
+    case "exercise":
+      return exercise ? exerciseCard(exercise, paragraphText) : null;
+    case "praise": {
+      const praise = praiseOf(items);
+      return praise ? praiseCard(praise) : null;
+    }
+    case "rewrite": {
+      const rewrite = rewriteOf(items);
+      return rewrite ? rewriteCard(rewrite) : null;
+    }
+    case "coach_request":
+      return {
+        kind: "plain",
+        item: moment,
+        text: moment.quote.trim() || paragraphText,
+        coach: coachKeepsIt(moment),
+      };
+    default:
+      return null;
+  }
+}
+
 /** Which card the overlay shows (B5, D1, D3). Audio unclear shows none.
  *
  *  An exercise wins where it opens; otherwise the praise leads on a Yes
  *  (the moment landed) and the rewrite leads below it (the passage to say
  *  better); a No or Not sure with nothing matched is the plain moment, so
  *  no judgement ends on an overlay with nothing to do (D1). A paragraph
- *  never judged shows its rewrite or praise, if it has one, else nothing. */
+ *  never judged shows its rewrite or praise, if it has one, else nothing.
+ *
+ *  On In-between, No and Not sure the matrix's cell is the open's (24f:
+ *  praise on a confident read, the video or the coach on a weak one with a
+ *  problem fired, the rewrite on a weak one without), so the card the
+ *  backend names leads there too, and a reopen agrees with the open. */
 export function practiseCardOf(
   items: readonly DocumentSuggestion[],
   judgement: Judgement | null,
   paragraphText: string,
 ): PractiseCard | null {
   if (judgement === "audio_unclear") return null;
+  if (judgement === "in_between" || belowInBetween(judgement)) {
+    const routed = routedCard(items, paragraphText);
+    if (routed) return routed;
+  }
   const exercise = exerciseOf(items);
   if (exercise?.practiceExercise && exerciseOpens(judgement, exercise)) {
-    const offer = exercise.practiceExercise;
-    return {
-      kind: "exercise",
-      item: exercise,
-      video: offer.explanationVideoRef ?? null,
-      instruction: (offer.instruction ?? "").trim() || null,
-      passage: offer.passage || exercise.quote || paragraphText,
-    };
+    return exerciseCard(exercise, paragraphText);
   }
   const rewrite = rewriteOf(items);
   const praise = praiseOf(items);
@@ -181,22 +266,7 @@ export function practiseCardOf(
   const ordered = judgement === "yes" ? [praise] : [rewrite, praise];
   for (const item of ordered) {
     if (!item) continue;
-    if (item === praise) {
-      return {
-        kind: "praise",
-        item,
-        text: item.quote.trim(),
-        tentative: item.tentative === true,
-        cueKeys: item.cueKeys ?? [],
-        line: item.praiseLine ?? null,
-      };
-    }
-    return {
-      kind: "rewrite",
-      item,
-      text: (item.proposedText ?? "").trim(),
-      move: item.rewriteMove ?? null,
-    };
+    return item === praise ? praiseCard(item) : rewriteCard(item);
   }
   if (!belowInBetween(judgement)) return null;
   const moment = items.find(isConfidentVoiceFeedback) ?? null;
@@ -373,15 +443,19 @@ export function machineReadOf(items: readonly DocumentSuggestion[]): MachineRead
   return null;
 }
 
-/** The card before any judgement: the praise on a confident moment; on a
- *  moment that needed work the exercise matched to its clip, else the
- *  rewrite, else the moment to say again; a moment the machine could not
- *  read shows its rewrite if it has one. */
+/** The card before any judgement: the card the backend names from the
+ *  follow-up matrix (`routedCard`, N48.1) where it is served and on the
+ *  paragraph; otherwise the praise on a confident moment; on a moment that
+ *  needed work the exercise matched to its clip, else the rewrite, else the
+ *  moment to say again; a moment the machine could not read shows its
+ *  rewrite if it has one. Every open reads it afresh, so a reopen agrees. */
 export function feedbackFirstCard(
   items: readonly DocumentSuggestion[],
   read: MachineRead,
   paragraphText: string,
 ): PractiseCard | null {
+  const routed = routedCard(items, paragraphText);
+  if (routed) return routed;
   if (read === "confident") return practiseCardOf(items, "yes", paragraphText);
   if (read === "weak") return practiseCardOf(items, "no", paragraphText);
   const rewrite = practiseCardOf(items, "no", paragraphText);

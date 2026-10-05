@@ -341,6 +341,10 @@ export default function LabOverlay({
      pre-recording screen, so the question is put in front of it here. The
      question moves straight on when there is nothing to ask. */
   const [askBeforeNextTake, setAskBeforeNextTake] = useState(false);
+  /* "Record again" from the slow-processing screen starts a new Take too (the
+     abandoned one still finishes server-side), so it asks the same way
+     (N28: "each time you are starting a take"). */
+  const [askBeforeReRecord, setAskBeforeReRecord] = useState(false);
   // Read the switch as the Lab opens, so the question (or the screen) is
   // ready when the speaker gets there; read afresh on the next entry.
   useEffect(() => {
@@ -1229,8 +1233,8 @@ export default function LabOverlay({
    *  first means this either catches a request still in flight or catches
    *  nothing at all. It can never cancel a take the server already holds.
    *
-   *  Everything reset here is the same set `onReRecord` clears when it
-   *  abandons a slow analysis, minus the parts that only exist after a 202 —
+   *  Everything reset here is the same set `abandonSlowTake` clears when
+   *  "Record again" abandons a slow analysis, minus the parts that only exist after a 202 —
    *  there is no session, no poll and no stashed carry to drop, because the
    *  upload never returned one. `dispatch("upload_rejected")` is the existing
    *  lab_processing → lab_recording transition (the 422 lane), reused rather
@@ -1312,6 +1316,43 @@ export default function LabOverlay({
    *  mic starts inside this same tap. */
   function askThenStartNextTake() {
     askThenRun(startNextTakeHere, () => setAskBeforeNextTake(true));
+  }
+
+  /** Abandon a slow analysis (the daemon still finishes it server-side; the
+   *  marker + Lounge indicator keep tracking it). The stashed arc bookkeeping
+   *  goes with it: the abandoned take must not advance the arc. Stopping the
+   *  poll here, before the question, keeps a result that lands while the
+   *  speaker is answering from carrying them to the old take's text. */
+  function abandonSlowTake() {
+    pendingCarryRef.current = null;
+    setPollSessionId(null);
+    setPollSlow(false);
+    setProcessingReady(false);
+    setProcessingProgress(null);
+    setProcessingCycleStartedAt(null);
+    uploadStartedRef.current = false;
+    setBlob(null);
+    startPendingRef.current = true;
+  }
+
+  /** Back to the mic for a fresh take. */
+  function reRecord() {
+    abandonSlowTake();
+    // Same stale-"stopped" hazard as onReRead — reset before entering.
+    cancelMic();
+    dispatch("take_started");
+    void mic.start();
+  }
+
+  /** "Record again" from the slow-processing screen: the learning question
+   *  first (N28), exactly as "Record Take 2" asks; when the read already says
+   *  there is nothing to ask (a guest, the switch on, a failed read) the mic
+   *  starts inside this same tap. Otherwise the Yes/Skip tap starts it. */
+  function askThenReRecord() {
+    askThenRun(reRecord, () => {
+      abandonSlowTake();
+      setAskBeforeReRecord(true);
+    });
   }
 
   function handleClose() {
@@ -1486,6 +1527,9 @@ export default function LabOverlay({
             rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
             onRecordAgain={() => {
+              // Not asked again (N28): the rejected recording never became a
+              // Take and a mic error never started one, so this retries the
+              // same Take start the question already covered on entry.
               // A retake restarts the clock: reset the tap timeline so a decked
               // retake (mic self-stop) can't ship stale slide timestamps. This
               // path inits the timeline itself, so clear the initial-start flag
@@ -1532,6 +1576,14 @@ export default function LabOverlay({
         )}
 
         {state === "lab_processing" && (
+          <NextTakeGate
+            asking={askBeforeReRecord}
+            onDone={() => {
+              setAskBeforeReRecord(false);
+              markTrainingAsked();
+              reRecord();
+            }}
+          >
           <Processing
             error={uploadError}
             progress={processingProgress}
@@ -1590,28 +1642,10 @@ export default function LabOverlay({
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
             }}
-            onReRecord={() => {
-              // Abandon the slow analysis (the daemon still finishes it server-
-              // side; the marker + Lounge indicator keep tracking it) and take
-              // the user back to the mic for a fresh take. The
-              // stashed arc bookkeeping goes with it — the abandoned take must
-              // not advance the arc.
-              pendingCarryRef.current = null;
-              setPollSessionId(null);
-              setPollSlow(false);
-              setProcessingReady(false);
-              setProcessingProgress(null);
-              setProcessingCycleStartedAt(null);
-              uploadStartedRef.current = false;
-              setBlob(null);
-              startPendingRef.current = true;
-              // Same stale-"stopped" hazard as onReRead — reset before entering.
-              cancelMic();
-              dispatch("take_started");
-              void mic.start();
-            }}
+            onReRecord={askThenReRecord}
             onClose={onClose}
           />
+          </NextTakeGate>
         )}
 
         {/* SD — the post-recording screen IS the ideal text 1.0: suggestions
