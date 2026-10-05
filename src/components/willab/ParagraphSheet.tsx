@@ -672,7 +672,10 @@ export function ParagraphHistoryBlock({ arcId, partId, headline }: HistoryTarget
       alive = false;
     };
   }, [arcId, partId]);
-  const rows = useMemo(() => historyRows(history, COPY.historyTake), [history]);
+  const rows = useMemo(
+    () => historyRows(history, COPY.historyTake, COPY.historyCorrectionAccepted),
+    [history],
+  );
   return (
     <div className="flex flex-col gap-4" data-testid="bundle-history">
       {headline ? <HelperWordsCard headline={headline} onChoose={null} /> : null}
@@ -794,7 +797,12 @@ export default function ParagraphSheet({
   const stored = sheetData?.answers.find((a) => a.feedbackId === moment?.id)?.response ?? null;
   const judgement = asJudgementValue(answer ?? stored);
   const rows = useMemo(
-    () => historyRows(sheetData?.history ?? null, COPY.historyTake),
+    () =>
+      historyRows(
+        sheetData?.history ?? null,
+        COPY.historyTake,
+        COPY.historyCorrectionAccepted,
+      ),
     [sheetData],
   );
   const moveOn = onDone ?? onClose;

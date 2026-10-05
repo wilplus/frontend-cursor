@@ -34,11 +34,21 @@ export interface PracticeAdoption {
   at: string | null;
 }
 
+/** An accepted correction (founder 2026-10-05, N48.1; coach-panel lock C11):
+ *  the words accepted into this Paragraph between Takes, and when. The
+ *  server sends it among the versions as kind "accepted_correction"; it is
+ *  kept apart here so every reader of `versions` still sees Takes only. */
+export interface ParagraphCorrection {
+  paragraphs: string[];
+  at: string | null;
+}
+
 export interface ParagraphHistory {
   slideIndex: number;
   versions: ParagraphVersion[];
   helperWords: HelperWordsSet[];
   practice: PracticeAdoption[];
+  corrections?: ParagraphCorrection[];
 }
 
 export interface OwnerAnswer {
@@ -101,13 +111,21 @@ export function mapParagraphHistory(body: unknown): ParagraphHistory | null {
   if (!body || typeof body !== "object") return null;
   const row = body as Record<string, unknown>;
   if (typeof row.slide_index !== "number") return null;
+  const all = rows(row.versions);
+  const isCorrection = (v: Record<string, unknown>) => v.kind === "accepted_correction";
   return {
     slideIndex: row.slide_index,
-    versions: rows(row.versions).map((v) => ({
-      takeIndex: takeIndexOf(v.take_index),
+    versions: all
+      .filter((v) => !isCorrection(v))
+      .map((v) => ({
+        takeIndex: takeIndexOf(v.take_index),
+        paragraphs: strings(v.paragraphs),
+        at: str(v.at),
+        ...earlierTakeFields(v),
+      })),
+    corrections: all.filter(isCorrection).map((v) => ({
       paragraphs: strings(v.paragraphs),
       at: str(v.at),
-      ...earlierTakeFields(v),
     })),
     helperWords: rows(row.helper_words).map((h) => ({
       phrases: strings(h.phrases),

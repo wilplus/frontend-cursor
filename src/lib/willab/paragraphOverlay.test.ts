@@ -172,14 +172,14 @@ describe("History (Q1)", () => {
   };
 
   it("lists earlier Takes as single rows, newest first: Take number, answer, helper words", () => {
-    expect(historyRows(history, "Take")).toEqual([
+    expect(historyRows(history, "Take", "Correction accepted")).toEqual([
       { label: "Take 2", answer: "in_between", helperWords: "two days" },
       { label: "Take 1", answer: "no", helperWords: "nine days" },
     ]);
   });
 
   it("is empty with no history", () => {
-    expect(historyRows(null, "Take")).toEqual([]);
+    expect(historyRows(null, "Take", "Correction accepted")).toEqual([]);
   });
 
   // A DELETED SET STAYS IN HISTORY (B4/D4, contract 13; Phase 5).
@@ -192,7 +192,7 @@ describe("History (Q1)", () => {
         { phrases: ["two days"], at: "2026-09-02T11:00:00Z" },
       ],
     };
-    expect(historyRows(deleted, "Take")).toEqual([
+    expect(historyRows(deleted, "Take", "Correction accepted")).toEqual([
       { label: "Take 2", answer: "in_between", helperWords: "two days" },
       { label: "Take 1", answer: "no", helperWords: "nine days" },
     ]);
@@ -207,13 +207,52 @@ describe("History (Q1)", () => {
         { phrases: [], at: "2026-09-03T12:00:00Z" },
       ],
     };
-    expect(historyRows(deleted, "Take")[0]).toEqual(
+    expect(historyRows(deleted, "Take", "Correction accepted")[0]).toEqual(
       { label: "Take 3", answer: null, helperWords: "two days now" },
     );
   });
 
   it("does not show the newest Take while its words still stand", () => {
-    expect(historyRows(history, "Take").map((r) => r.label)).toEqual(["Take 2", "Take 1"]);
+    expect(historyRows(history, "Take", "Correction accepted").map((r) => r.label)).toEqual(["Take 2", "Take 1"]);
+  });
+
+  // AN ACCEPTED CORRECTION IS ITS OWN ROW (founder 2026-10-05, N48.1; C11).
+  it("shows an accepted correction as its own row between the Takes, by time", () => {
+    const corrected: ParagraphHistory = {
+      ...history,
+      corrections: [{ paragraphs: ["Nine days, now two."], at: "2026-09-01T12:00:00Z" }],
+    };
+    expect(historyRows(corrected, "Take", "Correction accepted")).toEqual([
+      { label: "Take 2", answer: "in_between", helperWords: "two days" },
+      { label: "Correction accepted", answer: null, helperWords: "nine days" },
+      { label: "Take 1", answer: "no", helperWords: "nine days" },
+    ]);
+  });
+
+  it("keeps a correction made after the newest Take as the version on screen", () => {
+    const corrected: ParagraphHistory = {
+      ...history,
+      corrections: [{ paragraphs: ["Two days, said plainly."], at: "2026-09-04T10:00:00Z" }],
+    };
+    // The correction is what the paragraph reads now; Take 3 becomes history.
+    expect(historyRows(corrected, "Take", "Correction accepted").map((r) => r.label)).toEqual([
+      "Take 3",
+      "Take 2",
+      "Take 1",
+    ]);
+  });
+
+  it("leaves out a correction with no words or no time, never placing it by guess", () => {
+    const corrected: ParagraphHistory = {
+      ...history,
+      corrections: [
+        { paragraphs: ["  "], at: "2026-09-01T12:00:00Z" },
+        { paragraphs: ["No time."], at: null },
+      ],
+    };
+    expect(historyRows(corrected, "Take", "Correction accepted")).toEqual(
+      historyRows(history, "Take", "Correction accepted"),
+    );
   });
 });
 

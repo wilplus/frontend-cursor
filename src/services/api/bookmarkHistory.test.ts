@@ -21,6 +21,30 @@ describe("bookmark history payloads", () => {
     expect(mapParagraphHistory({})).toBeNull();
   });
 
+  it("keeps an accepted correction apart from the Takes (N48.1)", () => {
+    const h = mapParagraphHistory({
+      slide_index: 0,
+      versions: [
+        { kind: "take", version: 1, take_index: 1, paragraphs: ["A."], at: "t1" },
+        {
+          kind: "accepted_correction",
+          version: null,
+          take_index: null,
+          paragraphs: ["A, corrected."],
+          at: "t2",
+        },
+        { kind: "take", version: 2, take_index: 2, paragraphs: ["A two."], at: "t3" },
+      ],
+      helper_words: [],
+      practice: [],
+    });
+    expect(h?.versions).toEqual([
+      { takeIndex: 1, paragraphs: ["A."], at: "t1" },
+      { takeIndex: 2, paragraphs: ["A two."], at: "t3" },
+    ]);
+    expect(h?.corrections).toEqual([{ paragraphs: ["A, corrected."], at: "t2" }]);
+  });
+
   it("maps only complete answers", () => {
     expect(
       mapOwnerAnswers({
