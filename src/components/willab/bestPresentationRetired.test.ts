@@ -23,3 +23,19 @@ describe("Best Presentation leaves the Lounge", () => {
     expect(doors?.length).toBe(2);
   });
 });
+
+describe("the deck ref no longer reads Best Presentation", () => {
+  // Its GET answers 410 since 2026-10-05 (N48.3 Q13 A): the builder sent the
+  // speaker's words to a model with no permit. The project's setup read
+  // carries the same deck ref.
+  const hook = readFileSync(
+    join(process.cwd(), "src/components/willab/useArcDeckRef.ts"),
+    "utf8",
+  );
+
+  it("falls back to the project's setup read", () => {
+    expect(hook).not.toContain("fetchBestPresentation");
+    expect(hook).not.toContain("@/services/api/bestPresentation");
+    expect(hook).toContain("fetchArcSetup(arcId)");
+  });
+});

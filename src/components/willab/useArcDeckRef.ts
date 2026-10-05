@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readExploreArc } from "@/lib/willab/exploreArc";
-import { fetchBestPresentation } from "@/services/api/bestPresentation";
+import { fetchArcSetup } from "@/services/api/arcSetup";
 import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
@@ -12,7 +12,10 @@ import { useUserId } from "./useUserId";
 /*    1. the ideal-text payload's own presentation_ref (safe-ahead — the BE     */
 /*       echoes it on the coach lane already; wins the moment it ships here),   */
 /*    2. the cached explore arc (localStorage, same device that recorded),      */
-/*    3. one soft-failing best-presentation GET (cross-device / post-eviction). */
+/*    3. one soft-failing project setup GET (cross-device / post-eviction).    */
+/*       Best Presentation was this source until 2026-10-05; its GET now       */
+/*       answers 410 (L1, founder N48.3 Q13 A), so the project's own setup     */
+/*       read carries the deck ref instead.                                    */
 /*                                                                            */
 /*  null = no deck found → the reading view renders exactly as today. The       */
 /*  network fallback fires once per arc, only after the ideal-text GET settled  */
@@ -48,14 +51,9 @@ export function useArcDeckRef(
   useEffect(() => {
     if (!need || !arcId) return;
     triedRef.current = arcId; // one shot per arc
-    // Retirement watch (founder, 2026-09-14): this fallback is scheduled for
-    // deletion once a day of logs shows it never fires. The `source` marker
-    // makes the BFF and the backend log the same event server-side, where the
-    // logs can actually be read.
-    console.warn(`[deck-ref-fallback] fired for arc ${arcId}`);
     let active = true;
-    void fetchBestPresentation(arcId, { source: "deck-ref-fallback" }).then((r) => {
-      if (!active || !r || "preparing" in r) return;
+    void fetchArcSetup(arcId).then((r) => {
+      if (!active || !r) return;
       if (r.presentationRef) setFetched(r.presentationRef);
     });
     return () => {
