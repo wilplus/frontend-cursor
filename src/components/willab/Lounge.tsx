@@ -1238,7 +1238,15 @@ export default function Lounge({
                 setBestPresentationArcId(arcId)
               }
               onOpenTranscripts={() => setLibraryOpen(true)}
-              onOpenFeedback={setFeedbackTarget}
+              // A GUEST'S WAY BACK TO THE TEXT (founder live test
+              // 2026-10-05): the coach's feedback page needs an account, and
+              // a guest gets no "your text is ready" bubble, so a guest's
+              // recording bubble opens the Ideal Text it made.
+              onOpenFeedback={
+                thread.signedIn
+                  ? setFeedbackTarget
+                  : (target) => openIdealText(target.arcId)
+              }
               onOpenIdealText={openIdealText}
               latestForArc={latestIdealIds.has(item.message.client_id)}
               onRetryIdealText={retryIdealTextFromCard}

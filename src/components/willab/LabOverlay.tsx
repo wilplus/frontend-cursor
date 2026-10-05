@@ -273,7 +273,15 @@ export default function LabOverlay({
   // analysis finishes), so the BE's ideal-text bubble (analysis end) lands
   // AFTER it, and the "record the next take" line comes last at readout entry.
   const summaryAppendRef = useRef<Promise<unknown> | null>(null);
-  const appendRecordingSummary = (sessionId: string | null) => {
+  /* THE BUBBLE CARRIES ITS PROJECT (founder live test 2026-10-05). On a new
+     deck the project is created inside the upload, after this closure read
+     `arcId`, so the bubble was saved without it and could not be tapped. The
+     upload hands its own project id in. */
+  const appendRecordingSummary = (
+    sessionId: string | null,
+    takeArcId: string | null | undefined = null,
+    uploadArcId: string | null = null,
+  ) => {
     if (reportedRef.current || !context) return;
     reportedRef.current = true;
     summaryAppendRef.current = appendToThread(
@@ -281,7 +289,7 @@ export default function LabOverlay({
         topic: context.topic,
         recordingId: sessionId ?? undefined,
         sessionId: sessionId ?? undefined,
-        arcId: arcId ?? undefined,
+        arcId: takeArcId ?? uploadArcId ?? arcId ?? undefined,
         takeIndex: recordedTakeRef.current ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
       }),
@@ -787,7 +795,7 @@ export default function LabOverlay({
           setArcId(carried.returnedArcId);
           setArcTakeIndex(carried.nextIdx);
         }
-        appendRecordingSummary(result.sessionId);
+        appendRecordingSummary(result.sessionId, result.arcId, projectId);
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
@@ -826,7 +834,7 @@ export default function LabOverlay({
         // Synchronous execution reached the same locked Take 1 boundary as
         // queue/daemon mode. The take and feedback stay addressable; return to
         // the Lounge only after its idempotent terminal card is present.
-        appendRecordingSummary(result.sessionId);
+        appendRecordingSummary(result.sessionId, result.arcId, projectId);
         setLabSessionId(result.sessionId);
         await publishIdealTextUnconfirmed({
           sessionId: result.sessionId,
@@ -844,7 +852,7 @@ export default function LabOverlay({
         pendingCarryRef.current = carried
           ? { ...carried, sessionId: result.sessionId }
           : null;
-        appendRecordingSummary(result.sessionId);
+        appendRecordingSummary(result.sessionId, result.arcId, projectId);
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadStillProcessing(false);
