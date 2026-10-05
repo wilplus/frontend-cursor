@@ -79,6 +79,7 @@ import type {
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
 import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
+import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextReadout — the post-recording screen IS the ideal text (SD)        */
@@ -239,6 +240,13 @@ export default function IdealTextReadout({
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
+  /* FEEDBACK ARRIVES AFTER THE WORDS (founder 2026-09-17; the paragraph
+     sheet's bounded wait, 2026-09-28), here as on the Ideal Text page: the
+     core read paints the document and the moments come with the enrichment
+     read after it. Until they land a tapped paragraph's sheet waits for them
+     (at most its bounded wait) instead of opening without its moment.
+     Wiring only: nothing is drawn for it here. */
+  const [feedbackPending, setFeedbackPending] = useState(false);
   // Staleness fence for the SD GET: local sd writes (a reject's echoed piece)
   // bump the generation so an in-flight GET from BEFORE the decision can
   // never land on top of them (review R-db4).
@@ -411,6 +419,7 @@ export default function IdealTextReadout({
       if (!active || gen !== sdGenRef.current) return;
       if (r.kind === "single") {
         applySingle(r, true);
+        setFeedbackPending(Boolean(r.documentSnapshotId));
         if (r.documentSnapshotId) {
           const enrichment = await fetchIdealTextEnrichment(
             arcId,
@@ -420,6 +429,9 @@ export default function IdealTextReadout({
           if (enrichment.kind === "ready") {
             let merged = mergeIdealTextEnrichment(r, enrichment);
             applySingle(merged, false);
+            // The marks may already be here while a non-mark section is
+            // still retried; judged again once the settle ends.
+            setFeedbackPending(feedbackStillComing(enrichment.sections));
             const settled = await settleIdealTextEnrichment(
               arcId,
               r.documentSnapshotId,
@@ -429,11 +441,14 @@ export default function IdealTextReadout({
             if (settled.kind === "ready") {
               merged = mergeIdealTextEnrichment(merged, settled);
               applySingle(merged, false);
+              setFeedbackPending(feedbackStillComing(settled.sections));
             } else if (settled.kind === "stale") {
               setSdNonce((value) => value + 1);
             }
-          } else if (enrichment.kind === "stale") {
-            setSdNonce((value) => value + 1);
+          } else {
+            // Nothing more is coming for this revision: stop holding taps.
+            setFeedbackPending(false);
+            if (enrichment.kind === "stale") setSdNonce((value) => value + 1);
           }
         }
       }
@@ -1129,6 +1144,7 @@ export default function IdealTextReadout({
             }))}
             arcId={arcId}
             takeSessionId={sd.latestTakeSessionId}
+            feedbackPending={feedbackPending}
             confidentMomentSummary={sd.confidentMomentSummary}
             confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
             onConfidentMomentChanged={() => setSdNonce((value) => value + 1)}
