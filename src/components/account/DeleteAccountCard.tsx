@@ -20,24 +20,34 @@ import {
   ACCOUNT_DELETION_CANCEL_ENABLED,
   LEAVING_COPY as LEAVING,
   deletionDate,
+  withTrainingLine,
 } from "@/lib/legal/leavingCopy";
+import { fetchTrainingConsent } from "@/services/api/trainingConsent";
 
 /* -------------------------------------------------------------------------- */
 /*  Delete my account, in Data & consent (founder 2026-10-05, Q3a).           */
 /*                                                                            */
-/*  One button, then the shared confirm; nothing is sent before "Delete my   */
-/*  account" in the confirm. The backend records the request and stops new   */
-/*  processing (request_phase1_purge_v1). On since the founder signed the    */
-/*  words (ACCOUNT_DELETE_ENABLED, 2026-10-05).                               */
+/*  One button, then the shared confirm; nothing is sent before "Delete my    */
+/*  account" in the confirm. The backend records the request, stops new       */
+/*  processing at once and deletes after a 7-day window (0422, N48.4 Q14 A).  */
+/*  On since the founder signed the words (ACCOUNT_DELETE_ENABLED).           */
 /*                                                                            */
-/*  A deletion already under way is read from the status on arrival, so a    */
-/*  reload says so in the signed words instead of offering the button again. */
-/*  Cancelling inside the 7-day window (N48.4 Q14 A) and the window's words   */
-/*  wait for the founder (ACCOUNT_DELETION_CANCEL_ENABLED, leavingCopy.ts).  */
+/*  A deletion already under way is read from the status on arrival, so a     */
+/*  reload says so instead of offering the button again. Cancelling inside    */
+/*  the window and the window's words are signed and on (W2, W3, S1 A; N50;   */
+/*  ACCOUNT_DELETION_CANCEL_ENABLED). For a person with an active training    */
+/*  yes the confirm ends with the signed "A model already trained stays."     */
+/*  (W5 A).                                                                   */
 /* -------------------------------------------------------------------------- */
 
 async function readPending(): Promise<PendingDeletion | null> {
   return pendingAccountDeletion(await fetchAuthorization());
+}
+
+/** An active training yes. Unknown reads as no: the confirm without W5's
+ *  line, which is what everyone saw before training existed. */
+async function readTrainingYes(): Promise<boolean> {
+  return (await fetchTrainingConsent())?.active === true;
 }
 
 /** The line while a deletion is under way: the day it completes once the
@@ -51,11 +61,14 @@ export default function DeleteAccountCard({
   enabled = ACCOUNT_DELETE_ENABLED,
   cancelEnabled = ACCOUNT_DELETION_CANCEL_ENABLED,
   loadPending = readPending,
+  loadTrainingYes = readTrainingYes,
 }: {
   enabled?: boolean;
   cancelEnabled?: boolean;
   /** The account deletion already under way, if any. */
   loadPending?: () => Promise<PendingDeletion | null>;
+  /** Whether this person's training switch is on (W5 A). */
+  loadTrainingYes?: () => Promise<boolean>;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState(false);
@@ -64,6 +77,7 @@ export default function DeleteAccountCard({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [tooLate, setTooLate] = useState(false);
+  const [trainingYes, setTrainingYes] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -73,10 +87,15 @@ export default function DeleteAccountCard({
       .then((found) => {
         if (alive && found) setPending(found);
       });
+    void loadTrainingYes()
+      .catch(() => false)
+      .then((yes) => {
+        if (alive) setTrainingYes(yes === true);
+      });
     return () => {
       alive = false;
     };
-  }, [enabled, loadPending]);
+  }, [enabled, loadPending, loadTrainingYes]);
 
   if (!enabled) return null;
 
@@ -136,7 +155,10 @@ export default function DeleteAccountCard({
         <ConfirmDelete
           copy={{
             title: COPY.confirmTitle,
-            body: cancelEnabled ? LEAVING.accountConfirmBody : COPY.confirmBody,
+            body: withTrainingLine(
+              cancelEnabled ? LEAVING.accountConfirmBody : COPY.confirmBody,
+              trainingYes,
+            ),
             confirmLabel: COPY.confirmLabel,
           }}
           onCancel={() => setConfirming(false)}

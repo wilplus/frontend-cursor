@@ -5,10 +5,11 @@
  * way; a refused request keeps the dialog.
  *
  * Wave 3 (founder 2026-10-05, N48.4 Q14 A): a deletion already under way is
- * read on arrival and said in the signed words, never offered again; the
- * cancel inside the 7-day window and its words stay off until signed; once
- * on, the cancel names the backend's purge id, and a refusal or a failure
- * says which. */
+ * read on arrival and said, never offered again; the cancel inside the 7-day
+ * window and its words are signed and on (W2, W3, S1 A; N50); the cancel
+ * names the backend's purge id, and a refusal or a failure says which. With
+ * an active training yes the confirm ends with the signed "A model already
+ * trained stays." (W5 A); unknown reads as no. */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +44,7 @@ function pendingAccount(over: Partial<PendingDeletion> = {}): PendingDeletion {
 }
 
 const noPending = async () => null;
+const noTraining = async () => false;
 
 describe("DeleteAccountCard", () => {
   let container: HTMLDivElement;
@@ -73,10 +75,13 @@ describe("DeleteAccountCard", () => {
       enabled?: boolean;
       cancelEnabled?: boolean;
       loadPending?: () => Promise<PendingDeletion | null>;
+      loadTrainingYes?: () => Promise<boolean>;
     } = {},
   ): Promise<void> {
     act(() => {
-      root.render(createElement(DeleteAccountCard, { loadPending: noPending, ...props }));
+      root.render(createElement(DeleteAccountCard, {
+        loadPending: noPending, loadTrainingYes: noTraining, ...props,
+      }));
     });
     await flush();
   }
@@ -128,18 +133,29 @@ describe("DeleteAccountCard", () => {
   });
 
   describe("a deletion already under way", () => {
-    it("is read from the status on arrival and said in the signed words", async () => {
+    it("is read from the status on arrival and names its day", async () => {
       status.fetchAuthorization.mockResolvedValue({
         kind: "blocked",
         code: "PROCESSING_SERVICE_BLOCKED",
         policy: null,
         pendingDeletion: pendingAccount(),
       });
-      act(() => { root.render(createElement(DeleteAccountCard)); });
+      act(() => {
+        root.render(createElement(DeleteAccountCard, { loadTrainingYes: noTraining }));
+      });
       await flush();
       expect(status.fetchAuthorization).toHaveBeenCalledTimes(1);
-      expect(container.textContent).toContain(DELETE_ACCOUNT_COPY.done);
+      expect(container.textContent).toContain(
+        LEAVING_COPY.accountDeletedOn(deletionDate(AHEAD) as string),
+      );
       // Never offered again: a second request would be a second deletion.
+      expect(find(DELETE_ACCOUNT_COPY.button)).toBeUndefined();
+    });
+
+    it("says the signed words once its day has passed", async () => {
+      const past = new Date(Date.now() - 86_400_000).toISOString();
+      await mount({ loadPending: async () => pendingAccount({ completesAfter: past }) });
+      expect(container.textContent).toContain(DELETE_ACCOUNT_COPY.done);
       expect(find(DELETE_ACCOUNT_COPY.button)).toBeUndefined();
     });
 
@@ -153,7 +169,11 @@ describe("DeleteAccountCard", () => {
         { kind: "blocked", code: "PROCESSING_SERVICE_BLOCKED", policy: null, pendingDeletion: null },
       ]) {
         status.fetchAuthorization.mockResolvedValue(answer);
-        act(() => { root.render(createElement(DeleteAccountCard, { key: JSON.stringify(answer) })); });
+        act(() => {
+          root.render(createElement(DeleteAccountCard, {
+            key: JSON.stringify(answer), loadTrainingYes: noTraining,
+          }));
+        });
         await flush();
         expect(find(DELETE_ACCOUNT_COPY.button)).toBeDefined();
         expect(container.textContent).not.toContain(DELETE_ACCOUNT_COPY.done);
@@ -162,9 +182,12 @@ describe("DeleteAccountCard", () => {
   });
 
   describe("cancelling inside the window (Q14 A)", () => {
-    it("stays off, with the signed words, until the founder signs the cancel", async () => {
-      expect(ACCOUNT_DELETION_CANCEL_ENABLED).toBe(false);
-      await mount({ loadPending: async () => pendingAccount() });
+    it("is on now the founder has signed its words (S1 A)", () => {
+      expect(ACCOUNT_DELETION_CANCEL_ENABLED).toBe(true);
+    });
+
+    it("switched off, keeps the signed words and offers no cancel", async () => {
+      await mount({ cancelEnabled: false, loadPending: async () => pendingAccount() });
       expect(container.textContent).toContain(DELETE_ACCOUNT_COPY.done);
       expect(container.textContent).not.toContain(deletionDate(AHEAD) ?? "never");
       expect(find(LEAVING_COPY.cancel)).toBeUndefined();
@@ -230,6 +253,40 @@ describe("DeleteAccountCard", () => {
         LEAVING_COPY.accountDeletedOn(deletionDate(AHEAD) as string),
       );
       expect(find(LEAVING_COPY.cancel)).toBeDefined();
+    });
+  });
+
+  describe("the training line (W5 A)", () => {
+    function confirmText(): string {
+      return document.querySelector('[role="dialog"]')?.textContent ?? "";
+    }
+
+    it("ends the confirm with the signed line for an active training yes", async () => {
+      await mount({ loadTrainingYes: async () => true });
+      click(DELETE_ACCOUNT_COPY.button);
+      expect(confirmText()).toContain(
+        `${LEAVING_COPY.accountConfirmBody} ${LEAVING_COPY.trainingModelStays}`,
+      );
+    });
+
+    it("adds it to the signed body as well while cancelling is off", async () => {
+      await mount({ cancelEnabled: false, loadTrainingYes: async () => true });
+      click(DELETE_ACCOUNT_COPY.button);
+      expect(confirmText()).toContain(
+        `${DELETE_ACCOUNT_COPY.confirmBody} ${LEAVING_COPY.trainingModelStays}`,
+      );
+    });
+
+    it("is not there with training off or unreadable", async () => {
+      for (const load of [async () => false, async () => { throw new Error("x"); }]) {
+        await mount({ loadTrainingYes: load });
+        click(DELETE_ACCOUNT_COPY.button);
+        expect(confirmText()).toContain(LEAVING_COPY.accountConfirmBody);
+        expect(confirmText()).not.toContain(LEAVING_COPY.trainingModelStays);
+        click("Cancel");
+        act(() => root.unmount());
+        root = createRoot(container);
+      }
     });
   });
 });
