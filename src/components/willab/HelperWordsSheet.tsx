@@ -94,7 +94,7 @@ export default function HelperWordsSheet({
   const [run, setRun] = useState<PhraseSelection | null>(opening.run);
   // The history can land after the sheet opened (a read slower than the
   // bounded wait). Until the speaker touches anything, the sheet follows it
-  // to where the saved words are; after that, nothing moves under her.
+  // to where the saved words are; after that, nothing moves under them.
   const touched = useRef(false);
   useEffect(() => {
     if (touched.current) return;

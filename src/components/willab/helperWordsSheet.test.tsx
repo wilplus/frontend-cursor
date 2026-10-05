@@ -299,7 +299,7 @@ describe("B10: the saved words open pre-selected, from whichever Take they came"
     expect(container.textContent).toContain("0 of 4 words");
   });
 
-  it("a history that lands after the sheet opened moves it there, until she touches anything", async () => {
+  it("a history that lands after the sheet opened moves it there, until they touch anything", async () => {
     await renderFromTake1(null);
     expect(pressedChip()).toEqual(["Take · now"]);
     expect(pressedWords()).toEqual([]);
@@ -308,7 +308,7 @@ describe("B10: the saved words open pre-selected, from whichever Take they came"
     expect(pressedWords()).toEqual(["ahead", "of", "plan."]);
   });
 
-  it("once she has tapped, a late history moves nothing under her", async () => {
+  it("once they have tapped, a late history moves nothing under them", async () => {
     await renderFromTake1(null);
     await act(async () => word("launched").click());
     await renderFromTake1();
