@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
 import LoadingState from "@/components/willab/LoadingState";
@@ -33,6 +33,8 @@ import {
   type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import CoachJudgeInstrument from "@/components/willab/coachwalk/CoachJudgeInstrument";
+import { JudgeFrame } from "@/components/willab/coachwalk/CoachJudgeSheet";
+import type { Pager } from "@/components/willab/feedbackPager";
 import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
 
@@ -133,20 +135,6 @@ export default function CorpusPageClient() {
     );
   }
 
-  if (openSession) {
-    return (
-      <RaterLanguageGate onClose={() => setOpenSession(null)}>
-        <LabelScreen
-          item={openSession}
-          onClose={() => {
-            setOpenSession(null);
-            refresh();
-          }}
-        />
-      </RaterLanguageGate>
-    );
-  }
-
   return (
     <RaterLanguageGate onClose={() => router.push("/chat")}>
       <main className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background">
@@ -174,6 +162,19 @@ export default function CorpusPageClient() {
           />
         </div>
       </main>
+      {/* The labelling is the Judge screen (B9), opened over the workbench
+          the way the walk's sheets open over the Lounge; closing it returns
+          here and the index reads the progress back from the database. */}
+      {openSession ? (
+        <LabelScreen
+          key={openSession.sessionId}
+          item={openSession}
+          onClose={() => {
+            setOpenSession(null);
+            refresh();
+          }}
+        />
+      ) : null}
     </RaterLanguageGate>
   );
 }
@@ -625,6 +626,32 @@ function ImportPanel({
 
 /* ------------------------------- FE-2: index ------------------------------ */
 
+/** What an import row says on its right, from the fresh DB read. Pure.
+ *
+ *  Four honest states for a done row:
+ *    still fetching → the index row's own count ("9 to label")
+ *    none labelled → "9 to label"
+ *    some labelled → "4 of 9 labelled"
+ *    all labelled  → the green badge with the check (`complete`)
+ *  There is deliberately NO "pending send" state — a label the DB does not
+ *  hold is not counted, and nothing sits between the tap and the DB (no
+ *  cron, no batch), so pending-after-save cannot exist and rendering one
+ *  would be a lie. */
+export function importRowStatus(
+  i: Pick<TrainingImport, "state" | "queueCount">,
+  p: { labelled: number; total: number } | undefined,
+): { status: string; complete: boolean } {
+  const complete = !!p && p.total > 0 && p.labelled === p.total;
+  if (i.state === "running") return { status: "Analysing…", complete };
+  if (i.state === "failed") return { status: "Nothing to label", complete };
+  if (p) {
+    if (complete) return { status: `All ${p.total} labelled`, complete };
+    if (p.labelled > 0) return { status: `${p.labelled} of ${p.total} labelled`, complete };
+    return { status: p.total > 0 ? `${p.total} to label` : "Nothing to label", complete };
+  }
+  return { status: i.queueCount !== null ? `${i.queueCount} to label` : "", complete };
+}
+
 function IndexPanel({
   imports,
   failed,
@@ -744,33 +771,10 @@ function IndexPanel({
           {visible.map((i) => {
             const isHidden = hidden.has(i.sessionId);
             const openable = i.state === "done" && !isHidden;
-            const p = progress[i.sessionId];
-            // Four honest states for a done row, from the fresh DB read:
-            //   still fetching → the index row's own count ("9 to label")
-            //   none labelled → "9 to label"
-            //   some labelled → "4 of 9 labelled"
-            //   all labelled  → the green badge with the check
-            // There is deliberately NO "pending send" state — a label the DB
-            // does not hold is not counted, and nothing sits between the tap
-            // and the DB (no cron, no batch), so pending-after-save cannot
-            // exist and rendering one would be a lie.
-            const complete = !!p && p.total > 0 && p.labelled === p.total;
-            const status =
-              i.state === "running"
-                ? "Analysing…"
-                : i.state === "failed"
-                  ? "Nothing to label"
-                  : p
-                    ? complete
-                      ? `All ${p.total} labelled`
-                      : p.labelled > 0
-                        ? `${p.labelled} of ${p.total} labelled`
-                        : p.total > 0
-                          ? `${p.total} to label`
-                          : "Nothing to label"
-                    : i.queueCount !== null
-                      ? `${i.queueCount} to label`
-                      : "";
+            const { status, complete } = importRowStatus(
+              i,
+              progress[i.sessionId],
+            );
             const inner = (
               <>
                 <span className="min-w-0 flex-1">
@@ -880,6 +884,33 @@ function IndexPanel({
 
 /* ---------------------------- FE-3: the labelling -------------------------- */
 
+/** The next piece the coach has not labelled, after `at`, in payload order
+ *  (N2: the order is the server's, never re-sorted), or -1 when none is left
+ *  ahead. Pure. */
+export function nextUnlabelled(
+  pieces: readonly Pick<QueuePiece, "label" | "reviewActId">[],
+  at: number,
+  justSaved: string,
+): number {
+  return pieces.findIndex(
+    (p, i) => i > at && p.label === null && p.reviewActId !== justSaved,
+  );
+}
+
+/** THE LABELLING SCREEN IS THE JUDGE SCREEN (founder 2026-09-30, B9; build
+ *  plan P2-16). The walk's sheet, its ‹ position › bar and the one
+ *  instrument, one imported piece at a time; only the save is the corpus's
+ *  own. The workbench's chrome around it is gone: its nav bar (title, close,
+ *  the progress dots and the "N / M labelled" count) and the note field. The
+ *  bar walks the pieces, the instrument says "Saving…" itself, and the index
+ *  the coach returns to reads the progress back from the database.
+ *
+ *  What makes a corpus label honest stays exactly as it was: payload order
+ *  (N2), no default answer (N3), the visible-render receipt before a blind
+ *  answer, the re-review flag, the exact words revealed only after the
+ *  label, and no machine read anywhere (N1). An answer moves on to the next
+ *  unlabelled piece by itself, as the walk does; after the last one the
+ *  sheet closes. */
 function LabelScreen({
   item,
   onClose,
@@ -892,15 +923,9 @@ function LabelScreen({
     "loading"
   );
   const [at, setAt] = useState(0);
-  const [pending, setPending] = useState<ConfidenceRatingValue | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  // The snippetId currently being written to the BE, or null. Only one save
-  // can be in flight at a time (inFlightRef below), so this is a single id,
-  // not a set — but it is tracked by id rather than by "the open piece"
-  // because a coach can tap a different dot while a note-blur save from the
-  // PREVIOUS piece is still in flight, and that dot must keep pulsing until
-  // its own save lands, not whichever piece is on screen when it does.
+  // The review act being written to the BE, or null. One save at a time
+  // (inFlightRef); tracked by review act, never by snippet identity.
   const [savingId, setSavingId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
@@ -920,7 +945,6 @@ function LabelScreen({
   }, [item.sessionId]);
 
   const pieces = queue?.queue ?? [];
-  const labelled = pieces.filter((p) => p.label !== null).length;
   const piece: QueuePiece | undefined = pieces[at];
 
   useVisibleLearningExposure({
@@ -930,71 +954,40 @@ function LabelScreen({
     actorRole: "coach",
   });
 
-  // The note belongs to the PIECE, not the screen: moving on must never carry
-  // one coach's aside about a piece onto the next one, and stepping back must
-  // show the note that was saved rather than an empty box.
-  const pieceId = piece?.reviewActId;
-  useEffect(() => {
-    setNote(pieces.find((p) => p.reviewActId === pieceId)?.label?.note ?? "");
-    // Re-reading the label here would fight the local write after a save, so
-    // this deliberately keys on the piece only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pieceId]);
-
-  // The answer the screen is currently showing for this piece: what the coach
-  // just picked, else their saved call. Never a default (N3).
-  const answered = pending ?? piece?.label?.value ?? null;
-  const abstained = pending === null && piece?.label?.unrateable === true;
-
   async function save(
-    value: ConfidenceRatingValue | null,
-    /** advance defaults TRUE — an answer finishes a piece now (founder
-     *  2026-08-11: the 1–5 intensity row is CUT; pure ternary). A note
-     *  saved on blur must NOT advance, or the coach would be thrown to
-     *  the next piece by clicking away from a text box. */
-    opts?: {
-      advance?: boolean;
-      unrateable?: boolean;
-      blindExposureId?: string | null;
-    }
+    value: ConfidenceRatingValue,
+    blindExposureId: string | null,
   ) {
     if (!piece || inFlightRef.current) return;
-    const snippetId = piece.snippetId;
-    const reviewActId = piece.reviewActId;
-    const trimmed = note.trim();
-    const unrateable = opts?.unrateable === true;
-    // ONE write shape (founder 2026-08-11): the ternary instrument,
-    // nothing else. Intensity belonged to the retired binary contract and
-    // was cut with it — if graded strength is ever needed again, it comes
-    // back as its own decision, not as a leftover lane.
-    const body = buildRatingBody(value, unrateable, undefined, trimmed);
-    // Unconstructable = no real answer; the UI cannot reach here without
-    // one, so this is a guard, not a flow (N3).
+    // ONE write shape: the ternary instrument and nothing else (N3; the 1–5
+    // grade was cut 2026-08-11, the note field with the chrome, B9). The body
+    // builder refuses an answer-less save.
+    const body = buildRatingBody(value);
     if (!body) return;
     if (piece.reReview) body.re_review = true;
     inFlightRef.current = true;
-    setSavingId(reviewActId); // exact review act, never snippet identity.
+    setSavingId(piece.reviewActId);
     setError(null);
     const res = await saveStateRating(
-      snippetId,
+      piece.snippetId,
       body,
       piece.blindReview,
-      opts?.blindExposureId,
-      confidenceChainEcho(piece, opts?.blindExposureId),
+      blindExposureId,
+      confidenceChainEcho(piece, blindExposureId),
     );
     inFlightRef.current = false;
-    setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
+    setSavingId(null);
     if (!res.ok) {
       // The BE's 400 is verbatim-safe and its 500 names the migration.
       setError(res.error ?? "Couldn't save that label. Try again.");
       return;
     }
     const saved = {
-      value: unrateable ? null : value,
-      unrateable,
+      value,
+      unrateable: false,
       confident: value === "yes" ? true : value === "no" ? false : null,
       intensity: null,
-      note: trimmed || null,
+      note: null,
     };
     setQueue((q) =>
       q
@@ -1002,232 +995,95 @@ function LabelScreen({
             ...q,
             queue: q.queue.map((p) =>
               p.reviewActId === piece.reviewActId
-                ? {
-                    ...p,
-                    label: saved,
-                    transcript: res.transcript ?? p.transcript,
-                  }
+                ? { ...p, label: saved, transcript: res.transcript ?? p.transcript }
                 : p
             ),
           }
         : q
     );
-    setPending(null);
-    if (opts?.advance ?? true) {
-      // Answered (or abstained) — this piece is done; move on to the next
-      // unlabelled one. The note stays reachable by stepping Back.
-      const next = pieces.findIndex(
-        (p, i) => i > at && p.label === null &&
-          p.reviewActId !== piece.reviewActId
-      );
-      setAt(next >= 0 ? next : Math.min(at + 1, pieces.length - 1));
-    }
+    // The answer is the whole act: on to the next unlabelled piece, and
+    // after the last one back to the workbench (A7, the walk's rule).
+    const next = nextUnlabelled(pieces, at, piece.reviewActId);
+    if (next >= 0) setAt(next);
+    else onClose();
   }
 
-  const allLabelled = pieces.length > 0 && labelled === pieces.length;
+  const pager: Pager | null =
+    status === "ready" && pieces.length > 0
+      ? {
+          index: at,
+          total: pieces.length,
+          label: item.topic || "Untitled",
+          onBack: () => {
+            setError(null);
+            setAt((n) => Math.max(0, n - 1));
+          },
+          // On the last piece › is Done: back to the workbench.
+          onNext: () => {
+            setError(null);
+            if (at >= pieces.length - 1) onClose();
+            else setAt(at + 1);
+          },
+        }
+      : null;
+
+  let body: ReactNode = null;
+  if (status === "loading") {
+    body = <LoadingState placement="surface" />;
+  } else if (status === "error" || !queue) {
+    body = (
+      <p className="text-[15px] text-muted-foreground">
+        Couldn&apos;t load the queue just now. Close and reopen to try again.
+      </p>
+    );
+  } else if (pieces.length === 0) {
+    body = (
+      <p className="text-[15px] text-muted-foreground">
+        Nothing queued to label on this import.
+      </p>
+    );
+  } else if (piece) {
+    // The coach's saved call for this piece; never a default (N3).
+    const abstained = piece.label?.unrateable === true;
+    body = (
+      <BlindExposureBoundary<CoachQueueBlindHandle>
+        key={piece.reviewActId}
+        blindReview={queueBlindHandle(piece)}
+        acknowledge={acknowledgeQueueRender}
+        scope={piece.blindReview ? "coach-inline" : "coach-card"}
+      >
+        {({ exposureId, error: renderError }) => (
+          // THE one instrument (A1, B6, B9): the clip and the five answers
+          // with the coach's words. Before a saved answer this is audio
+          // only; the exact words are revealed after this coach's label is
+          // committed. No machine read, band, or ordering cue (N1).
+          <CoachJudgeInstrument
+            clip={{ src: piece.audioRef, startOffsetMs: piece.startOffsetMs, durationMs: piece.durationMs }}
+            transcript={piece.transcript}
+            transcriptRevealed={piece.label !== null}
+            value={abstained ? null : piece.label?.value ?? null}
+            unrateable={abstained}
+            // A D5 answer needs its exact exposure. The legacy card waits
+            // for the chain's receipt too, but a receipt the chain refused
+            // never blocks the coach's own label (Q2). One save at a time.
+            disabled={
+              savingId !== null ||
+              (piece.blindReview !== null && !exposureId) ||
+              (piece.mlc2BlindReview !== null && !exposureId && !renderError)
+            }
+            saving={savingId === piece.reviewActId}
+            error={error ?? renderError}
+            onPick={(v) => void save(v, exposureId)}
+            keys
+          />
+        )}
+      </BlindExposureBoundary>
+    );
+  }
 
   return (
-    <main className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background">
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-[15px] font-semibold text-foreground">
-              {item.topic || "Untitled"}
-            </span>
-            {item.speakerLabel ? (
-              <span className="shrink-0 text-[12px] text-muted-foreground">
-                · {item.speakerLabel}
-              </span>
-            ) : null}
-          </span>
-          <OverlayCloseButton onClick={onClose} ariaLabel="Back to the corpus" />
-        </div>
-
-        {/* The progress bar: every piece, moved into the nav bar so it is
-            always visible, never scrolled out of view like it was at the
-            bottom of the screen. Same fences it had there — payload order
-            only (N2: the queue is band-shuffled server-side so position is
-            not a tell), and fill means only "the coach answered this one",
-            never a band or a score (N1/AC-9). The status word on the right
-            is literal: "Saving…" while a write is in flight (the dot for
-            that piece pulses amber — pending), otherwise the count, or a
-            checkmark once every piece has been answered. There is no
-            separate "sent" state to show beyond that — the local answer only
-            updates after the server confirms it, in `save` above. */}
-        {status === "ready" && pieces.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 flex-wrap gap-1.5">
-              {pieces.map((p, i) => {
-                const isSaving = savingId === p.reviewActId;
-                const answeredDot = p.label !== null;
-                const current = i === at;
-                return (
-                  <button
-                    key={p.reviewActId}
-                    type="button"
-                    aria-label={`Piece ${i + 1}${
-                      isSaving ? ", saving" : answeredDot ? ", answered" : ""
-                    }`}
-                    aria-current={current ? "true" : undefined}
-                    onClick={() => {
-                      setPending(null);
-                      setError(null);
-                      setAt(i);
-                    }}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
-                      current
-                        ? "ring-2 ring-foreground ring-offset-1 ring-offset-background"
-                        : ""
-                    }`}
-                  >
-                    <span
-                      className={`block h-2.5 w-2.5 rounded-full border transition-colors ${
-                        isSaving
-                          ? "animate-pulse border-amber-500 bg-amber-400"
-                          : answeredDot
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/50 bg-transparent"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            {savingId ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                Saving…
-              </span>
-            ) : allLabelled ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                All labelled
-              </span>
-            ) : (
-              // Progress, never a score (AC-9): how much is done, not how well.
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                {labelled} / {pieces.length} labelled
-              </span>
-            )}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
-        {status === "loading" ? (
-          <LoadingState placement="surface" />
-        ) : status === "error" || !queue ? (
-          <p className="text-[15px] text-muted-foreground">
-            Couldn&apos;t load the queue just now. Close and reopen to try
-            again.
-          </p>
-        ) : pieces.length === 0 ? (
-          <p className="text-[15px] text-muted-foreground">
-            Nothing queued to label on this import.
-          </p>
-        ) : piece ? (
-          <BlindExposureBoundary<CoachQueueBlindHandle>
-            key={piece.reviewActId}
-            blindReview={queueBlindHandle(piece)}
-            acknowledge={acknowledgeQueueRender}
-            scope={piece.blindReview ? "coach-inline" : "coach-card"}
-          >
-            {({ exposureId, error: renderError }) => <>
-            {/* THE one instrument (founder 2026-09-30, B9): the walk's Judge
-                body, the clip and the five answers with the coach's words.
-                Before a saved answer this is audio only; the exact words are
-                revealed after this coach's label is committed. There is still
-                no machine read, band, or ordering cue. The NAV BAR owns the
-                pending state on this screen ("Saving…" + the amber dot), so
-                the instrument never says it twice. */}
-            <CoachJudgeInstrument
-              clip={{ src: piece.audioRef, startOffsetMs: piece.startOffsetMs, durationMs: piece.durationMs }}
-              transcript={piece.transcript}
-              transcriptRevealed={piece.label !== null}
-              value={abstained ? null : answered}
-              unrateable={abstained}
-              // A D5 answer needs its exact exposure. The legacy card waits
-              // for the chain's receipt too, but a receipt the chain refused
-              // never blocks the coach's own label (Q2).
-              disabled={
-                savingId === piece.reviewActId ||
-                (piece.blindReview !== null && !exposureId) ||
-                (piece.mlc2BlindReview !== null && !exposureId && !renderError)
-              }
-              saving={false}
-              error={null}
-              onPick={(v) => void save(v, { blindExposureId: exposureId })}
-            />
-
-            {/* Gated behind an answer (or an abstention): a note annotates a
-                call, and the body builder refuses to write one without a real
-                answer anyway (N3). It is the provenance that explains an
-                outlier label months later — "hard to call", "background
-                noise" — and it saves on blur without advancing, so typing it
-                never throws the coach to the next piece. */}
-            {answered !== null || abstained ? (
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-muted-foreground">
-                  Anything worth remembering? Optional.
-                </span>
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  onBlur={() => {
-                    const t = note.trim();
-                    // Only when it actually changed: clicking through the
-                    // screen must not fire a PUT per piece.
-                    if (t !== (piece.label?.note ?? "")) {
-                      void save(answered, {
-                        advance: false,
-                        unrateable: abstained,
-                        blindExposureId: exposureId,
-                      });
-                    }
-                  }}
-                  placeholder="hard to call · background noise · not really a talk"
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-                />
-              </label>
-            ) : null}
-
-            {error ? (
-              <p className="text-[12px] text-destructive">{error}</p>
-            ) : null}
-            {renderError ? (
-              <p className="text-[12px] text-destructive">{renderError}</p>
-            ) : null}
-
-            <div className="mt-auto flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPending(null);
-                  setError(null);
-                  setAt((n) => Math.max(0, n - 1));
-                }}
-                disabled={at === 0}
-                className="rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPending(null);
-                  setError(null);
-                  setAt((n) => Math.min(pieces.length - 1, n + 1));
-                }}
-                disabled={at >= pieces.length - 1}
-                className="rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-              >
-                Skip
-              </button>
-            </div>
-            </>}
-          </BlindExposureBoundary>
-        ) : null}
-      </div>
-    </main>
+    <JudgeFrame pager={pager} onClose={onClose}>
+      {body}
+    </JudgeFrame>
   );
 }

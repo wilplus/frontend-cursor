@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   afterJudged, afterNothingToAdd, mapMomentsQueue, nextOpenIndex,
-  speakersWaiting, stateWord, kindWord, answerWord,
+  readSlideFor, speakersWaiting, stateWord, kindWord, answerWord,
 } from "./coachWalk";
 
 const RAW = [
@@ -80,5 +80,25 @@ describe("the walk's next step", () => {
     expect(afterJudged(moments[0]).state).toBe("judged");
     expect(afterJudged(moments[1]).state).toBe("answer_it");
     expect(afterNothingToAdd(moments[1]).state).toBe("nothing_to_add");
+  });
+});
+
+describe("the slide on Read (B5)", () => {
+  const PDF = "https://media/deck.pdf";
+  it("a take's own PDF: the page the moment began on", () => {
+    expect(readSlideFor(PDF, { index: 3, title: "" })).toEqual({ presentationRef: PDF, pageIndex: 3 });
+  });
+  it("a deckless take: the default deck's slide, recognised by its title", () => {
+    expect(readSlideFor(null, { index: 0, title: "Main premise" })).toEqual({ presentationRef: null, pageIndex: 0 });
+    expect(readSlideFor(null, { index: 2, title: "Conclusion" })).toEqual({ presentationRef: null, pageIndex: 2 });
+  });
+  it("a typed deck with no picture behind it draws nothing, never the default artwork", () => {
+    expect(readSlideFor(null, { index: 0, title: "Our Q3 numbers" })).toBeNull();
+    expect(readSlideFor(null, { index: 5, title: "Main premise" })).toBeNull();
+  });
+  it("no slide, or a nonsense index, draws nothing", () => {
+    expect(readSlideFor(PDF, null)).toBeNull();
+    expect(readSlideFor(PDF, { index: -1, title: "" })).toBeNull();
+    expect(readSlideFor(PDF, { index: 1.5, title: "" })).toBeNull();
   });
 });

@@ -2,7 +2,8 @@
 /*  The founder's pace panel and the research screen (founder 2026-09-30;     */
 /*  ML-4, ML-6, ML-7). Thin fetches over the BFF routes:                       */
 /*                                                                            */
-/*    GET  /api/v2/admin/learning/ledger            the ledger, weeks, pace    */
+/*    GET  /api/v2/admin/learning/ledger            the ledger, weeks, pace,   */
+/*                                                  gaps, the jar's evaluation */
 /*    POST /api/v2/admin/learning/weekly/run        run the weekly job now     */
 /*    GET  /api/v2/research/overview                the research view          */
 /*    GET  /api/v2/research/golden                  the golden sets' counts    */
@@ -15,6 +16,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { mapGapView, mapLedgerWeek, mapPaceRow, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
+import { mapExerciseJar, mapJarEvaluation, type ExerciseJar, type JarEvaluation } from "@/lib/founder/jar";
 import type { ConfidenceRatingValue } from "./stateRatings";
 
 export type FounderResult<T> = { ok: true; value: T } | { ok: false; code: string; status: number };
@@ -55,6 +57,12 @@ export interface LedgerRead {
   weeks: LedgerWeek[];
   pace: PaceRow[];
   gaps: GapView | null;
+  /** The jar, per exercise (B8, C9, E9): the ledger's own `exercise_jar`.
+   *  null when the ledger carries none. */
+  jar: ExerciseJar | null;
+  /** The jar's evaluation, sealed or two piles: the route's top-level
+   *  `jar_evaluation`. null until the backend serves it. */
+  jarEvaluation: JarEvaluation | null;
 }
 
 export interface WeeklyRun {
@@ -130,12 +138,17 @@ function mapSets(body: Record<string, unknown>): Record<string, GoldenCounts> {
 
 export const founderLearning = {
   ledger: () =>
-    call("/api/v2/admin/learning/ledger", { method: "GET" }, (b): LedgerRead => ({
-      ledger: (b.ledger && typeof b.ledger === "object" ? b.ledger : {}) as Record<string, unknown>,
-      weeks: (Array.isArray(b.weeks) ? b.weeks : []).map(mapLedgerWeek).filter((w): w is LedgerWeek => w !== null),
-      pace: (Array.isArray(b.pace) ? b.pace : []).map(mapPaceRow).filter((p): p is PaceRow => p !== null),
-      gaps: mapGapView(b.gaps),
-    })),
+    call("/api/v2/admin/learning/ledger", { method: "GET" }, (b): LedgerRead => {
+      const ledger = (b.ledger && typeof b.ledger === "object" ? b.ledger : {}) as Record<string, unknown>;
+      return {
+        ledger,
+        weeks: (Array.isArray(b.weeks) ? b.weeks : []).map(mapLedgerWeek).filter((w): w is LedgerWeek => w !== null),
+        pace: (Array.isArray(b.pace) ? b.pace : []).map(mapPaceRow).filter((p): p is PaceRow => p !== null),
+        gaps: mapGapView(b.gaps),
+        jar: mapExerciseJar(ledger.exercise_jar),
+        jarEvaluation: mapJarEvaluation(b.jar_evaluation),
+      };
+    }),
   runWeekly: () =>
     call("/api/v2/admin/learning/weekly/run", { method: "POST" }, (b): WeeklyRun => ({
       weekStart: typeof b.week_start === "string" ? b.week_start : null,

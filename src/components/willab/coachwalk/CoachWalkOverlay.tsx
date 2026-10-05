@@ -24,8 +24,9 @@ import { listSpeakingErrors } from "@/services/api/speakingErrors";
 import type { CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
 import type { MomentRead } from "@/services/api/coachWalk";
 import {
-  afterJudged, afterNothingToAdd, nextOpenIndex, replaceMoment,
+  afterJudged, afterNothingToAdd, nextOpenIndex, readSlideFor, replaceMoment,
   type AnswerValue, type MomentKind, type QueueMoment, type QueueSpeaker, type QueueTake,
+  type ReadSlide,
 } from "@/lib/willab/coachWalk";
 import { CUE_OPTIONS } from "@/lib/willab/coachAnswer";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
@@ -79,6 +80,8 @@ export default function CoachWalkOverlay({
   );
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [clips, setClips] = useState<Record<string, JudgeClip>>({});
+  /** The slide each moment began on, for Read only (B5). */
+  const [slides, setSlides] = useState<Record<string, ReadSlide>>({});
   const [errors, setErrors] = useState<PatternOption[]>([]);
   const [answering, setAnswering] = useState<Answering | null>(null);
   const [wordStep, setWordStep] = useState(false);
@@ -89,10 +92,14 @@ export default function CoachWalkOverlay({
     void fetchCoachReviewSession(take.sessionId).then((session) => {
       if (cancelled || !session) return;
       const next: Record<string, JudgeClip> = {};
+      const pictures: Record<string, ReadSlide> = {};
       for (const s of session.snippets) {
         next[s.id] = { src: s.audioRef, startOffsetMs: s.startOffsetMs, durationMs: s.durationMs };
+        const picture = readSlideFor(session.presentationRef, s.slide);
+        if (picture) pictures[s.id] = picture;
       }
       setClips(next);
+      setSlides(pictures);
     });
     void listSpeakingErrors().then((result) => {
       if (cancelled || !result.ok) return;
@@ -229,6 +236,7 @@ export default function CoachWalkOverlay({
         pseudonym={speaker.pseudonym}
         pager={pager}
         coachAnswer={answers[moment.snippetId] ?? null}
+        slide={slides[moment.snippetId] ?? null}
         onClose={onClose}
         onAnswer={(request, read) => setAnswering({ request, read })}
         onNothingToAdd={nothingToAdd}

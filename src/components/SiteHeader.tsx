@@ -41,6 +41,7 @@ export default function SiteHeader() {
         onLogout={menu.logout}
         loggingOut={menu.loggingOut}
         labHref="/chat"
+        libraryHref={menu.isCoach ? "/coach/exercises" : null}
         corpusHref={menu.isCoach ? "/coach/corpus" : null}
         // Every signed-in person (founder 2026-09-25, E4 = A); the
         // menu already hides it from anyone signed out.
