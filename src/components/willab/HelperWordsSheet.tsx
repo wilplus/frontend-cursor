@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import {
   changed,
+  openingChip,
   preselect,
   replaceNoteTake,
   takeChips,
@@ -83,12 +84,23 @@ export default function HelperWordsSheet({
   onClose: () => void;
 }) {
   const chips = useMemo(() => takeChips(history, currentText, COPY.historyTake), [history, currentText]);
-  const [chipAt, setChipAt] = useState(0);
+  // B10: open where the saved words are, pre-selected -- the current Take,
+  // or the earlier Take they were taken from when the current one did not
+  // say them (D5).
+  const opening = useMemo(() => openingChip(chips, headline), [chips, headline]);
+  const [chipAt, setChipAt] = useState(opening.index);
   const chip: TakeChip = chips[chipAt] ?? chips[0];
   const tokens = useMemo(() => phraseTokens(chip.text), [chip.text]);
-  const [run, setRun] = useState<PhraseSelection | null>(() =>
-    chip.now ? preselect(tokens, headline) : null,
-  );
+  const [run, setRun] = useState<PhraseSelection | null>(opening.run);
+  // The history can land after the sheet opened (a read slower than the
+  // bounded wait). Until the speaker touches anything, the sheet follows it
+  // to where the saved words are; after that, nothing moves under her.
+  const touched = useRef(false);
+  useEffect(() => {
+    if (touched.current) return;
+    setChipAt(opening.index);
+    setRun(opening.run);
+  }, [opening]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -99,6 +111,7 @@ export default function HelperWordsSheet({
   function chooseChip(index: number) {
     const next = chips[index];
     if (!next) return;
+    touched.current = true;
     setChipAt(index);
     // One Take, one phrase (Q3): a fresh selection on the new chip, the
     // saved words pre-selected only on the current one (B10).
@@ -124,6 +137,7 @@ export default function HelperWordsSheet({
 
   async function remove() {
     if (!onDelete || busy) return;
+    touched.current = true;
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
@@ -223,6 +237,7 @@ export default function HelperWordsSheet({
                     aria-pressed={picked}
                     disabled={!reachable}
                     onClick={() => {
+                      touched.current = true;
                       setConfirmDelete(false);
                       setRun(nextSelection(run, index));
                     }}

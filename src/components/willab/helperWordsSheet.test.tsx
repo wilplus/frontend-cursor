@@ -16,6 +16,7 @@ import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import {
   changed,
+  openingChip,
   preselect,
   replaceNoteTake,
   savedTakeIndex,
@@ -221,6 +222,97 @@ describe("the overlay", () => {
     expect(word("here:").disabled).toBe(false);
     await act(async () => word("here:").click());
     expect(container.textContent).toContain("4 of 4 words");
+  });
+});
+
+/* B10, for words from an earlier Take (audit 2026-10-05, B10-2). Words
+   taken from Take 1 that Take 2 did not say (D5) are in no word of the
+   current text, so the overlay opened on the "now" chip with nothing
+   selected. It now opens on the Take they came from, with them selected. */
+const LATER = "We launched in March and the plan held.";
+const EARLIER = "We shipped it in March, ahead of plan.";
+const FROM_TAKE_1: ParagraphHistory = {
+  slideIndex: 0,
+  versions: [
+    { takeIndex: 1, paragraphs: [EARLIER], at: "2026-09-01T10:00:00Z" },
+    { takeIndex: 2, paragraphs: [LATER], at: "2026-09-02T10:00:00Z" },
+  ],
+  helperWords: [{ phrases: ["ahead of plan"], at: "2026-09-01T11:00:00Z" }],
+  practice: [],
+};
+
+async function renderFromTake1(history: ParagraphHistory | null = FROM_TAKE_1) {
+  useCurrent.mockClear();
+  useFromTake.mockClear();
+  await act(async () => {
+    root.render(
+      createElement(HelperWordsSheet, {
+        headline: "ahead of plan",
+        currentText: LATER,
+        history,
+        onUseCurrent: useCurrent,
+        onUseFromTake: useFromTake,
+        onDelete,
+        onDone,
+        onClose,
+      }),
+    );
+  });
+}
+const pressedChip = () =>
+  Array.from(container.querySelectorAll('[data-testid="take-chips"] button'))
+    .filter((b) => b.getAttribute("aria-pressed") === "true")
+    .map((b) => b.textContent);
+const pressedWords = () =>
+  tokens().filter((t) => t.getAttribute("aria-pressed") === "true").map((t) => t.textContent);
+
+describe("B10: the saved words open pre-selected, from whichever Take they came", () => {
+  it("opens on the current Take when it says them, as before", () => {
+    const chips = takeChips(HISTORY, TEXT, "Take");
+    expect(openingChip(chips, "the timing matters")).toEqual({ index: 0, run: { from: 0, to: 2 } });
+  });
+
+  it("opens on the newest earlier Take that says them when the current one does not", () => {
+    const chips = takeChips(FROM_TAKE_1, LATER, "Take");
+    expect(openingChip(chips, "ahead of plan")).toEqual({ index: 1, run: { from: 5, to: 7 } });
+    // Said nowhere (or nothing saved): the current Take, nothing selected.
+    expect(openingChip(chips, "window closes")).toEqual({ index: 0, run: null });
+    expect(openingChip(chips, null)).toEqual({ index: 0, run: null });
+  });
+
+  it("the overlay opens on Take 1 with its words selected; nothing to save until they change", async () => {
+    await renderFromTake1();
+    expect(pressedChip()).toEqual(["Take 1"]);
+    expect(pressedWords()).toEqual(["ahead", "of", "plan."]);
+    expect(container.textContent).toContain("3 of 4 words");
+    expect(card().textContent).toContain("ahead of plan");
+    expect(card().getAttribute("data-new")).toBeNull();
+    expect(use().disabled).toBe(true);
+  });
+
+  it("switching chips still starts a fresh selection (Q3)", async () => {
+    await renderFromTake1();
+    await act(async () => button("Take 2 · now")?.click());
+    expect(pressedWords()).toEqual([]);
+    await act(async () => button("Take 1")?.click());
+    expect(pressedWords()).toEqual([]);
+    expect(container.textContent).toContain("0 of 4 words");
+  });
+
+  it("a history that lands after the sheet opened moves it there, until she touches anything", async () => {
+    await renderFromTake1(null);
+    expect(pressedChip()).toEqual(["Take · now"]);
+    expect(pressedWords()).toEqual([]);
+    await renderFromTake1();
+    expect(pressedChip()).toEqual(["Take 1"]);
+    expect(pressedWords()).toEqual(["ahead", "of", "plan."]);
+  });
+
+  it("once she has tapped, a late history moves nothing under her", async () => {
+    await renderFromTake1(null);
+    await act(async () => word("launched").click());
+    await renderFromTake1();
+    expect(pressedWords()).toEqual(["launched"]);
   });
 });
 
