@@ -44,6 +44,10 @@ const ALLOWED: Record<string, readonly string[]> = {
   // The published Terms and Privacy Policy, for anyone (founder 2026-09-25,
   // decisions 2/3): the legal pages' browser fallback. Read-only.
   "policy-text": ["GET"],
+  // "Delete my account" (founder 2026-10-05, Q3a): the person's own
+  // account-deletion request. POST only; the card that sends it stays off
+  // until the founder signs its words.
+  terminate: ["POST"],
 };
 
 function target(context: { params: { path?: string[] } }, method: string): string | null {
