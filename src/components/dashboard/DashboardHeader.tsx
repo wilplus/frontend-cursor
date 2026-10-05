@@ -60,6 +60,8 @@ export default function DashboardHeader() {
             // Reachable from /panel/* too, which is where this header also
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
+            // The coach's Library (A8; "Library", N48.5 Q25 A): coaches only.
+            libraryHref={menu.isCoach ? "/coach/exercises" : null}
             corpusHref={menu.isCoach ? "/coach/corpus" : null}
             // Every signed-in person (founder 2026-09-25, E4 = A); the
             // menu already hides it from anyone signed out.
