@@ -30,7 +30,10 @@ export function isRetiredLoungeMessage(
       (message.kind === "ideal_text" &&
         message.metadata?.variant === "coach_feedback_published") ||
       (message.kind === "text" &&
-        message.metadata?.note === "coach_video_shared"))
+        message.metadata?.note === "coach_video_shared") ||
+      // Best Presentation is retired (L1; second plan, 2026-10-05): the
+      // server no longer posts its card, and the ones already written hide.
+      message.kind === "best_presentation_ready")
   );
 }
 

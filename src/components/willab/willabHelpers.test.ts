@@ -23,6 +23,26 @@ const m = (over: Partial<LoungeMessage>): LoungeMessage => ({
 });
 
 describe("isRetiredLoungeMessage", () => {
+  it("hides the retired Best Presentation card (L1, second plan 2026-10-05)", () => {
+    expect(
+      isRetiredLoungeMessage(
+        m({
+          role: "bot",
+          kind: "best_presentation_ready",
+          metadata: { arc_id: "arc-1", topic: "My talk" },
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("keeps the transcript card that replaces it", () => {
+    expect(
+      isRetiredLoungeMessage(
+        m({ role: "bot", kind: "transcript_ready", metadata: { arc_id: "arc-1" } })
+      )
+    ).toBe(false);
+  });
+
   it("hides the exact retired server-authored messages", () => {
     expect(
       isRetiredLoungeMessage(
