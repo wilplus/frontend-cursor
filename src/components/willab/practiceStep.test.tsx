@@ -339,7 +339,7 @@ describe("the practice judgement", () => {
     await openOnTheOffer();
     await click("Practise");
     await stopWithAudio();
-    await click("No — Not confident");
+    await click("No");
     await click("Done");
     // Back on the offer to practise again …
     expect(offer()).not.toBeNull();
@@ -373,7 +373,7 @@ describe("the attempt after the third", () => {
     await openOnTheOffer();
     await click("Practise");
     await stopWithAudio();
-    await click("No — Not confident");
+    await click("No");
     await click("Done");
     await click("Practise again");
     expect(recording()?.textContent).toContain("Attempt 4");
@@ -425,7 +425,7 @@ describe("a No on a bookmark with no exercise", () => {
         }),
       );
     });
-    await click("No — Not confident");
+    await click("No");
     expect(notice()).not.toBeNull();
     expect(notice()?.textContent).toContain("Your coach is working on your exercise.");
     expect(notice()?.textContent).toContain("What you said");
@@ -441,7 +441,7 @@ describe("a No on a bookmark with no exercise", () => {
 
   it("keeps the helper-words step, not the sentence, on a Yes", async () => {
     await openBare();
-    await click("Yes — Confident");
+    await click("Yes");
     expect(notice()).toBeNull();
     expect(container.textContent).toContain("Tap the words");
   });
@@ -498,21 +498,21 @@ describe("the lane on every bookmark (founder 2026-09-29)", () => {
     // The matrix (founder 2026-09-29): it reaches the coach as an ambiguity;
     // no sentence, their video comes if they record one.
     await open(recognised);
-    await click("Yes — Confident");
+    await click("Yes");
     expect(notice()).toBeNull();
     expect(container.textContent).toContain("Tap the words");
   });
 
   it("a Yes never opens the library video, even when one is attached", async () => {
     await open(item);
-    await click("Yes — Confident");
+    await click("Yes");
     expect(offer()).toBeNull();
     expect(container.textContent).toContain("Tap the words");
   });
 
   it("a No with nothing recognised is a rewrite: no sentence, the sheet ends", async () => {
     await open(bare);
-    await click("No — Not confident");
+    await click("No");
     expect(notice()).toBeNull();
     expect(props.onClose).toHaveBeenCalled();
   });

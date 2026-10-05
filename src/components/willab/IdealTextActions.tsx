@@ -81,14 +81,12 @@ export default function IdealTextActions({
    * Take as its one button ("Back to the text" is its link). Nothing waits
    * on the journey answer any more, so nothing is blanked while it loads. */
   const review = !endCard && reviewWaiting && Boolean(onReview);
+  /* "Record Take N" on every Take, N the next one (founder 2026-10-05,
+   * N48.3 Q8 A, replacing "Record again" from Take 3 on; lock D8). */
   const nextRecordingLabel =
-    takeCount === 1
-      ? "Record Take 2"
-      : takeCount === 2
-        ? "Record Take 3"
-        : typeof takeCount === "number" && takeCount >= 3
-          ? "Record again"
-          : "Record the next take";
+    typeof takeCount === "number" && Number.isInteger(takeCount) && takeCount >= 1
+      ? `Record Take ${takeCount + 1}`
+      : "Record the next take";
 
   const seeNextSteps = async () => {
     if (onSeeNextStepsAsGuest) return onSeeNextStepsAsGuest();

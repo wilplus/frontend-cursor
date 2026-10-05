@@ -1041,7 +1041,7 @@ export default function IdealTextReadout({
             the same head the notebook wears. */}
         <div className="flex min-w-0 flex-col">
           <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-          <AiGeneratedNote kind="ideal-text" name={sd?.title} />
+          <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
         </div>
         <div className="flex items-center gap-1.5">
           {/* ONE ⋯ (founder 2026-09-26): Copy and Save the ideal text, the

@@ -308,7 +308,7 @@ describe("the practise loop from the overlay", () => {
       ok: true, practice: { ...withAttempt, judgeableAttemptId: null }, outcome: "again",
       adopted: false, paragraph: null, attemptWords: null,
     });
-    await click("No — Not confident");
+    await click("No");
     expect(judgement()).toBeNull();
     expect(say()?.textContent).toContain("Attempt 2");
     expect(done).not.toHaveBeenCalled();
@@ -330,7 +330,7 @@ describe("the practise loop from the overlay", () => {
     await click("Practise");
     await click("Practise");
     await stopWithAudio();
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("Choose your helper words");
     expect(container.textContent).toContain("From your attempt");
     expect(container.textContent).toContain("0 of 4 words");

@@ -291,7 +291,7 @@ export function Mlc3ConfidenceQuestion({
         disabled={!flow.feedbackReady || flow.busy || flow.confidence !== null}
         saving={flow.busy}
         error={flow.error}
-        ownerWording
+        speakerWording
         onPick={(value) => {
           void flow.answerConfidence(value).then((result) => {
             if (result.saved) onAnswered(value, result.exerciseAllowed);

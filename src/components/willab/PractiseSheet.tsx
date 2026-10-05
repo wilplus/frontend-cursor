@@ -366,7 +366,7 @@ export default function PractiseSheet({
             disabled={exercise.busy}
             saving={exercise.busy}
             error={exercise.error}
-            ownerWording
+            speakerWording
             onPick={(value) => {
               // Tap and go: the answer is the decision (Q17 A).
               setPracticeJudgement(value);

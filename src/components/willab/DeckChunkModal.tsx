@@ -1711,7 +1711,7 @@ export default function DeckChunkModal({
             disabled={superseded}
             saving={false}
             error={agreeError}
-            ownerWording
+            speakerWording
             onPick={(value) => void sendAgreement(value)}
           />
         ) : null}
@@ -1777,7 +1777,7 @@ export default function DeckChunkModal({
             disabled={exercise.busy}
             saving={exercise.busy}
             error={exercise.error}
-            ownerWording
+            speakerWording
             onPick={(value) => setPracticeJudgement(value)}
           />
         </div>
@@ -1970,7 +1970,7 @@ export default function DeckChunkModal({
   /* ---- EMPHASIS · the only place the orange is decided ---------- */
   function renderEmphasisStep(): React.ReactNode {
     return emphasisTap || !styleSuggestion ? (
-      /* TAP TO SELECT. Reached by "Choose different words", or opened
+      /* TAP TO SELECT. Reached by "Edit", or opened
          into directly when nothing was proposed. The tapped words
          preview in --primary because that is how a rooting phrase
          renders while recording — a preview, not a selection colour. */

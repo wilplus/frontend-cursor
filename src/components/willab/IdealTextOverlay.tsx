@@ -1060,7 +1060,7 @@ export default function IdealTextOverlay({
             longer spends a full-width row of its own). */}
         <div className="flex min-w-0 flex-col">
           <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
-          <AiGeneratedNote kind="ideal-text" name={sd?.title} />
+          <AiGeneratedNote kind="ideal-text" name={sd?.title} take={sd?.takeCount} />
         </div>
         <div className="flex items-center gap-1.5">
           {/* ONE ⋯ (founder 2026-09-26): Presentation Mode, Export, Version

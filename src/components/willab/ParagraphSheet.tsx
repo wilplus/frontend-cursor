@@ -93,11 +93,14 @@ export function SheetFrame({
   footer = null,
   nav = null,
   railed = false,
+  note = null,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** A grey line under the title (the Take 1 note on the picker). */
+  note?: ReactNode;
   /** The walk's ‹ position › header, above the title (founder 2026-09-26). */
   nav?: ReactNode;
   /** The coach's desktop rail sits on the left from 1024px (P2-14); the
@@ -123,9 +126,14 @@ export function SheetFrame({
       >
         {nav ? <div className="shrink-0 pt-3">{nav}</div> : null}
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
-          <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
+              {title}
+            </h2>
+            {note ? (
+              <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{note}</p>
+            ) : null}
+          </div>
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-2">
@@ -535,11 +543,15 @@ function tokenTone(picked: boolean, reachable: boolean): string {
 function HelperWordsPicker({
   headline,
   text,
+  firstTake,
   onUse,
   onClose,
 }: {
   headline: string | null;
   text: string;
+  /** Take 1: the note under the title says where the words will show
+   *  (founder 2026-10-05, N48.3 Q8 A; the Feedback sheet's own line). */
+  firstTake: boolean;
   onUse: (span: RootPhraseSpan) => Promise<boolean>;
   onClose: () => void;
 }) {
@@ -562,6 +574,7 @@ function HelperWordsPicker({
   return (
     <SheetFrame
       title={COPY.titleEmphasis}
+      note={firstTake ? COPY.emphasisFirstTakeNote : null}
       onClose={onClose}
       footer={
         <button
@@ -642,13 +655,6 @@ function OverlayNav({
   );
 }
 
-/** The word on the one black button that moves on: the walk's Next, Done
- *  on the last moment and outside the walk (Q32 A). */
-function moveOnLabel(pager: Pager | null): string {
-  const last = !pager || pager.index >= pager.total - 1;
-  return last ? COPY.pillDone : COPY.pagerNext;
-}
-
 /** Whose history to show under the coach's work (the coaching sheet). */
 export interface HistoryTarget {
   arcId: string | null;
@@ -720,6 +726,7 @@ export default function ParagraphSheet({
   pager = null,
   slideLabel = null,
   onDocumentChanged = null,
+  firstTake = false,
   onClose,
 }: {
   arcId: string | null;
@@ -768,7 +775,7 @@ export default function ParagraphSheet({
    *  landed. Absent → no picker. */
   onUseHelperWords?: ((span: RootPhraseSpan) => Promise<boolean>) | null;
   /** THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4): with a host,
-   *  "Choose different words" on the saved state opens the overlay with
+   *  "Edit" on the saved state opens the overlay with
    *  the Take chips and Delete; without one, the picker over the current
    *  words. */
   helperWordsHost?: {
@@ -786,6 +793,9 @@ export default function ParagraphSheet({
   slideLabel?: string | null;
   /** The exercise shown here is stale on the server: re-read the document. */
   onDocumentChanged?: (() => void) | null;
+  /** The project has exactly one Take: the picker says where the helper
+   *  words will show up. */
+  firstTake?: boolean;
   onClose: () => void;
 }) {
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
@@ -837,6 +847,7 @@ export default function ParagraphSheet({
       <HelperWordsPicker
         headline={headline}
         text={text}
+        firstTake={firstTake}
         onUse={onUseHelperWords}
         onClose={() => {
           setPicking(false);
@@ -860,7 +871,9 @@ export default function ParagraphSheet({
         nav={nav}
         footer={
           <button type="button" data-testid="paragraph-sheet-next" onClick={moveOn} className={PILL}>
-            {moveOnLabel(pager)}
+            {/* "Next" everywhere, on the walk's last screen and outside the
+                walk too (founder 2026-10-05, N48.3 Q8 A; lock D10). */}
+            {COPY.pagerNext}
           </button>
         }
       >
@@ -905,7 +918,7 @@ export default function ParagraphSheet({
     <FooterPill
       pill={footer.pill}
       accepting={accepting}
-      nextLabel={opening || nextOpensPicker(judgement, headline) ? COPY.pagerNext : moveOnLabel(pager)}
+      nextLabel={COPY.pagerNext}
       onAccept={() => void accept()}
       onPractise={practise}
       onNext={next}
