@@ -2244,6 +2244,11 @@ export interface CoachMessage {
   videoUrl: string | null;
   takeIndex: number | null;
   publishedAt: string | null;
+  /** The Take the word belongs to (founder 2026-10-05, N48.3 Q11 A): the
+   *  backend serves the word of the Take on screen and names it, so the page
+   *  can tell an unseen word from one Step 0 already showed. Absent from an
+   *  older backend. */
+  takeSessionId?: string | null;
 }
 
 /** null unless the coach sent a message or a video. */
@@ -2262,6 +2267,10 @@ export function mapCoachMessage(raw: unknown): CoachMessage | null {
         ? r.take_index
         : null,
     publishedAt: typeof r.published_at === "string" ? r.published_at : null,
+    takeSessionId:
+      typeof r.take_session_id === "string" && r.take_session_id
+        ? r.take_session_id
+        : null,
   };
 }
 
