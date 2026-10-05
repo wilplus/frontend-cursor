@@ -25,3 +25,28 @@ describe("a guest's recording bubble", () => {
     );
   });
 });
+
+describe("a guest's \"your text is ready\" bubble (founder 2026-10-05)", () => {
+  it("is the server's ready bubble: same kind, words and metadata", async () => {
+    const { idealTextReadyDraft, IDEAL_TEXT_READY_BODY } = await import("./loungeReports");
+    expect(IDEAL_TEXT_READY_BODY).toBe("Your ideal text is ready.");
+    expect(idealTextReadyDraft({ arcId: "arc-1", version: 1, topic: "Pitch" })).toEqual({
+      role: "bot",
+      kind: "ideal_text",
+      body: "Your ideal text is ready.",
+      metadata: { arc_id: "arc-1", variant: "ready", version: 1, topic: "Pitch" },
+    });
+  });
+
+  it("is posted for a guest when the text settles, in the Lab and in the Lounge", () => {
+    const lab = read("LabOverlay.tsx");
+    expect(lab).toMatch(/onSettled: \(take\) => \{\s*if \(signedIn === false && take\.arcId\) \{\s*void appendToThread\(idealTextReadyDraft\(/);
+    const lounge = read("Lounge.tsx");
+    expect(lounge).toMatch(/if \(!thread\.signedIn && take\.arcId\) \{\s*void thread\.append\(idealTextReadyDraft\(/);
+  });
+
+  it("matches the backend's wording", () => {
+    const backend = "Your ideal text is ready.";
+    expect(read("loungeReports.ts")).toContain(`"${backend}"`);
+  });
+});

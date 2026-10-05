@@ -47,7 +47,7 @@ import ReportCard, {
   type IdealTextRetryTarget,
 } from "./ReportCard";
 import { latestIdealBubbleIds } from "./unreadFeedback";
-import { idealTextUnconfirmedDraft } from "./loungeReports";
+import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports";
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
@@ -751,6 +751,15 @@ export default function Lounge({
     enabled: !isLabOverlay(state),
     onSettled: (take) => {
       setProcessingResume((prev) => (prev?.status === "failed" ? prev : null));
+      // A guest left the Lab while the text was being made: post the "your
+      // text is ready" bubble the server posts only for an account
+      // (founder live test 2026-10-05).
+      if (!thread.signedIn && take.arcId) {
+        void thread.append(idealTextReadyDraft({
+          arcId: take.arcId,
+          version: take.takeIndex,
+        }));
+      }
       // LEAVE AND COME BACK (J2, founder 2026-09-29; Phase 7): the text no
       // longer opens by itself when the Take settles -- the speaker may be
       // anywhere. The reload brings the Take's bubble with its button to the
