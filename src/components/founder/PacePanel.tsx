@@ -12,7 +12,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { coverageWord, fill, formatRate, gapCount, jarLabel, paceLine, sliderMax, weeksAt, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
 import { founderLearning, type LedgerRead } from "@/services/api/founderLearning";
+import { listCoachExercises } from "@/services/api/coachExercises";
 import { FounderFrame, Meter, Panel, Refusal } from "./FounderFrame";
+import JarPanel, { JAR_COPY } from "./JarPanel";
 
 const DOOR_LABELS: Record<string, string> = {
   consent: "Door 1 · the training yes (consent)",
@@ -151,6 +153,8 @@ export default function PacePanel() {
   const [refusal, setRefusal] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [ran, setRan] = useState<string | null>(null);
+  /** Exercise id → title, for the jar's rows; ids alone when unreadable. */
+  const [titles, setTitles] = useState<ReadonlyMap<string, string>>(new Map());
 
   const load = useCallback(async () => {
     const result = await founderLearning.ledger();
@@ -165,6 +169,16 @@ export default function PacePanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    void listCoachExercises().then((result) => {
+      if (alive && result.ok) setTitles(new Map(result.data.exercises.map((e) => [e.exerciseId, e.title])));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function runNow() {
     setRunning(true);
@@ -189,6 +203,13 @@ export default function PacePanel() {
             </ul>
             {unavailable.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">unavailable this read: {unavailable.join(", ")}</p> : null}
           </Panel>
+          {/* B8: the jar left /cms with the CMS exercise lane; C9 and E9: it
+              and its per-exercise counts live on this founder-only page. */}
+          {read.jar ? (
+            <Panel title={JAR_COPY.title} note={JAR_COPY.intro}>
+              <JarPanel jar={read.jar} evaluation={read.jarEvaluation} titles={titles} />
+            </Panel>
+          ) : null}
           <Panel title="Gaps" note="Which pattern needs an exercise filmed, and how many coach requests wait on it. A source the machine could not read says unknown, never zero.">
             <Gaps gaps={read.gaps} />
           </Panel>
