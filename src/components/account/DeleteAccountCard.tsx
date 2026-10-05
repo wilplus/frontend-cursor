@@ -14,8 +14,8 @@ import {
 /*                                                                            */
 /*  One button, then the shared confirm; nothing is sent before "Delete my   */
 /*  account" in the confirm. The backend records the request and stops new   */
-/*  processing (request_phase1_purge_v1); an operator finishes it. Off until  */
-/*  the founder signs the words (ACCOUNT_DELETE_ENABLED).                     */
+/*  processing (request_phase1_purge_v1); an operator finishes it. On since  */
+/*  the founder signed the words (ACCOUNT_DELETE_ENABLED, 2026-10-05).        */
 /* -------------------------------------------------------------------------- */
 
 export default function DeleteAccountCard({ enabled = ACCOUNT_DELETE_ENABLED }: { enabled?: boolean }) {

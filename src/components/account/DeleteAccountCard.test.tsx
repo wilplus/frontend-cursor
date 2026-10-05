@@ -39,9 +39,11 @@ describe("DeleteAccountCard", () => {
     act(() => { button.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
   }
 
-  it("is off until the founder signs the words", () => {
-    expect(ACCOUNT_DELETE_ENABLED).toBe(false);
+  it("is on now the founder has signed the words, and draws nothing when off", () => {
+    expect(ACCOUNT_DELETE_ENABLED).toBe(true);
     act(() => { root.render(createElement(DeleteAccountCard)); });
+    expect(container.querySelector('[data-testid="delete-account-card"]')).not.toBeNull();
+    act(() => { root.render(createElement(DeleteAccountCard, { enabled: false })); });
     expect(container.querySelector('[data-testid="delete-account-card"]')).toBeNull();
   });
 

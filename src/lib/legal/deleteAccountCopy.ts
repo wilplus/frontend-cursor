@@ -1,14 +1,14 @@
 /* -------------------------------------------------------------------------- */
 /*  "Delete my account" (founder 2026-10-05, Q3a "yes"; backend N45).         */
 /*                                                                            */
-/*  PROPOSED WORDS, AWAITING THE FOUNDER'S SIGN-OFF. ACCOUNT_DELETE_ENABLED   */
-/*  keeps the card off until he signs them; change a word only with sign-off. */
+/*  Words signed by the founder 2026-10-05 ("You have my ok on the words");  */
+/*  the card is on. Change a word only with a new sign-off.                   */
 /*  The request is recorded at once and processing stops; an operator         */
 /*  finishes the deletion, within the one month Privacy §9 promises. Records */
 /*  of purchases stay five years (retention schedule v1.3, N43).              */
 /* -------------------------------------------------------------------------- */
 
-export const ACCOUNT_DELETE_ENABLED = false;
+export const ACCOUNT_DELETE_ENABLED = true;
 
 export const DELETE_ACCOUNT_COPY = {
   title: "Delete my account",
