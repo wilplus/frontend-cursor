@@ -72,9 +72,14 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // block's grey so the two signals cannot disagree — grey text with nothing
     // to tap was the gap that closed (founder: "the grey should be when there
     // is a mark"). Asserted as: the mark is gated on it, and it is derived
-    // from `markWorthShowing`.
+    // from `markWorthShowing`. Since 2026-10-05 the condition is the named
+    // `barWaiting`, which "Review feedback" shares, and a paragraph saved
+    // with helper words draws no bar (lock B7, Q3; audit B7-4).
     expect(DECK).toMatch(/\{unsettled \? \([\s\S]{0,80}?<DeckLockMark/);
-    expect(DECK).toMatch(/const unsettled =[\s\S]{0,160}?markWorthShowing\(\s*st\.pending,/);
+    expect(DECK).toMatch(/const unsettled = barWaiting\(c\);/);
+    expect(DECK).toMatch(
+      /const barWaiting = useCallback\([\s\S]{0,160}?!headlines\.has\(c\.part\.id\)[\s\S]{0,80}?markWorthShowing\(stateOf\(c\)\.pending,/,
+    );
     expect(DECK).not.toMatch(/\/>\s*<DeckLockMark/);
   });
 

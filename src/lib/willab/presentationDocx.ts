@@ -13,8 +13,7 @@ import {
   IPTC_TRAINED_ALGORITHMIC_MEDIA,
   aiGeneratedAssertion,
 } from "@/lib/willab/aiGeneratedMark";
-import { parseRichSpans } from "@/lib/willab/richMarkers";
-import { helperWordRanges } from "@/lib/willab/answeredBookmark";
+import { idealTextSegments } from "@/lib/willab/helperWordSegments";
 import {
   loadPresentationPdf,
   presentationCanvasJpegBytes,
@@ -26,38 +25,11 @@ const ORANGE = "E56F2D";
 const INK = "191919";
 const MUTED = "666666";
 
-/** One paragraph's runs. The helper words are italic in the paragraph's own
- *  colour and font (founder 2026-09-26, clause 20; export 2026-09-28, 6A):
- *  orange belongs to the headline above the paragraph, so two orange marks
- *  never compete. */
-export function idealTextSegments(
-  text: string,
-  headline: string | null | undefined,
-): Array<{ text: string; bold: boolean; italics: boolean }> {
-  const spans = parseRichSpans(text);
-  const plain = spans.map((span) => span.text).join("");
-  const ranges = helperWordRanges(plain, headline) ?? [];
-  const inRange = (at: number) =>
-    ranges.some(([start, end]) => at >= start && at < end);
-  const out: Array<{ text: string; bold: boolean; italics: boolean }> = [];
-  let offset = 0;
-  for (const span of spans) {
-    let run = "";
-    let italics = inRange(offset);
-    for (let i = 0; i < span.text.length; i += 1) {
-      const next = inRange(offset + i);
-      if (next !== italics && run) {
-        out.push({ text: run, bold: span.bold, italics });
-        run = "";
-      }
-      italics = next;
-      run += span.text[i];
-    }
-    if (run) out.push({ text: run, bold: span.bold, italics });
-    offset += span.text.length;
-  }
-  return out;
-}
+/* The paragraph's runs (helper words italic, clause 20) live in
+   `helperWordSegments`, shared with the PDF export so the two formats can
+   never disagree; re-exported here for the callers that read them from the
+   Word export. */
+export { idealTextSegments };
 
 function idealTextRuns(text: string, headline: string | null): TextRun[] {
   return idealTextSegments(text, headline).map(

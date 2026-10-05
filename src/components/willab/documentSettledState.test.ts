@@ -66,8 +66,10 @@ describe("settled text is ordinary, never grey", () => {
     // rewrite without the judgement that carries it — founder: "the rewrite
     // only happens after the judgement". Sharing the condition makes that
     // structural fact impossible to contradict on screen.
-    const gate = DECK.slice(DECK.indexOf("const unsettled ="));
-    expect(gate.slice(0, 200)).toContain("markWorthShowing");
+    // One named condition (2026-10-05), shared with "Review feedback".
+    expect(DECK).toContain("const unsettled = barWaiting(c);");
+    const gate = DECK.slice(DECK.indexOf("const barWaiting ="));
+    expect(gate.slice(0, 300)).toContain("markWorthShowing");
     expect(DECK).toMatch(/\{unsettled \? \([\s\S]{0,80}?<DeckLockMark/);
   });
 

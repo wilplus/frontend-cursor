@@ -5,9 +5,10 @@
  * One chip per Take that has a version of the paragraph, newest first, the
  * current one marked "now". Choosing a chip shows that Take's text as
  * tappable words; switching chips starts a fresh selection (Q3: one Take,
- * one phrase). The picker opens with the saved words pre-selected on the
- * current Take (B10) and the button lights only when the selection differs
- * from the saved words.
+ * one phrase). The picker opens with the saved words pre-selected, on the
+ * current Take or, for words from an earlier Take the current one did not
+ * say, on that Take (B10), and the button lights only when the selection
+ * differs from the saved words.
  */
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import { phraseTokens, type PhraseSelection, type PhraseToken } from "./phraseTokens";
@@ -79,6 +80,23 @@ export function preselect(
     if (match) return { from, to: from + want.length - 1 };
   }
   return null;
+}
+
+/** Where the overlay opens (B10: "the picker opens with the saved words
+ *  pre-selected and nothing else"): on the current Take with the saved words
+ *  selected when its text holds them; otherwise on the newest earlier Take
+ *  whose text holds them, since words taken from an earlier Take (D5) need
+ *  not be in the paragraph as it is now; otherwise on the current Take with
+ *  nothing selected. Chips arrive newest first, the current one first. */
+export function openingChip(
+  chips: readonly TakeChip[],
+  headline: string | null,
+): { index: number; run: PhraseSelection | null } {
+  for (let index = 0; index < chips.length; index += 1) {
+    const run = preselect(phraseTokens(chips[index].text), headline);
+    if (run) return { index, run };
+  }
+  return { index: 0, run: null };
 }
 
 /** Does the selection differ from the saved words? Nothing chosen never

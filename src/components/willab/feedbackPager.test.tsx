@@ -99,7 +99,7 @@ describe("the walk's header (founder 2026-09-26)", () => {
 });
 
 describe("the bar, copied from the coach panel", () => {
-  it("Back is off on the first; Next is always Next, and Done on the last", async () => {
+  it("Back is off on the first; Next is Next on every screen, the last one too (N48.3 Q8 A)", async () => {
     await act(async () =>
       root.render(createElement(FeedbackPagerBar, {
         pager: { index: 0, total: 3, onBack: vi.fn(), onNext: vi.fn() },
@@ -114,7 +114,8 @@ describe("the bar, copied from the coach panel", () => {
         pager: { index: 2, total: 3, onBack: vi.fn(), onNext: vi.fn() },
       })),
     );
-    expect(buttons().map((b) => b.label)).toEqual(["Back", "Done"]);
+    expect(buttons().map((b) => b.label)).toEqual(["Back", "Next"]);
+    expect(buttons().some((b) => b.label === "Done")).toBe(false);
     expect(buttons().some((b) => b.label === "Skip")).toBe(false);
   });
 });
@@ -171,7 +172,7 @@ describe("the walk", () => {
     expect(opened.at(-1)).toBe("a");
     await click("Next");
     expect(opened.at(-1)).toBe("d");
-    await click("Done");
+    await click("Next");
     expect(closeAll).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
     // A tap on a paragraph joins the walk at that bookmark.
@@ -294,7 +295,7 @@ describe("the email's words (signed off 2026-09-25)", () => {
     await click("Next");
     expect(opened.at(-1)).toBe("d");
     expect(total()).toBe("2");
-    await click("Done");
+    await click("Next");
     expect(closeAll).toHaveBeenCalledTimes(1);
     // The next walk starts on the host's current list: "a" is no longer in
     // it, so a tap on it is not a walk, and "c" never was.
