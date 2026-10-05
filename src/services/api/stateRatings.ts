@@ -243,6 +243,54 @@ export async function acknowledgeConfidenceChainRender(
   }
 }
 
+/** The walk's Judge screen asks the confidence chain for its blind packet on
+ *  the moment it just painted (founder 2026-10-05, decisions log N48.5 Q27 A:
+ *  "the coach walk's blind labels as its judgements"). The backend prepares
+ *  the packet for this coach only when the chain selected the moment and
+ *  this coach has neither rated it nor seen its non-blind side.
+ *
+ *  Four identifiers, or null whenever there is none or anything fails: the
+ *  walk never waits on the chain, never shows anything about it, and saves
+ *  the coach's answer exactly as before. */
+export async function prepareConfidenceChainPacket(
+  snippetId: string,
+): Promise<ConfidenceChainBlindHandle | null> {
+  const token = await getAuthToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `/api/v2/coach/snippets/${encodeURIComponent(snippetId)}/mlc2-packet`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => null)) as
+      Record<string, unknown> | null;
+    const raw = data?.mlc2_blind_review;
+    if (!raw || typeof raw !== "object") return null;
+    const handle = raw as Record<string, unknown>;
+    const text = (key: string): string | null =>
+      typeof handle[key] === "string" && handle[key] ? (handle[key] as string) : null;
+    const reviewAssignmentId = text("review_assignment_id");
+    const presentationId = text("presentation_id");
+    const acknowledgementToken = text("acknowledgement_token");
+    const visiblePayloadSha256 = text("visible_payload_sha256");
+    if (!reviewAssignmentId || !presentationId || !acknowledgementToken || !visiblePayloadSha256) {
+      return null;
+    }
+    return { reviewAssignmentId, presentationId, acknowledgementToken, visiblePayloadSha256 };
+  } catch {
+    return null;
+  }
+}
+
 /** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
  *
  *  This is an ANCHORED owner response on a card that has already told the

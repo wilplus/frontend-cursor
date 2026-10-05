@@ -38,8 +38,6 @@ const COPY = {
 } as const;
 
 const DATA_CHOICES_PATH = "/account/data-consent";
-/** Q7 (founder 2026-09-29): the Phase-2 purpose has its own consent page. */
-const MODEL_IMPROVEMENT_PATH = "/account/model-improvement";
 
 function yesLabel(item: PendingAnnouncement): string {
   return item.consent_purpose === "personalised_practice" ? COPY.yesToDataChoices : COPY.yes;
@@ -47,10 +45,13 @@ function yesLabel(item: PendingAnnouncement): string {
 
 /** Where a consent-bearing "yes" sends the person, or null when the purpose
  *  has no screen. The link records the answer; only the screen records a
- *  consent (L3). */
+ *  consent (L3). Both purposes live on the data choices screen: the
+ *  Phase-1 tick, and since 2026-10-05 the Phase-2 purpose too, whose one
+ *  consent is the training yes on its own card there (founder, N48.5 Q27 A;
+ *  the bundled model-improvement page records nothing any more). */
 function consentPath(item: PendingAnnouncement): string | null {
   if (item.consent_purpose === "personalised_practice") return DATA_CHOICES_PATH;
-  if (item.consent_purpose === "pooled_model_improvement") return MODEL_IMPROVEMENT_PATH;
+  if (item.consent_purpose === "pooled_model_improvement") return DATA_CHOICES_PATH;
   return null;
 }
 
