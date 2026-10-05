@@ -50,9 +50,24 @@ const ALLOWED: Record<string, readonly string[]> = {
   terminate: ["POST"],
 };
 
+/** Subpaths that carry an id, by method. The id must be a UUID: anything
+ *  else is not forwarded, so a crafted segment cannot reach another route. */
+const ALLOWED_WITH_ID: readonly { pattern: RegExp; methods: readonly string[] }[] = [
+  // Cancelling one's own account deletion inside its 7-day window (founder
+  // 2026-10-05, N48.4 Q14 A). The backend decides who may cancel and until
+  // when; the controls that send it stay off until the founder signs them.
+  {
+    pattern: /^deletion\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/cancel$/i,
+    methods: ["POST"],
+  },
+];
+
 function target(context: { params: { path?: string[] } }, method: string): string | null {
   const path = (context.params.path ?? []).join("/");
-  const methods = ALLOWED[path];
+  // Own keys only: "constructor" is not a subpath this lane forwards.
+  const methods = Object.prototype.hasOwnProperty.call(ALLOWED, path)
+    ? ALLOWED[path]
+    : ALLOWED_WITH_ID.find((entry) => entry.pattern.test(path))?.methods;
   if (!methods || !methods.includes(method)) return null;
   return `/v2/processing-authorization${path ? `/${path}` : ""}`;
 }

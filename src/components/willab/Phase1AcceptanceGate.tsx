@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import LoadingState from "./LoadingState";
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
+import AccountEndedState from "./AccountEndedState";
 import {
   fetchAuthorization,
+  type AuthorizationStatus,
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
+import type { PendingDeletion } from "@/services/api/accountDeletion";
 import { takeAuthorization } from "@/services/api/bootPrefetch";
+import { ENDED_STATE_ENABLED } from "@/lib/legal/leavingCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 boundary, as a gate (Task 5).                                  */
@@ -48,7 +52,37 @@ type State =
   | { kind: "checking" }
   /** Authorized, no policy, or unreadable — see the fail-open note above. */
   | { kind: "pass" }
-  | { kind: "required"; policy: ProcessingPolicy };
+  | { kind: "required"; policy: ProcessingPolicy; priorCountry: string | null }
+  /** Processing is blocked (PLF-T1, Q19 A): one line, never the acceptance
+   *  flow, which a blocked person could never get past. Data & consent stays
+   *  reachable — it is outside this gate. */
+  | { kind: "ended"; pendingDeletion: PendingDeletion | null };
+
+/** What the gate does with a status. A block shows the ended state while
+ *  ENDED_STATE_ENABLED is on; while it is off (its words are not signed) the
+ *  gate does exactly what it did before the block had a kind of its own:
+ *  the acceptance flow when a policy came with it, otherwise pass. */
+export function gateStateFor(
+  status: AuthorizationStatus,
+  endedStateEnabled: boolean = ENDED_STATE_ENABLED,
+): State {
+  if (status.kind === "acceptance_required") {
+    return {
+      kind: "required",
+      policy: status.policy,
+      priorCountry: status.priorCountry ?? null,
+    };
+  }
+  if (status.kind === "blocked") {
+    if (endedStateEnabled) {
+      return { kind: "ended", pendingDeletion: status.pendingDeletion };
+    }
+    return status.policy
+      ? { kind: "required", policy: status.policy, priorCountry: null }
+      : { kind: "pass" };
+  }
+  return { kind: "pass" };
+}
 
 export default function Phase1AcceptanceGate({
   children,
@@ -58,7 +92,8 @@ export default function Phase1AcceptanceGate({
   const [state, setState] = useState<State>({ kind: "checking" });
   // Bumped to force a refetch after PROCESSING_POLICY_STALE. A stale result
   // means the policy moved under us, so the held hashes are unusable and the
-  // screen must be re-presented from fresh bytes.
+  // screen must be re-presented from fresh bytes. A cancelled deletion bumps
+  // it too: the block is lifted, and only a fresh read says what follows.
   const [attempt, setAttempt] = useState(0);
   const active = useRef(true);
 
@@ -71,22 +106,26 @@ export default function Phase1AcceptanceGate({
     const load = attempt === 0 ? takeAuthorization : fetchAuthorization;
     void load().then((status) => {
       if (!active.current) return;
-      setState(
-        status.kind === "acceptance_required"
-          ? { kind: "required", policy: status.policy }
-          : { kind: "pass" },
-      );
+      setState(gateStateFor(status));
     });
     return () => {
       active.current = false;
     };
   }, [attempt]);
 
-  const onStale = useCallback(() => setAttempt((n) => n + 1), []);
+  const readAgain = useCallback(() => setAttempt((n) => n + 1), []);
   const onAccepted = useCallback(() => setState({ kind: "pass" }), []);
 
   if (state.kind === "checking") return <LoadingState placement="surface" />;
   if (state.kind === "pass") return <>{children}</>;
+  if (state.kind === "ended") {
+    return (
+      <AccountEndedState
+        pendingDeletion={state.pendingDeletion}
+        onCancelled={readAgain}
+      />
+    );
+  }
 
   /* A FULL-VIEWPORT TAKEOVER, AND THE REASON IS THE SCROLLBAR (founder
      2026-09-23: "make it scroll on the whole page, so the scroll bar is not
@@ -110,8 +149,9 @@ export default function Phase1AcceptanceGate({
           // a half-finished walk through the old one's steps.
           key={`${state.policy.policyVersion}:${attempt}`}
           policy={state.policy}
+          priorCountry={state.priorCountry}
           onAccepted={onAccepted}
-          onStale={onStale}
+          onStale={readAgain}
         />
       </div>
     </div>

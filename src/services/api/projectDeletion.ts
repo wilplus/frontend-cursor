@@ -1,19 +1,30 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
-/*  Deleting one project (founder 2026-09-25, N8; P1).                        */
+/*  Deleting one project (founder 2026-09-25, N8; P1; 2026-10-05, N48.4      */
+/*  Q17 A).                                                                   */
 /*                                                                            */
-/*  A tap asks for the deletion; it does not delete. An operator confirms     */
-/*  within 7 days and the project is locked until then. The person can       */
-/*  cancel while it is pending. Backend: POST/DELETE                          */
+/*  A tap asks for the deletion; it does not delete. The project is locked   */
+/*  until the deletion completes, and the person can cancel while the        */
+/*  backend says a cancel can still land. Backend: POST/DELETE                */
 /*  /v2/projects/<id>/deletion-request.                                       */
+/*                                                                            */
+/*  THE ONE PLACE THE PROJECT-DELETION SHAPE IS READ (the picker feed and the */
+/*  request's answer both come through mapProjectDeletion). Since Q17 A a     */
+/*  deletion completes by itself after a 7-day window: `completes_after` is   */
+/*  that moment and `cancellable` the backend's word on the cancel. Before    */
+/*  it, `due_at` was the operator's target and a pending request was the     */
+/*  cancellable one; both answers read the same here.                         */
 /* -------------------------------------------------------------------------- */
 
 export type ProjectDeletionState = "pending" | "confirmed";
 
 export interface ProjectDeletion {
   state: ProjectDeletionState;
+  /** When the deletion completes (ISO-8601), or null when not said. */
   dueAt: string | null;
+  /** A cancel can still land. */
+  cancellable: boolean;
 }
 
 /** The open request on a project, or null (none, cancelled or finished). */
@@ -21,9 +32,13 @@ export function mapProjectDeletion(raw: unknown): ProjectDeletion | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (r.state !== "pending" && r.state !== "confirmed") return null;
+  const when = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value : null;
   return {
     state: r.state,
-    dueAt: typeof r.due_at === "string" ? r.due_at : null,
+    dueAt: when(r.completes_after) ?? when(r.due_at),
+    cancellable:
+      typeof r.cancellable === "boolean" ? r.cancellable : r.state === "pending",
   };
 }
 

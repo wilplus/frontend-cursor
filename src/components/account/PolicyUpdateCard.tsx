@@ -31,6 +31,8 @@ export default function PolicyUpdateCard({
   onAccepted?: () => void;
 }) {
   const [policy, setPolicy] = useState<ProcessingPolicy | null>(null);
+  // The country given last time, prefilled on the country step (Q21 A).
+  const [priorCountry, setPriorCountry] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
@@ -38,11 +40,10 @@ export default function PolicyUpdateCard({
     let alive = true;
     void fetchAuthorization().then((status) => {
       if (!alive) return;
-      setPolicy(
-        status.kind === "acceptance_required" && status.acceptedEarlierVersion
-          ? status.policy
-          : null,
-      );
+      const update =
+        status.kind === "acceptance_required" && status.acceptedEarlierVersion;
+      setPolicy(update ? status.policy : null);
+      setPriorCountry(update ? status.priorCountry ?? null : null);
     });
     return () => {
       alive = false;
@@ -83,6 +84,7 @@ export default function PolicyUpdateCard({
             <Phase1AcceptanceFlow
               key={`${policy.policyVersion}:${attempt}`}
               policy={policy}
+              priorCountry={priorCountry}
               onAccepted={accepted}
               onStale={stale}
             />

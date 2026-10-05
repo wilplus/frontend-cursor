@@ -33,8 +33,11 @@ export function policyTextState(
   if (status.kind === "unavailable" || status.kind === "error") {
     return { kind: "fallback" };
   }
-  const document =
-    which === "terms" ? status.policy.terms : status.policy.privacy;
+  // A blocked person still reads the policy in force when it came with the
+  // block; a block without a usable one is the same "nothing to show".
+  const policy = status.policy;
+  if (!policy) return { kind: "fallback" };
+  const document = which === "terms" ? policy.terms : policy.privacy;
   // An active policy with an empty document is not a document. Showing a blank
   // page as "the current terms" is worse than showing the last published ones.
   if (!document.copy.trim()) return { kind: "fallback" };

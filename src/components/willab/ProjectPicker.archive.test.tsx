@@ -92,10 +92,30 @@ async function renderWith(arcs: TrainingArc[]) {
 describe("mapProjectDeletion", () => {
   it("keeps only an open request", () => {
     expect(mapProjectDeletion({ state: "pending", due_at: "2026-10-03" }))
-      .toEqual({ state: "pending", dueAt: "2026-10-03" });
+      .toEqual({ state: "pending", dueAt: "2026-10-03", cancellable: true });
     expect(mapProjectDeletion({ state: "cancelled" })).toBeNull();
     expect(mapProjectDeletion({ state: "done" })).toBeNull();
     expect(mapProjectDeletion(null)).toBeNull();
+  });
+
+  it("before Q17 a pending request is the cancellable one; a confirmed one is not", () => {
+    expect(mapProjectDeletion({ state: "confirmed", due_at: "d" }))
+      .toEqual({ state: "confirmed", dueAt: "d", cancellable: false });
+  });
+
+  it("since Q17 A reads the window's end and the backend's word on the cancel", () => {
+    expect(mapProjectDeletion({
+      state: "pending",
+      due_at: "2026-10-03",
+      completes_after: "2026-10-12T17:00:00Z",
+      cancellable: false,
+    })).toEqual({
+      state: "pending",
+      dueAt: "2026-10-12T17:00:00Z",
+      cancellable: false,
+    });
+    expect(mapProjectDeletion({ state: "pending", cancellable: true }))
+      .toEqual({ state: "pending", dueAt: null, cancellable: true });
   });
 });
 
@@ -133,7 +153,9 @@ describe("⋯ → Archive", () => {
 
 describe("a project with an open deletion request", () => {
   it("is locked and has no menu", async () => {
-    await renderWith([arc({ deletion: { state: "pending", dueAt: null } })]);
+    await renderWith([
+      arc({ deletion: { state: "pending", dueAt: null, cancellable: true } }),
+    ]);
     expect(container.textContent).toContain("Deletion pending");
     expect(button("Board pitch")).toBeUndefined();
     expect(button("More options for Board pitch")).toBeUndefined();
