@@ -74,6 +74,23 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   words overlay, the paragraph overlay and the practise loop follow the mocks
   on the lock's build list. Where this section and the lock disagree, the
   lock wins.
+- The founder's answers of 2026-10-05 (backend decisions log N48.3; "go
+  with wave 2") amend these screens again; Q7 to Q10 are marked in place
+  in the lock. Q7: a rewrite card's buttons are contract 29b's, "Accept and
+  practise" and "Keep my words". Q8: "Done" becomes "Next", "Record again"
+  becomes "Record Take N", the judgement answers read "Yes" and "No", the
+  header caption reads "AI-generated text · Take N", "Small rewrite"
+  becomes "Clearer version", "Choose different words" becomes "Edit", the
+  Take 1 note shows in the paragraph sheet's picker, and the Lounge's "Keep
+  practising" becomes "Practise again". Q9: "Delete helper words", "Tap
+  words from any Take", "Confident" / "Not confident", "Accept and
+  practise", "Keep my words" and "Say it this way · accepted" are signed.
+  Q10: "Your coach is working on your exercise." shows only while a coach
+  is active. Q11: a coach's word belongs to its Take, and Step 0 opens
+  whenever an unseen word exists. The lock's D6 is amended too (N48.1,
+  "keep it as it is today"): on a later Take a saved paragraph's sheet shows
+  no player. The design-lock page's L3 still says "the Take stack"; the
+  lock wins.
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---
