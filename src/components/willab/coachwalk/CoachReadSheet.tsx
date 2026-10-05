@@ -126,9 +126,12 @@ function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, slide, o
   return (
     <>
       {slide ? (
-        <div data-testid="coach-read-slide">
+        // A 160px tile: small enough to stay a thumbnail above the passage,
+        // large enough that a PDF page's title reads. DeckSlidePreview is the
+        // speaker's own slide picture, reused as it is.
+        <div data-testid="coach-read-slide" className="w-40 shrink-0">
           <DeckSlidePreview presentationRef={slide.presentationRef} pageIndex={slide.pageIndex}
-            size="thumb" className="" />
+            size="header" className="" />
         </div>
       ) : null}
       <AnswerChips pseudonym={pseudonym} read={read} coachAnswer={coachAnswer} />
