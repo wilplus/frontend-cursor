@@ -663,17 +663,27 @@ export default function TranscriptReviewDeck({
     else closeSheets();
   }, [walk.pager, closeSheets, onJudged]);
 
+  /* THE BAR'S ONE CONDITION. A Confident Voice judgement still waits on the
+     paragraph, and its helper words are not saved: a paragraph saved with
+     helper words carries no bar, its headline is its mark (founder lock
+     2026-09-30, B7 and its interpretation Q3; contract 24g). The server's
+     window withholds such a paragraph from the next read on; this keeps the
+     page true within the same visit too, so a moment practised and then
+     saved loses its bar as soon as its headline is on the page. */
+  const barWaiting = useCallback(
+    (c: DeckChunk) =>
+      c.status === "waiting" &&
+      !headlines.has(c.part.id) &&
+      markWorthShowing(stateOf(c).pending, summaryByParagraph.get(c.part.id)),
+    [headlines, stateOf, summaryByParagraph],
+  );
   /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
      moments from the first one in text order — the same walk a tap on a
      bar joins, the same sheets. "Waiting" is exactly the bar's condition, so
      the button can never offer a review the page shows no mark for. */
   const firstWaiting = useMemo(
-    () =>
-      firstWaitingBookmark(bookmarks, (c) =>
-        c.status === "waiting" &&
-        markWorthShowing(stateOf(c).pending, summaryByParagraph.get(c.part.id)),
-      ),
-    [bookmarks, stateOf, summaryByParagraph],
+    () => firstWaitingBookmark(bookmarks, barWaiting),
+    [bookmarks, barWaiting],
   );
   const coachStep = useCoachStep({
     arcId,
@@ -1265,13 +1275,9 @@ export default function TranscriptReviewDeck({
                        `unsettled` keeps its one condition — the bar is drawn
                        exactly where the old mark was, so a paragraph can
                        never hold a rewrite or praise without the judgement
-                       that carries it (24f). */
-                    const unsettled =
-                      c.status === "waiting" &&
-                      markWorthShowing(
-                        st.pending,
-                        summaryByParagraph.get(c.part.id),
-                      );
+                       that carries it (24f) — and a paragraph saved with
+                       helper words draws none (B7, Q3; `barWaiting`). */
+                    const unsettled = barWaiting(c);
                     return (
                     /* TEXT SIZE (founder 2026-09-30, "D"): 17px on a phone
                        rising to 20px on desktop, down from 21–30px. Only the
