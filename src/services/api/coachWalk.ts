@@ -41,7 +41,28 @@ export interface MomentRead {
   speakerGoal: string | null;
   /** null when nothing reached the coach from this moment. */
   request: CoachExerciseRequest | null;
-  namedErrors: string[];
+  /** The speaker's chosen practice recording, with the coach's own saved
+   *  answer on it (founder 2026-10-05, Q6). null when there is none. */
+  practice: MomentPractice | null;
+}
+
+export interface MomentPractice {
+  attemptId: string;
+  audioRef: string | null;
+  durationMs: number;
+  coachAnswer: AnswerValue | null;
+}
+
+function mapMomentPractice(raw: unknown): MomentPractice | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.attempt_id !== "string" || !p.attempt_id) return null;
+  return {
+    attemptId: p.attempt_id,
+    audioRef: typeof p.audio_ref === "string" && p.audio_ref ? p.audio_ref : null,
+    durationMs: typeof p.duration_ms === "number" && p.duration_ms > 0 ? p.duration_ms : 0,
+    coachAnswer: isAnswer(p.coach_answer) ? p.coach_answer : null,
+  };
 }
 
 export function mapMomentRead(raw: unknown): MomentRead | null {
@@ -53,9 +74,7 @@ export function mapMomentRead(raw: unknown): MomentRead | null {
     coachAnswer: isAnswer(r.coach_answer) ? r.coach_answer : null,
     speakerGoal: typeof r.speaker_goal === "string" && r.speaker_goal ? r.speaker_goal : null,
     request: mapCoachExerciseRequest(r.request),
-    namedErrors: Array.isArray(r.named_errors)
-      ? r.named_errors.filter((e): e is string => typeof e === "string")
-      : [],
+    practice: mapMomentPractice(r.practice),
   };
 }
 
@@ -74,6 +93,29 @@ export async function fetchMomentRead(
     return mapMomentRead(await res.json().catch(() => null));
   } catch {
     return null;
+  }
+}
+
+/** PUT …/practice-judgement: the coach's answer on the speaker's chosen
+ *  practice recording (Q6). Behind the same blind gate as Read. */
+export async function judgePractice(
+  sessionId: string,
+  snippetId: string,
+  answer: AnswerValue,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/practice-judgement`,
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer }),
+      },
+    );
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 

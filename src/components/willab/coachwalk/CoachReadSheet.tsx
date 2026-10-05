@@ -13,11 +13,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
-import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
+import { fetchMomentRead, judgePractice, type MomentPractice, type MomentRead } from "@/services/api/coachWalk";
 import { answerCoachExerciseRequest, type CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
 import { answerWord, kindWord, type AnswerValue } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 import CoachPreferenceBox from "./CoachPreferenceBox";
+import CoachJudgeInstrument from "./CoachJudgeInstrument";
 
 const PILL =
   "flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
@@ -79,6 +80,39 @@ function AnswerChips({
   );
 }
 
+/** Q6 (founder 2026-10-05): the coach's answer on the speaker's chosen
+ *  practice recording, with the same instrument as the Judge screen (A1).
+ *  The machine's read of the attempt is never shown (BLIND COACH). */
+function PracticeJudge({ pseudonym, practice, sessionId, snippetId }: {
+  pseudonym: string; practice: MomentPractice; sessionId: string; snippetId: string;
+}) {
+  const [value, setValue] = useState<AnswerValue | null>(practice.coachAnswer);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function pick(answer: AnswerValue): Promise<void> {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    const ok = await judgePractice(sessionId, snippetId, answer);
+    setSaving(false);
+    if (ok) setValue(answer);
+    else setError(COPY.judgeFail);
+  }
+  return (
+    <Box eyebrow={COPY.readPractice(pseudonym)}>
+      <div data-testid="coach-read-practice">
+        <CoachJudgeInstrument
+          clip={practice.audioRef ? { src: practice.audioRef, startOffsetMs: 0, durationMs: practice.durationMs } : null}
+          value={value}
+          saving={saving}
+          error={error}
+          onPick={(answer) => void pick(answer)}
+        />
+      </div>
+    </Box>
+  );
+}
+
 function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, onMakeNew }: {
   pseudonym: string; read: MomentRead; coachAnswer: AnswerValue | null;
   sessionId: string; snippetId: string; onMakeNew: () => void;
@@ -110,6 +144,10 @@ function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, onMakeNe
           {libraryLine(read.request)}
         </span>
       </Box>
+      {read.practice ? (
+        <PracticeJudge pseudonym={pseudonym} practice={read.practice}
+          sessionId={sessionId} snippetId={snippetId} />
+      ) : null}
       {/* Phase 1b (F8): drawn only when the backend serves it. */}
       <CoachPreferenceBox sessionId={sessionId} snippetId={snippetId} onMakeNew={onMakeNew} />
       {read.speakerGoal ? (
