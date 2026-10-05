@@ -279,6 +279,25 @@ function PractiseCardView({
   );
 }
 
+/** KEEP MY WORDS (29b, Q3 A): the owner's `keep_wording` response on the
+ *  rewrite, the same fields the accept path sends. Never throws. */
+export async function recordKeepWording(item: DocumentSuggestion): Promise<void> {
+  if (!item.takeSessionId || !item.feedbackFamily) return;
+  try {
+    await saveTakeFeedbackResponse({
+      takeSessionId: item.takeSessionId,
+      feedbackId: item.id,
+      feedbackFamily: item.feedbackFamily,
+      response: "keep_wording",
+      candidateId: item.candidateId,
+      feedbackMembershipId: item.feedbackMembershipId,
+      feedbackExposureId: item.feedbackExposureId,
+    });
+  } catch {
+    // The walk goes on; a lost decline only means the rewrite may return.
+  }
+}
+
 /* ---- accept the rewrite (29b) ------------------------------------------- */
 
 /** ACCEPT AND PRACTISE (founder 2026-09-30, C11; contract 29b): the owner's
@@ -911,6 +930,10 @@ export default function ParagraphSheet({
   /* KEEP MY WORDS (29b): on an In-between, Next as before; below it, the
      practise on the speaker's own words. */
   const keep = () => {
+    // Q3 A (founder 2026-10-05, N48.2): the decline is recorded so the
+    // same rewrite is not offered again until the Paragraph's words change.
+    // Fire and forget: the walk never waits on it and nothing is drawn.
+    if (card?.kind === "rewrite") void recordKeepWording(card.item);
     if (judgement === "in_between" || !moment) next();
     else practiseHandler?.(moment, judgement, "own");
   };
