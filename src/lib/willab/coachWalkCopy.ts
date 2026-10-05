@@ -84,6 +84,8 @@ export const COACH_WALK_COPY = {
   readLibraryAnsweredShared: "You answered this moment and shared it.",
   readLibraryNothingToAdd: "You had nothing to add.",
   readGoal: (pseudonym: string) => `${pseudonym}’s goal`,
+  /** Q6 (founder 2026-10-05): the speaker's chosen practice recording. */
+  readPractice: (pseudonym: string) => `${pseudonym}’s practice`,
   readNoRequest: "Nothing reached you from this moment.",
   readLoading: "Reading the moment…",
   readFail: "Couldn’t read the moment.",
