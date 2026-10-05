@@ -50,13 +50,6 @@ import {
   savePracticeHelperWords,
   type PracticeAnswer,
 } from "@/services/api/confidentVoicePractice";
-import {
-  Mlc3ConfidenceQuestion,
-  Mlc3ExerciseStep,
-  serviceExerciseSettled,
-} from "@/components/willab/Mlc3FirstClientPractice";
-import { usePracticeFlow } from "@/components/willab/usePracticeFlow";
-import { mlc3FirstClientPresentationEnabled } from "@/services/api/mlc3FirstClient";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import RootingPhraseQualificationActions from "@/components/willab/RootingPhraseQualificationActions";
@@ -315,21 +308,18 @@ function libraryVideoOpens(
 }
 
 /** Whether the "your coach is working on it" rung is on the ladder: no
- *  exercise rung of either kind, not the MLC-3 service lane (its answer goes
- *  through the service route, which raises nothing), a bookmark to say it
- *  about, and an answer that makes it an error (`sendsToCoach`). Pure, for
- *  the complexity ratchet. */
+ *  exercise rung, a bookmark to say it about, and an answer that makes it an
+ *  error (`sendsToCoach`). The MLC-3 service lane that used to be the third
+ *  case here was retired with its loop (founder 2026-09-30, L8; contract
+ *  66). Pure, for the complexity ratchet. */
 function coachSentenceOpens(
   judgement: RootGateAnswer,
   lane: {
     exerciseItem: DocumentSuggestion | null;
-    serviceItem: DocumentSuggestion | null;
-    servicePractise: boolean;
     noticeItem: DocumentSuggestion | null;
   },
 ): boolean {
-  if (lane.exerciseItem !== null || lane.serviceItem !== null) return false;
-  if (lane.servicePractise || lane.noticeItem === null) return false;
+  if (lane.exerciseItem !== null || lane.noticeItem === null) return false;
   return sendsToCoach(judgement, lane.noticeItem);
 }
 
@@ -376,27 +366,6 @@ function footerSaving(busy: boolean, footer: { saving?: boolean }): boolean {
  *  the step's own icon. Pure, for the ratchet. */
 function pillIcon(saving: boolean, icon: React.ReactNode): React.ReactNode {
   return saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon;
-}
-
-/** The footer of the MLC-3 exercise rung. Pure, so the sheet's own function
- *  does not grow a branch for it (complexity ratchet). */
-function serviceExerciseFooter(
-  settled: boolean,
-  advance: () => void,
-): {
-  pill: string | null;
-  icon: React.ReactNode;
-  pillDisabled?: boolean;
-  onPill?: () => void;
-  links: { label: string; onClick: () => void; disabled?: boolean }[];
-} {
-  return {
-    pill: COPY.pillDone,
-    icon: <Check className="h-4 w-4" aria-hidden />,
-    pillDisabled: !settled,
-    onPill: advance,
-    links: [{ label: COPY.linkSkip, onClick: advance }],
-  };
 }
 
 /** The footer of every feedback screen on a SUPERSEDED Take: read-only, so
@@ -569,23 +538,6 @@ export default function DeckChunkModal({
     [feedbackInventory],
   );
 
-  /** THE SERVED CONFIDENT VOICE ITEM (V3). Its answer goes through the MLC-3
-   *  service route rather than the legacy one, and its exercise is the
-   *  service's frozen offer rather than the catalogue practice above. The flow
-   *  is owned HERE, not by the question screen: answering advances the ladder
-   *  and unmounts that screen, and the offer, session and attempts must
-   *  survive the move to the exercise rung. */
-  const serviceItem = useMemo(
-    () =>
-      mlc3FirstClientPresentationEnabled
-        ? feedbackInventory.find(
-            (item) => isConfidentVoiceFeedback(item) && item.firstClientService,
-          ) ?? null
-        : null,
-    [feedbackInventory],
-  );
-  const service = usePracticeFlow(serviceItem);
-
   /* NOT frozen, and the difference matters. The inventory above is frozen so a
      REFETCH cannot lengthen the ladder under a speaker halfway down it. This
      list still has to answer to the speaker's OWN answers: emphasis appears
@@ -595,10 +547,7 @@ export default function DeckChunkModal({
      was preventing. */
   const practiseOffered = usePractiseOffered();
   const buildSteps = useCallback(
-    (
-      judgementValue: RootGateAnswer,
-      servicePractise: boolean = service.exerciseAllowed,
-    ): ChunkStep[] =>
+    (judgementValue: RootGateAnswer): ChunkStep[] =>
       buildChunkSteps({
         inventory: feedbackInventory,
         // THE LIBRARY VIDEO SHOWS ON In-between, No AND Not sure (the
@@ -611,21 +560,12 @@ export default function DeckChunkModal({
         // any answer but Audio unclear.
         canPractise: whenPractiseOffered(
           practiseOffered, libraryVideoOpens(judgementValue, exerciseItem)),
-        // The service rung exists only once the server has said the answer
-        // may carry an offer — passed in explicitly on the advance that the
-        // answer causes, because the flow's own state has not re-rendered yet.
-        canPractiseService: whenPractiseOffered(
-          practiseOffered, exerciseItem === null && servicePractise),
         // NOTHING TO PRACTISE, SO THE COACH HAS IT (founder 2026-09-29): a
         // No sends the bookmark to the coach whatever was recognised; a Yes,
         // In-between or Not sure sends it when a problem was recognised and
         // nothing targets it. The sheet says so rather than ending, and the
         // helper-words step still follows on the three. Audio unclear closes.
-        // Not on the MLC-3 service lane: its answer goes through the service
-        // route, which raises nothing, so the sentence would not be true.
-        canNotice: coachSentenceOpens(judgementValue, {
-          exerciseItem, serviceItem, servicePractise, noticeItem,
-        }),
+        canNotice: coachSentenceOpens(judgementValue, { exerciseItem, noticeItem }),
         // Nothing to emphasise on an empty paragraph, and nothing to choose on
         // one already locked and settled — that sheet is a single Discard.
         //
@@ -666,8 +606,6 @@ export default function DeckChunkModal({
       exerciseItem,
       practiseOffered,
       noticeItem,
-      serviceItem,
-      service.exerciseAllowed,
       chunk.part.text,
       chunk.part.locked,
       styleSuggestion,
@@ -733,11 +671,8 @@ export default function DeckChunkModal({
    *  gets asked which words to emphasise. Building the list from the new
    *  answer is the difference between "the step appears" and "the step is
    *  skipped forever". */
-  function advanceStep(
-    withJudgement: RootGateAnswer = judgement,
-    withServicePractise: boolean = service.exerciseAllowed,
-  ): void {
-    const list = buildSteps(withJudgement, withServicePractise);
+  function advanceStep(withJudgement: RootGateAnswer = judgement): void {
+    const list = buildSteps(withJudgement);
     const at = list.findIndex((entry) => entry.id === stepId);
     const next = list[at + 1];
     /* THE LADDER CAN NOW END SOMEWHERE THAT IS NOT THE LOCK (founder
@@ -1317,30 +1252,6 @@ export default function DeckChunkModal({
     advanceStep(value);
   }
 
-  /** THE V3 ANSWER, handed back by the question screen (founder 2026-09-21,
-   *  "instead of a Done button simply instant acceptance"). The screen saved
-   *  it through the service route; this is the one message the sheet was not
-   *  getting — so the ladder stood still with no pill and no emphasis rung.
-   *  Same three effects as the legacy `sendAgreement`, then the advance. */
-  function onServiceAnswered(
-    value: ConfidenceRatingValue,
-    exerciseAllowed: boolean,
-  ): void {
-    setAgreeValue(value);
-    setAgreeSaved(true);
-    // THE ROW STATUS STAYS COLLAPSED; THE ROOTING GATE NO LONGER IS.
-    // `judgedStatus` answers "did they accept this suggestion", which only a
-    // Yes does, so that mapping is unchanged. The rooting step asks something
-    // else — which words matter — and now reads the answer the speaker
-    // actually gave, so "Not sure" stops being indistinguishable from "No"
-    // and from "Audio unclear" (F-4).
-    if (serviceItem) {
-      reportJudged(serviceItem, value === "yes" ? "yes" : "other");
-    }
-    setJudgement(value);
-    advanceStep(value, exerciseAllowed);
-  }
-
   /** One place turns a judgement into the row status the host keeps. */
   function reportJudged(
     item: DocumentSuggestion,
@@ -1576,15 +1487,6 @@ export default function DeckChunkModal({
       };
     }
     if (step.kind === "exercise") {
-      // THE SERVICE RUNG draws its own inner actions (self-voice check, the
-      // offer, record, preference) and the sheet's footer is the way past it:
-      // Done once there is nothing left on the screen, Not now at any time.
-      if (step.id === "service_exercise") {
-        return serviceExerciseFooter(
-          serviceExerciseSettled(service),
-          () => advanceStep(),
-        );
-      }
       // THE COACH HAS IT: nothing to practise yet, so the only way on is on.
       if (step.id === "coach_request") {
         return {
@@ -1697,14 +1599,7 @@ export default function DeckChunkModal({
             compact
           />
         ) : null}
-        {mlc3FirstClientPresentationEnabled &&
-        suggestion.firstClientService ? (
-          <Mlc3ConfidenceQuestion
-            flow={service}
-            question={COPY.confidenceQuestion}
-            onAnswered={onServiceAnswered}
-          />
-        ) : !agreeSaved ? (
+        {!agreeSaved ? (
           <ConfidenceLabelChips
             question={COPY.confidenceQuestion}
             value={agreeValue}
@@ -1724,11 +1619,6 @@ export default function DeckChunkModal({
       sheet. There is NO coach note anywhere here: what a review
       produces is an exercise matched to this exact clip (§3). */
   function renderExerciseStep(): React.ReactNode {
-    if (step.id === "service_exercise") {
-      return serviceItem ? (
-        <Mlc3ExerciseStep flow={service} suggestion={serviceItem} />
-      ) : null;
-    }
     if (step.id === "coach_request") {
       /* THE SAME SCREEN, WITH THE SENTENCE WHERE THE VIDEO AND INSTRUCTION
          WOULD BE (founder 2026-09-29): the bookmark went to the coach. Your

@@ -30,10 +30,6 @@ vi.mock("@/hooks/useVisibleLearningExposure", () => ({
 vi.mock("@/components/results/MediaPlayer", () => ({
   default: () => createElement("div"),
 }));
-vi.mock("@/services/api/mlc3FirstClient", async (load) => {
-  const actual = await load<typeof import("@/services/api/mlc3FirstClient")>();
-  return { ...actual, mlc3FirstClientPresentationEnabled: false };
-});
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
 }));

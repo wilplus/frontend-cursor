@@ -18,8 +18,10 @@ const modal = read("src/components/willab/DeckChunkModal.tsx");
 const exercise = read("src/components/willab/useConfidenceExercise.ts");
 const lounge = read("src/components/willab/Lounge.tsx");
 const api = read("src/services/api/confidentVoicePractice.ts");
-const firstClient = read("src/components/willab/Mlc3FirstClientPractice.tsx");
-const practiceFlow = read("src/components/willab/usePracticeFlow.ts");
+/* The speaker sheet's MLC-3 service lane (Mlc3FirstClientPractice.tsx and
+   usePracticeFlow.ts) was removed with the retired loop (founder 2026-09-30,
+   L8; contract 66; audit ML-15). What remains of its client serves the
+   Confident Moment bundle's exercise panel; its request-shape fences stay. */
 const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
 const steps = read("src/lib/willab/chunkSteps.ts");
 
@@ -79,15 +81,7 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(lounge).toContain("<ConfidencePracticeOverlay");
   });
 
-  it("keeps unresolved capture bytes and identity until exact replay succeeds", () => {
-    expect(practiceFlow).toContain("const captureId = freshId()");
-    expect(practiceFlow).toContain("capture.idempotencyKey");
-    expect(practiceFlow).toContain("capture.audio ??= audio");
-    expect(practiceFlow).toContain("setRetryPending(true)");
-    expect(firstClient).toContain('"Retry saving"');
-    expect(practiceFlow).toContain("if (activeCapture.current)");
-    expect(practiceFlow).not.toContain("nextAttemptIndex");
-    expect(practiceFlow).not.toContain("const attemptIndex = attempts.length + 1");
+  it("never invents an attempt index and keeps the real capture times", () => {
     expect(firstClientApi).not.toContain('form.append("attempt_index"');
     expect(firstClientApi).toContain('form.append("capture_completed_at", captureCompletedAt)');
     expect(firstClientApi).not.toContain(
@@ -95,15 +89,7 @@ describe("Confident Voice micro-practice journey fences", () => {
     );
   });
 
-  it("requires an explicit self-voice action for each comparison recording", () => {
-    expect(firstClient).toContain("Is this your voice in this recording?");
-    expect(firstClient).toContain("Yes, this is my voice");
-    expect(firstClient).toContain("Not sure or someone else");
-    expect(firstClient).toContain("It is not a confidence score");
-    expect(practiceFlow).toContain("confirmSourceSelfSpeaker");
-    expect(practiceFlow).toContain("confirmPracticeSelfSpeaker");
-    expect(practiceFlow).toContain('setSourceSpeakerState("declined")');
-    expect(practiceFlow).toContain("speakerConfirmationRequired");
+  it("asserts only the affirmative self-voice action", () => {
     expect(firstClientApi).toContain('assertion: "this_is_my_voice"');
     expect(firstClientApi).not.toContain('assertion: "not_my_voice"');
   });

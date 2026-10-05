@@ -107,28 +107,20 @@ describe("the ladder", () => {
     expect(steps.map((s) => s.kind)).toEqual(["praise", "lock"]);
   });
 
-  it("adds the service exercise rung only when the server allowed one", () => {
-    const allowed = buildChunkSteps({
+  it("has no MLC-3 service rung: that loop was retired (L8, contract 66)", () => {
+    const steps = buildChunkSteps({
       inventory: [confidence],
-      canPractiseService: true,
       canEmphasise: true,
     });
-    expect(allowed.map((s) => s.id)).toEqual([
-      "cv", "service_exercise", "emphasis", "lock",
-    ]);
-    const refused = buildChunkSteps({
-      inventory: [confidence],
-      canPractiseService: false,
-      canEmphasise: true,
-    });
-    expect(refused.map((s) => s.kind)).toEqual(["feedback", "emphasis", "lock"]);
+    expect(steps.map((s) => s.kind)).toEqual(["feedback", "emphasis", "lock"]);
+    expect(steps.map((s) => s.id)).not.toContain("service_exercise");
   });
 
   it("never holds two exercise rungs (24f: one exercise per Take)", () => {
     const both = buildChunkSteps({
       inventory: [confidence],
       canPractise: true,
-      canPractiseService: true,
+      canNotice: true,
       canEmphasise: false,
     });
     expect(both.filter((s) => s.kind === "exercise").map((s) => s.id)).toEqual([
@@ -368,7 +360,7 @@ describe("closesLock — No and Audio unclear end the ladder early", () => {
 });
 
 describe("the coach-request rung (founder 2026-09-29)", () => {
-  it("takes the exercise slot only when neither exercise rung exists", () => {
+  it("takes the exercise slot only when no exercise rung exists", () => {
     const inventory = [
       { id: "cv", feedbackFamily: "confident_voice", source: "confident_voice" },
     ] as unknown as DocumentSuggestion[];
@@ -377,7 +369,6 @@ describe("the coach-request rung (founder 2026-09-29)", () => {
         .map((s) => s.id);
     expect(ids({ canNotice: true })).toEqual(["cv", "coach_request"]);
     expect(ids({ canNotice: true, canPractise: true })).toEqual(["cv", "exercise"]);
-    expect(ids({ canNotice: true, canPractiseService: true })).toEqual(["cv", "service_exercise"]);
     expect(ids({ canNotice: false })).toEqual(["cv"]);
   });
 });

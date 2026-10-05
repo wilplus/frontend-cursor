@@ -1,26 +1,17 @@
+/* -------------------------------------------------------------------------- */
+/*  WHAT IS LEFT OF THE RETIRED MLC-3 SERVICE LOOP'S CLIENT (audit ML-15,      */
+/*  2026-10-05). The founder retired the loop on 2026-09-30 (L8; contract 66): */
+/*  every path under /v2/user/mlc3 answers 410, except the Confident Moment    */
+/*  bundle's read-only correlation route (confidentMomentBundles.ts). The      */
+/*  speaker sheet's service lane (its question, its exercise rung, the         */
+/*  usePracticeFlow hook and the NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED flag) is  */
+/*  gone. What stays are the calls the bundle's exercise panel still makes     */
+/*  (ConfidentMomentExercisePanel, behind NEXT_PUBLIC_CONFIDENT_MOMENT_        */
+/*  BUNDLE_V1_ENABLED and the confident_moment_bundles ring): they reach       */
+/*  retired routes and fail closed. Whether the bundle keeps an exercise       */
+/*  panel at all is the founder's decision; until then nothing here is new.   */
+/* -------------------------------------------------------------------------- */
 import { getAuthToken } from "@/lib/api/auth-client";
-
-export const mlc3FirstClientPresentationEnabled =
-  process.env.NEXT_PUBLIC_MLC3_SERVICE_UI_ENABLED === "true";
-
-export type FiveStateConfidence =
-  | "confident_yes"
-  | "confident_in_between"
-  | "confident_no"
-  | "confident_not_sure"
-  | "confident_audio_unclear";
-
-export interface ServiceFeedbackIdentity {
-  projectId: string;
-  takeId: string;
-  membershipId: string;
-  candidateId: string;
-  feedbackExposureId: string;
-  contentIdentitySha256: string;
-  n1CandidateSetId: string;
-  authorizationCheckId: string;
-  sourceAcquisitionReceiptId: string;
-}
 
 export interface ServiceExerciseOffer {
   id: string;
@@ -72,16 +63,6 @@ export interface ServiceSpeakerTarget {
   replayed: boolean;
   meaning: "identity_routing_only";
   datasetEligible: false;
-}
-
-export interface ServiceCoachGuidance {
-  attachmentVersionId: string;
-  feedbackCandidateId: string;
-  attachmentClass: "general_product_guidance" | "mlc3_exercise";
-  writtenNote: string | null;
-  mediaUrl: string | null;
-  mediaContentType: string | null;
-  versionSha256: string;
 }
 
 type ApiResult<T> =
@@ -160,56 +141,6 @@ function mapOffer(raw: Record<string, unknown>): ServiceExerciseOffer | null {
   };
 }
 
-export async function confirmFeedbackRender(
-  identity: ServiceFeedbackIdentity,
-  renderInstanceId: string,
-  clientVersion: string,
-  idempotencyKey: string,
-): Promise<ApiResult<{ render_receipt_id: string }>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  return request("feedback/render", {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      membership_id: identity.membershipId,
-      candidate_id: identity.candidateId,
-      feedback_exposure_id: identity.feedbackExposureId,
-      render_instance_id: renderInstanceId,
-      content_identity_sha256: identity.contentIdentitySha256,
-      rendered_at: new Date().toISOString(),
-      client_version: clientVersion,
-    }),
-  });
-}
-
-export async function answerServiceFeedback(
-  identity: ServiceFeedbackIdentity,
-  renderReceiptId: string,
-  response: FiveStateConfidence,
-  idempotencyKey: string,
-): Promise<ApiResult<{
-  response_binding_id: string;
-  response: FiveStateConfidence;
-  exercise_offer_allowed: boolean;
-}>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  return request("feedback/respond", {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      project_id: identity.projectId,
-      take_id: identity.takeId,
-      membership_id: identity.membershipId,
-      candidate_id: identity.candidateId,
-      feedback_exposure_id: identity.feedbackExposureId,
-      render_receipt_id: renderReceiptId,
-      response,
-    }),
-  });
-}
-
 function mapSpeakerTarget(value: unknown): ServiceSpeakerTarget | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -229,112 +160,6 @@ function mapSpeakerTarget(value: unknown): ServiceSpeakerTarget | null {
     meaning: row.meaning,
     datasetEligible: false,
   };
-}
-
-export async function confirmSourceSelfSpeaker(
-  identity: ServiceFeedbackIdentity,
-  idempotencyKey: string,
-): Promise<ApiResult<ServiceSpeakerTarget>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  const result = await request<Record<string, unknown>>("feedback/speaker", {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      membership_id: identity.membershipId,
-      candidate_id: identity.candidateId,
-      assertion: "this_is_my_voice",
-    }),
-  });
-  if (!result.ok) return result;
-  const target = mapSpeakerTarget(result.value);
-  return target ? { ok: true, value: target } : { ok: false, error: null };
-}
-
-export async function createServiceExerciseOffer(
-  identity: ServiceFeedbackIdentity,
-  feedbackResponseBindingId: string,
-  idempotencyKey: string,
-): Promise<ApiResult<ServiceExerciseOffer>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  const result = await request<Record<string, unknown>>("exercise-offers", {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      feedback_response_binding_id: feedbackResponseBindingId,
-      n1_candidate_set_id: identity.n1CandidateSetId,
-      authorization_check_id: identity.authorizationCheckId,
-    }),
-  });
-  if (!result.ok) return result;
-  const offer = mapOffer(result.value);
-  return offer ? { ok: true, value: offer } : { ok: false, error: null };
-}
-
-export async function fetchServiceCoachGuidance(
-  membershipId: string,
-  idempotencyKey: string,
-): Promise<ApiResult<ServiceCoachGuidance[]>> {
-  const auth = await headers(idempotencyKey, false);
-  if (!auth) return { ok: false, error: null };
-  const result = await request<Record<string, unknown>>(
-    `guidance/${encodeURIComponent(membershipId)}`,
-    { method: "GET", headers: auth },
-  );
-  if (!result.ok) return result;
-  if (!Array.isArray(result.value.attachments)) {
-    return { ok: false, error: null };
-  }
-  const attachments: ServiceCoachGuidance[] = [];
-  for (const raw of result.value.attachments) {
-    if (!raw || typeof raw !== "object") return { ok: false, error: null };
-    const row = raw as Record<string, unknown>;
-    if (
-      typeof row.attachment_version_id !== "string" ||
-      typeof row.feedback_candidate_id !== "string" ||
-      (row.attachment_class !== "general_product_guidance" &&
-       row.attachment_class !== "mlc3_exercise") ||
-      (row.written_note !== null && typeof row.written_note !== "string") ||
-      (row.media_url !== null && typeof row.media_url !== "string") ||
-      (row.media_content_type !== null &&
-       typeof row.media_content_type !== "string") ||
-      typeof row.version_sha256 !== "string" || row.serves_user !== true ||
-      row.dataset_eligible !== false
-    ) return { ok: false, error: null };
-    attachments.push({
-      attachmentVersionId: row.attachment_version_id,
-      feedbackCandidateId: row.feedback_candidate_id,
-      attachmentClass: row.attachment_class,
-      writtenNote: row.written_note as string | null,
-      mediaUrl: row.media_url as string | null,
-      mediaContentType: row.media_content_type as string | null,
-      versionSha256: row.version_sha256,
-    });
-  }
-  return { ok: true, value: attachments };
-}
-
-export async function recordServiceCoachGuidanceEvent(
-  attachmentVersionId: string,
-  eventKind: "rendered" | "played",
-  renderInstanceId: string | null,
-  idempotencyKey: string,
-): Promise<ApiResult<{ event_id: string; event_kind: string }>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  return request(
-    `guidance/${encodeURIComponent(attachmentVersionId)}/events`,
-    {
-      method: "POST",
-      headers: auth,
-      body: JSON.stringify({
-        event_kind: eventKind,
-        render_instance_id: eventKind === "rendered" ? renderInstanceId : null,
-        event_payload: {},
-      }),
-    },
-  );
 }
 
 export async function fetchServiceExerciseOffer(
@@ -374,22 +199,6 @@ export async function recordServiceEvent(
       content_identity_sha256: contentIdentitySha256,
       event_payload: {},
       occurred_at: new Date().toISOString(),
-    }),
-  });
-}
-
-export async function createServicePracticeSession(
-  offerId: string,
-  identity: ServiceFeedbackIdentity,
-  idempotencyKey: string,
-): Promise<ApiResult<{ practice_session_id: string }>> {
-  const auth = await headers(idempotencyKey);
-  if (!auth) return { ok: false, error: null };
-  return request(`exercise-offers/${encodeURIComponent(offerId)}/practice-sessions`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      source_acquisition_receipt_id: identity.sourceAcquisitionReceiptId,
     }),
   });
 }
