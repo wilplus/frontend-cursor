@@ -8,6 +8,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { COACH_WALK_COPY } from "./coachWalkCopy";
+import { DEFAULT_DECK } from "./defaultDeck";
 
 export type MomentState = keyof typeof COACH_WALK_COPY.state;
 export type MomentKind = keyof typeof COACH_WALK_COPY.kind;
@@ -159,4 +160,34 @@ export function afterNothingToAdd(moment: QueueMoment): QueueMoment {
 
 export function replaceMoment(moments: QueueMoment[], next: QueueMoment): QueueMoment[] {
   return moments.map((m) => (m.snippetId === next.snippetId ? next : m));
+}
+
+/** The slide on the Read screen, as a thumbnail (founder 2026-09-30, B5: the
+ *  slide-mapping control is gone; "the slide itself can stay as a thumbnail
+ *  on Read"). `pageIndex` is the deck page the speaker had on screen when the
+ *  moment began, from the tap timeline; `presentationRef` is the take's PDF,
+ *  or null for the default deck. */
+export interface ReadSlide {
+  presentationRef: string | null;
+  pageIndex: number;
+}
+
+/** Which picture Read may show for a moment, or null for none. Pure.
+ *
+ *  Only a picture the speaker actually had: a page of the take's own PDF, or,
+ *  for a deckless take, the default deck's slide, recognised by its title
+ *  (the default deck is what a deckless speaker clicks through). A deck typed
+ *  in by hand has no picture behind it, so it draws nothing rather than the
+ *  default deck's artwork. The slide's words are never drawn as a stand-in. */
+export function readSlideFor(
+  presentationRef: string | null,
+  slide: { index: number; title: string } | null,
+): ReadSlide | null {
+  if (!slide || !Number.isInteger(slide.index) || slide.index < 0) return null;
+  if (presentationRef) return { presentationRef, pageIndex: slide.index };
+  const mock = DEFAULT_DECK[slide.index];
+  if (mock?.artworkSrc && mock.title === slide.title) {
+    return { presentationRef: null, pageIndex: slide.index };
+  }
+  return null;
 }

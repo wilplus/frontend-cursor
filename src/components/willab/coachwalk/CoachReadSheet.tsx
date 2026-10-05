@@ -8,14 +8,19 @@
 /*  speaker's goal. Two actions: Answer, Nothing to add. Everything here is a  */
 /*  word; no count of anything reaches the screen (AC-9). The backend answers  */
 /*  409 before the rating, so this screen cannot draw early.                   */
+/*                                                                            */
+/*  B5 (founder 2026-09-30): the slide the speaker had on screen stays, as a  */
+/*  thumbnail at the top, here and never on the Judge screen before it. The   */
+/*  slide-mapping control that once sat beside it is gone for good.           */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useState, type ReactNode } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
+import DeckSlidePreview from "../DeckSlidePreview";
 import { fetchMomentRead, judgePractice, type MomentPractice, type MomentRead } from "@/services/api/coachWalk";
 import { answerCoachExerciseRequest, type CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
-import { answerWord, kindWord, type AnswerValue } from "@/lib/willab/coachWalk";
+import { answerWord, kindWord, type AnswerValue, type ReadSlide } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 import CoachPreferenceBox from "./CoachPreferenceBox";
 import CoachJudgeInstrument from "./CoachJudgeInstrument";
@@ -113,13 +118,19 @@ function PracticeJudge({ pseudonym, practice, sessionId, snippetId }: {
   );
 }
 
-function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, onMakeNew }: {
+function ReadBody({ pseudonym, read, coachAnswer, sessionId, snippetId, slide, onMakeNew }: {
   pseudonym: string; read: MomentRead; coachAnswer: AnswerValue | null;
-  sessionId: string; snippetId: string; onMakeNew: () => void;
+  sessionId: string; snippetId: string; slide: ReadSlide | null; onMakeNew: () => void;
 }) {
   const spotted = read.request?.spotted ?? [];
   return (
     <>
+      {slide ? (
+        <div data-testid="coach-read-slide">
+          <DeckSlidePreview presentationRef={slide.presentationRef} pageIndex={slide.pageIndex}
+            size="thumb" className="" />
+        </div>
+      ) : null}
       <AnswerChips pseudonym={pseudonym} read={read} coachAnswer={coachAnswer} />
       {read.passage ? (
         <p className="font-serif text-[17px] leading-[1.5] text-foreground" data-testid="coach-read-passage">
@@ -169,6 +180,7 @@ export default function CoachReadSheet({
   onAnswer,
   onNothingToAdd,
   onNext,
+  slide = null,
   railed = false,
 }: {
   sessionId: string;
@@ -177,6 +189,9 @@ export default function CoachReadSheet({
   pager: Pager;
   /** The rating just saved on this walk, before the read confirms it. */
   coachAnswer: AnswerValue | null;
+  /** The slide the speaker had on screen, drawn as a thumbnail (B5); null
+   *  when the take has no picture for this moment. */
+  slide?: ReadSlide | null;
   onClose: () => void;
   /** Answer opens the coach's answer for this request (screens 4 to 6). */
   onAnswer: (request: CoachExerciseRequest, read: MomentRead) => void;
@@ -244,7 +259,7 @@ export default function CoachReadSheet({
           <p role="alert" className="text-[14px] text-muted-foreground">{COPY.readFail}</p>
         ) : (
           <ReadBody pseudonym={pseudonym} read={read} coachAnswer={coachAnswer}
-            sessionId={sessionId} snippetId={snippetId}
+            sessionId={sessionId} snippetId={snippetId} slide={slide}
             onMakeNew={() => { if (read.request && requestOpen(read.request)) onAnswer(read.request, read); }} />
         )}
       </div>
