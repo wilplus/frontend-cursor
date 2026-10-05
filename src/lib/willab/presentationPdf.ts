@@ -1,4 +1,7 @@
-import { parseRichSpans } from "@/lib/willab/richMarkers";
+import {
+  idealTextSegments,
+  type IdealTextSegment,
+} from "@/lib/willab/helperWordSegments";
 import type { PresentationDocumentSlide } from "@/lib/willab/presentationDocument";
 import {
   createPresentationCanvas,
@@ -24,8 +27,9 @@ const ORANGE = "#e56f2d";
 const INK = "#191919";
 const MUTED = "#666666";
 
-function font(size: number, weight = 400): string {
-  return `${weight} ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+function font(size: number, weight = 400, italic = false): string {
+  const style = italic ? "italic " : "";
+  return `${style}${weight} ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 }
 
 function drawWrapped(
@@ -57,9 +61,12 @@ function drawWrapped(
   return atY + lineHeight;
 }
 
+/** One paragraph's text in its own colour: the helper words italic, never
+ *  orange (clause 20, founder 2026-09-26: "the headline is the only
+ *  orange"). */
 function drawIdealText(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  segments: readonly IdealTextSegment[],
   x: number,
   y: number,
   maxWidth: number
@@ -73,11 +80,9 @@ function drawIdealText(
     atY += lineHeight;
   };
 
-  for (const segment of parseRichSpans(text)) {
-    const color = segment.highlight ? ORANGE : INK;
-    const weight = segment.bold ? 650 : 400;
-    ctx.font = font(size, weight);
-    ctx.fillStyle = color;
+  for (const segment of segments) {
+    ctx.font = font(size, segment.bold ? 650 : 400, segment.italics);
+    ctx.fillStyle = INK;
     const tokens = segment.text.split(/(\n|\s+)/).filter((token) => token !== "");
     for (const token of tokens) {
       if (token === "\n") {
@@ -96,7 +101,36 @@ function drawIdealText(
   return atY + lineHeight;
 }
 
-async function slideCanvas(
+/** One thing a slide's text draws: a paragraph's headline, or the paragraph. */
+export type PdfTextBlock =
+  | { kind: "headline"; text: string; flagship: boolean }
+  | { kind: "paragraph"; segments: IdealTextSegment[] };
+
+/** What one slide's text draws, in order: each paragraph's helper words as
+ *  its headline DIRECTLY ABOVE IT, then the paragraph, like a newspaper
+ *  headline over its article (clause 20: "one headline per Paragraph, not
+ *  one per Slide") -- the Word export's order, not every headline first and
+ *  every paragraph after. Pure. */
+export function pdfTextBlocks(
+  rows: PresentationPdfSlide["rows"],
+): PdfTextBlock[] {
+  const out: PdfTextBlock[] = [];
+  for (const row of rows) {
+    const flagship = row.rootType === "flagship";
+    if (row.rootPhrase) {
+      out.push({ kind: "headline", text: row.rootPhrase, flagship });
+    }
+    out.push({
+      kind: "paragraph",
+      segments: idealTextSegments(row.idealText, flagship ? row.rootPhrase : null),
+    });
+  }
+  return out;
+}
+
+/** One slide's page of the PDF. Exported for its test, which draws it on a
+ *  recording canvas. */
+export async function slideCanvas(
   slide: PresentationPdfSlide,
   pdf: PDFDocumentProxy | null
 ): Promise<HTMLCanvasElement> {
@@ -132,25 +166,24 @@ async function slideCanvas(
     y += mock.height + 62;
   }
 
-  for (const row of slide.rows) {
-    y = drawWrapped(
-      ctx,
-      row.rootPhrase,
-      MARGIN,
-      y,
-      contentWidth,
-      48,
-      62,
-      row.rootType === "flagship" ? ORANGE : MUTED,
-      row.rootType === "flagship" ? 700 : 550
-    );
-    y += 14;
-  }
-  y += 34;
-
-  for (const row of slide.rows) {
-    y = drawIdealText(ctx, row.idealText, MARGIN, y, contentWidth);
-    y += 38;
+  for (const block of pdfTextBlocks(slide.rows)) {
+    if (block.kind === "headline") {
+      y = drawWrapped(
+        ctx,
+        block.text,
+        MARGIN,
+        y,
+        contentWidth,
+        48,
+        62,
+        block.flagship ? ORANGE : MUTED,
+        block.flagship ? 700 : 550
+      );
+      y += 14;
+    } else {
+      y = drawIdealText(ctx, block.segments, MARGIN, y, contentWidth);
+      y += 38;
+    }
   }
 
   const finalHeight = Math.max(900, Math.min(WORK_HEIGHT, Math.ceil(y + MARGIN)));
