@@ -396,22 +396,58 @@ function deletedSinceNewest(history: ParagraphHistory, since: number): boolean {
   return held && last !== null && last.length === 0;
 }
 
+/** The Take rows with the accepted corrections placed among them by time
+ *  (founder 2026-10-05, N48.1; C11): each correction goes before the first
+ *  Take written after it, and the Takes keep their order. A correction with
+ *  no words or no readable time is left out, never placed by guess. */
+function versionEntries(
+  history: ParagraphHistory,
+  takeWord: string,
+  correctionWord: string,
+): { label: string; answer: Judgement | null; at: string | null }[] {
+  const entries = history.versions
+    .filter((v) => v.paragraphs.some((p) => p.trim()))
+    .map((v) => ({
+      label: v.takeIndex ? `${takeWord} ${v.takeIndex}` : takeWord,
+      answer: asJudgementValue(v.answer),
+      at: v.at,
+    }));
+  for (const correction of history.corrections ?? []) {
+    const at = time(correction.at);
+    if (!correction.paragraphs.some((p) => p.trim()) || at === Number.NEGATIVE_INFINITY) {
+      continue;
+    }
+    const later = entries.findIndex((e) => time(e.at) > at);
+    entries.splice(later < 0 ? entries.length : later, 0, {
+      label: correctionWord,
+      answer: null,
+      at: correction.at,
+    });
+  }
+  return entries;
+}
+
+/** History rows, newest first. An accepted correction is its own row,
+ *  labelled with the signed `correctionWord` ("Correction accepted"), in
+ *  the same shape as a Take row: the label and the helper words that stood
+ *  while it did; it carries no answer. */
 export function historyRows(
   history: ParagraphHistory | null,
   takeWord: string,
+  correctionWord: string,
 ): HistoryRow[] {
   if (!history) return [];
-  const versions = history.versions.filter((v) => v.paragraphs.some((p) => p.trim()));
+  const versions = versionEntries(history, takeWord, correctionWord);
   const rows = versions.map((v, i) => ({
-    label: v.takeIndex ? `${takeWord} ${v.takeIndex}` : takeWord,
-    answer: asJudgementValue(v.answer),
+    label: v.label,
+    answer: v.answer,
     helperWords: helperWordsBefore(
       history,
       i + 1 < versions.length ? time(versions[i + 1].at) : Number.POSITIVE_INFINITY,
     ),
   }));
-  // Newest first, and the newest itself is the Take on screen, not history
-  // -- unless words saved during it were deleted since (Phase 5).
+  // Newest first, and the newest itself is the version on screen, not
+  // history -- unless words saved during it were deleted since (Phase 5).
   const newest = versions[versions.length - 1];
   const keepNewest = newest ? deletedSinceNewest(history, time(newest.at)) : false;
   return keepNewest ? rows.reverse() : rows.reverse().slice(1);
