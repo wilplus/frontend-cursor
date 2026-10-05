@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { startBillingPortal, startPlanCheckout } from "@/services/api/subscribe";
-import type { TokenPlan, TokenTier } from "@/services/api/tokens";
-import { TOKENS_COPY, formatShortDate, formatTokens } from "./copy";
-import { planControlsFor } from "./planControls";
+import { startPlanCheckout } from "@/services/api/subscribe";
+import type { TokenTier } from "@/services/api/tokens";
+import { TOKENS_COPY, formatTokens } from "./copy";
 
 /* -------------------------------------------------------------------------- */
 /*  TokenPlanCards — the three paid plans as real pricing cards                 */
@@ -37,59 +36,29 @@ import { planControlsFor } from "./planControls";
 /*                                                                            */
 /*  Every tier comes from the BE's served list — names, prices, allowances. The  */
 /*  only thing resolved locally is whether a plan can be BOUGHT, which is a      */
-/*  server capability, not a price.                                             */
+/*  server capability, not a price. Every purchase is a one-time package: there */
+/*  is no subscription to manage and no billing portal (N48.3 Q13 A).           */
 /* -------------------------------------------------------------------------- */
 
 export default function TokenPlanCards({
   tiers,
   currentTier,
-  plan,
 }: {
   /** The served tier list, name → allowance/price. */
   tiers: Record<string, TokenTier>;
-  /** From the balance read. null/unknown is treated as NOT free, so nobody who
-   *  might already be subscribed is offered a second subscription. */
+  /** From the balance read; marks the card the account's tier names. */
   currentTier: string | null;
-  /** The subscription behind the balance, when the BE published one. Null
-   *  degrades to the pre-portal behaviour exactly (see planControls.ts). */
-  plan?: TokenPlan | null;
 }) {
   const [busyTier, setBusyTier] = useState<string | null>(null);
-  const [portalBusy, setPortalBusy] = useState(false);
   // Starts true and only ever goes false, when the server tells us it cannot
   // sell. No probe: the BE owns the price map, so this is discovered on use.
   const [sellable, setSellable] = useState(true);
-  // A 404 from the portal means there is nothing to manage. Hide the button
-  // rather than show an error: nothing went wrong.
-  const [manageable, setManageable] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const controls = planControlsFor(plan ?? null, currentTier);
-
-  const openPortal = async () => {
-    if (portalBusy) return;
-    setPortalBusy(true);
-    setError(null);
-    setNotice(null);
-    const r = await startBillingPortal();
-    if (r.ok) {
-      window.location.assign(r.url);
-      return;
-    }
-    setPortalBusy(false);
-    if (r.reason === "none") {
-      setManageable(false);
-      return;
-    }
-    setError(r.message);
-  };
 
   const buy = async (tier: string) => {
     if (busyTier) return;
     setBusyTier(tier);
     setError(null);
-    setNotice(null);
     const r = await startPlanCheckout(tier);
     if (r.ok) {
       // Stripe's own hosted page collects payment; we never see card details.
@@ -97,13 +66,6 @@ export default function TokenPlanCards({
       return;
     }
     setBusyTier(null);
-    // Already on it: a calm statement, not an error. Nothing failed.
-    // A different live subscription: route to the portal, never retry
-    // checkout — a second session would leave them paying for two plans.
-    if (r.reason === "already" || r.reason === "manage") {
-      setNotice(r.message);
-      return;
-    }
     setError(r.message);
     // A server that cannot sell anything should stop offering: hide the CTAs
     // rather than leave three buttons that will each fail the same way.
@@ -120,7 +82,6 @@ export default function TokenPlanCards({
   if (cards.length === 0) return null;
 
   const free = tiers.free;
-  const endsOnLabel = controls.endsOn ? formatShortDate(controls.endsOn) : null;
 
   return (
     <div className="w-full space-y-4">
@@ -135,15 +96,11 @@ export default function TokenPlanCards({
           const tier = tiers[name];
           const isCurrent = currentTier === name;
           const emphasised = i === 1 && cards.length === 3;
-          // Buyable only when the server can sell it AND no live subscription
-          // exists (planControls owns that question). Offering checkout to a
-          // subscriber would create a SECOND subscription and charge them
-          // twice; switching goes through the billing portal below.
           // Every published paid tier is offered. Only the BE holds the price
           // map, so the FE cannot pre-check sellability without keeping a second
           // copy of it — and a duplicated price → tier map is how someone pays
           // for Pro and is granted Starter. A refusal surfaces inline instead.
-          const canBuy = sellable && controls.canBuy && !isCurrent;
+          const canBuy = sellable && !isCurrent;
 
           return (
             <div
@@ -209,52 +166,14 @@ export default function TokenPlanCards({
         })}
       </div>
 
-      {/* Only when the subscription is genuinely scheduled to end, and only
-          when the date actually formats — an unparseable date renders no line
-          rather than "Your plan ends null". */}
-      {endsOnLabel ? (
-        <p className="text-[13px] text-muted-foreground">
-          {TOKENS_COPY.planEndsOn(endsOnLabel)}
-        </p>
-      ) : null}
-
-      {/* MANAGE — switch, cancel, fix a declined card, invoices. Rendered
-          whenever a Stripe CUSTOMER exists, which outlives the subscription,
-          so someone who cancelled can still reach their receipts. */}
-      {controls.canManage && manageable ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-full"
-          disabled={portalBusy}
-          onClick={() => void openPortal()}
-        >
-          {portalBusy ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              {TOKENS_COPY.walletChoosePlanBusy}
-            </>
-          ) : (
-            TOKENS_COPY.planManageCta
-          )}
-        </Button>
-      ) : null}
-
       {/* One explanation, and only when it is true: nothing configured for
-          sale, or a live plan with no portal to manage it through (an
-          unmigrated DB — the email-support line is the terminal fallback,
-          not the default it used to be). */}
+          sale. */}
       {!sellable ? (
         <p className="text-[12px] text-muted-foreground">
           {TOKENS_COPY.walletUpgradeUnavailable}
         </p>
-      ) : !controls.canBuy && !(controls.canManage && manageable) ? (
-        <p className="text-[12px] text-muted-foreground">
-          {TOKENS_COPY.walletManageUnavailable}
-        </p>
       ) : null}
 
-      {notice ? <p className="text-[12px] text-muted-foreground">{notice}</p> : null}
       {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
     </div>
   );

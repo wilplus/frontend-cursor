@@ -1,5 +1,4 @@
-/* Pins what the plan checkout and billing portal clients answer before and
- * after they move onto bffFetch (audit D5): the
+/* Pins what the package checkout client answers on bffFetch (audit D5): the
  * signed-out, network, refused and success cases, and exactly what each
  * sends. The test environment has no window, so the return URLs carry an
  * empty origin. */
@@ -8,8 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));
 
 import { getAuthToken } from "@/lib/api/auth-client";
-import { TOKENS_COPY } from "@/components/tokens/copy";
-import { startBillingPortal, startPlanCheckout } from "./subscribe";
+import { startPlanCheckout } from "./subscribe";
 
 const token = vi.mocked(getAuthToken);
 const JSON_BEARER = { "Content-Type": "application/json", Authorization: "Bearer tok" };
@@ -63,14 +61,6 @@ describe("startPlanCheckout", () => {
         ok: false, reason: "unavailable", message: "Plans aren't available right now.",
       });
     }
-    stubFetch(409, { code: "ALREADY_ON_TIER" });
-    expect(await startPlanCheckout("pro")).toEqual({
-      ok: false, reason: "already", message: TOKENS_COPY.planAlreadyOnTier,
-    });
-    stubFetch(409, { code: "MANAGE_EXISTING" });
-    expect(await startPlanCheckout("pro")).toEqual({
-      ok: false, reason: "manage", message: TOKENS_COPY.planManageExisting,
-    });
     stubFetch(400, { error: "  Unknown tier.  " });
     expect(await startPlanCheckout("x")).toEqual({
       ok: false, reason: "error", message: "Unknown tier.",
@@ -89,38 +79,6 @@ describe("startPlanCheckout", () => {
     });
     await signedOutSendsNothing(() => startPlanCheckout("pro"), {
       ok: false, reason: "error", message: "Sign in to change your plan.",
-    });
-  });
-});
-
-describe("startBillingPortal", () => {
-  it("posts the return URL and opens the portal", async () => {
-    const fn = stubFetch(200, { portal_url: "https://portal/1" });
-    expect(await startBillingPortal()).toEqual({ ok: true, url: "https://portal/1" });
-    expect(fn).toHaveBeenCalledWith("/api/v2/tokens/portal", {
-      method: "POST",
-      headers: JSON_BEARER,
-      body: JSON.stringify({ return_url: "/dashboard/pricing?plan=managed" }),
-    });
-  });
-
-  it("tells nothing-to-manage and unavailable from a failure", async () => {
-    stubFetch(404, { code: "NO_SUBSCRIPTION" });
-    expect(await startBillingPortal()).toEqual({ ok: false, reason: "none" });
-    stubFetch(503, { code: "DISABLED" });
-    expect(await startBillingPortal()).toEqual({
-      ok: false, reason: "unavailable", message: "Plans aren't available right now.",
-    });
-    stubFetch(500, { error: "boom" });
-    expect(await startBillingPortal()).toEqual({
-      ok: false, reason: "error", message: TOKENS_COPY.planManageFailed,
-    });
-    offline();
-    expect(await startBillingPortal()).toEqual({
-      ok: false, reason: "error", message: TOKENS_COPY.planManageFailed,
-    });
-    await signedOutSendsNothing(startBillingPortal, {
-      ok: false, reason: "error", message: "Sign in to manage your plan.",
     });
   });
 });

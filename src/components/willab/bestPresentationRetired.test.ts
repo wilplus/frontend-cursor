@@ -2,7 +2,7 @@
  * Its card no longer fires and the ones already written hide; every door
  * that opened its overlay (the card, the Library button, /chat?arc=) opens
  * the arc's Ideal Text instead, and the overlay is no longer mounted. */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -37,5 +37,17 @@ describe("the deck ref no longer reads Best Presentation", () => {
     expect(hook).not.toContain("fetchBestPresentation");
     expect(hook).not.toContain("@/services/api/bestPresentation");
     expect(hook).toContain("fetchArcSetup(arcId)");
+  });
+});
+
+describe("the Best Presentation client is gone (N48.3 Q13 A)", () => {
+  it("removes the overlay, the API client and the BFF route", () => {
+    for (const file of [
+      "src/components/willab/BestPresentationOverlay.tsx",
+      "src/services/api/bestPresentation.ts",
+      "src/app/api/v2/explore/arc/[arcId]/best-presentation/route.ts",
+    ]) {
+      expect(existsSync(join(process.cwd(), file)), file).toBe(false);
+    }
   });
 });
