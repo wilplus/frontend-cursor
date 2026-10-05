@@ -21,15 +21,18 @@ export function useParagraphHeadlines(
 }
 
 /** The page's helper words for Presentation Mode and export (F1 Repair Plan
- *  Phase 5), read only while one of them is open. */
+ *  Phase 5). LAST CONFIGURATION (founder 2026-10-05: "export should show the
+ *  paragraphs that stayed, like the last configuration"): read with the page,
+ *  not when Export opens, so a quick download has them; and null until a read
+ *  has succeeded, so the caller knows when the map is the page's whole answer
+ *  (a paragraph absent from it has no helper words) and when it must fall
+ *  back to the document's own. */
 export function useDeliveryHeadlines(
   arcId: string | null,
   document: string,
-  presenting: boolean,
-  exporting: boolean,
-): Map<string, string> {
-  const open = presenting || exporting;
-  return useParagraphHeadlines(open ? arcId : null, document, false);
+): Map<string, string> | null {
+  const read = useHeadlineRead(arcId, document, false, 0);
+  return read.ready ? read.headlines : null;
 }
 
 /** The read itself. `refresh` asks for a fresh read; `readOf` says which
@@ -40,9 +43,9 @@ function useHeadlineRead(
   document: string,
   sheetOpen: boolean,
   refresh: number,
-): { headlines: Map<string, string>; readOf: number } {
-  const [read, setRead] = useState<{ headlines: Map<string, string>; readOf: number }>(
-    () => ({ headlines: new Map(), readOf: -1 }),
+): { headlines: Map<string, string>; readOf: number; ready: boolean } {
+  const [read, setRead] = useState<{ headlines: Map<string, string>; readOf: number; ready: boolean }>(
+    () => ({ headlines: new Map(), readOf: -1, ready: false }),
   );
   useEffect(() => {
     if (!arcId || sheetOpen) return;
@@ -54,6 +57,7 @@ function useHeadlineRead(
       setRead((prev) => ({
         headlines: result.kind === "ready" ? paragraphHeadlines(result.roots) : prev.headlines,
         readOf: refresh,
+        ready: prev.ready || result.kind === "ready",
       }));
     });
     return () => {

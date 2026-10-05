@@ -91,8 +91,11 @@ describe("buildPresentationDocument", () => {
   });
 
   // Phase 5: words saved on the Slide (practice, an earlier Take) reach the
-  // delivery and the export, as the page draws them.
-  it("takes each paragraph's helper words from the page's headlines first", () => {
+  // delivery and the export, as the page draws them. LAST CONFIGURATION
+  // (founder 2026-10-05): once read, the page's words are the whole answer --
+  // a paragraph absent from them (its words deleted) shows none, never the
+  // older words its piece still carries.
+  it("takes each paragraph's helper words from the page's headlines, and only from them", () => {
     const withPart = (p: IdealPiece, partId: string): IdealPiece => ({ ...p, partId });
     const document = buildPresentationDocument({
       text: "Opening words\n\nClosing words",
@@ -104,7 +107,7 @@ describe("buildPresentationDocument", () => {
     });
     const rows = document.flatMap((slide) => slide.rows);
     expect(rows.map((r) => [r.rootPhrase, r.rootType])).toEqual([
-      ["Root 0", "flagship"],
+      ["", "neutral"],
       ["closing words", "flagship"],
     ]);
   });

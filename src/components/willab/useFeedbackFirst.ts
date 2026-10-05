@@ -31,7 +31,9 @@ export function useFeedbackFirst({
   waiting: boolean;
   items: readonly DocumentSuggestion[];
   text: string;
-  onDone: () => void;
+  /** Moved on without an answer; the skipped moment, so the page can settle
+   *  its bar at once (tap and go). */
+  onDone: (skipped: DocumentSuggestion | null) => void;
 }): {
   asking: boolean;
   stopAsking: () => void;
@@ -39,7 +41,8 @@ export function useFeedbackFirst({
 } {
   const [asking, setAsking] = useState(false);
   const on = FEEDBACK_FIRST && waiting;
-  const snippetId = items.find(isConfidentVoiceFeedback)?.snippetId ?? null;
+  const moment = items.find(isConfidentVoiceFeedback) ?? null;
+  const snippetId = moment?.snippetId ?? null;
   const reported = useRef(false);
   useEffect(() => {
     if (!on || !snippetId || reported.current) return;
@@ -57,7 +60,7 @@ export function useFeedbackFirst({
           onJudge: () => setAsking(true),
           onSkip: () => {
             if (snippetId) void reportMomentEvent(snippetId, "skipped");
-            onDone();
+            onDone(moment);
           },
         },
   };

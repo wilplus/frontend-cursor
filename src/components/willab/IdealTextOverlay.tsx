@@ -535,9 +535,9 @@ export default function IdealTextOverlay({
   }, [arcId, analysisPending, refetchNonce, refreshVariants]);
 
   const displayText = notes ?? ideal?.text ?? "";
-  // Phase 5: the page's helper words by part id, read only while delivering
-  // or exporting, so words saved on the Slide reach both.
-  const deliveryHeadlines = useDeliveryHeadlines(arcId, displayText, presenting, exporting);
+  // The page's helper words by part id for Presentation Mode and export,
+  // read with the page so a quick download has them (founder 2026-10-05).
+  const deliveryHeadlines = useDeliveryHeadlines(arcId, displayText);
 
   /* THE DECK'S INPUTS HAVE TO KEEP THEIR IDENTITY (2026-09-19, reported as
    * "very laggy… bugging shaking screen when I scroll" and "it shows part of

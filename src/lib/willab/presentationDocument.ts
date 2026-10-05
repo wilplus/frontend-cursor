@@ -74,9 +74,14 @@ export function buildPresentationDocument({
       candidatePage >= pageCount
         ? null
         : candidatePage;
-    const headline = piece?.partId ? headlines?.get(piece.partId) ?? "" : "";
+    // THE PAGE'S LAST CONFIGURATION (founder 2026-10-05): once the page's
+    // helper words are read, they are the whole answer -- a paragraph whose
+    // words were deleted shows none, never the older words its piece still
+    // carries. The piece's own words stand in only when no read succeeded.
     const own = piece?.rootType === "flagship" ? (piece.rootPhrase ?? "") : "";
-    const rootPhrase = headline || own;
+    const rootPhrase = headlines
+      ? (piece?.partId ? headlines.get(piece.partId) ?? "" : own)
+      : own;
     return {
       page,
       value: {
