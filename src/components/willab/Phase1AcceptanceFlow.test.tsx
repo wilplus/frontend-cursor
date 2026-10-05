@@ -26,7 +26,10 @@ vi.mock("@/services/api/processingAuthorization", async (importOriginal) => ({
 }));
 
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
-import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
+import {
+  acceptAuthorization,
+  type ProcessingPolicy,
+} from "@/services/api/processingAuthorization";
 
 const POLICY: ProcessingPolicy = {
   policyId: "policy-uuid",
@@ -69,12 +72,14 @@ const click = async (text: string) =>
     buttonSaying(text).click();
   });
 
-/** notice -> terms -> privacy -> ai -> country, the way a first-timer walks. */
-async function walkToCountry() {
+/** notice -> terms -> privacy -> ai -> country, the way a first-timer walks.
+ *  `priorCountry` is what a re-accepting person gave last time (Q21 A). */
+async function walkToCountry(priorCountry?: string | null) {
   await act(async () => {
     root.render(
       createElement(Phase1AcceptanceFlow, {
         policy: POLICY,
+        priorCountry,
         onAccepted: () => {},
         onStale: () => {},
       }),
@@ -134,5 +139,63 @@ describe("the confirm step", () => {
       vi.advanceTimersByTime(5000);
     });
     expect(host.textContent).toContain("Two things to confirm");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  ASKED ONCE, PREFILLED AFTER (founder 2026-10-05, N48.4 Q21 A).            */
+/*                                                                            */
+/*  A re-acceptance shows the person's own earlier answer already chosen. It  */
+/*  is not a guess: a first-timer still sees nothing chosen, and a country    */
+/*  the new policy no longer allows is asked again rather than sent to be    */
+/*  refused. The answer stays theirs to change, and nothing advances on its  */
+/*  own: a prefill is not a tap.                                             */
+/* -------------------------------------------------------------------------- */
+
+function chosen(label: string): boolean {
+  return buttonSaying(label).getAttribute("aria-pressed") === "true";
+}
+
+describe("a re-acceptance (Q21 A)", () => {
+  it("shows the earlier country chosen, and sends it", async () => {
+    vi.mocked(acceptAuthorization).mockClear();
+    await walkToCountry("DE");
+    expect(chosen("Germany")).toBe(true);
+    expect(chosen("Poland")).toBe(false);
+    // A prefill is not a tap: the step waits for the person.
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(host.textContent).toContain("Where do you live?");
+    expect(buttonSaying("Continue").disabled).toBe(false);
+
+    await click("Continue");
+    expect(host.textContent).toContain("Two things to confirm");
+    await click("I am 18");
+    await click("I agree that a recording");
+    await click("Agree and continue");
+    expect(vi.mocked(acceptAuthorization)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(acceptAuthorization).mock.calls[0][0].countryOfResidence).toBe("de");
+  });
+
+  it("can still be changed", async () => {
+    await walkToCountry("de");
+    await click("Poland");
+    expect(chosen("Poland")).toBe(true);
+    expect(chosen("Germany")).toBe(false);
+  });
+
+  it("asks again when the policy in force no longer allows it", async () => {
+    await walkToCountry("fr");
+    expect(chosen("Poland")).toBe(false);
+    expect(chosen("Germany")).toBe(false);
+    expect(buttonSaying("Continue").disabled).toBe(true);
+  });
+
+  it("a first-timer sees nothing chosen", async () => {
+    await walkToCountry(null);
+    expect(chosen("Poland")).toBe(false);
+    expect(chosen("Germany")).toBe(false);
+    expect(buttonSaying("Continue").disabled).toBe(true);
   });
 });

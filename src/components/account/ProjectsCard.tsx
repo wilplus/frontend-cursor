@@ -14,6 +14,12 @@ import {
   PROJECT_DELETION_COPY,
 } from "@/lib/willab/projectDeletionCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
+import { fetchTrainingConsent } from "@/services/api/trainingConsent";
+import {
+  LEAVING_COPY,
+  PROJECT_DELETION_WINDOW_ENABLED,
+  deletionDate,
+} from "@/lib/legal/leavingCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  Your projects, in Data & consent (founder 2026-09-26, N14).               */
@@ -24,10 +30,37 @@ import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
 /*  the signed words (N8) and sends nothing until "Request deletion"; a       */
 /*  pending request can be cancelled; a confirmed one cannot. Delete stays    */
 /*  off (PROJECT_DELETE_ENABLED) until a deletion can finish.                 */
+/*                                                                            */
+/*  For a person with an active training yes the confirm says the signed N10  */
+/*  sentence in place of N8's body: their training copies outlive a project  */
+/*  delete (TC-7b, SPEC-training-corpus §7). Since N48.4 Q17 A the backend    */
+/*  says whether a request can still be cancelled; the 7-day window's words   */
+/*  wait for the founder (PROJECT_DELETION_WINDOW_ENABLED, leavingCopy.ts).   */
 /* -------------------------------------------------------------------------- */
 
 const ARCHIVE = PROJECT_ARCHIVE_COPY;
 const DELETION = PROJECT_DELETION_COPY;
+
+/** The confirm's body. An active training yes swaps N8's body for the signed
+ *  N10 sentence; the window's words, once signed, follow either first part. */
+export function projectConfirmBody(
+  trainingYes: boolean,
+  windowEnabled: boolean = PROJECT_DELETION_WINDOW_ENABLED,
+): string {
+  if (!windowEnabled) return trainingYes ? DELETION.withTraining : DELETION.body;
+  const first = trainingYes ? DELETION.withTraining : DELETION.bodyFirstSentence;
+  return `${first} ${LEAVING_COPY.projectWindow}`;
+}
+
+/** A pending row's label: the day it completes once the window's words are
+ *  signed and the day is still ahead, "Deletion pending" otherwise. */
+export function pendingLabel(
+  dueAt: string | null,
+  windowEnabled: boolean = PROJECT_DELETION_WINDOW_ENABLED,
+): string {
+  const date = windowEnabled ? deletionDate(dueAt) : null;
+  return date ? LEAVING_COPY.projectDeletedOn(date) : DELETION.pending;
+}
 
 export default function ProjectsCard() {
   const [open, setOpen] = useState(false);
@@ -35,11 +68,18 @@ export default function ProjectsCard() {
   const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState<TrainingArc | null>(null);
   const [rowFailed, setRowFailed] = useState<string | null>(null);
+  // An active training yes, read with the list. Unknown reads as no: the
+  // signed N8 body, which is what everyone saw before training existed.
+  const [trainingYes, setTrainingYes] = useState(false);
 
   async function load() {
     setOpen(true);
     setFailed(false);
-    const list = await fetchTrainings({ includeArchived: true });
+    const [list, training] = await Promise.all([
+      fetchTrainings({ includeArchived: true }),
+      PROJECT_DELETE_ENABLED ? fetchTrainingConsent() : Promise.resolve(null),
+    ]);
+    setTrainingYes(training?.active === true);
     if (list === null) {
       setFailed(true);
       return;
@@ -63,7 +103,11 @@ export default function ProjectsCard() {
     const result = await requestProjectDeletion(project.arcId);
     if (result.ok) {
       update(project.arcId, {
-        deletion: result.deletion ?? { state: "pending", dueAt: null },
+        deletion: result.deletion ?? {
+          state: "pending",
+          dueAt: null,
+          cancellable: true,
+        },
       });
       setConfirming(null);
     }
@@ -111,7 +155,7 @@ export default function ProjectsCard() {
                     ) : null}
                     {project.deletion ? (
                       <span className="ml-2 text-[13px] text-muted-foreground">
-                        {DELETION.pending}
+                        {pendingLabel(project.deletion.dueAt)}
                       </span>
                     ) : null}
                   </span>
@@ -134,7 +178,7 @@ export default function ProjectsCard() {
                       </Button>
                     ) : null}
                     {PROJECT_DELETE_ENABLED &&
-                    project.deletion?.state === "pending" ? (
+                    project.deletion?.cancellable ? (
                       <Button
                         type="button"
                         variant="outline"
@@ -179,7 +223,7 @@ export default function ProjectsCard() {
         <ConfirmDelete
           copy={{
             title: DELETION.title(confirming.topic),
-            body: DELETION.body,
+            body: projectConfirmBody(trainingYes),
             confirmLabel: DELETION.confirm,
           }}
           onCancel={() => setConfirming(null)}

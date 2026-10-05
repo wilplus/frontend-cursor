@@ -11,6 +11,7 @@ import { __resetGuestOwnerMemoryForTests } from "./projects";
 import {
   acceptAuthorization,
   fetchAuthorization,
+  pendingAccountDeletion,
   recordAiNoticeRendered,
   type ProcessingPolicy,
 } from "./processingAuthorization";
@@ -137,6 +138,58 @@ describe("reading the policy", () => {
     // empty list no country can be chosen, so the screen has no valid outcome.
     stubFetch(() => policyRow({ allowed_countries: [] }));
     expect((await fetchAuthorization()).kind).toBe("unavailable");
+  });
+
+  it("a blocked principal is blocked, NOT acceptance_required (PLF-T1)", async () => {
+    // Re-accepting cannot lift a service block, so offering the acceptance
+    // flow put the person in a loop they could never leave.
+    stubFetch(() => policyRow({ code: "PROCESSING_SERVICE_BLOCKED" }));
+    const status = await fetchAuthorization();
+    expect(status.kind).toBe("blocked");
+    if (status.kind !== "blocked") return;
+    expect(status.code).toBe("PROCESSING_SERVICE_BLOCKED");
+    // The policy rides along for a gate whose ended state is still off.
+    expect(status.policy?.terms.sha256).toBe(TERMS_HASH);
+    expect(status.pendingDeletion).toBeNull();
+    expect(pendingAccountDeletion(status)).toBeNull();
+  });
+
+  it("a block carries the deletion the status names (Q14 A / Q19 A)", async () => {
+    stubFetch(() => policyRow({
+      code: "PROCESSING_SERVICE_BLOCKED",
+      pending_deletion: {
+        purge_id: "purge-1", kind: "account",
+        completes_after: "2026-10-12T17:00:00Z", cancellable: true,
+      },
+    }));
+    const status = await fetchAuthorization();
+    expect(status.kind === "blocked" && status.pendingDeletion).toEqual({
+      purgeId: "purge-1", kind: "account", projectId: null,
+      completesAfter: "2026-10-12T17:00:00Z", cancellable: true,
+    });
+    expect(pendingAccountDeletion(status)?.purgeId).toBe("purge-1");
+  });
+
+  it("a block is a block even with a policy that cannot be shown", async () => {
+    stubFetch(() => policyRow({
+      code: "PROCESSING_SERVICE_BLOCKED", privacy_copy_sha256: "",
+    }));
+    const status = await fetchAuthorization();
+    expect(status.kind === "blocked" && status.policy).toBeNull();
+  });
+
+  it("an authorized answer is never read as blocked, whatever its code", async () => {
+    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_SERVICE_BLOCKED" }));
+    expect((await fetchAuthorization()).kind).toBe("authorized");
+  });
+
+  it("a re-acceptance carries the country given last time (Q21 A)", async () => {
+    stubFetch(() => policyRow({ reacceptance_required: true, country_of_residence: " PL " }));
+    const status = await fetchAuthorization();
+    expect(status.kind === "acceptance_required" && status.priorCountry).toBe("pl");
+    stubFetch(() => policyRow());
+    const first = await fetchAuthorization();
+    expect(first.kind === "acceptance_required" && first.priorCountry).toBeNull();
   });
 
   it("a failed request is an error, not a verdict about the policy", async () => {

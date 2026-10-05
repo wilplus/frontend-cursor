@@ -38,7 +38,7 @@ describe("project deletion", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue("k-1-2-3-4");
     const fn = stubFetch(200, { deletion: { state: "pending", due_at: "d" } });
     expect(await requestProjectDeletion("p/1")).toEqual({
-      ok: true, deletion: { state: "pending", dueAt: "d" },
+      ok: true, deletion: { state: "pending", dueAt: "d", cancellable: true },
     });
     const [url, init] = fn.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/v2/projects/p%2F1/deletion-request");

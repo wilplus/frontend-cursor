@@ -4,6 +4,7 @@ import {
   forgetMintedOnlyGuestOwnerToken,
   markGuestOwnerUsed,
 } from "./projects";
+import { mapPendingDeletion, type PendingDeletion } from "./accountDeletion";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase-1 processing authorization — the client half (Task 3).               */
@@ -60,6 +61,22 @@ export type AuthorizationStatus =
       policy: ProcessingPolicy;
       code: string;
       acceptedEarlierVersion?: boolean;
+      /** The country this person gave when they last accepted, lowercase,
+       *  when the server says so (a re-acceptance). Asked once, prefilled
+       *  after (founder 2026-10-05, N48.4 Q21 A); still theirs to change. */
+      priorCountry?: string | null;
+    }
+  /** Processing is blocked for this principal: an account deletion, or any
+   *  other service block (PROCESSING_SERVICE_BLOCKED). Accepting again cannot
+   *  lift it, so this is NOT acceptance_required (PLF-T1: the gate used to
+   *  show the acceptance flow, which the person could never get past).
+   *  `pendingDeletion` is the open deletion the status names, if it names
+   *  one; `policy` is kept for a gate whose ended state is still off. */
+  | {
+      kind: "blocked";
+      code: string;
+      policy: ProcessingPolicy | null;
+      pendingDeletion: PendingDeletion | null;
     }
   /** No active policy, or the gate could not be read. NOT the same as
    *  "acceptance required": there is nothing to accept, and presenting an
@@ -161,6 +178,17 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
 
   const code = str(row.code) || "PROCESSING_POLICY_INACTIVE";
   const policy = policyOf(row);
+  // A block is not a missing receipt: re-accepting leaves the person exactly
+  // as blocked as before (PLF-T1). Checked before the policy, so a block is
+  // never mistaken for "nothing to accept" either.
+  if (row.authorized !== true && code === "PROCESSING_SERVICE_BLOCKED") {
+    return {
+      kind: "blocked",
+      code,
+      policy,
+      pendingDeletion: mapPendingDeletion(row.pending_deletion),
+    };
+  }
   if (!policy) return { kind: "unavailable", code };
   // The guest's acceptance is on record even when its own response was lost:
   // the identity now holds something and must be claimed, never dropped.
@@ -172,7 +200,14 @@ export async function fetchAuthorization(): Promise<AuthorizationStatus> {
         policy,
         code,
         acceptedEarlierVersion: row.reacceptance_required === true,
+        priorCountry: str(row.country_of_residence).trim().toLowerCase() || null,
       };
+}
+
+/** The account deletion a blocked status names, or null. */
+export function pendingAccountDeletion(status: AuthorizationStatus): PendingDeletion | null {
+  if (status.kind !== "blocked") return null;
+  return status.pendingDeletion?.kind === "account" ? status.pendingDeletion : null;
 }
 
 export interface AcceptanceInput {

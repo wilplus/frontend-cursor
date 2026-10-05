@@ -47,9 +47,30 @@ export interface CountryChoice {
  *  Poland and most people choosing here live there, so it is the row that
  *  should not require scrolling past twenty-six others to reach. It still has
  *  to be chosen — nothing is preselected, because the receipt records which
- *  country's law a person accepted under and that may not be assumed.
+ *  country's law a person accepted under and that may not be assumed. (The
+ *  one exception is the person's OWN earlier answer: see prefilledCountry.)
  */
 const FIRST_CHOICE = "pl";
+
+/** The country to show already chosen: the person's own answer from their
+ *  last acceptance, when the policy in force still allows it.
+ *
+ *  Founder 2026-10-05 (N48.4 Q21 A): country is asked once and prefilled on
+ *  every later re-acceptance. Not a guess and not a default for anyone else:
+ *  it is what this person said, shown chosen on the same step, and still
+ *  theirs to change before they agree. A country the new policy no longer
+ *  allows is not prefilled — sending it would be refused (COUNTRY_NOT_ALLOWED)
+ *  — so the step is simply asked again. */
+export function prefilledCountry(
+  policy: ProcessingPolicy,
+  prior: string | null | undefined,
+): string | null {
+  const code = (prior ?? "").trim().toLowerCase();
+  if (!code) return null;
+  return policy.allowedCountries.some((c) => c.trim().toLowerCase() === code)
+    ? code
+    : null;
+}
 
 /** One row per allowed country, named in the reader's own language,
  *  Poland first.

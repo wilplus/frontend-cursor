@@ -14,6 +14,7 @@ import {
   countryChoices,
   nextStep,
   optionalPurposesFor,
+  prefilledCountry,
   previousStep,
   type Step,
 } from "@/lib/legal/acceptanceSteps";
@@ -247,10 +248,14 @@ function DocumentPane({
 
 export default function Phase1AcceptanceFlow({
   policy,
+  priorCountry = null,
   onAccepted,
   onStale,
 }: {
   policy: ProcessingPolicy;
+  /** The country this person gave last time (a re-acceptance), shown already
+   *  chosen on the country step; null asks it fresh (N48.4 Q21 A). */
+  priorCountry?: string | null;
   /** A receipt now exists for this principal. The gate re-renders its child. */
   onAccepted: () => void;
   /** The policy moved under us. The gate must refetch and re-present; we must
@@ -259,7 +264,11 @@ export default function Phase1AcceptanceFlow({
 }) {
   const [step, setStep] = useState<Step>("notice");
   const [seen, setSeen] = useState<ReadonlySet<Step>>(new Set<Step>());
-  const [country, setCountry] = useState<string | null>(null);
+  // Asked once, prefilled after (Q21 A): the person's own earlier answer,
+  // never a guess. The step still shows it and it can still be changed.
+  const [country, setCountry] = useState<string | null>(() =>
+    prefilledCountry(policy, priorCountry),
+  );
   const [ageAttested, setAge] = useState(false);
   const [sensitiveAttested, setSensitive] = useState(false);
   const [practiceOptIn, setPractice] = useState(false);

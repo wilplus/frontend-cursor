@@ -8,6 +8,7 @@ import {
   countryChoices,
   nextStep,
   optionalPurposesFor,
+  prefilledCountry,
   previousStep,
   type Step,
 } from "./acceptanceSteps";
@@ -167,6 +168,25 @@ describe("countryChoices", () => {
   it("is unaffected when Poland is not allowed at all", () => {
     const rows = countryChoices(policy({ allowedCountries: ["fr", "de"] }), "en");
     expect(rows.map((r) => r.label)).toEqual(["France", "Germany"]);
+  });
+});
+
+describe("prefilledCountry (founder 2026-10-05, N48.4 Q21 A)", () => {
+  it("is the person's own earlier answer, as the policy spells it", () => {
+    const p = policy({ allowedCountries: ["pl", "de"] });
+    expect(prefilledCountry(p, "de")).toBe("de");
+    expect(prefilledCountry(p, " DE ")).toBe("de");
+  });
+
+  it("is nothing for a first-timer — never a guess", () => {
+    expect(prefilledCountry(policy(), null)).toBeNull();
+    expect(prefilledCountry(policy(), undefined)).toBeNull();
+    expect(prefilledCountry(policy(), "  ")).toBeNull();
+  });
+
+  it("is nothing when the policy in force no longer allows it", () => {
+    // Sending it would be refused (COUNTRY_NOT_ALLOWED): ask again instead.
+    expect(prefilledCountry(policy({ allowedCountries: ["pl"] }), "de")).toBeNull();
   });
 });
 
