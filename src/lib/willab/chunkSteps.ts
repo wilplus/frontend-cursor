@@ -141,11 +141,11 @@ export type StepKind =
 export type ChunkStep =
   | { kind: "feedback" | "suggestion" | "praise"; id: string }
   /** `exercise` is the deterministic catalogue practice (useConfidenceExercise);
-   *  `service_exercise` is the MLC-3 service offer for a served Confident
-   *  Voice item; `coach_request` is the same screen with no exercise on it,
-   *  saying the bookmark went to the coach (founder 2026-09-29). A ladder
-   *  holds at most one of the three. */
-  | { kind: "exercise"; id: "exercise" | "service_exercise" | "coach_request" }
+   *  `coach_request` is the same screen with no exercise on it, saying the
+   *  bookmark went to the coach (founder 2026-09-29). A ladder holds at most
+   *  one of the two. (A third, the MLC-3 service offer, was retired with its
+   *  loop: founder 2026-09-30, L8; contract 66.) */
+  | { kind: "exercise"; id: "exercise" | "coach_request" }
   | { kind: "emphasis"; id: "emphasis" }
   | { kind: "lock"; id: "lock" };
 
@@ -215,12 +215,9 @@ export function buildChunkSteps(args: {
   inventory: readonly DocumentSuggestion[];
   /** An exercise matched to this exact clip, still open. */
   canPractise?: boolean;
-  /** The MLC-3 service allowed an exercise on the answer just given. Only
-   *  consulted when no catalogue exercise is attached — one rung, never two. */
-  canPractiseService?: boolean;
   /** No exercise on the moment and the answer sent it to the coach
    *  (founder 2026-09-29): the Exercise screen says so instead. Consulted
-   *  only when neither exercise rung exists. */
+   *  only when no exercise rung exists. */
   canNotice?: boolean;
   /** A phrase is proposable AND the paragraph has been answered. Both halves
    *  are the caller's to establish — see the gate in the modal. */
@@ -235,11 +232,7 @@ export function buildChunkSteps(args: {
     id: item.id,
   }));
   if (args.canPractise) steps.push({ kind: "exercise", id: "exercise" });
-  else if (args.canPractiseService) {
-    steps.push({ kind: "exercise", id: "service_exercise" });
-  } else if (args.canNotice) {
-    steps.push({ kind: "exercise", id: "coach_request" });
-  }
+  else if (args.canNotice) steps.push({ kind: "exercise", id: "coach_request" });
   if (args.canEmphasise) steps.push({ kind: "emphasis", id: "emphasis" });
   if (args.canLock !== false) steps.push({ kind: "lock", id: "lock" });
   return steps;
