@@ -67,6 +67,7 @@ export default function OpenChunkSheet({
   practiseHost = null,
   helperWordsHost = null,
   startPicking = false,
+  firstTake = false,
 }: {
   state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   arcId: string | null;
@@ -112,6 +113,8 @@ export default function OpenChunkSheet({
   } | null;
   /** The page's headline was tapped: open on the helper words. */
   startPicking?: boolean;
+  /** The project has exactly one Take (the picker's Take 1 note). */
+  firstTake?: boolean;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
   /** The answer given in the judgement sheet this opening, carried into the
@@ -206,6 +209,7 @@ export default function OpenChunkSheet({
       pager={pager}
       slideLabel={slideLabel}
       onDocumentChanged={onDocumentChanged}
+      firstTake={firstTake}
       onClose={onClose}
     />
   );

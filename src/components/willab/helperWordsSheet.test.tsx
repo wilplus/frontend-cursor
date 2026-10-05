@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /* THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, B10, D4, D5, Q2,
-   Q3): opened from the saved screen's "Choose different words" and from
+   Q3): opened from the saved screen's "Edit" and from
    the page's headline; the current words with Delete on top, one chip per
    Take, that Take's words to tap, the button lit only when the selection
    differs; Delete asks once; one Take, one phrase. */
@@ -272,9 +272,11 @@ describe("from the saved screen and the page (B4)", () => {
       );
     });
 
-  it("Choose different words on the saved screen opens the overlay", async () => {
+  it("Edit on the saved screen opens the overlay", async () => {
     await render(false);
     expect(container.querySelector('[data-testid="overlay-saved"]')).not.toBeNull();
+    // "Edit", the mock's word (N48.3 Q8 A).
+    expect(container.querySelector('[data-testid="paragraph-helper-words"]')?.textContent).toBe("Edit");
     await act(async () => (container.querySelector('[data-testid="paragraph-helper-words"]') as HTMLButtonElement).click());
     expect(container.querySelector('[data-testid="helper-words-sheet"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="take-chips"]')?.textContent).toContain("Take 1");

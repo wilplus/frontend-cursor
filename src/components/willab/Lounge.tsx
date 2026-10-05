@@ -1854,7 +1854,9 @@ function Bubble({
       prepare_take_3: "Prepare Take 3",
       presentation_mode: "Use Presentation Mode",
       export: "Export",
-      keep_practising: "Keep practising",
+      // "Practise again", the Lounge's door back to the walk (J4; founder
+      // 2026-10-05, N48.3 Q8 A; it read "Keep practising" until then).
+      keep_practising: "Practise again",
     };
     const runJourneyAction = (action: string) => {
       if (action === "keep_practising" && journeyArc && journeyTake !== null) {

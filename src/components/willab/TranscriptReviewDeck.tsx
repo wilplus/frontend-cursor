@@ -1477,6 +1477,7 @@ export default function TranscriptReviewDeck({
             },
           }}
           startPicking={openWords}
+          firstTake={takeCount === 1}
           helperWordsHost={{
             // Words from an earlier Take (B4, D5): the Slide takes them and
             // the lock follows, behind the sheet; the headline stands in.

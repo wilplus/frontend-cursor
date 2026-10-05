@@ -87,7 +87,13 @@ describe("journey decisions J1 and J4 (founder 2026-09-29; Phase 7)", () => {
 
   it("never offers next steps outside the guided window", () => {
     render({ takeCount: 4, journeyNextStepsSeen: false });
-    expect(labels()).toEqual(["Record again"]);
+    expect(labels()).toEqual(["Record Take 5"]);
+  });
+
+  it("names the next Take from Take 3 on, never \"Record again\" (N48.3 Q8 A)", () => {
+    render({ takeCount: 3, journeyNextStepsSeen: true });
+    expect(labels()).toEqual(["Record Take 4"]);
+    expect(host.textContent).not.toContain("Record again");
   });
 
   it("J4: the end card offers the next Take only", () => {
@@ -106,7 +112,7 @@ describe("one next step at the bottom (founder 2026-09-26)", () => {
     const buttons = [...host.querySelectorAll("button")].map((b) => b.textContent);
     expect(buttons[0]).toBe("Review feedback");
     // The loop never waits on feedback: the record entry stays.
-    expect(buttons.some((t) => t?.includes("Record again"))).toBe(true);
+    expect(buttons.some((t) => t?.includes("Record Take 5"))).toBe(true);
     act(() => (host.querySelector("button") as HTMLButtonElement).click());
     expect(onReview).toHaveBeenCalledTimes(1);
   });

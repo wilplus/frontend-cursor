@@ -129,6 +129,8 @@ export const CHUNK_SHEET_COPY = {
      instruction on purpose: on "No", "Not sure" and "Audio unclear" the Lock
      step is not built at all, so "lock it" would be an instruction they cannot
      follow. */
+  /* Shown on the Feedback sheet's emphasis step AND the paragraph sheet's
+     helper-word picker, on Take 1 (founder 2026-10-05, N48.3 Q8 A). */
   emphasisFirstTakeNote:
     "These words show while you record your next take",
   titleLock: "Lock",
@@ -153,7 +155,9 @@ export const CHUNK_SHEET_COPY = {
      "lock" said the paragraph was frozen, and the next take rewrites it
      (clause 8). No icon on the button. */
   pillEmphasise: "Use these helper words",
-  pillChooseWords: "Choose different words",
+  /* "Edit", the mock's word (founder 2026-10-05, N48.3 Q8 A; it read
+     "Choose different words" until then). */
+  pillChooseWords: "Edit",
   pillLock: "Lock",
   /* The exercise step's two pills. They differ by one word on purpose:
      "Practise again" appears only after Back off the judgement screen, and it
@@ -174,7 +178,7 @@ export const CHUNK_SHEET_COPY = {
 
   /* --- links (grey, stacked under the pill, never beside it) -------------- */
   linkKeepWording: "Keep my wording",
-  linkChooseWords: "Choose different words",
+  linkChooseWords: "Edit",
   /* linkSkip is GONE with the button that used it (founder 2026-09-16, §5):
      the emphasis step has no opt-out, because it only appears on a paragraph
      already judged Yes. */
@@ -197,7 +201,9 @@ export const CHUNK_SHEET_COPY = {
 
   /* --- card eyebrows ------------------------------------------------------ */
   cardWhatYouSaid: "What you said",
-  cardClearerVersion: "Small rewrite",
+  /* "Clearer version", the lock's and the mock's word (founder 2026-10-05,
+     N48.3 Q8 A; it read "Small rewrite" until then). */
+  cardClearerVersion: "Clearer version",
   cardWithEmphasis: "With emphasis",
   /* The judgement screen shows the corrected take ALONE — the original
      playback is gone from it, so this eyebrow is the only thing naming which

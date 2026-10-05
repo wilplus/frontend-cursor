@@ -158,9 +158,10 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
     expect(history?.textContent).toContain("Take 1");
     expect(history?.textContent).not.toContain("Take 2");
     expect(sheet?.textContent).not.toMatch(/\d+\s*%|\bscore\b/i);
-    const done = sheet?.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
-    expect(done.textContent).toBe("Done");
-    await act(async () => done.click());
+    // Outside the walk the one black button reads Next too (N48.3 Q8 A, D10).
+    const next = sheet?.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
+    expect(next.textContent).toBe("Next");
+    await act(async () => next.click());
     expect(closeSheet).toHaveBeenCalled();
   });
 
@@ -380,7 +381,8 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     await withAnswer("audio_unclear");
     expect(container.querySelector('[data-testid="judgement-label"]')?.getAttribute("data-tone")).toBe("grey");
     expect(container.querySelector('[data-testid="practise-card"]')).toBeNull();
-    expect(labels()).toContain("Done");
+    expect(labels()).toContain("Next");
+    expect(labels()).not.toContain("Done");
     expect(labels()).not.toContain("Practise");
   });
 
@@ -448,7 +450,7 @@ describe("the hand-off (founder lock 2026-09-30, B5)", () => {
       (container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement).click());
     expect(container.textContent).toContain("Does this sound confident to you?");
     const no = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "No — Not confident",
+      (b) => b.textContent?.trim() === "No",
     ) as HTMLButtonElement;
     await act(async () => no.click());
     // The overlay, with the answer just given, before any server read.
@@ -551,5 +553,42 @@ describe("a locked paragraph chooses new helper words (Q27 B)", () => {
     expect(useWords).toHaveBeenCalledTimes(1);
     expect(useWords.mock.calls[0][0].text).toBe("data");
     expect(closeSheet).toHaveBeenCalled();
+  });
+});
+
+describe("the picker's Take 1 note (founder 2026-10-05, N48.3 Q8 A)", () => {
+  const NOTE = "These words show while you record your next take";
+
+  async function openPicker(firstTake: boolean) {
+    forgetParagraphSheetData();
+    await act(async () => {
+      root.render(
+        createElement(OpenChunkSheet, {
+          state: state(),
+          arcId: "arc-1",
+          takeSessionId: "take-1",
+          headline: null,
+          onUseHelperWords: useWords,
+          startPicking: true,
+          firstTake,
+          onClose: closeSheet,
+          renderSheet: () => null,
+        }),
+      );
+    });
+  }
+
+  it("shows the Feedback sheet's line under the title on Take 1", async () => {
+    await openPicker(true);
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
+    expect(sheet?.querySelector("h2")?.textContent).toBe("Choose your helper words");
+    expect(sheet?.textContent).toContain(NOTE);
+  });
+
+  it("does not show it on a later Take", async () => {
+    await openPicker(false);
+    const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
+    expect(sheet?.querySelector("h2")?.textContent).toBe("Choose your helper words");
+    expect(sheet?.textContent).not.toContain(NOTE);
   });
 });

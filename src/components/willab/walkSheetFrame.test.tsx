@@ -190,7 +190,7 @@ describe("one sheet height", () => {
   it("Suggestion and Good job open at the same full height as the judgement", async () => {
     await renderSheet([confidentVoice, rewrite, praise]);
     expect(sheetBox()?.className).toContain("h-[97dvh]");
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("Suggestion");
     expect(sheetBox()?.className).toContain("h-[97dvh]");
     await click("Keep my wording");
@@ -216,7 +216,7 @@ describe("one sheet height", () => {
 describe("the compact player row", () => {
   it("Suggestion and Good job draw the compact row, not the full player", async () => {
     await renderSheet([confidentVoice, rewrite, praise]);
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("Suggestion");
     expect(playerCompact()).toBe("true");
     await click("Keep my wording");
@@ -226,7 +226,7 @@ describe("the compact player row", () => {
 
   it("the Exercise draws the compact row under What you said", async () => {
     await renderSheet([confidentVoice]);
-    await click("No — Not confident");
+    await click("No");
     const card = container.querySelector('[data-testid="exercise-your-recording"]');
     expect(card).not.toBeNull();
     expect(card?.querySelector('[data-testid="media-player"]')?.getAttribute("data-compact")).toBe("true");
@@ -242,7 +242,7 @@ describe("Skip on the exercise offer (D10: Skip, not Not now)", () => {
       }) as never,
     );
     await renderSheet([confidentVoice]);
-    await click("No — Not confident");
+    await click("No");
     const skip = () =>
       Array.from(container.querySelectorAll("button")).find(
         (b) => (b.textContent ?? "").trim() === "Skip",
@@ -320,7 +320,7 @@ describe("the paragraph sheet while its reads are pending", () => {
 describe("the Exercise step as the design draws it (L2)", () => {
   it("is one orange Your coach card (video, play icon only, comment) with What you said under it, and no History row", async () => {
     await renderSheet([confidentVoice]);
-    await click("No — Not confident");
+    await click("No");
     const offer = container.querySelector('[data-testid="practice-offer"]') as HTMLElement;
     const card = offer.querySelector('[data-testid="exercise-coach-card"]') as HTMLElement;
     expect(card).not.toBeNull();
@@ -342,7 +342,7 @@ describe("Good job as the design draws it (L4)", () => {
   it("says what this moment's voice did, from the closed cue vocabulary, under the lead", async () => {
     const cued = suggestion({ ...praise, cueKeys: ["wide_range", "not_a_key"] } as Partial<DocumentSuggestion>);
     await renderSheet([confidentVoice, cued]);
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("Good job");
     expect(container.textContent).toContain("It was your confident moment.");
     expect(container.textContent).toContain(PRAISE_CUE_COPY.wide_range);

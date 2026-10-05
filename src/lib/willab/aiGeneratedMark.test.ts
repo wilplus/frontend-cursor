@@ -9,6 +9,7 @@ import {
   aiGeneratedClipboardHtml,
   aiGeneratedJsonLd,
   aiGeneratedJsonLdScript,
+  aiGeneratedLabel,
   copyAiGeneratedText,
 } from "./aiGeneratedMark";
 
@@ -63,9 +64,10 @@ describe("the mark says what it means", () => {
 describe("AC-9 holds at the label", () => {
   it("states provenance and never a score, rating, band or verdict", () => {
     for (const label of Object.values(AI_GENERATED_LABEL)) {
-      expect(label).toMatch(/Written by AI/);
-      // No digits at all: a number on this label is the AC-9 breach, whatever
-      // it would be counting.
+      expect(label).toMatch(/AI-generated|Written by AI/);
+      // No digits in the words themselves: a number on this label is the AC-9
+      // breach, whatever it would be counting. The one number the Ideal Text
+      // caption carries is the Take it names (below).
       expect(label).not.toMatch(/\d/);
       expect(label.toLowerCase()).not.toMatch(
         /score|rating|grade|rank|percent|confidence level|out of/,
@@ -73,12 +75,23 @@ describe("AC-9 holds at the label", () => {
     }
   });
 
-  it("uses the words the accepted AI notice uses", () => {
+  it("the Ideal Text caption names the Take shown, and nothing else numeric", () => {
+    // Founder 2026-10-05, N48.3 Q8 A: "AI-generated text · Take N".
+    expect(aiGeneratedLabel("ideal-text", 1)).toBe("AI-generated text · Take 1");
+    expect(aiGeneratedLabel("ideal-text", 4)).toBe("AI-generated text · Take 4");
+    expect(aiGeneratedLabel("ideal-text", 4).replace(/ · Take \d+$/, "")).not.toMatch(/\d/);
+    // Until the Take is known the caption still marks the text.
+    expect(aiGeneratedLabel("ideal-text")).toBe("AI-generated text");
+    expect(aiGeneratedLabel("ideal-text", 0)).toBe("AI-generated text");
+    expect(aiGeneratedLabel("ideal-text", 1.5)).toBe("AI-generated text");
+  });
+
+  it("Feedback keeps the words the accepted AI notice uses, with no Take", () => {
     // `copy/ai-notice-1.0.txt` says the documents "ARE WRITTEN BY AI" and that
-    // they "can be wrong". A second vocabulary for the same fact at the
-    // surface is how a user ends up unsure whether they are two things.
-    expect(AI_GENERATED_LABEL["ideal-text"]).toContain("can be wrong");
-    expect(AI_GENERATED_LABEL["manager-feedback"]).toContain("can be wrong");
+    // they "can be wrong". The Ideal Text caption moved to the design's words
+    // (N48.3 Q8 A); Feedback is unchanged.
+    expect(AI_GENERATED_LABEL["manager-feedback"]).toBe("Written by AI — it can be wrong.");
+    expect(aiGeneratedLabel("manager-feedback", 3)).toBe("Written by AI — it can be wrong.");
   });
 });
 
@@ -183,6 +196,8 @@ describe("Article 50(2) — every surface that shows generated text is marked", 
       const code = src("components", "willab", file);
       expect(code, `${file} container attrs`).toContain('aiGeneratedAttrs("ideal-text")');
       expect(code, `${file} visible note`).toContain('<AiGeneratedNote kind="ideal-text"');
+      // The caption names the Take shown (N48.3 Q8 A).
+      expect(code, `${file} caption take`).toContain("take={sd?.takeCount}");
       expect(code, `${file} marked copy`).toContain("copyAiGeneratedText(");
       // The unmarked copy path is what this replaces; it must not come back.
       expect(code, `${file} raw writeText`).not.toContain("clipboard\n        ?.writeText");

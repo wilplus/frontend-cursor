@@ -1,6 +1,6 @@
 import {
-  AI_GENERATED_LABEL,
   aiGeneratedAttrs,
+  aiGeneratedLabel,
   aiGeneratedJsonLdScript,
   type GeneratedKind,
 } from "@/lib/willab/aiGeneratedMark";
@@ -20,15 +20,19 @@ import {
 /*  self-describing.                                                           */
 /*                                                                            */
 /*  AC-9: this states provenance. It is not a score, a rating, a band or a     */
-/*  verdict, and nothing numeric may ever be added to it.                      */
+/*  verdict. Its one number is the Take shown ("AI-generated text · Take N",  */
+/*  founder 2026-10-05, N48.3 Q8 A), which names the text, never rates it.    */
 /* -------------------------------------------------------------------------- */
 
 export default function AiGeneratedNote({
   kind,
   name,
+  take = null,
   className = "",
 }: {
   kind: GeneratedKind;
+  /** The Take whose text is shown; the Ideal Text caption names it. */
+  take?: number | null;
   /** The project's own name, when the surface has one — it makes the JSON-LD
    *  identify WHICH document rather than the generic kind. Never rendered. */
   name?: string | null;
@@ -40,7 +44,7 @@ export default function AiGeneratedNote({
         {...aiGeneratedAttrs(kind)}
         className={`text-[11px] leading-snug text-muted-foreground ${className}`}
       >
-        {AI_GENERATED_LABEL[kind]}
+        {aiGeneratedLabel(kind, take)}
       </p>
       <script
         type="application/ld+json"

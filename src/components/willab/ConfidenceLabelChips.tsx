@@ -38,6 +38,15 @@ const OWNER_PRIMARY_RATING_OPTIONS: RatingOption[] = [
   { value: "no", label: "No — Not confident", icon: X },
 ];
 
+/** The speaker's own judgement sheet (founder 2026-10-05, N48.3 Q8 A: the
+ *  design draws "Yes" and "No"). The same five tall answers as the owner
+ *  wording; the coach panel's instrument keeps the wording above. */
+const SPEAKER_PRIMARY_RATING_OPTIONS: RatingOption[] = [
+  { value: "yes", label: "Yes", icon: Check },
+  { value: "in_between", label: "In-between", icon: Minus },
+  { value: "no", label: "No", icon: X },
+];
+
 export default function ConfidenceLabelChips({
   question = CONFIDENCE_QUESTION,
   value,
@@ -47,6 +56,7 @@ export default function ConfidenceLabelChips({
   error = null,
   eyebrow = null,
   ownerWording = false,
+  speakerWording = false,
   onPick,
 }: {
   /** null hides the question line — for hosts that render the question as
@@ -62,12 +72,17 @@ export default function ConfidenceLabelChips({
   eyebrow?: ReactNode;
   /** Exact self-report wording; blind-rater controls keep their neutral labels. */
   ownerWording?: boolean;
+  /** The speaker's own judgement sheet: the owner layout with the
+   *  speaker's signed answers, "Yes" and "No" (N48.3 Q8 A). */
+  speakerWording?: boolean;
   onPick: (value: ConfidenceRatingValue) => void;
 }) {
   const selected = unrateable ? "audio_unclear" : value;
-  const primaryOptions = ownerWording
-    ? OWNER_PRIMARY_RATING_OPTIONS
-    : PRIMARY_RATING_OPTIONS;
+  const primaryOptions = speakerWording
+    ? SPEAKER_PRIMARY_RATING_OPTIONS
+    : ownerWording
+      ? OWNER_PRIMARY_RATING_OPTIONS
+      : PRIMARY_RATING_OPTIONS;
   const questionLine =
     question !== null ? (
       <p className="text-sm font-semibold text-foreground">
@@ -83,7 +98,7 @@ export default function ConfidenceLabelChips({
       {error ? <CoachErrorLine>{error}</CoachErrorLine> : null}
     </>
   );
-  if (ownerWording) {
+  if (ownerWording || speakerWording) {
     return (
       <div>
         {questionLine}

@@ -263,7 +263,7 @@ describe("DeckChunkModal — F1 net", () => {
     const text = await render(confidentVoice);
     expect(text).toContain("Does this sound confident to you?");
     const labels = buttonLabels();
-    for (const answer of ["Yes — Confident", "In-between", "No — Not confident", "Not sure", "Audio unclear"]) {
+    for (const answer of ["Yes", "In-between", "No", "Not sure", "Audio unclear"]) {
       expect(labels).toContain(answer);
     }
   });
@@ -272,7 +272,7 @@ describe("DeckChunkModal — F1 net", () => {
     const text = await render(rewrite);
     expect(text).toContain("What you said");
     expect(text).toContain(rewrite.quote);
-    expect(text).toContain("Small rewrite");
+    expect(text).toContain("Clearer version");
     expect(text).toContain(rewrite.proposedText!);
     const labels = buttonLabels();
     // One pill, the verb of this screen, and the decline as a link. No pencil
@@ -385,8 +385,8 @@ describe("DeckChunkModal — F1 net", () => {
       if (text.includes("Does this sound confident to you?")) {
         decided.push("confident_voice");
         // Answering IS the decision — no Done step behind it (2026-09-15).
-        await click("Yes — Confident");
-      } else if (text.includes("Small rewrite")) {
+        await click("Yes");
+      } else if (text.includes("Clearer version")) {
         decided.push("rewrite_clarity");
         await click("Keep my wording");
       } else if (text.includes(PRAISE_LEAD)) {
@@ -419,7 +419,7 @@ describe("DeckChunkModal — F1 net", () => {
     saved.mockClear();
 
     await render(confidentVoice);
-    await click("Yes — Confident");
+    await click("Yes");
 
     expect(buttonLabels()).not.toContain("Done");
     expect(container.textContent).not.toContain("Thanks");
@@ -443,7 +443,7 @@ describe("DeckChunkModal — F1 net", () => {
     judged.mockClear();
 
     await render(confidentVoice);
-    await click("Yes — Confident");
+    await click("Yes");
     expect(judged).toHaveBeenCalledTimes(1);
     expect(judged.mock.calls[0][0].id).toBe(confidentVoice.id);
     expect(judged.mock.calls[0][1]).toBe("approved");
@@ -454,7 +454,7 @@ describe("DeckChunkModal — F1 net", () => {
     judged.mockClear();
 
     await render(confidentVoice);
-    await click("No — Not confident");
+    await click("No");
     expect(judged).toHaveBeenCalledTimes(1);
     expect(judged.mock.calls[0][0].id).toBe(confidentVoice.id);
     expect(judged.mock.calls[0][1]).toBe("dismissed");
@@ -498,8 +498,8 @@ describe("DeckChunkModal — F1 net", () => {
     // The order is enforced: judgement, then the remaining feedback, THEN the
     // exercise (§1). So the answer lands on the rewrite, and the exercise is
     // the screen after it — not a card riding on the confidence screen.
-    await click("No — Not confident");
-    expect(container.textContent).toContain("Small rewrite");
+    await click("No");
+    expect(container.textContent).toContain("Clearer version");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
     await click("Keep my wording");
@@ -549,11 +549,11 @@ describe("DeckChunkModal — F1 net", () => {
     saved.mockClear();
 
     // One tap: the answer saves and advances, with no Done step between.
-    await click("Yes — Confident");
+    await click("Yes");
 
     // The second item must be ASKING, not thanking.
     expect(container.textContent).toContain("Does this sound confident to you?");
-    expect(buttonLabels()).toContain("Yes — Confident");
+    expect(buttonLabels()).toContain("Yes");
 
     // And nothing may have been filed against the second clip yet. Every write
     // so far belongs to the clip the speaker actually rated.
@@ -619,13 +619,13 @@ describe("the ladder", () => {
       );
     });
     expect(container.textContent).toContain("Does this sound confident to you?");
-    expect(container.textContent).not.toContain("Small rewrite");
+    expect(container.textContent).not.toContain("Clearer version");
   });
 
   it("walks to the emphasis step and promotes the phrase on lock, with no root face", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis });
-    await click("Yes — Confident");     // feedback
+    await click("Yes");     // feedback
     await click("Keep my wording");        // suggestion
     await click("Next");            // good job
     expect(container.textContent).toContain("With emphasis");
@@ -644,8 +644,8 @@ describe("the ladder", () => {
    *  phrase". */
   async function tapOwnWordsAndUse() {
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
-    await click("Yes — Confident");
-    await click("Choose different words");
+    await click("Yes");
+    await click("Edit");
     const word = Array.from(container.querySelectorAll("button")).find(
       (b) => (b.textContent ?? "").trim() === "now",
     )!;
@@ -711,7 +711,7 @@ describe("the ladder", () => {
         }),
       );
     });
-    await click("Yes — Confident");
+    await click("Yes");
     await click("Use these helper words");
     expect(onApplyStyle).toHaveBeenCalledTimes(1);
     const locked = vi.mocked(props.onLockIn).mock.calls[0][0];
@@ -739,7 +739,7 @@ describe("the ladder", () => {
     // branch is never reached. This one is the founder's actual case.
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("With emphasis");
     await click("Use these helper words"); // locks at once (Q24 B)
     expect(props.onLockIn).toHaveBeenCalled();
@@ -768,8 +768,8 @@ describe("the ladder", () => {
     vi.mocked(props.onLockIn).mockClear();
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis, pending: [confidentVoice] });
-    await click("Yes — Confident");
-    await click("Choose different words");
+    await click("Yes");
+    await click("Edit");
     /* THE TAPPABLE WORDS ARE THE CONFIDENT FRAGMENT (founder 2026-09-17).
        This used to tap "ready.", which sits in the paragraph but OUTSIDE the
        stretch the confidence question was put about ("We should ship it
@@ -818,8 +818,8 @@ describe("the ladder", () => {
     } as DocumentSuggestion;
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ style: emphasis, pending: [lateVoice] });
-    await click("Yes — Confident");
-    await click("Choose different words");
+    await click("Yes");
+    await click("Edit");
     const tap = async (text: string) => {
       const word = Array.from(container.querySelectorAll("button")).find(
         (b) => (b.textContent ?? "").trim() === text,
@@ -847,7 +847,7 @@ describe("the ladder", () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onClose).mockClear();
     await renderLadder({ style: emphasis });
-    await click("No — Not confident");
+    await click("No");
     expect(container.textContent).not.toContain("With emphasis");
     expect(buttonLabels()).not.toContain("Use these helper words");
     expect(buttonLabels()).not.toContain("Lock");
@@ -867,12 +867,12 @@ describe("the ladder", () => {
     expect(props.onSetRootPhrase).not.toHaveBeenCalled();
   });
 
-  it("Choose different words opens tap-to-select, and a tap previews in the accent", async () => {
+  it("Edit opens tap-to-select, and a tap previews in the accent", async () => {
     await renderLadder({ style: emphasis });
-    await click("Yes — Confident");
+    await click("Yes");
     await click("Keep my wording");
     await click("Next");
-    await click("Choose different words");
+    await click("Edit");
     expect(container.textContent).toContain("Tap the words");
     // Inside the confident fragment ("We should ship it now"), which is the
     // whole tappable surface since 2026-09-17 — "ready." is in the paragraph
@@ -948,7 +948,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
     behind.length = 0;
     const changed = vi.fn();
     await renderLadder({}, { onDocumentChanged: changed });
-    await click("Yes — Confident");
+    await click("Yes");
     // The ladder moved on without waiting: the question is gone.
     expect(container.textContent).not.toContain("Does this sound confident to you?");
     expect(await behind[0].done).toBe("final");
@@ -967,7 +967,7 @@ describe("a superseded Take is read-only, not a dead end", () => {
     behind.length = 0;
 
     await renderLadder();
-    await click("Yes — Confident");
+    await click("Yes");
 
     expect(await behind[0].done).toBe("failed");
     expect(container.querySelector('[data-testid="superseded-notice"]')).toBeNull();
@@ -1004,12 +1004,12 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
     await click("Use these helper words");
   }
 
-  it("No — Not confident: no helper words, no Lock, and the sheet is done", async () => {
+  it("No: no helper words, no Lock, and the sheet is done", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     vi.mocked(props.onLockIn).mockClear();
 
     await renderLadder({ pending: [confidentVoice] });
-    await click("No — Not confident");
+    await click("No");
 
     expect(container.textContent).not.toContain("Tap the words");
     const labels = buttonLabels();
@@ -1051,7 +1051,7 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
   it("Yes is untouched: the lock step is still there and still locks", async () => {
     vi.mocked(props.onLockIn).mockClear();
     await renderLadder({ pending: [confidentVoice] });
-    await click("Yes — Confident");
+    await click("Yes");
     await tapAWordAndCommit();
     // No Lock screen: "Use these helper words" locked the words (Q24 B).
     expect(buttonLabels()).not.toContain("Lock");
@@ -1064,7 +1064,7 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
     // come is what loses it.
     vi.mocked(props.onSetRootPhrase).mockClear();
     await renderLadder({ pending: [confidentVoice] });
-    await click("Yes — Confident");
+    await click("Yes");
     await tapAWordAndCommit();
     expect(props.onSetRootPhrase).toHaveBeenCalledTimes(1);
     // Written first, then locked (Q24 B).
@@ -1196,7 +1196,7 @@ describe("declining the exercise keeps the emphasis step", () => {
         }),
       );
     });
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
     expect(container.textContent).toContain("Tap the words");
     expect(buttonLabels()).toContain("Use these helper words");
@@ -1213,7 +1213,7 @@ describe("declining the exercise keeps the emphasis step", () => {
     // Declining the drill leaves the No standing, and a No has neither the
     // helper-words step nor the Lock. Nothing is left on the ladder.
     vi.mocked(props.onClose).mockClear();
-    await openOnTheDrill("No — Not confident");
+    await openOnTheDrill("No");
     expect(container.textContent).not.toContain("Tap the words");
     expect(buttonLabels()).not.toContain("Lock");
     expect(buttonLabels()).not.toContain("Keep evolving");
@@ -1263,7 +1263,7 @@ describe("an emphasis phrase that cannot be anchored", () => {
     vi.mocked(props.onClose).mockClear();
 
     await renderLadder({ style: strayEmphasis, pending: [confidentVoice] });
-    await click("Yes — Confident");
+    await click("Yes");
     expect(container.textContent).toContain("With emphasis");
     await click("Use these helper words");
 
@@ -1334,7 +1334,7 @@ describe("a coach-reviewed moment", () => {
     try {
       await open("coach_reviewed");
       expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
-      expect(buttonLabels()).toContain("Yes — Confident");
+      expect(buttonLabels()).toContain("Yes");
     } finally {
       practice.offered = true;
     }
@@ -1343,7 +1343,7 @@ describe("a coach-reviewed moment", () => {
   it("still asks first while the coach's review is pending", async () => {
     await open("pending_coach_review");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
-    expect(buttonLabels()).toContain("Yes — Confident");
+    expect(buttonLabels()).toContain("Yes");
   });
 
   it("names the coach's state only once confirmed (founder 2026-09-29)", async () => {

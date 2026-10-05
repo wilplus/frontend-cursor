@@ -72,11 +72,31 @@ export const AI_GENERATED_LABEL: Record<GeneratedKind, string> = {
      different facts. It is also the visible half of Art. 50(2) detectability;
      the machine-readable half is untouched either way.
 
-     Both kinds now carry the identical sentence, which is the same one the
-     feedback surface always had. One wording, two surfaces. */
-  "ideal-text": "Written by AI — it can be wrong.",
+     Both kinds carried the identical sentence until 2026-10-05.
+
+     THE IDEAL TEXT CAPTION (founder 2026-10-05, N48.3 Q8 A, "Yes to all"):
+     the header caption reads "AI-generated text · Take N", the design's
+     words, with N the Take shown (`aiGeneratedLabel`). It still says the
+     text is AI-generated, so the visible half of Art. 50(2) stays; the
+     machine-readable half is untouched. The Take number names WHICH Take
+     the text is, never a score, rating, band or verdict (AC-9). Feedback
+     keeps its sentence. */
+  "ideal-text": "AI-generated text",
   "manager-feedback": "Written by AI — it can be wrong.",
 };
+
+/** The caption a surface shows. For the Ideal Text, "AI-generated text ·
+ *  Take N" when the Take shown is known; until then the caption without
+ *  it, so the mark never waits on the read. */
+export function aiGeneratedLabel(
+  kind: GeneratedKind,
+  take: number | null = null,
+): string {
+  const label = AI_GENERATED_LABEL[kind];
+  if (kind !== "ideal-text") return label;
+  if (take === null || !Number.isInteger(take) || take < 1) return label;
+  return `${label} · Take ${take}`;
+}
 
 /** Machine-readable marking as DOM attributes, for the element that wraps the
  *  generated text. Spread onto a JSX element; `data-*` needs no allow-list. */

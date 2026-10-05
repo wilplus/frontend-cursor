@@ -27,7 +27,7 @@ import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 /*  THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, D4, D5, Q2, Q3).   */
 /*                                                                            */
 /*  Its own screen, opened from the orange headline on the page and from      */
-/*  "Choose different words" on the saved screen. Top: the current words      */
+/*  "Edit" on the saved screen. Top: the current words                        */
 /*  with Delete. Under it one chip per Take that has a version of this        */
 /*  paragraph, newest first, the current one marked "now". Choosing a chip    */
 /*  shows that Take's text as tappable words; there is no playback here.      */

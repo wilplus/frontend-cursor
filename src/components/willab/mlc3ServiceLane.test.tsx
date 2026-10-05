@@ -210,9 +210,10 @@ async function render(item: DocumentSuggestion) {
 
 /** The affirmative chip, whichever lane drew it.
  *
- *  Prefix, not equality: both lanes pass `ownerWording`, so the label is
- *  "Yes — Confident" rather than "Yes" (T1, the delivery-signal rename). An
- *  equality match finds nothing and reads as "the lane did not render". */
+ *  Prefix, not equality: both lanes pass `speakerWording`, whose label has
+ *  changed before ("Yes — Confident" until N48.3 Q8 A, now "Yes"). An
+ *  equality match on an old label finds nothing and reads as "the lane did
+ *  not render". */
 function yesChips(): HTMLButtonElement[] {
   return Array.from(container.querySelectorAll("button")).filter((b) =>
     (b.textContent ?? "").trim().toLowerCase().startsWith("yes"),
@@ -340,7 +341,7 @@ describe("a served answer advances the ladder by itself", () => {
     // judgment no or unclear, then they should have no option to root that.
     // Just close the overlay." With no exercise on this item there is nothing
     // after the answer, so the sheet has no phrase step and no Lock.
-    for (const answer of ["No — Not confident", "Audio unclear"]) {
+    for (const answer of ["No", "Audio unclear"]) {
       await render(served);
       await click(answer);
       expect(buttonLabels()).not.toContain("Use these helper words");

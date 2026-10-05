@@ -104,7 +104,7 @@ check(
 );
 await dialog(page).locator("button", { hasText: /^Next$/ }).click();
 await page.waitForSelector("text=Feedback");
-await dialog(page).locator("button", { hasText: /Yes — Confident/ }).click();
+await dialog(page).locator("button", { hasText: /^Yes$/ }).click();
 await page.waitForTimeout(500);
 await page.waitForSelector('[data-testid="paragraph-sheet"]');
 check(

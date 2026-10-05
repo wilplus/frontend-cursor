@@ -476,7 +476,7 @@ export default function ConfidentMomentCoachingBundle({
                       </Button>
                     )}
                   {/* THE SAME FIVE ANSWERS AS EVERYWHERE ELSE (founder
-                      2026-09-25, Q36 A): the owner wording of the one
+                      2026-09-25, Q36 A): the speaker's wording of the one
                       judgement instrument, not a second set of labels. */}
                   {!responses[item.bundleAttachmentId] ? (
                     <ConfidenceLabelChips
@@ -484,7 +484,7 @@ export default function ConfidentMomentCoachingBundle({
                       value={null}
                       disabled={sourcePlayback[item.bundleAttachmentId] !== "completed" || !receipts[item.bundleAttachmentId] || busy !== null}
                       saving={busy !== null}
-                      ownerWording
+                      speakerWording
                       onPick={(value) => void respond(item, value)}
                     />
                   ) : null}
