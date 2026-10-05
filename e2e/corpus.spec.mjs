@@ -368,71 +368,77 @@ check(
 await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector(`text=${CONFIDENCE_QUESTION}`);
 
-/* ------------------- FE-3: the labelling screen, blind --------------------- */
+/* ------------- FE-3: the labelling is the Judge screen, blind -------------- */
+// Founder 2026-09-30, B9 (build plan P2-16): the workbench keeps its import,
+// and its labelling screen is the walk's Judge screen, opened over it. The
+// workbench's own chrome around the labelling (its nav bar, the piece dots
+// and the "N / M labelled" count, the note field, Back and Skip) is gone.
+/** The open sheet only: the workbench stays mounted underneath it. */
+const dialog = '[role="dialog"]';
+const sheetText = () => page.evaluate((d) => document.querySelector(d)?.innerText ?? "", dialog);
+const barText = () =>
+  page.evaluate(() => document.querySelector('[data-testid="feedback-pager"]')?.textContent ?? "");
 const body = () => page.locator("body").innerText();
 check(
-  "N1 — no band, score or machine read anywhere, though the payload carried both",
-  !/\bhigh\b|\blow\b|\bmid\b|0\.93|0\.11|band|score/i.test(await body()),
+  "the labelling is the Judge screen: its title, its bar and the one instrument (B9, P2-16)",
+  (await page.locator(`${dialog}[aria-label="Judge this moment"] [data-testid="coach-judge-instrument"]`).count()) === 1
+);
+check(
+  "N1 — no band, score or machine read on the labelling screen, though the payload carried both",
+  !/\bhigh\b|\blow\b|\bmid\b|0\.93|0\.11|band|score/i.test(await sheetText()),
   ""
 );
 check(
-  "progress reads as work done, never as a score (AC-9)",
-  (await page.locator("text=1 / 3 labelled").count()) === 1
-);
-check(
   "it opens on the first UNLABELLED piece, without re-ordering (N2)",
-  await page.evaluate(
-    () =>
-      document
-        .querySelector('button[aria-label^="Piece 1"]')
-        ?.getAttribute("aria-current") === "true"
-  )
+  (await barText()).includes("Board pitch · moment 1 of 3")
 );
 check(
   "the piece is playable while its exact words stay hidden before the answer",
-  (await page.locator("audio").count()) === 1 &&
-    (await page.locator('button[aria-label="Play snippet"]').count()) === 1 &&
+  (await page.locator(`${dialog} audio`).count()) === 1 &&
+    (await page.locator(`${dialog} button[aria-label="Play snippet"]`).count()) === 1 &&
     (await page.locator("text=and we shipped it in a week").count()) === 0
+);
+check(
+  "the workbench's labelling chrome is gone: no piece dots, no labelled count, no note field, no Back or Skip (B9)",
+  await page.evaluate((d) => {
+    const sheet = document.querySelector(d);
+    if (!sheet) return false;
+    return (
+      sheet.querySelectorAll('button[aria-label^="Piece "]').length === 0 &&
+      !/labelled/.test(sheet.textContent ?? "") &&
+      sheet.querySelectorAll("input, textarea").length === 0 &&
+      ![...sheet.querySelectorAll("button")].some((b) => /^(Back|Skip)$/.test(b.textContent?.trim() ?? ""))
+    );
+  }, dialog)
 );
 
 /* ----------- N3: no default answer — and the 1–5 grade row is GONE --------- */
 check(
   "the retired 1–5 grade row does not exist — cut 2026-08-11 (founder: pure ternary for the MVP)",
   (await page.locator("text=How strongly?").count()) === 0 &&
-    (await page.locator("button", { hasText: /^3$/ }).count()) === 0
+    (await page.locator(`${dialog} button`, { hasText: /^3$/ }).count()) === 0
 );
 check(
   "neither Yes nor No is pre-selected — no default answer (N3)",
-  (await page.locator('button[aria-pressed="true"]').count()) === 0
+  (await page.locator(`${dialog} button[aria-pressed="true"]`).count()) === 0
 );
 
 // The Yes click's PUT is deliberately delayed 300ms by the harness, so there
 // is a window to observe "pending" before it resolves.
-const yesClick = page.locator("button", { hasText: /^Yes — Confident$/ }).click();
+const yesClick = page.locator(`${dialog} button`, { hasText: /^Yes — Confident$/ }).click();
 await page.waitForTimeout(80);
 check(
-  "while the save is in flight, the nav bar says so — literally 'Saving…', not a silent wait",
-  (await page.locator("text=Saving…").count()) === 1
+  "while the save is in flight, the instrument says so — literally 'Saving…', not a silent wait",
+  (await sheetText()).includes("Saving…")
 );
 check(
-  "…and the CURRENT piece's dot pulses amber — pending, not yet answered, not unanswered either",
-  await page.evaluate(() => {
-    const dots = [...document.querySelectorAll('button[aria-label^="Piece "]')];
-    const first = dots[0]?.querySelector("span");
-    return (
-      dots[0]?.getAttribute("aria-label")?.includes("saving") &&
-      first?.className.includes("animate-pulse")
-    );
-  })
-);
-check(
-  "the Yes/No buttons are disabled while their own save is in flight — a second tap must not race the first",
-  await page.evaluate(() => {
-    const yes = [...document.querySelectorAll("button")].find(
+  "the answers are disabled while their own save is in flight — a second tap must not race the first",
+  await page.evaluate((d) => {
+    const yes = [...(document.querySelector(d)?.querySelectorAll("button") ?? [])].find(
       (b) => b.textContent?.trim() === "Yes — Confident"
     );
     return yes?.disabled === true;
-  })
+  }, dialog)
 );
 await yesClick;
 // The harness delays the PUT 300ms; the state these next checks read only
@@ -441,38 +447,34 @@ await page.waitForTimeout(350);
 let put = await labels(page);
 check(
   // 2026-08-10, the unified ternary instrument; 2026-08-11, the intensity
-  // cut. One semantic write shape is left in the product: the ternary body.
-  // The UUID is transport provenance for idempotent immutable storage, never
-  // another label or a value visible to the coach (N3).
+  // cut; 2026-09-30 (B9), the note field went with the chrome. One semantic
+  // write shape is left in the product: the ternary body. The UUID is
+  // transport provenance for idempotent immutable storage, never another
+  // label or a value visible to the coach (N3).
   "Yes alone is THE complete label — plus an opaque idempotency key, nothing semantic",
   put.length === 1 && isConfidenceLabelBody(put[0].body, "yes"),
   JSON.stringify(put[0]?.body)
 );
 check(
-  "the answer is the whole act now — it auto-advances past the already-labelled piece to the next unlabelled one (there is no grade step to wait for)",
-  await page.evaluate(
-    () =>
-      document
-        .querySelector('button[aria-label^="Piece 3"]')
-        ?.getAttribute("aria-current") === "true"
-  )
+  "the answer is the whole act — it moves on past the already-labelled piece to the next unlabelled one",
+  (await barText()).includes("moment 3 of 3")
 );
-check("progress moved to 2 / 3", (await page.locator("text=2 / 3 labelled").count()) === 1);
 check(
   "no grade row appeared after answering either — the cut is total, not gated differently",
   (await page.locator("text=How strongly?").count()) === 0
 );
 
 /* ------------- a saved call shows as current state, still re-callable ------- */
-await page.locator("button", { hasText: "Back" }).click();
+await page.locator('[data-testid="feedback-pager"] button[aria-label="Back"]').click();
 await page.waitForTimeout(200);
 check(
-  "stepping back reaches the pre-labelled piece in PAYLOAD order (N2)",
-  (await page.locator("text=so we moved the launch").count()) === 1
+  "the bar steps back to the pre-labelled piece in PAYLOAD order (N2)",
+  (await barText()).includes("moment 2 of 3") &&
+    (await page.locator("text=so we moved the launch").count()) === 1
 );
 check(
   "its saved call renders as the active answer, not a locked one",
-  (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes — Confident$/ }).count()) === 1
+  (await page.locator(`${dialog} button[aria-pressed="true"]`, { hasText: /^Yes — Confident$/ }).count()) === 1
 );
 check(
   "a piece that still CARRIES a historical 1–5 grade renders no grade UI — the number stays in the database, read-only, never back on screen",
@@ -483,94 +485,35 @@ check(
       await body()
     )
 );
-
-/* ---------------- the bubbles: every piece, reachable ---------------- */
 check(
-  "the bubbles show EVERY piece, in payload order, numbered from 1 (N2 — sorting them would undo the server-side band shuffle)",
-  await page.evaluate(() => {
-    const bubbles = [...document.querySelectorAll('button[aria-label^="Piece "]')];
-    // Dots, NOT numbers — chosen when the 1–5 grade row still shared this
-    // screen and two digit rows confused; the grade is cut now, but a digit
-    // on a dot would still invite reading position as meaning (N2).
-    return (
-      bubbles.length === 3 &&
-      bubbles.every((b) => b.textContent?.trim() === "") &&
-      bubbles.map((b) => b.getAttribute("aria-label")).join("|").startsWith("Piece 1")
-    );
-  })
-);
-check(
-  "the dots now live in the NAV BAR — above the fold, not scrolled away at the bottom where they used to sit",
-  await page.evaluate((question) => {
-    const dot = document.querySelector('button[aria-label^="Piece "]');
-    // The native <audio> element MediaPlayer renders is visually hidden (its
-    // own custom UI is what's shown), so it has no box to compare against.
-    // The question is a real, visible layout anchor further down the screen.
-    // The question line carries the coach eyebrow beside it since the walk's
-    // one instrument took over this screen (group 4), so match its start.
-    const confident = [...document.querySelectorAll("p")].find(
-      (x) => x.textContent?.trim().startsWith(question)
-    );
-    if (!dot || !confident) return false;
-    return dot.getBoundingClientRect().top < confident.getBoundingClientRect().top;
-  }, CONFIDENCE_QUESTION)
-);
-check(
-  "a bubble encodes ONLY whether the coach has answered — never a band, score or machine read (N1)",
-  await page.evaluate(() => {
-    const bubbles = [...document.querySelectorAll('button[aria-label^="Piece "]')];
-    const answered = bubbles.filter((b) => b.getAttribute("aria-label").includes("answered"));
-    // The harness serves band high/low/mid and scores .93/.11/.5 on these three
-    // pieces. If any of that reached the bubbles, more than the coach's own
-    // answers would vary — and none of it may appear in the markup at all.
-    const markup = bubbles.map((b) => b.outerHTML).join(" ");
-    return (
-      answered.length >= 1 &&
-      !/high|low|mid|0\.9|0\.1|band|score/i.test(markup)
-    );
-  })
-);
-check(
-  "tapping a bubble jumps straight to that piece",
-  await (async () => {
-    await page.locator('button[aria-label^="Piece 3"]').click();
-    await page.waitForTimeout(150);
-    return page.evaluate(
-      () =>
-        document
-          .querySelector('button[aria-label^="Piece 3"]')
-          ?.getAttribute("aria-current") === "true"
-    );
-  })()
-);
-check(
-  "…and jumping does NOT pre-select an answer on an unlabelled piece (N3)",
-  await page.evaluate(
-    () =>
-      [...document.querySelectorAll("button")].filter(
-        (b) => b.getAttribute("aria-pressed") === "true"
-      ).length === 0
+  "the bar says where the coach is and nothing else — never a band, score or machine read (N1)",
+  !/high|low|mid|0\.9|0\.1|band|score/i.test(
+    await page.evaluate(() => document.querySelector('[data-testid="feedback-pager"]')?.outerHTML ?? "")
   )
 );
+await page.locator('[data-testid="feedback-pager"] button[aria-label="Next"]').click();
+await page.waitForTimeout(150);
+check("› moves on to the next piece in payload order", (await barText()).includes("moment 3 of 3"));
+check(
+  "…and moving does NOT pre-select an answer on an unlabelled piece (N3)",
+  (await page.locator(`${dialog} button[aria-pressed="true"]`).count()) === 0
+);
 
-/* --------------- once every piece is labelled, the nav bar says so plainly -------------- */
-await page.locator("button", { hasText: /^Yes — Confident$/ }).click();
+/* -------- after the last unlabelled piece, back to the workbench ---------- */
+await page.locator(`${dialog} button`, { hasText: /^Yes — Confident$/ }).click();
 await page.waitForTimeout(400);
 check(
-  "the nav bar marks completion instead of just counting, once every piece is labelled",
-  (await page.locator("text=All labelled").count()) === 1 &&
-    (await page.locator("text=3 / 3 labelled").count()) === 0
+  "answering the last unlabelled piece closes the Judge screen onto the workbench, as the walk moves on by itself (A7)",
+  (await page.locator(dialog).count()) === 0 && (await page.locator("text=Training corpus").count()) >= 1
 );
 
 /* ----------- the OTHER branch: "No" is the same one-tap act ---------------- */
 // The harness's mock queue is stateless per fetch — reopening any import
 // hands back the SAME starting data, so this is a fresh, unlabelled piece-c
 // again, not the one just laboured over above.
-await page.locator('button[aria-label="Back to the corpus"]').click();
-await page.waitForTimeout(200);
 await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector(`text=${CONFIDENCE_QUESTION}`);
-await page.locator("button", { hasText: /^No — Not confident$/ }).click();
+await page.locator(`${dialog} button`, { hasText: /^No — Not confident$/ }).click();
 await page.waitForTimeout(400);
 put = await labels(page);
 check(

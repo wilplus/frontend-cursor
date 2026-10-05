@@ -13,9 +13,15 @@
 /*  nothing renders under the question until the save returns. The passage,   */
 /*  the speaker's answer, the kind and what fired are the next screen's, and  */
 /*  the backend withholds them until this rating is saved.                    */
+/*                                                                            */
+/*  ONE SCREEN, TWO HOSTS (B9; build plan P2-16). JudgeFrame is the screen    */
+/*  (the sheet, the ‹ position › bar, the title); the walk puts the one       */
+/*  instrument in it here, and the corpus workbench puts the same instrument */
+/*  in it for an imported piece, with its own save. Nothing else frames a     */
+/*  confidence judgement in the product.                                      */
 /* -------------------------------------------------------------------------- */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
 import CoachJudgeInstrument, { type JudgeClip } from "./CoachJudgeInstrument";
@@ -23,6 +29,35 @@ import { buildRatingBody, saveStateRating, type ConfidenceRatingValue } from "@/
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
 export type { JudgeClip } from "./CoachJudgeInstrument";
+
+/** The Judge screen around its content: the speaker's sheet with the coach's
+ *  title and the walk's ‹ position › bar. */
+export function JudgeFrame({
+  pager,
+  onClose,
+  railed = false,
+  children,
+}: {
+  /** null draws no bar (nothing to walk yet). */
+  pager: Pager | null;
+  onClose: () => void;
+  /** Leaves room for the desktop rail (P2-14). */
+  railed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <SheetFrame
+      title={COPY.judgeTitle}
+      onClose={onClose}
+      nav={pager ? <FeedbackPagerBar pager={pager} /> : null}
+      railed={railed}
+    >
+      <div className="flex flex-col gap-4" data-testid="coach-judge-sheet">
+        {children}
+      </div>
+    </SheetFrame>
+  );
+}
 
 export default function CoachJudgeSheet({
   snippetId,
@@ -63,22 +98,15 @@ export default function CoachJudgeSheet({
   }
 
   return (
-    <SheetFrame
-      title={COPY.judgeTitle}
-      onClose={onClose}
-      nav={<FeedbackPagerBar pager={pager} />}
-      railed={railed}
-    >
-      <div className="flex flex-col gap-4" data-testid="coach-judge-sheet">
-        <CoachJudgeInstrument
-          clip={clip}
-          value={value}
-          saving={saving}
-          error={error}
-          onPick={(next) => void pick(next)}
-          keys
-        />
-      </div>
-    </SheetFrame>
+    <JudgeFrame pager={pager} onClose={onClose} railed={railed}>
+      <CoachJudgeInstrument
+        clip={clip}
+        value={value}
+        saving={saving}
+        error={error}
+        onPick={(next) => void pick(next)}
+        keys
+      />
+    </JudgeFrame>
   );
 }
