@@ -58,7 +58,7 @@ needs no screen: the ladder stays off, and a test pins it
    a handler, reading a status.
 2. **No string ships unsigned.** A string the founder has not signed goes
    into a copy module marked PROPOSED, behind a constant that is off, and is
-   listed for him. Each section below names the signed strings and the
+   listed for the founder. Each section below names the signed strings and the
    missing ones.
 3. **AC-9.** No score, number, band, rank, percentage or verdict reaches the
    speaker. Several payloads below carry routing words: `key`, `lane`,
@@ -391,7 +391,7 @@ Signed, and reusable as they stand:
   - The code comments at `after_practice.py:55` and `:93` still say
     "awaiting founder sign-off".
   - One line from the founder settles it before the flip: is this closed set
-    the one he signed?
+    the one the founder signed?
 - **No new string is needed** if the sentence renders on its own. A
   heading, button or illustration added around it goes to the founder.
 
@@ -678,7 +678,7 @@ Signed, and reusable as they stand:
 ### Copy
 
 - **"Bold voices"** is the founder's name for the step (contract 29c). Ask
-  him whether it is also the title on screen.
+  the founder whether it is also the title on screen.
 - **A reading's `passage`** is what the coach read: the coach's words.
 - **Still needed, to the founder:**
   - the step's title, if not "Bold voices";
