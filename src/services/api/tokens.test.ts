@@ -70,52 +70,20 @@ describe("mapTokenBalance", () => {
       periodStart: "2026-07-28T09:00:00+00:00",
       periodEndsAt: "2026-08-28T09:00:00+00:00",
       coachReviews: { used: 0, allowed: 1, remaining: 1 },
-      plan: null,
     });
   });
 
-  it("carries the subscription when the BE publishes one", () => {
+  it("ignores a plan a pre-removal backend still sends", () => {
+    // Subscriptions are retired (N48.3 Q13 A): the balance has no plan, and a
+    // stale one from an older backend never reaches the wallet.
     const b = mapTokenBalance({
       enabled: true,
       available: true,
       balance: 100,
-      tier: "coaching",
-      plan: {
-        tier: "coaching",
-        managed: true,
-        status: "active",
-        cancel_at_period_end: false,
-        current_period_end: "2026-09-13T00:00:00Z",
-        manage_available: true,
-      },
+      plan: { managed: true, manage_available: true },
     });
-    expect(b).toMatchObject({
-      plan: {
-        tier: "coaching",
-        managed: true,
-        status: "active",
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: "2026-09-13T00:00:00Z",
-        manageAvailable: true,
-      },
-    });
-  });
-
-  it("drops a half-parsed plan rather than defaulting its booleans", () => {
-    // A missing `managed` must not become false: that would offer checkout to
-    // a live subscriber and charge them a second time.
-    const b = mapTokenBalance({
-      enabled: true,
-      available: true,
-      balance: 100,
-      plan: { tier: "coaching", status: "active" },
-    });
-    expect(b).toMatchObject({ plan: null });
-  });
-
-  it("an older backend with no plan reads as null, not a crash", () => {
-    const b = mapTokenBalance({ enabled: true, available: true, balance: 100 });
-    expect(b).toMatchObject({ kind: "ready", plan: null });
+    expect(b).toMatchObject({ kind: "ready", balance: 100 });
+    expect(b).not.toHaveProperty("plan");
   });
 
   it("reads available:false as UNKNOWN, never as zero", () => {
@@ -357,7 +325,6 @@ describe("nextBalance", () => {
     periodStart: null,
     periodEndsAt: null,
     coachReviews: null,
-    plan: null,
   };
 
   it("holds the last known balance through an unreadable refresh", () => {

@@ -106,18 +106,10 @@ export const TOKENS_COPY = {
   walletUpgradeUnavailable: "Changing plan isn't available here yet.",
   /** You are already paying for this one. */
   walletCurrentPlan: "Current plan",
-  /** On a paid plan already: switching and cancelling both need the billing
-   *  portal, which the backend has no route for yet, so say so rather than
-   *  offering a second checkout that would charge twice. */
-  walletManageUnavailable:
-    "To change or cancel your plan, email support and we'll sort it.",
   /** Back from Stripe. The tier arrives by webhook a moment later, so this
    *  promises an update rather than asserting a balance we cannot see yet. */
   walletPlanSuccess: "Payment received. Your new plan is being applied.",
   walletPlanCancelled: "No change made.",
-  /** Back from the billing portal. Same promise-an-update shape as the
-   *  checkout return: a cancellation or switch lands by webhook. */
-  walletPlanManaged: "Any changes are being applied.",
 
   /* --------------------- the in-thread top-up card ----------------------- */
 
@@ -143,23 +135,6 @@ export const TOKENS_COPY = {
    *  because a silent plans-less page is indistinguishable from a broken app. */
   walletLoadFailed: "Couldn't load plans right now.",
   walletRetry: "Try again",
-
-  /* --------------------------- managing a plan --------------------------- */
-
-  /** Stripe's billing portal: switch, cancel, fix a declined card, invoices.
-   *  Shown whenever a Stripe customer exists, which OUTLIVES the subscription,
-   *  so someone who cancelled can still get back to their receipts. */
-  planManageCta: "Manage plan",
-  /** Only when the subscription is genuinely set to end. A lapsed plan is not
-   *  "ending", it has already gone, and saying otherwise dates a page wrong. */
-  planEndsOn: (on: string) => `Your plan ends ${on}.`,
-  planManageFailed: "Couldn't open billing. Try again.",
-  /** 409 ALREADY_ON_TIER. Calm statement, no action: nothing went wrong. */
-  planAlreadyOnTier: "You're already on that plan.",
-  /** 409 MANAGE_EXISTING — a DIFFERENT live subscription. Routed to the portal
-   *  rather than checkout, because a second Checkout Session would leave them
-   *  paying for two plans at once. */
-  planManageExisting: "You already have a plan. Use Manage plan to switch.",
 
   /* --------------------------- coach reviews ----------------------------- */
 

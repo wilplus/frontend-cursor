@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import TokenPlanChips from "@/components/tokens/TokenPlanChips";
 import { TOKENS_COPY, formatShortDate } from "@/components/tokens/copy";
-import { planControlsFor } from "@/components/tokens/planControls";
 import { useTokenWallet } from "@/hooks/useTokenWallet";
 import { startPlanCheckout } from "@/services/api/subscribe";
 import { fetchRecordingBand, type RecordingBandState } from "@/services/api/tokens";
@@ -94,11 +93,8 @@ export default function LoungeTopUpCard({
   if (band.kind !== "exhausted") return null;
 
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
-  // Never offer checkout to someone who already has a live subscription: a
-  // second Checkout Session creates a SECOND subscription and charges them
-  // twice. Switching plans goes through the billing portal on the wallet page.
-  const controls = planControlsFor(ready?.plan ?? null, ready?.tier ?? null);
-  if (!controls.canBuy) return null;
+  // Every purchase is a one-time package (N48.3 Q13 A): there is no live
+  // subscription a second checkout could stack on, so the card always offers.
 
   const tiers = wallet.prices?.tiers ?? {};
   const hasPaidTier = Object.values(tiers).some((t) => t.usdPerMonth > 0);
@@ -123,7 +119,7 @@ export default function LoungeTopUpCard({
       setDismissed(true);
       return;
     }
-    setError(r.reason === "error" ? TOKENS_COPY.topUpFailed : r.message);
+    setError(TOKENS_COPY.topUpFailed);
   };
 
   const dismiss = () => {

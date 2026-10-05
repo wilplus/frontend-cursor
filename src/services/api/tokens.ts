@@ -50,50 +50,6 @@ export interface CoachReviewAllowance {
   remaining: number;
 }
 
-/** The subscription behind the balance (BE `plan_state`).
- *
- *  `managed` and `manageAvailable` are DIFFERENT questions and conflating them
- *  is the trap this type exists to make impossible:
- *
- *    managed         — is there a LIVE subscription right now? Decides buy vs
- *                      manage. `past_due` counts as managed on purpose: the
- *                      card failed, the subscription exists, and offering an
- *                      upgrade there would sell a SECOND subscription to solve
- *                      a billing problem.
- *    manageAvailable — does a Stripe CUSTOMER exist? Decides whether the portal
- *                      button renders at all. The customer outlives the
- *                      subscription, so someone who cancelled months ago is
- *                      still true and can still reach their invoices.
- *
- *  Null (absent or malformed) must degrade to today's behaviour, never crash a
- *  wallet: an older backend has no `plan` on this payload. */
-export interface TokenPlan {
-  tier: string | null;
-  managed: boolean;
-  status: string | null;
-  cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: string | null;
-  manageAvailable: boolean;
-}
-
-function mapTokenPlan(raw: unknown): TokenPlan | null {
-  if (!raw || typeof raw !== "object") return null;
-  const p = raw as Record<string, unknown>;
-  // Both booleans must be present and real. A half-parsed plan is worse than
-  // no plan: it would decide buy-vs-manage off a default nobody chose.
-  if (typeof p.managed !== "boolean" || typeof p.manage_available !== "boolean") {
-    return null;
-  }
-  return {
-    tier: str(p.tier),
-    managed: p.managed,
-    status: str(p.status),
-    cancelAtPeriodEnd: p.cancel_at_period_end === true,
-    currentPeriodEnd: str(p.current_period_end),
-    manageAvailable: p.manage_available,
-  };
-}
-
 export type TokenBalance =
   /** Pricing is off. Render no wallet UI at all — not a zeroed one. */
   | { kind: "off" }
@@ -110,9 +66,6 @@ export type TokenBalance =
       periodEndsAt: string | null;
       /** A SEPARATE counter from tokens, and never convertible to them. */
       coachReviews: CoachReviewAllowance | null;
-      /** The subscription, when the BE published one. Null on an older backend
-       *  or an unmigrated DB — callers fall back to today's behaviour. */
-      plan: TokenPlan | null;
     };
 
 export function mapTokenBalance(raw: unknown): TokenBalance {
@@ -138,7 +91,6 @@ export function mapTokenBalance(raw: unknown): TokenBalance {
       used !== null && allowed !== null
         ? { used, allowed, remaining: remaining ?? Math.max(0, allowed - used) }
         : null,
-    plan: mapTokenPlan(raw.plan),
   };
 }
 

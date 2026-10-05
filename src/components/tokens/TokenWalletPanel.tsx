@@ -113,7 +113,6 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
               <TokenPlanCards
                 tiers={prices.tiers}
                 currentTier={ready?.tier ?? null}
-                plan={ready?.plan ?? null}
               />
             </div>
           </section>

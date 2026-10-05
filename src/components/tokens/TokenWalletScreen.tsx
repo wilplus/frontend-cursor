@@ -36,13 +36,11 @@ export default function TokenWalletScreen() {
 
   /** Back from Stripe. Read off `window` rather than useSearchParams so this
    *  needs no Suspense boundary for one query param. */
-  const [planReturn, setPlanReturn] = useState<"success" | "cancelled" | "managed" | null>(
-    null
-  );
+  const [planReturn, setPlanReturn] = useState<"success" | "cancelled" | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const v = new URLSearchParams(window.location.search).get("plan");
-    if (v === "success" || v === "cancelled" || v === "managed") setPlanReturn(v);
+    if (v === "success" || v === "cancelled") setPlanReturn(v);
   }, []);
 
   // OFF is the one state that still renders nothing at all, deliberately.
@@ -69,9 +67,7 @@ export default function TokenWalletScreen() {
         <p className="mb-5 rounded-xl border border-border px-4 py-3 text-[13px] text-muted-foreground">
           {planReturn === "success"
             ? TOKENS_COPY.walletPlanSuccess
-            : planReturn === "managed"
-              ? TOKENS_COPY.walletPlanManaged
-              : TOKENS_COPY.walletPlanCancelled}
+            : TOKENS_COPY.walletPlanCancelled}
         </p>
       ) : null}
 
