@@ -14,8 +14,9 @@
 /*  And, new with Archive:                                                    */
 /*    7. archived projects are listed, marked, and can be unarchived.         */
 /*  And, new with Wave 3 (founder 2026-10-05, N48.4 Q17 A; TC-7b):            */
-/*    8. with an active training yes the confirm says the signed N10          */
-/*       sentence in place of N8's body, and only then;                       */
+/*    8. with an active training yes the confirm says the N10 sentence in     */
+/*       place of N8's body, and only then, and only once it is signed again  */
+/*       (PROJECT_DELETE_TRAINING_SENTENCE_ENABLED, off: it is untrue today); */
 /*    9. the backend's `cancellable` decides whether Cancel deletion shows;   */
 /*   10. the 7-day window's words (PROPOSED) show only once switched on.      */
 /* -------------------------------------------------------------------------- */
@@ -23,7 +24,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const flag = vi.hoisted(() => ({ on: true }));
+const flag = vi.hoisted(() => ({ on: true, trainingSentence: true }));
 const api = vi.hoisted(() => ({
   fetchTrainings: vi.fn(),
   unarchiveProject: vi.fn(),
@@ -38,6 +39,9 @@ vi.mock("@/lib/willab/projectDeletionCopy", async (importOriginal) => {
     ...actual,
     get PROJECT_DELETE_ENABLED() {
       return flag.on;
+    },
+    get PROJECT_DELETE_TRAINING_SENTENCE_ENABLED() {
+      return flag.trainingSentence;
     },
   };
 });
@@ -87,6 +91,7 @@ let root: Root;
 
 beforeEach(() => {
   flag.on = true;
+  flag.trainingSentence = true;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -243,6 +248,17 @@ describe("the honest delete copy for an active training yes (N10, TC-7b)", () =>
     await openWith([project()]);
     expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
   });
+
+  it("is not read, and N8's body stays, until the N10 sentence is signed again", async () => {
+    flag.trainingSentence = false;
+    const dialog = await confirmFor({
+      available: true, active: true, policyVersion: "t-1",
+      copy: "Use my practice text...", copySha256: "x",
+    });
+    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
+    expect(dialog.textContent).toContain(COPY.body);
+    expect(dialog.textContent).not.toContain(COPY.withTraining);
+  });
 });
 
 describe("the confirm's words", () => {
@@ -255,6 +271,17 @@ describe("the confirm's words", () => {
     );
     expect(projectConfirmBody(true, true)).toBe(
       `${COPY.withTraining} ${LEAVING_COPY.projectWindow}`,
+    );
+  });
+
+  it("an active yes changes nothing while the N10 sentence waits to be signed again", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/willab/projectDeletionCopy")>(
+      "@/lib/willab/projectDeletionCopy",
+    );
+    expect(actual.PROJECT_DELETE_TRAINING_SENTENCE_ENABLED).toBe(false);
+    expect(projectConfirmBody(true, false, false)).toBe(COPY.body);
+    expect(projectConfirmBody(true, true, false)).toBe(
+      `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow}`,
     );
   });
 

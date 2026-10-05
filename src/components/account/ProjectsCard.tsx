@@ -11,6 +11,7 @@ import {
 } from "@/services/api/projectDeletion";
 import {
   PROJECT_DELETE_ENABLED,
+  PROJECT_DELETE_TRAINING_SENTENCE_ENABLED,
   PROJECT_DELETION_COPY,
 } from "@/lib/willab/projectDeletionCopy";
 import { PROJECT_ARCHIVE_COPY } from "@/lib/willab/projectArchiveCopy";
@@ -31,9 +32,10 @@ import {
 /*  pending request can be cancelled; a confirmed one cannot. Delete stays    */
 /*  off (PROJECT_DELETE_ENABLED) until a deletion can finish.                 */
 /*                                                                            */
-/*  For a person with an active training yes the confirm says the signed N10  */
-/*  sentence in place of N8's body: their training copies outlive a project  */
-/*  delete (TC-7b, SPEC-training-corpus §7). Since N48.4 Q17 A the backend    */
+/*  For a person with an active training yes the confirm can say the N10      */
+/*  sentence in place of N8's body (TC-7b, SPEC-training-corpus §7), once     */
+/*  the founder signs it again: today it is not true (see                     */
+/*  PROJECT_DELETE_TRAINING_SENTENCE_ENABLED). Since N48.4 Q17 A the backend  */
 /*  says whether a request can still be cancelled; the 7-day window's words   */
 /*  wait for the founder (PROJECT_DELETION_WINDOW_ENABLED, leavingCopy.ts).   */
 /* -------------------------------------------------------------------------- */
@@ -41,14 +43,18 @@ import {
 const ARCHIVE = PROJECT_ARCHIVE_COPY;
 const DELETION = PROJECT_DELETION_COPY;
 
-/** The confirm's body. An active training yes swaps N8's body for the signed
- *  N10 sentence; the window's words, once signed, follow either first part. */
+/** The confirm's body. An active training yes swaps N8's body for the N10
+ *  sentence, but only once that sentence is signed again
+ *  (PROJECT_DELETE_TRAINING_SENTENCE_ENABLED); the window's words, once
+ *  signed, follow either first part. */
 export function projectConfirmBody(
   trainingYes: boolean,
   windowEnabled: boolean = PROJECT_DELETION_WINDOW_ENABLED,
+  trainingSentenceEnabled: boolean = PROJECT_DELETE_TRAINING_SENTENCE_ENABLED,
 ): string {
-  if (!windowEnabled) return trainingYes ? DELETION.withTraining : DELETION.body;
-  const first = trainingYes ? DELETION.withTraining : DELETION.bodyFirstSentence;
+  const training = trainingYes && trainingSentenceEnabled;
+  if (!windowEnabled) return training ? DELETION.withTraining : DELETION.body;
+  const first = training ? DELETION.withTraining : DELETION.bodyFirstSentence;
   return `${first} ${LEAVING_COPY.projectWindow}`;
 }
 
@@ -77,7 +83,9 @@ export default function ProjectsCard() {
     setFailed(false);
     const [list, training] = await Promise.all([
       fetchTrainings({ includeArchived: true }),
-      PROJECT_DELETE_ENABLED ? fetchTrainingConsent() : Promise.resolve(null),
+      PROJECT_DELETE_ENABLED && PROJECT_DELETE_TRAINING_SENTENCE_ENABLED
+        ? fetchTrainingConsent()
+        : Promise.resolve(null),
     ]);
     setTrainingYes(training?.active === true);
     if (list === null) {

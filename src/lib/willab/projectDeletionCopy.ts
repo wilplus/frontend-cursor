@@ -15,6 +15,14 @@
 
 export const PROJECT_DELETE_ENABLED = false;
 
+/** N10's project sentence (`withTraining`) waits for the founder to sign it
+ *  again, because it is not true today. Training is text only ("Text only.
+ *  Never your voice.", signed 2026-10-01), and a project delete removes the
+ *  training copies made from its takes along with them (feedback_pairs go
+ *  with the take in the backend's purge registry). Off: everyone sees N8's
+ *  body, which is true for everyone, and the training choice is not read. */
+export const PROJECT_DELETE_TRAINING_SENTENCE_ENABLED = false;
+
 export const PROJECT_DELETION_COPY = {
   title: (name: string) => `Delete "${name}"?`,
   body:
