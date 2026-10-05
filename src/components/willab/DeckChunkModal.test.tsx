@@ -21,6 +21,13 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { BehindOutcome } from "./saveBehind";
 import { PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 
+// Personalised practice is on unless a test turns it off.
+const practice = vi.hoisted(() => ({ offered: true }));
+vi.mock("@/services/api/consentChoices", () => ({
+  practiseOfferedNow: () => practice.offered,
+  readPractiseOffered: async () => practice.offered,
+}));
+
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
 }));
@@ -1318,6 +1325,19 @@ describe("a coach-reviewed moment", () => {
     await open("coach_reviewed");
     expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
     expect(container.textContent).not.toContain("Does this sound confident to you?");
+  });
+
+  // Founder 2026-10-05: with Personalised practice off, the coach's exercise
+  // is not offered here either -- the sheet asks the question instead.
+  it("with practice off, opens on the question, not the exercise", async () => {
+    practice.offered = false;
+    try {
+      await open("coach_reviewed");
+      expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+      expect(buttonLabels()).toContain("Yes — Confident");
+    } finally {
+      practice.offered = true;
+    }
   });
 
   it("still asks first while the coach's review is pending", async () => {

@@ -122,6 +122,7 @@ import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 import type { SaveBehind } from "./saveBehind";
 import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
+import { usePractiseOffered } from "./usePractiseOffered";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -451,6 +452,15 @@ function handsOffAfterAnswer(
   );
 }
 
+/** PRACTICE OFF MEANS NO EXERCISE STEP HERE EITHER (founder 2026-10-05, on
+ *  the close-out audit): with Personalised practice off the paragraph's
+ *  sheet already hides Practise; this ladder's exercise rung -- a coach-
+ *  reviewed moment opens on it -- did not ask. Module-level, so the sheet
+ *  (frozen at the ratchet) gains no branch. */
+function whenPractiseOffered(offered: boolean, opens: boolean): boolean {
+  return offered && opens;
+}
+
 /** A tapped word previews in the accent; a word a tap cannot reach under
  *  the four-word cap reads muted (founder lock 2026-09-30, B3). Module-level
  *  so the component, frozen at the complexity ratchet, gains no branch. */
@@ -583,6 +593,7 @@ export default function DeckChunkModal({
      at step one or step three — after the sheet opened. Recomputing on the
      speaker's own decision is what that freeze was protecting, not what it
      was preventing. */
+  const practiseOffered = usePractiseOffered();
   const buildSteps = useCallback(
     (
       judgementValue: RootGateAnswer,
@@ -598,11 +609,13 @@ export default function DeckChunkModal({
         // (a coach-reviewed moment opens straight on it); the answer then
         // rebuilds the ladder. A video the coach shared is theirs to show on
         // any answer but Audio unclear.
-        canPractise: libraryVideoOpens(judgementValue, exerciseItem),
+        canPractise: whenPractiseOffered(
+          practiseOffered, libraryVideoOpens(judgementValue, exerciseItem)),
         // The service rung exists only once the server has said the answer
         // may carry an offer — passed in explicitly on the advance that the
         // answer causes, because the flow's own state has not re-rendered yet.
-        canPractiseService: exerciseItem === null && servicePractise,
+        canPractiseService: whenPractiseOffered(
+          practiseOffered, exerciseItem === null && servicePractise),
         // NOTHING TO PRACTISE, SO THE COACH HAS IT (founder 2026-09-29): a
         // No sends the bookmark to the coach whatever was recognised; a Yes,
         // In-between or Not sure sends it when a problem was recognised and
@@ -651,6 +664,7 @@ export default function DeckChunkModal({
     [
       feedbackInventory,
       exerciseItem,
+      practiseOffered,
       noticeItem,
       serviceItem,
       service.exerciseAllowed,

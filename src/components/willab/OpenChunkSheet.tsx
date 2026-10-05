@@ -78,8 +78,9 @@ export default function OpenChunkSheet({
   onAccept?: ((item: DocumentSuggestion) => Promise<boolean>) | null;
   /** The paragraph's own sheet finished on its own: the host moves on. */
   onDone?: (() => void) | null;
-  /** A waiting moment was skipped unanswered (24e-1): move on, no toast. */
-  onSkip?: (() => void) | null;
+  /** A waiting moment was skipped unanswered (24e-1): move on, no toast.
+   *  The skipped moment rides along so the page settles its bar at once. */
+  onSkip?: ((skipped: DocumentSuggestion | null) => void) | null;
   pager?: Pager | null;
   /** Where the paragraph sits ("Slide 2"), for the sheet's header. */
   slideLabel?: string | null;

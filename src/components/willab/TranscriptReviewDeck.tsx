@@ -648,11 +648,14 @@ export default function TranscriptReviewDeck({
   }, [walk.pager, closeSheets]);
 
   /* A SKIPPED MOMENT MOVES ON QUIETLY (24e-1; Phase 6): nothing was saved,
-     so no "Answer saved". */
-  const sheetSkipped = useCallback(() => {
+     so no "Answer saved". TAP AND GO (founder 2026-10-05): its bar leaves
+     the page at once, settled as the server settles a skip, instead of
+     waiting for the next read. */
+  const sheetSkipped = useCallback((skipped: DocumentSuggestion | null) => {
+    if (skipped) onJudged?.(skipped, "dismissed");
     if (walk.pager) walk.pager.onNext();
     else closeSheets();
-  }, [walk.pager, closeSheets]);
+  }, [walk.pager, closeSheets, onJudged]);
 
   /* REVIEW FEEDBACK (founder 2026-09-26): the bottom button walks the waiting
      moments from the first one in text order — the same walk a tap on a

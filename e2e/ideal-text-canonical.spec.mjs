@@ -433,6 +433,21 @@ check(
 );
 await stocked.close();
 
+/* ------- tap and go: a skipped moment's bar leaves at once (2026-10-05) ---- */
+const skipping = await browser.newPage({ viewport: { width: 520, height: 900 } });
+await skipping.emulateMedia({ reducedMotion: "reduce" });
+await skipping.goto(`${BASE}?library=full&tier=weak`, { waitUntil: "networkidle" });
+await skipping.waitForSelector("text=Garage pitch");
+await skipping.locator('button[aria-label^="Feedback waiting — review it"]').click();
+await skipping.waitForSelector('[data-testid="paragraph-sheet"]');
+await dialog(skipping).locator('[data-testid="paragraph-sheet-skip"]').click();
+await skipping.waitForTimeout(400);
+check(
+  "Skip settles the moment on the tap: its bar is gone without a reload",
+  (await skipping.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
+);
+await skipping.close();
+
 /* -------- a document with no stored parts still supports slide editing ---- */
 const fresh = await browser.newPage({ viewport: { width: 520, height: 900 } });
 await fresh.emulateMedia({ reducedMotion: "reduce" });

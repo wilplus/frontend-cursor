@@ -170,7 +170,9 @@ describe("judgement after feedback (24e-1)", () => {
     await act(async () =>
       (container.querySelector('[data-testid="paragraph-sheet-skip"]') as HTMLButtonElement).click());
     expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "skipped");
-    expect(onSkip).toHaveBeenCalled();
+    // Tap and go (founder 2026-10-05): the skipped moment rides along, so the
+    // page settles its bar at once.
+    expect(onSkip).toHaveBeenCalledWith(expect.objectContaining({ snippetId: "snip-1" }));
   });
 
   it("the open is told once", async () => {
