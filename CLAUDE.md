@@ -47,7 +47,9 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
      "Review feedback"; the Feedback sheet never opens by itself.
   2. The wait between Stop and the text is leave-and-come-back: a "working
      on your text" card in the Lounge that becomes "Review feedback" when the
-     text is ready; the speaker may go anywhere meanwhile.
+     text is ready; the speaker may go anywhere meanwhile. (The card is
+     NOT to be built: founder 2026-10-05, "no". The Lounge only stops
+     opening the text by itself.)
   3. After a moment is answered the sheet moves on by itself, with a small
      confirmation toast; the back arrow returns to change it.
   4. The end card's primary button is "Record Take 2" always, with "Back to
