@@ -13,6 +13,7 @@ import { WalkEndLayer } from "@/components/willab/WalkEnd";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import {
   buildBookmarks,
+  helperWordsDeleted,
   useFeedbackPager,
   type Bookmark,
 } from "@/components/willab/feedbackPager";
@@ -538,6 +539,8 @@ export default function TranscriptReviewDeck({
   } = useHeadlinesWithPending(arcId, doc, openPart !== null);
   // A deleted set leaves the page at once (D4).
   const { headlines, drop: dropHeadline } = useDroppedHeadlines(readHeadlines);
+  // Deleted here, before the next read says so (N48.2 Q6 A).
+  const [deletedHere, setDeletedHere] = useState<ReadonlySet<string>>(() => new Set());
   const openHelperWords = useCallback((chunk: DeckChunk) => {
     openParagraph(chunk);
     setOpenWords(true);
@@ -582,8 +585,11 @@ export default function TranscriptReviewDeck({
         // A paragraph with saved helper words is a screen of the walk,
         // passed with Next (founder lock 2026-09-30, B8).
         (c) => headlines.has(c.part.id),
+        // After Delete it rejoins the walk at once on its earlier answer
+        // (founder 2026-10-05, N48.2 Q6 A).
+        (c) => helperWordsDeleted(c.part, deletedHere.has(c.part.id), headlines.has(c.part.id)),
       ),
-    [chunks, stateOf, summaryByParagraph, headlines],
+    [chunks, stateOf, summaryByParagraph, headlines, deletedHere],
   );
   const openBookmark = useCallback(
     (bookmark: Bookmark) => {
@@ -669,9 +675,6 @@ export default function TranscriptReviewDeck({
       ),
     [bookmarks, stateOf, summaryByParagraph],
   );
-  useEffect(() => {
-    onReviewWaiting?.(deckReady && firstWaiting >= 0);
-  }, [deckReady, firstWaiting, onReviewWaiting]);
   const coachStep = useCoachStep({
     arcId,
     message: coachMessage,
@@ -680,6 +683,13 @@ export default function TranscriptReviewDeck({
       if (firstWaiting >= 0) walk.openAt(0);
     },
   });
+  /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
+     "Review feedback" stays for it after every moment is answered, and opens
+     on Step 0 (J1: only on the tap; nothing opens by itself). */
+  const coachWordWaiting = coachStep.unseen;
+  useEffect(() => {
+    onReviewWaiting?.(deckReady && (firstWaiting >= 0 || coachWordWaiting));
+  }, [deckReady, firstWaiting, coachWordWaiting, onReviewWaiting]);
   const reviewSeenRef = useRef(reviewRequest);
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
@@ -1498,6 +1508,7 @@ export default function TranscriptReviewDeck({
             onDelete: async () => {
               const chunk = openChunk;
               dropHeadline(chunk.part.id);
+              setDeletedHere((prev) => new Set(prev).add(chunk.part.id));
               saveBehind(
                 () => deleteHelperWordsBehind(setRootPhrase, onUnlockPart, chunk),
                 CHUNK_SHEET_COPY.failWordsBehind,

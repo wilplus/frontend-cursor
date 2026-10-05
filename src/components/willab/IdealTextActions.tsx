@@ -61,7 +61,9 @@ export default function IdealTextActions({
    *  I clicked it as a logged in person". Saving the step needs an account,
    *  so the guest goes to sign-up and the step is taken after it. */
   onSeeNextStepsAsGuest?: () => void;
-  /** A moment of this Take still waits for the speaker's judgement. */
+  /** A moment of this Take still waits for the speaker's judgement, or the
+   *  coach left a word on this Take that Step 0 has not shown yet (founder
+   *  2026-10-05, N48.3 Q11 A). */
   reviewWaiting?: boolean;
   /** Walk the waiting moments, from the first one in text order. */
   onReview?: () => void;

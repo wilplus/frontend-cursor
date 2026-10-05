@@ -62,6 +62,10 @@ export function buildBookmarks(
    *  open feedback nor saved words is not a screen; it still opens from
    *  the page. */
   savedOf: (chunk: DeckChunk) => boolean = () => false,
+  /** The paragraph's helper words were deleted (founder 2026-10-05, N48.2
+   *  Q6 A; lock B4-5): it rejoins the walk at once on its earlier answer,
+   *  not only when a moment is still open on it. */
+  deletedOf: (chunk: DeckChunk) => boolean = () => false,
 ): Bookmark[] {
   const seen = new Set<string>();
   const out: Bookmark[] = [];
@@ -69,8 +73,9 @@ export function buildBookmarks(
     const id = chunk.part.id;
     if (seen.has(id)) continue;
     const markers = markersOf(id) ?? [];
-    const { pending } = feedbackOf(chunk);
-    if (markers.length === 0 && pending === 0 && !savedOf(chunk)) continue;
+    const { pending, decided } = feedbackOf(chunk);
+    const rejoins = decided > 0 && deletedOf(chunk);
+    if (markers.length === 0 && pending === 0 && !savedOf(chunk) && !rejoins) continue;
     seen.add(id);
     out.push({
       partId: id,
@@ -80,6 +85,24 @@ export function buildBookmarks(
     });
   }
   return out;
+}
+
+/** HELPER WORDS DELETED, BACK IN THE WALK (founder 2026-10-05, N48.2 Q6 A;
+ *  lock B4-5: "After Delete ... the paragraph is back in the walk"). Delete
+ *  clears the words and the lock together, so a paragraph whose words were
+ *  deleted is one the server once locked (`iteration`, its lock-in count,
+ *  above nought) and holds unlocked now; `deletedHere` covers the moment
+ *  between the tap and the next read. The walk then shows its earlier
+ *  answer on the paragraph's own sheet: the answer is never re-opened and
+ *  never made up. A paragraph with words again is a saved screen instead.
+ *  Pure. */
+export function helperWordsDeleted(
+  part: { locked?: boolean; iteration?: number },
+  deletedHere: boolean,
+  saved: boolean,
+): boolean {
+  if (saved) return false;
+  return deletedHere || (part.locked !== true && (part.iteration ?? 0) > 0);
 }
 
 /** Where the email and the chat bubble land (Q28 A, Q29): the first coach-

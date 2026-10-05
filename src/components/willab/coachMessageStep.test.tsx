@@ -36,9 +36,9 @@ describe("the served message", () => {
   it("maps text, video, Take and time", () => {
     expect(mapCoachMessage({
       text: " Well done. ", video_url: "https://v", take_index: 2,
-      published_at: "2026-09-29T08:00:00Z",
+      published_at: "2026-09-29T08:00:00Z", take_session_id: "take-2",
     })).toEqual({ text: "Well done.", videoUrl: "https://v", takeIndex: 2,
-      publishedAt: "2026-09-29T08:00:00Z" });
+      publishedAt: "2026-09-29T08:00:00Z", takeSessionId: "take-2" });
   });
   it("is nothing when the coach sent neither words nor a video", () => {
     expect(mapCoachMessage({ text: "  ", video_url: null, take_index: 1 })).toBeNull();
