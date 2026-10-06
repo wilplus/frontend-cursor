@@ -91,6 +91,17 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   "keep it as it is today"): on a later Take a saved paragraph's sheet shows
   no player. The design-lock page's L3 still says "the Take stack"; the
   lock wins.
+- The founder lock of 2026-10-06 (`docs/FOUNDER-LOCK-feedback-walk-2026-10-06.md`
+  in the backend repo; clickable prototype
+  <https://claude.ai/artifact/C2CTBmU1bfSSDQgJUHTKkE>) locks the Feedback
+  walk: its flow (praise first, helper words after praise, the machine
+  checks each practise, "Judgement time!" then the judgements, sharing after
+  every review), one look used everywhere in the app (full-screen overlay,
+  plain black messages with a grey profile picture and no sender labels,
+  one player, one judgement screen, the breathing voice mark as the only
+  loader) and how screens move (the overlay rises and sinks, content slides
+  under a still top bar, soft cross-fades, nothing blinks, instant with
+  reduce motion). Where it disagrees with anything above, it wins.
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---
