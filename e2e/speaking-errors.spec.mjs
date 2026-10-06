@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- */
-/*  The speaking error library — the coach's door, in a real browser.          */
+/*  The speaking error library — /admin/errors (CP3 A), in a real browser.     */
 /*                                                                            */
 /*    LIBRARY_URL=http://localhost:<port>/dev/speaking-errors \                */
 /*      node e2e/speaking-errors.spec.mjs                                      */

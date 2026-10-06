@@ -4,14 +4,19 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isFounderEmail } from "@/lib/founder";
+import { COACH_WALK_COPY } from "@/lib/willab/coachWalkCopy";
 
 /** The founder's doors from the CEO header: the rings panel (2026-09-29),
- *  the pace panel and the research screen (2026-09-30). Rendered only for
- *  the founder's account; each page answers for itself, so this is a
- *  shortcut, not a gate. */
+ *  the pace panel and the research screen (2026-09-30), and next to pace
+ *  the exercise library and the speaking errors page, which left the coach's
+ *  app (CP3 A, 2026-10-06, N56.3; each under the title its page already
+ *  carries). Rendered only for the founder's account; each page answers for
+ *  itself, so this is a shortcut, not a gate. */
 const LINKS: [string, string][] = [
   ["/admin/rings", "Rings"],
   ["/admin/pace", "Pace"],
+  ["/admin/library", COACH_WALK_COPY.libraryTitle],
+  ["/admin/errors", "Speaking errors"],
   ["/admin/research", "Research"],
 ];
 

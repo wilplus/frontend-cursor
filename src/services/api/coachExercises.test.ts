@@ -164,10 +164,11 @@ describe("the doors", () => {
     }
   });
 
-  it("the page is its own route, coach-gated, and never mounts a router hook", () => {
-    const page = readFileSync("src/app/coach/exercises/page.tsx", "utf8");
-    expect(page).toContain("redirect(\"/login?redirectTo=/coach/exercises\")");
-    const client = readFileSync("src/app/coach/exercises/page.client.tsx", "utf8");
+  it("the page is its own route, founder-gated, and never mounts a router hook", () => {
+    const page = readFileSync("src/app/admin/library/page.tsx", "utf8");
+    expect(page).toContain("redirect(\"/login?redirectTo=/admin/library\")");
+    expect(page).toContain("if (!isFounderEmail(user.email)) notFound();");
+    const client = readFileSync("src/app/admin/library/page.client.tsx", "utf8");
     expect(client).toContain("useUserProfile()");
     expect(client).not.toContain("useRouter");
     expect(client).not.toContain("useSearchParams");

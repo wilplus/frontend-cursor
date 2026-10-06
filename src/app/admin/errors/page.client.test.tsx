@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  /coach/errors rendered — the coach's door into the speaking error library. */
+/*  /admin/errors rendered — the speaking error library, founder only.       */
 /*                                                                            */
 /*  The source fences in speakingErrors.test.ts prove the write path can only  */
 /*  ever say `observed`. This file renders the REAL component and proves the   */

@@ -16,7 +16,7 @@ import {
 } from "@/services/api/speakingErrors";
 
 /* -------------------------------------------------------------------------- */
-/*  /coach/errors — THE SPEAKING ERROR LIBRARY (founder 2026-09-16)            */
+/*  /admin/errors — THE SPEAKING ERROR LIBRARY (founder 2026-09-16)            */
 /*                                                                            */
 /*  "that is our goal to have the library of the errors so we can recognise    */
 /*  them and we have the exercise matching algorithm and they should go hand   */
