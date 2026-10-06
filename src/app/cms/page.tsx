@@ -23,6 +23,7 @@ import {
   type JournalCategory,
   type JournalCoverKind,
 } from "@/services/api/journal";
+import { publishNeedsSave } from "./publishNeedsSave";
 import {
   adminCreatePost,
   adminDeletePost,
@@ -438,10 +439,12 @@ export default function JournalAdminPage() {
     if (!id) {
       id = posts.find((p) => p.slug === editing.slug)?.id ?? null;
     }
-    if (!id) {
+    // Publishing means "what I see": unsaved edits are saved first, and a
+    // failed save stops the publish (publishNeedsSave).
+    if (publishNeedsSave({ id, publishing: next, dirty: isDirty })) {
       id = await save();
-      if (!id) return; // save() already surfaced why
     }
+    if (!id) return; // save() already surfaced why
 
     setBusy("publish");
     setError(null);
