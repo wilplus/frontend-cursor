@@ -31,7 +31,7 @@ vi.mock("@/services/api/speakingErrors", async (load) => {
   return { ...actual, listSpeakingErrors, saveSpeakingError };
 });
 
-const { default: SpeakingErrorLibraryClient } = await import("./page.client");
+const { default: SpeakingErrorLibraryClient, readinessLine } = await import("./page.client");
 
 const RUSHING = {
   errorId: "rushing",
@@ -253,5 +253,21 @@ describe("N4 — the screen does not exist for a non-coach", () => {
     expect(host.textContent).toContain("Nothing here");
     expect(host.textContent).not.toContain("Rushing");
     expect(listSpeakingErrors).not.toHaveBeenCalled();
+  });
+});
+
+describe("the founder's readiness line (P51b A, signed 2026-10-06)", () => {
+  it("reads the signed words with the coaches' count and the bar", () => {
+    const row = {
+      jar: "shadow_cues.hedging", current: 7, bar: 30, observedRate: null,
+      weeksToBar: null, caughtRate: 0.5, caughtBar: 0.8, ready: false,
+    };
+    expect(readinessLine(row)).toBe(
+      "Coaches heard it on 7 of 30 checked moments. · caught 50% of 80% needed",
+    );
+    expect(readinessLine({ ...row, current: null, ready: true })).toBe(
+      "READY to propose · Coaches heard it on — of 30 checked moments. · caught 50% of 80% needed",
+    );
+    expect(readinessLine(undefined)).toBe("No readiness read yet.");
   });
 });

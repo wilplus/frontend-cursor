@@ -152,7 +152,9 @@ export function readinessLine(row: PaceRow | undefined): string {
   const named = row.current === null ? "—" : String(row.current);
   const caught = row.caughtRate === null ? "not measured" : `${Math.round(row.caughtRate * 100)}%`;
   const caughtBar = row.caughtBar === null ? "" : ` of ${Math.round(row.caughtBar * 100)}% needed`;
-  return `${row.ready ? "READY to propose · " : ""}named by a coach on ${named} of ${row.bar} moments · caught ${caught}${caughtBar}`;
+  // Signed by the founder 2026-10-06 (Navigation Panel P51b A; backend
+  // decisions log N53): "Coaches heard it on {n} of {bar} checked moments."
+  return `${row.ready ? "READY to propose · " : ""}Coaches heard it on ${named} of ${row.bar} checked moments. · caught ${caught}${caughtBar}`;
 }
 
 /** The cue id a shadow entry's detector names, e.g. verbal_cues:hedging → hedging. */
