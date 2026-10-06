@@ -405,20 +405,31 @@ function finishSheet(done: (() => void) | undefined, close: () => void): void {
 }
 
 /** Does the answer hand the paragraph to the overlay (founder lock
- *  2026-09-30) rather than climb the ladder? Only on a sheet opened on the
- *  question: a practise opened from the overlay, and a coach-reviewed moment
- *  that opened on the exercise, keep their ladder to the helper words.
- *  Module-level, so the sheet (frozen at the ratchet) gains no branch. */
+ *  2026-09-30) rather than climb the ladder? On every sheet opened on the
+ *  question, a coach-reviewed moment included: rewrite, exercise and plain
+ *  moment all reach the same practise screens (lock B6), and where this
+ *  ladder and the lock disagree the lock wins (design lock, frontend
+ *  CLAUDE.md). Only a practise opened again from the overlay (any truthy
+ *  `practiseAgain`) keeps the ladder to the helper words. Module-level, so the sheet
+ *  (frozen at the ratchet) gains no branch. */
 function handsOffAfterAnswer(
   onAnswered: DeckChunkModalProps["onAnswered"],
   practiseAgain: DeckChunkModalProps["practiseAgain"],
-  coachReviewStatus: string | null | undefined,
 ): boolean {
-  return (
-    onAnswered !== undefined &&
-    !practiseAgain &&
-    coachReviewStatus !== "coach_reviewed"
-  );
+  return onAnswered !== undefined && !practiseAgain;
+}
+
+/** Does a coach-reviewed moment open straight on its exercise (founder
+ *  2026-09-28, 2A)? Only where this sheet is the whole review. Hosted as the
+ *  judgement step of the paragraph's own sheet (`onAnswered`), the moment
+ *  already opened on its feedback there (24e-1), the coach's exercise as its
+ *  card, and Next asked for the judgement: the sheet asks it and hands the
+ *  answer back (lock B5, B6). Pure, for the complexity ratchet. */
+function opensOnCoachExercise(
+  coachReviewStatus: string | null | undefined,
+  onAnswered: DeckChunkModalProps["onAnswered"],
+): boolean {
+  return coachReviewStatus === "coach_reviewed" && onAnswered === undefined;
 }
 
 /** PRACTICE OFF MEANS NO EXERCISE STEP HERE EITHER (founder 2026-10-05, on
@@ -616,7 +627,7 @@ export default function DeckChunkModal({
     firstStepId(
       buildSteps(practiseAgain?.answer ?? null),
       practiseAgain,
-      coachReviewStatus === "coach_reviewed",
+      opensOnCoachExercise(coachReviewStatus, onAnswered),
     ),
   );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
@@ -1229,7 +1240,7 @@ export default function DeckChunkModal({
     reportJudged(suggestion, answered);
     /* THE HAND-OFF (founder lock 2026-09-30, B5): the answer is this sheet's
        whole decision, and the paragraph overlay takes it from here. */
-    if (handsOffAfterAnswer(onAnswered, practiseAgain, coachReviewStatus)) {
+    if (handsOffAfterAnswer(onAnswered, practiseAgain)) {
       onAnswered?.(value);
       return;
     }
