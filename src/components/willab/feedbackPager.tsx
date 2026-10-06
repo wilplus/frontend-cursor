@@ -59,8 +59,10 @@ export function buildBookmarks(
   /** The paragraph's helper words are saved (founder lock 2026-09-30, B8):
    *  a screen of the walk, passed with Next — never judged, never
    *  practised, until its words are deleted. A paragraph with neither an
-   *  open feedback nor saved words is not a screen; it still opens from
-   *  the page. */
+   *  open feedback nor saved words is not a screen, and it no longer opens
+   *  from the page either: "a paragraph that is not bookmarked should not
+   *  open on tap" (founder 2026-10-06, N56.5, amending lock B7's "still
+   *  opens its own sheet on tap"; `opensFromPage`). */
   savedOf: (chunk: DeckChunk) => boolean = () => false,
   /** The paragraph's helper words were deleted (founder 2026-10-05, N48.2
    *  Q6 A; lock B4-5): it rejoins the walk at once on its earlier answer,
@@ -85,6 +87,26 @@ export function buildBookmarks(
     });
   }
   return out;
+}
+
+/** The paragraphs that are bookmarks of this Take, by part id. Pure. */
+export function bookmarkPartIds(bookmarks: readonly Bookmark[]): ReadonlySet<string> {
+  return new Set(bookmarks.map((b) => b.partId));
+}
+
+/** ONLY A BOOKMARK OPENS ON TAP (founder 2026-10-06, N56.5: "a paragraph
+ *  that is not bookmarked should not open on tap"; amends lock B7 of
+ *  2026-09-30). A bookmark is a paragraph in the Take's feedback set — its
+ *  orange or green bar, an open feedback, a coach moment — or one saved
+ *  with helper words, under its orange headline (`buildBookmarks`). Those
+ *  keep opening exactly as before (`opens`); any other paragraph is plain
+ *  text: no button, no focus, no pointer. Pure. */
+export function opensFromPage(
+  bookmarkIds: ReadonlySet<string>,
+  partId: string,
+  opens: boolean,
+): boolean {
+  return opens && bookmarkIds.has(partId);
 }
 
 /** HELPER WORDS DELETED, BACK IN THE WALK (founder 2026-10-05, N48.2 Q6 A;
