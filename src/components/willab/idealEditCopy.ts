@@ -365,3 +365,248 @@ export const CHUNK_SHEET_COPY = {
   helperWordsReplaceNote: (take: number) =>
     `These replace your Take ${take} words. Those stay in Earlier Takes.`,
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/*  THE FEEDBACK WALK'S NEW WORDS (founder lock 2026-10-06; decisions log      */
+/*  N52.5)                                                                     */
+/*                                                                            */
+/*  The eleven lines the founder wrote in chat for the walk (N52.5), and the   */
+/*  words signed with the line bank the same evening (N54,                    */
+/*  docs/SIGNED-line-bank-2026-10-06.md in the backend repo; copied exactly): */
+/*  the answer toast's form, the encouragement when nothing moved (NX3a), the */
+/*  sharing choices and messages (WQ5 A, WQ6 A). Every other word on the       */
+/*  walk's screens is already in CHUNK_SHEET_COPY above or in the shared      */
+/*  answer vocabulary. The lines after the third try that isn't praise       */
+/*  (CM3b A, N55) and the clearer version's button when personalised         */
+/*  practice is off (WQ3c A) were signed minutes later. Still NOT signed and  */
+/*  therefore NOT here: the "Journal" eyebrow.                                */
+/* -------------------------------------------------------------------------- */
+
+export const WALK_COPY = {
+  /* A practise the machine did not hear improve: encouragement, then another
+     practise, until praise or Skip. */
+  encourage: "It was better, and I have yet another practice for you to try!",
+  /* "Judgement time!" — after the practising, before the judgements. */
+  judgementTitle: "Judgement time!",
+  judgementHonesty:
+    "If you are honest when judging others, it will help you find your confident voice and calm the inner critic 😌",
+  /* The grey link; opens the Journal post inside the flow. */
+  judgementJournalLink: "More about self-modeling theory",
+  judgementPromise: "I am going to judge them honestly",
+  skip: "Skip",
+  /* The clearer version's message, around the new words. */
+  clearerOffer: "Here is a slightly more polished option:",
+  clearerAsk: "Do you accept and want to practise it?",
+  /* The exercise video's button. */
+  exercisePractise: "Practise",
+  /* Sharing, after every finished review. */
+  shareTitle: "After all, it's about speaking publicly!",
+  shareAsk: "Do you agree to share this take with others?",
+
+  /* --- signed with the line bank (N54) ----------------------------------- */
+  /* After a try where nothing moved (NX3a), rotating; `encourage` above shows
+     only when something moved. */
+  encourageNothingMoved: [
+    "Let's try it once more. I have another practice for you!",
+    "Let's give it another go. I have one more practice for you!",
+    "Not quite yet. Here's another practice to try!",
+    "Keep going! I have another practice for you to try.",
+  ],
+  /* After the third try that isn't praise (CM3a A: up to three tries; CM3b A,
+     N55), rotating; the walk then moves on to "Judgement time!". */
+  afterThirdTry: [
+    "Great effort! Let's move on and come back to this one later.",
+    "Thanks for giving it your all. On to the next step!",
+    "You worked hard on this one. Let's keep going!",
+    "Nice persistence! We'll move on for now.",
+  ],
+  /* The clearer version's button when personalised practice is off (WQ3c A):
+     the words can be taken into the text but not practised. "Keep my words"
+     stays below it (CHUNK_SHEET_COPY.linkKeepMyWords). */
+  clearerAccept: "Accept",
+  /** The answer toast (WQ4 A): the chosen answer's own word, with a tick. */
+  answerToast: (answer: string) => `${answer} ✓`,
+  /* Sharing choices (WQ5 A). Consent words: they never rotate. */
+  shareGeneral: "General community",
+  shareGeneralHint: "Fastest improvement in speaking publicly",
+  shareMine: "Only my community",
+  shareMineHint: "Slower but steady growth",
+  shareOwn: "Set up my own community",
+  shareNone: "None",
+  shareNoneHint: "Slowest progress, but safe",
+  fieldPassCode: "Pass code",
+  fieldCommunityName: "Community name",
+  /* Sharing messages (WQ6 A). */
+  sharePassCodeTaken: "That pass code is taken. Try another one.",
+  sharePassCodeUnknown: "No community has that pass code.",
+  shareAcceptTerms: "Please accept the updated Terms and Privacy first.",
+  shareFailed: "Couldn't share this take. Try again.",
+} as const;
+
+/* -------------------------------------------------------------------------- */
+/*  THE SIGNED LINE BANK, B01 to B14 (founder 2026-10-06, N54)                 */
+/*                                                                            */
+/*  Copied exactly from docs/SIGNED-line-bank-2026-10-06.md in the backend    */
+/*  repo; a line not there does not ship. B01 to B09 are praise, each firing  */
+/*  only on the cue it names (B09 when no single cue stands out); B10 to B12  */
+/*  are the clearer version's reasons; B13 opens the new text and B14 asks    */
+/*  under it. Rotation (never the same line twice in a row) and the "later"   */
+/*  lines (from Take 2 on, with the real Take number, only when true) are the */
+/*  caller's rules. No number but the Take number ever appears (AC-9).        */
+/* -------------------------------------------------------------------------- */
+
+export const WALK_LINE_BANK = {
+  /* sounded surer (general) */
+  B01: {
+    lines: [
+      "Sounded more confident than usual!",
+      "You sounded more sure of yourself than usual!",
+      "There it is: more confidence than usual!",
+      "That came out bold and sure. More than usual!",
+      "You sounded like you really believed it this time!",
+    ],
+    later: (take: number) => `This sounded more confident than on Take ${take}.`,
+  },
+  /* voice moved up and down */
+  B02: {
+    lines: [
+      "Your voice danced up and down. That kept it alive!",
+      "No flat line here: your voice went up and down and pulled me in!",
+      "Your voice had real melody. It sounded alive!",
+      "Up and down, like music. That's how a confident voice moves!",
+    ],
+    later: (take: number) => `Your voice moved more here than on Take ${take}.`,
+  },
+  /* louder and softer words */
+  B03: {
+    lines: [
+      "You made some words loud and some soft. That gave it shape!",
+      "You pushed the big words and let the small ones rest. Great!",
+      "Loud where it mattered, soft where it didn't. That landed!",
+      "Your volume moved with your meaning. Very strong!",
+    ],
+    later: (take: number) => `You used loud and soft more than on Take ${take}.`,
+  },
+  /* fewer stops */
+  B04: {
+    lines: [
+      "You kept going without stopping. It flowed like a river!",
+      "Hardly any stops. You just kept talking, sure of yourself!",
+      "Smooth and steady, no stumbling. That sounded confident!",
+      "You didn't stop to search for words. You just knew!",
+    ],
+    later: (take: number) => `Fewer stops here than on Take ${take}.`,
+  },
+  /* lower, calmer voice */
+  B05: {
+    lines: [
+      "This delivery was calm and steady",
+      "Calm and grounded. Your voice sat low and steady here!",
+      "Your voice was calm and smooth. It sounded like you were in charge!",
+      "Nice and steady. Nothing could shake you here!",
+      "Grounded and calm, like someone who knows exactly what they mean.",
+    ],
+    later: (take: number) => `Your voice sat lower than on Take ${take}. It sounded calm.`,
+  },
+  /* kept the speed */
+  B06: {
+    lines: [
+      "You weren't rushing, but your pace was good and rhythmic. This part sounded confident and right on time.",
+      "Good rhythm! You kept your pace and didn't drag.",
+      "Right on time: no rushing, no dragging, just the right pace!",
+      "Your pace held steady all through this part. Confident!",
+      "You moved like a clock here: steady and sure!",
+    ],
+    later: (take: number) => `You kept your pace better than on Take ${take}.`,
+  },
+  /* ending went down */
+  B07: {
+    lines: [
+      "That was great. You weren't asking me, you were simply saying what you mean. At the end you were just saying it straight!",
+      "You ended it like a statement, not a question. Straight and sure!",
+      "No question mark at the end. You just said it!",
+      "You landed the ending. It sounded like you meant every word!",
+      "You finished strong, like you were sure of it!",
+    ],
+    later: (take: number) => `Your ending came down more than on Take ${take}.`,
+  },
+  /* started with energy */
+  B08: {
+    lines: [
+      "The energy at the beginning was great. It was like the North Star of your presentation.",
+      "What a start! That energy set the tone for what came after.",
+      "You came in with energy from the very first word!",
+      "Strong opening! That energy pulls people right in.",
+      "You started with fire. Everyone would want to keep listening!",
+    ],
+    later: (take: number) => `You started with more energy than on Take ${take}.`,
+  },
+  /* the general line */
+  B09: {
+    lines: [
+      "Wow, it was one of the most confident moments of your presentation",
+      "This was one of your more confident moments. There's more in you!",
+      "Good moment! You're heading the right way.",
+      "This one sounded surer. Keep building on it!",
+      "I can hear your confident voice starting to come through here!",
+    ],
+    /* The general line names no Take; it takes one only to match the rest. */
+    later: (_take: number) => "This keeps getting surer. Keep going.",
+  },
+  /* drop the word in front */
+  B10: {
+    lines: [
+      "Say what you mean. Don't dance around it, just say it straight.",
+      "Skip the warm-up. Go straight to your point!",
+      "Start with what matters. No run-up needed!",
+      "Get right to it. Your point is strong enough on its own.",
+      "Drop the extra words and say the thing. It hits harder!",
+    ],
+  },
+  /* split in two */
+  B11: {
+    lines: [
+      "Try saying it as two short sentences, with a small pause between.",
+      "Two short sentences land better than one long one.",
+      "Break it in two and pause in the middle.",
+      "Two short sentences hit harder than one long one. Try it!",
+      "Cut it in two and take a breath between. Let each part land!",
+      "Say the first part, pause, then the second. Much clearer!",
+      "Give each idea its own sentence. People can follow you easily!",
+    ],
+  },
+  /* join into one */
+  B12: {
+    lines: [
+      "Don't cut it into pieces. Say it as one whole thing, so it lands all together and makes an impact.",
+      "Keep it in one go, so the idea hits all at once.",
+      "One sentence, one breath. Let it land together!",
+      "Don't break it up. Say it whole and it lands harder.",
+      "Put the pieces together so your idea comes out as one strong thought!",
+    ],
+  },
+  /* the opening line, above the new text */
+  B13: {
+    lines: [
+      "Here is a slightly more polished option:",
+      "Here's a clearer way to say it:",
+      "Try it this way:",
+      "Here's a way to say it even clearer:",
+      "Try saying it like this:",
+      "This version might land even better:",
+      "Here's a stronger way to say it:",
+    ],
+  },
+  /* the question, under the new text */
+  B14: {
+    lines: [
+      "Do you accept and want to practise it?",
+      "Want to take it and practise?",
+      "Shall we practise this version?",
+      "Do you want to try saying it this way?",
+      "Shall we practise this one together?",
+      "Ready to practise this version?",
+      "Want to give this version a go?",
+    ],
+  },
+} as const;

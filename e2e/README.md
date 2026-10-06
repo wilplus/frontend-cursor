@@ -1,6 +1,6 @@
 # e2e specs — real-browser checks for what jsdom can't answer
 
-Eight standalone Playwright scripts (not a test-runner suite): each boots
+Nine standalone Playwright scripts (not a test-runner suite): each boots
 Chromium, drives a page, prints PASS/FAIL lines, and exits non-zero on any
 failure.
 
@@ -10,6 +10,7 @@ failure.
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
 | `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` — **stale, not in CI** (see below) |
+| `feedback-walk.spec.mjs` | `/dev/feedback-walk` | `WALK_P1_URL` → `:3111`; screenshots + flow video to `SHOTS_DIR` (default `e2e/artifacts/feedback-walk`, gitignored) |
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
@@ -31,7 +32,7 @@ It is deliberately not in CI (audit Q-T6): the deck surface is pinned by the
 rendered unit test `src/components/willab/TranscriptReviewDeck.f1.test.tsx`
 until this spec is rewritten against the current harness or deleted.
 
-The six `/dev/*` harness pages ship in the production route tree and each
+The `/dev/*` harness pages ship in the production route tree and each
 returns `null` under `NODE_ENV=production` (audit Q-A12: acceptable).
 
 **csp-violations is the other exception, in the opposite direction.** It

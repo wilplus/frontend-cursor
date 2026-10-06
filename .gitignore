@@ -78,3 +78,6 @@ backend/instance/
 
 # task-master local telemetry state (per-machine, never shared)
 /cache/
+
+# e2e screenshots and videos (e2e/feedback-walk.spec.mjs)
+/e2e/artifacts/

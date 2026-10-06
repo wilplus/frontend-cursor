@@ -320,3 +320,205 @@ body.no-scroll {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(250%); }
 }
+
+/* -------------------------------------------------------------------------- */
+/*  FEEDBACK WALK MOTION (founder lock 2026-10-06, "How screens move")         */
+/*                                                                            */
+/*  The locked prototype's one set of moves, ported class for class and       */
+/*  scoped under `walk-`. src/lib/willab/walkMotion.ts decides WHICH move;    */
+/*  this block draws it. What arrives eases out, what leaves eases in;        */
+/*  nothing just blinks. It lives here rather than in Tailwind because the     */
+/*  moves address "everything in the overlay except its top bar", which a     */
+/*  utility class cannot say.                                                 */
+/*                                                                            */
+/*  The press is the walk's own (scale 0.98), scoped so the app-wide 0.97 in   */
+/*  TOUCH FEEDBACK above is untouched.                                        */
+/* -------------------------------------------------------------------------- */
+.walk-stage,
+.walk-ov,
+.walk-endsheet,
+.walk-dim,
+.walk-toast {
+  --walk-ease-arrive: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --walk-ease-leave: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* One layer per screen; the leaving copy sits above while it goes. */
+.walk-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  pointer-events: auto;
+}
+.walk-ghost {
+  pointer-events: none !important;
+}
+
+/* open: the overlay rises from the bottom over the page */
+.walk-m-open > .walk-ov {
+  animation: walk-sheet-up 0.38s var(--walk-ease-arrive) both;
+}
+/* close: the overlay sinks, the page is already underneath */
+.walk-ghost.walk-m-close {
+  z-index: 10;
+}
+.walk-ghost.walk-m-close > .walk-ov {
+  animation: walk-sheet-down 0.28s var(--walk-ease-leave) forwards;
+}
+/* next / back / fade inside the overlay: the top bar stays, the content moves */
+.walk-ghost.walk-m-swap {
+  z-index: 11;
+}
+.walk-ghost.walk-m-swap > .walk-ov {
+  background: transparent;
+}
+.walk-ghost.walk-m-swap > .walk-ov > .walk-ovtop {
+  visibility: hidden;
+}
+.walk-m-next > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-in-r 0.3s var(--walk-ease-arrive) 0.1s both;
+}
+.walk-m-back > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-in-l 0.3s var(--walk-ease-arrive) 0.1s both;
+}
+.walk-ghost.walk-m-next > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-out-l 0.14s var(--walk-ease-leave) forwards;
+}
+.walk-ghost.walk-m-back > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-out-r 0.14s var(--walk-ease-leave) forwards;
+}
+/* a screen that stands apart, or one moment changing state: a soft cross-fade */
+.walk-m-fade > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-fade-up 0.34s var(--walk-ease-arrive) 0.1s both;
+}
+.walk-ghost.walk-m-fade > .walk-ov > :not(.walk-ovtop) {
+  animation: walk-fade-out 0.14s var(--walk-ease-leave) forwards;
+}
+/* Recording Mode: fades to dark */
+.walk-m-dark {
+  animation: walk-fade 0.4s ease both;
+}
+
+/* the end card: the page dims and the card rises; leaving, it sinks */
+.walk-endsheet {
+  animation: walk-up 0.3s var(--walk-ease-arrive);
+}
+.walk-dim {
+  animation: walk-fade 0.25s ease;
+}
+.walk-endsheet.walk-ghost {
+  animation: walk-down 0.24s var(--walk-ease-leave) forwards;
+}
+.walk-dim.walk-ghost {
+  animation: walk-fade-out 0.24s ease forwards;
+}
+
+/* the toast: rises in, stays, fades */
+.walk-toast {
+  animation: walk-toast 1.6s ease forwards;
+}
+
+/* small touches: a press gives way, a choice fills in, nothing jumps */
+.walk-press,
+.walk-press-sm {
+  transition:
+    transform 0.12s ease,
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease;
+}
+:is(.walk-ov, .walk-endsheet) .walk-press:not(:disabled):active {
+  transform: scale(0.98);
+}
+:is(.walk-ov, .walk-endsheet) .walk-press-sm:not(:disabled):active {
+  transform: scale(0.92);
+}
+.walk-fill {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+.walk-rise {
+  animation: walk-fade-up 0.22s var(--walk-ease-arrive);
+}
+
+@keyframes walk-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes walk-sheet-down {
+  from { transform: none; }
+  to { transform: translateY(100%); }
+}
+@keyframes walk-in-r {
+  from { transform: translateX(26px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes walk-in-l {
+  from { transform: translateX(-26px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes walk-out-l {
+  to { transform: translateX(-22px); opacity: 0; }
+}
+@keyframes walk-out-r {
+  to { transform: translateX(22px); opacity: 0; }
+}
+@keyframes walk-fade-up {
+  from { transform: translateY(8px) scale(0.985); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes walk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes walk-fade-out {
+  to { opacity: 0; }
+}
+@keyframes walk-up {
+  from { transform: translateY(40px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes walk-down {
+  to { transform: translateY(48px); opacity: 0; }
+}
+@keyframes walk-toast {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  12% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Reduce motion (the phone's setting): every move is instant and no leaving
+   copy is drawn. The toast keeps standing still for its time instead of
+   finishing its fade at once (its component removes it). */
+@media (prefers-reduced-motion: reduce) {
+  .walk-stage,
+  .walk-stage *,
+  .walk-endsheet,
+  .walk-dim,
+  .walk-press,
+  .walk-press-sm,
+  .walk-fill,
+  .walk-rise {
+    animation-duration: 0.01s !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01s !important;
+  }
+  .walk-ghost {
+    display: none !important;
+  }
+  .walk-toast {
+    animation: none !important;
+    transform: translateX(-50%);
+  }
+  :is(.walk-ov, .walk-endsheet) .walk-press:not(:disabled):active,
+  :is(.walk-ov, .walk-endsheet) .walk-press-sm:not(:disabled):active {
+    transform: none;
+  }
+}
