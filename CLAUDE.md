@@ -111,11 +111,28 @@ from exactly what was said in the latest Take; locked helper words persist until
 user picks new ones, and every version stays in the Paragraph's history.
 - **Three load-bearing pieces:** **(a)** perfect per-slide transcription,
   **(b)** coherent initial Ideal Text with stable Paragraph identity, and
-  **(c)** Manager arbitration that returns exactly three evidence-ranked
-  Feedback items for every valid Take: one Confident Voice candidate, one
-  actionable verbal/structure improvement, and one evidence-backed praise
-  item. Weak evidence uses tentative language; it is never invented. The
-  record → process → Ideal Text → next-Take loop never waits for a coach.
+  **(c)** versioned Manager arbitration. **V3 is served today** (founder
+  cutover 2026-09-18; V2 is retained but is no longer a fallback). **V4, when
+  built, replaces it for every speaker by the founder's switch** (founder
+  2026-10-06, Navigation Panel QG3 A, V22a B: "there are no users"); a block V4
+  is very unsure of gets V3's pick, logged, never silent (V15a). V3 partitions
+  each Slide run into deterministic blocks closest to 75 words and surfaces
+  exactly one relative-best Confident Voice item per valid block on **every**
+  Take, Take 1 included (contract 24b). On top, each Take carries anchored
+  notes, one per block by the machine's read (founder 2026-09-29, caps
+  lifted): praise on any item read confident, a rewrite on any item read weak,
+  and an exercise on any bookmark whose clip the machine reads weak and a
+  library exercise matches, each only where an evidence-backed one exists
+  (24f). An honest empty rewrite or praise lane shows no card. *Amended
+  2026-10-06 (founder, Navigation Panel QG3 A; backend ledger N29, CA01;
+  backend decisions log N51): this replaces the stale text "Manager
+  arbitration that returns exactly three evidence-ranked Feedback items for
+  every valid Take: one Confident Voice candidate, one actionable
+  verbal/structure improvement, and one evidence-backed praise item", which
+  V3's cutover of 2026-09-18 and the 2026-09-29 lifting of the caps had
+  superseded.* Weak evidence uses tentative language; it is never invented.
+  The record → process → Ideal Text → next-Take loop never waits for a coach
+  or exercise.
 
 **F2 — the asynchronous learning and confidence overlay, SECOND priority.**
 Machine Feedback and coach review retain one auditable lineage. Confident Voice
@@ -133,12 +150,24 @@ recording. Owner answers are routing signals, never blind training labels.
   never a best-of assembly; an unspoken Slide keeps its last version (N29). The lock
   keeps the helper words, which persist until the user picks new ones. Every
   version stays in the Paragraph's history. Best Presentation remains retired.
-- **L2 — Manager-gated Feedback.** Detectors create Candidates; only Manager-
-  approved Candidates surface. Every valid Take has exactly three items: the
-  best Confident Voice candidate, the best actionable verbal/structure
-  improvement, and the best evidence-backed praise. Each lane selects its best
-  available evidence even when weak, using tentative language and never
-  inventing words, praise, or certainty.
+- **L2 — Manager-gated, versioned Feedback.** Detectors create Candidates;
+  only Manager-approved Candidates surface under the active versioned budget.
+  V3 (served since 2026-09-18; replaced by V4 for every speaker once V4 is
+  built and switched by the founder, with V3's pick on any block V4 is very
+  unsure of, logged — QG3 A, 2026-10-06) uses one relative-best Confident
+  Voice item per valid 75-word block on every Take, plus one anchored note per
+  block by its read: praise where read confident, a rewrite where read weak,
+  an exercise on any matched bookmark (founder 2026-09-29, caps lifted; 24f).
+  V2 kept exactly one item from each of three families and is retained only
+  as superseded history — never a silent substitute (24h). Each active-policy
+  lane ranks its complete pool. *Amended 2026-10-06 (founder, Navigation Panel
+  QG3 A; backend ledger N29, CA01; backend decisions log N51): this replaces
+  the stale text "Every valid Take has exactly three items: the best
+  Confident Voice candidate, the best actionable verbal/structure improvement,
+  and the best evidence-backed praise. Each lane selects its best available
+  evidence even when weak".* Weak evidence uses tentative language; it never
+  invents words, praise or certainty, and never fills an honest
+  `no_defensible_candidate` lane.
 - **L3 — Provenance walls.** Machine prediction, owner routing, blind peer
   rating, coach judgment, and detector verdict remain separate. Voice Album
   membership requires Machine Yes + User Yes + Coach Yes on the exact recording.
