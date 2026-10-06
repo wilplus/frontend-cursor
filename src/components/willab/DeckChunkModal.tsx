@@ -409,8 +409,8 @@ function finishSheet(done: (() => void) | undefined, close: () => void): void {
  *  question, a coach-reviewed moment included: rewrite, exercise and plain
  *  moment all reach the same practise screens (lock B6), and where this
  *  ladder and the lock disagree the lock wins (design lock, frontend
- *  CLAUDE.md). Only a practise opened from the overlay without its practise
- *  host keeps the ladder to the helper words. Module-level, so the sheet
+ *  CLAUDE.md). Only a practise opened again from the overlay (any truthy
+ *  `practiseAgain`) keeps the ladder to the helper words. Module-level, so the sheet
  *  (frozen at the ratchet) gains no branch. */
 function handsOffAfterAnswer(
   onAnswered: DeckChunkModalProps["onAnswered"],
