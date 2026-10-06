@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 /**
- * The coach's Library row in the one menu (founder 2026-09-30, A8; build plan
- * P2-13; the word "Library" decided 2026-10-05, N48.5 Q25 A). Until this row
- * the Library at /coach/exercises was reachable only by typing its address.
+ * The coach's menu no longer carries a Library row (CP3 A, 2026-10-06,
+ * decisions log N56.3): the exercise library and the speaking errors page
+ * left the coach's app for the founder's admin area, next to the pace panel.
+ * "Coaches keep everything they need inside the moment."
  *
- * Coach only, the way the corpus row is: the host passes the href only for a
- * coach, and the menu draws the row only when signed in with an href.
+ * The corpus row stays coach only: the host passes its href only for a coach,
+ * and the menu draws the row only when signed in with an href.
  */
 import { act, createElement, forwardRef, type ReactNode } from "react";
 import { readFileSync } from "node:fs";
@@ -54,30 +55,25 @@ function openMenu(props: Partial<Parameters<typeof AppMenu>[0]>): HTMLAnchorElem
   return [...host.querySelectorAll("a")];
 }
 
-describe("the Library row in the coach menu", () => {
-  it("a coach's menu links the Library, before the corpus", () => {
-    const links = openMenu({ libraryHref: "/coach/exercises", corpusHref: "/coach/corpus" });
-    const labels = links.map((a) => a.textContent);
-    const library = links.find((a) => a.textContent === "Library");
-    expect(library?.getAttribute("href")).toBe("/coach/exercises");
-    expect(labels.indexOf("Library")).toBeLessThan(labels.indexOf("Training corpus"));
-  });
-
-  it("anyone the host passes no href for has no Library row at all", () => {
-    const links = openMenu({ libraryHref: null, corpusHref: null });
+describe("the coach menu after the Library moved to the admin area", () => {
+  it("a coach's menu has the corpus and no Library row", () => {
+    const links = openMenu({ corpusHref: "/coach/corpus" });
+    expect(links.some((a) => a.textContent === "Training corpus")).toBe(true);
     expect(links.some((a) => a.textContent === "Library")).toBe(false);
-    expect(links.some((a) => a.getAttribute("href") === "/coach/exercises")).toBe(false);
+    expect(links.some((a) => /\/coach\/(exercises|errors)|\/admin\/(library|errors)/.test(a.getAttribute("href") ?? ""))).toBe(false);
   });
 
-  it("signed out, the row is not drawn even with an href", () => {
-    const links = openMenu({ authState: "anonymous", libraryHref: "/coach/exercises" });
-    expect(links.some((a) => a.textContent === "Library")).toBe(false);
+  it("signed out, the corpus row is not drawn even with an href", () => {
+    const links = openMenu({ authState: "anonymous", corpusHref: "/coach/corpus" });
+    expect(links.some((a) => a.textContent === "Training corpus")).toBe(false);
   });
 
-  it("both mounts pass the Library address only for a coach", () => {
+  it("the menu takes no Library address, and neither mount links the two pages", () => {
+    expect(readFileSync("src/components/AppMenu.tsx", "utf8")).not.toContain("libraryHref");
     for (const mount of ["src/components/SiteHeader.tsx", "src/components/dashboard/DashboardHeader.tsx"]) {
       const source = readFileSync(mount, "utf8");
-      expect(source, mount).toMatch(/libraryHref=\{menu\.isCoach \? "\/coach\/exercises" : null\}/);
+      expect(source, mount).not.toContain("libraryHref");
+      expect(source, mount).not.toMatch(/\/coach\/(exercises|errors)|\/admin\/(library|errors)/);
     }
   });
 });

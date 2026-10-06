@@ -1,6 +1,6 @@
 "use client";
 
-import SpeakingErrorLibraryClient from "@/app/coach/errors/page.client";
+import SpeakingErrorLibraryClient from "@/app/admin/errors/page.client";
 
 /* -------------------------------------------------------------------------- */
 /*  A harness for the speaking error library, driven in a REAL browser.        */

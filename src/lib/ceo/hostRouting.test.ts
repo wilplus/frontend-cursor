@@ -100,6 +100,35 @@ describe("CEO hostname routing", () => {
     ).toBe("not-found");
   });
 
+  it("serves the library and the speaking errors pages next to pace (CP3 A)", () => {
+    for (const page of ["/admin/library", "/admin/errors"]) {
+      expect(decide(CEO_CANONICAL_HOST, page).action, page).toBe("allow");
+      expect(decide("www.willpowerlab.com", page).action, page).toBe(
+        "redirect-to-ceo-host"
+      );
+    }
+    // The endpoints those pages read answer on the CEO host…
+    for (const api of [
+      "/api/v2/coach/exercises",
+      "/api/v2/coach/exercises/land-the-ending/video",
+      "/api/v2/coach/exercises/script-draft",
+      "/api/v2/coach/catalogue",
+      "/api/v2/coach/speaking-errors",
+      "/api/v2/user/profile",
+    ]) {
+      expect(decide(CEO_CANONICAL_HOST, api).action, api).toBe("allow");
+      // …and stay where the coach's walk reads them on the main host.
+      expect(decide("www.willpowerlab.com", api).action, api).toBe("allow");
+    }
+    // The rest of the coach's surface stays off the CEO host.
+    expect(decide(CEO_CANONICAL_HOST, "/api/v2/coach/queue/moments").action).toBe(
+      "not-found"
+    );
+    expect(decide(CEO_CANONICAL_HOST, "/coach/exercises").action).toBe(
+      "redirect-to-ceo"
+    );
+  });
+
   it("removes deployment ports from canonical production redirects", () => {
     expect(
       ceoCanonicalUrl(

@@ -68,12 +68,6 @@ export interface AppMenuProps {
   /** Where "Lab" goes. The blog links into the product; the lab itself is
    *  already there, so its mount passes null and the row is omitted. */
   labHref?: string | null;
-  /** The coach's Library (/coach/exercises; founder 2026-09-30, A8; the
-   *  word decided 2026-10-05, N48.5 Q25 A). COACH ONLY, exactly like the
-   *  corpus row below: the host passes it only for a coach, so the row does
-   *  not exist for anyone else. Until it, the Library was reachable only by
-   *  typing its address. */
-  libraryHref?: string | null;
   /** The training-corpus workbench. COACH ONLY (N4): the host passes this
    *  only when the signed-in user is a coach, so the row does not exist for
    *  anyone else — not greyed out, not present. */
@@ -93,7 +87,6 @@ export default function AppMenu({
   onLogout,
   loggingOut = false,
   labHref = null,
-  libraryHref = null,
   corpusHref = null,
   dataConsentHref = null,
 }: AppMenuProps) {
@@ -208,19 +201,8 @@ export default function AppMenu({
               ))
             : null}
 
-          {/* The coach's rows, in the unified map's order: the Library, then
-              the corpus. "Library" is the founder's word (N48.5 Q25 A). */}
-          {signedIn && libraryHref ? (
-            <Link
-              ref={firstRef()}
-              href={libraryHref}
-              className={MENU_ITEM_CLASS}
-              onClick={() => setOpen(false)}
-            >
-              Library
-            </Link>
-          ) : null}
-
+          {/* The coach's row. The Library that sat above it left the coach's
+              app for the founder's admin area (CP3 A, 2026-10-06, N56.3). */}
           {signedIn && corpusHref ? (
             <Link
               ref={firstRef()}

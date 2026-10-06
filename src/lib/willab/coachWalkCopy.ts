@@ -18,7 +18,6 @@ export const COACH_WALK_COPY = {
   queueNextSpeaker: "Next speaker",
   /* a Take whose bookmarks are not frozen yet (founder 2026-10-01, A1) */
   queueWaitingForText: "Waiting for the text",
-  queueNameError: "Name a speaking error",
   /* the one bubble in the Lounge, and the button under the thread */
   bubbleWaiting: (n: number) =>
     n === 0 ? "Nobody waiting" : `${n} ${n === 1 ? "speaker" : "speakers"} waiting`,
