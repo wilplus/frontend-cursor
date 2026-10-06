@@ -10,11 +10,19 @@ import CoachJudgeSheet from "./CoachJudgeSheet";
 import { libraryLine, requestOpen } from "./CoachReadSheet";
 
 const saveStateRating = vi.fn();
+const prepareConfidenceChainPacket = vi.fn();
+const acknowledgeConfidenceChainRender = vi.fn();
 vi.mock("@/services/api/stateRatings", async () => {
   const actual = await vi.importActual<typeof import("@/services/api/stateRatings")>(
     "@/services/api/stateRatings",
   );
-  return { ...actual, saveStateRating: (...args: unknown[]) => saveStateRating(...args) };
+  return {
+    ...actual,
+    saveStateRating: (...args: unknown[]) => saveStateRating(...args),
+    prepareConfidenceChainPacket: (...args: unknown[]) => prepareConfidenceChainPacket(...args),
+    acknowledgeConfidenceChainRender: (...args: unknown[]) =>
+      acknowledgeConfidenceChainRender(...args),
+  };
 });
 
 const pager = { index: 2, total: 4, label: "Quiet Heron", onBack: () => {}, onNext: () => {} };
@@ -50,6 +58,8 @@ describe("CoachJudgeSheet", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     saveStateRating.mockReset();
+    prepareConfidenceChainPacket.mockReset();
+    acknowledgeConfidenceChainRender.mockReset();
   });
   afterEach(() => {
     act(() => root.unmount());
@@ -96,6 +106,94 @@ describe("CoachJudgeSheet", () => {
     await flush();
     expect(container.textContent).toContain("Rate in a language you know.");
     expect(onJudged).not.toHaveBeenCalled();
+  });
+});
+
+describe("CoachJudgeSheet on the confidence chain (N48.5 Q27 A)", () => {
+  const handle = {
+    reviewAssignmentId: "20000000-0000-4000-8000-000000000003",
+    presentationId: "20000000-0000-4000-8000-000000000005",
+    acknowledgementToken: "20000000-0000-4000-8000-000000000006",
+    visiblePayloadSha256: "b".repeat(64),
+  };
+  const clip = { src: "https://media.example/take.webm", startOffsetMs: 1000, durationMs: 3000 };
+
+  function mountWithClip(onJudged: (v: string) => void = () => {}): void {
+    act(() => {
+      root.render(
+        createElement(CoachJudgeSheet, {
+          snippetId: "s-1", pager, clip, onClose: () => {}, onJudged,
+        }),
+      );
+    });
+  }
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    saveStateRating.mockReset().mockResolvedValue({ ok: true });
+    prepareConfidenceChainPacket.mockReset();
+    acknowledgeConfidenceChainRender.mockReset();
+    vi.stubGlobal("requestAnimationFrame", (run: FrameRequestCallback) => {
+      run(0);
+      return 0;
+    });
+  });
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("asks for the packet only once the clip is on screen", () => {
+    prepareConfidenceChainPacket.mockResolvedValue(null);
+    mount();
+    expect(prepareConfidenceChainPacket).not.toHaveBeenCalled();
+  });
+
+  it("receipts the painted packet and echoes it with the answer", async () => {
+    prepareConfidenceChainPacket.mockResolvedValue(handle);
+    acknowledgeConfidenceChainRender.mockResolvedValue({
+      ok: true,
+      receipt: { reviewAssignmentId: handle.reviewAssignmentId,
+                 presentationId: handle.presentationId, exposureId: "exposure-9" },
+    });
+    mountWithClip();
+    await flush();
+    await flush();
+    expect(prepareConfidenceChainPacket).toHaveBeenCalledWith("s-1");
+    expect(acknowledgeConfidenceChainRender).toHaveBeenCalledTimes(1);
+    const [acked, request] = acknowledgeConfidenceChainRender.mock.calls[0];
+    expect(acked).toEqual(handle);
+    expect(request.idempotencyKey).toContain(handle.presentationId);
+    click("In-between");
+    await flush();
+    expect(saveStateRating.mock.calls[0][4]).toEqual({ handle, exposureId: "exposure-9" });
+  });
+
+  it("without a packet the answer is saved exactly as before and nothing shows", async () => {
+    prepareConfidenceChainPacket.mockResolvedValue(null);
+    mountWithClip();
+    await flush();
+    const before = container.textContent;
+    click("Yes — Confident");
+    await flush();
+    expect(acknowledgeConfidenceChainRender).not.toHaveBeenCalled();
+    expect(saveStateRating.mock.calls[0][4]).toBeNull();
+    expect(container.textContent).toBe(before);
+  });
+
+  it("a refused receipt never reaches the answer or the screen", async () => {
+    prepareConfidenceChainPacket.mockResolvedValue(handle);
+    acknowledgeConfidenceChainRender.mockResolvedValue({ ok: false, error: "refused" });
+    mountWithClip();
+    await flush();
+    await flush();
+    click("Not sure");
+    await flush();
+    expect(saveStateRating.mock.calls[0][4]).toBeNull();
+    expect(container.textContent).not.toContain("refused");
   });
 });
 

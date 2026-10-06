@@ -118,3 +118,41 @@ describe("Q2: the legacy coach card's receipt on the confidence chain", () => {
     });
   });
 });
+
+describe("N48.5 Q27 A: the walk asks the chain for its blind packet", () => {
+  it("posts to the packet route and maps the four identifiers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        mlc2_blind_review: {
+          review_assignment_id: handle.reviewAssignmentId,
+          presentation_id: handle.presentationId,
+          acknowledgement_token: handle.acknowledgementToken,
+          visible_payload_sha256: handle.visiblePayloadSha256,
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { prepareConfidenceChainPacket } = await import("./stateRatings");
+    await expect(prepareConfidenceChainPacket("snip-1")).resolves.toEqual(handle);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("/api/v2/coach/snippets/snip-1/mlc2-packet");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe("{}");
+  });
+
+  it("no packet, a refusal, a partial handle or a dead network are all null", async () => {
+    const { prepareConfidenceChainPacket } = await import("./stateRatings");
+    for (const answer of [
+      { ok: true, json: async () => ({ mlc2_blind_review: null }) },
+      { ok: false, json: async () => ({ code: "INVALID_INPUT" }) },
+      { ok: true, json: async () => ({ mlc2_blind_review: { review_assignment_id: "a" } }) },
+      { ok: true, json: async () => { throw new Error("not json"); } },
+    ]) {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answer));
+      await expect(prepareConfidenceChainPacket("snip-1")).resolves.toBeNull();
+    }
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await expect(prepareConfidenceChainPacket("snip-1")).resolves.toBeNull();
+  });
+});
