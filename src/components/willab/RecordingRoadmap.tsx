@@ -54,7 +54,12 @@ export default function RecordingRoadmap({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const wheelGestureRef = useRef<WheelGestureState>(IDLE_WHEEL_GESTURE);
-  const touchRef = useRef<{ y: number; consumed: boolean } | null>(null);
+  const touchRef = useRef<{
+    y: number;
+    lastY: number;
+    inScroller: boolean;
+    consumed: boolean;
+  } | null>(null);
   const currentSlideRef = useRef(currentSlide);
   const directionRef = useRef<1 | -1>(1);
   const onSlideChangeRef = useRef(onSlideChange);
@@ -149,19 +154,53 @@ export default function RecordingRoadmap({
     if (!stage) return;
 
     const onStart = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY ?? 0;
+      const scroller = scrollRef.current;
       touchRef.current = {
-        y: event.touches[0]?.clientY ?? 0,
+        y,
+        lastY: y,
+        inScroller:
+          !!scroller &&
+          event.target instanceof Node &&
+          scroller.contains(event.target),
         consumed: false,
       };
     };
     const onMove = (event: TouchEvent) => {
       const touch = touchRef.current;
-      if (!touch || touch.consumed) return;
-      const deltaY = touch.y - (event.touches[0]?.clientY ?? touch.y);
-      if (Math.abs(deltaY) < 48) return;
-      const direction: 1 | -1 = deltaY > 0 ? 1 : -1;
+      if (!touch) return;
+      const y = event.touches[0]?.clientY ?? touch.lastY;
+      const step = touch.lastY - y;
+      touch.lastY = y;
       const scroller = scrollRef.current;
       const edge = scroller ? scrollEdge(scroller) : "both";
+
+      // NO NATIVE SCROLL OUT OF THE STAGE (founder 2026-10-06: pulling down
+      // reloaded the recording screen). A move the roots scroller cannot
+      // take (the touch began outside it, on the slide, or it is already at
+      // that edge) would chain to the page and start the browser's
+      // pull-to-refresh, which reloads the tab and loses the Take. This stage
+      // turns exactly those moves into slide changes, so the native scroll
+      // is never wanted. The root's `overscroll-behavior: none`
+      // (useNoPullToRefresh) does this on browsers that honour it; this is
+      // the belt for those that do not (iOS before 16). A move the scroller
+      // can still take is never cancelled, and a tap's click survives a
+      // cancelled touchmove.
+      if (step !== 0 && event.cancelable) {
+        const stepDirection: 1 | -1 = step > 0 ? 1 : -1;
+        if (
+          touch.consumed ||
+          !touch.inScroller ||
+          canBubble(edge, stepDirection)
+        ) {
+          event.preventDefault();
+        }
+      }
+
+      if (touch.consumed) return;
+      const deltaY = touch.y - y;
+      if (Math.abs(deltaY) < 48) return;
+      const direction: 1 | -1 = deltaY > 0 ? 1 : -1;
       if (!canBubble(edge, direction)) return;
       touch.consumed = true;
       goToSlide(currentSlideRef.current + direction);
@@ -171,12 +210,15 @@ export default function RecordingRoadmap({
     };
 
     stage.addEventListener("touchstart", onStart, { passive: true });
-    stage.addEventListener("touchmove", onMove, { passive: true });
+    // Not passive: a move may be cancelled (see onMove).
+    stage.addEventListener("touchmove", onMove, { passive: false });
     stage.addEventListener("touchend", onEnd, { passive: true });
+    stage.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
       stage.removeEventListener("touchstart", onStart);
       stage.removeEventListener("touchmove", onMove);
       stage.removeEventListener("touchend", onEnd);
+      stage.removeEventListener("touchcancel", onEnd);
     };
   }, [goToSlide]);
 

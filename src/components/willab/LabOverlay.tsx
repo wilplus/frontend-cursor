@@ -7,6 +7,7 @@ import { Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { useNoPullToRefresh } from "@/lib/willab/useNoPullToRefresh";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
   submitLabRecording,
@@ -121,6 +122,22 @@ async function uploadForProcessing(
   const result = await submitLabRecording(input, { signal });
   if (result.kind !== "discarded") return result;
   return new Promise(() => undefined);
+}
+
+/** The span in which the Take lives only in this tab: from the first sound
+ *  until processing ends. A browser reload anywhere in it loses the Take, so
+ *  pull-to-refresh is held off for exactly this span (founder 2026-10-06).
+ *  Module scope because LabOverlay is grandfathered at the complexity
+ *  ceiling and may only come down. */
+function takeOnlyInThisTab(
+  state: WillabState,
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
+): boolean {
+  return (
+    state === "lab_recording" ||
+    state === "lab_processing" ||
+    micStatus === "recording"
+  );
 }
 
 /** Per-recording context (§4 step A). Shape matches the BE intake-context
@@ -511,6 +528,10 @@ export default function LabOverlay({
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadCancelRef = useRef<(() => void) | null>(null);
   const [uploadInFlight, setUploadInFlight] = useState(false);
+  // NO PULL-TO-REFRESH WHILE THE TAKE LIVES ONLY IN THIS TAB (founder
+  // 2026-10-06: pulling down on the recording screen reloaded it). Behaviour
+  // only: nothing on the screen moves or changes.
+  useNoPullToRefresh(takeOnlyInThisTab(state, mic.state.status));
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).

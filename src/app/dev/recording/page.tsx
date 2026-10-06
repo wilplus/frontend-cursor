@@ -5,6 +5,7 @@ import { RecordingPhase } from "@/components/willab/LabOverlay";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
+import { useNoPullToRefresh } from "@/lib/willab/useNoPullToRefresh";
 import type { PresentationSlide } from "@/components/willab/presentation";
 
 /* -------------------------------------------------------------------------- */
@@ -52,6 +53,9 @@ export default function RecordingHarness() {
       target: Number(q.get("target") ?? 1500),
     });
   }, []);
+  // LabOverlay holds pull-to-refresh off while it records; the mirror does
+  // the same so the gesture can be checked here.
+  useNoPullToRefresh(true);
   if (process.env.NODE_ENV === "production") return null;
 
   return (
