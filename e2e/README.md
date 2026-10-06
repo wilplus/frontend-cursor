@@ -7,6 +7,7 @@ failure.
 | spec | harness page | default target |
 | --- | --- | --- |
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
+| `coach-panel.spec.mjs` | `/dev/coach-panel` | `PANEL_URL` → `:3111`; screenshots to `SHOTS_DIR` (default `e2e/artifacts/coach-panel`, gitignored) |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
 | `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` — **stale, not in CI** (see below) |

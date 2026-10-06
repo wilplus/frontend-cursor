@@ -27,6 +27,8 @@ const SRC = join(fileURLToPath(new URL("../../../", import.meta.url)));
 const SERVICE = join("services", "api", "trainingCorpus.ts");
 const CLIENT = join("app", "coach", "corpus", "page.client.tsx");
 const PAGE = join("app", "coach", "corpus", "page.tsx");
+/** The coach panel's Lounge door, with its pinned Training corpus button. */
+const PANEL_DOOR = join("components", "willab", "coachpanel", "CoachPanelDoor.tsx");
 
 /** Any quoted path naming the corpus lane — shape-agnostic on purpose, so it
  *  catches `import`, `import type`, dynamic `import()` and `require` alike. */
@@ -77,12 +79,31 @@ describe("training corpus fences", () => {
     // 2026-08-10 and the founder removed it the same day: "training corpus
     // should stay in the hamburger menu … delete the training corpus link."
     // The menu is the one way in again.
+    //
+    // CO1 A (founder lock 2026-10-06, the coach panel redrawn): the corpus
+    // also gets its own button pinned above the coach's Lounge message box.
+    // That door is coach-gated by its one mount (the test below).
     expect(linkers.sort()).toEqual(
       [
         join("components", "SiteHeader.tsx"),
         join("components", "dashboard", "DashboardHeader.tsx"),
+        PANEL_DOOR,
       ].sort(),
     );
+  });
+
+  it("N4 / CO1 A — the coach panel's pinned corpus button is reachable by a coach only", () => {
+    // The Lounge mounts the coach's door only for a coach…
+    expect(readFileSync(join(SRC, "components", "willab", "Lounge.tsx"), "utf8")).toMatch(
+      /\{isCoach && <CoachWalkEntry \/>\}/,
+    );
+    // …and that door is the only product file that mounts the panel's door
+    // (the dev harness aside, gated out of production above).
+    const mounters = walk(SRC)
+      .map((f) => relative(SRC, f))
+      .filter((rel) => !isDevFixture(rel) && rel !== PANEL_DOOR)
+      .filter((rel) => /["'][^"'\n]*coachpanel\/CoachPanelDoor["']/.test(readFileSync(join(SRC, rel), "utf8")));
+    expect(mounters).toEqual([join("components", "willab", "coachwalk", "CoachWalkEntry.tsx")]);
   });
 
   it("N4 — every link site gates the row on isCoach", () => {
