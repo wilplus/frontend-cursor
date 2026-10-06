@@ -102,6 +102,12 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   loader) and how screens move (the overlay rises and sinks, content slides
   under a still top bar, soft cross-fades, nothing blinks, instant with
   reduce motion). Where it disagrees with anything above, it wins.
+  The founder's answers of 2026-10-06, 19:28 (backend decisions log N53)
+  amend it: the walk's screens and motion are built by the session the
+  founder names (NX1 A), not only the designer's, exactly as the prototype
+  shows and nothing added, each screen shown to the founder in the panel's
+  Done list before it goes live; and the coach and the app share one grey
+  profile picture, no photos (NX2 B).
 - Not covered: the coach review, the CMS and everything else in this repo.
 
 ---
