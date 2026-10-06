@@ -374,11 +374,14 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(MODAL).toMatch(/if \(reAnchor\) await onSetRootPhrase\(reAnchor\)/);
   });
 
-  it("a paragraph with a waiting bar, or answered or locked, opens on a tap (Q26 B, 2026-09-26)", () => {
+  it("a bookmarked paragraph with a waiting bar, or answered or locked, opens on a tap (Q26 B, 2026-09-26; N56.5, 2026-10-06)", () => {
     const DECK = code("src/components/willab/TranscriptReviewDeck.tsx");
     // The whole paragraph is the waiting bar's tap target too (founder
-    // 2026-09-26); a settled answered/locked one still opens its own sheet.
-    expect(DECK).toMatch(/\{\.\.\.paragraphTap\(unsettled \|\| opensOwnSheet\(c\)/);
+    // 2026-09-26); a settled answered/locked one still opens its own sheet
+    // -- but only when it is a bookmark (founder 2026-10-06, N56.5).
+    expect(DECK).toMatch(
+      /\{\.\.\.paragraphTap\(opensFromPage\(bookmarkIds, c\.part\.id, unsettled \|\| opensOwnSheet\(c\)\)/,
+    );
   });
 
   it("no sheet ends on a Lock screen any more", () => {
