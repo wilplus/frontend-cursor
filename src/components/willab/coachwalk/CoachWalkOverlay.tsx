@@ -62,6 +62,7 @@ export default function CoachWalkOverlay({
   onClose,
   onOpenMoment,
   onChanged,
+  onHandBack,
 }: {
   /** The whole queue, for the desktop rail. */
   speakers: QueueSpeaker[];
@@ -73,6 +74,10 @@ export default function CoachWalkOverlay({
   onOpenMoment: (speaker: QueueSpeaker, take: QueueTake, snippetId: string) => void;
   /** Something was saved: the host may refresh the queue. */
   onChanged: () => void;
+  /** The redrawn coach panel's hand-over (build plan P1): when given, the
+   *  walk stops after this moment and gives the take's moments, and the
+   *  toast it would have shown, back to the panel instead of moving on. */
+  onHandBack?: (moments: QueueMoment[], toast: string | null) => void;
 }) {
   const [moments, setMoments] = useState<QueueMoment[]>(take.moments);
   const [cursor, setCursor] = useState(() =>
@@ -127,7 +132,11 @@ export default function CoachWalkOverlay({
 
   if (!moment) return null;
 
-  function moveOn(updated: QueueMoment[]): void {
+  function moveOn(updated: QueueMoment[], said: string | null = null): void {
+    if (onHandBack) {
+      onHandBack(updated, said);
+      return;
+    }
     const next = nextOpenIndex(updated, cursor);
     if (next !== -1) {
       setCursor(next);
@@ -151,7 +160,7 @@ export default function CoachWalkOverlay({
     setMoments(updated);
     setToast(COPY.toastNothingToAdd);
     onChanged();
-    moveOn(updated);
+    moveOn(updated, COPY.toastNothingToAdd);
   }
 
   function answered(outcome: AnswerOutcome): void {
@@ -159,9 +168,10 @@ export default function CoachWalkOverlay({
     const updated = replaceMoment(moments, { ...moment, state: "answered" });
     setMoments(updated);
     setAnswering(null);
-    setToast(toastFor(outcome, speaker.pseudonym));
+    const said = toastFor(outcome, speaker.pseudonym);
+    setToast(said);
     onChanged();
-    moveOn(updated);
+    moveOn(updated, said);
   }
 
   const needsJudging = moment.state === "judge_it" && !answers[moment.snippetId];

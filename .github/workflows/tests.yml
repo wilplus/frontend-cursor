@@ -98,7 +98,7 @@ jobs:
           done
           # First-compile warmup: a spec that navigates mid-compile races
           # its own selectors. Compile each harness page before any spec.
-          for p in dev/life-bets dev/corpus dev/marked-editor dev/deck dev/speaking-errors dev/coach-walk dev/feedback-walk; do
+          for p in dev/life-bets dev/corpus dev/marked-editor dev/deck dev/speaking-errors dev/coach-walk dev/feedback-walk dev/coach-panel; do
             curl -sf -o /dev/null "http://localhost:3111/$p" || true
           done
 
@@ -110,6 +110,7 @@ jobs:
           LIBRARY_URL=http://localhost:3111/dev/speaking-errors node e2e/speaking-errors.spec.mjs
           WALK_URL=http://localhost:3111/dev/coach-walk node e2e/coach-walk.spec.mjs
           WALK_P1_URL=http://localhost:3111/dev/feedback-walk node e2e/feedback-walk.spec.mjs
+          PANEL_URL=http://localhost:3111/dev/coach-panel node e2e/coach-panel.spec.mjs
           # e2e/deck.spec.mjs is NOT run: it pins the 2026-08-11 deck DOM and
           # five of its first nine checks fail on structure the surface no
           # longer has (audit Q-T6, 2026-09-14). The deck is covered by the
