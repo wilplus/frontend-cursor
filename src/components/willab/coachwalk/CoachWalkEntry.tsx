@@ -8,6 +8,11 @@
 /*  Mounted by the Lounge only when the walk switch is on and the user is a    */
 /*  coach; the per-student bubbles and the roster stay for everyone else       */
 /*  until group 4 lifts the switch.                                            */
+/*                                                                            */
+/*  THE REDRAWN PANEL (founder lock 2026-10-06; build plan P1): with the       */
+/*  coach panel's switch on (coachPanelSwitch.ts) this door is CoachPanelDoor  */
+/*  instead; off, it is exactly today's. The choice is made here, so the      */
+/*  Lounge mounts one door as before and gains no branch.                     */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useState } from "react";
@@ -23,23 +28,13 @@ import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQ
 import { fetchTakeBubbles, type TakeBubble } from "@/services/api/coachBubbles";
 import { speakersWaiting, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
+import { coachPanelOn } from "@/lib/willab/coachPanelSwitch";
+import { CoachWalkBubble } from "./CoachWalkBubble";
+import CoachPanelDoor from "../coachpanel/CoachPanelDoor";
+
+export { CoachWalkBubble };
 
 type Open = { speaker: QueueSpeaker; take: QueueTake; snippetId: string };
-
-export function CoachWalkBubble({ waiting, onOpen }: { waiting: number; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      data-testid="coach-walk-bubble"
-      aria-label={COPY.bubbleOpen}
-      className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm border border-border bg-muted px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/80"
-    >
-      <span className="text-[14px] font-semibold text-foreground">{COPY.bubbleWaiting(waiting)}</span>
-      <span className="mt-1 block text-[12px] text-muted-foreground">{COPY.bubbleOpen}</span>
-    </button>
-  );
-}
 
 /** Phase 0c (A2): one bubble per Take this coach has not walked yet. */
 export function CoachTakeBubble({ bubble, onOpen }: { bubble: TakeBubble; onOpen: () => void }) {
@@ -60,12 +55,25 @@ export function CoachTakeBubble({ bubble, onOpen }: { bubble: TakeBubble; onOpen
   );
 }
 
-export default function CoachWalkEntry({
-  bubble = true,
-}: {
+type EntryProps = {
   /** The thread bubble; off where the host draws its own. */
   bubble?: boolean;
-}) {
+};
+
+/** The coach panel's switch, read once on the client: the server and the
+ *  first paint draw today's door, so hydration matches. */
+function usePanelSwitch(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => setOn(coachPanelOn()), []);
+  return on;
+}
+
+export default function CoachWalkEntry(props: EntryProps) {
+  const panel = usePanelSwitch();
+  return panel ? <CoachPanelDoor bubble={props.bubble} /> : <TodaysDoor {...props} />;
+}
+
+function TodaysDoor({ bubble = true }: EntryProps) {
   const queue = useMomentsQueue(true);
   const [queueOpen, setQueueOpen] = useState(false);
   const [studentsOpen, setStudentsOpen] = useState(false);

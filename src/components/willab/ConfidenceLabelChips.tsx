@@ -32,7 +32,9 @@ export const SECONDARY_RATING_OPTIONS: RatingOption[] = [
   { value: "audio_unclear", label: "Audio unclear", icon: VolumeX },
 ];
 
-const OWNER_PRIMARY_RATING_OPTIONS: RatingOption[] = [
+/** The owner's and the coach's words ("Yes — Confident"); the coach panel's
+ *  Judge screen draws them too (coach panel redrawn, 2026-10-06). */
+export const OWNER_PRIMARY_RATING_OPTIONS: RatingOption[] = [
   { value: "yes", label: "Yes — Confident", icon: Check },
   { value: "in_between", label: "In-between", icon: Minus },
   { value: "no", label: "No — Not confident", icon: X },

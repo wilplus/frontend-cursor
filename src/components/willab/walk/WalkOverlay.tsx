@@ -63,8 +63,24 @@ function NavBar({ nav }: { nav: WalkNav }) {
   );
 }
 
+/** ‹ alone, for a screen with somewhere to go back to but no moments to walk
+ *  (the coach panel's speaker screen). */
+function BackOnly({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      aria-label={COPY.pagerBack}
+      className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+    >
+      <ChevronLeft className="h-5 w-5" aria-hidden />
+    </button>
+  );
+}
+
 export default function WalkOverlay({
   nav,
+  onBack,
   onClose,
   title,
   footer,
@@ -73,6 +89,8 @@ export default function WalkOverlay({
   children,
 }: {
   nav?: WalkNav | null;
+  /** ‹ without the moment bar; ignored when `nav` is given. */
+  onBack?: () => void;
   onClose?: () => void;
   title?: string | null;
   /** Normally a WalkFooter. */
@@ -92,7 +110,7 @@ export default function WalkOverlay({
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        {nav ? <NavBar nav={nav} /> : <span />}
+        {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} /> : <span />}
         {onClose ? (
           <OverlayCloseButton
             onClick={onClose}
