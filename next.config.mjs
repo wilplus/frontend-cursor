@@ -61,6 +61,21 @@ const nextConfig = {
         destination: "/cms",
         permanent: false,
       },
+      // The exercise library and the speaking errors page left the coach's
+      // app for the founder's admin area, next to pace (founder 2026-10-06,
+      // CP3 A; decisions log N56.3). Here rather than a redirect() page: the
+      // coach segment has a loading boundary, so a page-level redirect streams
+      // as a 200 with a meta refresh instead of a real redirect.
+      {
+        source: "/coach/exercises",
+        destination: "/admin/library",
+        permanent: false,
+      },
+      {
+        source: "/coach/errors",
+        destination: "/admin/errors",
+        permanent: false,
+      },
     ];
   },
 };

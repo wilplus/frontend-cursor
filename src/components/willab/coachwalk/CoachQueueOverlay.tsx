@@ -6,11 +6,11 @@
 /*  Speakers oldest first, their takes, each moment with one word for where    */
 /*  the coach is with it. Before the rating a moment says only "Judge it": the */
 /*  kind is not on the row because the backend does not send it (BLIND COACH). */
-/*  One link at the bottom opens the error library. Nothing here counts        */
+/*  The error library link that sat at the bottom left with the library for   */
+/*  the founder's admin area (CP3 A, 2026-10-06, N56.3). Nothing here counts  */
 /*  quality (AC-9): the only number is which moment.                          */
 /* -------------------------------------------------------------------------- */
 
-import Link from "next/link";
 import { ChevronRight, Check } from "lucide-react";
 import { SheetFrame } from "../ParagraphSheet";
 import { isOpen, stateWord, type QueueSpeaker, type QueueTake } from "@/lib/willab/coachWalk";
@@ -115,14 +115,6 @@ export default function CoachQueueOverlay({
     <SheetFrame
       title={COPY.queueTitle}
       onClose={onClose}
-      footer={
-        <Link
-          href="/coach/errors"
-          className="flex min-h-[48px] items-center justify-center text-[16px] font-normal text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {COPY.queueNameError}
-        </Link>
-      }
     >
       <div className="flex flex-col gap-5" data-testid="coach-queue">
         {speakers.length === 0 && !loading ? (

@@ -11,6 +11,10 @@ const CEO_SURFACE_PATHS = [
   // The pace panel and the research screen (founder 2026-09-30; ML-4, ML-7).
   "/admin/pace",
   "/admin/research",
+  // The exercise library and the speaking errors page, out of the coach's
+  // app and next to pace (founder 2026-10-06, CP3 A; decisions log N56.3).
+  "/admin/library",
+  "/admin/errors",
 ];
 const CEO_API_PATHS = [
   "/api/v2/admin/ceo",
@@ -21,6 +25,18 @@ const CEO_API_PATHS = [
   "/api/v2/admin/learning",
   "/api/v2/research",
 ];
+/** BFF routes the CEO host serves WITHOUT taking them off the main host: the
+ *  library and the speaking errors pages (and the pace panel's library count)
+ *  read the same coach endpoints the coach's walk uses on the main host, and
+ *  the coach gate on both pages reads the profile. The backend's
+ *  `require_admin_or_coach` stays the authorization check. */
+const CEO_SHARED_API_PATHS = [
+  "/api/v2/coach/exercises",
+  "/api/v2/coach/catalogue",
+  "/api/v2/coach/speaking-errors",
+  "/api/v2/user/profile",
+];
+const CEO_HOST_API_PATHS = [...CEO_API_PATHS, ...CEO_SHARED_API_PATHS];
 
 export type CeoHostRouteAction =
   | "allow"
@@ -71,7 +87,7 @@ function isAllowedOnCeoHost(pathname: string): boolean {
   if (CEO_SURFACE_PATHS.some((path) => isPathOrChild(pathname, path))) {
     return true;
   }
-  if (CEO_API_PATHS.some((path) => isPathOrChild(pathname, path))) return true;
+  if (CEO_HOST_API_PATHS.some((path) => isPathOrChild(pathname, path))) return true;
   if (pathname === "/api/v2/admin/whoami") return true;
   if (isPathOrChild(pathname, "/api/auth")) return true;
   if (isPathOrChild(pathname, "/auth")) return true;

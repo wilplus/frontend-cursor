@@ -23,7 +23,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const CLIENT = readFileSync("src/services/api/speakingErrors.ts", "utf8");
-const PAGE = readFileSync("src/app/coach/errors/page.client.tsx", "utf8");
+const PAGE = readFileSync("src/app/admin/errors/page.client.tsx", "utf8");
 const ROUTE = readFileSync(
   "src/app/api/v2/coach/speaking-errors/route.ts",
   "utf8",
