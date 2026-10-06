@@ -12,8 +12,10 @@ import DeckSlideThumb from "@/components/willab/DeckSlideThumb";
 import { WalkEndLayer } from "@/components/willab/WalkEnd";
 import { CHUNK_SHEET_COPY } from "@/components/willab/idealEditCopy";
 import {
+  bookmarkPartIds,
   buildBookmarks,
   helperWordsDeleted,
+  opensFromPage,
   useFeedbackPager,
   type Bookmark,
 } from "@/components/willab/feedbackPager";
@@ -591,6 +593,8 @@ export default function TranscriptReviewDeck({
       ),
     [chunks, stateOf, summaryByParagraph, headlines, deletedHere],
   );
+  // Only a bookmark opens on tap (founder 2026-10-06, N56.5).
+  const bookmarkIds = useMemo(() => bookmarkPartIds(bookmarks), [bookmarks]);
   const openBookmark = useCallback(
     (bookmark: Bookmark) => {
       if (bookmark.bundleId) {
@@ -1286,7 +1290,7 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      {...paragraphTap(unsettled || opensOwnSheet(c), () => {
+                      {...paragraphTap(opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)), () => {
                         if (!walk.openPart(c.part.id)) openParagraph(c);
                       })}
                       data-settled={unsettled ? undefined : "true"}
@@ -1754,9 +1758,11 @@ function firstWaitingBookmark(
 }
 
 /* THE GREY BAR IS GONE (founder lock 2026-09-30, B7). A paragraph with
-   nothing open draws no bar: plain text, full width, still the tap target
-   for its own sheet. Only green and orange bars exist, and they are the
-   mark's. */
+   nothing open draws no bar: plain text, full width. Only green and orange
+   bars exist, and they are the mark's. It is no longer a tap target either:
+   "a paragraph that is not bookmarked should not open on tap" (founder
+   2026-10-06, N56.5, amending B7's "still opens its own sheet on tap";
+   `opensFromPage`). */
 /** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
  *  line per Slide): its own helper words, bold orange, directly above it —
  *  like a newspaper headline over the article that repeats its words. Inside
@@ -1797,8 +1803,10 @@ function ParagraphHeadline({
 }
 
 /** A settled paragraph that was answered or locked opens its own sheet when
- *  tapped (founder 2026-09-25, Q26 B). A button in behaviour; the words stay
- *  ordinary text. Pure, so the deck gains no branch. */
+ *  tapped (founder 2026-09-25, Q26 B), if it is a bookmark (founder
+ *  2026-10-06, N56.5; `opensFromPage`). A button in behaviour; the words
+ *  stay ordinary text. One that does not open gets nothing: no role, no
+ *  focus, no pointer. Pure, so the deck gains no branch. */
 function paragraphTap(
   opens: boolean,
   open: () => void,

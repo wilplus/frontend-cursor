@@ -160,12 +160,18 @@ describe("N48.2 Q6 A: after Delete the paragraph rejoins the walk on its answer"
     expect(pager()).not.toBeNull();
   });
 
-  it("before this change's case: never locked, answered, it opens alone, outside the walk", async () => {
+  it("before this change's case: never locked, answered, not a bookmark, so it does not open (N56.5)", async () => {
+    // It used to open alone, outside the walk (B7). Since the founder's
+    // 2026-10-06 decision (N56.5) a paragraph that is not bookmarked does
+    // not open on tap at all.
     await render();
-    const target = [...container.querySelectorAll<HTMLElement>('[data-opens-sheet="true"]')]
+    const target = [...container.querySelectorAll<HTMLElement>("[data-chunk]")]
       .find((el) => (el.textContent ?? "").includes("retention went up"));
+    expect(target).toBeTruthy();
+    expect(target!.getAttribute("data-opens-sheet")).toBeNull();
     await act(async () => target!.click());
     expect(pager()).toBeNull();
+    expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
   });
 });
 

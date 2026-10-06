@@ -86,6 +86,31 @@ check(
   })
 );
 
+/* ------------- only a bookmark opens on tap (founder 2026-10-06) ----------- */
+/* N56.5: "a paragraph that is not bookmarked should not open on tap",
+   amending lock B7. P0 has no feedback, no coach moment and no helper
+   words: plain text, no button, no focus, no pointer, and a tap opens
+   nothing. P1 carries the bar: still its own tap target. */
+const plainParagraph = page.locator("[data-chunk]", { hasText: "We started this in a garage" });
+check(
+  "a paragraph with no bookmark is plain text, not a button",
+  (await plainParagraph.count()) === 1 &&
+    (await plainParagraph.getAttribute("data-opens-sheet")) === null &&
+    (await plainParagraph.getAttribute("role")) === null &&
+    (await plainParagraph.getAttribute("tabindex")) === null &&
+    (await plainParagraph.evaluate((el) => getComputedStyle(el).cursor)) !== "pointer"
+);
+await plainParagraph.click();
+await page.waitForTimeout(300);
+check(
+  "tapping a paragraph with no bookmark opens nothing",
+  (await page.locator('[role="dialog"]').count()) === 0
+);
+check(
+  "the paragraph with the bar is still its own tap target",
+  (await page.locator('[data-opens-sheet="true"]', { hasText: "Nobody believed the numbers" }).count()) === 1
+);
+
 /* --------------- the feedback, then the judgement, then the overlay -------- */
 /* JUDGEMENT AFTER FEEDBACK (contract 24e-1; F1 Repair Plan Phase 6): opening
    a bookmark never asks for a judgement first. The machine's read chooses
