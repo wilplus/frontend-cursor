@@ -59,6 +59,7 @@ export default function SnippetWavePlayer({
   startOffsetMs = 0,
   durationMs,
   size = "default",
+  tone = "accent",
   label,
 }: {
   /** Stable identity for the waveform — the moment key, or an attempt id. */
@@ -67,6 +68,10 @@ export default function SnippetWavePlayer({
   startOffsetMs?: number | null;
   durationMs?: number | null;
   size?: "default" | "compact";
+  /** "ink" draws the Feedback walk's one player (founder lock 2026-10-06:
+   *  orange marks only new words), so the played part fills black rather
+   *  than orange. Every other caller keeps the default. */
+  tone?: "accent" | "ink";
   /** Accessible name; the visual has no text of its own. */
   label: string;
 }) {
@@ -128,6 +133,8 @@ export default function SnippetWavePlayer({
   const litBars = Math.round(fraction * bars.length);
   const Icon = playing ? Pause : Play;
   const compact = size === "compact";
+  const [litClass, restClass] =
+    tone === "ink" ? ["bg-foreground/90", "bg-foreground/20"] : ["bg-primary", "bg-border"];
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -156,7 +163,7 @@ export default function SnippetWavePlayer({
             style={{ height: `${compact ? Math.round(height * 0.65) : height}px` }}
             className={cn(
               "min-w-px flex-1 rounded-[2px] transition-colors duration-75",
-              index < litBars ? "bg-primary" : "bg-border"
+              index < litBars ? litClass : restClass
             )}
           />
         ))}
