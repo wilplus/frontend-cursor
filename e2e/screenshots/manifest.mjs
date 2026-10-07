@@ -93,6 +93,19 @@ const liveForward = (key) => async (page) => {
   await page.locator(`${liveScreen(key)} [data-testid="walk-forward"]`).filter({ visible: true }).first()
     .click({ timeout: 60_000 });
 };
+const liveSkip = (key) => async (page) => {
+  await page.locator(`${liveScreen(key)} [data-testid="walk-skip"]`).filter({ visible: true }).first()
+    .click({ timeout: 60_000 });
+};
+/** From the coach's note past both praises and their helper words (skipped)
+ *  to the clearer version (D-FW-15). */
+const toLiveClearer = async (page) => {
+  await liveForward("coachnote")(page);
+  await liveForward("praise")(page);
+  await liveSkip("helpers")(page);
+  await liveForward("praise")(page);
+  await liveSkip("helpers")(page);
+};
 const LIVE_WALK = [
   { name: "live-coachnote", waitFor: `${liveScreen("coachnote")} [data-coach-video]` },
   { name: "live-praise", waitFor: `${liveScreen("praise")} [data-walk-player]`, act: liveForward("coachnote") },
@@ -103,6 +116,13 @@ const LIVE_WALK = [
       await liveForward("coachnote")(page);
       await liveForward("praise")(page);
     },
+  },
+  { name: "live-clearer", waitFor: `${liveScreen("clearer")} [data-walk-new-words] em`, act: toLiveClearer },
+  {
+    name: "live-clearer-practice-off",
+    path: "/dev/feedback-walk?live=1&practice=0",
+    waitFor: `${liveScreen("clearer")} [data-walk-new-words] em`,
+    act: toLiveClearer,
   },
 ].map((entry) => ({
   area: "walk", audience: "speaker", path: "/dev/feedback-walk?live=1", settleMs: 400, allow: WALK_ALLOW, ...entry,

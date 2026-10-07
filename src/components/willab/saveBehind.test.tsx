@@ -5,11 +5,20 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  acceptRewriteBehind,
   helperWordsBehind,
+  keepWordsBehind,
   useSaveBehind,
   type BehindOutcome,
 } from "./saveBehind";
 import { SaveBehindNotice } from "./WalkEnd";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+
+vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
+  saveTakeFeedbackResponse: vi.fn(),
+}));
+const respond = vi.mocked(saveTakeFeedbackResponse);
 
 let root: Root;
 let container: HTMLDivElement;
@@ -115,5 +124,65 @@ describe("helperWordsBehind (Use this phrase)", () => {
       await helperWordsBehind(async () => true, async () => ({ outcome: "failed" }), chunk, "s"),
     ).toBe("failed");
     expect(await helperWordsBehind(async () => true, blocked, chunk, "s")).toBe("final");
+  });
+});
+
+describe("the clearer version's lanes, behind the walk (D-FW-15)", () => {
+  const item = {
+    id: "s-rw", takeSessionId: "take-2", feedbackFamily: "rewrite_clarity" as const,
+    candidateId: "c1", feedbackMembershipId: "m1", feedbackExposureId: "e1",
+  };
+  const sent = (response: string) => ({
+    takeSessionId: "take-2", feedbackId: "s-rw", feedbackFamily: "rewrite_clarity", response,
+    candidateId: "c1", feedbackMembershipId: "m1", feedbackExposureId: "e1",
+  });
+  beforeEach(() => respond.mockReset());
+
+  it("Accept writes the speaker's response, then the deck's decision (the accept lane, L1)", async () => {
+    const order: string[] = [];
+    respond.mockImplementation(async () => {
+      order.push("response");
+      return { ok: true };
+    });
+    const accept = vi.fn(async () => {
+      order.push("decision");
+      return true;
+    });
+    expect(await acceptRewriteBehind(accept, item)).toBe("ok");
+    expect(respond).toHaveBeenCalledWith(sent("apply_suggestion"));
+    expect(order).toEqual(["response", "decision"]);
+    expect(accept).toHaveBeenCalledWith(item);
+  });
+
+  it("when the server wrote the words itself the deck only refreshes", async () => {
+    respond.mockResolvedValue({ ok: true, textUpdate: "applied" });
+    const accept = vi.fn(async () => true);
+    expect(await acceptRewriteBehind(accept, item)).toBe("ok");
+    expect(accept).toHaveBeenCalledWith({ ...item, acceptedOnServer: true });
+  });
+
+  it("a refusal changes no word and is final; a lost write may be retried", async () => {
+    const accept = vi.fn(async () => true);
+    respond.mockResolvedValue({ ok: true, textUpdate: "refused_locked" });
+    expect(await acceptRewriteBehind(accept, item)).toBe("final");
+    expect(accept).not.toHaveBeenCalled();
+    respond.mockResolvedValue({ ok: false, error: null, reason: "superseded" });
+    expect(await acceptRewriteBehind(accept, item)).toBe("final");
+    respond.mockResolvedValue({ ok: false, error: null });
+    expect(await acceptRewriteBehind(accept, item)).toBe("failed");
+    expect(accept).not.toHaveBeenCalled();
+    respond.mockResolvedValue({ ok: true });
+    expect(await acceptRewriteBehind(async () => false, item)).toBe("failed");
+  });
+
+  it("Keep my words writes the decline, then the deck's decision; nothing is accepted", async () => {
+    respond.mockResolvedValue({ ok: true });
+    const keep = vi.fn(async () => true);
+    expect(await keepWordsBehind(keep, item)).toBe("ok");
+    expect(respond).toHaveBeenCalledWith(sent("keep_wording"));
+    expect(keep).toHaveBeenCalledWith(item);
+    respond.mockResolvedValue({ ok: false, error: null });
+    expect(await keepWordsBehind(keep, item)).toBe("failed");
+    expect(keep).toHaveBeenCalledTimes(1);
   });
 });

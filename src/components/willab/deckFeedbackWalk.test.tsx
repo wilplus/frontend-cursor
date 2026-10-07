@@ -14,13 +14,24 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
-import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { coachWordKey, coachWordSeen } from "./coachWordSeen";
-import { praiseWordsOf } from "./useDeckFeedbackWalk";
+import { praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
 import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
 
+vi.mock("@/services/api/takeFeedback", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/takeFeedback")>()),
+  saveTakeFeedbackResponse: vi.fn(async () => ({ ok: true })),
+}));
+const practice = vi.hoisted(() => ({ on: true }));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/api/consentChoices")>()),
+  practiseOfferedNow: () => practice.on,
+  readPractiseOffered: async () => practice.on,
+}));
 vi.mock("./useConfidentMomentBundle", () => ({
   useConfidentMomentBundle: () => ({ projection: null, status: "off", refresh: () => undefined }),
 }));
@@ -62,6 +73,12 @@ const praise = {
   cueKeys: ["landed_ending"],
 } as unknown as DocumentSuggestion;
 
+/** A clearer version on the same block: the served rewrite. */
+const rewrite = {
+  ...base, id: "s-rw", start: at, kind: "replace", proposedText: "retention rose",
+  feedbackFamily: "rewrite_clarity", source: "new_take", blockKey: 2,
+} as unknown as DocumentSuggestion;
+
 const WORD: CoachMessage = {
   text: "Your opening landed. Keep the pause.",
   videoUrl: null,
@@ -100,6 +117,8 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => un
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  practice.on = true;
+  vi.mocked(saveTakeFeedbackResponse).mockClear();
   window.localStorage.clear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
   container = document.createElement("div");
@@ -233,6 +252,80 @@ describe("the switch on", () => {
     expect(word.getAttribute("aria-pressed")).toBe("false");
     expect(p.onSetRootPhrase).not.toHaveBeenCalled();
     expect(p.onLockPart).not.toHaveBeenCalled();
+  });
+});
+
+describe("the clearer version in the walk (D-FW-15)", () => {
+  const toClearer = async (p: ReturnType<typeof props>) => {
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(screen()).toBe("walk-screen-clearer");
+  };
+
+  it("the switch off: no walk, nothing decided, today's sheet", async () => {
+    const p = props({ suggestions: [judgement, praise, rewrite] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(walk()).toBeNull();
+    expect(pager()).not.toBeNull();
+    expect(p.onAccept).not.toHaveBeenCalled();
+  });
+
+  it("draws the served words after the praise and its helper words", async () => {
+    walkOn();
+    await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
+    expect([...live()!.querySelectorAll("[data-walk-player] s")].map((n) => n.textContent)).toEqual(["went up"]);
+    expect([...live()!.querySelectorAll("[data-walk-new-words] em")].map((n) => n.textContent)).toEqual(["rose"]);
+    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(COPY.pillAcceptPractise);
+  });
+
+  it("Accept and practise writes through the accept lane: the response, then the deck's onAccept", async () => {
+    walkOn();
+    const p = props({ suggestions: [judgement, praise, rewrite] });
+    await toClearer(p);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await act(async () => undefined);
+    expect(vi.mocked(saveTakeFeedbackResponse)).toHaveBeenCalledWith(
+      expect.objectContaining({ feedbackId: "s-rw", response: "apply_suggestion" }),
+    );
+    expect(p.onAccept).toHaveBeenCalledWith(expect.objectContaining({ id: "s-rw" }));
+    expect(p.onKeepMine).not.toHaveBeenCalled();
+    expect(screen()).not.toBe("walk-screen-clearer");
+  });
+
+  it("Keep my words records the decline through the deck's onKeepMine and skips the practise", async () => {
+    walkOn();
+    const p = props({ suggestions: [judgement, praise, rewrite] });
+    await toClearer(p);
+    await click(live()!.querySelector("[data-testid='walk-keep']"));
+    await act(async () => undefined);
+    expect(vi.mocked(saveTakeFeedbackResponse)).toHaveBeenCalledWith(
+      expect.objectContaining({ feedbackId: "s-rw", response: "keep_wording" }),
+    );
+    expect(p.onKeepMine).toHaveBeenCalledWith(expect.objectContaining({ id: "s-rw" }));
+    expect(p.onAccept).not.toHaveBeenCalled();
+    expect(screen()).not.toBe("walk-screen-clearer");
+  });
+
+  it("with personalised practice off the button reads Accept", async () => {
+    walkOn();
+    practice.on = false;
+    await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
+    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(WALK_COPY.clearerAccept);
+  });
+});
+
+describe("rewriteOf", () => {
+  it("is the served quote and proposal of a clearer-version replace, and nothing else", () => {
+    expect(rewriteOf(rewrite)).toEqual({ quote: "retention went up", proposedText: "retention rose", item: rewrite });
+    expect(rewriteOf({ ...rewrite, kind: "bold" })).toBeNull();
+    expect(rewriteOf({ ...rewrite, proposedText: null })).toBeNull();
+    expect(rewriteOf({ ...rewrite, feedbackFamily: "confident_voice" })).toBeNull();
+    expect(rewriteOf({ ...rewrite, feedbackFamily: "confident_voice", openCard: "rewrite" })).not.toBeNull();
+    expect(rewriteOf(praise)).toBeNull();
   });
 });
 

@@ -2,17 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import CoachVideo from "../CoachVideo";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
-import WalkMessage from "./WalkMessage";
+import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import {
+  bankLine,
+  clearerTurn,
+  type FeedbackWalkModel,
+  type FeedbackWalkMoment,
+} from "@/lib/willab/feedbackWalkModel";
+import type { ClearerPiece } from "@/lib/willab/clearerPieces";
 import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
@@ -26,11 +32,20 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  overlay rises in 0.38 s, the content slides under a still top bar, ✕      */
 /*  sinks it in 0.28 s, and every move is instant with reduce motion.         */
 /*                                                                            */
-/*  THIS PHASE draws the coach's note, the praise and the helper words; the   */
-/*  plan it is given (feedbackWalkModel.ts) holds only those, then the end    */
-/*  card, which is the host's. The other screens come with their own tasks:   */
-/*  TODO(D-FW-15/16/17/18/20) the clearer version, the exercise video, the    */
-/*  practising, "Judgement time!" with the judgements, and sharing.          */
+/*  THIS PHASE draws the coach's note, the praise, the helper words and the   */
+/*  clearer version (D-FW-15); the plan it is given (feedbackWalkModel.ts)    */
+/*  holds only those, then the end card, which is the host's. The other       */
+/*  screens come with their own tasks: TODO(D-FW-16/17/18/20) the practising, */
+/*  the exercise video, "Judgement time!" with the judgements, and sharing.  */
+/*                                                                            */
+/*  The clearer version (flow 6; N52.5, N55 WQ3 A, WQ3c A): the speaker's     */
+/*  words with what goes crossed out, then the opener (B13), the new words    */
+/*  with what arrives in orange, and the question (B14), from the served      */
+/*  rewrite. "Accept and practise" hands the decision to the host, which     */
+/*  writes it through the accept lane (the speaker's decision, L1); "Keep my  */
+/*  words" hands the decline. With personalised practice off the plan marks   */
+/*  the screen `accept`: the button reads "Accept" and the question, which    */
+/*  asks to practise, is not shown.                                           */
 /*                                                                            */
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise words the item carries);    */
@@ -60,11 +75,11 @@ export type FeedbackWalkHelperWords = {
   paragraphText: string;
 };
 
-type Props = {
+type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
    *  it closes, so a re-read of the page cannot move the screen under the
    *  speaker (the pager's frozen list, the same rule). */
-  model: FeedbackWalkModel;
+  model: FeedbackWalkModel<R>;
   request: FeedbackWalkRequest | null;
   coachNote: FeedbackWalkCoachNote | null;
   /** The project's first Take: the helper-words note shows (N48.3 Q8 A). */
@@ -75,6 +90,12 @@ type Props = {
   /** Opens the sign-up dialog for a guest known to the caller. */
   onGuest?: () => void;
   onSaveHelperWords: (save: FeedbackWalkHelperWords) => void;
+  /** "Accept and practise" (or "Accept") on a clearer version: the host
+   *  writes the speaker's decision through the accept lane. The walk moves
+   *  on at once; it never waits on the write. */
+  onAcceptClearer?: (item: R) => void;
+  /** "Keep my words": the host records the decline; no practise follows. */
+  onKeepWords?: (item: R) => void;
   /** The walk ran out: the host's end card. */
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
@@ -83,7 +104,7 @@ type Props = {
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
-export default function FeedbackWalk({
+export default function FeedbackWalk<R = unknown>({
   model,
   request,
   coachNote,
@@ -91,12 +112,14 @@ export default function FeedbackWalk({
   guest = false,
   onGuest,
   onSaveHelperWords,
+  onAcceptClearer,
+  onKeepWords,
   onEnd,
   onClose,
-}: Props) {
+}: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
-  const [walk, setWalk] = useState<FeedbackWalkModel>(model);
+  const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
   const [at, setAt] = useState(0);
   const [dir, setDir] = useState<WalkDir | undefined>(undefined);
   const [picks, setPicks] = useState<Record<number, PhraseSelection | null>>({});
@@ -151,8 +174,9 @@ export default function FeedbackWalk({
     [guest, onGuest, guestBlock],
   );
 
-  const ctx: ScreenCtx = {
+  const ctx: ScreenCtx<R> = {
     walk,
+    at: (s) => plan.indexOf(s),
     first: (s) => plan[plan.indexOf(s) - 1]?.overlay === false,
     coachNote,
     firstTake,
@@ -173,6 +197,19 @@ export default function FeedbackWalk({
       }
       forward();
     },
+    accept: (s, moment) => {
+      if (blocked(s) || !moment.clearer) return;
+      onAcceptClearer?.(moment.clearer.item);
+      // TODO(D-FW-16): "Accept and practise" opens the practise on the
+      // accepted words (moment.clearer.say). Until the practise loop is
+      // live the walk goes on to the plan's next screen; it never blocks.
+      forward();
+    },
+    keep: (s, moment) => {
+      if (blocked(s) || !moment.clearer) return;
+      onKeepWords?.(moment.clearer.item);
+      forward();
+    },
   };
 
   return (
@@ -182,8 +219,10 @@ export default function FeedbackWalk({
   );
 }
 
-type ScreenCtx = {
-  walk: FeedbackWalkModel;
+type ScreenCtx<R = unknown> = {
+  walk: FeedbackWalkModel<R>;
+  /** Where a step sits in the plan. */
+  at: (step: WalkStep) => number;
   /** Back is off on the walk's first screen. */
   first: (step: WalkStep) => boolean;
   coachNote: FeedbackWalkCoachNote | null;
@@ -194,6 +233,8 @@ type ScreenCtx = {
   picks: Record<number, PhraseSelection | null>;
   pick: (step: WalkStep, next: PhraseSelection | null) => void;
   save: (step: WalkStep, moment: FeedbackWalkMoment) => void;
+  accept(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
+  keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
 };
 
 function momentNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
@@ -293,14 +334,66 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   );
 }
 
-function renderScreen(ctx: ScreenCtx, step: WalkStep): ReactNode {
+/** The served words as runs: what goes crossed out, what arrives in
+ *  orange (WalkNewWords colours the <em>). */
+function pieces(list: readonly ClearerPiece[]) {
+  return list.map((p, i) => {
+    if (p.cut) return <s key={i}>{p.text}</s>;
+    if (p.fresh) return <em key={i}>{p.text}</em>;
+    return <span key={i}>{p.text}</span>;
+  });
+}
+
+/** The clearer version (flow 6): the speaker's words and voice, then the
+ *  opener, the new words and the question, from the signed bank. */
+function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const clearer = moment.clearer;
+  if (!clearer) return null;
+  const turn = clearerTurn(ctx.walk.plan, ctx.at(step));
+  const practiseOff = step.kind === "accept";
+  return (
+    <WalkOverlay
+      testId={testId(step)}
+      nav={momentNav(ctx, step, moment)}
+      onClose={ctx.close}
+      title={COPY.cardClearerVersion}
+      footer={
+        <WalkFooter
+          pill={{
+            label: practiseOff ? WALK_COPY.clearerAccept : COPY.pillAcceptPractise,
+            onClick: () => ctx.accept(step, moment),
+            testId: "walk-forward",
+          }}
+          links={[{ label: COPY.linkKeepMyWords, onClick: () => ctx.keep(step, moment), testId: "walk-keep" }]}
+        />
+      }
+    >
+      <WalkPlayer
+        seed={`moment-${moment.index}`}
+        src={moment.clip?.src ?? null}
+        startOffsetMs={moment.clip?.startOffsetMs}
+        durationMs={moment.clip?.durationMs}
+        label={`${COPY.pagerMoment} ${moment.index + 1} ${COPY.pagerOf} ${ctx.walk.moments.length}`}
+        words={pieces(clearer.before)}
+      />
+      <WalkMessage>
+        <span>{bankLine(WALK_LINE_BANK.B13.lines, turn)}</span>
+        <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
+        {practiseOff ? null : <span>{bankLine(WALK_LINE_BANK.B14.lines, turn)}</span>}
+      </WalkMessage>
+    </WalkOverlay>
+  );
+}
+
+function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "coachnote") return CoachNote(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   if (!moment) return null;
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
-  // TODO(D-FW-15/16/17/18/20): the clearer version, the exercise video, the
-  // practising, "Judgement time!" with the judgements, and sharing. The plan
-  // this phase is given holds none of them.
+  if (step.key === "clearer") return Clearer(ctx, step, moment);
+  // TODO(D-FW-16/17/18/20): the practising, the exercise video, "Judgement
+  // time!" with the judgements, and sharing. The plan this phase is given
+  // holds none of them.
   return null;
 }

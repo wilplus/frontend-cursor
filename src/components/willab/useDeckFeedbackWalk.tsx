@@ -6,7 +6,7 @@ import FeedbackWalk, {
   type FeedbackWalkRequest,
 } from "./walk/FeedbackWalk";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
-import { helperWordsBehind, type SaveBehind } from "./saveBehind";
+import { acceptRewriteBehind, helperWordsBehind, keepWordsBehind, type SaveBehind } from "./saveBehind";
 import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
 import {
   buildFeedbackWalk,
@@ -43,7 +43,12 @@ import type { LockResult } from "./DeckChunkModal";
 /*                                                                            */
 /*  Helper words picked in the walk are saved through the very path the       */
 /*  paragraph sheet uses: the deck's setRootPhrase and lock, behind the       */
-/*  screen (`helperWordsBehind` under `saveBehind`).                          */
+/*  screen (`helperWordsBehind` under `saveBehind`). A clearer version's      */
+/*  decision goes through the Feedback sheet's lanes, behind the screen too: */
+/*  "Accept and practise" the speaker's response then the deck's onAccept    */
+/*  (`acceptRewriteBehind`, L1: the speaker's decision), "Keep my words" the */
+/*  response then the deck's onKeepMine (`keepWordsBehind`). The crossed-out */
+/*  and orange words are the served rewrite's own `quote` and `proposedText`.*/
 /* -------------------------------------------------------------------------- */
 
 type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
@@ -70,9 +75,9 @@ export function deckWalkItems(
   waiting: (chunk: DeckChunk) => boolean,
   pendingOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
   slideLabel: (partId: string) => string | null,
-): FeedbackWalkItem[] {
+): FeedbackWalkItem<DocumentSuggestion>[] {
   const seen = new Set<string>();
-  const out: FeedbackWalkItem[] = [];
+  const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
   for (const chunk of chunks) {
     const partId = chunk.part.id;
     if (seen.has(partId) || !waiting(chunk)) continue;
@@ -94,10 +99,20 @@ export function deckWalkItems(
         clip: item.snippetAudioRef
           ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
           : null,
+        rewrite: rewriteOf(item),
       });
     }
   }
   return out;
+}
+
+/** A served rewrite the walk can draw and decide: a replace with words to
+ *  offer, from the clearer-version family or routed to the rewrite card.
+ *  The same fields the Feedback sheet's rewrite card shows. Pure. */
+export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSuggestion>["rewrite"] {
+  if (item.kind !== "replace" || !item.proposedText?.trim()) return null;
+  if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
+  return { quote: item.quote, proposedText: item.proposedText, item };
 }
 
 /** The span to save on the paragraph as it is now: the walk's own span when
@@ -138,6 +153,9 @@ export function useDeckFeedbackWalk(args: {
   coachSeen: () => void;
   firstTake: boolean;
   setRootPhrase: (chunk: DeckChunk, phrase: RootPhraseSpan | null) => Promise<boolean>;
+  /** The deck's decision on a clearer version: the Feedback sheet's own. */
+  onAccept: (s: DocumentSuggestion) => Promise<boolean>;
+  onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   lockPart: (chunk: DeckChunk, text: string) => Promise<LockResult>;
   saveBehind: SaveBehind;
   /** The walk ran out: the deck's end card. */
@@ -198,6 +216,14 @@ export function useDeckFeedbackWalk(args: {
       CHUNK_SHEET_COPY.failWordsBehind,
     );
   }, []);
+  const acceptClearer = useCallback((item: DocumentSuggestion) => {
+    const { onAccept, saveBehind } = live.current;
+    saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
+  }, []);
+  const keepWords = useCallback((item: DocumentSuggestion) => {
+    const { onKeepMine, saveBehind } = live.current;
+    saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
+  }, []);
   const onEnd = useCallback(() => live.current.onEnd(), []);
 
   const element = useMemo(
@@ -209,10 +235,12 @@ export function useDeckFeedbackWalk(args: {
           coachNote={coachMessage}
           firstTake={firstTake}
           onSaveHelperWords={saveHelperWords}
+          onAcceptClearer={acceptClearer}
+          onKeepWords={keepWords}
           onEnd={onEnd}
         />
       ) : null,
-    [on, model, request, coachMessage, firstTake, saveHelperWords, onEnd],
+    [on, model, request, coachMessage, firstTake, saveHelperWords, acceptClearer, keepWords, onEnd],
   );
 
   return useMemo(() => ({ review, tapPart, element }), [review, tapPart, element]);
