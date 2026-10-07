@@ -12,8 +12,9 @@ import CorpusPageClient from "@/app/coach/corpus/page.client";
 /*  on a row that still carries a historical one — (N3, cut 2026-08-11), and   */
 /*  that the import fires SEQUENTIALLY with per-file failures.                 */
 /*                                                                            */
-/*  Stubs the three endpoints at the fetch boundary and records every write on */
-/*  window.__corpusCalls. Forces the coach profile so the N4 gate opens.       */
+/*  Stubs the endpoints, the row playback included, at the fetch boundary and */
+/*  records every write (and every playback ask) on window.__corpusCalls.     */
+/*  Forces the coach profile so the N4 gate opens.                            */
 /*                                                                            */
 /*  DEV ONLY. Production renders nothing and patches nothing.                  */
 /* -------------------------------------------------------------------------- */
@@ -53,7 +54,6 @@ function wavDataUri(): string {
 const QUEUE = [
   {
     snippet_id: "piece-c",
-    playback_reference_id: "11111111-1111-4111-8111-111111111111",
     transcript: "and we shipped it in a week which nobody believed",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -64,7 +64,6 @@ const QUEUE = [
   },
   {
     snippet_id: "piece-a",
-    playback_reference_id: "22222222-2222-4222-8222-222222222222",
     transcript: "so we moved the launch to the second week of March",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -75,7 +74,6 @@ const QUEUE = [
   },
   {
     snippet_id: "piece-b",
-    playback_reference_id: "33333333-3333-4333-8333-333333333333",
     transcript: "I think maybe we could possibly try it that way",
     start_offset_ms: 0,
     duration_ms: 250,
@@ -85,6 +83,36 @@ const QUEUE = [
     confidence_score: 0.5,
   },
 ];
+
+/** Where the harness's "signed" parent-recording URLs point. The spec serves
+ *  this host with Playwright (a real WAV, or a 403 for an expired URL). */
+const MEDIA = "https://media.example/corpus";
+
+/** Playback asks per snippet, so the spec can count the refetches. */
+const clipAsks: Record<string, number> = {};
+
+/** GET /api/v2/coach/corpus/clips/<id>/playback (backend PR #920): a signed
+ *  URL to the import's parent recording and the window to play from it. The
+ *  queue rows carry no playback reference at all. piece-b's FIRST URL has
+ *  already expired, so the page must ask again once the audio fails. */
+function clipPlayback(snippetId: string, url: string): Response {
+  window.__corpusCalls!.push({ url, method: "GET", body: null, t: performance.now() });
+  const n = (clipAsks[snippetId] = (clipAsks[snippetId] ?? 0) + 1);
+  const expired = snippetId === "piece-b" && n === 1 ? "&expired=1" : "";
+  return new Response(
+    JSON.stringify({
+      snippet_id: snippetId,
+      url: `${MEDIA}/parent.wav?snippet=${snippetId}&sig=${n}${expired}`,
+      start_offset_ms: 1000,
+      duration_ms: 1500,
+      expires_in_s: 900,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store, max-age=0" },
+    },
+  );
+}
 
 /** How many times the async import has been polled — lets the harness answer
  *  "still working" first and "finished" after, which is the shape the FE must
@@ -132,7 +160,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               queue: [
                 {
                   snippet_id: "full-a",
-                  playback_reference_id: "44444444-4444-4444-8444-444444444444",
                   transcript: "we knew it would work",
                   start_offset_ms: 0,
                   duration_ms: 250,
@@ -142,7 +169,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 },
                 {
                   snippet_id: "full-b",
-                  playback_reference_id: "55555555-5555-4555-8555-555555555555",
                   transcript: "and it did",
                   start_offset_ms: 0,
                   duration_ms: 250,
@@ -353,6 +379,14 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         );
       }
       return real(input, init);
+    };
+    // A layer of its own for the row's playback, so the stub above keeps
+    // its shape.
+    const stubbed = window.fetch;
+    window.fetch = async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const clip = /\/api\/v2\/coach\/corpus\/clips\/([^/?]+)\/playback/.exec(url);
+      return clip ? clipPlayback(decodeURIComponent(clip[1]), url) : stubbed(input, init);
     };
   }
   const session = {

@@ -47,6 +47,7 @@ export default function CoachJudgeInstrument({
   transcript,
   transcriptRevealed = false,
   keys = false,
+  onClipError,
 }: {
   clip: JudgeClip | null;
   value: ConfidenceRatingValue | null;
@@ -61,6 +62,9 @@ export default function CoachJudgeInstrument({
   transcriptRevealed?: boolean;
   /** Keys 1 to 5 pick an answer while mounted. */
   keys?: boolean;
+  /** The clip's audio failed to load. The corpus plays a 15-minute signed
+   *  URL and asks for a fresh one; nothing is rendered for it here. */
+  onClipError?: () => void;
 }) {
   useEffect(() => {
     if (!keys) return;
@@ -85,9 +89,10 @@ export default function CoachJudgeInstrument({
           durationMs={clip?.durationMs ?? 0}
           transcript={transcript}
           transcriptRevealed={transcriptRevealed}
+          onMediaError={onClipError}
         />
       ) : clip?.src ? (
-        <MediaPlayer src={clip.src} startOffsetMs={clip.startOffsetMs} durationMs={clip.durationMs} compact />
+        <MediaPlayer src={clip.src} startOffsetMs={clip.startOffsetMs} durationMs={clip.durationMs} compact onError={onClipError} />
       ) : null}
       <ConfidenceLabelChips
         question={COPY.judgeQuestion}

@@ -37,6 +37,7 @@ import { JudgeFrame } from "@/components/willab/coachwalk/CoachJudgeSheet";
 import type { Pager } from "@/components/willab/feedbackPager";
 import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
+import { useCorpusClip } from "./useCorpusClip";
 
 /** One queue row carries at most one blind handle: the D5 inline packet, or
  *  (Q2, while the writer state is founder_canary) the legacy card's handle on
@@ -946,6 +947,9 @@ function LabelScreen({
 
   const pieces = queue?.queue ?? [];
   const piece: QueuePiece | undefined = pieces[at];
+  // The row carries nothing playable: its clip (a short-lived signed URL to
+  // the import's recording, and the window to play) is asked for by snippet.
+  const playback = useCorpusClip(status === "ready" ? piece?.snippetId ?? null : null);
 
   useVisibleLearningExposure({
     handles: piece?.learningExposures ?? [],
@@ -1058,7 +1062,8 @@ function LabelScreen({
           // only; the exact words are revealed after this coach's label is
           // committed. No machine read, band, or ordering cue (N1).
           <CoachJudgeInstrument
-            clip={{ src: piece.audioRef, startOffsetMs: piece.startOffsetMs, durationMs: piece.durationMs }}
+            clip={playback.clip}
+            onClipError={playback.onMediaError}
             transcript={piece.transcript}
             transcriptRevealed={piece.label !== null}
             value={abstained ? null : piece.label?.value ?? null}
@@ -1072,7 +1077,7 @@ function LabelScreen({
               (piece.mlc2BlindReview !== null && !exposureId && !renderError)
             }
             saving={savingId === piece.reviewActId}
-            error={error ?? renderError}
+            error={error ?? renderError ?? playback.error}
             onPick={(v) => void save(v, exposureId)}
             keys
           />

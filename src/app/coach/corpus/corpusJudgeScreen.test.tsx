@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QueuePiece, TrainingImport } from "@/services/api/trainingCorpus";
 
 const saveSpy = vi.fn();
+const playbackSpy = vi.fn();
 let queue: () => QueuePiece[] = () => [];
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
@@ -31,6 +32,7 @@ vi.mock("@/services/api/trainingCorpus", async (importOriginal) => {
     ...real,
     fetchTrainingImports: async () => [IMPORT],
     fetchConfidenceQueue: async () => ({ sessionId: IMPORT.sessionId, queue: queue() }),
+    fetchCorpusClipPlayback: (...args: unknown[]) => playbackSpy(...args),
   };
 });
 vi.mock("@/services/api/stateRatings", async (importOriginal) => {
@@ -47,7 +49,7 @@ const IMPORT: TrainingImport = {
 
 function piece(id: string, transcript: string, over: Partial<QueuePiece> = {}): QueuePiece {
   return {
-    reviewActId: id, snippetId: id, transcript, audioRef: null, startOffsetMs: 0, durationMs: 250,
+    reviewActId: id, snippetId: id, transcript,
     label: null, reReview: false, learningExposures: [], canonicalPosition: null,
     blindReview: null, mlc2BlindReview: null, ...over,
   };
@@ -86,10 +88,31 @@ async function openImport(): Promise<void> {
   await flush();
 }
 
+/** The backend's playback answer for a row: a signed URL to the import's
+ *  parent recording and the window to play from it. Each call signs anew. */
+let signed = 0;
+function playbackFor(snippetId: string) {
+  signed += 1;
+  return {
+    ok: true as const,
+    clip: {
+      url: `https://media.example/imports/parent.wav?snippet=${snippetId}&sig=${signed}`,
+      startOffsetMs: 61250,
+      durationMs: 28400,
+      expiresInS: 900,
+    },
+  };
+}
+
+const audio = () => sheet()?.querySelector("audio") ?? null;
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   saveSpy.mockReset();
   saveSpy.mockResolvedValue({ ok: true });
+  signed = 0;
+  playbackSpy.mockReset();
+  playbackSpy.mockImplementation(async (id: string) => playbackFor(id));
   queue = THREE;
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -99,6 +122,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.useRealTimers();
 });
 
 describe("the corpus labels on the Judge screen (B9, P2-16)", () => {
@@ -176,6 +200,83 @@ describe("the corpus labels on the Judge screen (B9, P2-16)", () => {
     answer("No — Not confident");
     await flush();
     expect((saveSpy.mock.calls[0] as [string, Record<string, unknown>])[1]).toMatchObject({ value: "no", re_review: true });
+  });
+});
+
+describe("the corpus row plays its window from the playback route (backend PR #920)", () => {
+  it("asks for the row's clip by snippet — no playback reference on the row — and plays the fetched window", async () => {
+    await openImport();
+    expect(playbackSpy).toHaveBeenCalledTimes(1);
+    expect(playbackSpy).toHaveBeenCalledWith("piece-c");
+    const el = audio();
+    expect(el?.getAttribute("src")).toBe("https://media.example/imports/parent.wav?snippet=piece-c&sig=1");
+    // MediaPlayer's clamp: on metadata the playhead moves to the window's start.
+    act(() => { el!.dispatchEvent(new Event("loadedmetadata")); });
+    expect(el!.currentTime).toBeCloseTo(61.25);
+    // ...and the window's own length is what the player counts down.
+    expect(sheet()?.textContent).toContain("0:28");
+  });
+
+  it("never shows the coach an id, a URL, an offset or a window number", async () => {
+    await openImport();
+    const text = sheet()?.textContent ?? "";
+    for (const leak of ["piece-c", "media.example", "sig=", "61250", "61.25", "28400", "900", "1:01"]) {
+      expect(text).not.toContain(leak);
+    }
+  });
+
+  it("moving on asks for the next row's clip; coming back inside 13 minutes reuses the URL it has", async () => {
+    await openImport();
+    click(host.querySelector('[data-testid="feedback-pager"] button[aria-label="Next"]'));
+    await flush();
+    expect(playbackSpy.mock.calls.map((c) => c[0])).toEqual(["piece-c", "piece-a"]);
+    expect(audio()?.getAttribute("src")).toContain("snippet=piece-a");
+    click(host.querySelector('[data-testid="feedback-pager"] button[aria-label="Back"]'));
+    await flush();
+    expect(playbackSpy).toHaveBeenCalledTimes(2);
+    expect(audio()?.getAttribute("src")).toBe("https://media.example/imports/parent.wav?snippet=piece-c&sig=1");
+  });
+
+  it("asks for a fresh URL once the one on screen is ~13 minutes old", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    await openImport();
+    expect(audio()?.getAttribute("src")).toContain("sig=1");
+    await act(async () => { vi.advanceTimersByTime(12 * 60 * 1000); });
+    expect(playbackSpy).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(60 * 1000); });
+    await flush();
+    expect(playbackSpy).toHaveBeenCalledTimes(2);
+    expect(audio()?.getAttribute("src")).toContain("sig=2");
+  });
+
+  it("an expired URL that fails to load is asked for again — once", async () => {
+    await openImport();
+    act(() => { audio()!.dispatchEvent(new Event("error")); });
+    await flush();
+    expect(playbackSpy).toHaveBeenCalledTimes(2);
+    expect(audio()?.getAttribute("src")).toContain("sig=2");
+    // The fresh URL fails too: no loop, the player stays as it is.
+    act(() => { audio()!.dispatchEvent(new Event("error")); });
+    await flush();
+    expect(playbackSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("a refused clip leaves the player without audio, the answers on screen, and no code shown", async () => {
+    playbackSpy.mockResolvedValue({ ok: false, status: 410, code: "PHASE2_DISABLED", error: null, language: null });
+    await openImport();
+    expect(audio()).toBeNull();
+    expect(sheet()?.querySelector('button[aria-label="Play snippet"]')?.hasAttribute("disabled")).toBe(true);
+    expect(sheet()?.textContent).toContain("Does the speaker sound confident here?");
+    expect(sheet()?.textContent).not.toContain("PHASE2_DISABLED");
+  });
+
+  it("a rater-language refusal says the backend's sentence where the label's would", async () => {
+    playbackSpy.mockResolvedValue({
+      ok: false, status: 409, code: "CLIP_LANGUAGE_UNKNOWN",
+      error: "This clip has no verified language and cannot be routed.", language: null,
+    });
+    await openImport();
+    expect(sheet()?.textContent).toContain("This clip has no verified language and cannot be routed.");
   });
 });
 

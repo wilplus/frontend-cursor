@@ -35,8 +35,51 @@ const isConfidenceLabelBody = (body, value) =>
   ) &&
   Object.keys(body).sort().join(",") === "idempotency_key,state_id,value";
 
+/** A 3-second silent 8 kHz WAV: the import's PARENT recording that the
+ *  harness's signed URLs point at. */
+function parentWav() {
+  const samples = 8000 * 3;
+  const b = Buffer.alloc(44 + samples, 128);
+  b.write("RIFF", 0); b.writeUInt32LE(36 + samples, 4); b.write("WAVE", 8);
+  b.write("fmt ", 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28); b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34);
+  b.write("data", 36); b.writeUInt32LE(samples, 40);
+  return b;
+}
+const PARENT_WAV = parentWav();
+
 const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 520, height: 900 } });
+// The signed parent-recording URLs (backend PR #920). An expired one answers
+// 403, as the storage provider does once the signature runs out. Byte ranges
+// are served as object storage serves them: without them Chromium cannot
+// seek, and the window's start could not be reached.
+await page.route("https://media.example/**", async (route) => {
+  if (route.request().url().includes("expired=1")) {
+    return route.fulfill({ status: 403, body: "expired" });
+  }
+  const range = /bytes=(\d+)-(\d*)/.exec((await route.request().headerValue("range")) ?? "");
+  if (!range) {
+    return route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "audio/wav", "Accept-Ranges": "bytes" },
+      body: PARENT_WAV,
+    });
+  }
+  const start = Number(range[1]);
+  const end = range[2] ? Math.min(Number(range[2]), PARENT_WAV.length - 1) : PARENT_WAV.length - 1;
+  return route.fulfill({
+    status: 206,
+    headers: {
+      "Content-Type": "audio/wav",
+      "Accept-Ranges": "bytes",
+      "Content-Range": `bytes ${start}-${end}/${PARENT_WAV.length}`,
+    },
+    body: PARENT_WAV.subarray(start, end + 1),
+  });
+});
+const playbackAsks = async (snippet) =>
+  (await calls(page)).filter((c) => c.url.includes(`/api/v2/coach/corpus/clips/${snippet}/playback`));
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.waitForSelector("text=Training corpus");
 
@@ -392,6 +435,29 @@ check(
   "it opens on the first UNLABELLED piece, without re-ordering (N2)",
   (await barText()).includes("Board pitch · moment 1 of 3")
 );
+await page.waitForSelector(`${dialog} audio`, { state: "attached" });
+check(
+  "the row's clip is asked for by snippet from the coach playback route — the queue row carries no playback reference",
+  (await playbackAsks("piece-c")).length === 1
+);
+await page.waitForFunction(
+  (d) => (document.querySelector(`${d} audio`)?.readyState ?? 0) >= 1,
+  dialog,
+  { timeout: 5000 }
+).catch(() => {});
+const window1 = await page.evaluate((d) => {
+  const a = document.querySelector(`${d} audio`);
+  return { src: a?.getAttribute("src") ?? "", at: a?.currentTime ?? -1 };
+}, dialog);
+check(
+  "it plays the fetched window: the parent recording's signed URL, from the window's start",
+  window1.src.includes("snippet=piece-c&sig=1") && Math.abs(window1.at - 1.0) < 0.05,
+  JSON.stringify(window1)
+);
+check(
+  "no snippet id, URL or window number reaches the coach (AC-9, N1)",
+  !/piece-c|media\.example|sig=|\b1000\b|\b1500\b/.test(await sheetText())
+);
 check(
   "the piece is playable while its exact words stay hidden before the answer",
   (await page.locator(`${dialog} audio`).count()) === 1 &&
@@ -458,6 +524,27 @@ check(
 check(
   "the answer is the whole act — it moves on past the already-labelled piece to the next unlabelled one",
   (await barText()).includes("moment 3 of 3")
+);
+// piece-b's first signed URL has already expired: the audio fails to load,
+// and the page asks for a fresh URL once.
+await page.waitForFunction(
+  (d) => (document.querySelector(`${d} audio`)?.getAttribute("src") ?? "").includes("sig=2"),
+  dialog,
+  { timeout: 5000 }
+).catch(() => {});
+await page.waitForTimeout(300);
+const refreshed = await page.evaluate((d) => {
+  const a = document.querySelector(`${d} audio`);
+  return { src: a?.getAttribute("src") ?? "", ready: a?.readyState ?? 0, at: a?.currentTime ?? -1 };
+}, dialog);
+check(
+  "an expired URL is asked for again once, and the fresh one plays the window",
+  (await playbackAsks("piece-b")).length === 2 &&
+    refreshed.src.includes("snippet=piece-b&sig=2") &&
+    !refreshed.src.includes("expired") &&
+    refreshed.ready >= 1 &&
+    Math.abs(refreshed.at - 1.0) < 0.05,
+  `${(await playbackAsks("piece-b")).length} asks · ${JSON.stringify(refreshed)}`
 );
 check(
   "no grade row appeared after answering either — the cut is total, not gated differently",
