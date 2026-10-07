@@ -11,7 +11,7 @@
 /*  Next.js page file may export only Next's own fields.                      */
 /* -------------------------------------------------------------------------- */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DataConsentChoices from "@/components/account/DataConsentChoices";
@@ -21,14 +21,22 @@ import ProjectsCard from "@/components/account/ProjectsCard";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
 import SupportCard from "@/components/account/SupportCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
+import {
+  rememberDataConsentLeave,
+  useDataConsentReturn,
+} from "@/components/legal/legalReturn";
 
 export default function DataConsentPage() {
   const [trainingOffered, setTrainingOffered] = useState(false);
   // Bumped when the policy update is accepted: the choices belong to the
   // new receipt, so they are read again.
   const [receiptNonce, setReceiptNonce] = useState(0);
+  // Back from Privacy / Terms opens this page where it was left; any other
+  // arrival (the menu) starts at the top (D-CS-5).
+  const pageRef = useRef<HTMLElement | null>(null);
+  useDataConsentReturn(pageRef);
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground">
+    <main ref={pageRef} className="min-h-[100dvh] bg-background text-foreground">
       <DashboardHeader />
       <div className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -46,11 +54,19 @@ export default function DataConsentPage() {
         <SupportCard />
         <DeleteAccountCard />
         <p className="mt-8 text-sm text-muted-foreground">
-          <Link href="/privacy?from=data-consent" className="underline underline-offset-4">
+          <Link
+            href="/privacy?from=data-consent"
+            className="underline underline-offset-4"
+            onClick={() => rememberDataConsentLeave(pageRef.current, "/privacy")}
+          >
             Privacy Policy
           </Link>
           {" · "}
-          <Link href="/terms?from=data-consent" className="underline underline-offset-4">
+          <Link
+            href="/terms?from=data-consent"
+            className="underline underline-offset-4"
+            onClick={() => rememberDataConsentLeave(pageRef.current, "/terms")}
+          >
             Terms of Service
           </Link>
         </p>

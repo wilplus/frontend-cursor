@@ -34,7 +34,7 @@ export const BLOCK_VARIANT_COPY = {
   selectFailed: "Couldn't save that just now. Give it another go.",
 
   /* --- the timeline -------------------------------------------------------- */
-  timelineEntry: "Version history",
+  timelineEntry: "History",
   timelineTitle: "Version history",
   /** Reason lines — qualitative history copy for the closed enum, NEVER the
    *  raw token. `unknown` is the FE's degrade for a token outside the enum:

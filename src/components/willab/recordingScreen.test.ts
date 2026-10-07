@@ -32,6 +32,10 @@ const GESTURES = readFileSync(
   "src/components/willab/useRecordingGestures.ts",
   "utf8"
 );
+const ROOTS = readFileSync(
+  "src/components/willab/useRecordingRoots.ts",
+  "utf8"
+);
 const CSS = readFileSync("src/app/globals.css", "utf8");
 const TW = readFileSync("tailwind.config.ts", "utf8");
 
@@ -206,10 +210,29 @@ describe("the recording screen", () => {
   });
 
   it("preloads exact committed roots before a continued Take starts", () => {
-    expect(LAB).toMatch(/fetchRecordingRoots\(aid\)/);
-    expect(LAB).toMatch(/state === "lab_prerecord"/);
-    expect(LAB).toMatch(/attempt < 2/);
+    expect(ROOTS).toMatch(/fetchRecordingRoots\(arcId\)/);
+    expect(ROOTS).toMatch(/const RETRIES = 2;/);
+    expect(ROOTS).toMatch(/attempt < RETRIES/);
+    expect(LAB).toMatch(/entering: enteringRecording\(state\)/);
+    const entering = LAB.slice(LAB.indexOf("function enteringRecording("));
+    expect(entering.slice(0, entering.indexOf("\n}\n"))).toMatch(/state === "lab_prerecord"/);
     expect(LAB).not.toMatch(/buildCommittedSlideRoots\(result\.pieces/);
+  });
+
+  it("drops no hover grow on Finish take and draws the 12px stop square", () => {
+    const strip = PHASE.slice(
+      PHASE.indexOf("const strip"),
+      PHASE.indexOf("if (!hasDeck)")
+    );
+    expect(strip).not.toMatch(/hover:scale/);
+    expect(strip).toMatch(/h-3 w-3 shrink-0 rounded-\[2px\] bg-current/);
+  });
+
+  it("animates the slide dots in 0.2 s with no hover colour", () => {
+    const rail = ROADMAP.slice(ROADMAP.indexOf('aria-label="Presentation slide position"'));
+    const dots = rail.slice(0, rail.indexOf("</nav>"));
+    expect(dots.match(/transition-\[height\] duration-200/g)?.length).toBe(2);
+    expect(dots).not.toMatch(/hover:/);
   });
 });
 

@@ -70,6 +70,24 @@ const tier =
     ? new URLSearchParams(window.location.search).get("tier")
     : null;
 
+/** ?slides=6 — the deck's length is known: the host serves its slide titles,
+ *  so the kicker reads "Slide n of m" (D-IT-1). Without it the length is
+ *  unknown, as on a payload that carries no titles. */
+const slideTitleCount =
+  typeof window !== "undefined"
+    ? Number(new URLSearchParams(window.location.search).get("slides") ?? 0)
+    : 0;
+
+/** ?helper=1 — see the recording-roots handler below. ?takes=1 — the
+ *  project has one Take (the saved state then plays the moment). */
+const helperWords =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("helper") === "1";
+const takeCountParam =
+  typeof window !== "undefined"
+    ? Number(new URLSearchParams(window.location.search).get("takes") ?? 2) || 2
+    : 2;
+
 function payload() {
   const p1 = decided === "approved" ? P1_AFTER : P1;
   // An applied emphasis is FOLDED INTO THE TEXT server-side, as marker
@@ -197,7 +215,7 @@ function payload() {
     title: "Garage pitch",
     updated_at: "2026-08-11T10:00:00Z",
     latest_take_session_id: "sess-1",
-    take_count: 2,
+    take_count: takeCountParam,
     can_record_take: true,
     text,
     moments_unlocked: false,
@@ -245,6 +263,14 @@ function payload() {
       challenger: null,
     })),
     additions: [],
+    ...(slideTitleCount > 0
+      ? {
+          slide_titles: Array.from(
+            { length: slideTitleCount },
+            (_, i) => `Slide title ${i + 1}`,
+          ),
+        }
+      : {}),
     changes,
     style_changes,
     // SLICE 2 — the decided-proposal history: one earlier round on p0's
@@ -439,7 +465,29 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       }
       return real(input, init);
     };
+    if (helperWords) window.fetch = withHelperWords(window.fetch);
   }
+}
+
+/** ?helper=1 — the locked paragraph (p2) carries saved helper words, served
+ *  on the recording-roots read, so a tap opens the paragraph sheet's saved
+ *  state (D-IT-3). A layer over the harness's fetch, which answers every
+ *  other /api/ read. */
+function withHelperWords(inner: typeof window.fetch): typeof window.fetch {
+  return async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.includes("/recording-roots")) return inner(input, init);
+    return new Response(
+      JSON.stringify({
+        roots: [
+          { part_id: "part-2", slide_index: 1, text: "changed everything", type: "flagship" },
+        ],
+        document_snapshot_id: DOCUMENT_SNAPSHOT_ID,
+        document_snapshot_sha256: DOCUMENT_SNAPSHOT_SHA256,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
 }
 
 /** A short silent WAV, so the harness's Confident Voice item carries a clip

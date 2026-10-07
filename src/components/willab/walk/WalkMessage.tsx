@@ -3,43 +3,35 @@ import type { ReactNode } from "react";
 /* -------------------------------------------------------------------------- */
 /*  WalkMessage — every message in the walk (founder lock 2026-10-06)          */
 /*                                                                            */
-/*  Plain black text with a small grey profile picture beside it: the coach's */
-/*  photo for the coach, the app's picture for the app, both the same grey     */
-/*  style. NO sender label ("Your coach", "What you said"): the picture is    */
-/*  decoration and is hidden from assistive tech, so nothing names a sender.   */
+/*  Plain black text with a small grey profile picture beside it: one grey     */
+/*  profile picture for the coach and the app alike, no photos (founder NX2 B, */
+/*  2026-10-06; decisions log N53). NO sender label ("Your coach", "What you   */
+/*  said"): the picture is decoration and is hidden from assistive tech, so    */
+/*  nothing names a sender.                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** The grey profile picture. A photo when there is one, else the grey
- *  silhouette; aria-hidden either way. */
-export function WalkAvatar({ src }: { src?: string | null }) {
+/** The grey profile picture: one grey silhouette for the coach and the app
+ *  alike, no photos (founder NX2 B, 2026-10-06; decisions log N53).
+ *  aria-hidden; still no sender label. */
+export function WalkAvatar() {
   return (
     <span
       aria-hidden="true"
       data-walk-avatar
-      className="mt-px inline-flex h-6 w-6 flex-none items-end justify-center overflow-hidden rounded-full bg-foreground/15 bg-cover bg-center"
-      style={src ? { backgroundImage: `url(${JSON.stringify(src)})` } : undefined}
+      className="mt-px inline-flex h-6 w-6 flex-none items-end justify-center overflow-hidden rounded-full bg-foreground/15"
     >
-      {src ? null : (
-        <svg viewBox="0 0 24 24" className="h-[19px] w-[19px] fill-foreground/40" aria-hidden="true">
-          <circle cx="12" cy="9" r="4.2" />
-          <path d="M3.5 24c.6-5 4.1-8 8.5-8s7.9 3 8.5 8z" />
-        </svg>
-      )}
+      <svg viewBox="0 0 24 24" className="h-[19px] w-[19px] fill-foreground/40" aria-hidden="true">
+        <circle cx="12" cy="9" r="4.2" />
+        <path d="M3.5 24c.6-5 4.1-8 8.5-8s7.9 3 8.5 8z" />
+      </svg>
     </span>
   );
 }
 
-export default function WalkMessage({
-  avatarSrc,
-  children,
-}: {
-  /** The coach's photo, when the coach sent it and has one. */
-  avatarSrc?: string | null;
-  children: ReactNode;
-}) {
+export default function WalkMessage({ children }: { children: ReactNode }) {
   return (
     <div data-walk-message className="flex items-start gap-2.5 text-[17px] leading-[1.55] text-foreground">
-      <WalkAvatar src={avatarSrc} />
+      <WalkAvatar />
       <div className="flex min-w-0 flex-col gap-2.5">{children}</div>
     </div>
   );

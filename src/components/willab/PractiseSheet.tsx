@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Mic, Square } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import CoachVideo from "./CoachVideo";
@@ -213,7 +214,7 @@ function AttemptPicker({
         }}
         className={PILL}
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+        {busy ? <VoiceMark size={16} /> : null}
         {COPY.pillEmphasise}
       </button>
     </>
@@ -413,7 +414,7 @@ export default function PractiseSheet({
             onClick={() => exercise.practise()}
           >
             {exercise.busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <VoiceMark size={16} />
             ) : (
               <Mic className="h-4 w-4" aria-hidden />
             )}

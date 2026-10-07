@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { postJourneyNextSteps } from "@/services/api/journeyNextSteps";
@@ -137,7 +138,7 @@ export default function IdealTextActions({
           className="h-9 w-full rounded-full text-[14px] font-normal text-muted-foreground"
         >
           {openingJourney ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            <VoiceMark size={16} className="mr-2" />
           ) : null}
           See next steps
         </Button>

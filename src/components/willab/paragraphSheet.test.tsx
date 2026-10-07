@@ -134,7 +134,7 @@ function render(s = state()) {
 }
 
 describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)", () => {
-  it("shows the helper words, the player and History, never the paragraph text, and one black button", async () => {
+  it("shows the helper words and History, never the paragraph text, and one black button", async () => {
     await render(); // the fixture's headline is "ship it now"
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]');
     expect(sheet).not.toBeNull();

@@ -171,8 +171,8 @@ export default function RecordingRoadmap({
                 <span
                   className={
                     currentSlide === index
-                      ? "h-6 w-1.5 rounded-full bg-foreground transition-[height]"
-                      : "h-1.5 w-1.5 rounded-full bg-muted-foreground/35 transition-[height] hover:bg-muted-foreground"
+                      ? "h-6 w-1.5 rounded-full bg-foreground transition-[height] duration-200"
+                      : "h-1.5 w-1.5 rounded-full bg-muted-foreground/35 transition-[height] duration-200"
                   }
                   aria-hidden
                 />

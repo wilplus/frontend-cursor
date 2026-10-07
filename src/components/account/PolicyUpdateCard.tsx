@@ -79,7 +79,7 @@ export default function PolicyUpdateCard({
         </button>
       </section>
       {open ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background">
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top)]">
           <div className="flex min-h-full flex-col">
             <Phase1AcceptanceFlow
               key={`${policy.policyVersion}:${attempt}`}

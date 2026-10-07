@@ -140,9 +140,11 @@ export default function Phase1AcceptanceGate({
      Escaping with `fixed inset-0` makes the viewport itself the scroller, which
      is what a takeover should be anyway: this screen is the processing
      boundary, not a page within the app. The shell and the Lounge are
-     untouched. */
+     untouched. Being fixed, it pads the notch itself (consent lock
+     2026-10-07, the prototype's `.app`), so no step's heading or document
+     title sits under the status bar. */
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background">
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top)]">
       <div className="flex min-h-full flex-col">
         <Phase1AcceptanceFlow
           // A new policy identity is a new agreement: remount rather than carry

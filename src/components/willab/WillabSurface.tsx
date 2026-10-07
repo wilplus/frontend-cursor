@@ -110,6 +110,7 @@ export default function WillabSurface({
   // `bare`: no top bar. The welcome is drawn without one in the locked
   // consent screens prototype (founder 2026-10-07, N60: "just the way it is
   // on the prototype"); the menu is back in the Lounge after "Enter the lab".
+  // Nor any padding: the welcome scrolls itself and owns its 24px sides.
   const shell = (children: React.ReactNode, flush = false, bare = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       {bare ? null : (
@@ -118,9 +119,10 @@ export default function WillabSurface({
         </div>
       )}
       <div
-        className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 pb-6 ${
-          flush ? "pt-0" : "pt-6"
-        }`}
+        className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden ${shellPadding(
+          flush,
+          bare,
+        )}`}
       >
         {children}
       </div>
@@ -294,4 +296,13 @@ export default function WillabSurface({
     </LoungeThreadProvider>,
     true // A2 — home/Lounge: flush the chat to the navbar (no top gap)
   );
+}
+
+/** The shell's padding. The welcome (`bare`) has none: it scrolls itself
+ *  from its true top and owns its 24px sides (consent lock 2026-10-07). The
+ *  Lounge (`flush`) sits flush under the navbar; every other shell keeps
+ *  pt-6. */
+function shellPadding(flush: boolean, bare: boolean): string {
+  if (bare) return "";
+  return `px-4 pb-6 ${flush ? "pt-0" : "pt-6"}`;
 }

@@ -7,6 +7,7 @@
 /*  unavailable state, and the card is not shown. The switch's sentence      */
 /*  comes from the backend, which holds the exact wording the yes is         */
 /*  fingerprinted against. Nothing here decides anything.                    */
+/*  Refusals carry their code; the backend reports them to Sentry.           */
 /* -------------------------------------------------------------------------- */
 
 export interface TrainingConsent {
@@ -17,6 +18,14 @@ export interface TrainingConsent {
   copy: string | null;
   copySha256: string | null;
 }
+
+/** A refused save. `code` is the backend's code, else `HTTP_<status>`, `NETWORK` or `BAD_RESPONSE`; never shown to the person. */
+export interface TrainingConsentRefusal {
+  ok: false;
+  code: string;
+}
+
+const REFUSAL_CODE = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 export function mapTrainingConsent(raw: unknown): TrainingConsent | null {
   if (!raw || typeof raw !== "object") return null;
@@ -59,11 +68,19 @@ function idempotencyKey(): string {
   }
 }
 
-/** Turn training on or off. Returns the state now in force, or null. */
+function codeFromBody(payload: unknown, status: number): string {
+  if (payload && typeof payload === "object" && "code" in payload) {
+    const code = (payload as Record<string, unknown>).code;
+    if (typeof code === "string" && REFUSAL_CODE.test(code)) return code;
+  }
+  return `HTTP_${status}`;
+}
+
+/** Turn training on or off. Returns the state now in force, or a refusal. */
 export async function setTrainingConsent(
   on: boolean,
   shown: TrainingConsent,
-): Promise<TrainingConsent | null> {
+): Promise<TrainingConsent | TrainingConsentRefusal> {
   const body = on
     ? {
         accepted: true,
@@ -78,9 +95,31 @@ export async function setTrainingConsent(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return null;
-    return mapTrainingConsent(await res.json().catch(() => null));
+    if (!res.ok) {
+      return { ok: false, code: codeFromBody(await res.json().catch(() => null), res.status) };
+    }
+    const mapped = mapTrainingConsent(await res.json().catch(() => null));
+    if (!mapped) return { ok: false, code: "BAD_RESPONSE" };
+    return mapped;
   } catch {
-    return null;
+    return { ok: false, code: "NETWORK" };
+  }
+}
+
+/** Null for a saved state, the code for a refusal, `"NO_STATE"` for null/undefined (older test doubles resolve null). */
+export function trainingRefusalCode(
+  value: TrainingConsent | TrainingConsentRefusal | null | undefined,
+): string | null {
+  if (value == null) return "NO_STATE";
+  if ("ok" in value && value.ok === false) return value.code;
+  return null;
+}
+
+/** Log a refusal. Never throws; the code is never shown to the person. */
+export function reportTrainingRefusal(code: string, where: "card" | "ask"): void {
+  try {
+    console.error("[training-consent] save refused", { code, where });
+  } catch {
+    /* a broken console must not break the switch */
   }
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -433,7 +434,7 @@ function FooterPill({
         disabled={accepting}
         className={PILL}
       >
-        {accepting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+        {accepting ? <VoiceMark size={16} /> : null}
         {COPY.pillAcceptPractise}
       </button>
     );
@@ -498,25 +499,38 @@ function HelperWordsCard({
   headline: string;
   onChoose: (() => void) | null;
 }) {
+  /* "Helper words" with an outlined "Edit" chip at the card's top right,
+     the words under them (the helper-words build list, task 4 mock "Entry";
+     build plan D-IT-3). */
   return (
     <div
       data-testid="paragraph-helper-card"
       className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
     >
-      <span className={EYEBROW}>{COPY.historyHelperWords}</span>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className={EYEBROW}>{COPY.historyHelperWords}</span>
+        {onChoose ? (
+          <button
+            type="button"
+            data-testid="paragraph-helper-words"
+            onClick={onChoose}
+            className="shrink-0 rounded-full border border-pending/40 px-3 py-0.5 text-[13px] font-semibold text-primary transition-colors hover:bg-pending/[0.12]"
+          >
+            {COPY.pillChooseWords}
+          </button>
+        ) : null}
+      </div>
       <p className="text-[20px] font-bold leading-snug text-primary">{headline}</p>
-      {onChoose ? (
-        <button
-          type="button"
-          data-testid="paragraph-helper-words"
-          onClick={onChoose}
-          className="self-start text-[14px] font-semibold text-primary transition-opacity hover:opacity-70"
-        >
-          {COPY.pillChooseWords}
-        </button>
-      ) : null}
     </div>
   );
+}
+
+/** The saved state plays the moment on Take 1 only. On a project with two
+ *  or more Takes it draws no player, whatever clip the moment carries
+ *  (founder 2026-10-05, N48.1: "keep it as it is today"; build plan D-IT-3).
+ *  Exported for tests. */
+export function savedStateShowsPlayer(firstTake: boolean): boolean {
+  return firstTake;
 }
 
 /* ---- History, one collapsed row (Q1) ------------------------------------ */
@@ -602,7 +616,7 @@ function HelperWordsPicker({
           onClick={() => void use()}
           className={PILL}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+          {busy ? <VoiceMark size={16} /> : null}
           {COPY.pillEmphasise}
         </button>
       }
@@ -880,8 +894,10 @@ export default function ParagraphSheet({
   const player = <MomentPlayer item={moment} compact />;
   const history = <HistoryRowView rows={rows} />;
 
-  /* STATE TWO — SAVED (B8, D6): the words, the player, History, Next. No
-     judgement and no practise card. */
+  /* STATE TWO — SAVED (B8, D6): the words, History, Next, and the player on
+     Take 1 only (D6 amended, N48.1: on a later Take the saved state shows no
+     player, even when the moment has a clip). No judgement and no practise
+     card. */
   if (headline) {
     return (
       <SheetFrame
@@ -897,7 +913,7 @@ export default function ParagraphSheet({
         }
       >
         <div data-testid="overlay-saved" className="flex flex-col gap-4">
-          {player}
+          {savedStateShowsPlayer(firstTake) ? player : null}
           <HelperWordsCard
             headline={headline}
             onChoose={onUseHelperWords ? () => setPicking(true) : null}

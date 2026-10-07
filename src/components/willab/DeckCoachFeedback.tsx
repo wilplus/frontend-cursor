@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { fetchArcFeedback } from "@/services/api/arcFeedback";
 
 /* -------------------------------------------------------------------------- */
@@ -78,7 +78,7 @@ export default function DeckCoachFeedback({
 
       {state === "loading" ? (
         <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          <VoiceMark size={14} />
           Opening…
         </span>
       ) : null}

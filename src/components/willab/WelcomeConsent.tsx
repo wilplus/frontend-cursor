@@ -34,98 +34,108 @@ export default function WelcomeConsent({
     setTimeout(onAccept, 220);
   };
 
+  /* ITS OWN SCROLLER, FROM ITS TRUE TOP (consent lock 2026-10-07: "every
+     step scrolls from its true top to its last button on any phone"). The
+     column was centred with `justify-center` inside a shell that clips, so on
+     a short screen (a phone on its side) it spilled off both ends: the mark
+     was cut at the top and "Enter the lab" could not be reached. `m-auto`
+     centres the column while it fits and collapses once it is taller, leaving
+     an ordinary scroll from the top; py-6 keeps the breathing rings clear of
+     the edge. 24px sides, as the prototype's `.wel`. */
   return (
     <div
-      className={`flex flex-1 flex-col items-center justify-center px-6 text-center transition-opacity duration-200 ${
+      className={`flex min-h-0 flex-1 flex-col overflow-y-auto transition-opacity duration-200 ${
         leaving ? "opacity-0" : "opacity-100"
       }`}
     >
-      {/* Breathing voice mark (decorative) */}
-      <div
-        className="relative mb-10 flex h-40 w-40 items-center justify-center"
-        aria-hidden="true"
-      >
-        <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
-        <span
-          className="breath-ring absolute inset-3 rounded-full border border-foreground/15"
-          style={{ animationDelay: "0.6s" }}
-        />
-        <span
-          className="breath-ring absolute inset-6 rounded-full border border-primary/30"
-          style={{ animationDelay: "1.2s" }}
-        />
-        <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
-          <circle
-            className="welcome-voice-dot"
-            cx="12"
-            cy="28"
-            r="4"
-            fill="hsl(var(--foreground))"
-          />
-          <circle
-            className="welcome-voice-dot"
-            cx="28"
-            cy="28"
-            r="6"
-            fill="hsl(var(--foreground))"
-          />
-          <circle
-            className="welcome-voice-dot"
-            cx="44"
-            cy="28"
-            r="4"
-            fill="hsl(var(--foreground))"
-          />
-        </svg>
-      </div>
-
-      {/* Founder 2026-09-18. The wordmark carries the brand and the line under
-          it says what the product is for.
-
-          The previous headline — "Your best talk, in your own words" — was
-          written under the honest-positioning rule of 2026-07-17: promise the
-          deliverable, never a feeling. That rule still stands and this wording
-          was weighed against it: "reduce public speaking anxiety" describes
-          what the tool is for, not an outcome it guarantees, and nothing here
-          promises a state the product cannot deliver. Founder-signed.
-
-          Founder 2026-09-30: now "Public speaking excellence tool", which names
-          what the tool is for, still without promising an outcome. */}
-      <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[48px]">
-        WillpowerLab
-      </h1>
-      <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground">
-        Public speaking excellence tool.
-      </p>
-
-      {/* THE CTA NO LONGER CLAIMS ACCEPTANCE. It read "Accept & enter the lab"
-          with fine print saying that entering accepted the terms. Acceptance now
-          belongs to the Phase-1 flow (Phase1AcceptanceGate), which records a
-          receipt against the exact document versions — so a button that quietly
-          accepted on a marketing page would be claiming consent the receipt
-          cannot evidence. It says what it does: it enters. */}
-      <div className="mt-10 flex flex-col items-center">
-        <button
-          type="button"
-          onClick={enter}
-          className="group inline-flex h-12 items-center gap-2 rounded-full bg-foreground px-7 text-[14px] font-medium text-background transition hover:bg-foreground/90 active:scale-[0.98]"
+      <div className="m-auto flex flex-col items-center px-6 py-6 text-center">
+        {/* Breathing voice mark (decorative) */}
+        <div
+          className="relative mb-10 flex h-40 w-40 items-center justify-center"
+          aria-hidden="true"
         >
-          Enter the lab
+          <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
           <span
-            aria-hidden="true"
-            className="inline-block h-1.5 w-1.5 rounded-full bg-primary transition-transform group-hover:translate-x-0.5"
+            className="breath-ring absolute inset-3 rounded-full border border-foreground/15"
+            style={{ animationDelay: "0.6s" }}
           />
-        </button>
+          <span
+            className="breath-ring absolute inset-6 rounded-full border border-primary/30"
+            style={{ animationDelay: "1.2s" }}
+          />
+          <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+            <circle
+              className="welcome-voice-dot"
+              cx="12"
+              cy="28"
+              r="4"
+              fill="hsl(var(--foreground))"
+            />
+            <circle
+              className="welcome-voice-dot"
+              cx="28"
+              cy="28"
+              r="6"
+              fill="hsl(var(--foreground))"
+            />
+            <circle
+              className="welcome-voice-dot"
+              cx="44"
+              cy="28"
+              r="4"
+              fill="hsl(var(--foreground))"
+            />
+          </svg>
+        </div>
 
-        {onReadJournal ? (
+        {/* Founder 2026-09-18. The wordmark carries the brand and the line under
+            it says what the product is for.
+
+            The previous headline — "Your best talk, in your own words" — was
+            written under the honest-positioning rule of 2026-07-17: promise the
+            deliverable, never a feeling. That rule still stands and this wording
+            was weighed against it: "reduce public speaking anxiety" describes
+            what the tool is for, not an outcome it guarantees, and nothing here
+            promises a state the product cannot deliver. Founder-signed.
+
+            Founder 2026-09-30: now "Public speaking excellence tool", which names
+            what the tool is for, still without promising an outcome. */}
+        <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[48px]">
+          WillpowerLab
+        </h1>
+        <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-muted-foreground">
+          Public speaking excellence tool.
+        </p>
+
+        {/* THE CTA NO LONGER CLAIMS ACCEPTANCE. It read "Accept & enter the lab"
+            with fine print saying that entering accepted the terms. Acceptance now
+            belongs to the Phase-1 flow (Phase1AcceptanceGate), which records a
+            receipt against the exact document versions — so a button that quietly
+            accepted on a marketing page would be claiming consent the receipt
+            cannot evidence. It says what it does: it enters. */}
+        <div className="mt-10 flex flex-col items-center">
           <button
             type="button"
-            onClick={onReadJournal}
-            className="mt-1 h-11 px-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+            onClick={enter}
+            className="group inline-flex h-12 items-center gap-2 rounded-full bg-foreground px-7 text-[14px] font-medium text-background transition hover:bg-foreground/90 active:scale-[0.98]"
           >
-            Read blog posts
+            Enter the lab
+            <span
+              aria-hidden="true"
+              className="inline-block h-1.5 w-1.5 rounded-full bg-primary transition-transform group-hover:translate-x-0.5"
+            />
           </button>
-        ) : null}
+
+          {onReadJournal ? (
+            <button
+              type="button"
+              onClick={onReadJournal}
+              className="mt-1 h-11 px-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Read blog posts
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

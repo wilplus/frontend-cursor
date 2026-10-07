@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
-import { useNoPullToRefresh } from "@/lib/willab/useNoPullToRefresh";
+import { useLabNoPull } from "./labNoPull";
 import { probeTakeVerdict } from "./useFailedTakeRecheck";
 import {
   submitLabRecording,
@@ -24,10 +23,7 @@ import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import {
-  fetchIdealTextCore,
-  fetchRecordingRoots,
-} from "@/services/api/idealText";
+import { fetchIdealTextCore } from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
@@ -65,6 +61,7 @@ import {
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import RecordingLearn from "./RecordingLearn";
+import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
@@ -124,22 +121,6 @@ async function uploadForProcessing(
   const result = await submitLabRecording(input, { signal });
   if (result.kind !== "discarded") return result;
   return new Promise(() => undefined);
-}
-
-/** The span in which the Take lives only in this tab: from the first sound
- *  until processing ends. A browser reload anywhere in it loses the Take, so
- *  pull-to-refresh is held off for exactly this span (founder 2026-10-06).
- *  Module scope because LabOverlay is grandfathered at the complexity
- *  ceiling and may only come down. */
-function takeOnlyInThisTab(
-  state: WillabState,
-  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
-): boolean {
-  return (
-    state === "lab_recording" ||
-    state === "lab_processing" ||
-    micStatus === "recording"
-  );
 }
 
 /** Per-recording context (§4 step A). Shape matches the BE intake-context
@@ -370,9 +351,6 @@ export default function LabOverlay({
     prefetchTrainingAsk();
     return resetTrainingAsk;
   }, []);
-  const [recordingRoots, setRecordingRoots] = useState<
-    Array<{ slideIndex: number; text: string; type: "flagship" | "neutral" }>
-  >([]);
 
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
@@ -388,40 +366,17 @@ export default function LabOverlay({
     }
   }, [signedIn, userId]);
 
-  // Take 1 intentionally has no roadmap. Every later recording entry reads
-  // the current project again and shows ONLY phrases the user explicitly
-  // locked and approved orange. Preload on the readiness screen: starting the
-  // microphone must not race the first root read. A bounded retry covers the
-  // short publication window after a root write; it never guesses a phrase.
-  useEffect(() => {
-    const aid = arcId ?? initArc?.arcId;
-    const enteringRecording =
-      state === "lab_session_context" ||
-      state === "lab_prerecord" ||
-      state === "lab_recording";
-    if (!aid || arcTakeIndex <= 1 || signedIn !== true || !enteringRecording) {
-      setRecordingRoots([]);
-      return;
-    }
-    let active = true;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    const load = async (attempt: number) => {
-      const result = await fetchRecordingRoots(aid);
-      if (!active) return;
-      if (result.kind === "ready") {
-        setRecordingRoots(result.roots);
-        return;
-      }
-      if (attempt < 2) {
-        retry = setTimeout(() => void load(attempt + 1), 350 * (attempt + 1));
-      }
-    };
-    void load(0);
-    return () => {
-      active = false;
-      if (retry) clearTimeout(retry);
-    };
-  }, [arcId, arcTakeIndex, initArc?.arcId, signedIn, state]);
+  // Take 1 intentionally has no roadmap; a later Take reads the project's
+  // locked helper words once per entry, from the setup through the mic wait
+  // to the recording, and its start waits for that read (capped, see
+  // ContinuedTakeAutoStart) so the words arrive with the first slide.
+  const { roots: recordingRoots, settled: rootsSettled } = useRecordingRoots({
+    arcId,
+    initArc,
+    takeIndex: arcTakeIndex,
+    signedIn,
+    entering: enteringRecording(state),
+  });
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
   // project inherits its full setup from the ARC, not a specific session —
@@ -531,9 +486,10 @@ export default function LabOverlay({
   const uploadCancelRef = useRef<(() => void) | null>(null);
   const [uploadInFlight, setUploadInFlight] = useState(false);
   // NO PULL-TO-REFRESH WHILE THE TAKE LIVES ONLY IN THIS TAB (founder
-  // 2026-10-06: pulling down on the recording screen reloaded it). Behaviour
-  // only: nothing on the screen moves or changes.
-  useNoPullToRefresh(takeOnlyInThisTab(state, mic.state.status));
+  // 2026-10-06: pulling down on the recording screen reloaded it), nor on
+  // "Getting your mic ready" before a later Take (founder lock 2026-10-07).
+  // Behaviour only: nothing on the screen moves or changes.
+  useLabNoPull(state, mic.state.status);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -1450,15 +1406,14 @@ export default function LabOverlay({
           slide + roots move together. `min-h-0` is what lets either surface
           shrink to the available phone height. Every other state still
           scrolls: they are ordinary content. */}
-      <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${screenTopGap(
-          state
-        )} ${SCREEN_BOTTOM_GAP} ${
-          state === "readout" || state === "lab_recording"
-            ? "min-h-0 overflow-hidden"
-            : "overflow-y-auto"
-        }`}
-      >
+      <div className={labColumnClass(state, mic.state.status)}>
+        {/* ONE LOADER FOR THE WHOLE WAIT (build plan D-RC-1). "Getting your
+            mic ready" before a later Take and the mic still opening on the
+            recording screen are one wait: one element in one place, so the
+            voice mark neither jumps nor restarts its breathing between them. */}
+        {showsMicWait(state, trainingAsked, mic.state.status, mic.armed, rejectedMsg) ? (
+          <LoadingState placement="surface" label="Getting your mic ready" />
+        ) : null}
         {state === "lab_feelings" && (
           <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
             <FeelingsCheckIn onReady={startAfterCheckIn} />
@@ -1474,6 +1429,7 @@ export default function LabOverlay({
           <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
             <ContinuedTakeAutoStart
               ready={!setupArriving}
+              rootsSettled={rootsSettled}
               onStart={startContinuedTake}
             />
           </TrainingAskGate>
@@ -1554,6 +1510,7 @@ export default function LabOverlay({
           <RecordingPhase
             micState={mic.state}
             armed={mic.armed}
+            micWaitShownByHost
             // Take 1's learning screen: the speaker's start gesture begins
             // the recording on the mic held open since the setup tap. The
             // mic-state effect then pins t=0 and slide 0, as for any start.
@@ -1779,6 +1736,7 @@ export default function LabOverlay({
 export function RecordingPhase({
   micState,
   armed = false,
+  micWaitShownByHost = false,
   onBegin,
   elapsed,
   targetSec,
@@ -1795,6 +1753,9 @@ export function RecordingPhase({
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   /** The mic is open and waiting (Take 1): show the learning screen. */
   armed?: boolean;
+  /** The host draws "Getting your mic ready" itself, as one element across
+   *  the whole later-Take wait (LabOverlay); the /dev mirror leaves it here. */
+  micWaitShownByHost?: boolean;
   /** The learning screen's start gesture: begin the recording. */
   onBegin?: () => void;
   elapsed: number;
@@ -1887,6 +1848,7 @@ export function RecordingPhase({
         />
       );
     }
+    if (micWaitShownByHost) return null;
     return <LoadingState placement="surface" label="Getting your mic ready" />;
   }
 
@@ -1983,9 +1945,13 @@ export function RecordingPhase({
         type="button"
         onClick={onStop}
         aria-label="Finish take"
-        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-record px-4 text-[13px] font-semibold text-record-foreground transition-transform hover:scale-[1.03]"
+        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-record px-4 text-[13px] font-semibold text-record-foreground"
       >
-        <Square className="h-3.5 w-3.5 fill-current" />
+        <span
+          data-testid="finish-square"
+          className="h-3 w-3 shrink-0 rounded-[2px] bg-current"
+          aria-hidden
+        />
         Finish take
       </button>
     </div>
@@ -2036,31 +2002,79 @@ export function RecordingPhase({
   );
 }
 
-/** A later Take starts by itself: once the project's setup has arrived it
- *  calls `onStart` exactly once; until then it shows the app's one loader. */
-function ContinuedTakeAutoStart({
+/** A later Take starts by itself: once the project's setup has arrived and
+ *  its helper words have been read, it calls `onStart` exactly once. The
+ *  words never block the recording (LIVE LOOP): after ROOTS_WAIT_CAP_MS the
+ *  Take starts without them and they join it when the read lands. It draws
+ *  nothing; the host's one mic-wait loader covers it. Exported for tests. */
+export function ContinuedTakeAutoStart({
   ready,
+  rootsSettled = true,
   onStart,
 }: {
   ready: boolean;
+  /** The helper words' read has answered (or given up). */
+  rootsSettled?: boolean;
   onStart: () => void;
 }) {
   const started = useRef(false);
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+  const [capped, setCapped] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setCapped(true), ROOTS_WAIT_CAP_MS);
+    return () => clearTimeout(timer);
+  }, []);
   useEffect(() => {
     if (!ready || started.current) return;
+    if (!rootsSettled && !capped) return;
     started.current = true;
     onStartRef.current();
-  }, [ready]);
-  return <LoadingState placement="surface" label="Getting your mic ready" />;
+  }, [ready, rootsSettled, capped]);
+  return null;
 }
 
-/** The content column's top gap. The recording screen sits close under its
- *  "Take · Slide" line (founder 2026-10-07: "the margin there is too big,
- *  at least half that"); every other step keeps the usual gap. */
-function screenTopGap(state: string): string {
-  return state === "lab_recording" ? "pt-0" : "pt-6";
+/** On the way into recording: the read of a later Take's helper words runs
+ *  across all three, so it is not dropped between them. */
+function enteringRecording(state: WillabState): boolean {
+  return (
+    state === "lab_session_context" ||
+    state === "lab_prerecord" ||
+    state === "lab_recording"
+  );
+}
+
+/** "Getting your mic ready": before a later Take (once any training question
+ *  is answered) and while the mic is still opening on the recording screen
+ *  (not Take 1's learning screen, not a rejected take). Exported for tests. */
+export function showsMicWait(
+  state: WillabState,
+  trainingAsked: boolean,
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
+  armed: boolean,
+  rejectedMsg: string | null,
+): boolean {
+  if (state === "lab_prerecord") return trainingAsked;
+  return state === "lab_recording" && micStatus === "idle" && !armed && !rejectedMsg;
+}
+
+/** The content column. The recording screen sits close under its "Take ·
+ *  Slide" line (founder 2026-10-07: "the margin there is too big, at least
+ *  half that") with its strip 20px off the bottom, as the prototype's
+ *  `.band.rec`; every other step — the learning screen and both mic waits
+ *  included — keeps the usual 24px top and 32px bottom. Exported for the
+ *  /dev/recording mirror and tests. */
+export function labColumnClass(
+  state: WillabState,
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
+): string {
+  const recording = state === "lab_recording" && micStatus === "recording";
+  const gaps = recording ? "pt-0 pb-5" : `pt-6 ${SCREEN_BOTTOM_GAP}`;
+  const scroll =
+    state === "readout" || state === "lab_recording"
+      ? "min-h-0 overflow-hidden"
+      : "overflow-y-auto";
+  return `scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${gaps} ${scroll}`;
 }
 
 /** Where you are while recording: "Take 2 · Slide 3 of 6" on the left of

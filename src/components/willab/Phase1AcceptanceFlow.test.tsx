@@ -15,6 +15,7 @@
 /*  the auto-advance "for consistency", the second test here is what stops     */
 /*  them.                                                                      */
 /* -------------------------------------------------------------------------- */
+import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -197,5 +198,98 @@ describe("a re-acceptance (Q21 A)", () => {
     expect(chosen("Poland")).toBe(false);
     expect(chosen("Germany")).toBe(false);
     expect(buttonSaying("Continue").disabled).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; build  */
+/*  plan D-CS-1). The gate's viewport scroller outlives the steps: a step     */
+/*  reached from far down the country list used to open scrolled past its    */
+/*  voice mark and heading.                                                   */
+/* -------------------------------------------------------------------------- */
+
+describe("each step opens at its top", () => {
+  let scroller: HTMLDivElement;
+  beforeEach(() => {
+    // The gate's own scroller, as Phase1AcceptanceGate wraps the flow.
+    scroller = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    document.body.appendChild(scroller);
+    scroller.appendChild(host);
+  });
+  afterEach(() => scroller.remove());
+
+  it("resets the gate scroller when a country carries the walk on", async () => {
+    await walkToCountry();
+    scroller.scrollTop = 600;
+    expect(scroller.scrollTop).toBe(600);
+    await click("Poland");
+    await act(async () => {
+      vi.advanceTimersByTime(260);
+    });
+    const heading = host.querySelector("h1")!;
+    expect(heading.textContent).toBe("Three things to confirm");
+    expect(scroller.scrollTop).toBe(0);
+    // The heading is the step's own, at the top of the new step.
+    const step = host.querySelector(".acceptance-step")!;
+    expect(step.contains(heading)).toBe(true);
+    expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      scroller.getBoundingClientRect().top,
+    );
+  });
+
+  it("resets it on every step change, Back and the documents included", async () => {
+    await walkToCountry();
+    for (const [action, heading] of [
+      ["Back", "How AI is used here"],
+      ["Done reading", "Where do you live?"],
+    ] as const) {
+      scroller.scrollTop = 600;
+      await click(action);
+      expect(host.querySelector("h1")?.textContent).toBe(heading);
+      expect(scroller.scrollTop).toBe(0);
+    }
+  });
+
+  it("keeps the scroll while the step stays (a tick on confirm)", async () => {
+    await walkToCountry();
+    await click("Poland");
+    await act(async () => {
+      vi.advanceTimersByTime(260);
+    });
+    scroller.scrollTop = 300;
+    await click("I am 18");
+    expect(scroller.scrollTop).toBe(300);
+  });
+
+  it("draws each step as a new element that fades in", async () => {
+    await walkToCountry();
+    const country = host.querySelector(".acceptance-step");
+    expect(country?.className).toMatch(/acceptance-step flex flex-1 flex-col/);
+    await click("Poland");
+    await act(async () => {
+      vi.advanceTimersByTime(260);
+    });
+    const confirm = host.querySelector(".acceptance-step");
+    expect(confirm).not.toBe(country);
+    expect(host.querySelectorAll(".acceptance-step")).toHaveLength(1);
+  });
+});
+
+describe("the step fade and the notch", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const gate = readFileSync("src/components/willab/Phase1AcceptanceGate.tsx", "utf8");
+  const flow = readFileSync("src/components/willab/Phase1AcceptanceFlow.tsx", "utf8");
+
+  it("fades over 220ms ease-out, and only without reduce motion", () => {
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.acceptance-step \{\s*animation: acceptance-step-in 0\.22s ease-out both;/,
+    );
+    expect(css).toMatch(/@keyframes acceptance-step-in \{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}/);
+  });
+
+  it("pads the notch on the gate and keeps the document pane on screen", () => {
+    expect(gate).toMatch(/fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background pt-\[env\(safe-area-inset-top\)\]/);
+    expect(flow).toMatch(/h-\[calc\(100dvh-env\(safe-area-inset-top\)\)\]/);
   });
 });

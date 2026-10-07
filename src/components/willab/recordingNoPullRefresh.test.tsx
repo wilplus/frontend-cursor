@@ -14,6 +14,7 @@ vi.mock("./pdfSlides", () => ({
 }));
 
 import RecordingRoadmap from "./RecordingRoadmap";
+import { useLabNoPull } from "./labNoPull";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -167,5 +168,95 @@ describe("the recording stage and the page's pull-to-refresh", () => {
     touch("touchend", dot, 302);
     act(() => dot.click());
     expect(slideSeen).toBe(2);
+  });
+});
+
+/* "Getting your mic ready" before a later Take (build plan D-RC-3): the
+   Lab's own no-pull rule now covers lab_prerecord too, root and belt. */
+describe("no pull-to-refresh on the later-Take mic wait", () => {
+  type LabState = Parameters<typeof useLabNoPull>[0];
+  type Mic = Parameters<typeof useLabNoPull>[1];
+  function Probe({ state, mic }: { state: LabState; mic: Mic }) {
+    useLabNoPull(state, mic);
+    return null;
+  }
+  const html = () => document.documentElement.style.overscrollBehavior;
+  const body = () => document.body.style.overscrollBehavior;
+  const show = (state: LabState, mic: Mic = "stopped") =>
+    act(() => root.render(createElement(Probe, { state, mic })));
+
+  beforeEach(() => {
+    document.documentElement.style.overscrollBehavior = "auto";
+    document.body.style.overscrollBehavior = "contain";
+  });
+  afterEach(() => {
+    document.documentElement.style.overscrollBehavior = "";
+    document.body.style.overscrollBehavior = "";
+  });
+
+  it("sets overscroll-behavior none on lab_prerecord and keeps it into the recording", () => {
+    show("lab_session_context");
+    expect(html()).toBe("auto");
+    show("lab_prerecord");
+    expect(html()).toBe("none");
+    expect(body()).toBe("none");
+    show("lab_recording", "idle");
+    expect(html()).toBe("none");
+    show("lab_recording", "recording");
+    expect(html()).toBe("none");
+  });
+
+  it("restores the page's own values when lab_prerecord falls back to the setup form", () => {
+    show("lab_prerecord");
+    expect(html()).toBe("none");
+    show("lab_session_context");
+    expect(html()).toBe("auto");
+    expect(body()).toBe("contain");
+  });
+
+  it("restores them when the overlay closes on the mic wait", () => {
+    show("lab_prerecord");
+    act(() => root.unmount());
+    expect(html()).toBe("auto");
+    expect(body()).toBe("contain");
+    act(() => {
+      root = createRoot(host);
+    });
+  });
+
+  it("cancels a pull outside any inner scroller on lab_prerecord", () => {
+    show("lab_prerecord");
+    const plain = document.createElement("div");
+    host.appendChild(plain);
+    expect(drag(plain, 100, 160).every((m) => m.defaultPrevented)).toBe(true);
+    expect(drag(plain, 160, 100).every((m) => m.defaultPrevented)).toBe(true);
+    plain.remove();
+  });
+
+  it("lets the training question scroll, and cancels the pull at its top", () => {
+    show("lab_prerecord");
+    const question = document.createElement("div");
+    question.style.overflowY = "auto";
+    const line = document.createElement("p");
+    question.appendChild(line);
+    host.appendChild(question);
+    overflow(question, 300);
+    expect(drag(line, 300, 340).some((m) => m.defaultPrevented)).toBe(false);
+    expect(drag(line, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
+    // At its top a further pull down would reach the page: cancelled.
+    overflow(question, 0);
+    expect(drag(line, 300, 340).every((m) => m.defaultPrevented)).toBe(true);
+    // Pushing up from the top still scrolls the question.
+    expect(drag(line, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
+    question.remove();
+  });
+
+  it("takes the belt off again once the screen is left", () => {
+    show("lab_prerecord");
+    show("lab_session_context");
+    const plain = document.createElement("div");
+    host.appendChild(plain);
+    expect(drag(plain, 100, 160).some((m) => m.defaultPrevented)).toBe(false);
+    plain.remove();
   });
 });

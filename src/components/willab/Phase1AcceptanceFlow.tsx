@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   acceptAuthorization,
   recordAiNoticeRendered,
@@ -227,10 +234,12 @@ function DocumentPane({
      (founder 2026-10-07): the title and the buttons stay still and only the
      text scrolls. Inside the gate's min-height column `flex-1` never capped
      the pane, so the whole document scrolled and "Done reading" sat at the
-     bottom of it. `h-dvh` follows a phone's moving toolbars; `h-screen` is
-     the fallback where dvh is unknown. */
+     bottom of it. `dvh` follows a phone's moving toolbars; `vh` is the
+     fallback where dvh is unknown. The gate pads the notch
+     (env(safe-area-inset-top)), so the pane is that much shorter than the
+     screen and its buttons stay on it. */
   return (
-    <div className="flex h-screen h-dvh flex-col overflow-hidden px-6 pb-6 pt-8">
+    <div className="flex h-[calc(100vh-env(safe-area-inset-top))] h-[calc(100dvh-env(safe-area-inset-top))] flex-col overflow-hidden px-6 pb-6 pt-8">
       <div className="shrink-0 border-b border-border pb-4">
         <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
           {title}
@@ -378,10 +387,30 @@ export default function Phase1AcceptanceFlow({
       .finally(() => setSaving(false));
   }, [policy, country, locale, attemptKey, practiceOptIn, onAccepted, onStale]);
 
+  /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
+     prototype's render(): a new step resets the scroller and enters over
+     220ms). The gate's viewport scroller outlives the steps, so a step
+     reached from far down the country list used to open scrolled past its
+     voice mark and heading. Each step is a new keyed element, so its fade
+     replays; the fade is CSS (`.acceptance-step`), instant with reduce
+     motion. A re-render inside a step (a tick) keeps the scroll. */
+  const stepKey = declined ? "declined" : step;
+  const stepRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    for (let el = stepRef.current?.parentElement; el; el = el.parentElement) {
+      if (el.scrollTop > 0) el.scrollTop = 0;
+    }
+  }, [stepKey]);
+  const stage = (content: React.ReactNode) => (
+    <div key={stepKey} ref={stepRef} className="acceptance-step flex flex-1 flex-col">
+      {content}
+    </div>
+  );
+
   /* ---------------------------------------------------------- declined -- */
 
   if (declined) {
-    return (
+    return stage(
       <div className="flex flex-1 flex-col px-6 py-8">
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
@@ -430,7 +459,7 @@ export default function Phase1AcceptanceFlow({
         : step === "privacy"
           ? "Privacy Policy"
           : "How AI is used here";
-    return (
+    return stage(
       <DocumentPane
         title={title}
         document={document}
@@ -459,7 +488,7 @@ export default function Phase1AcceptanceFlow({
        used to carry its own `overflow-y-auto`, which put a scrollbar inside the
        content; Phase1AcceptanceGate now makes the viewport the scroller for the
        whole flow, so this step only has to lay itself out. */
-    return (
+    return stage(
       <div className="flex flex-1 flex-col px-6 py-8">
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
@@ -510,7 +539,7 @@ export default function Phase1AcceptanceFlow({
     );
     // Laid out like the country step (m-auto, never justify-center), so a
     // phone shorter than the screen scrolls it from its true top.
-    return (
+    return stage(
       <div className="flex flex-1 flex-col px-6 py-8">
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
@@ -601,7 +630,7 @@ export default function Phase1AcceptanceFlow({
     { step: "ai", label: "How AI is used here", version: policy.aiNotice.version },
   ];
 
-  return (
+  return stage(
     <div className="flex flex-1 flex-col px-6 py-8">
       <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
         <VoiceMark small />

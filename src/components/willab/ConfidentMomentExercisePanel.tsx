@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Mic, Square } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
@@ -217,7 +218,7 @@ export default function ConfidentMomentExercisePanel({
               capture.current = { key: `mlc3-practice-attempt:${practice.id}:${id}`, startedAt: new Date().toISOString(), completedAt: null, blob: null };
               void mic.start();
             }}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mic.state.status === "recording" ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {busy ? <VoiceMark size={16} /> : mic.state.status === "recording" ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               {retryUpload ? "Retry saving" : mic.state.status === "recording" ? "Stop" : "Record again"}
             </button>
           ) : null}

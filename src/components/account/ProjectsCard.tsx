@@ -43,6 +43,10 @@ import {
 const ARCHIVE = PROJECT_ARCHIVE_COPY;
 const DELETION = PROJECT_DELETION_COPY;
 
+/** The settings prototype's outline buttons (.ob/.obs) hover grey, not the
+ *  outline variant's orange, and keep their text colour (D-CS-6). */
+export const QUIET_HOVER = "hover:bg-muted hover:text-foreground";
+
 /** The confirm's body: N8's, or with the window on its first sentence and
  *  the window's words; an active training yes adds W5's line at the end. */
 export function projectConfirmBody(
@@ -124,7 +128,7 @@ export default function ProjectsCard() {
           type="button"
           variant="outline"
           onClick={() => void load()}
-          className="rounded-full"
+          className={`rounded-full ${QUIET_HOVER}`}
         >
           {PROJECT_DELETE_ENABLED ? ARCHIVE.deleteButton : ARCHIVE.listTitle}
         </Button>
@@ -173,7 +177,7 @@ export default function ProjectsCard() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="rounded-full"
+                        className={`rounded-full ${QUIET_HOVER}`}
                         onClick={() =>
                           void run(project.arcId, async () => {
                             const ok = await unarchiveProject(project.arcId);

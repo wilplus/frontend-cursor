@@ -6,7 +6,9 @@ import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import LoadingState from "./LoadingState";
 import {
   fetchTrainingConsent,
+  reportTrainingRefusal,
   setTrainingConsent,
+  trainingRefusalCode,
   type TrainingConsent,
 } from "@/services/api/trainingConsent";
 
@@ -161,12 +163,19 @@ export default function TrainingAsk({ onDone }: { onDone: () => void }) {
     setFailed(false);
     const next = await setTrainingConsent(true, shown);
     setBusy(false);
-    if (next?.active) {
+    if (!next || "ok" in next) {
+      setFailed(true);
+      reportTrainingRefusal(trainingRefusalCode(next) ?? "NO_STATE", "ask");
+      return;
+    }
+    if (next.active) {
       // The next ask this entry (Record Take 2, N28) reads the yes.
       settled = { value: next };
       onDone();
+      return;
     }
-    else setFailed(true);
+    setFailed(true);
+    reportTrainingRefusal("NOT_ACTIVE", "ask");
   };
 
   return (
