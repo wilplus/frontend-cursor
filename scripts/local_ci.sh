@@ -22,11 +22,18 @@
 #
 # NOT RUN HERE: the `e2e` job (Playwright + Chromium + a dev server). It is
 # slower than the whole of the rest and it is not what broke. Run it with
-# `npx playwright test` when touching the deck's DOM.
+# `npx playwright test` when touching the deck's DOM. One part of it is
+# opt-in here: the shared screenshot harness (X7, e2e/screenshots/capture.mjs)
+# with its AC-9 number scan, with WILLAB_SCREENSHOTS=1 — it needs Chromium.
+#
+# ALWAYS RUN HERE, as in the unit job: the design-lock guard (X5,
+# scripts/check-design-lock.mjs) — a commit that changes a founder-locked
+# screen's file without a `Founder-Approved:` trailer is red.
 #
 # Usage:
 #   scripts/local_ci.sh              # the full gate
 #   scripts/local_ci.sh --no-build   # skip the build (only when iterating)
+#   WILLAB_SCREENSHOTS=1 scripts/local_ci.sh   # plus the screenshot harness
 
 set -uo pipefail
 
@@ -52,12 +59,22 @@ step() {
   fi
 }
 
-# The five steps of the `unit` job, in its order.
+# The six steps of the `unit` job, in its order.
 step "Vitest" npm run test
 step "Lint" npm run lint
 step "Type-check" npx tsc --noEmit
 step "BFF single-idiom guard" npm run check:bff
 step "Complexity ratchet" npm run check:complexity
+step "Design-lock guard" npm run check:design-lock
+
+# The screenshot harness from the `e2e` job (X7): every locked screen at
+# 390x844 and 1280x800, and no number but a count or a position on any of
+# them (AC-9). Opt-in: it boots a dev server and needs Chromium.
+if [ "${WILLAB_SCREENSHOTS:-0}" = 1 ]; then
+  step "Design screenshots and the AC-9 number scan" npm run screenshots
+else
+  dim "  design screenshots: SKIPPED (set WILLAB_SCREENSHOTS=1 to run the harness)"
+fi
 
 # The step CI does not have and Vercel does. A green run without this proves
 # the sources type-check; it does not prove the app builds.

@@ -1,0 +1,58 @@
+# The design-locked files (X5). One list, read by scripts/check-design-lock.mjs
+# and pinned by scripts/checkDesignLock.test.ts.
+#
+# These are the files behind the screens CLAUDE.md's "Design lock" sections
+# name. A commit that changes any of them must carry a `Founder-Approved:`
+# trailer naming the founder's decision, for example
+#
+#     Founder-Approved: Navigation Panel GO-W1, 2026-10-07
+#
+# or the guard (`npm run check:design-lock`, in CI and in scripts/local_ci.sh)
+# fails the diff. A path ending in "/" locks every file under it. Test files
+# (*.test.ts, *.test.tsx) are never locked: a test pins a screen, it is not one.
+#
+# Adding a screen to a lock = adding its files here, in the same commit as the
+# CLAUDE.md section that locks them.
+
+# ── Ideal Text (founder, 2026-09-28; amended by the locks of 09-30, 10-05, 10-06)
+src/components/willab/IdealTextOverlay.tsx
+src/components/willab/IdealTextHeading.tsx
+src/components/willab/IdealTextMenu.tsx
+src/components/willab/IdealTextActions.tsx
+src/components/willab/IdealTextReadout.tsx
+src/components/willab/TranscriptReviewDeck.tsx
+src/components/willab/DeckSlidePreview.tsx
+src/components/willab/DeckChunkModal.tsx
+src/components/willab/ParagraphSheet.tsx
+src/components/willab/HelperWordsSheet.tsx
+src/components/willab/ConfidentMomentExercisePanel.tsx
+src/components/willab/ExportFormatDialog.tsx
+src/components/willab/idealEditCopy.ts
+
+# ── The Feedback walk (founder, 2026-10-06): primitives, motion, end sheet
+src/components/willab/walk/
+src/components/willab/WalkEnd.tsx
+src/lib/willab/walkMotion.ts
+
+# ── The coach panel V2 (founder, 2026-10-07)
+src/components/willab/coachpanel/
+src/lib/willab/coachPanelCopy.ts
+
+# ── The recording screens (founder, 2026-10-07, N59)
+src/components/willab/LabOverlay.tsx
+src/components/willab/RecordingLearn.tsx
+src/components/willab/RecordingRoadmap.tsx
+src/components/willab/recordingCopy.ts
+src/components/willab/useRecordingGestures.ts
+src/lib/willab/recordingGesture.ts
+
+# ── The consent screens and the Data & consent page (founder, 2026-10-07, N60; ST1 A)
+src/components/willab/Phase1AcceptanceFlow.tsx
+src/components/willab/WelcomeConsent.tsx
+src/app/account/data-consent/page.tsx
+src/components/account/
+src/components/legal/LegalBackLink.tsx
+src/components/AppMenu.tsx
+src/lib/appMenuLinks.ts
+src/lib/legal/dataConsentCopy.ts
+src/lib/legal/deleteAccountCopy.ts

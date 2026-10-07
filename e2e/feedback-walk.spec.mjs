@@ -12,8 +12,9 @@
 /*  percentage). Then the whole walk is driven through its own buttons in     */
 /*  flow mode, checking the move each step plays, and recorded as a video.   */
 /*                                                                            */
-/*  Screenshots: <SHOTS_DIR>/<screen>.png; video: <SHOTS_DIR>/flow.webm.     */
-/*  SHOTS_DIR defaults to e2e/artifacts/feedback-walk (gitignored).           */
+/*  Video of the flow: <SHOTS_DIR>/flow.webm. SHOTS_DIR defaults to            */
+/*  e2e/artifacts/feedback-walk (gitignored). The still screens are drawn by  */
+/*  the shared harness, e2e/screenshots/capture.mjs, from its manifest.       */
 /* -------------------------------------------------------------------------- */
 
 import { mkdirSync, renameSync, existsSync, rmSync } from "node:fs";
@@ -70,7 +71,6 @@ for (const [screen, selector] of Object.entries(KEY)) {
   check(`${screen}: no sender label`, !/Your coach|What you said/.test(text));
   check(`${screen}: no percentage on screen (AC-9)`, !/\d\s?%/.test(text));
   await page.waitForTimeout(400); // let the arrive-animations settle
-  await page.screenshot({ path: join(SHOTS, `${screen}.png`) });
   check(`${screen}: no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
 }

@@ -19,8 +19,9 @@
 /*  which hands back to the panel's next open moment. Off (no ?coach2=1), the */
 /*  door is today's, unchanged.                                               */
 /*                                                                            */
-/*  Screenshots: <SHOTS_DIR>/<screen>.png. SHOTS_DIR defaults to               */
-/*  e2e/artifacts/coach-panel (gitignored).                                    */
+/*  Screenshots of the flow: <SHOTS_DIR>/flow-*.png. SHOTS_DIR defaults to      */
+/*  e2e/artifacts/coach-panel (gitignored). The still screens are drawn by    */
+/*  the shared harness, e2e/screenshots/capture.mjs, from its manifest.       */
 /* -------------------------------------------------------------------------- */
 
 import { mkdirSync } from "node:fs";
@@ -96,7 +97,6 @@ for (const [screen, selector] of Object.entries(KEY)) {
     check("judge: no moment read asked for", !(await calls(page)).some((c) => c.url.endsWith("/moment")));
   }
   await settle(page);
-  await page.screenshot({ path: join(SHOTS, `${screen}.png`) });
   check(`${screen}: no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
 }

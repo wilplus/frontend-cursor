@@ -29,12 +29,20 @@ const UNIT_JOB = WORKFLOW.slice(
   WORKFLOW.indexOf("  unit:"),
   WORKFLOW.indexOf("  e2e:"),
 );
+/** The `e2e` job's body. Not mirrored as a whole (see above); one of its steps
+ *  is, opt-in: the screenshot harness (X7), checked below. */
+const E2E_JOB = WORKFLOW.slice(
+  WORKFLOW.indexOf("  e2e:"),
+  WORKFLOW.indexOf("  csp:"),
+);
 
 /** Single-line `run:` commands, which is every check the unit job performs. */
 function commandsOf(job: string): string[] {
   return [...job.matchAll(/^\s+run:\s+(?!\|)(.+)$/gm)]
     .map((m) => m[1].trim())
-    .filter((cmd) => !cmd.startsWith("npm ci"));
+    .filter((cmd) => !cmd.startsWith("npm ci"))
+    // The guard's base fetch is CI plumbing (a clone has origin/main), not a check.
+    .filter((cmd) => !cmd.startsWith("git fetch"));
 }
 
 describe("the unit job is fully mirrored", () => {
@@ -42,8 +50,9 @@ describe("the unit job is fully mirrored", () => {
     // A slice that silently came back empty would make every assertion below
     // vacuously true.
     expect(UNIT_JOB).toContain("Complexity ratchet");
+    expect(UNIT_JOB).toContain("Design-lock guard");
     expect(UNIT_JOB).not.toContain("playwright");
-    expect(commandsOf(UNIT_JOB).length).toBeGreaterThanOrEqual(5);
+    expect(commandsOf(UNIT_JOB).length).toBeGreaterThanOrEqual(6);
   });
 
   it.each(commandsOf(UNIT_JOB))("runs `%s`", (command) => {
@@ -66,5 +75,39 @@ describe("the gate covers what CI does not", () => {
     // --no-build exists for iterating, and must never look like a passing gate.
     expect(SCRIPT).toMatch(/WITH_BUILD" = 0[\s\S]{0,200}INCOMPLETE/);
     expect(SCRIPT).toMatch(/GREEN — every gate CI runs, plus the build/);
+  });
+});
+
+describe("the design-lock guard (X5) runs everywhere the gate runs", () => {
+  it("is a step of the unit job, with the history it needs", () => {
+    expect(commandsOf(UNIT_JOB)).toContain("npm run check:design-lock");
+    // Reads every commit's trailers against origin/main: no depth-1 checkout.
+    expect(UNIT_JOB).toContain("fetch-depth: 0");
+    expect(UNIT_JOB).toMatch(/git fetch[^\n]*origin \+?main/);
+  });
+
+  it("always runs in the script — never behind an opt-in", () => {
+    const guard = SCRIPT.indexOf('step "Design-lock guard" npm run check:design-lock');
+    const optIn = SCRIPT.indexOf('if [ "${WILLAB_SCREENSHOTS');
+    expect(guard).toBeGreaterThan(0);
+    expect(optIn).toBeGreaterThan(guard);
+  });
+});
+
+describe("the screenshot harness (X7) is the e2e job's, mirrored opt-in", () => {
+  it("runs capture.mjs in the e2e job and uploads the pictures", () => {
+    expect(E2E_JOB).toContain("node e2e/screenshots/capture.mjs");
+    expect(E2E_JOB).toContain("upload-artifact");
+    expect(E2E_JOB).toContain("e2e/artifacts/screenshots");
+    // The consent screen is a real surface: it reads through the BFF.
+    expect(E2E_JOB).toContain("e2e/_fixture-backend.mjs");
+  });
+
+  it("runs in the script behind WILLAB_SCREENSHOTS=1, through the same capture.mjs", () => {
+    expect(SCRIPT).toMatch(/WILLAB_SCREENSHOTS[^\n]*= 1[\s\S]{0,200}npm run screenshots/);
+    const RUNNER = readFileSync("scripts/screenshots.sh", "utf8");
+    expect(RUNNER).toContain("node e2e/screenshots/capture.mjs");
+    expect(RUNNER).toContain("e2e/_fixture-backend.mjs");
+    expect(RUNNER).not.toContain("playwright install");
   });
 });
