@@ -46,12 +46,22 @@ describe("WalkMessage", () => {
     expect(avatar.getAttribute("aria-label")).toBeNull();
   });
 
-  it("the coach's photo is the same grey style, still hidden", () => {
-    draw(<WalkMessage avatarSrc="https://media/coach.jpg">Hi</WalkMessage>);
-    const avatar = q("[data-walk-avatar]")!;
-    expect(avatar.getAttribute("aria-hidden")).toBe("true");
-    expect(avatar.style.backgroundImage).toContain("coach.jpg");
-    expect(avatar.className).toMatch(/rounded-full/);
+  it("every message has the same grey silhouette and never a photo", () => {
+    draw(
+      <>
+        <WalkMessage>Hi</WalkMessage>
+        <WalkMessage>Again</WalkMessage>
+      </>,
+    );
+    const avatars = qa("[data-walk-avatar]");
+    expect(avatars).toHaveLength(2);
+    for (const avatar of avatars) {
+      expect(avatar.getAttribute("aria-hidden")).toBe("true");
+      expect(avatar.querySelector("svg")).not.toBeNull();
+      expect(avatar.style.backgroundImage).toBe("");
+      expect(avatar.getAttribute("style")).toBeNull();
+    }
+    expect(avatars[0].outerHTML).toBe(avatars[1].outerHTML);
   });
 
   it("only the new words are orange", () => {
