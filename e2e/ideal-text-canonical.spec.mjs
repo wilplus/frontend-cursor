@@ -222,9 +222,10 @@ check(
     (await dialog(page).locator("button", { hasText: /^Use these helper words$/ }).count()) === 1 &&
     (await dialog(page).locator("button", { hasText: /^Skip$/ }).count()) === 0
 );
-// Two taps make the phrase (founder 2026-09-26): the first word, then the
-// last one, and every word in between is marked. Four words at most (B3).
-for (const word of ["believed", "numbers"]) {
+// One tap per word (founder Q-B5 A, 2026-10-07): each tap adds the next
+// word beside the phrase, four words at most (B3); a word that is not beside
+// it cannot be tapped yet.
+for (const word of ["believed", "the", "numbers"]) {
   await dialog(page).locator("button", { hasText: new RegExp(`^${word}$`) }).first().click();
 }
 check(
