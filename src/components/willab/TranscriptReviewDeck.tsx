@@ -1525,6 +1525,8 @@ export default function TranscriptReviewDeck({
           }}
           startPicking={openWords}
           firstTake={takeCount === 1}
+          // ‹ back to an answered moment reopens its judgement (QA1 A).
+          reopenJudgement={walk.cameBack}
           helperWordsHost={{
             // Words from an earlier Take (B4, D5): the Slide takes them and
             // the lock follows, behind the sheet; the headline stands in.
@@ -1553,11 +1555,12 @@ export default function TranscriptReviewDeck({
               return true;
             },
           }}
-          renderSheet={(practiseAgain, onAnswered) => (
+          renderSheet={(practiseAgain, onAnswered, reopen) => (
         <DeckChunkModal
           key={practiseAgain ? "again" : "judge"}
           practiseAgain={practiseAgain}
           onAnswered={onAnswered}
+          reopen={reopen}
           state={openState}
           onAccept={onAccept}
           onUndoAccept={onUndoAccept}
