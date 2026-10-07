@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -433,7 +434,7 @@ function FooterPill({
         disabled={accepting}
         className={PILL}
       >
-        {accepting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+        {accepting ? <VoiceMark size={16} /> : null}
         {COPY.pillAcceptPractise}
       </button>
     );
@@ -615,7 +616,7 @@ function HelperWordsPicker({
           onClick={() => void use()}
           className={PILL}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+          {busy ? <VoiceMark size={16} /> : null}
           {COPY.pillEmphasise}
         </button>
       }

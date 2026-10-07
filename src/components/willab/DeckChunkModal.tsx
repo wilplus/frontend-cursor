@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
-  Loader2,
   Lock,
   Mic,
   Pencil,
@@ -11,6 +10,7 @@ import {
   Square,
   Undo2,
 } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
@@ -365,7 +365,7 @@ function footerSaving(busy: boolean, footer: { saving?: boolean }): boolean {
 /** The pill's leading glyph: a spinner while something is being saved, else
  *  the step's own icon. Pure, for the ratchet. */
 function pillIcon(saving: boolean, icon: React.ReactNode): React.ReactNode {
-  return saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : icon;
+  return saving ? <VoiceMark size={16} /> : icon;
 }
 
 /** The footer of every feedback screen on a SUPERSEDED Take: read-only, so

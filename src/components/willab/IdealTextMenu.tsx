@@ -6,11 +6,11 @@ import {
   Copy,
   Download,
   History,
-  Loader2,
   MoreHorizontal,
   Presentation,
   Save,
 } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { BLOCK_VARIANT_COPY } from "./blockVariantCopy";
 import { useSaveIdealText } from "./useSaveIdealText";
 
@@ -166,7 +166,7 @@ function SaveItem({
         className={ITEM}
       >
         {saver.busy ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <VoiceMark size={16} />
         ) : (
           <Save className="h-4 w-4 text-muted-foreground" aria-hidden />
         )}

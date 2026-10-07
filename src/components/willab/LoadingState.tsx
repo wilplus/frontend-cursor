@@ -11,12 +11,13 @@
 
 /** The breathing voice mark. LoadingState fixes it at 64px; this primitive is
  *  exported only for deliberately compact, in-control status treatments. */
-export function VoiceMark({ size }: { size: number }) {
+export function VoiceMark({ size, className }: { size: number; className?: string }) {
   return (
-    <div
-      className="relative flex items-center justify-center"
+    <span
+      className={`relative flex items-center justify-center${className ? ` ${className}` : ""}`}
       style={{ height: size, width: size }}
       aria-hidden="true"
+      data-voice-mark=""
     >
       <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
       <span
@@ -55,7 +56,7 @@ export function VoiceMark({ size }: { size: number }) {
           fill="hsl(var(--foreground))"
         />
       </svg>
-    </div>
+    </span>
   );
 }
 

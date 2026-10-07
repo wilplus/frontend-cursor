@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IMPORT_LANGUAGES } from "@/services/api/trainingCorpus";
 import { saveUserProfile } from "@/services/api/userProfile";
-import LoadingState from "./LoadingState";
+import LoadingState, { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useUserProfile } from "./useUserProfile";
 
@@ -162,7 +161,7 @@ export default function RaterLanguageGate({
           disabled={saving}
           onClick={() => void submit()}
         >
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {saving && <VoiceMark size={16} className="mr-2" />}
           Save and continue
         </Button>
       </section>

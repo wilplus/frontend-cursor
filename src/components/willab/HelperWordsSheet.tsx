@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -269,7 +269,7 @@ export default function HelperWordsSheet({
               onClick={() => void remove()}
               className={PILL}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              {busy ? <VoiceMark size={16} /> : null}
               {COPY.helperWordsDeleteConfirm}
             </button>
           ) : (
@@ -280,7 +280,7 @@ export default function HelperWordsSheet({
               onClick={() => void use()}
               className={PILL}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              {busy ? <VoiceMark size={16} /> : null}
               {COPY.pillEmphasise}
             </button>
           )}

@@ -250,7 +250,7 @@ describe("Skip on the exercise offer (D10: Skip, not Not now)", () => {
       (b) => (b.textContent ?? "").trim() === "Practise",
     ) as HTMLButtonElement;
     expect(pill.disabled).toBe(true);
-    expect(pill.querySelector(".animate-spin")).not.toBeNull();
+    expect(pill.querySelector("[data-voice-mark]")).not.toBeNull();
     await act(async () => {
       settle({ ok: false, error: null });
     });
