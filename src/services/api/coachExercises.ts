@@ -351,3 +351,36 @@ export function suggestExerciseId(title: string): string {
     .replace(/^[^a-z]+/, "")
     .slice(0, 63);
 }
+
+/* ── the founder's Library page: retire, bring back (CP3 A; D-CP-21) ──── */
+
+export type ExerciseActiveResult =
+  | { ok: true; active: boolean; changed: boolean }
+  | { ok: false; status: number; code: string | null; message: string };
+
+/** PUT /api/v2/admin/exercises/:id/active — founder only upstream. A 409
+ *  (NEEDS_VIDEO, POST_NOT_PUBLISHED) comes back with the backend's own
+ *  sentence, shown as sent. */
+export async function setExerciseActive(exerciseId: string, active: boolean): Promise<ExerciseActiveResult> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v2/admin/exercises/${encodeURIComponent(exerciseId)}/active`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active }),
+    });
+  } catch {
+    return { ok: false, status: 0, code: null, message: "Network error. Try again." };
+  }
+  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!res.ok) {
+    return {
+      ok: false,
+      status: res.status,
+      code: typeof data?.code === "string" ? data.code : null,
+      message: readError(data, res.status),
+    };
+  }
+  return { ok: true, active: data?.active === true, changed: data?.changed === true };
+}

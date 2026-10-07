@@ -64,23 +64,28 @@ function NavBar({ nav }: { nav: WalkNav }) {
 }
 
 /** ‹ alone, for a screen with somewhere to go back to but no moments to walk
- *  (the coach panel's speaker screen). */
-function BackOnly({ onBack }: { onBack: () => void }) {
+ *  (the coach panel's speaker screen), with where it goes when the screen
+ *  says so ("‹ Library", "‹ Speaking errors"). */
+function BackOnly({ onBack, label }: { onBack: () => void; label?: string | null }) {
   return (
-    <button
-      type="button"
-      onClick={onBack}
-      aria-label={COPY.pagerBack}
-      className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-    >
-      <ChevronLeft className="h-5 w-5" aria-hidden />
-    </button>
+    <span className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={COPY.pagerBack}
+        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+      >
+        <ChevronLeft className="h-5 w-5" aria-hidden />
+      </button>
+      {label ? <span data-walk-back-label className="min-w-0 truncate">{label}</span> : null}
+    </span>
   );
 }
 
 export default function WalkOverlay({
   nav,
   onBack,
+  backLabel,
   onClose,
   title,
   caption,
@@ -92,6 +97,8 @@ export default function WalkOverlay({
   nav?: WalkNav | null;
   /** ‹ without the moment bar; ignored when `nav` is given. */
   onBack?: () => void;
+  /** The words beside that ‹: where it goes. */
+  backLabel?: string | null;
   onClose?: () => void;
   title?: string | null;
   /** The grey line under the title (the coach panel's "Goal: …", "Treats:
@@ -114,7 +121,7 @@ export default function WalkOverlay({
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} /> : <span />}
+        {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} label={backLabel} /> : <span />}
         {onClose ? (
           <OverlayCloseButton
             onClick={onClose}
