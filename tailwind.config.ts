@@ -27,10 +27,18 @@ const config: Config = {
           "0%, 100%": { transform: "scaleY(1)" },
           "50%": { transform: "scaleY(0.6)" },
         },
+        // The recording screens' learning screen (founder lock 2026-10-07):
+        // the chevron, or the lit down key, nudges down to show the way.
+        nudge: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "45%": { transform: "translateY(10px)" },
+          "60%": { transform: "translateY(4px)" },
+        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.5s ease-out both",
         "voice-dot": "voice-dot 1.2s ease-in-out infinite",
+        nudge: "nudge 1.6s ease-in-out infinite",
       },
       /* `lock-breathe` LIVED HERE and is deliberately gone (founder
          2026-09-20: "the ring should not be there … There is just fill and
