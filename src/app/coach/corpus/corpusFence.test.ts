@@ -53,8 +53,15 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** The corpus's own BFF routes (`/api/v2/coach/corpus/...`) name the backend's
+ *  `/v2/coach/corpus/...` endpoints, not the workbench page: they are the
+ *  lane's plumbing, coach-gated upstream, and link nobody anywhere. */
+const CORPUS_BFF = join("app", "api", "v2", "coach", "corpus") + sep;
+
 const isCorpusOwned = (rel: string) =>
-  rel === SERVICE || rel.startsWith(join("app", "coach", "corpus") + sep);
+  rel === SERVICE ||
+  rel.startsWith(join("app", "coach", "corpus") + sep) ||
+  rel.startsWith(CORPUS_BFF);
 
 /** Dev fixtures under app/dev — exempt from the link fence ONLY because the
  *  test below asserts every one of them renders nothing in production. The

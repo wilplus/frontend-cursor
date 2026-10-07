@@ -20,6 +20,10 @@ interface MediaPlayerProps {
   /** Compact only: a small label above the waveform naming which recording
    *  this is ("Your practice · attempt 1", screen L1). */
   label?: string | null;
+  /** Told when the <audio> errors (404, an expired signed URL, a decode
+   *  failure), so a host holding a short-lived URL can ask for a fresh one.
+   *  A new `src` clears the error state on its own. */
+  onError?: () => void;
 }
 
 /**
@@ -48,6 +52,7 @@ export default function MediaPlayer({
   durationMs,
   compact = false,
   label = null,
+  onError,
 }: MediaPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -157,6 +162,7 @@ export default function MediaPlayer({
       onError={() => {
         setErrored(true);
         setPlaying(false);
+        onError?.();
       }}
     />
   ) : null;

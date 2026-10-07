@@ -654,9 +654,8 @@ export interface QueuePiece {
   reviewActId: string;
   snippetId: string;
   transcript: string;
-  audioRef: string | null;
-  startOffsetMs: number;
-  durationMs: number;
+  /* No audio here: a queue row carries nothing playable. Its clip is asked
+   * for separately, by snippet, through `fetchCorpusClipPlayback`. */
   label: ConfidenceLabel | null;
   reReview: boolean;
   learningExposures: LearningExposureHandle[];
@@ -667,7 +666,7 @@ export interface QueuePiece {
   mlc2BlindReview: ConfidenceChainBlindHandle | null;
 }
 
-const OPAQUE_PLAYBACK_REFERENCE =
+const OPAQUE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface ConfidenceQueue {
@@ -741,7 +740,7 @@ export function mapConfidenceChainHandle(
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const ids = ["review_assignment_id", "presentation_id", "acknowledgement_token"];
-  if (!ids.every((key) => OPAQUE_PLAYBACK_REFERENCE.test(str(r[key])))) return null;
+  if (!ids.every((key) => OPAQUE_ID.test(str(r[key])))) return null;
   if (!/^[0-9a-f]{64}$/.test(str(r.visible_payload_sha256))) return null;
   return {
     reviewAssignmentId: str(r.review_assignment_id),
@@ -755,7 +754,6 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const snippetId = str(r.snippet_id);
-  const playbackReferenceId = str(r.playback_reference_id);
   const transcript = str(r.transcript);
   const blind = r.blind_review && typeof r.blind_review === "object"
     ? r.blind_review as Record<string, unknown>
@@ -763,7 +761,7 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
   const blindReview = blind && [
     "project_id", "review_batch_id", "review_assignment_id",
     "blind_packet_id", "presentation_id", "acknowledgement_token",
-  ].every((key) => OPAQUE_PLAYBACK_REFERENCE.test(str(blind[key]))) &&
+  ].every((key) => OPAQUE_ID.test(str(blind[key]))) &&
     /^[0-9a-f]{64}$/.test(str(blind.visible_payload_sha256))
     ? {
         projectId: str(blind.project_id),
@@ -775,21 +773,14 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
         visiblePayloadSha256: str(blind.visible_payload_sha256),
       }
     : null;
-  // No id = the label PUT has nowhere to go. The response carries only an
-  // opaque assignment-bound playback reference; the BFF resolves the clipped
-  // audio, while transcript and raw timing remain server-side until reveal.
+  // No id = the label PUT has nowhere to go, and no clip can be asked for.
+  // Any media URL or timing a row might carry is ignored: the clip comes only
+  // from the coach-only playback route, by snippet (fetchCorpusClipPlayback).
   if (!snippetId) return null;
   return {
     reviewActId: blindReview?.reviewAssignmentId ?? snippetId,
     snippetId,
     transcript,
-    audioRef: OPAQUE_PLAYBACK_REFERENCE.test(playbackReferenceId)
-      ? `/api/v2/coach/mlc3/source-playback/${encodeURIComponent(playbackReferenceId)}`
-      : null,
-    // The authenticated endpoint returns an already-clipped WAV. Raw source
-    // coordinates never cross the blind queue response boundary.
-    startOffsetMs: 0,
-    durationMs: 0,
     label: pickLabel(r.label),
     reReview: r.re_review === true,
     canonicalPosition: Number.isInteger(r.canonical_position)
@@ -868,6 +859,96 @@ export async function fetchConfidenceQueue(
 ): Promise<ConfidenceQueue | null> {
   const result = await fetchConfidenceQueueResult(sessionId);
   return result.ok ? result.queue : null;
+}
+
+/* ---------------------------- a row's playback ----------------------------
+ * GET /api/v2/coach/corpus/clips/<snippet_id>/playback (coach/admin only).
+ * The backend answers a short-lived signed URL to the import's PARENT
+ * recording and the window to play from it. Nothing here is ever rendered:
+ * the URL goes to the player's <audio>, the window to its clamp (AC-9, N1).
+ * Failures keep their status and code; only the rater-language refusals
+ * (409/428, as on the queue and the label) carry the backend's own sentence
+ * forward for the screen. */
+
+export interface CorpusClipPlayback {
+  url: string;
+  startOffsetMs: number;
+  durationMs: number;
+  /** How long the signed URL lives, in seconds (900 today). */
+  expiresInS: number;
+}
+
+export type CorpusClipPlaybackResult =
+  | { ok: true; clip: CorpusClipPlayback }
+  | {
+      ok: false;
+      status: number;
+      code: string | null;
+      error: string | null;
+      language: string | null;
+    };
+
+/** The codes the route documents, for a body that came back without one. */
+const PLAYBACK_STATUS_CODES: Record<number, string> = {
+  400: "INVALID_INPUT",
+  401: "UNAUTHENTICATED",
+  404: "NOT_FOUND",
+  410: "PHASE2_DISABLED",
+  503: "PLAYBACK_UNAVAILABLE",
+};
+
+function nonNegativeInt(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
+}
+
+/** The 200 body, or null: a body for another snippet, a URL that is not
+ *  http(s), or a window that is not whole non-negative milliseconds is no
+ *  clip. Nothing is repaired. */
+export function mapCorpusClipPlayback(
+  raw: unknown,
+  snippetId: string,
+): CorpusClipPlayback | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const url = str(r.url);
+  const startOffsetMs = nonNegativeInt(r.start_offset_ms);
+  const durationMs = nonNegativeInt(r.duration_ms);
+  const expiresInS = nonNegativeInt(r.expires_in_s);
+  if (str(r.snippet_id) !== snippetId || !/^https?:\/\//i.test(url)) return null;
+  if (startOffsetMs === null || durationMs === null || durationMs === 0) return null;
+  return { url, startOffsetMs, durationMs, expiresInS: expiresInS ?? 0 };
+}
+
+export async function fetchCorpusClipPlayback(
+  snippetId: string,
+): Promise<CorpusClipPlaybackResult> {
+  const result = await bffFetch(
+    `/api/v2/coach/corpus/clips/${encodeURIComponent(snippetId)}/playback`,
+    { cache: "no-store" },
+  );
+  if (result.kind === "unauthenticated") {
+    return { ok: false, status: 401, code: "UNAUTHENTICATED", error: null, language: null };
+  }
+  if (result.kind === "network") {
+    return { ok: false, status: 0, code: "NETWORK_ERROR", error: null, language: null };
+  }
+  if (!result.ok) {
+    const failure = result.body && typeof result.body === "object"
+      ? result.body as Record<string, unknown>
+      : {};
+    const routing = result.status === 409 || result.status === 428;
+    return {
+      ok: false,
+      status: result.status,
+      code: strOrNull(failure.code) ?? PLAYBACK_STATUS_CODES[result.status] ?? null,
+      error: routing ? strOrNull(failure.error) : null,
+      language: strOrNull(failure.language),
+    };
+  }
+  const clip = mapCorpusClipPlayback(result.body, snippetId);
+  return clip
+    ? { ok: true, clip }
+    : { ok: false, status: result.status, code: "INVALID_PLAYBACK_RESPONSE", error: null, language: null };
 }
 
 export async function confirmCoachSessionLanguage(

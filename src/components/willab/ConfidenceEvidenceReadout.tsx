@@ -16,6 +16,7 @@ export default function ConfidenceEvidenceReadout({
   durationMs,
   transcript,
   transcriptRevealed,
+  onMediaError,
 }: {
   audioRef: string | null;
   startOffsetMs: number;
@@ -23,6 +24,8 @@ export default function ConfidenceEvidenceReadout({
   transcript: string;
   /** Must mean a server-confirmed answer, never a local button selection. */
   transcriptRevealed: boolean;
+  /** The audio failed to load; a host with a short-lived URL refetches. */
+  onMediaError?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -30,6 +33,7 @@ export default function ConfidenceEvidenceReadout({
         src={audioRef}
         startOffsetMs={startOffsetMs}
         durationMs={durationMs}
+        onError={onMediaError}
       />
       {transcriptRevealed && transcript ? (
         <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">

@@ -16,7 +16,6 @@ function piece(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     snippet_id: "snip-1",
     transcript: "and that is when everything changed for us",
-    playback_reference_id: "11111111-1111-4111-8111-111111111111",
     session_id: "sess-1",
     label: null,
     ...over,
@@ -29,9 +28,6 @@ describe("mapQueuePiece — drop-not-repair", () => {
       reviewActId: "snip-1",
       snippetId: "snip-1",
       transcript: "and that is when everything changed for us",
-      audioRef: "/api/v2/coach/mlc3/source-playback/11111111-1111-4111-8111-111111111111",
-      startOffsetMs: 0,
-      durationMs: 0,
       label: null,
       reReview: false,
       canonicalPosition: null,
@@ -133,16 +129,35 @@ describe("mapQueuePiece — drop-not-repair", () => {
     expect(mapQueuePiece(piece({ transcript: "" }))?.transcript).toBe("");
   });
 
-  it("ignores raw media URLs and coordinates; only an opaque assignment reference plays", () => {
+  it("carries nothing playable: media URLs, references and coordinates on a row are ignored", () => {
     const mapped = mapQueuePiece(piece({
-      playback_reference_id: "not-a-uuid",
+      playback_reference_id: "11111111-1111-4111-8111-111111111111",
       audio_ref: "https://storage.example/private.wav",
       start_offset_ms: 12345,
       duration_ms: 4200,
     }));
-    expect(mapped?.audioRef).toBeNull();
-    expect(mapped?.startOffsetMs).toBe(0);
-    expect(mapped?.durationMs).toBe(0);
+    expect(mapped).not.toBeNull();
+    for (const key of ["audioRef", "startOffsetMs", "durationMs", "playbackReferenceId"]) {
+      expect(mapped).not.toHaveProperty(key);
+    }
+  });
+
+  it("maps the backend's current row shape, which has no playback reference", () => {
+    const mapped = mapQueuePiece({
+      snippet_id: "20000000-0000-4000-8000-000000000001",
+      label: null,
+      re_review: true,
+      rating_locked: false,
+      rating_lock_reason: null,
+      learning_exposures: [],
+    });
+    expect(mapped).toMatchObject({
+      snippetId: "20000000-0000-4000-8000-000000000001",
+      reviewActId: "20000000-0000-4000-8000-000000000001",
+      transcript: "",
+      reReview: true,
+      label: null,
+    });
   });
 
   it("keeps this coach's prior call, HISTORICAL intensity included — the 1–5 row is cut (2026-08-11) but rows graded before the cut must read back faithfully", () => {
@@ -216,7 +231,6 @@ describe("mapConfidenceQueue", () => {
     const blind = (suffix: string, position: number) => piece({
       snippet_id: "shared-snippet",
       canonical_position: position,
-      playback_reference_id: `10000000-0000-4000-8000-00000000000${suffix}`,
       blind_review: {
         project_id: "20000000-0000-4000-8000-000000000001",
         review_batch_id: "20000000-0000-4000-8000-000000000002",

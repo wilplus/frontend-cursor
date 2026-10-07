@@ -10,7 +10,9 @@ import { getAuthToken } from "@/lib/api/auth-client";
 import {
   confirmCoachSessionLanguage,
   fetchConfidenceQueueResult,
+  fetchCorpusClipPlayback,
   fetchTrainingImports,
+  mapCorpusClipPlayback,
 } from "./trainingCorpus";
 
 const token = vi.mocked(getAuthToken);
@@ -127,5 +129,90 @@ describe("confirmCoachSessionLanguage", () => {
     token.mockResolvedValue(null);
     expect(await confirmCoachSessionLanguage("s", "en")).toBe(false);
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetchCorpusClipPlayback (backend PR #920)", () => {
+  const SNIPPET = "20000000-0000-4000-8000-000000000001";
+  const OK = {
+    snippet_id: SNIPPET,
+    url: "https://media.example/imports/parent.wav?X-Amz-Signature=abc",
+    start_offset_ms: 61250,
+    duration_ms: 28400,
+    expires_in_s: 900,
+  };
+
+  it("reads the row's clip uncached from the coach playback route", async () => {
+    const fn = stubFetch(200, OK);
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toEqual({
+      ok: true,
+      clip: {
+        url: OK.url,
+        startOffsetMs: 61250,
+        durationMs: 28400,
+        expiresInS: 900,
+      },
+    });
+    expect(fn).toHaveBeenCalledWith(`/api/v2/coach/corpus/clips/${SNIPPET}/playback`, {
+      headers: BEARER, cache: "no-store",
+    });
+  });
+
+  it("maps 404, 410 and 503 to their codes, with no sentence for the screen", async () => {
+    stubFetch(404, { code: "NOT_FOUND" });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toEqual({
+      ok: false, status: 404, code: "NOT_FOUND", error: null, language: null,
+    });
+    stubFetch(410, { code: "PHASE2_DISABLED", error: "Phase 2 is switched off." });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toEqual({
+      ok: false, status: 410, code: "PHASE2_DISABLED", error: null, language: null,
+    });
+    stubFetch(503, { code: "PLAYBACK_UNAVAILABLE" });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toEqual({
+      ok: false, status: 503, code: "PLAYBACK_UNAVAILABLE", error: null, language: null,
+    });
+    // A body without a code still names the documented one.
+    stubFetch(410, "not json");
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toMatchObject({ ok: false, status: 410, code: "PHASE2_DISABLED" });
+  });
+
+  it("keeps the backend's own sentence for a rater-language refusal, as the queue and label do", async () => {
+    stubFetch(409, { code: "CLIP_LANGUAGE_UNKNOWN", error: "This clip has no verified language.", language: "pl" });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toEqual({
+      ok: false, status: 409, code: "CLIP_LANGUAGE_UNKNOWN",
+      error: "This clip has no verified language.", language: "pl",
+    });
+    stubFetch(428, { code: "RATER_LANGUAGES_REQUIRED", error: "Tell us which languages you rate." });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toMatchObject({
+      ok: false, status: 428, error: "Tell us which languages you rate.",
+    });
+  });
+
+  it("is a typed failure when offline, signed out or malformed", async () => {
+    offline();
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toMatchObject({ ok: false, status: 0, code: "NETWORK_ERROR" });
+    stubFetch(200, { ...OK, snippet_id: "20000000-0000-4000-8000-000000000002" });
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toMatchObject({ ok: false, code: "INVALID_PLAYBACK_RESPONSE" });
+    token.mockResolvedValue(null);
+    const fn = stubFetch(200, OK);
+    expect(await fetchCorpusClipPlayback(SNIPPET)).toMatchObject({ ok: false, status: 401, code: "UNAUTHENTICATED" });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body it would have to repair", () => {
+    expect(mapCorpusClipPlayback(OK, SNIPPET)).not.toBeNull();
+    for (const bad of [
+      { ...OK, url: "" },
+      { ...OK, url: "javascript:alert(1)" },
+      { ...OK, start_offset_ms: -1 },
+      { ...OK, start_offset_ms: 1.5 },
+      { ...OK, start_offset_ms: "61250" },
+      { ...OK, duration_ms: 0 },
+      { ...OK, duration_ms: null },
+      null,
+      "x",
+    ]) {
+      expect(mapCorpusClipPlayback(bad, SNIPPET)).toBeNull();
+    }
   });
 });
