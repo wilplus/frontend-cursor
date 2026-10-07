@@ -31,6 +31,8 @@ any of them. It covers the Ideal Text page, the Feedback sheet
 (`DeckChunkModal.tsx`), the paragraph sheet (`ParagraphSheet.tsx`), the coach
 Exercise step, helper words in Ideal Text, Presentation Mode, export and
 Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
+Recording Mode now has its own lock (the recording screens, below), which
+wins over this one for the screens it covers.
 
 - A designer's session builds these screens. Any other session does not change
   their layout, flow or wording, and adds no element or string the design
@@ -108,8 +110,8 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   shows and nothing added, each screen shown to the founder in the panel's
   Done list before it goes live; and the coach and the app share one grey
   profile picture, no photos (NX2 B).
-- Not covered: the coach panel (its own lock below), the CMS and everything
-  else in this repo.
+- Not covered: the coach panel and the recording screens (their own locks
+  below), the CMS and everything else in this repo.
 
 ## Design lock — the coach panel (founder, 2026-10-07)
 
@@ -152,6 +154,45 @@ The rules, as for the Ideal Text lock:
 - The new panel sits behind `NEXT_PUBLIC_COACH_PANEL_V2` until the founder
   approves it screen by screen (build plan P6). Today's coach walk stays
   live until then and is not redesigned in the meantime.
+- Where this section and the backend lock file disagree, the lock file wins.
+
+## Design lock — the recording screens (founder, 2026-10-07)
+
+The speaker's recording screens follow **the recording screen prototype**
+exactly: <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>, version 6
+(founder 2026-10-07: "Lock the recording screens"). Read it before touching
+any of them, on a phone and on a desktop. The written lock, with the flow,
+the motion and every word, is `docs/FOUNDER-LOCK-recording-screens-2026-10-07.md`
+in the backend repo (decisions log N59), and a copy of the page as locked is
+`docs/design/recording-screens-2026-10-07.html` there. It covers:
+
+- the first recording's learning screen: **Scroll down to start** on a
+  phone, the arrow keys with **Click down to start** on a desktop; no slide
+  and no recording controls until the speaker starts;
+- **Getting your mic ready** before a later Take;
+- the recording screen: **Take N · Slide n of m** in the top bar beside the
+  close button (no "Recording" label), the slide, the speaker's orange
+  helper words (none on Take 1), the slide dots on the right, and the strip
+  (clock, bar, **Finish take**) with no line above it;
+- how it moves: only the slide and its helper words move; the top bar, the
+  dots and the strip stay still and are never rebuilt; the content follows
+  the finger and lands softly; scrolling is deliberately less sensitive than
+  before; instant with reduce motion;
+- the keyboard with no click first (↓, Page Down, Space forward; ↑, Page Up
+  back; Enter starts), and no page reload or pull-to-refresh, ever, from a
+  scroll to the top;
+- **Discard this take?** and the processing wait, as they are today.
+
+The rules, as for the other locks:
+
+- Build these screens exactly as the prototype shows. Do not change their
+  layout, flow, motion or wording, and add no element or string the
+  prototype doesn't show. If a task seems to need one, stop and ask the
+  founder in the Navigation Panel, with a clickable prototype of the change.
+- The prototype's three coloured slides are its own stand-in deck; the app
+  shows the speaker's slides, unchanged.
+- This is the live record → Take surface (LIVE LOOP): a change here must
+  keep recording, saving and processing working at every step.
 - Where this section and the backend lock file disagree, the lock file wins.
 
 ---
