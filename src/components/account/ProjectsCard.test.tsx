@@ -293,3 +293,18 @@ describe("archived projects", () => {
     expect(button("Unarchive")).toBeDefined();
   });
 });
+
+describe("while the list loads (founder 2026-10-07)", () => {
+  it("shows the voice mark, never a blank list, then the projects", async () => {
+    flag.on = false;
+    let resolve: (value: TrainingArc[]) => void = () => undefined;
+    api.fetchTrainings.mockReturnValue(new Promise<TrainingArc[]>((r) => { resolve = r; }));
+    act(() => root.render(createElement(ProjectsCard)));
+    await act(async () => button("Your projects")?.click());
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
+    await act(async () => resolve([project()]));
+    await flush();
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(container.textContent).toContain("Board pitch");
+  });
+});

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { ConfirmDelete } from "@/components/willab/ProjectRowMenu";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 import { unarchiveProject } from "@/services/api/projectArchive";
@@ -141,7 +142,12 @@ export default function ProjectsCard() {
                 Try again
               </button>
             </p>
-          ) : projects === null ? null : (
+          ) : projects === null ? (
+            // Still loading: the voice mark, never a blank card that reads
+            // as "no projects" (founder 2026-10-07: "your projects is
+            // empty, and I do have projects!").
+            <SectionLoadingState />
+          ) : (
             <ul className="mt-3 divide-y divide-border">
               {projects.map((project) => (
                 <li
