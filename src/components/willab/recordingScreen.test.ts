@@ -211,6 +211,22 @@ describe("the recording screen", () => {
     expect(LAB).toMatch(/attempt < 2/);
     expect(LAB).not.toMatch(/buildCommittedSlideRoots\(result\.pieces/);
   });
+
+  it("drops no hover grow on Finish take and draws the 12px stop square", () => {
+    const strip = PHASE.slice(
+      PHASE.indexOf("const strip"),
+      PHASE.indexOf("if (!hasDeck)")
+    );
+    expect(strip).not.toMatch(/hover:scale/);
+    expect(strip).toMatch(/h-3 w-3 shrink-0 rounded-\[2px\] bg-current/);
+  });
+
+  it("animates the slide dots in 0.2 s with no hover colour", () => {
+    const rail = ROADMAP.slice(ROADMAP.indexOf('aria-label="Presentation slide position"'));
+    const dots = rail.slice(0, rail.indexOf("</nav>"));
+    expect(dots.match(/transition-\[height\] duration-200/g)?.length).toBe(2);
+    expect(dots).not.toMatch(/hover:/);
+  });
 });
 
 describe("guest Project ownership at the processing boundary", () => {

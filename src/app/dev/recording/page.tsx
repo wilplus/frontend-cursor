@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RecordingPhase, RecordingWhere } from "@/components/willab/LabOverlay";
+import {
+  RecordingPhase,
+  RecordingWhere,
+  labColumnClass,
+} from "@/components/willab/LabOverlay";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
-import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { useNoPullToRefresh } from "@/lib/willab/useNoPullToRefresh";
 import type { PresentationSlide } from "@/components/willab/presentation";
 
@@ -89,9 +92,7 @@ export default function RecordingHarness() {
         />
         <OverlayCloseButton onClick={() => {}} />
       </header>
-      <div
-        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-0 ${SCREEN_BOTTOM_GAP}`}
-      >
+      <div className={labColumnClass("lab_recording", mic.status)}>
         <RecordingPhase
           micState={
             mic.status === "recording"

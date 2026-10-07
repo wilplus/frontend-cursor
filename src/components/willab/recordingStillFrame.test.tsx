@@ -17,7 +17,7 @@ vi.mock("./pdfSlides", () => ({
     createElement("div", { "data-testid": "slide" }, `page ${pageIndex + 1}`),
 }));
 
-import { RecordingPhase, RecordingWhere } from "./LabOverlay";
+import { RecordingPhase, RecordingWhere, labColumnClass } from "./LabOverlay";
 import { resetSharedWheel } from "./useRecordingGestures";
 
 let root: Root;
@@ -145,6 +145,47 @@ describe("the top bar", () => {
       ),
     );
     expect(host.textContent).toBe("");
+  });
+});
+
+describe("the strip and the dots, as the prototype draws them (build plan D-RC-2)", () => {
+  it("sits 20px off the bottom on the recording screen only", () => {
+    const rec = labColumnClass("lab_recording", "recording").split(" ");
+    expect(rec).toContain("pb-5");
+    expect(rec).not.toContain("pb-8");
+    for (const [state, mic] of [
+      ["lab_recording", "idle"],
+      ["lab_prerecord", "idle"],
+      ["lab_session_context", "idle"],
+      ["lab_processing", "stopped"],
+      ["readout", "stopped"],
+    ] as const) {
+      const cls = labColumnClass(state, mic).split(" ");
+      expect(cls).toContain("pb-8");
+      expect(cls).not.toContain("pb-5");
+    }
+  });
+
+  it("does not grow Finish take on hover; its stop square is 12px with 2px corners", () => {
+    render();
+    const { finish } = frame();
+    expect(finish.className).not.toMatch(/hover:/);
+    expect(finish.className).not.toMatch(/scale/);
+    const square = finish.querySelector('[data-testid="finish-square"]')!;
+    expect(square.className.split(" ")).toEqual(
+      expect.arrayContaining(["h-3", "w-3", "rounded-[2px]", "bg-current"]),
+    );
+    expect(finish.querySelector("svg")).toBeNull();
+  });
+
+  it("animates the dots' height in 200ms, with no hover colour", () => {
+    render();
+    const marks = frame().dots.map((b) => b.querySelector("span")!.className);
+    expect(marks).toHaveLength(3);
+    for (const cls of marks) {
+      expect(cls).toMatch(/transition-\[height\] duration-200/);
+      expect(cls).not.toMatch(/hover:/);
+    }
   });
 });
 

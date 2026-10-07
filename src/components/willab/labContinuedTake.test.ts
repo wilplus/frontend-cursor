@@ -50,3 +50,28 @@ describe("a later Take starts by itself once the project's setup has arrived", (
     expect(HOST).toMatch(/setTimeout\(\(\) => setSetupArriving\(false\), 6000\)/);
   });
 });
+
+describe("one loader for the whole later-Take wait (build plan D-RC-1)", () => {
+  const overlay = HOST.slice(
+    HOST.indexOf("export default function LabOverlay"),
+    HOST.indexOf("export function RecordingPhase"),
+  );
+
+  it("draws Getting your mic ready once, in one place of the column", () => {
+    expect(overlay.match(/label="Getting your mic ready"/g)?.length).toBe(1);
+    const column = overlay.slice(overlay.indexOf("<div className={labColumnClass(state, mic.state.status)}>"));
+    const slot = column.slice(0, column.indexOf('{state === "lab_feelings"'));
+    expect(slot).toMatch(
+      /showsMicWait\(state, trainingAsked, mic\.state\.status, mic\.armed, rejectedMsg\) \? \(\s*<LoadingState placement="surface" label="Getting your mic ready" \/>/,
+    );
+  });
+
+  it("leaves the auto-start and the recording phase drawing no loader of their own", () => {
+    const auto = HOST.slice(HOST.indexOf("function ContinuedTakeAutoStart("));
+    const body = auto.slice(0, auto.indexOf("\n}\n"));
+    expect(body).toMatch(/return null;\s*$/);
+    expect(body).not.toMatch(/LoadingState/);
+    const recording = overlay.slice(overlay.indexOf('{state === "lab_recording" && ('));
+    expect(recording.slice(0, recording.indexOf("/>"))).toMatch(/micWaitShownByHost/);
+  });
+});
