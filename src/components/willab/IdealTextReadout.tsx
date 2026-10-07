@@ -71,14 +71,12 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu from "./IdealTextMenu";
-import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { ReadoutPayload } from "./readout";
 import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
-import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
 
 /* -------------------------------------------------------------------------- */
@@ -170,7 +168,6 @@ export default function IdealTextReadout({
    *  than duplicating. Absent → no ✕ (a host with its own exit). */
   onClose?: () => void;
 }) {
-  const { reload: reloadLounge } = useLoungeThreadCtx();
   // A GUEST READS THE WHOLE PAGE (founder 2026-10-04, Phase 0.6): the same
   // document, slides and sheets as an account; every step that keeps or
   // changes something asks to sign up first (see GuestSignUpDialog).
@@ -1015,22 +1012,12 @@ export default function IdealTextReadout({
     if (!sd || !arcId || !onReRead) return null;
     return (
       <IdealTextActions
-        arcId={arcId}
         canRecordTake={sd.canRecordTake}
         takeCount={sd.takeCount}
-        journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={gate(onReRead, undefined)}
-        onSeeNextStepsAsGuest={guestGate.forGuest(() =>
-          guestGate.ask("journey_next_steps"),
-        )}
-        onSeeNextSteps={() => {
-          void reloadLounge();
-          notifyThreadToLatest();
-          onClose?.();
-        }}
       />
     );
   }

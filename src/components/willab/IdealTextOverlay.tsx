@@ -94,13 +94,11 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
-import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
-import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -176,7 +174,6 @@ export default function IdealTextOverlay({
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the moments unlock has run.
   // Voice Album is a separate personal surface, outside project editing.
-  const { reload: reloadLounge } = useLoungeThreadCtx();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
     version: number | null;
@@ -1027,19 +1024,12 @@ export default function IdealTextOverlay({
     if (!sd || !onReadAloud) return null;
     return (
       <IdealTextActions
-        arcId={arcId}
         canRecordTake={sd.canRecordTake}
         takeCount={sd.takeCount}
-        journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={() => onReadAloud(sd.version)}
-        onSeeNextSteps={() => {
-          void reloadLounge();
-          notifyThreadToLatest();
-          onClose();
-        }}
       />
     );
   }

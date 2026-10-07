@@ -10,7 +10,6 @@ const NINE = [
   "DeckChunkModal.tsx",
   "DeckCoachFeedback.tsx",
   "HelperWordsSheet.tsx",
-  "IdealTextActions.tsx",
   "IdealTextMenu.tsx",
   "ParagraphSheet.tsx",
   "PractiseSheet.tsx",
