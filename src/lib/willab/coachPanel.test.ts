@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   PANEL_START,
+  firstUnlabelledIndex,
   isRated,
+  nextUnlabelledIndex,
   momentCounter,
   momentOf,
   panelReducer,
@@ -94,6 +96,54 @@ describe("Your speakers (D-CP-12)", () => {
     s = panelReducer(s, { type: "back" });
     s = panelReducer(s, { type: "back" });
     expect(where(s)).toBe("speakers");
+  });
+});
+
+describe("the training corpus (D-CP-20)", () => {
+  it("the pinned button opens the imports with nothing behind; Import audio, the loader, the judging stack on it", () => {
+    let s = run({ type: "corpus" });
+    expect(s.screen.key).toBe("corpushome");
+    expect(s.history).toEqual([]);
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpushome" });
+    s = panelReducer(s, { type: "corpusImport" });
+    expect(s.screen).toEqual({ key: "corpusimport", setupOf: null });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpusimport", kind: "new" });
+    s = panelReducer(s, { type: "corpusAnalyse" });
+    expect(s.screen.key).toBe("corpusanalyse");
+    s = panelReducer(s, { type: "corpusHome" });
+    expect(s.screen.key).toBe("corpushome");
+    expect(s.history).toEqual([]);
+    expect(s.dir).toBe("back");
+  });
+
+  it("an unfinished import opens its set-up; ‹ returns to the imports, then the Lounge", () => {
+    let s = run({ type: "corpus" }, { type: "corpusImport", setupOf: "import-1" });
+    expect(s.screen).toEqual({ key: "corpusimport", setupOf: "import-1" });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpusimport", kind: "import-1" });
+    s = panelReducer(s, { type: "back" });
+    expect(s.screen.key).toBe("corpushome");
+    s = panelReducer(s, { type: "back" });
+    expect(s.screen.key).toBe("lounge");
+  });
+
+  it("judging an import: the panel's Judge screen, back to the imports when done", () => {
+    let s = run({ type: "corpus" }, { type: "corpusJudge", importId: "import-2", topic: "Board update, March" });
+    expect(s.screen).toEqual({ key: "corpus", importId: "import-2", topic: "Board update, March" });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpus", kind: "import-2" });
+    expect(momentOf(s.screen)).toBeNull(); // not a speaker's moment
+    expect(momentCounter(s.screen)).toBeNull();
+    s = panelReducer(s, { type: "corpusHome" });
+    expect(s.screen.key).toBe("corpushome");
+  });
+
+  it("the next unlabelled piece, in payload order, never re-sorted", () => {
+    expect(firstUnlabelledIndex([true, true, false, true])).toBe(2);
+    expect(firstUnlabelledIndex([true, true])).toBe(0);
+    expect(firstUnlabelledIndex([])).toBe(0);
+    expect(nextUnlabelledIndex([false, true, false, false], 0)).toBe(2);
+    expect(nextUnlabelledIndex([false, true, false, false], 2)).toBe(3);
+    expect(nextUnlabelledIndex([false, true, false, false], 3)).toBe(-1);
+    expect(nextUnlabelledIndex([true, false], 1)).toBe(-1);
   });
 });
 

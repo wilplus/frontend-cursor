@@ -31,9 +31,11 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("./library/page.client", () => ({ default: () => null }));
 vi.mock("./errors/page.client", () => ({ default: () => null }));
+vi.mock("./corpus/page.client", () => ({ default: () => null }));
 
 import AdminLibraryPage from "./library/page";
 import AdminErrorsPage from "./errors/page";
+import AdminCorpusPage from "./corpus/page";
 
 /** The repo's own redirects, read from the config Next serves. */
 async function configRedirects(): Promise<unknown[]> {
@@ -45,6 +47,8 @@ async function configRedirects(): Promise<unknown[]> {
 const PAGES = [
   ["/admin/library", AdminLibraryPage],
   ["/admin/errors", AdminErrorsPage],
+  // Q-B15 A (2026-10-07): corpus hide/delete/restore moved to admin too.
+  ["/admin/corpus", AdminCorpusPage],
 ] as const;
 
 beforeEach(() => {

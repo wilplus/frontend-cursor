@@ -11,7 +11,8 @@
 /*                      orange dot on those waiting (D-CP-12, from            */
 /*                      GET /v2/coach/speakers); a speaker opens on their     */
 /*                      goal and their Takes                                  */
-/*    Training corpus   P1: today's corpus page (/coach/corpus)               */
+/*    Training corpus   the corpus inside the panel (D-CP-20): the imports,   */
+/*                      Import audio, the set-up, the blind judging          */
 /*                                                                            */
 /*  THE HAND-OVER (P1 only). What happened's Next gives the moment to today's */
 /*  walk (CoachWalkOverlay) at that moment, already rated, so it opens on its */
@@ -22,7 +23,6 @@
 /* -------------------------------------------------------------------------- */
 
 import { useReducer, useState } from "react";
-import Link from "next/link";
 import { AudioLines, Users } from "lucide-react";
 import CoachPanel from "./CoachPanel";
 import CoachWalkBubble from "../coachwalk/CoachWalkBubble";
@@ -41,17 +41,17 @@ const PINNED =
   "walk-press flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground";
 
 /** The two buttons pinned above the message box, with icons. */
-export function CoachPanelPinned({ onSpeakers }: { onSpeakers: () => void }) {
+export function CoachPanelPinned({ onSpeakers, onCorpus }: { onSpeakers: () => void; onCorpus: () => void }) {
   return (
     <div data-testid="coach-panel-pinned" className="flex gap-2.5">
       <button type="button" onClick={onSpeakers} data-testid="coach-panel-speakers-button" className={PINNED}>
         <Users aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
         {COPY.speakers}
       </button>
-      <Link href="/coach/corpus" data-testid="coach-panel-corpus-button" className={PINNED}>
+      <button type="button" onClick={onCorpus} data-testid="coach-panel-corpus-button" className={PINNED}>
         <AudioLines aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
         {COPY.trainingCorpus}
-      </Link>
+      </button>
     </div>
   );
 }
@@ -89,7 +89,7 @@ export default function CoachPanelDoor({
   return (
     <>
       {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => dispatch({ type: "open" })} /> : null}
-      <CoachPanelPinned onSpeakers={() => dispatch({ type: "speakers" })} />
+      <CoachPanelPinned onSpeakers={() => dispatch({ type: "speakers" })} onCorpus={() => dispatch({ type: "corpus" })} />
       <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
         onHandover={handOver} />
       {handed ? (

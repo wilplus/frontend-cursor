@@ -19,6 +19,13 @@
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
 /*                   opens (D-CP-12): pseudonyms, goals and counts, never a  */
 /*                   moment                                                   */
+/*    the corpus     GET /v2/coach/training-imports each time Training       */
+/*                   corpus opens (D-CP-20); POST an import (then the         */
+/*                   loader until the backend says ready or failed); PUT an  */
+/*                   import's set-up; its moments judged blind by            */
+/*                   CoachCorpusJudge. While the backend's switch is off the */
+/*                   import is refused (410) and its sentence shows under    */
+/*                   the pill; the list draws its empty state.               */
 /*                                                                            */
 /*  The leaving copy of a screen (the stage's ghost) is drawn without its     */
 /*  hooks, so a Judge screen on its way out never asks for a second render    */
@@ -32,6 +39,8 @@ import type { WalkNav } from "../walk/WalkOverlay";
 import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
 import { useConfidenceChainReceipt } from "../coachwalk/useConfidenceChainReceipt";
 import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
+import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
+import CoachCorpusJudge from "./CoachCorpusJudge";
 import {
   momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
 } from "@/lib/willab/coachPanel";
@@ -43,6 +52,9 @@ import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
 import { fetchCoachSpeakers, queueSpeakerFor, type PanelSpeaker } from "@/services/api/coachSpeakers";
+import {
+  fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
+} from "@/services/api/trainingCorpus";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
@@ -119,6 +131,25 @@ function useAllSpeakers(open: boolean) {
   return { speakers, loading };
 }
 
+/** The imports, read each time Training corpus opens; null while dark. */
+function useImports(open: boolean) {
+  const [imports, setImports] = useState<TrainingImport[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    void fetchTrainingImports().then((next) => {
+      if (cancelled) return;
+      setImports(next);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, tick]);
+  return { imports, loading, refresh: () => setTick((n) => n + 1) };
+}
+
 /** The live Judge screen: the save, and the chain's render receipt. */
 function JudgeLive({ screen, nav, clip, onRated, onClose }: {
   screen: MomentScreen;
@@ -177,6 +208,11 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const reads = useRevealRead(screen);
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
+  const corpus = useImports(screen.key === "corpushome");
+  const [form, setForm] = useState<ImportForm>(BLANK_IMPORT);
+  const [corpusBusy, setCorpusBusy] = useState(false);
+  const [corpusFail, setCorpusFail] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
@@ -185,6 +221,52 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     dispatch({ type: "rated", snippetId, value });
     setToast((t) => ({ id: (t?.id ?? 0) + 1, text: COPY.toastJudged }));
   };
+  /** An import opens its set-up first when that is not finished (CO1 A). */
+  function openImport(im: TrainingImport): void {
+    setCorpusFail(null);
+    if (!im.setupComplete) {
+      setForm({ ...BLANK_IMPORT, topic: im.topic, speaker: im.speakerLabel ?? "", language: im.language });
+      dispatch({ type: "corpusImport", setupOf: im.sessionId });
+      return;
+    }
+    if (im.state !== "done") return;
+    dispatch({ type: "corpusJudge", importId: im.sessionId, topic: im.topic });
+  }
+
+  async function submitImport(setupOf: string | null): Promise<void> {
+    if (corpusBusy || form.language === null || !form.topic.trim()) return;
+    setCorpusBusy(true);
+    setCorpusFail(null);
+    if (setupOf) {
+      const saved = await saveImportSetup(setupOf, {
+        topic: form.topic.trim(), language: form.language, speakerLabel: form.speaker.trim() || null, source: form.source.trim() || null,
+      });
+      setCorpusBusy(false);
+      if (!saved.ok) { setCorpusFail(saved.error ?? COPY.answerFail); return; }
+      corpus.refresh();
+      dispatch({ type: "corpusHome" });
+      return;
+    }
+    if (!form.file) { setCorpusBusy(false); return; }
+    let accepted = false;
+    const outcome = await importTrainingAudio({
+      file: form.file, topic: form.topic.trim(), speakerLabel: form.speaker.trim() || null, note: form.source.trim() || null,
+      language: form.language, optionalStages: form.stages,
+      onAccepted: () => { accepted = true; dispatch({ type: "corpusAnalyse" }); },
+    });
+    setCorpusBusy(false);
+    if (!outcome.ok) {
+      // The backend's own sentence (a 410 while its switch is off, a
+      // rejected file): under the pill of the screen the coach is on.
+      setCorpusFail(outcome.error ?? COPY.answerFail);
+      if (accepted) dispatch({ type: "corpusHome" });
+      return;
+    }
+    setForm(BLANK_IMPORT);
+    corpus.refresh();
+    dispatch({ type: "corpusHome" });
+  }
+
   const navFor = (s: MomentScreen): WalkNav => ({
     label: s.speaker.pseudonym,
     index: s.index,
@@ -219,6 +301,31 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
       );
     }
     if (panel.key === "lounge") return null;
+    if (panel.key === "corpushome") {
+      return (
+        <CorpusHomeScreen imports={corpus.imports} loading={corpus.loading} fail={live ? corpusFail : null}
+          onImport={() => { setCorpusFail(null); setForm(BLANK_IMPORT); dispatch({ type: "corpusImport" }); }}
+          onOpen={openImport} onClose={close} />
+      );
+    }
+    if (panel.key === "corpusimport") {
+      return (
+        <CorpusImportScreen setupOf={panel.setupOf} form={form} busy={corpusBusy} fail={live ? corpusFail : null}
+          onChange={setForm} onPickFile={() => fileInput.current?.click()}
+          onSubmit={() => void submitImport(panel.setupOf)} onBack={() => dispatch({ type: "back" })} onClose={close} />
+      );
+    }
+    if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen onClose={close} />;
+    if (panel.key === "corpus") {
+      return live ? (
+        <CoachCorpusJudge importId={panel.importId} topic={panel.topic}
+          onDone={() => { corpus.refresh(); dispatch({ type: "corpusHome" }); }}
+          onBack={() => dispatch({ type: "back" })} onClose={close} />
+      ) : (
+        <JudgeScreen nav={{ label: panel.topic, index: 0, total: 1, onBack: () => undefined, onNext: () => undefined }}
+          momentId={panel.importId} clip={null} error={null} attempt={0} onAnswer={() => undefined} onClose={close} />
+      );
+    }
     const moment = momentOf(panel);
     if (!moment) return null;
     const nav = navFor(panel);
@@ -244,6 +351,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   return (
     <>
       <WalkStage screen={stage} dir={state.dir} render={render} />
+      <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
+        onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}
       {blindOpen === "audit" && blind.audit ? (
         <CoachAuditSheet queue={blind.audit} onClose={() => setBlindOpen(null)}

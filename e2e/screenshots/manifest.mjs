@@ -99,12 +99,25 @@ const PANEL_KEYS = {
   speaker: `${LIVE} [data-walk-caption]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
+  corpushome: `${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`,
+  corpusimport: `${LIVE} [data-testid="coach-panel-corpusimport"]`,
+  corpusanalyse: `${LIVE} [data-testid="coach-panel-corpusanalyse"] [data-walk-loading]`,
+  corpus: `${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`,
 };
 /** The prototype's phone (its `.ph` is 402 wide), as e2e/coach-panel.spec.mjs draws it. */
 const PANEL_PHONE = { phone: { width: 402, height: 860 } };
+/** Number forms the corpus screens legitimately show: an import's labelled
+ *  count ("All 8 labelled", the signed "All {n} labelled") and the corpus
+ *  page's own stage hint ("~16 model calls per file", a cost the coach
+ *  chooses, in the corpus page's words). Neither is about a speaker. */
+const PANEL_ALLOW = {
+  corpushome: [/\bAll \d+ labelled\b/],
+  corpusimport: [/~16 model calls per file/],
+};
 const COACH_PANEL = Object.entries(PANEL_KEYS).map(([name, waitFor]) => ({
   area: "coach-panel", name, audience: "coach",
   path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450, viewports: PANEL_PHONE,
+  ...(PANEL_ALLOW[name] ? { allow: PANEL_ALLOW[name] } : {}),
 }));
 /** The founder's Library and Speaking errors pages (CP3 A; D-CP-21), as
  *  /dev/admin-library draws them over stubs: the admin area, so the AC-9

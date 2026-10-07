@@ -577,6 +577,14 @@ export interface TrainingImport {
    *  (or an older payload that does not send it) — and on a row whose
    *  transcript reads oddly, that null is itself the answer. */
   language: string | null;
+  /** Topic and language both set (coach panel lock, the training corpus set-up;
+   *  backend `setup_complete`). An unfinished import serves no moments and
+   *  opens its set-up first. True when an older payload does not send it. */
+  setupComplete: boolean;
+  /** Pieces this coach's corpus already labelled, when the list carries it. */
+  labelledCount: number | null;
+  /** Archived (hidden from the index) at this time, when the list carries it. */
+  archivedAt: string | null;
 }
 
 export function mapTrainingImport(raw: unknown): TrainingImport | null {
@@ -600,15 +608,22 @@ export function mapTrainingImport(raw: unknown): TrainingImport | null {
     queueCount: numOrNull(r.queue_count),
     detail: strOrNull(r.detail) ?? strOrNull(r.analysis_error) ?? strOrNull(r.error),
     language: strOrNull(r.language),
+    setupComplete: r.setup_complete !== false,
+    labelledCount: numOrNull(r.labelled_count),
+    archivedAt: strOrNull(r.archived_at),
   };
 }
 
 /** The corpus index. Soft-fails to null (the screen shows a retry line);
  *  an empty list is a valid state, not an error. */
 export async function fetchTrainingImports(
-  userId?: string | null
+  userId?: string | null,
+  options: { includeArchived?: boolean } = {},
 ): Promise<TrainingImport[] | null> {
-  const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+  const params = new URLSearchParams();
+  if (userId) params.set("user_id", userId);
+  if (options.includeArchived) params.set("include_archived", "1");
+  const qs = params.size > 0 ? `?${params.toString()}` : "";
   const result = await bffFetch(`/api/v2/coach/training-imports${qs}`, {
     cache: "no-store",
   });
@@ -970,3 +985,57 @@ export async function confirmCoachSessionLanguage(
  * constructor that used to live here (buildLabelBody / saveConfidenceLabel)
  * was cut with the intensity row (founder 2026-08-11): this module now only
  * READS labels back, historical grades included. */
+
+/* ----------------------- the set-up, archive, restore ---------------------- */
+
+export interface ImportSetup {
+  topic: string;
+  /** ISO-639-1. */
+  language: string;
+  speakerLabel: string | null;
+  source: string | null;
+}
+
+export type SetupResult =
+  | { ok: true }
+  | { ok: false; status: number; code: string | null; error: string | null };
+
+function failureOf(result: Awaited<ReturnType<typeof bffFetch>>): SetupResult {
+  if (result.kind === "unauthenticated") return { ok: false, status: 401, code: "UNAUTHENTICATED", error: null };
+  if (result.kind === "network") return { ok: false, status: 0, code: "NETWORK_ERROR", error: null };
+  const body = result.body && typeof result.body === "object" ? (result.body as Record<string, unknown>) : {};
+  return { ok: false, status: result.status, code: strOrNull(body.code), error: strOrNull(body.error) };
+}
+
+/** PUT /training-imports/:id — finish (or correct) an import's set-up without
+ *  re-importing it (coach panel lock, CO1 A): topic, language, whose voice,
+ *  where it came from. The backend's own code and sentence on a refusal. */
+export async function saveImportSetup(sessionId: string, setup: ImportSetup): Promise<SetupResult> {
+  const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}`, {
+    method: "PUT",
+    json: {
+      topic: setup.topic,
+      language: setup.language,
+      ...(setup.speakerLabel ? { speaker_label: setup.speakerLabel } : {}),
+      ...(setup.source ? { source: setup.source } : {}),
+    },
+  });
+  if (result.kind !== "response" || !result.ok) return failureOf(result);
+  return { ok: true };
+}
+
+/** DELETE /training-imports/:id — ARCHIVE, not delete: the row leaves the
+ *  index; the pieces, the labels and the audio stay (founder Q-B15 A: this
+ *  lives in admin). */
+export async function archiveTrainingImport(sessionId: string): Promise<SetupResult> {
+  const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+  if (result.kind !== "response" || !result.ok) return failureOf(result);
+  return { ok: true };
+}
+
+/** POST /training-imports/:id/restore — undo the archive. */
+export async function restoreTrainingImport(sessionId: string): Promise<SetupResult> {
+  const result = await bffFetch(`/api/v2/coach/training-imports/${encodeURIComponent(sessionId)}/restore`, { method: "POST" });
+  if (result.kind !== "response" || !result.ok) return failureOf(result);
+  return { ok: true };
+}
