@@ -103,7 +103,7 @@ describe("the country step", () => {
     await act(async () => {
       vi.advanceTimersByTime(400);
     });
-    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).toContain("Three things to confirm");
   });
 
   it("lets a second choice replace the first, and the last tap wins", async () => {
@@ -119,7 +119,7 @@ describe("the country step", () => {
     await act(async () => {
       vi.advanceTimersByTime(400);
     });
-    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).toContain("Three things to confirm");
   });
 });
 
@@ -130,7 +130,7 @@ describe("the confirm step", () => {
     await act(async () => {
       vi.advanceTimersByTime(400);
     });
-    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).toContain("Three things to confirm");
 
     // Tick the age attestation and let far more time pass than the country
     // step needs. Nothing may move.
@@ -138,7 +138,7 @@ describe("the confirm step", () => {
     await act(async () => {
       vi.advanceTimersByTime(5000);
     });
-    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).toContain("Three things to confirm");
   });
 });
 
@@ -170,7 +170,7 @@ describe("a re-acceptance (Q21 A)", () => {
     expect(buttonSaying("Continue").disabled).toBe(false);
 
     await click("Continue");
-    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).toContain("Three things to confirm");
     await click("I am 18");
     await click("I agree that a recording");
     await click("Agree and continue");

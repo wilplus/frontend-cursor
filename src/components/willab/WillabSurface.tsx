@@ -107,11 +107,16 @@ export default function WillabSurface({
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
   // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
-  const shell = (children: React.ReactNode, flush = false) => (
+  // `bare`: no top bar. The welcome is drawn without one in the locked
+  // consent screens prototype (founder 2026-10-07, N60: "just the way it is
+  // on the prototype"); the menu is back in the Lounge after "Enter the lab".
+  const shell = (children: React.ReactNode, flush = false, bare = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
-      <div className="shrink-0">
-        <DashboardHeader />
-      </div>
+      {bare ? null : (
+        <div className="shrink-0">
+          <DashboardHeader />
+        </div>
+      )}
       <div
         className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 pb-6 ${
           flush ? "pt-0" : "pt-6"
@@ -121,7 +126,11 @@ export default function WillabSurface({
       </div>
     </main>
   );
-  const consentedShell = (children: React.ReactNode, flush = false) =>
+  const consentedShell = (
+    children: React.ReactNode,
+    flush = false,
+    bare = false,
+  ) =>
     shell(
       <Mlc2FounderConsentGate
         founderEligible={founderConsentEligible}
@@ -129,6 +138,7 @@ export default function WillabSurface({
         {children}
       </Mlc2FounderConsentGate>,
       flush,
+      bare,
     );
 
   // Phase-1 processing authorization sits BETWEEN Welcome and the Lounge, not
@@ -149,7 +159,11 @@ export default function WillabSurface({
 
   // First-run, full-screen (no Lounge underneath yet).
   if (flow.state === "welcome_consent") {
-    return consentedShell(<WelcomeConsent onAccept={flow.acceptConsent} />);
+    return consentedShell(
+      <WelcomeConsent onAccept={flow.acceptConsent} />,
+      false,
+      true,
+    );
   }
 
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.

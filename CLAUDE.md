@@ -110,8 +110,8 @@ wins over this one for the screens it covers.
   shows and nothing added, each screen shown to the founder in the panel's
   Done list before it goes live; and the coach and the app share one grey
   profile picture, no photos (NX2 B).
-- Not covered: the coach panel and the recording screens (their own locks
-  below), the CMS and everything else in this repo.
+- Not covered: the coach panel, the recording screens and the consent
+  screens (their own locks below), the CMS and everything else in this repo.
 
 ## Design lock — the coach panel (founder, 2026-10-07)
 
@@ -197,6 +197,44 @@ The rules, as for the other locks:
   shows the speaker's slides, unchanged.
 - This is the live record → Take surface (LIVE LOOP): a change here must
   keep recording, saving and processing working at every step.
+- Where this section and the backend lock file disagree, the lock file wins.
+
+## Design lock — the consent screens (founder, 2026-10-07)
+
+The consent screens follow **the consent screens prototype** exactly:
+<https://claude.ai/artifact/TuMKSE2BH364ZQ1Eq4UMdd>, version 2 (founder
+2026-10-07: "the consent screens are great; but right now they are not
+scrollable like that in the real app; so lock it like that"). Read it
+before touching any of them, on a phone and on a desktop. The written
+lock is `docs/FOUNDER-LOCK-consent-screens-2026-10-07.md` in the backend
+repo (decisions log N60), and a copy of the page as locked is
+`docs/design/consent-screens-2026-10-07.html` there. It covers:
+
+- the first time: the welcome, the agreement notice and its three
+  documents, each document's screen, **Where do you live?**, **Three things
+  to confirm** (signed the same day; it read "Two things to confirm") and
+  **Nothing was recorded** (`Phase1AcceptanceFlow.tsx`, `WelcomeConsent.tsx`);
+- the **Data & consent** page, its switches, confirms, projects and Delete
+  my account;
+- **Turn on the learning?** before each Take while training is off (Skip
+  asks again next Take; Yes is never asked again);
+- how they scroll: every step scrolls from its true top to its last
+  button on any phone (lay a step out with `m-auto`, never
+  `justify-center`); a document's title, version and buttons stay still
+  and only its text scrolls.
+
+The rules, as for the other locks:
+
+- Build these screens exactly as the prototype shows. Do not change their
+  layout, flow or wording, and add no element or string the prototype
+  doesn't show. If a task seems to need one, stop and ask the founder in
+  the Navigation Panel, with a clickable prototype of the change.
+- The prototype's stand-ins are not locked: the dashed boxes, the invented
+  project names, the country list (the policy's list is shown), its pop-up
+  notes and its "Learning" chip. The legal text and versions always come
+  from the active policy.
+- These screens are the processing boundary in front of the live loop
+  (LIVE LOOP): a change here must keep a person able to agree and record.
 - Where this section and the backend lock file disagree, the lock file wins.
 
 ---

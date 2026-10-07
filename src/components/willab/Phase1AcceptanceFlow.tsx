@@ -223,8 +223,14 @@ function DocumentPane({
   onDone: () => void;
   onBack: () => void;
 }) {
+  /* The screen's own height, as the locked consent prototype draws it
+     (founder 2026-10-07): the title and the buttons stay still and only the
+     text scrolls. Inside the gate's min-height column `flex-1` never capped
+     the pane, so the whole document scrolled and "Done reading" sat at the
+     bottom of it. `h-dvh` follows a phone's moving toolbars; `h-screen` is
+     the fallback where dvh is unknown. */
   return (
-    <div className="flex flex-1 flex-col overflow-hidden px-6 pb-6 pt-8">
+    <div className="flex h-screen h-dvh flex-col overflow-hidden px-6 pb-6 pt-8">
       <div className="shrink-0 border-b border-border pb-4">
         <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
           {title}
@@ -376,32 +382,34 @@ export default function Phase1AcceptanceFlow({
 
   if (declined) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <VoiceMark small />
-        <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-          Nothing was recorded
-        </h1>
-        <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
-          You can read the documents again, and you can come back and agree at
-          any time. Until then recording stays closed.
-        </p>
-        <div className="mt-10 flex flex-col items-center">
-          <Cta
-            onClick={() => {
-              setDeclined(false);
-              go("confirm");
-            }}
-          >
-            Go back
-          </Cta>
-          <Secondary
-            onClick={() => {
-              setDeclined(false);
-              go("terms");
-            }}
-          >
-            Read the documents again
-          </Secondary>
+      <div className="flex flex-1 flex-col px-6 py-8">
+        <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
+          <VoiceMark small />
+          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
+            Nothing was recorded
+          </h1>
+          <p className="mt-3.5 max-w-[44ch] text-[14.5px] leading-relaxed text-muted-foreground">
+            You can read the documents again, and you can come back and agree at
+            any time. Until then recording stays closed.
+          </p>
+          <div className="mt-10 flex flex-col items-center">
+            <Cta
+              onClick={() => {
+                setDeclined(false);
+                go("confirm");
+              }}
+            >
+              Go back
+            </Cta>
+            <Secondary
+              onClick={() => {
+                setDeclined(false);
+                go("terms");
+              }}
+            >
+              Read the documents again
+            </Secondary>
+          </div>
         </div>
       </div>
     );
@@ -500,81 +508,86 @@ export default function Phase1AcceptanceFlow({
       { country, ageAttested, sensitiveAttested, practiceOptIn },
       policy,
     );
+    // Laid out like the country step (m-auto, never justify-center), so a
+    // phone shorter than the screen scrolls it from its true top.
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-        <VoiceMark small />
-        <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-          Two things to confirm
-        </h1>
-        <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
-          {/* The minimum comes from the policy, never a constant here: a screen
-              that hardcodes 18 keeps saying 18 after the policy changes. */}
-          <Choice
-            indicator="check"
-            selected={ageAttested}
-            onClick={() => setAge((v) => !v)}
-          >
-            <span className="block text-[14.5px] leading-snug text-foreground">
-              I am {policy.minimumAge} or older.
-            </span>
-          </Choice>
-          {/* Separate from the age tick on purpose. This is the Art 9(2)(a)
-              explicit consent, and Art 7(4) is why it cannot be bundled. */}
-          <Choice
-            indicator="check"
-            selected={sensitiveAttested}
-            onClick={() => setSensitive((v) => !v)}
-          >
-            <span className="block text-[14.5px] leading-snug text-foreground">
-              I agree that a recording of me speaking may reveal sensitive
-              information about me, and I consent to WillpowerLab processing my
-              recordings where it does. I can withdraw this at any time, which
-              ends my use of recording.
-            </span>
-          </Choice>
-        </div>
+      <div className="flex flex-1 flex-col px-6 py-8">
+        <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
+          <VoiceMark small />
+          <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
+            Three things to confirm
+          </h1>
+          <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
+            {/* The minimum comes from the policy, never a constant here: a screen
+                that hardcodes 18 keeps saying 18 after the policy changes. */}
+            <Choice
+              indicator="check"
+              selected={ageAttested}
+              onClick={() => setAge((v) => !v)}
+            >
+              <span className="block text-[14.5px] leading-snug text-foreground">
+                I am {policy.minimumAge} or older.
+              </span>
+            </Choice>
+            {/* Separate from the age tick on purpose. This is the Art 9(2)(a)
+                explicit consent, and Art 7(4) is why it cannot be bundled. */}
+            <Choice
+              indicator="check"
+              selected={sensitiveAttested}
+              onClick={() => setSensitive((v) => !v)}
+            >
+              <span className="block text-[14.5px] leading-snug text-foreground">
+                I agree that a recording of me speaking may reveal sensitive
+                information about me, and I consent to WillpowerLab processing my
+                recordings where it does. I can withdraw this at any time, which
+                ends my use of recording.
+              </span>
+            </Choice>
+          </div>
 
-        {/* SEPARATE BLOCK, AND NOT PART OF THE HEADING ABOVE. The two ticks
-            above are what must be confirmed; this one may be left alone and
-            the service still works. It is under its own label so the heading
-            stays true of the two, and it is absent from `canSubmit` so
-            declining it never blocks the button — an optional purpose that
-            gates the button is a required purpose wearing an optional tick.
-            Founder-approved wording, 2026-09-26 (the "Optional" label and
-            the sentence below) — change it only with sign-off. */}
-        <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
-          <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-            Optional
-          </p>
-          <Choice
-            indicator="check"
-            selected={practiceOptIn}
-            onClick={() => setPractice((v) => !v)}
-          >
-            <span className="block text-[14.5px] leading-snug text-foreground">
-              Personalised practice. Use my recordings to choose short
-              exercises that fit them, to keep the fragments I re-record, and
-              to remember what I am working on so the exercises get more
-              personal. I can turn this off at any time and keep using
-              everything else.
-            </span>
-          </Choice>
-        </div>
+          {/* SEPARATE BLOCK. The two ticks above are what must be confirmed;
+              this one may be left alone and the service still works. The
+              heading counts all three (founder 2026-10-07: "Three things to
+              confirm"); the block keeps its own "Optional" label, and it is
+              absent from `canSubmit` so
+              declining it never blocks the button — an optional purpose that
+              gates the button is a required purpose wearing an optional tick.
+              Founder-approved wording, 2026-09-26 (the "Optional" label and
+              the sentence below) — change it only with sign-off. */}
+          <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
+            <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+              Optional
+            </p>
+            <Choice
+              indicator="check"
+              selected={practiceOptIn}
+              onClick={() => setPractice((v) => !v)}
+            >
+              <span className="block text-[14.5px] leading-snug text-foreground">
+                Personalised practice. Use my recordings to choose short
+                exercises that fit them, to keep the fragments I re-record, and
+                to remember what I am working on so the exercises get more
+                personal. I can turn this off at any time and keep using
+                everything else.
+              </span>
+            </Choice>
+          </div>
 
-        {failure ? (
-          <p
-            role="alert"
-            className="mt-5 max-w-[40ch] text-[13px] leading-relaxed text-destructive"
-          >
-            {failure}
-          </p>
-        ) : null}
+          {failure ? (
+            <p
+              role="alert"
+              className="mt-5 max-w-[40ch] text-[13px] leading-relaxed text-destructive"
+            >
+              {failure}
+            </p>
+          ) : null}
 
-        <div className="mt-10 flex flex-col items-center">
-          <Cta onClick={submit} disabled={!ready || saving}>
-            {saving ? "Saving…" : "Agree and continue"}
-          </Cta>
-          <Secondary onClick={() => setDeclined(true)}>Do not agree</Secondary>
+          <div className="mt-10 flex flex-col items-center">
+            <Cta onClick={submit} disabled={!ready || saving}>
+              {saving ? "Saving…" : "Agree and continue"}
+            </Cta>
+            <Secondary onClick={() => setDeclined(true)}>Do not agree</Secondary>
+          </div>
         </div>
       </div>
     );
@@ -589,38 +602,40 @@ export default function Phase1AcceptanceFlow({
   ];
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-      <VoiceMark small />
-      {/* THE HASHED BYTES, VERBATIM. Not a summary of them. */}
-      <div className="max-w-[46ch] whitespace-pre-wrap text-left text-[14.5px] leading-relaxed text-muted-foreground">
-        {policy.agreementCopy}
-      </div>
-      <div className="mt-7 flex w-full max-w-[400px] flex-col gap-2">
-        {documents.map((document) => (
-          <button
-            key={document.step}
-            type="button"
-            onClick={() => go(document.step)}
-            className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-4 text-left text-[14.5px] text-foreground transition-colors hover:bg-muted"
-          >
-            <span>
-              {document.label}{" "}
-              <span className="text-[12.5px] text-muted-foreground">
-                v{document.version}
+    <div className="flex flex-1 flex-col px-6 py-8">
+      <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
+        <VoiceMark small />
+        {/* THE HASHED BYTES, VERBATIM. Not a summary of them. */}
+        <div className="max-w-[46ch] whitespace-pre-wrap text-left text-[14.5px] leading-relaxed text-muted-foreground">
+          {policy.agreementCopy}
+        </div>
+        <div className="mt-7 flex w-full max-w-[400px] flex-col gap-2">
+          {documents.map((document) => (
+            <button
+              key={document.step}
+              type="button"
+              onClick={() => go(document.step)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-4 text-left text-[14.5px] text-foreground transition-colors hover:bg-muted"
+            >
+              <span>
+                {document.label}{" "}
+                <span className="text-[12.5px] text-muted-foreground">
+                  v{document.version}
+                </span>
               </span>
-            </span>
-            {seen.has(document.step) ? (
-              <span className="text-[12px] text-success">read ✓</span>
-            ) : null}
-          </button>
-        ))}
-      </div>
-      <div className="mt-10 flex flex-col items-center">
-        {/* Opening all three ticks the rows; it never gates this button. The
-            documents must be AVAILABLE before the decision, not proven read. */}
-        <Cta onClick={() => go(allDocumentsSeen(seen) ? "country" : "terms")}>
-          Continue
-        </Cta>
+              {seen.has(document.step) ? (
+                <span className="text-[12px] text-success">read ✓</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+        <div className="mt-10 flex flex-col items-center">
+          {/* Opening all three ticks the rows; it never gates this button. The
+              documents must be AVAILABLE before the decision, not proven read. */}
+          <Cta onClick={() => go(allDocumentsSeen(seen) ? "country" : "terms")}>
+            Continue
+          </Cta>
+        </div>
       </div>
     </div>
   );
