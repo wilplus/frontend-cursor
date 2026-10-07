@@ -113,7 +113,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
-async function render(p: ReturnType<typeof props>, block?: () => boolean) {
+async function render(p: ReturnType<typeof props> & { reviewRequest?: number }, block?: () => boolean) {
   const deck = createElement(TranscriptReviewDeck, p);
   await act(async () => {
     root.render(block ? createElement(GuestGateContext.Provider, { value: block }, deck) : deck);

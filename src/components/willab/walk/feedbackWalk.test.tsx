@@ -8,7 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 import { GuestGateContext } from "../GuestSignUpDialog";
-import FeedbackWalk, { type FeedbackWalkRequest } from "./FeedbackWalk";
+import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -30,9 +30,12 @@ const NOTE = { text: "Let the pause after doubled breathe.", videoUrl: "data:vid
 
 let host: HTMLDivElement;
 let root: Root;
-let spies: { onSaveHelperWords: ReturnType<typeof vi.fn>; onEnd: ReturnType<typeof vi.fn> };
+let spies: {
+  onSaveHelperWords: ReturnType<typeof vi.fn<(save: FeedbackWalkHelperWords) => void>>;
+  onEnd: ReturnType<typeof vi.fn<() => void>>;
+};
 beforeEach(() => {
-  spies = { onSaveHelperWords: vi.fn(), onEnd: vi.fn() };
+  spies = { onSaveHelperWords: vi.fn<(save: FeedbackWalkHelperWords) => void>(), onEnd: vi.fn<() => void>() };
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
