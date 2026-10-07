@@ -528,6 +528,9 @@ describe("a coach-reviewed moment hands off too (lock B6; audit 2026-10-05 B6-7,
 
 describe("the sheet is chosen once, when it opens", () => {
   it("answering inside the judgement sheet does not swap it for the history", async () => {
+    // An answer given in an earlier test stands in the cached read (QA1 A,
+    // D-FW-9); this moment is a fresh, unanswered one.
+    forgetParagraphSheetData();
     const pending = { ...answered, status: null } as DocumentSuggestion;
     const make = (item: DocumentSuggestion, decided: string[], waiting: string[]) =>
       chunkStateFor(
