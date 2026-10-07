@@ -92,6 +92,7 @@ import {
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
+import { useDeckFeedbackWalk } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
@@ -695,6 +696,28 @@ export default function TranscriptReviewDeck({
       if (firstWaiting >= 0) walk.openAt(0);
     },
   });
+  /* THE FEEDBACK WALK (build plan D-FW-14), behind its one switch
+     (feedbackWalkOn). Off, it reads nothing and draws nothing, and every
+     path below runs exactly as before. On, "Review feedback" and a tap on a
+     paragraph with an open moment open the walk; helper words picked in it
+     are saved through `setRootPhrase` and the lock, behind the screen, as
+     the paragraph sheet saves them. */
+  const pendingOf = useCallback((c: DeckChunk) => stateOf(c).pending, [stateOf]);
+  const partLabel = useCallback((partId: string) => slideLabelOf(groups, partId), [groups]);
+  const feedbackWalk = useDeckFeedbackWalk({
+    chunks,
+    groups,
+    waiting: barWaiting,
+    pendingOf,
+    slideLabel: partLabel,
+    coachMessage,
+    coachSeen: coachStep.seen,
+    firstTake: takeCount === 1,
+    setRootPhrase,
+    lockPart: onLockPart,
+    saveBehind,
+    onEnd: finishWalk,
+  });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
      on Step 0 (J1: only on the tap; nothing opens by itself). */
@@ -706,13 +729,15 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
     reviewSeenRef.current = reviewRequest;
+    // The Feedback walk, when its switch is on and it has a screen to show.
+    if (feedbackWalk.review()) return;
     // Step 0 first when the coach left a message; its Continue opens the walk.
     if (coachStep.show()) return;
     // TOP TO BOTTOM (founder lock 2026-09-30, B8): the walk visits the
     // open feedbacks and the saved paragraphs in text order, from the first
     // screen, whenever a judgement still waits somewhere in the text.
     if (firstWaiting >= 0) walk.openAt(0);
-  }, [reviewRequest, firstWaiting, walk, coachStep]);
+  }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk]);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *
@@ -1287,6 +1312,9 @@ export default function TranscriptReviewDeck({
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
                       {...paragraphTap(opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)), () => {
+                        // An open moment opens the walk there, when it is on
+                        // (Q-B3 A); an answered or saved paragraph its sheet.
+                        if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
                         if (!walk.openPart(c.part.id)) openParagraph(c);
                       })}
                       data-settled={unsettled ? undefined : "true"}
@@ -1336,6 +1364,7 @@ export default function TranscriptReviewDeck({
                           (span) => span.highlight && span.text.trim().length > 0
                         )}
                         onClick={() => {
+                          if (feedbackWalk.tapPart(c.part.id, true)) return;
                           // Joins the walk at this bookmark (Q29 A).
                           if (!walk.openPart(c.part.id)) openParagraph(c);
                         }}
@@ -1600,6 +1629,7 @@ export default function TranscriptReviewDeck({
           onClose={closeWalk}
         />
       ) : null}
+      {feedbackWalk.element}
       <CoachStepLayer
         step={coachStep}
         message={coachMessage}

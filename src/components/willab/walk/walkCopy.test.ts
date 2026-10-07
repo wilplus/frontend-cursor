@@ -86,6 +86,7 @@ describe("the walk's words", () => {
         "WalkToast.tsx",
         "WalkLoading.tsx",
         "RecordingStrip.tsx",
+        "FeedbackWalk.tsx",
       ]),
     );
   });
@@ -105,11 +106,14 @@ describe("the walk's words", () => {
     for (const file of FILES) {
       const src = readFileSync(join(DIR, file), "utf8");
       // Words in a primitive arrive by prop or from idealEditCopy / the shared
-      // answer vocabulary; nothing else may supply a sentence.
+      // answer vocabulary; nothing else may supply a sentence. The walk's
+      // controller (FeedbackWalk, D-FW-14) also draws the coach's video (the
+      // one the locked screens already show), asks the page's guest gate
+      // (useGuestBlock: no words of its own here) and reads a span type.
       const imports = [...src.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
       for (const path of imports) {
         expect(path, `${file} imports ${path}`).toMatch(
-          /^(react|lucide-react|@\/lib\/|@\/services\/api\/stateRatings$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers)$|\.\/)/,
+          /^(react|lucide-react|@\/lib\/|@\/services\/api\/(stateRatings|partLock)$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers|CoachVideo|GuestSignUpDialog)$|\.\/)/,
         );
       }
     }

@@ -84,6 +84,29 @@ const WALK = Object.entries(WALK_KEYS).map(([name, waitFor]) => ({
   area: "walk", name, audience: "speaker",
   path: `/dev/feedback-walk?screen=${name}`, waitFor, settleMs: 400, allow: WALK_ALLOW,
 }));
+/** The same screens drawn by the PRODUCTION walk (FeedbackWalk, D-FW-14) on
+ *  the harness's fixtures (/dev/feedback-walk?live=1): it opens on the
+ *  coach's note, and its own buttons reach the praise and the helper words. */
+const LIVE_WALK_LAYER = "[data-feedback-walk] .walk-layer:not(.walk-ghost)";
+const liveScreen = (key) => `${LIVE_WALK_LAYER} [data-testid="walk-screen-${key}"]`;
+const liveForward = (key) => async (page) => {
+  await page.locator(`${liveScreen(key)} [data-testid="walk-forward"]`).filter({ visible: true }).first()
+    .click({ timeout: 60_000 });
+};
+const LIVE_WALK = [
+  { name: "live-coachnote", waitFor: `${liveScreen("coachnote")} [data-coach-video]` },
+  { name: "live-praise", waitFor: `${liveScreen("praise")} [data-walk-player]`, act: liveForward("coachnote") },
+  {
+    name: "live-helpers",
+    waitFor: `${liveScreen("helpers")} [data-walk-word-picker]`,
+    act: async (page) => {
+      await liveForward("coachnote")(page);
+      await liveForward("praise")(page);
+    },
+  },
+].map((entry) => ({
+  area: "walk", audience: "speaker", path: "/dev/feedback-walk?live=1", settleMs: 400, allow: WALK_ALLOW, ...entry,
+}));
 
 /* ------------------------------ coach-panel --------------------------------- */
 /** The coach panel's P1 still screens, as /dev/coach-panel draws them (the
@@ -172,4 +195,4 @@ const CONSENT = [
     prepare: guestWithPolicy, act: enterTheLab },
 ];
 
-export const SCREENS = [...IDEAL_TEXT, ...WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];
+export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];

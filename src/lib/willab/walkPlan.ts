@@ -212,17 +212,25 @@ export type WalkFeedbackItem = {
   judged?: boolean;
 };
 
-/** The Take's moments from its feedback items, in page order: one moment
- *  per block, carrying every kind of feedback its items name. */
-export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
-  const groups = new Map<string, WalkFeedbackItem[]>();
+/** The feedback items grouped into the Take's moments, in page order: one
+ *  group per block (an item with no block is a moment of its own). A
+ *  group's position is its moment's `index`, so a caller holding richer
+ *  items (the walk's player, words and paragraph) finds them again here. */
+export function walkMomentGroups<T extends WalkFeedbackItem>(items: readonly T[]): T[][] {
+  const groups = new Map<string, T[]>();
   for (const item of [...items].sort((a, b) => a.start - b.start)) {
     const key = item.blockId ? `b:${item.blockId}` : `s:${item.start}`;
     const group = groups.get(key);
     if (group) group.push(item);
     else groups.set(key, [item]);
   }
-  return [...groups.values()].map((group, index) => {
+  return [...groups.values()];
+}
+
+/** The Take's moments from its feedback items, in page order: one moment
+ *  per block, carrying every kind of feedback its items name. */
+export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
+  return walkMomentGroups(items).map((group, index) => {
     const has = (pred: (i: WalkFeedbackItem) => boolean) => group.some(pred);
     const praise = has((i) => i.openCard === "praise" || i.feedbackFamily === "great_formulation");
     const clearer = has((i) => i.openCard === "rewrite" || i.feedbackFamily === "rewrite_clarity");
