@@ -131,3 +131,10 @@ export async function stopTry(page, ms = 1200) {
   await page.waitForTimeout(ms);
   await page.locator(`${liveScreen("practise")} [data-walk-recording-strip] button`).click({ timeout: 60_000 });
 }
+
+/** On past the clearer version's practise (Skip) to the exercise (D-FW-17):
+ *  its video, or with &exvideo=0 its practise straight away. */
+export async function toLiveExercise(page) {
+  await toLivePractise(page);
+  await tap(page, "practise", "walk-skip");
+}

@@ -38,7 +38,7 @@
 /*  lock uses.                                                                */
 /* -------------------------------------------------------------------------- */
 
-import { practisePrepare, stopTry, toLivePractise } from "../_walkPractise.mjs";
+import { practisePrepare, stopTry, toLiveExercise, toLivePractise } from "../_walkPractise.mjs";
 
 export const VIEWPORTS = {
   phone: { width: 390, height: 844 },
@@ -181,6 +181,22 @@ const LIVE_WALK = [
       await toLivePractise(page);
       await stopTry(page);
     },
+  },
+  // The exercise (D-FW-17): the coach's video in the 4:5 frame, with
+  // Practise and Skip (the harness's 'exVideo' still is its picture).
+  {
+    name: "live-exVideo",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("exVideo")} [data-coach-video]`,
+    act: toLiveExercise,
+  },
+  // With no video at all, straight to the practise on the exercise's words.
+  {
+    name: "live-exercise-practise",
+    path: "/dev/feedback-walk?live=1&exvideo=0",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("practise")} [data-walk-message]`,
+    act: toLiveExercise,
   },
   {
     name: "live-clearer-practice-off",

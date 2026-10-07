@@ -7,6 +7,7 @@ import FeedbackWalk, {
   type FeedbackWalkRequest,
 } from "@/components/willab/walk/FeedbackWalk";
 import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
+import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 import WalkEndSheet from "@/components/willab/walk/WalkEndSheet";
 import GuestSignUpDialog from "@/components/willab/GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
@@ -47,6 +48,11 @@ import {
 /*  (walkPractiseIO) on a stand-in snippet: nothing answers them here, so a   */
 /*  try is read as late (O5) unless the browser answers the routes, as        */
 /*  e2e/feedback-walk-practise.spec.mjs and the screenshot manifest do.       */
+/*                                                                            */
+/*  The exercise (D-FW-17) is handed over as the page hands a served offer:   */
+/*  the coach's video (the harness's dark box), the instruction and the       */
+/*  words. &exvideo=0 hands it with no video: the walk goes straight to the   */
+/*  practise (Q-B15 A).                                                       */
 /* -------------------------------------------------------------------------- */
 
 /** No network, no file: the dark box with its play button. */
@@ -67,8 +73,38 @@ function rewriteOf(m: Moment): FeedbackWalkItem<string>["rewrite"] {
   return { quote: joined(m.clearer.before), proposedText: joined(m.clearer.after), item: `rewrite-${m.index}` };
 }
 
+/** A served exercise as the walk receives it: the coach's, with its video
+ *  unless `video` is false. */
+function exerciseOf(m: Moment, video: boolean): FeedbackWalkItem<string>["exercise"] {
+  if (!m.exercise) return null;
+  return {
+    video: video ? NO_VIDEO : null,
+    byCoach: true,
+    instruction: m.exercise.instruction,
+    say: PARAGRAPHS[m.index],
+    item: `exercise-${m.index}`,
+  };
+}
+
+/** The stand-in exercise offer the practise is opened on. */
+const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
+  exerciseId: "harness-exercise",
+  version: 1,
+  title: "",
+  instruction: "",
+  introduction: "",
+  yesIntroduction: "",
+  noIntroduction: "",
+  explanationVideoRef: "",
+  passage: PARAGRAPHS[3],
+  practiceId: null,
+  resume: false,
+  doneBefore: false,
+  chosenByCoach: true,
+};
+
 /** The fixtures as the page hands them to the walk: one item per moment. */
-function liveItems(audioSrc: string): FeedbackWalkItem<string>[] {
+function liveItems(audioSrc: string, exerciseVideo: boolean): FeedbackWalkItem<string>[] {
   return MOMENTS.map((m) => ({
     start: m.index * 100,
     slide: 1,
@@ -81,6 +117,7 @@ function liveItems(audioSrc: string): FeedbackWalkItem<string>[] {
     clip: { src: audioSrc, startOffsetMs: 0, durationMs: m.durationMs },
     rewrite: rewriteOf(m),
     item: m.clearer ? `rewrite-${m.index}` : null,
+    exercise: exerciseOf(m, exerciseVideo),
   }));
 }
 
@@ -101,17 +138,25 @@ const PRACTISE_SOURCE: WalkPractiseSource = {
   feedbackId: null,
 };
 
-export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practiceOn: boolean }) {
+export default function LiveWalk({
+  guest,
+  practiceOn,
+  exerciseVideo = true,
+}: {
+  guest: boolean;
+  practiceOn: boolean;
+  exerciseVideo?: boolean;
+}) {
   const audioSrc = useToneSrc();
   const model = useMemo(
     () =>
       buildFeedbackWalk({
-        items: audioSrc ? liveItems(audioSrc) : [],
+        items: audioSrc ? liveItems(audioSrc, exerciseVideo) : [],
         coachNote: true,
         practiceOn,
         guest,
       }),
-    [audioSrc, guest, practiceOn],
+    [audioSrc, guest, practiceOn, exerciseVideo],
   );
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   const [end, setEnd] = useState(false);
@@ -120,7 +165,12 @@ export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practi
   const [decided, setDecided] = useState<string[]>([]);
   const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
   const practise = useMemo(
-    () => walkPractiseIO<string>((item) => ({ ...PRACTISE_SOURCE, feedbackId: item })),
+    () =>
+      walkPractiseIO<string>((item) => ({
+        ...PRACTISE_SOURCE,
+        feedbackId: item,
+        exercise: item.startsWith("exercise-") ? EXERCISE_OFFER : null,
+      })),
     [],
   );
 

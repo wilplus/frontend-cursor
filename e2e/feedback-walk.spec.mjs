@@ -14,7 +14,9 @@
 /*  Last, the practise loop live (D-FW-16) on the PRODUCTION walk (?live=1),  */
 /*  its routes answered in the browser and its microphone a tone              */
 /*  (_walkPractise.mjs): praise on try 1, praise on try 2, the cap after     */
-/*  three tries, and a late read (O5).                                        */
+/*  three tries, and a late read (O5). Then the exercise (D-FW-17): the       */
+/*  coach's video in the 4:5 frame with Practise and Skip, Practise opening   */
+/*  the same loop on the exercise, and with no video the practise at once.    */
 /*                                                                            */
 /*  Video of the flow: <SHOTS_DIR>/flow.webm. SHOTS_DIR defaults to            */
 /*  e2e/artifacts/feedback-walk (gitignored). The still screens are drawn by  */
@@ -24,7 +26,9 @@
 import { mkdirSync, renameSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { launchChromium } from "./_launch.mjs";
-import { TRY_WORDS, liveScreen, routePractise, seedPractise, stopTry, toLivePractise } from "./_walkPractise.mjs";
+import {
+  TRY_WORDS, liveScreen, routePractise, seedPractise, stopTry, toLiveExercise, toLivePractise,
+} from "./_walkPractise.mjs";
 
 const BASE = process.env.WALK_P1_URL ?? "http://localhost:3111/dev/feedback-walk";
 const SHOTS = process.env.SHOTS_DIR ?? "e2e/artifacts/feedback-walk";
@@ -267,8 +271,9 @@ await practiseRun("the cap", [{ next: "again", key: "effort" }, { next: "again",
     check("after the third try: a CM3b line", await shown("thanks") && (await text("thanks")).includes(CM3B));
     check("three tries, three checks", calls.filter((c) => c.startsWith("check:")).length === 3, calls.join(","));
     await page.locator(`${liveScreen("thanks")} [data-testid="walk-forward"]`).click();
-    // TODO(D-FW-18): "Judgement time!" follows; in this phase the end card.
-    check("then the walk moves on", await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+    // TODO(D-FW-18): "Judgement time!" follows the practising; in this phase
+    // the next moment's exercise, then the end card.
+    check("then the walk moves on", await shown("exVideo"));
   });
 
 await practiseRun("a late read", ["hang"], async ({ page, shown }) => {
@@ -278,6 +283,67 @@ await practiseRun("a late read", ["hang"], async ({ page, shown }) => {
     (await page.locator(`${liveScreen("late")} [data-testid="walk-again"]`).innerText()) === "Practise again");
   await page.locator(`${liveScreen("late")} [data-testid="walk-again"]`).click();
   check("Practise again records the next try", await shown("practise"));
+});
+
+/* ----------------------------- the exercise --------------------------------- */
+/** One exercise run on the live walk: `query` adds to ?live=1. */
+async function exerciseRun(name, query, drive) {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  await seedPractise(context);
+  const calls = await routePractise(context, []);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const bodies = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/snippets/") && r.url().endsWith("/confidence-practice")) bodies.push(r.postDataJSON());
+  });
+  await page.goto(`${LIVE_URL}${query}`, { waitUntil: "networkidle" });
+  await toLiveExercise(page);
+  const shown = async (key) =>
+    page.waitForSelector(liveScreen(key), { timeout: 20_000 }).then(() => true, () => false);
+  await drive({ page, shown, calls, bodies });
+  const body = await page.evaluate(() => document.body.innerText);
+  check(`${name}: never the coach still working (WQ2 B)`, !body.includes("Your coach is working on your exercise."));
+  check(`${name}: no score on screen (AC-9)`, !/score|%/i.test(body));
+  check(`${name}: no page errors`, errors.length === 0, errors.join(" | "));
+  await context.close();
+}
+
+await exerciseRun("the exercise video", "", async ({ page, shown, calls, bodies }) => {
+  check("the exercise: its video, under the moment bar", await shown("exVideo") &&
+    (await page.locator(`${liveScreen("exVideo")} [data-walk-nav]`).count()) === 1);
+  const ratio = await page.locator(`${liveScreen("exVideo")} [data-coach-video] video`).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.width / r.height;
+  });
+  check("the video sits in the 4:5 frame", Math.abs(ratio - 0.8) < 0.01, String(ratio));
+  check("Practise and Skip",
+    (await page.locator(`${liveScreen("exVideo")} [data-testid="walk-forward"]`).innerText()) === "Practise" &&
+    (await page.locator(`${liveScreen("exVideo")} [data-testid="walk-skip"]`).innerText()) === "Skip");
+  const before = calls.filter((c) => c === "open").length;
+  await page.locator(`${liveScreen("exVideo")} [data-testid="walk-forward"]`).click();
+  check("Practise opens the practise loop, recording at once", await shown("practise") &&
+    (await page.locator(`${liveScreen("practise")} [data-walk-recording-strip]`).count()) === 1);
+  check("its instruction, then the words to say",
+    (await page.locator(`${liveScreen("practise")} [data-walk-message]`).innerText()).includes("Slow down on") &&
+    (await page.locator(`${liveScreen("practise")} [data-walk-say]`).innerText()) === "Two hires by March keep that lead.");
+  await page.waitForTimeout(400);
+  check("opened on the exercise", calls.filter((c) => c === "open").length === before + 1 &&
+    bodies.at(-1)?.kind === "exercise" && bodies.at(-1)?.exercise_id === "harness-exercise", JSON.stringify(bodies.at(-1)));
+});
+
+await exerciseRun("Skip on the exercise", "", async ({ page, shown }) => {
+  await shown("exVideo");
+  await page.locator(`${liveScreen("exVideo")} [data-testid="walk-skip"]`).click();
+  check("Skip moves on past the exercise",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+});
+
+await exerciseRun("no video at all", "&exvideo=0", async ({ page, shown }) => {
+  check("with no video, straight to the practise", await shown("practise") &&
+    (await page.locator(`${liveScreen("practise")} [data-walk-message]`).count()) === 1 &&
+    (await page.locator("[data-testid='walk-screen-exVideo']").count()) === 0);
 });
 
 await browser.close();

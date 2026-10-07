@@ -14,7 +14,8 @@
 /*                                       D-FW-14) on these fixtures, opened on */
 /*                                       its first screen; &guest=1 as a guest; */
 /*                                       &practice=0 with personalised         */
-/*                                       practice off (D-FW-15)                */
+/*                                       practice off (D-FW-15); &exvideo=0    */
+/*                                       its exercise with no video (D-FW-17)  */
 /*    /dev/feedback-walk?paragraph=this|saved|helpers                         */
 /*                                       the PRODUCTION paragraph sheet and   */
 /*                                       helper-words overlay in the walk's   */
@@ -55,7 +56,7 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean; practiceOn: boolean }
+  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean }
   | { kind: "paragraph"; view: ParagraphView };
 
 const PARAGRAPH_VIEWS: readonly ParagraphView[] = ["this", "saved", "helpers"];
@@ -63,7 +64,12 @@ const PARAGRAPH_VIEWS: readonly ParagraphView[] = ["this", "saved", "helpers"];
 function readMode(search: string): Mode {
   const q = new URLSearchParams(search);
   if (q.get("live") === "1") {
-    return { kind: "live", guest: q.get("guest") === "1", practiceOn: q.get("practice") !== "0" };
+    return {
+      kind: "live",
+      guest: q.get("guest") === "1",
+      practiceOn: q.get("practice") !== "0",
+      exerciseVideo: q.get("exvideo") !== "0",
+    };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
   const view = q.get("paragraph");
@@ -203,7 +209,9 @@ function Harness() {
   useEffect(() => setMode(readMode(window.location.search)), []);
   if (!mode) return null;
   if (mode.kind === "index") return <IndexList />;
-  if (mode.kind === "live") return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} />;
+  if (mode.kind === "live") {
+    return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} exerciseVideo={mode.exerciseVideo} />;
+  }
   if (mode.kind === "paragraph") return <ParagraphWalk view={mode.view} />;
   return <Walk mode={mode} />;
 }

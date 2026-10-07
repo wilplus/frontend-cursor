@@ -67,6 +67,11 @@ function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
 }
 
 function passageOf<R>(step: WalkStep, moment: FeedbackWalkMoment<R>): { item: R; passage: WalkPractisePassage } | null {
+  // After an exercise's video (or straight away with none, Q-B15 A): the
+  // same loop, on the exercise the moment carries (D-FW-17).
+  if (step.kind === "instruction" && moment.exercise) {
+    return { item: moment.exercise.item, passage: { kind: "exercise" } };
+  }
   if (moment.practiseItem == null) return null;
   if (step.kind === "words" && moment.clearer) {
     return { item: moment.practiseItem, passage: { kind: "rewrite", say: moment.clearer.say } };

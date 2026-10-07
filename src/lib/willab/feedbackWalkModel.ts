@@ -10,10 +10,9 @@
 /*  THIS PHASE draws the coach's note, the praise and the helper words, the   */
 /*  clearer version (D-FW-15), the practise loop on the accepted words or the */
 /*  moment said again (D-FW-16; the machine's check lays its screens in live, */
-/*  walkPractise.ts), then the end card. The other screens of the plan are    */
+/*  walkPractise.ts), the exercise (D-FW-17: its video, then the practise on  */
+/*  its instruction), then the end card. The other screens of the plan are    */
 /*  left out here, not drawn half-built:                                      */
-/*    TODO(D-FW-17) the exercise video, and the practise on an exercise's     */
-/*      instruction that follows it                                           */
 /*    TODO(D-FW-18) "Judgement time!" and the judgements                      */
 /*    TODO(D-FW-20) sharing                                                   */
 /*                                                                            */
@@ -61,6 +60,33 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
    *  (its clearer version's words, or the moment said again). Only handed
    *  back. */
   item?: R | null;
+  /** The exercise this item's follow-up opens on (the follow-up matrix's
+   *  exercise cell, or one the coach chose), with the served item it is
+   *  practised on. Only from the served offer; never made up. */
+  exercise?: FeedbackWalkItemExercise<R> | null;
+};
+
+/** An exercise as an item carries it: its video (the coach's when the coach
+ *  chose it, else the library's), its instruction and the words to say. */
+export type FeedbackWalkItemExercise<R = unknown> = {
+  /** The served video, as the Feedback sheet plays it; null: none. */
+  video: string | null;
+  /** The coach chose this exercise: its video is the coach's. */
+  byCoach: boolean;
+  instruction: string | null;
+  /** The words the practise is checked against. */
+  say: string;
+  item: R;
+};
+
+/** A moment's exercise, ready to draw: the video that plays before the
+ *  practise (null: the walk goes straight to the practise, Q-B15 A), the
+ *  instruction, the words to say and the item the practise is opened on. */
+export type FeedbackWalkExercise<R = unknown> = {
+  video: string | null;
+  instruction: string | null;
+  say: string;
+  item: R;
 };
 
 /** A moment's clearer version: the served pair as pieces, the words to say
@@ -83,6 +109,8 @@ export type FeedbackWalkMoment<R = unknown> = {
   /** The item the moment's practise is opened on: its served rewrite, or
    *  the moment to say again. None: nothing to practise here. */
   practiseItem: R | null;
+  /** The moment's exercise (D-FW-17), when one is served on it. */
+  exercise: FeedbackWalkExercise<R> | null;
 };
 
 export type FeedbackWalkModel<R = unknown> = {
@@ -92,8 +120,8 @@ export type FeedbackWalkModel<R = unknown> = {
   partsOf: string[][];
 };
 
-/** The screens this phase draws (D-FW-14, D-FW-15, D-FW-16). The rest of
- *  the plan waits for D-FW-17/18/20. The practise loop's later screens
+/** The screens this phase draws (D-FW-14 to D-FW-17). The rest of the plan
+ *  waits for D-FW-18/20. The practise loop's later screens
  *  (checking, praise, encouragement, the thank-you, a late read) are laid in
  *  live by walkPractise.ts, never planned ahead. */
 export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
@@ -102,19 +130,49 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "praise",
   "helpers",
   "clearer",
+  "exVideo",
   "practise",
   "end",
 ]);
 
 /** A practise this phase records, where its item is there to open it on:
- *  the accepted words of a clearer version it draws, or the moment said
- *  again. The one on an exercise's instruction follows its video, which is
- *  D-FW-17's. */
+ *  the accepted words of a clearer version it draws, the moment's exercise,
+ *  or the moment said again. */
 function drawnPractise<R>(step: WalkStep, moment: FeedbackWalkMoment<R> | undefined): boolean {
   if (step.key !== "practise") return true;
+  if (step.kind === "instruction") return moment?.exercise != null;
   if (moment?.practiseItem == null) return false;
   if (step.kind === "words") return moment.clearer != null;
   return step.kind === "moment";
+}
+
+/** The exercise video's screen is drawn only where there is a video to
+ *  play: the coach's, else the library's. With none the walk goes straight
+ *  to the practise (Q-B15 A). Never a screen that waits for a coach
+ *  (WQ2 B). */
+function drawnVideo<R>(step: WalkStep, moment: FeedbackWalkMoment<R> | undefined): boolean {
+  return step.key !== "exVideo" || moment?.exercise?.video != null;
+}
+
+/** The moment's exercise from the ones its items carry: the coach's video
+ *  first, then the library's; with no video at all, the exercise is still
+ *  practised, straight away (Q-B15 A). Pure. */
+export function pickExercise<R>(
+  offers: readonly FeedbackWalkItemExercise<R>[],
+): FeedbackWalkExercise<R> | null {
+  const withVideo = (o: FeedbackWalkItemExercise<R>) => Boolean(o.video?.trim());
+  const pick =
+    offers.find((o) => o.byCoach && withVideo(o)) ??
+    offers.find(withVideo) ??
+    offers.find((o) => o.byCoach) ??
+    offers[0];
+  if (!pick) return null;
+  return {
+    video: withVideo(pick) ? (pick.video as string).trim() : null,
+    instruction: pick.instruction?.trim() || null,
+    say: pick.say,
+    item: pick.item,
+  };
 }
 
 const isPraise = (i: FeedbackWalkItem) =>
@@ -144,6 +202,7 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     clearer: clearerOf(group),
     practiseItem:
       group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ?? null,
+    exercise: pickExercise(group.flatMap((i) => (i.exercise ? [i.exercise] : []))),
   };
 }
 
@@ -167,6 +226,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     return (
       WALK_PHASE_SCREENS.has(step.key) &&
       drawnPractise(step, moment) &&
+      drawnVideo(step, moment) &&
       (step.key !== "clearer" || moment?.clearer != null)
     );
   });
