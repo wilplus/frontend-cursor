@@ -103,6 +103,24 @@ export async function helperWordsFromTakeBehind<
   return result.outcome === "ok" ? "ok" : "failed";
 }
 
+/** Helper words tapped from a praised practise try (the Feedback walk,
+ *  D-FW-16): the words go on the practice, which stores them on the Slide,
+ *  then the paragraph is locked as it is, as for any other pick. A blocked
+ *  lock is final. */
+export async function practiseWordsBehind<
+  C extends { part: { text: string } },
+>(
+  savePractise: (phrase: string) => Promise<boolean>,
+  lock: (chunk: C, text: string) => Promise<{ outcome: string }>,
+  chunk: C,
+  phrase: string,
+): Promise<BehindOutcome> {
+  if (!(await savePractise(phrase))) return "failed";
+  const result = await lock(chunk, chunk.part.text);
+  if (result.outcome === "blocked") return "final";
+  return result.outcome === "ok" ? "ok" : "failed";
+}
+
 /** Delete the helper words (founder lock 2026-09-30, D4): the paragraph's
  *  span is cleared and the lock lifted. Without an unlock the words alone
  *  are cleared. */

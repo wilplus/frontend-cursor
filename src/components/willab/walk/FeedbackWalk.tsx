@@ -10,8 +10,12 @@ import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
+import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
+import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
+import { loopEnd } from "@/lib/willab/walkPractise";
+import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import {
   bankLine,
   clearerTurn,
@@ -19,7 +23,7 @@ import {
   type FeedbackWalkMoment,
 } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
-import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
+import { phraseTokens, selectionSpan, selectionText, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /* -------------------------------------------------------------------------- */
@@ -32,11 +36,20 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  overlay rises in 0.38 s, the content slides under a still top bar, ✕      */
 /*  sinks it in 0.28 s, and every move is instant with reduce motion.         */
 /*                                                                            */
-/*  THIS PHASE draws the coach's note, the praise, the helper words and the   */
-/*  clearer version (D-FW-15); the plan it is given (feedbackWalkModel.ts)    */
-/*  holds only those, then the end card, which is the host's. The other       */
-/*  screens come with their own tasks: TODO(D-FW-16/17/18/20) the practising, */
-/*  the exercise video, "Judgement time!" with the judgements, and sharing.  */
+/*  THIS PHASE draws the coach's note, the praise, the helper words, the      */
+/*  clearer version (D-FW-15) and the practise loop (D-FW-16); the plan it is */
+/*  given (feedbackWalkModel.ts) holds only those, then the end card, which   */
+/*  is the host's. The other screens come with their own tasks:              */
+/*  TODO(D-FW-17/18/20) the exercise video, "Judgement time!" with the        */
+/*  judgements, and sharing.                                                  */
+/*                                                                            */
+/*  The practise loop (flow 7; N52.3, CM3a A, CM3b A, O5): the try records    */
+/*  as its screen arrives, Stop sends it to the machine behind the voice      */
+/*  mark, and the machine's answer is laid into the plan: praise, then helper */
+/*  words from the try's own words; else encouragement and the next try; the  */
+/*  third try that is not praise thanks the speaker and moves on; a late or   */
+/*  failed read offers Next or Practise again. The mic, the clock and the     */
+/*  calls live in useWalkPractise, the screens in WalkPractiseScreens.        */
 /*                                                                            */
 /*  The clearer version (flow 6; N52.5, N55 WQ3 A, WQ3c A): the speaker's     */
 /*  words with what goes crossed out, then the opener (B13), the new words    */
@@ -75,6 +88,14 @@ export type FeedbackWalkHelperWords = {
   paragraphText: string;
 };
 
+/** Helper words tapped from a praised try's own words (not the
+ *  paragraph's): saved on the practice, then the paragraph is locked. */
+export type FeedbackWalkPractiseWords = {
+  practiceId: string;
+  partId: string;
+  phrase: string;
+};
+
 type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
    *  it closes, so a re-read of the page cannot move the screen under the
@@ -96,6 +117,13 @@ type Props<R> = {
   onAcceptClearer?: (item: R) => void;
   /** "Keep my words": the host records the decline; no practise follows. */
   onKeepWords?: (item: R) => void;
+  /** The practise's calls (open, upload, check). Without them a practise
+   *  screen is never reached: "Accept and practise" goes past it. */
+  practise?: WalkPractiseIO<R> | null;
+  /** Helper words picked from a praised try. */
+  onSavePractiseWords?: (save: FeedbackWalkPractiseWords) => void;
+  /** O5's limit on the machine's read; tests shorten it. */
+  readLimitMs?: number;
   /** The walk ran out: the host's end card. */
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
@@ -114,6 +142,9 @@ export default function FeedbackWalk<R = unknown>({
   onSaveHelperWords,
   onAcceptClearer,
   onKeepWords,
+  practise: practiseIO = null,
+  onSavePractiseWords,
+  readLimitMs,
   onEnd,
   onClose,
 }: Props<R>) {
@@ -122,15 +153,17 @@ export default function FeedbackWalk<R = unknown>({
   const [walk, setWalk] = useState<FeedbackWalkModel<R>>(model);
   const [at, setAt] = useState(0);
   const [dir, setDir] = useState<WalkDir | undefined>(undefined);
-  const [picks, setPicks] = useState<Record<number, PhraseSelection | null>>({});
+  const [picks, setPicks] = useState<Record<string, PhraseSelection | null>>({});
   const guestBlock = useGuestBlock();
 
   const requestRef = useRef(request);
   requestRef.current = request;
   const seq = request?.seq ?? null;
+  const resetRef = useRef<() => void>(() => undefined);
   useEffect(() => {
     const asked = requestRef.current;
     if (seq === null || !asked) return;
+    resetRef.current();
     setWalk(liveModel.current);
     setPicks({});
     setDir(undefined);
@@ -147,19 +180,32 @@ export default function FeedbackWalk<R = unknown>({
     },
     [],
   );
-  const forward = useCallback(() => {
-    const to = Math.min(at + 1, plan.length - 1);
-    go(to, "forward");
-    if (plan[to]?.overlay === false) onEnd();
-  }, [at, plan, go, onEnd]);
+  /** Move to `to` on `steps`; the page underneath ends the walk. */
+  const land = useCallback(
+    (steps: readonly WalkStep[], to: number, how: WalkDir | undefined) => {
+      const at2 = Math.max(0, Math.min(to, steps.length - 1));
+      go(at2, how);
+      if (steps[at2]?.overlay === false) onEnd();
+    },
+    [go, onEnd],
+  );
+  const forward = useCallback(() => land(plan, at + 1, "forward"), [at, plan, land]);
   const back = useCallback(() => {
-    if (plan[at - 1]?.overlay === false || at <= 0) return;
-    go(at - 1, "back");
+    // The checking screen and a late read are passed over: a try is not
+    // checked twice by going back.
+    let to = at - 1;
+    while (to > 0 && (plan[to]?.key === "processing" || plan[to]?.key === "late")) to -= 1;
+    if (plan[to]?.overlay === false || to < 0) return;
+    go(to, "back");
   }, [at, plan, go]);
-  const close = useCallback(() => {
-    go(0, undefined);
-    onClose?.();
-  }, [go, onClose]);
+  /** The practise lays a new plan in as the machine answers. */
+  const relay = useCallback(
+    (steps: WalkStep[], to: number, how: WalkDir) => {
+      setWalk((w) => ({ ...w, plan: steps }));
+      land(steps, to, how);
+    },
+    [land],
+  );
 
   /** A guest's pick or save asks to sign up, and nothing is written. */
   const blocked = useCallback(
@@ -174,6 +220,24 @@ export default function FeedbackWalk<R = unknown>({
     [guest, onGuest, guestBlock],
   );
 
+  const practise = useWalkPractise<R>({
+    io: practiseIO,
+    plan,
+    at,
+    moments: walk.moments,
+    blocked,
+    relay,
+    readLimitMs,
+  });
+  resetRef.current = practise.reset;
+  const close = useCallback(() => {
+    practise.cancel();
+    go(0, undefined);
+    onClose?.();
+  }, [practise, go, onClose]);
+  /** Past this moment's practise: "Keep my words", or no practise to do. */
+  const pastLoop = useCallback(() => land(plan, loopEnd(plan, at), "forward"), [plan, at, land]);
+
   const ctx: ScreenCtx<R> = {
     walk,
     at: (s) => plan.indexOf(s),
@@ -186,11 +250,18 @@ export default function FeedbackWalk<R = unknown>({
     picks,
     pick: (s, next) => {
       if (blocked(s)) return;
-      setPicks((p) => ({ ...p, [s.moment ?? -1]: next }));
+      setPicks((p) => ({ ...p, [pickKey(s)]: next }));
     },
     save: (s, moment) => {
       if (blocked(s)) return;
-      const picked = picks[moment.index] ?? null;
+      const picked = picks[pickKey(s)] ?? null;
+      const tried = s.kind === "try" ? practise.tryOf(moment.index) : undefined;
+      if (tried?.words) {
+        const phrase = selectionText(tried.words, phraseTokens(tried.words), picked);
+        if (phrase) onSavePractiseWords?.({ practiceId: tried.practiceId, partId: moment.partId, phrase });
+        forward();
+        return;
+      }
       const span = selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), picked);
       if (span) {
         onSaveHelperWords({ partId: moment.partId, span, paragraphText: moment.paragraphText });
@@ -200,16 +271,18 @@ export default function FeedbackWalk<R = unknown>({
     accept: (s, moment) => {
       if (blocked(s) || !moment.clearer) return;
       onAcceptClearer?.(moment.clearer.item);
-      // TODO(D-FW-16): "Accept and practise" opens the practise on the
-      // accepted words (moment.clearer.say). Until the practise loop is
-      // live the walk goes on to the plan's next screen; it never blocks.
-      forward();
+      // "Accept and practise" opens the practise on the accepted words; it
+      // records as it arrives. With no practise to do, the walk goes on.
+      if (practiseIO) forward();
+      else pastLoop();
     },
     keep: (s, moment) => {
       if (blocked(s) || !moment.clearer) return;
       onKeepWords?.(moment.clearer.item);
-      forward();
+      pastLoop();
     },
+    practise,
+    nav: (s, moment) => momentNav(ctx, s, moment),
   };
 
   return (
@@ -218,6 +291,10 @@ export default function FeedbackWalk<R = unknown>({
     </div>
   );
 }
+
+/** Helper words are picked once per screen kind and moment: after a praise
+ *  from the paragraph, after a praised try from the try's words. */
+const pickKey = (step: WalkStep) => `${step.moment ?? -1}:${step.kind ?? ""}`;
 
 type ScreenCtx<R = unknown> = {
   walk: FeedbackWalkModel<R>;
@@ -230,11 +307,13 @@ type ScreenCtx<R = unknown> = {
   forward: () => void;
   back: () => void;
   close: () => void;
-  picks: Record<number, PhraseSelection | null>;
+  picks: Record<string, PhraseSelection | null>;
   pick: (step: WalkStep, next: PhraseSelection | null) => void;
   save: (step: WalkStep, moment: FeedbackWalkMoment) => void;
   accept(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
   keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
+  practise: WalkPractise;
+  nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
 };
 
 function momentNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
@@ -304,7 +383,8 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
 
 /** "Choose your helper words", after a praise: at most four, one phrase. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
-  const picked = ctx.picks[moment.index] ?? null;
+  const picked = ctx.picks[pickKey(step)] ?? null;
+  const words = (step.kind === "try" ? ctx.practise.tryOf(moment.index)?.words : null) ?? moment.paragraphText;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -326,7 +406,7 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
         <p className="m-0 text-[14.5px] text-muted-foreground">{COPY.emphasisFirstTakeNote}</p>
       ) : null}
       <WalkWordPicker
-        words={phraseTokens(moment.paragraphText).map((token) => token.text)}
+        words={phraseTokens(words).map((token) => token.text)}
         selection={picked}
         onChange={(next) => ctx.pick(step, next)}
       />
@@ -392,8 +472,16 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
   if (step.key === "clearer") return Clearer(ctx, step, moment);
-  // TODO(D-FW-16/17/18/20): the practising, the exercise video, "Judgement
-  // time!" with the judgements, and sharing. The plan this phase is given
-  // holds none of them.
-  return null;
+  const practiseCtx: PractiseScreenCtx = {
+    plan: ctx.walk.plan,
+    at: ctx.at,
+    nav: ctx.nav,
+    total: ctx.walk.moments.length,
+    close: ctx.close,
+    forward: ctx.forward,
+    ...ctx.practise,
+  };
+  // TODO(D-FW-17/18/20): the exercise video, "Judgement time!" with the
+  // judgements, and sharing. The plan this phase is given holds none of them.
+  return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;
 }

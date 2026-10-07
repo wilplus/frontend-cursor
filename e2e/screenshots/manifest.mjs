@@ -38,6 +38,8 @@
 /*  lock uses.                                                                */
 /* -------------------------------------------------------------------------- */
 
+import { practisePrepare, stopTry, toLivePractise } from "../_walkPractise.mjs";
+
 export const VIEWPORTS = {
   phone: { width: 390, height: 844 },
   desktop: { width: 1280, height: 800 },
@@ -118,6 +120,68 @@ const LIVE_WALK = [
     },
   },
   { name: "live-clearer", waitFor: `${liveScreen("clearer")} [data-walk-new-words] em`, act: toLiveClearer },
+  // The practise loop live (D-FW-16): its routes answered in the browser and
+  // its microphone a tone (e2e/_walkPractise.mjs).
+  {
+    name: "live-practise",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("practise")} [data-walk-recording-strip]`,
+    act: toLivePractise,
+  },
+  {
+    name: "live-processing",
+    prepare: practisePrepare(["hang"]),
+    waitFor: `${liveScreen("processing")} [data-walk-loading]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-improved",
+    prepare: practisePrepare([{ next: "praise", key: "cue:landed_ending" }]),
+    waitFor: `${liveScreen("improved")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-encourage",
+    prepare: practisePrepare([{ next: "again", key: "effort" }]),
+    waitFor: `${liveScreen("encourage")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-thanks",
+    prepare: practisePrepare([
+      { next: "again", key: "effort" },
+      { next: "again", key: "effort" },
+      { next: "moved_on", key: "CM3b" },
+    ]),
+    waitFor: `${liveScreen("thanks")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      for (let i = 0; i < 2; i += 1) {
+        await stopTry(page);
+        await liveForward("encourage")(page);
+        await page.waitForSelector(`${liveScreen("practise")} [data-walk-recording-strip]`, { timeout: 60_000 });
+      }
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-late",
+    prepare: practisePrepare(["hang"]),
+    waitFor: `${liveScreen("late")} [data-testid="walk-again"]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
   {
     name: "live-clearer-practice-off",
     path: "/dev/feedback-walk?live=1&practice=0",
