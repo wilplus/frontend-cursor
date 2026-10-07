@@ -68,10 +68,24 @@ describe("IdealTextMenu", () => {
     expect(labels).toEqual(["Copy the text"]);
   });
 
-  it("offers Version history only when there are revisions", () => {
+  it("offers History only when there are revisions", () => {
     render({ onHistory: vi.fn() });
     openMenu();
-    expect(host.textContent).toContain("Version history");
+    expect(host.textContent).toContain("History");
+    expect(host.textContent).not.toContain("Version history");
+  });
+
+  it("reads as the design's menu: Presentation Mode, Export, History, Copy the text, Save the ideal text (D-IT-2)", () => {
+    render({ onPresent: vi.fn(), onExport: vi.fn(), onHistory: vi.fn() });
+    openMenu();
+    const labels = [...host.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent);
+    expect(labels).toEqual([
+      "Presentation Mode",
+      "Export",
+      "History",
+      "Copy the text",
+      "Save the ideal text",
+    ]);
   });
 
   it("says the fact once saved instead of offering again", () => {

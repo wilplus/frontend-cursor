@@ -15,16 +15,13 @@
 /*  verification state sits BESIDE it rather than on a row of its own.         */
 /* -------------------------------------------------------------------------- */
 
-/** ~10 characters, then a FADE. A hard clip reads as a rendering bug and an
- *  ellipsis spends a character saying "there is more"; the fade says the same
- *  without taking room, and being a mask to transparency rather than a
- *  gradient in a hard-coded colour it works on whatever the head sits on, in
- *  either theme. Applied ONLY when the title actually overflows — on a short
- *  one it would fade the last real letters of a title that fits. */
+/** THE WHOLE NAME (Ideal Text Final Screens: "Q3 Board pitch" in full; build
+ *  plan D-IT-2). It used to stop at ~10 characters and fade, so "Garage
+ *  pitch" read "Garage pitc" with room to spare. Now it takes the room the
+ *  header has and an ellipsis appears only when the name truly does not fit
+ *  (`truncate` ellipsizes on real overflow and never otherwise). */
 const TITLE_CLS =
-  "block shrink-0 max-w-[10ch] overflow-hidden whitespace-nowrap text-[17px] font-semibold text-foreground";
-const FADE_CLS =
-  " [-webkit-mask-image:linear-gradient(to_right,#000_60%,transparent_100%)] [mask-image:linear-gradient(to_right,#000_60%,transparent_100%)]";
+  "block min-w-0 truncate text-[17px] font-semibold text-foreground";
 
 export default function IdealTextHeading({
   title,
@@ -40,12 +37,7 @@ export default function IdealTextHeading({
   const headerTitle = title?.trim() || "Your ideal text";
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <span
-        className={
-          headerTitle.length > 10 ? TITLE_CLS + FADE_CLS : TITLE_CLS
-        }
-        title={headerTitle}
-      >
+      <span className={TITLE_CLS} title={headerTitle}>
         {headerTitle}
       </span>
     </div>
