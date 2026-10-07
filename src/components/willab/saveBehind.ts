@@ -1,6 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import {
+  acceptOutcome,
+  saveTakeFeedbackResponse,
+  type FeedbackFamily,
+  type FeedbackResponse,
+} from "@/services/api/takeFeedback";
 
 /* -------------------------------------------------------------------------- */
 /*  Tap and go (founder 2026-09-28).                                          */
@@ -108,4 +114,60 @@ export async function deleteHelperWordsBehind<C>(
   const cleared = await setRoot(chunk, null);
   const unlocked = unlock ? await unlock(chunk) : true;
   return cleared && unlocked ? "ok" : "failed";
+}
+
+/** The served rewrite as the accept lane needs it (DocumentSuggestion). */
+type RewriteItem = {
+  id: string;
+  takeSessionId?: string | null;
+  feedbackFamily?: FeedbackFamily | null;
+  candidateId?: string | null;
+  feedbackMembershipId?: string | null;
+  feedbackExposureId?: string | null;
+  acceptedOnServer?: boolean;
+};
+
+async function respond(item: RewriteItem, response: FeedbackResponse) {
+  if (!item.takeSessionId || !item.feedbackFamily) return { ok: true as const };
+  return saveTakeFeedbackResponse({
+    takeSessionId: item.takeSessionId,
+    feedbackId: item.id,
+    feedbackFamily: item.feedbackFamily,
+    response,
+    candidateId: item.candidateId,
+    feedbackMembershipId: item.feedbackMembershipId,
+    feedbackExposureId: item.feedbackExposureId,
+  });
+}
+
+/** "Accept and practise" on a clearer version, run behind the Feedback walk
+ *  (build plan D-FW-15; contract 29b). The accept lane the Feedback sheet
+ *  and the paragraph sheet use: the speaker's `apply_suggestion` response,
+ *  then the host's decision on the document (the Paragraph's new version is
+ *  the speaker's decision, L1). When the server wrote the words itself the
+ *  host only refreshes; a refusal (helper words or a lock on the Paragraph,
+ *  the words moved, a superseded Take) changed no word and a retry cannot
+ *  change that. */
+export async function acceptRewriteBehind<I extends RewriteItem>(
+  accept: (item: I) => Promise<boolean>,
+  item: I,
+): Promise<BehindOutcome> {
+  const saved = await respond(item, "apply_suggestion");
+  if (!saved.ok) return saved.reason === "superseded" ? "final" : "failed";
+  const outcome = acceptOutcome(saved.textUpdate);
+  if (outcome === "refused") return "final";
+  const applied = await accept(outcome === "server" ? { ...item, acceptedOnServer: true } : item);
+  return applied ? "ok" : "failed";
+}
+
+/** "Keep my words" on a clearer version, run behind the Feedback walk: the
+ *  speaker's `keep_wording` response, then the host's decision on the
+ *  document, exactly as the Feedback sheet records it. No practise follows. */
+export async function keepWordsBehind<I extends RewriteItem>(
+  keep: (item: I) => Promise<boolean>,
+  item: I,
+): Promise<BehindOutcome> {
+  const saved = await respond(item, "keep_wording");
+  if (!saved.ok) return saved.reason === "superseded" ? "final" : "failed";
+  return (await keep(item)) ? "ok" : "failed";
 }

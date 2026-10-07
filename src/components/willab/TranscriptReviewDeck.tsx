@@ -714,6 +714,8 @@ export default function TranscriptReviewDeck({
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,
     setRootPhrase,
+    onAccept,
+    onKeepMine,
     lockPart: onLockPart,
     saveBehind,
     onEnd: finishWalk,

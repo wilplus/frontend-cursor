@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
+  bankLine,
   buildFeedbackWalk,
+  clearerTurn,
   walkStart,
   walkStepForPart,
   type FeedbackWalkItem,
@@ -71,5 +73,52 @@ describe("buildFeedbackWalk", () => {
     for (const step of walk.plan) {
       if (step.overlay !== false) expect(step.readOnly).toBe(true);
     }
+  });
+});
+
+describe("the clearer version (D-FW-15)", () => {
+  const REWRITE = { quote: "We think the window closes.", proposedText: "The window closes.", item: "s-rw" };
+  const WITH_REWRITE: FeedbackWalkItem<string>[] = [
+    ...(ITEMS as FeedbackWalkItem<string>[]),
+    item({ partId: "p4", start: 120, blockId: "b4", feedbackFamily: "rewrite_clarity", rewrite: REWRITE }) as FeedbackWalkItem<string>,
+  ];
+
+  it("follows the praise, from the served rewrite, with nothing after it but the end in this phase", () => {
+    const walk = buildFeedbackWalk({ items: WITH_REWRITE, coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan.map((s) => s.key)).toEqual(["page", "praise", "helpers", "praise", "helpers", "clearer", "end"]);
+    const clearer = walk.moments[walk.plan[5].moment!].clearer!;
+    expect(clearer.item).toBe("s-rw");
+    expect(clearer.say).toBe("The window closes.");
+    expect(clearer.before).toEqual([{ text: "We think the", cut: true }, { text: " window closes." }]);
+    expect(clearer.after).toEqual([{ text: "The", fresh: true }, { text: " window closes." }]);
+  });
+
+  it("is the `accept` screen with personalised practice off (WQ3 A)", () => {
+    const walk = buildFeedbackWalk({ items: WITH_REWRITE, coachNote: false, practiceOn: false, guest: false });
+    expect(walk.plan.find((s) => s.key === "clearer")).toMatchObject({ kind: "accept" });
+    const on = buildFeedbackWalk({ items: WITH_REWRITE, coachNote: false, practiceOn: true, guest: false });
+    expect(on.plan.find((s) => s.key === "clearer")!.kind).toBeUndefined();
+  });
+
+  it("is left out where no served rewrite is there to draw it from", () => {
+    const walk = buildFeedbackWalk({ items: ITEMS, coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan.some((s) => s.key === "clearer")).toBe(false);
+    expect(walk.moments[1].clearer).toBeNull();
+  });
+
+  it("opens the walk and a tap on its paragraph when it is all there is", () => {
+    const walk = buildFeedbackWalk({ items: WITH_REWRITE.slice(3), coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan[walkStart(walk)!].key).toBe("praise");
+    const only = buildFeedbackWalk({ items: WITH_REWRITE.slice(4), coachNote: false, practiceOn: true, guest: false });
+    expect(only.plan[walkStart(only)!].key).toBe("clearer");
+    expect(only.plan[walkStepForPart(only, "p4")!].key).toBe("clearer");
+  });
+
+  it("rotates the signed lines by the clearer versions before it", () => {
+    const lines = ["a", "b", "c"];
+    expect([0, 1, 2, 3, 4].map((t) => bankLine(lines, t))).toEqual(["a", "b", "c", "a", "b"]);
+    const plan = [{ key: "page" }, { key: "clearer" }, { key: "clearer" }, { key: "end" }] as const;
+    expect(clearerTurn([...plan], 1)).toBe(0);
+    expect(clearerTurn([...plan], 2)).toBe(1);
   });
 });

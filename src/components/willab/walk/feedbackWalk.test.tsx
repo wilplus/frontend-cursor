@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import { GuestGateContext } from "../GuestSignUpDialog";
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -179,5 +179,111 @@ describe("reduce motion", () => {
   it("opens in 0.38 s and sinks in 0.28 s without it", () => {
     expect(css).toMatch(/\.walk-m-open > \.walk-ov \{\s*animation: walk-sheet-up 0\.38s/);
     expect(css).toMatch(/\.walk-ghost\.walk-m-close > \.walk-ov \{\s*animation: walk-sheet-down 0\.28s/);
+  });
+});
+
+describe("the clearer version (D-FW-15)", () => {
+  const SAID = "We think the timing matters, because the window closes once the incumbents catch up with pricing.";
+  const OFFERED = "The window closes once the incumbents match our price.";
+  const REWRITE_ITEMS: FeedbackWalkItem[] = [
+    ...ITEMS,
+    {
+      partId: "p3", start: 160, slide: 1, blockId: "b3", feedbackFamily: "rewrite_clarity",
+      paragraphText: SAID, slideLabel: "Slide 2",
+      clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 11000 },
+      rewrite: { quote: SAID, proposedText: OFFERED, item: "s-rewrite" },
+    },
+    {
+      partId: "p4", start: 240, slide: 1, blockId: "b4", openCard: "rewrite",
+      paragraphText: "So basically we need two hires.", slideLabel: "Slide 2",
+      rewrite: { quote: "So basically we need two hires.", proposedText: "We need two hires.", item: "s-second" },
+    },
+  ];
+  type Spies = { onAcceptClearer: ReturnType<typeof vi.fn>; onKeepWords: ReturnType<typeof vi.fn> };
+  function drawClearer(practiceOn: boolean, at: number, extra: Over = {}): Spies {
+    const handlers = { onAcceptClearer: vi.fn(), onKeepWords: vi.fn() };
+    const model = buildFeedbackWalk({ items: REWRITE_ITEMS, coachNote: false, practiceOn, guest: Boolean(extra.guest) });
+    draw(null, { model, ...handlers, ...extra } as Over);
+    draw({ seq: 1, at }, { model, ...handlers, ...extra } as Over);
+    return handlers;
+  }
+  // page, praise, helpers, praise, helpers, clearer (5), clearer (6), end
+  const FIRST = 5;
+  const msg = () => live()!.querySelector("[data-walk-message]")!;
+
+  it("draws the served words: what goes crossed out, what arrives in orange, around the signed lines", () => {
+    drawClearer(true, FIRST);
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.cardClearerVersion);
+    const player = live()!.querySelector("[data-walk-player]")!;
+    expect([...player.querySelectorAll("s")].map((n) => n.textContent)).toEqual([
+      "We think the timing matters, because the",
+      "catch up with pricing",
+    ]);
+    const fresh = msg().querySelector("[data-walk-new-words]")!;
+    expect(fresh.textContent).toBe(OFFERED);
+    expect([...fresh.querySelectorAll("em")].map((n) => n.textContent)).toEqual(["The", "match our price"]);
+    const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
+    expect(lines).toEqual([WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
+    expect(lines).toEqual([WALK_COPY.clearerOffer, WALK_COPY.clearerAsk]);
+    const buttons = [...live()!.querySelectorAll("footer button, [data-walk-footer] button")].map((b) => b.textContent);
+    expect(buttons).toContain(COPY.pillAcceptPractise);
+    expect(buttons).toContain(COPY.linkKeepMyWords);
+  });
+
+  it("the next clearer version takes the next signed lines (never the same twice in a row)", () => {
+    drawClearer(true, FIRST + 1);
+    const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
+    expect(lines).toEqual([WALK_LINE_BANK.B13.lines[1], WALK_LINE_BANK.B14.lines[1]]);
+  });
+
+  it("Accept and practise hands the decision on, then moves on without waiting", () => {
+    const spies = drawClearer(true, FIRST);
+    forward();
+    expect(spies.onAcceptClearer).toHaveBeenCalledWith("s-rewrite");
+    expect(spies.onKeepWords).not.toHaveBeenCalled();
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(msg().querySelector("[data-walk-new-words]")!.textContent).toBe("We need two hires.");
+  });
+
+  it("Keep my words records the decline and skips the practise", () => {
+    const spies = drawClearer(true, FIRST + 1);
+    click(live()!.querySelector("[data-testid='walk-keep']"));
+    expect(spies.onKeepWords).toHaveBeenCalledWith("s-second");
+    expect(spies.onAcceptClearer).not.toHaveBeenCalled();
+    expect(live()).toBeNull();
+    expect(spies.onKeepWords).toHaveBeenCalledTimes(1);
+  });
+
+  it("with personalised practice off the button reads Accept, and nothing asks to practise (WQ3 A, WQ3c A)", () => {
+    drawClearer(false, FIRST);
+    const pill = live()!.querySelector("[data-testid='walk-forward']")!;
+    expect(pill.textContent).toBe(WALK_COPY.clearerAccept);
+    expect(live()!.textContent).not.toContain(COPY.pillAcceptPractise);
+    expect(live()!.textContent).not.toContain(WALK_LINE_BANK.B14.lines[0]);
+    expect(live()!.querySelector("[data-testid='walk-keep']")!.textContent).toBe(COPY.linkKeepMyWords);
+  });
+
+  it("a guest's Accept or Keep opens sign-up and decides nothing", () => {
+    const onGuest = vi.fn();
+    const spies = drawClearer(true, FIRST, { guest: true, onGuest });
+    forward();
+    click(live()!.querySelector("[data-testid='walk-keep']"));
+    expect(onGuest).toHaveBeenCalledTimes(2);
+    expect(spies.onAcceptClearer).not.toHaveBeenCalled();
+    expect(spies.onKeepWords).not.toHaveBeenCalled();
+    expect(screen()).toBe("walk-screen-clearer");
+  });
+
+  it("shows no digit, family, read or score (AC-9) beyond the slide, the moment's position and the clip's length", () => {
+    drawClearer(true, FIRST);
+    const html = host.innerHTML;
+    expect(html).not.toMatch(/rewrite_clarity|openCard|tier|score|%|s-rewrite/i);
+    const shown = (live()!.querySelector(".walk-sb, [data-walk-body]") ?? live()!).textContent ?? "";
+    const body = shown
+      .replace("Slide 2", "")
+      .replace(`${COPY.pagerMoment} 3 ${COPY.pagerOf} 4`, "")
+      .replace(/\d:\d{2}/, "");
+    expect(body).not.toMatch(/\d/);
   });
 });

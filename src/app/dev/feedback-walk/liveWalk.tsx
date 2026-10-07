@@ -23,14 +23,19 @@ import {
   TAKE_SHOWN,
   makeToneUrl,
   type Moment,
+  type Piece,
 } from "./walkFixtures";
 
 /* -------------------------------------------------------------------------- */
 /*  /dev/feedback-walk?live=1 — the PRODUCTION walk (FeedbackWalk, build plan  */
 /*  D-FW-14) on the harness's fixtures, so the screenshot harness (X7) draws  */
-/*  the coach's note, the praise and the helper words from the component the  */
-/*  page mounts, not from the harness's own copy of them. DEV ONLY: page.tsx  */
-/*  renders nothing in production.                                            */
+/*  the coach's note, the praise, the helper words and the clearer version    */
+/*  (D-FW-15) from the component the page mounts, not from the harness's own  */
+/*  copy of them. DEV ONLY: page.tsx renders nothing in production.           */
+/*                                                                            */
+/*  The clearer version is handed over as the page hands a served rewrite:    */
+/*  the words said and the words offered, whole (the fixture's pieces joined);*/
+/*  the walk finds what changed. A decision is only noted on the harness.     */
 /*                                                                            */
 /*  It opens on the walk's first screen, as "Review feedback" does; the page  */
 /*  stand-in's own button opens it again. &guest=1 draws it for a guest: a    */
@@ -47,8 +52,16 @@ function openCardOf(m: Moment): FeedbackWalkItem["openCard"] {
   return null;
 }
 
+const joined = (pieces: readonly Piece[]) => pieces.map((p) => p.text).join("");
+
+/** A served rewrite as the walk receives it: the quote and the proposal. */
+function rewriteOf(m: Moment): FeedbackWalkItem<string>["rewrite"] {
+  if (!m.clearer) return null;
+  return { quote: joined(m.clearer.before), proposedText: joined(m.clearer.after), item: `rewrite-${m.index}` };
+}
+
 /** The fixtures as the page hands them to the walk: one item per moment. */
-function liveItems(audioSrc: string): FeedbackWalkItem[] {
+function liveItems(audioSrc: string): FeedbackWalkItem<string>[] {
   return MOMENTS.map((m) => ({
     start: m.index * 100,
     slide: 1,
@@ -59,6 +72,7 @@ function liveItems(audioSrc: string): FeedbackWalkItem[] {
     slideLabel: SLIDE_LABEL,
     praiseWords: m.praise ? [m.praise.text] : null,
     clip: { src: audioSrc, startOffsetMs: 0, durationMs: m.durationMs },
+    rewrite: rewriteOf(m),
   }));
 }
 
@@ -72,22 +86,23 @@ function useToneSrc() {
   return src;
 }
 
-export default function LiveWalk({ guest }: { guest: boolean }) {
+export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practiceOn: boolean }) {
   const audioSrc = useToneSrc();
   const model = useMemo(
     () =>
       buildFeedbackWalk({
         items: audioSrc ? liveItems(audioSrc) : [],
         coachNote: true,
-        practiceOn: true,
+        practiceOn,
         guest,
       }),
-    [audioSrc, guest],
+    [audioSrc, guest, practiceOn],
   );
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   const [end, setEnd] = useState(false);
   const [signUp, setSignUp] = useState(false);
   const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>([]);
+  const [decided, setDecided] = useState<string[]>([]);
 
   const review = useCallback(() => {
     const at = walkStart(model);
@@ -102,7 +117,11 @@ export default function LiveWalk({ guest }: { guest: boolean }) {
   }, [audioSrc, review]);
 
   return (
-    <div data-walk-harness="live" data-walk-saved={saved.map((s) => s.span.text).join("|")}>
+    <div
+      data-walk-harness="live"
+      data-walk-saved={saved.map((s) => s.span.text).join("|")}
+      data-walk-decided={decided.join("|")}
+    >
       <PageStandIn answers={{}} onReview={review} />
       <FeedbackWalk
         model={model}
@@ -112,6 +131,8 @@ export default function LiveWalk({ guest }: { guest: boolean }) {
         guest={guest}
         onGuest={() => setSignUp(true)}
         onSaveHelperWords={(save) => setSaved((list) => [...list, save])}
+        onAcceptClearer={(item) => setDecided((list) => [...list, `accept:${item}`])}
+        onKeepWords={(item) => setDecided((list) => [...list, `keep:${item}`])}
         onEnd={() => setEnd(true)}
       />
       {end ? (

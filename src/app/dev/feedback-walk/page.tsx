@@ -12,7 +12,9 @@
 /*                                       it, ‹ goes back, ✕ closes             */
 /*    /dev/feedback-walk?live=1          the PRODUCTION walk (FeedbackWalk,    */
 /*                                       D-FW-14) on these fixtures, opened on */
-/*                                       its first screen; &guest=1 as a guest */
+/*                                       its first screen; &guest=1 as a guest; */
+/*                                       &practice=0 with personalised         */
+/*                                       practice off (D-FW-15)                */
 /*                                                                            */
 /*  Nothing here is mounted by the product, and nothing is fetched. Every     */
 /*  word is a signed one (the copy files and the line bank of N54).           */
@@ -48,11 +50,13 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean };
+  | { kind: "live"; guest: boolean; practiceOn: boolean };
 
 function readMode(search: string): Mode {
   const q = new URLSearchParams(search);
-  if (q.get("live") === "1") return { kind: "live", guest: q.get("guest") === "1" };
+  if (q.get("live") === "1") {
+    return { kind: "live", guest: q.get("guest") === "1", practiceOn: q.get("practice") !== "0" };
+  }
   if (q.get("flow") === "1") return { kind: "flow" };
   const name = q.get("screen");
   if (name && (SCREEN_NAMES as readonly string[]).includes(name)) return { kind: "single", name: name as ScreenName };
@@ -187,7 +191,7 @@ function Harness() {
   useEffect(() => setMode(readMode(window.location.search)), []);
   if (!mode) return null;
   if (mode.kind === "index") return <IndexList />;
-  if (mode.kind === "live") return <LiveWalk guest={mode.guest} />;
+  if (mode.kind === "live") return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} />;
   return <Walk mode={mode} />;
 }
 
