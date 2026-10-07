@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
+  type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
 } from "./walk/FeedbackWalk";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
-import { acceptRewriteBehind, helperWordsBehind, keepWordsBehind, type SaveBehind } from "./saveBehind";
+import {
+  acceptRewriteBehind,
+  helperWordsBehind,
+  keepWordsBehind,
+  practiseWordsBehind,
+  type SaveBehind,
+} from "./saveBehind";
 import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
 import {
   buildFeedbackWalk,
@@ -20,6 +27,8 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { practiseOfferedNow, readPractiseOffered } from "@/services/api/consentChoices";
 import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
+import { savePracticeHelperWords } from "@/services/api/confidentVoicePractice";
+import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 
@@ -49,6 +58,11 @@ import type { LockResult } from "./DeckChunkModal";
 /*  (`acceptRewriteBehind`, L1: the speaker's decision), "Keep my words" the */
 /*  response then the deck's onKeepMine (`keepWordsBehind`). The crossed-out */
 /*  and orange words are the served rewrite's own `quote` and `proposedText`.*/
+/*                                                                            */
+/*  The practise (D-FW-16) is opened on the served item's own snippet and     */
+/*  evidence (walkPractiseIO), the same routes today's practise sheet uses;   */
+/*  helper words from a praised try go on the practice, then the lock, behind */
+/*  the screen (`practiseWordsBehind`).                                       */
 /* -------------------------------------------------------------------------- */
 
 type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
@@ -100,6 +114,7 @@ export function deckWalkItems(
           ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
           : null,
         rewrite: rewriteOf(item),
+        item: suggestionSource(item) ? item : null,
       });
     }
   }
@@ -224,6 +239,22 @@ export function useDeckFeedbackWalk(args: {
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
   }, []);
+  const savePractiseWords = useCallback((save: FeedbackWalkPractiseWords) => {
+    const { chunks: now, lockPart, saveBehind } = live.current;
+    const chunk = now.find((c) => c.part.id === save.partId);
+    if (!chunk) return;
+    saveBehind(
+      () =>
+        practiseWordsBehind(
+          (phrase) => savePracticeHelperWords(save.practiceId, save.partId, phrase),
+          lockPart,
+          chunk,
+          save.phrase,
+        ),
+      CHUNK_SHEET_COPY.failWordsBehind,
+    );
+  }, []);
+  const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
   const onEnd = useCallback(() => live.current.onEnd(), []);
 
   const element = useMemo(
@@ -237,10 +268,24 @@ export function useDeckFeedbackWalk(args: {
           onSaveHelperWords={saveHelperWords}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
+          practise={practise}
+          onSavePractiseWords={savePractiseWords}
           onEnd={onEnd}
         />
       ) : null,
-    [on, model, request, coachMessage, firstTake, saveHelperWords, acceptClearer, keepWords, onEnd],
+    [
+      on,
+      model,
+      request,
+      coachMessage,
+      firstTake,
+      saveHelperWords,
+      acceptClearer,
+      keepWords,
+      practise,
+      savePractiseWords,
+      onEnd,
+    ],
   );
 
   return useMemo(() => ({ review, tapPart, element }), [review, tapPart, element]);

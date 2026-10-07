@@ -76,6 +76,9 @@ export type WalkStepKey =
   | "improved"
   | "encourage"
   | "thanks"
+  /** A try the machine could not read in time, or at all (O5): "Next" or
+   *  "Practise again", never a verdict. */
+  | "late"
   | "intro"
   | "judge"
   | "community"

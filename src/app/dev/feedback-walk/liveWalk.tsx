@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
+  type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
 } from "@/components/willab/walk/FeedbackWalk";
+import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
 import WalkEndSheet from "@/components/willab/walk/WalkEndSheet";
 import GuestSignUpDialog from "@/components/willab/GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
@@ -40,6 +42,11 @@ import {
 /*  It opens on the walk's first screen, as "Review feedback" does; the page  */
 /*  stand-in's own button opens it again. &guest=1 draws it for a guest: a    */
 /*  pick opens the sign-up dialog and nothing is saved.                       */
+/*                                                                            */
+/*  The practise (D-FW-16) runs through the app's own clients and BFF routes  */
+/*  (walkPractiseIO) on a stand-in snippet: nothing answers them here, so a   */
+/*  try is read as late (O5) unless the browser answers the routes, as        */
+/*  e2e/feedback-walk-practise.spec.mjs and the screenshot manifest do.       */
 /* -------------------------------------------------------------------------- */
 
 /** No network, no file: the dark box with its play button. */
@@ -73,6 +80,7 @@ function liveItems(audioSrc: string): FeedbackWalkItem<string>[] {
     praiseWords: m.praise ? [m.praise.text] : null,
     clip: { src: audioSrc, startOffsetMs: 0, durationMs: m.durationMs },
     rewrite: rewriteOf(m),
+    item: m.clearer ? `rewrite-${m.index}` : null,
   }));
 }
 
@@ -85,6 +93,13 @@ function useToneSrc() {
   }, []);
   return src;
 }
+
+/** The stand-in snippet every harness moment is practised on. */
+const PRACTISE_SOURCE: WalkPractiseSource = {
+  snippetId: "00000000-0000-4000-8000-00000000c1a1",
+  evidence: { projectId: "harness-project", takeSessionId: "harness-take", slideIndex: 1, paragraphIndex: 1, start: 0, end: 10 },
+  feedbackId: null,
+};
 
 export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practiceOn: boolean }) {
   const audioSrc = useToneSrc();
@@ -103,6 +118,11 @@ export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practi
   const [signUp, setSignUp] = useState(false);
   const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>([]);
   const [decided, setDecided] = useState<string[]>([]);
+  const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
+  const practise = useMemo(
+    () => walkPractiseIO<string>((item) => ({ ...PRACTISE_SOURCE, feedbackId: item })),
+    [],
+  );
 
   const review = useCallback(() => {
     const at = walkStart(model);
@@ -121,6 +141,7 @@ export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practi
       data-walk-harness="live"
       data-walk-saved={saved.map((s) => s.span.text).join("|")}
       data-walk-decided={decided.join("|")}
+      data-walk-practised={practised.map((p) => p.phrase).join("|")}
     >
       <PageStandIn answers={{}} onReview={review} />
       <FeedbackWalk
@@ -133,6 +154,8 @@ export default function LiveWalk({ guest, practiceOn }: { guest: boolean; practi
         onSaveHelperWords={(save) => setSaved((list) => [...list, save])}
         onAcceptClearer={(item) => setDecided((list) => [...list, `accept:${item}`])}
         onKeepWords={(item) => setDecided((list) => [...list, `keep:${item}`])}
+        practise={practise}
+        onSavePractiseWords={(save) => setPractised((list) => [...list, save])}
         onEnd={() => setEnd(true)}
       />
       {end ? (

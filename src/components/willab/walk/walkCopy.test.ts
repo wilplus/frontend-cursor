@@ -109,11 +109,14 @@ describe("the walk's words", () => {
       // answer vocabulary; nothing else may supply a sentence. The walk's
       // controller (FeedbackWalk, D-FW-14) also draws the coach's video (the
       // one the locked screens already show), asks the page's guest gate
-      // (useGuestBlock: no words of its own here) and reads a span type.
+      // (useGuestBlock: no words of its own here) and reads a span type. The
+      // practise loop (D-FW-16) records on the app's own recorder
+      // (useDualCaptureMic) and calls its routes (walkPractise); neither has
+      // words to show.
       const imports = [...src.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
       for (const path of imports) {
         expect(path, `${file} imports ${path}`).toMatch(
-          /^(react|lucide-react|@\/lib\/|@\/services\/api\/(stateRatings|partLock)$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers|CoachVideo|GuestSignUpDialog)$|\.\/)/,
+          /^(react|lucide-react|@\/lib\/|@\/hooks\/useDualCaptureMic$|@\/services\/api\/(stateRatings|partLock|walkPractise)$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers|CoachVideo|GuestSignUpDialog)$|\.\/)/,
         );
       }
     }

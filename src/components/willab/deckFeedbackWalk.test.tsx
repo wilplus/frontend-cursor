@@ -40,6 +40,23 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
 }));
+/** The microphone, counted: the walk's practise must not open it with the
+ *  switch off (D-FW-16). */
+const mic = vi.hoisted(() => ({ starts: 0, cancels: 0 }));
+vi.mock("@/hooks/useDualCaptureMic", () => ({
+  useDualCaptureMic: () => ({
+    state: { status: "idle" },
+    start: async () => {
+      mic.starts += 1;
+    },
+    stop: async () => undefined,
+    cancel: () => {
+      mic.cancels += 1;
+    },
+    getAudioStartedAt: () => null,
+    armed: false,
+  }),
+}));
 vi.mock("@/components/results/MediaPlayer", () => ({ default: () => createElement("div") }));
 vi.mock("@/services/api/bookmarkHistory", () => ({
   fetchOwnerAnswers: vi.fn(async () => []),
@@ -118,6 +135,8 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   practice.on = true;
+  mic.starts = 0;
+  mic.cancels = 0;
   vi.mocked(saveTakeFeedbackResponse).mockClear();
   window.localStorage.clear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 404 })));
@@ -334,5 +353,55 @@ describe("praiseWordsOf", () => {
     expect(praiseWordsOf({ ...praise, praiseLine: "A signed line." })).toEqual(["A signed line."]);
     expect(praiseWordsOf(praise)).toEqual([PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending]);
     expect(praiseWordsOf({ ...praise, tentative: true, cueKeys: ["unknown"] })).toEqual([COPY.praiseTentative]);
+  });
+});
+
+describe("the practise in the walk (D-FW-16)", () => {
+  /** The clearer version with the evidence a practise is opened on. */
+  const practisable = {
+    ...rewrite,
+    evidence: { projectId: "arc-1", takeSessionId: "take-2", slideIndex: 1, paragraphIndex: 1, start: 0, end: 17 },
+  } as unknown as DocumentSuggestion;
+  const practiseCalls = () =>
+    vi.mocked(fetch).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("confidence-practice"));
+
+  it("the switch off: no walk, no practise opened, no microphone", async () => {
+    const p = props({ suggestions: [judgement, praise, practisable] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(walk()).toBeNull();
+    expect(pager()).not.toBeNull();
+    expect(mic.starts).toBe(0);
+    expect(practiseCalls()).toEqual([]);
+  });
+
+  it("Accept and practise opens the practise on the served item's snippet, recording at once", async () => {
+    walkOn();
+    const p = props({ suggestions: [judgement, praise, practisable] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(screen()).toBe("walk-screen-clearer");
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-practise");
+    expect(mic.starts).toBe(1);
+    expect(practiseCalls()).toEqual(["/api/v2/user/snippets/snip-1/confidence-practice"]);
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe("retention rose");
+    await click(live()!.querySelector("button[aria-label='Close']"));
+    expect(mic.cancels).toBeGreaterThan(0);
+  });
+
+  it("a served rewrite with nothing to open a practise on goes straight past it", async () => {
+    walkOn();
+    const p = props({ suggestions: [judgement, praise, rewrite] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    expect(screen()).not.toBe("walk-screen-practise");
+    expect(mic.starts).toBe(0);
   });
 });

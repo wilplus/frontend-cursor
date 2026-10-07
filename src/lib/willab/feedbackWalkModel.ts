@@ -8,11 +8,12 @@
 /*  step alone.                                                               */
 /*                                                                            */
 /*  THIS PHASE draws the coach's note, the praise and the helper words, the   */
-/*  clearer version (D-FW-15), then the end card. The other screens of the    */
-/*  plan are left out here, not drawn half-built:                             */
-/*    TODO(D-FW-16) practising and the machine's check (after "Accept and     */
-/*      practise" the walk goes on to the plan's next screen until then)      */
-/*    TODO(D-FW-17) the exercise video                                        */
+/*  clearer version (D-FW-15), the practise loop on the accepted words or the */
+/*  moment said again (D-FW-16; the machine's check lays its screens in live, */
+/*  walkPractise.ts), then the end card. The other screens of the plan are    */
+/*  left out here, not drawn half-built:                                      */
+/*    TODO(D-FW-17) the exercise video, and the practise on an exercise's     */
+/*      instruction that follows it                                           */
 /*    TODO(D-FW-18) "Judgement time!" and the judgements                      */
 /*    TODO(D-FW-20) sharing                                                   */
 /*                                                                            */
@@ -56,6 +57,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
    *  words offered in their place (`proposedText`), and the item itself for
    *  the decision. Only from the served item; never made up. */
   rewrite?: { quote: string; proposedText: string; item: R } | null;
+  /** The served item itself, set only where a practise can be opened on it
+   *  (its clearer version's words, or the moment said again). Only handed
+   *  back. */
+  item?: R | null;
 };
 
 /** A moment's clearer version: the served pair as pieces, the words to say
@@ -75,6 +80,9 @@ export type FeedbackWalkMoment<R = unknown> = {
   clip: WalkClip | null;
   /** The clearer version, when the moment has a served rewrite. */
   clearer: FeedbackWalkClearer<R> | null;
+  /** The item the moment's practise is opened on: its served rewrite, or
+   *  the moment to say again. None: nothing to practise here. */
+  practiseItem: R | null;
 };
 
 export type FeedbackWalkModel<R = unknown> = {
@@ -84,16 +92,30 @@ export type FeedbackWalkModel<R = unknown> = {
   partsOf: string[][];
 };
 
-/** The screens this phase draws (D-FW-14, D-FW-15). The rest of the plan
- *  waits for D-FW-16/17/18/20. */
+/** The screens this phase draws (D-FW-14, D-FW-15, D-FW-16). The rest of
+ *  the plan waits for D-FW-17/18/20. The practise loop's later screens
+ *  (checking, praise, encouragement, the thank-you, a late read) are laid in
+ *  live by walkPractise.ts, never planned ahead. */
 export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
   "page",
   "coachnote",
   "praise",
   "helpers",
   "clearer",
+  "practise",
   "end",
 ]);
+
+/** A practise this phase records, where its item is there to open it on:
+ *  the accepted words of a clearer version it draws, or the moment said
+ *  again. The one on an exercise's instruction follows its video, which is
+ *  D-FW-17's. */
+function drawnPractise<R>(step: WalkStep, moment: FeedbackWalkMoment<R> | undefined): boolean {
+  if (step.key !== "practise") return true;
+  if (moment?.practiseItem == null) return false;
+  if (step.kind === "words") return moment.clearer != null;
+  return step.kind === "moment";
+}
 
 const isPraise = (i: FeedbackWalkItem) =>
   i.openCard === "praise" || i.feedbackFamily === "great_formulation";
@@ -120,6 +142,8 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     praiseWords: praise?.praiseWords ?? [],
     clip,
     clearer: clearerOf(group),
+    practiseItem:
+      group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ?? null,
   };
 }
 
@@ -138,11 +162,14 @@ export function buildFeedbackWalk<R = unknown>(input: {
     coachNote: input.coachNote,
     practiceOn: input.practiceOn,
     guest: input.guest,
-  }).filter(
-    (step) =>
+  }).filter((step) => {
+    const moment = step.moment == null ? undefined : moments[step.moment];
+    return (
       WALK_PHASE_SCREENS.has(step.key) &&
-      (step.key !== "clearer" || (step.moment != null && moments[step.moment]?.clearer != null)),
-  );
+      drawnPractise(step, moment) &&
+      (step.key !== "clearer" || moment?.clearer != null)
+    );
+  });
   return {
     plan,
     moments,

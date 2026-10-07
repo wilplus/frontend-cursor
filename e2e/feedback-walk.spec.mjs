@@ -11,6 +11,10 @@
 /*  black; "None" stands alone; nothing on any screen is a score (AC-9: no    */
 /*  percentage). Then the whole walk is driven through its own buttons in     */
 /*  flow mode, checking the move each step plays, and recorded as a video.   */
+/*  Last, the practise loop live (D-FW-16) on the PRODUCTION walk (?live=1),  */
+/*  its routes answered in the browser and its microphone a tone              */
+/*  (_walkPractise.mjs): praise on try 1, praise on try 2, the cap after     */
+/*  three tries, and a late read (O5).                                        */
 /*                                                                            */
 /*  Video of the flow: <SHOTS_DIR>/flow.webm. SHOTS_DIR defaults to            */
 /*  e2e/artifacts/feedback-walk (gitignored). The still screens are drawn by  */
@@ -20,6 +24,7 @@
 import { mkdirSync, renameSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { launchChromium } from "./_launch.mjs";
+import { TRY_WORDS, liveScreen, routePractise, seedPractise, stopTry, toLivePractise } from "./_walkPractise.mjs";
 
 const BASE = process.env.WALK_P1_URL ?? "http://localhost:3111/dev/feedback-walk";
 const SHOTS = process.env.SHOTS_DIR ?? "e2e/artifacts/feedback-walk";
@@ -198,6 +203,82 @@ for (const [screen, selector] of Object.entries(KEY)) {
   rmSync(videoDir, { recursive: true, force: true });
   check("the flow video was recorded", existsSync(join(SHOTS, "flow.webm")));
 }
+
+/* ------------------------- the practise loop, live -------------------------- */
+const LIVE_URL = `${BASE}?live=1`;
+const CM3B = "Great effort! Let's move on and come back to this one later.";
+const NX3A = ["Let's try it once more. I have another practice for you!", "Let's give it another go. I have one more practice for you!"];
+
+/** One practise run: the routes answer `answers`, `drive` taps through. */
+async function practiseRun(name, answers, drive) {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  await seedPractise(context);
+  const calls = await routePractise(context, answers);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(LIVE_URL, { waitUntil: "networkidle" });
+  await toLivePractise(page);
+  const shown = async (key) =>
+    page.waitForSelector(liveScreen(key), { timeout: 20_000 }).then(() => true, () => false);
+  const text = (key) => page.locator(liveScreen(key)).innerText();
+  await drive({ page, shown, text, calls });
+  const body = await page.evaluate(() => document.body.innerText);
+  check(`${name}: no lane, value or score on screen (AC-9)`, !/lane|cue:|1\.37|score|%/i.test(body));
+  check(`${name}: no page errors`, errors.length === 0, errors.join(" | "));
+  await context.close();
+}
+
+await practiseRun("praise on try 1", [{ next: "praise", key: "cue:landed_ending" }], async ({ page, shown, text, calls }) => {
+  check("practise: records at once, no title, no slide bar",
+    (await page.locator(`${liveScreen("practise")} h2`).count()) === 0 &&
+    (await page.locator(`${liveScreen("practise")} [data-walk-nav]`).count()) === 0);
+  await stopTry(page);
+  check("Stop: the voice mark while the machine checks", await shown("processing"));
+  check("praise on try 1: the praise after the try", await shown("improved"));
+  check("praise on try 1: a line of the signed bank (B07)",
+    (await text("improved")).includes("That was great. You weren't asking me"));
+  check("Stop went through open, upload and check", calls.join(",") === "open,upload:1,check:praise", calls.join(","));
+  await page.locator(`${liveScreen("improved")} [data-testid="walk-forward"]`).click();
+  check("praise → helper words from the try's own words", await shown("helpers") &&
+    (await page.locator(`${liveScreen("helpers")} [data-walk-word-picker] button`).allInnerTexts()).join(" ") === TRY_WORDS);
+});
+
+await practiseRun("praise on try 2", [{ next: "again", key: "effort" }, { next: "praise", key: "more_assured" }],
+  async ({ page, shown, text }) => {
+    await stopTry(page);
+    check("try 1 not yet: the encouragement (NX3a)", await shown("encourage") && (await text("encourage")).includes(NX3A[0]));
+    await page.locator(`${liveScreen("encourage")} [data-testid="walk-forward"]`).click();
+    check("Continue: the next try records", await shown("practise"));
+    await stopTry(page);
+    check("praise on try 2", await shown("improved") &&
+      (await text("improved")).includes("Sounded more confident than usual!"));
+  });
+
+await practiseRun("the cap", [{ next: "again", key: "effort" }, { next: "again", key: "effort" }, { next: "moved_on", key: "CM3b" }],
+  async ({ page, shown, text, calls }) => {
+    for (const line of NX3A) {
+      await stopTry(page);
+      check(`a try that is not praise: "${line.slice(0, 22)}…"`, await shown("encourage") && (await text("encourage")).includes(line));
+      await page.locator(`${liveScreen("encourage")} [data-testid="walk-forward"]`).click();
+      await shown("practise");
+    }
+    await stopTry(page);
+    check("after the third try: a CM3b line", await shown("thanks") && (await text("thanks")).includes(CM3B));
+    check("three tries, three checks", calls.filter((c) => c.startsWith("check:")).length === 3, calls.join(","));
+    await page.locator(`${liveScreen("thanks")} [data-testid="walk-forward"]`).click();
+    // TODO(D-FW-18): "Judgement time!" follows; in this phase the end card.
+    check("then the walk moves on", await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  });
+
+await practiseRun("a late read", ["hang"], async ({ page, shown }) => {
+  await stopTry(page);
+  check("a late read (O5): Next and Practise again", await shown("late") &&
+    (await page.locator(`${liveScreen("late")} [data-testid="walk-forward"]`).innerText()) === "Next" &&
+    (await page.locator(`${liveScreen("late")} [data-testid="walk-again"]`).innerText()) === "Practise again");
+  await page.locator(`${liveScreen("late")} [data-testid="walk-again"]`).click();
+  check("Practise again records the next try", await shown("practise"));
+});
 
 await browser.close();
 if (failures) {
