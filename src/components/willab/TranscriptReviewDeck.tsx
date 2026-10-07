@@ -1063,8 +1063,6 @@ export default function TranscriptReviewDeck({
   }, [counts]);
 
 
-  const kickerFor = (slideIndex: number | null, ord: number): string =>
-    slideIndex === null ? "Your talk" : `Slide ${slideIndex + 1}`;
   const titleFor = (slideIndex: number | null): string | null =>
     slideIndex === null ? null : (slideTitles?.[slideIndex] ?? null);
 
@@ -1072,8 +1070,8 @@ export default function TranscriptReviewDeck({
     // The whole deck: kicker/title + paragraphs, slides separated by a rule
     // (Lovable §4's copy tool).
     const textOut = groups
-      .map((g, i) => {
-        const head = [kickerFor(g.slideIndex, i), titleFor(g.slideIndex)]
+      .map((g) => {
+        const head = [copyLabelFor(g.slideIndex), titleFor(g.slideIndex)]
           .filter(Boolean)
           .join(" — ");
         const body = g.chunks.map((c) => c.part.text).join("\n\n");
@@ -1198,12 +1196,12 @@ export default function TranscriptReviewDeck({
                   <DeckSlideThumb
                     presentationRef={presentationRef}
                     pageIndex={g.slideIndex}
-                    label={kickerFor(g.slideIndex, gi)}
+                    label={kickerFor(g.slideIndex, slideCount)}
                   />
                 ) : null}
                 <div className="flex min-w-0 flex-1 items-center gap-3 md:w-full md:flex-none md:justify-center">
                 <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground md:flex-none">
-                  {kickerFor(g.slideIndex, gi)}
+                  {kickerFor(g.slideIndex, slideCount)}
                 </p>
                 {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26). */}
                 <button
@@ -1396,10 +1394,10 @@ export default function TranscriptReviewDeck({
                 const si = rs.first + k;
                 const label =
                   scr.screensInSlide > 1
-                    ? `Go to ${kickerFor(rs.slideIndex, ord)}, screen ${
+                    ? `Go to ${copyLabelFor(rs.slideIndex)}, screen ${
                         scr.screenOfSlide + 1
                       } of ${scr.screensInSlide}`
-                    : `Go to ${kickerFor(rs.slideIndex, ord)}`;
+                    : `Go to ${copyLabelFor(rs.slideIndex)}`;
                 // ONE MARK PER SCREEN — no chunk ticks (founder 2026-08-15:
                 // "just the pages per slide … one level of hierarchy can be
                 // removed, this deepest one").
@@ -1576,7 +1574,7 @@ export default function TranscriptReviewDeck({
       {deckReady && editingSlideIndex !== undefined ? (
         <SlideEditor
           key={editingSlideIndex ?? "unlinked"}
-          title={titleFor(editingSlideIndex) || kickerFor(editingSlideIndex, 0)}
+          title={titleFor(editingSlideIndex) || copyLabelFor(editingSlideIndex)}
           presentationRef={presentationRef}
           slideIndex={editingSlideIndex}
           chunks={
@@ -1724,6 +1722,22 @@ function SlideEditor({
       </div>
     </div>
   );
+}
+
+/** The kicker above a slide's text on the Ideal Text page: "Slide 2 of 6"
+ *  (shown in capitals by CSS), as Ideal Text Final Screens draws it; "Slide
+ *  2" while the deck's length is unknown; "Your talk" for a text with no
+ *  deck. Exported for tests. */
+export function kickerFor(slideIndex: number | null, slideCount: number | null): string {
+  if (slideIndex === null) return "Your talk";
+  if (!slideCount || slideCount <= slideIndex) return `Slide ${slideIndex + 1}`;
+  return `Slide ${slideIndex + 1} of ${slideCount}`;
+}
+
+/** "Slide 2", as the copied text and the rail's "Go to" labels name a slide
+ *  (unchanged by the kicker's "of m"). */
+function copyLabelFor(slideIndex: number | null): string {
+  return slideIndex === null ? "Your talk" : `Slide ${slideIndex + 1}`;
 }
 
 /** "Slide 2" for the walk's header, from the slide the paragraph sits on. */

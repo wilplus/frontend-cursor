@@ -70,6 +70,14 @@ const tier =
     ? new URLSearchParams(window.location.search).get("tier")
     : null;
 
+/** ?slides=6 — the deck's length is known: the host serves its slide titles,
+ *  so the kicker reads "Slide n of m" (D-IT-1). Without it the length is
+ *  unknown, as on a payload that carries no titles. */
+const slideTitleCount =
+  typeof window !== "undefined"
+    ? Number(new URLSearchParams(window.location.search).get("slides") ?? 0)
+    : 0;
+
 function payload() {
   const p1 = decided === "approved" ? P1_AFTER : P1;
   // An applied emphasis is FOLDED INTO THE TEXT server-side, as marker
@@ -245,6 +253,14 @@ function payload() {
       challenger: null,
     })),
     additions: [],
+    ...(slideTitleCount > 0
+      ? {
+          slide_titles: Array.from(
+            { length: slideTitleCount },
+            (_, i) => `Slide title ${i + 1}`,
+          ),
+        }
+      : {}),
     changes,
     style_changes,
     // SLICE 2 — the decided-proposal history: one earlier round on p0's

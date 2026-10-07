@@ -137,3 +137,27 @@ describe("TranscriptReviewDeck — F1 net", () => {
     expect(text).not.toContain("retention rose");
   });
 });
+
+describe("the kicker reads Slide n of m (build plan D-IT-1)", () => {
+  it("names each slide and the deck's length; the copied text is unchanged", async () => {
+    await render();
+    const kickers = Array.from(container.querySelectorAll("p.uppercase")).map((p) => p.textContent);
+    expect(kickers).toEqual(["Slide 1 of 3", "Slide 2 of 3", "Slide 3 of 3"]);
+    const writeText = vi.fn(async (_text: string) => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const copy = container.querySelector<HTMLButtonElement>('button[aria-label="Copy the whole text"]')!;
+    expect(copy).not.toBeNull();
+    await act(async () => copy.click());
+    const out = writeText.mock.calls[0]?.[0] ?? "";
+    expect(out.startsWith("Slide 1 — Opening\n\n")).toBe(true);
+    expect(out).toContain("Slide 2 — Results");
+    expect(out).not.toMatch(/ of 3/);
+  });
+
+  it("keeps Your talk for a text with no deck", async () => {
+    await render({ pieceSlideIndexes: null, piecePartIds: null, slideTitles: undefined } as never);
+    const kickers = Array.from(container.querySelectorAll("p.uppercase")).map((p) => p.textContent);
+    expect(kickers).toContain("Your talk");
+    expect(kickers.join(" ")).not.toMatch(/ of /);
+  });
+});
