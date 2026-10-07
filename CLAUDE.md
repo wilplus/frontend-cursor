@@ -170,7 +170,10 @@ in the backend repo (decisions log N59), and a copy of the page as locked is
 - the first recording's learning screen: **Scroll down to start** on a
   phone, the arrow keys with **Click down to start** on a desktop; no slide
   and no recording controls until the speaker starts;
-- **Getting your mic ready** before a later Take;
+- **Getting your mic ready** before a later Take, and nothing to approve:
+  "Record Take N" goes straight to it and the Take starts by itself (the
+  old "Start recording" screen was deleted, founder 2026-10-07; the
+  optional training question may still ask first);
 - the recording screen: **Take N · Slide n of m** in the top bar beside the
   close button (no "Recording" label), the slide close under it, the
   speaker's helper words, every one orange (none on Take 1), the slide dots on the right, and the strip

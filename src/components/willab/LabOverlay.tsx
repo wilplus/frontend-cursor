@@ -1233,8 +1233,10 @@ export default function LabOverlay({
   }
 
   /** Later takes skip the emotion check and reuse the project's stored setup.
-   *  This explicit tap is the browser permission gesture; Recording Mode opens
-   *  only after it and begins capture immediately. */
+   *  Called by itself once that setup has arrived (no "Start recording"
+   *  screen, founder 2026-10-07); Recording Mode opens and begins capture
+   *  immediately. The mic was already allowed on Take 1; a refused start
+   *  lands on the mic-error screen, whose "Try again" is a tap. */
   function startContinuedTake() {
     const restored = restoredSetupFor(preloadDeck, false);
     if (!restored) {
@@ -1463,20 +1465,17 @@ export default function LabOverlay({
           </TrainingAskGate>
         )}
 
+        {/* No "Start recording" screen before a later Take (founder
+            2026-10-07: "delete the screen before second and next take when
+            you click record and need to approve it with an orange btn"). The
+            Take starts by itself as soon as the project's setup has arrived;
+            the learning question, when it is asked, still comes first. */}
         {state === "lab_prerecord" && (
           <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-              <p className="max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-                Your slides and speaking anchors are ready.
-              </p>
-              <Button
-                onClick={startContinuedTake}
-                disabled={setupArriving}
-                className="rounded-full px-7"
-              >
-                Start recording
-              </Button>
-            </div>
+            <ContinuedTakeAutoStart
+              ready={!setupArriving}
+              onStart={startContinuedTake}
+            />
           </TrainingAskGate>
         )}
 
@@ -2035,6 +2034,26 @@ export function RecordingPhase({
       </div>
     </div>
   );
+}
+
+/** A later Take starts by itself: once the project's setup has arrived it
+ *  calls `onStart` exactly once; until then it shows the app's one loader. */
+function ContinuedTakeAutoStart({
+  ready,
+  onStart,
+}: {
+  ready: boolean;
+  onStart: () => void;
+}) {
+  const started = useRef(false);
+  const onStartRef = useRef(onStart);
+  onStartRef.current = onStart;
+  useEffect(() => {
+    if (!ready || started.current) return;
+    started.current = true;
+    onStartRef.current();
+  }, [ready]);
+  return <LoadingState placement="surface" label="Getting your mic ready" />;
 }
 
 /** The content column's top gap. The recording screen sits close under its
