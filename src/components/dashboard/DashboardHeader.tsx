@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
-import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
 
 /* -------------------------------------------------------------------------- */
@@ -53,8 +52,6 @@ export default function DashboardHeader() {
             tokensLabel={menu.tokensLabel}
             lifeMenu={menu.lifeMenu}
             productMenu={menu.productMenu}
-            supportEmail={SUPPORT_EMAIL}
-            communityUrl={COMMUNITY_URL}
             onLogout={menu.logout}
             loggingOut={menu.loggingOut}
             // Reachable from /panel/* too, which is where this header also

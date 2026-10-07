@@ -215,7 +215,13 @@ repo (decisions log N60), and a copy of the page as locked is
   to confirm** (signed the same day; it read "Two things to confirm") and
   **Nothing was recorded** (`Phase1AcceptanceFlow.tsx`, `WelcomeConsent.tsx`);
 - the **Data & consent** page, its switches, confirms, projects and Delete
-  my account;
+  my account, now as the **settings page prototype** shows it:
+  <https://claude.ai/artifact/4jDJsvBAquMUgaGkJgHR76> (founder 2026-10-07,
+  ST1 A): a **Support** card with contact@willpowerlab.com between Your
+  projects and Delete my account; Privacy Policy and Terms of Service opened
+  from here return with **Back**; the ☰ menu has no Support and no
+  Community row, and the row for the page you are on stays orange on light
+  orange;
 - **Turn on the learning?** before each Take while training is off (Skip
   asks again next Take; Yes is never asked again);
 - how they scroll: every step scrolls from its true top to its last

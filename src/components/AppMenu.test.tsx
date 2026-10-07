@@ -16,12 +16,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppMenu from "./AppMenu";
 
 vi.mock("next/link", () => ({
-  default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; onClick?: () => void; className?: string }>(
-    function LinkStub({ href, children, onClick, className }, ref) {
-      return createElement("a", { href, onClick, className, ref }, children);
+  default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; onClick?: () => void; className?: string; "aria-current"?: "page" }>(
+    function LinkStub({ href, children, onClick, className, "aria-current": ariaCurrent }, ref) {
+      return createElement("a", { href, onClick, className, ref, "aria-current": ariaCurrent }, children);
     },
   ),
 }));
+
+let pathname = "/chat";
+vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
 
 let host: HTMLDivElement;
 let root: Root;
@@ -43,8 +46,6 @@ function openMenu(props: Partial<Parameters<typeof AppMenu>[0]>): HTMLAnchorElem
     root.render(
       <AppMenu
         authState="signed_in"
-        supportEmail="help@example.com"
-        communityUrl="https://example.com/community"
         labHref="/chat"
         {...props}
       />,
@@ -77,3 +78,25 @@ describe("the coach menu after the Library moved to the admin area", () => {
     }
   });
 });
+
+describe("the menu after 2026-10-07 (founder)", () => {
+  it("has no Support and no Community row", () => {
+    const links = openMenu({ dataConsentHref: "/account/data-consent" });
+    expect(links.some((a) => a.textContent === "Support")).toBe(false);
+    expect(links.some((a) => a.textContent === "Community")).toBe(false);
+    expect(links.some((a) => (a.getAttribute("href") ?? "").startsWith("mailto:"))).toBe(false);
+  });
+
+  it("marks the page you are on, not only on hover", () => {
+    pathname = "/account/data-consent";
+    const links = openMenu({ dataConsentHref: "/account/data-consent" });
+    const here = links.find((a) => a.textContent === "Data & consent");
+    const lab = links.find((a) => a.textContent === "Lab");
+    expect(here?.getAttribute("aria-current")).toBe("page");
+    expect(here?.className).toContain("bg-accent text-accent-foreground");
+    expect(lab?.getAttribute("aria-current")).toBeNull();
+    expect(lab?.className).not.toContain("bg-accent text-accent-foreground");
+    pathname = "/chat";
+  });
+});
+

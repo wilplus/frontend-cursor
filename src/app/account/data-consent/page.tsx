@@ -19,6 +19,7 @@ import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
+import SupportCard from "@/components/account/SupportCard";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 
 export default function DataConsentPage() {
@@ -42,13 +43,14 @@ export default function DataConsentPage() {
           <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
         <ProjectsCard />
+        <SupportCard />
         <DeleteAccountCard />
         <p className="mt-8 text-sm text-muted-foreground">
-          <Link href="/privacy" className="underline underline-offset-4">
+          <Link href="/privacy?from=data-consent" className="underline underline-offset-4">
             Privacy Policy
           </Link>
           {" · "}
-          <Link href="/terms" className="underline underline-offset-4">
+          <Link href="/terms?from=data-consent" className="underline underline-offset-4">
             Terms of Service
           </Link>
         </p>
