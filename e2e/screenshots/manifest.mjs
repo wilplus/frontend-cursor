@@ -63,16 +63,24 @@ const IDEAL_TEXT = [
 /** The Feedback walk's still screens, as /dev/feedback-walk draws them (the
  *  names and key elements are e2e/feedback-walk.spec.mjs's). */
 const WALK_KEYS = {
+  lounge: "[data-walk-lounge]",
   coachnote: "[data-coach-video]",
   praise: "[data-walk-player]",
   clearer: "[data-walk-new-words] em",
+  // The clearer version while personalised practice is off (WQ3c A).
+  clearerOff: "[data-walk-new-words] em",
   exVideo: "[data-coach-video]",
   practise: "[data-walk-recording-strip]",
   processing: "[data-walk-loading]",
   improved: "[data-walk-message]",
   encourage: "[data-walk-message]",
+  // A try where nothing moved (NX3a); after the third try (CM3b A).
+  nothingMoved: "[data-walk-message]",
+  thirdTry: "[data-walk-message]",
   helpers: "[data-walk-word-picker]",
   intro: "[data-walk-pill]",
+  // The Journal post inside the flow (its eyebrow signed by Q-B4 A).
+  journal: "[data-walk-journal]",
   judge: "[data-walk-judgement]",
   community: "[data-walk-options]",
   end: "[data-walk-endsheet]",

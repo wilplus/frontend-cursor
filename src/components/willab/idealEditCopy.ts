@@ -378,11 +378,15 @@ export const CHUNK_SHEET_COPY = {
 /*  walk's screens is already in CHUNK_SHEET_COPY above or in the shared      */
 /*  answer vocabulary. The lines after the third try that isn't praise       */
 /*  (CM3b A, N55) and the clearer version's button when personalised         */
-/*  practice is off (WQ3c A) were signed minutes later. Still NOT signed and  */
-/*  therefore NOT here: the "Journal" eyebrow.                                */
+/*  practice is off (WQ3c A) were signed minutes later. The "Journal"         */
+/*  eyebrow above the post was signed with the prototype's design on         */
+/*  2026-10-07 (Q-B4 A, decisions log N62/N63: "every word a locked           */
+/*  prototype shows is signed with its design ... 'Journal' shows").          */
 /* -------------------------------------------------------------------------- */
 
 export const WALK_COPY = {
+  /* The eyebrow above the Journal post, inside the flow (Q-B4 A). */
+  journalEyebrow: "Journal",
   /* A practise the machine did not hear improve: encouragement, then another
      practise, until praise or Skip. */
   encourage: "It was better, and I have yet another practice for you to try!",

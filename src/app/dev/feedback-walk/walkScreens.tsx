@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import CoachVideo from "@/components/willab/CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import WalkOverlay, { type WalkNav } from "@/components/willab/walk/WalkOverlay";
@@ -13,10 +14,14 @@ import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
 import RecordingStrip from "@/components/willab/walk/RecordingStrip";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
+import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import {
   COACH_NOTE,
+  JOURNAL_STANDIN,
+  LOUNGE_STANDIN,
   MOMENTS,
   PARAGRAPHS,
+  PROJECT_TITLE,
   SLIDE_LABEL,
   TAKE_SHOWN,
   BANK_PICKS,
@@ -37,6 +42,14 @@ export type WalkCtx = {
   forward: () => void;
   back: () => void;
   close: () => void;
+  /** "More about self-modeling theory": the Journal post, inside the flow. */
+  openJournal: () => void;
+  /** "Keep my words": the clearer version is declined and its practise is
+   *  skipped; the walk goes on with the next moment (D-FW-12). */
+  keepWords: () => void;
+  /** Skip on "Judgement time!": the bars are cleared and the walk still
+   *  asks to share, then the end card (Q-B6 A). */
+  skipJudging: () => void;
   answers: Record<number, ConfidenceRatingValue>;
   answer: (moment: number, value: ConfidenceRatingValue) => void;
   helpers: Record<number, number[]>;
@@ -133,7 +146,35 @@ function Clearer(ctx: WalkCtx) {
       footer={
         <WalkFooter
           pill={{ label: COPY.pillAcceptPractise, onClick: ctx.forward, testId: "walk-forward" }}
-          links={[{ label: COPY.linkKeepMyWords, onClick: ctx.forward }]}
+          links={[{ label: COPY.linkKeepMyWords, onClick: ctx.keepWords, testId: "walk-keep-words" }]}
+        />
+      }
+    >
+      {player(ctx, pieces(c?.before ?? []))}
+      <WalkMessage>
+        <span>{WALK_COPY.clearerOffer}</span>
+        <WalkNewWords>{pieces(c?.after ?? [])}</WalkNewWords>
+        <span>{WALK_COPY.clearerAsk}</span>
+      </WalkMessage>
+    </WalkOverlay>
+  );
+}
+
+/** The clearer version while personalised practice is off (WQ3c A): the
+ *  words can be taken into the text but not practised, so the pill reads
+ *  "Accept" and nothing records. */
+function ClearerOff(ctx: WalkCtx) {
+  const c = mom(ctx).clearer;
+  return (
+    <WalkOverlay
+      testId={testId(ctx)}
+      nav={momentNav(ctx)}
+      onClose={ctx.close}
+      title={COPY.cardClearerVersion}
+      footer={
+        <WalkFooter
+          pill={{ label: WALK_COPY.clearerAccept, onClick: ctx.keepWords, testId: "walk-forward" }}
+          links={[{ label: COPY.linkKeepMyWords, onClick: ctx.keepWords, testId: "walk-keep-words" }]}
         />
       }
     >
@@ -229,6 +270,45 @@ function Encourage(ctx: WalkCtx) {
   );
 }
 
+/** A try where nothing moved (NX3a): one of the signed lines, then another
+ *  practise, until praise or Skip. */
+function NothingMoved(ctx: WalkCtx) {
+  return (
+    <WalkOverlay
+      testId={testId(ctx)}
+      nav={momentNav(ctx)}
+      onClose={ctx.close}
+      title={COPY.titlePractise}
+      footer={
+        <WalkFooter
+          pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }}
+          links={[{ label: WALK_COPY.skip, onClick: ctx.forward }]}
+        />
+      }
+    >
+      {player(ctx)}
+      <WalkMessage>{BANK_PICKS.nothingMoved}</WalkMessage>
+    </WalkOverlay>
+  );
+}
+
+/** After the third try that isn't praise (CM3b A, N55): one of the signed
+ *  lines, and the walk moves on; nothing more to skip. */
+function ThirdTry(ctx: WalkCtx) {
+  return (
+    <WalkOverlay
+      testId={testId(ctx)}
+      nav={momentNav(ctx)}
+      onClose={ctx.close}
+      title={COPY.titlePractise}
+      footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }} />}
+    >
+      {player(ctx)}
+      <WalkMessage>{BANK_PICKS.thirdTry}</WalkMessage>
+    </WalkOverlay>
+  );
+}
+
 function Helpers(ctx: WalkCtx) {
   const m = mom(ctx);
   const picked = ctx.helpers[m.index] ?? [];
@@ -264,20 +344,41 @@ function Intro(ctx: WalkCtx) {
       footer={
         <WalkFooter
           pill={{ label: WALK_COPY.judgementPromise, onClick: ctx.forward, testId: "walk-forward" }}
-          links={[{ label: WALK_COPY.skip, onClick: ctx.forward }]}
+          links={[{ label: WALK_COPY.skip, onClick: ctx.skipJudging, testId: "walk-skip-judging" }]}
         />
       }
     >
       <div className="flex flex-1 flex-col justify-center gap-3.5 px-7 text-center">
         <h2 className="m-0 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em]">{WALK_COPY.judgementTitle}</h2>
         <p className="m-0 text-[16px] leading-[1.5]">{WALK_COPY.judgementHonesty}</p>
-        {/* Opens the Journal post inside the flow (P4); inert until then. */}
+        {/* Opens the Journal post inside the flow (P4). */}
         <button
           type="button"
+          data-testid="walk-journal-link"
+          onClick={ctx.openJournal}
           className="mx-auto text-[14px] text-muted-foreground underline underline-offset-[3px]"
         >
           {WALK_COPY.judgementJournalLink}
         </button>
+      </div>
+    </WalkOverlay>
+  );
+}
+
+/** The Journal post, inside the flow (walk lock, flow 9): the signed
+ *  "Journal" eyebrow (Q-B4 A) over the post, ‹ and "Back" return. The post
+ *  itself is not written yet; the stand-in words are the prototype's. */
+function Journal(ctx: WalkCtx) {
+  return (
+    <WalkOverlay
+      testId={testId(ctx)}
+      onBack={ctx.back}
+      footer={<WalkFooter links={[{ label: COPY.pagerBack, onClick: ctx.back, testId: "walk-journal-back" }]} />}
+    >
+      <div data-walk-journal className="flex flex-col gap-2.5">
+        <span className="text-[12px] uppercase tracking-[0.12em] text-muted-foreground">{WALK_COPY.journalEyebrow}</span>
+        <h2 className="m-0 text-[22px] font-bold leading-[1.2] tracking-[-0.01em]">{JOURNAL_STANDIN.title}</h2>
+        <p className="m-0 text-[14.5px] text-muted-foreground">{JOURNAL_STANDIN.note}</p>
       </div>
     </WalkOverlay>
   );
@@ -345,23 +446,69 @@ function Community(ctx: WalkCtx) {
   );
 }
 
-const SCREENS: Record<Exclude<Step["key"], "page" | "end">, (ctx: WalkCtx) => ReactNode> = {
+/** The Lounge around the walk (walk lock, flow 1): when feedback from the
+ *  coach arrives, the Ideal Text bubble gets the orange outline and the
+ *  "new" tag; the paragraph on the page keeps only its bar. A still
+ *  stand-in, not the product's Lounge. */
+export function LoungeStandIn({ onOpen, walked = false }: { onOpen: () => void; walked?: boolean }) {
+  return (
+    // Fixed over the whole viewport, as the walk's overlay is, so the app's
+    // pinned footer never shows under the stand-in.
+    <main data-walk-lounge className="fixed inset-0 z-40 flex flex-col bg-background text-foreground">
+      <header className="flex items-center justify-center border-b border-border px-5 py-2.5 text-[16px] font-semibold">
+        WillpowerLab
+      </header>
+      <div className="flex flex-1 flex-col justify-end gap-2.5 px-4 py-2">
+        <p className="m-0 ml-auto max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-[15px] leading-[1.45] text-background">
+          {LOUNGE_STANDIN.speakerMessage}
+        </p>
+        <button
+          type="button"
+          data-testid="walk-lounge-bubble"
+          data-walk-marked={walked ? undefined : "true"}
+          onClick={onOpen}
+          className={cn(
+            "relative mr-auto flex w-[80%] items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 text-left",
+            !walked && "outline outline-2 outline-offset-[3px] outline-primary",
+          )}
+        >
+          <span aria-hidden className="aspect-video w-[72px] flex-none rounded-md bg-muted" />
+          <span className="flex min-w-0 flex-col">
+            <b className="text-[15px]">{PROJECT_TITLE}</b>
+            <small className="text-[12px] text-muted-foreground">{aiGeneratedLabel("ideal-text", TAKE_SHOWN)}</small>
+          </span>
+          {!walked ? (
+            <span className="absolute -right-1.5 -top-3.5 rounded-full bg-primary px-[9px] text-[11px] font-semibold leading-[1.5] text-background">
+              {COPY.chipNew}
+            </span>
+          ) : null}
+        </button>
+      </div>
+    </main>
+  );
+}
+
+const SCREENS: Record<Exclude<Step["key"], "page" | "end" | "lounge">, (ctx: WalkCtx) => ReactNode> = {
   coachnote: CoachNote,
   praise: Praise,
   clearer: Clearer,
+  clearerOff: ClearerOff,
   exVideo: ExVideo,
   practise: Practise,
   processing: Processing,
   improved: Improved,
   encourage: Encourage,
+  nothingMoved: NothingMoved,
+  thirdTry: ThirdTry,
   helpers: Helpers,
   intro: Intro,
+  journal: Journal,
   judge: Judge,
   community: Community,
 };
 
 export function renderWalkScreen(ctx: WalkCtx): ReactNode {
   const key = ctx.step.key;
-  if (key === "page" || key === "end") return null;
+  if (key === "page" || key === "end" || key === "lounge") return null;
   return SCREENS[key](ctx);
 }
