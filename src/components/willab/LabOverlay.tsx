@@ -1449,12 +1449,9 @@ export default function LabOverlay({
           shrink to the available phone height. Every other state still
           scrolls: they are ordinary content. */}
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${
-          // The recording screen sits close under its "Take · Slide" line
-          // (founder 2026-10-07: "the margin there is too big, at least
-          // half that").
-          state === "lab_recording" ? "pt-0" : "pt-6"
-        } ${SCREEN_BOTTOM_GAP} ${
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${screenTopGap(
+          state
+        )} ${SCREEN_BOTTOM_GAP} ${
           state === "readout" || state === "lab_recording"
             ? "min-h-0 overflow-hidden"
             : "overflow-y-auto"
@@ -2038,6 +2035,13 @@ export function RecordingPhase({
       </div>
     </div>
   );
+}
+
+/** The content column's top gap. The recording screen sits close under its
+ *  "Take · Slide" line (founder 2026-10-07: "the margin there is too big,
+ *  at least half that"); every other step keeps the usual gap. */
+function screenTopGap(state: string): string {
+  return state === "lab_recording" ? "pt-0" : "pt-6";
 }
 
 /** Where you are while recording: "Take 2 · Slide 3 of 6" on the left of
