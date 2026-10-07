@@ -21,8 +21,6 @@ let slideSeen = 0;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  // The hint has been seen: the roots scroller holds only the words.
-  window.localStorage.setItem("willab.recording.scrollHintSeen", "1");
   host = document.createElement("div");
   document.body.appendChild(host);
   slideSeen = 0;
@@ -135,10 +133,28 @@ describe("the recording stage and the page's pull-to-refresh", () => {
     expect(slideSeen).toBe(0);
   });
 
-  it("still changes nothing below the 48px threshold", () => {
+  it("changes nothing below the lock's 90px of travel (founder lock 2026-10-07)", () => {
     const { scroller } = render();
-    drag(scroller, 400, 360);
+    // 60px moved a slide under the old 48px rule; now it springs back.
+    const moves = drag(scroller, 400, 340);
     expect(slideSeen).toBe(0);
+    // Still never a page pull while it follows the finger.
+    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
+    drag(host.querySelector('[aria-label^="Speaking anchors"]')!, 400, 311);
+    expect(slideSeen).toBe(0);
+    drag(host.querySelector('[aria-label^="Speaking anchors"]')!, 400, 310);
+    expect(slideSeen).toBe(1);
+  });
+
+  it("starts no page pull from the top bar or the strip either", () => {
+    render();
+    // A touch anywhere on the screen, outside the content, is still the
+    // screen's: the listeners are on the document.
+    const outside = document.createElement("div");
+    document.body.appendChild(outside);
+    const moves = drag(outside, 100, 160);
+    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
+    outside.remove();
   });
 
   it("keeps the rail dots' taps", () => {

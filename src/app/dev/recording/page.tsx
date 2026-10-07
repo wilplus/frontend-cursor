@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RecordingPhase } from "@/components/willab/LabOverlay";
+import { RecordingPhase, RecordingWhere } from "@/components/willab/LabOverlay";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { DEFAULT_DECK } from "@/lib/willab/defaultDeck";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
@@ -19,6 +19,9 @@ import type { PresentationSlide } from "@/components/willab/presentation";
 /*    ?t=90     seconds elapsed (drives the clock + the bar)                   */
 /*    ?target=  the setup target in seconds (default 1500 = 25 min)            */
 /*    ?slide=   which slide to open on                                        */
+/*    ?take=    the Take shown in the top bar (default 2)                     */
+/*    ?learn=1  open on Take 1's learning screen (the mic held, not recording) */
+/*    ?mic=1    open on "Getting your mic ready", then the screen glides in    */
 /*                                                                            */
 /*  DEV ONLY. Production renders nothing.                                     */
 /* -------------------------------------------------------------------------- */
@@ -36,11 +39,18 @@ const DEMO_ROOTS = [
   { slideIndex: 2, text: "End with the next action", type: "flagship" as const },
 ];
 
+type MicStatus = "idle" | "recording";
+
 export default function RecordingHarness() {
   const [slide, setSlide] = useState(0);
   const [{ elapsed, target }, setClock] = useState({
     elapsed: 150,
     target: 1500,
+  });
+  const [take, setTake] = useState(2);
+  const [mic, setMic] = useState<{ status: MicStatus; armed: boolean }>({
+    status: "recording",
+    armed: false,
   });
   // AFTER mount, never during render: the query string does not exist on the
   // server, so reading it in the render pass makes the first client paint
@@ -52,6 +62,13 @@ export default function RecordingHarness() {
       elapsed: Number(q.get("t") ?? 150),
       target: Number(q.get("target") ?? 1500),
     });
+    const learn = q.get("learn") === "1";
+    setTake(learn ? 1 : Number(q.get("take") ?? 2));
+    if (learn) setMic({ status: "idle", armed: true });
+    if (q.get("mic") === "1") {
+      setMic({ status: "idle", armed: false });
+      window.setTimeout(() => setMic({ status: "recording", armed: false }), 1200);
+    }
   }, []);
   // LabOverlay holds pull-to-refresh off while it records; the mirror does
   // the same so the gesture can be checked here.
@@ -59,21 +76,30 @@ export default function RecordingHarness() {
   if (process.env.NODE_ENV === "production") return null;
 
   return (
-    // The LabOverlay shell, mirrored: fixed column, the h-12 header with the
-    // screen's name and the one way out, then the scroll slot the phases
-    // render into.
+    // The LabOverlay shell, mirrored: fixed column, the h-12 header with
+    // "Take · Slide" and the one way out, then the slot the phases render into.
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
       <header className="flex h-12 shrink-0 items-center justify-between px-4">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Recording
-        </span>
+        <RecordingWhere
+          show
+          micStatus={mic.status}
+          takeNumber={take}
+          slide={slide}
+          slideCount={SLIDES.length}
+        />
         <OverlayCloseButton onClick={() => {}} />
       </header>
       <div
-        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-0 ${SCREEN_BOTTOM_GAP}`}
       >
         <RecordingPhase
-          micState={{ status: "recording", partialText: "" }}
+          micState={
+            mic.status === "recording"
+              ? { status: "recording", partialText: "" }
+              : { status: "idle" }
+          }
+          armed={mic.armed}
+          onBegin={() => setMic({ status: "recording", armed: false })}
           elapsed={elapsed}
           targetSec={target}
           rejectedMsg={null}
@@ -83,7 +109,7 @@ export default function RecordingHarness() {
           slides={SLIDES}
           presentationRef={null}
           currentSlide={slide}
-          roots={DEMO_ROOTS}
+          roots={take > 1 ? DEMO_ROOTS : []}
           onSlideChange={setSlide}
         />
       </div>

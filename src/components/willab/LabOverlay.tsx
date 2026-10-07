@@ -64,6 +64,8 @@ import {
   resetTrainingAsk,
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
+import RecordingLearn from "./RecordingLearn";
+import { recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
   readExploreArc,
@@ -636,12 +638,15 @@ export default function LabOverlay({
   // "recording vanished but the mic was still on." This is the airtight
   // backstop: an active recording while the screen is no longer the recorder is
   // an orphan, so cancel it. A normal stop never trips this (mic is "stopped",
-  // not "recording", before the state leaves lab_recording).
+  // not "recording", before the state leaves lab_recording). A mic held open
+  // for Take 1's learning screen (armed) is just as much an orphan once the
+  // screen has gone.
+  const micHot = mic.state.status === "recording" || mic.armed;
   useEffect(() => {
-    if (mic.state.status === "recording" && state !== "lab_recording") {
+    if (micHot && state !== "lab_recording") {
       cancelMic();
     }
-  }, [mic.state.status, state, cancelMic]);
+  }, [micHot, state, cancelMic]);
 
   // seam ③ — fire the synchronous upload once on entering processing.
   useEffect(() => {
@@ -1224,7 +1229,7 @@ export default function LabOverlay({
     // be bounced into the waiting screen on the previous take's blob.
     cancelMic();
     dispatch("take_started");
-    void mic.start();
+    void mic.start({ arm: arcTakeIndex <= 1 });
   }
 
   /** Later takes skip the emotion check and reuse the project's stored setup.
@@ -1244,7 +1249,7 @@ export default function LabOverlay({
     startPendingRef.current = true;
     cancelMic();
     dispatch("take_started");
-    void mic.start();
+    void mic.start({ arm: arcTakeIndex <= 1 });
   }
 
   /** Throw away the take that is still going up, and land on the mic.
@@ -1329,7 +1334,7 @@ export default function LabOverlay({
     // resolves, which is the screen he was asking for.
     cancelMic();
     dispatch("take_started");
-    void mic.start();
+    void mic.start({ arm: arcTakeIndex <= 1 });
   }
 
   /** "Record Take 2" from the text: the learning question first (N28),
@@ -1362,7 +1367,7 @@ export default function LabOverlay({
     // Same stale-"stopped" hazard as onReRead — reset before entering.
     cancelMic();
     dispatch("take_started");
-    void mic.start();
+    void mic.start({ arm: arcTakeIndex <= 1 });
   }
 
   /** "Record again" from the slow-processing screen: the learning question
@@ -1415,18 +1420,20 @@ export default function LabOverlay({
           circled on both screens. */}
       {state === "lab_session_context" || state === "readout" ? null : (
         <header className="flex h-12 shrink-0 items-center justify-between px-4">
-          {/* The recording screen names itself. Every other step keeps the
-              bare ✕ — the label is here because this is the one screen you
-              look at while doing something else, and a glance has to answer
-              "what is this".
-
-              "Recording", not the mock's "Practice run" (founder 2026-08-11,
-              verdict on his own mock): every take matters, and a screen that
-              calls itself a practice run tells the speaker the opposite of
-              what the product believes. */}
-          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {state === "lab_recording" ? "Recording" : ""}
-          </span>
+          {/* The recording screen says where you are: "Take N · Slide n of
+              m" on the left, in place of the old "Recording" label (founder
+              lock 2026-10-07, the recording screens: "Recording" crossed out,
+              "Take · Slide" moved up into the top bar). Every other step —
+              the learning screen and "Getting your mic ready" included —
+              keeps the bare ✕. This bar is the still frame: a slide change
+              rewrites the line's text and nothing else. */}
+          <RecordingWhere
+            show={state === "lab_recording"}
+            micStatus={mic.state.status}
+            takeNumber={arcTakeIndex}
+            slide={currentSlide}
+            slideCount={recordingSlides.length}
+          />
           <OverlayCloseButton onClick={handleClose} />
         </header>
       )}
@@ -1442,7 +1449,9 @@ export default function LabOverlay({
           shrink to the available phone height. Every other state still
           scrolls: they are ordinary content. */}
       <div
-        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6 ${SCREEN_BOTTOM_GAP} ${
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${screenTopGap(
+          state
+        )} ${SCREEN_BOTTOM_GAP} ${
           state === "readout" || state === "lab_recording"
             ? "min-h-0 overflow-hidden"
             : "overflow-y-auto"
@@ -1517,7 +1526,10 @@ export default function LabOverlay({
                 }
                 lastWasUploadRef.current = false;
                 // The submit click IS the user gesture getUserMedia needs, so the
-                // mic starts right here and recording begins immediately.
+                // mic opens right here. A later Take records at once; Take 1
+                // holds the open mic on the learning screen (founder lock
+                // 2026-10-07), where the speaker's own scroll begins the
+                // recording — the permission prompt still rides this tap.
                 setExploreEnabled(explore);
                 setContext(ctx);
                 setRejectedMsg(null);
@@ -1533,7 +1545,7 @@ export default function LabOverlay({
                 // this entry and onReRecord did not.
                 cancelMic();
                 dispatch("take_started");
-                void mic.start();
+                void mic.start({ arm: arcTakeIndex <= 1 });
               }}
             />
           </TrainingAskGate>
@@ -1542,7 +1554,11 @@ export default function LabOverlay({
         {state === "lab_recording" && (
           <RecordingPhase
             micState={mic.state}
-            takeNumber={arcTakeIndex}
+            armed={mic.armed}
+            // Take 1's learning screen: the speaker's start gesture begins
+            // the recording on the mic held open since the setup tap. The
+            // mic-state effect then pins t=0 and slide 0, as for any start.
+            onBegin={() => void mic.start()}
             elapsed={elapsed}
             targetSec={context?.target_length_seconds ?? null}
             rejectedMsg={rejectedMsg}
@@ -1763,7 +1779,8 @@ export default function LabOverlay({
  *  used to go unchecked. */
 export function RecordingPhase({
   micState,
-  takeNumber = null,
+  armed = false,
+  onBegin,
   elapsed,
   targetSec,
   rejectedMsg,
@@ -1777,9 +1794,10 @@ export function RecordingPhase({
   onSlideChange,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
-  /** The Take being recorded, for "Take 2 · Slide 1 of 6" (founder
-   *  2026-09-28, option 1). Absent in the /dev harness. */
-  takeNumber?: number | null;
+  /** The mic is open and waiting (Take 1): show the learning screen. */
+  armed?: boolean;
+  /** The learning screen's start gesture: begin the recording. */
+  onBegin?: () => void;
   elapsed: number;
   /** R5 — the target length from setup (seconds, may arrive as a string). The
    *  clock counts DOWN to it, then UP as a red negative overrun; null/invalid →
@@ -1801,6 +1819,9 @@ export function RecordingPhase({
   onSlideChange: (slideIndex: number) => void;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
+  /** The recording began from the learning screen: it lands as the second
+   *  half of that move rather than gliding in from "Getting your mic ready". */
+  const fromLearnRef = useRef(false);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
   // setup context and let the user re-record without re-entering Setup. This
   // wins over the connecting/idle spinner (cancelMic left the mic idle). When
@@ -1852,7 +1873,21 @@ export function RecordingPhase({
   // getUserMedia is still resolving (status "idle" after the Setup submit fired
   // mic.start()). Show a brief connecting state so it never reads "Recording"
   // before the mic is actually live.
+  //
+  // TAKE 1 (founder lock 2026-10-07): once the mic is open and held (armed),
+  // the learning screen takes this place — no slide, no clock, no Finish
+  // take — and the speaker's own scroll, swipe or key is the start.
   if (micState.status === "idle") {
+    if (armed && onBegin) {
+      return (
+        <RecordingLearn
+          onStart={() => {
+            fromLearnRef.current = true;
+            onBegin();
+          }}
+        />
+      );
+    }
     return <LoadingState placement="surface" label="Getting your mic ready" />;
   }
 
@@ -1970,14 +2005,16 @@ export function RecordingPhase({
 
   /* THE COLUMN: the slide takes the room that is going spare and the recording
      strip stays pinned above the home indicator. Slide selection belongs to
-     the one anchor scroller, not a second navigation dock. */
+     the one anchor scroller, not a second navigation dock.
+
+     THE STILL FRAME (founder lock 2026-10-07): only the slide and its helper
+     words move. The strip below — and the top bar's "Take · Slide" line in
+     the overlay's header — keep their elements through a slide change; the
+     roadmap animates its own content and nothing else. No line above the
+     strip (the founder: "delete the line right above the recording
+     progress bar"). */
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
-      <RecordingWhere
-        takeNumber={takeNumber}
-        slide={currentSlide}
-        slideCount={slides.length}
-      />
       {/* The preview stays visible while one native scroller carries the
           current slide's roots. Reaching its edge selects the adjacent slide
           and timestamps the same timeline as the retired buttons. */}
@@ -1987,37 +2024,54 @@ export function RecordingPhase({
         currentSlide={currentSlide}
         roots={roots}
         onSlideChange={onSlideChange}
+        entrance={fromLearnRef.current ? "learn" : "mic"}
       />
 
-      <div className="relative z-10 -mx-1 shrink-0 border-t border-border/60 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]">
+      <div
+        data-testid="recording-strip"
+        className="relative z-10 -mx-1 shrink-0 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]"
+      >
         {strip}
       </div>
     </div>
   );
 }
 
-/** Where you are while recording (founder 2026-09-28, option 1 of the
- *  recording screen): "Take 2 · Slide 3 of 6", one quiet line above the
- *  slide. The bottom strip — clock, bar, Finish take — is unchanged. */
-function RecordingWhere({
+/** The content column's top gap. The recording screen sits close under its
+ *  "Take · Slide" line (founder 2026-10-07: "the margin there is too big,
+ *  at least half that"); every other step keeps the usual gap. */
+function screenTopGap(state: string): string {
+  return state === "lab_recording" ? "pt-0" : "pt-6";
+}
+
+/** Where you are while recording: "Take 2 · Slide 3 of 6" on the left of
+ *  the top bar, in place of the old "Recording" label (founder lock
+ *  2026-10-07; first drawn 2026-09-28 as a line above the slide). Shown only
+ *  while the recording screen is (the mic is recording and there is a
+ *  deck); otherwise an empty slot keeps the ✕ on the right. A slide change
+ *  rewrites the text of the same element. Exported for tests. */
+export function RecordingWhere({
+  show,
+  micStatus,
   takeNumber,
   slide,
   slideCount,
 }: {
+  show: boolean;
+  micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"];
   takeNumber: number | null;
   slide: number;
   slideCount: number;
 }) {
-  const parts = [
-    takeNumber ? `Take ${takeNumber}` : null,
-    `Slide ${slide + 1} of ${slideCount}`,
-  ].filter(Boolean);
+  if (!show || micStatus !== "recording" || slideCount === 0) {
+    return <span />;
+  }
   return (
     <p
       data-testid="recording-where"
-      className="shrink-0 pb-2 text-[13px] font-semibold tabular-nums text-muted-foreground"
+      className="m-0 text-[13px] font-semibold tabular-nums text-muted-foreground"
     >
-      {parts.join(" · ")}
+      {recordingWhere(takeNumber, slide, slideCount)}
     </p>
   );
 }

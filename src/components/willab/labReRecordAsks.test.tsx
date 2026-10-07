@@ -233,7 +233,9 @@ describe("the host wires Record again exactly like Record Take 2", () => {
     const fn = HOST.slice(HOST.indexOf("function reRecord()"));
     const body = fn.slice(0, fn.indexOf("\n  }\n"));
     expect(body).toMatch(
-      /abandonSlowTake\(\);[\s\S]*cancelMic\(\);\s*dispatch\("take_started"\);\s*void mic\.start\(\);/,
+      // Take 1 holds the mic for the learning screen (founder lock
+      // 2026-10-07); a later Take records at once.
+      /abandonSlowTake\(\);[\s\S]*cancelMic\(\);\s*dispatch\("take_started"\);\s*void mic\.start\(\{ arm: arcTakeIndex <= 1 \}\);/,
     );
     const abandonFn = HOST.slice(HOST.indexOf("function abandonSlowTake()"));
     const abandonBody = abandonFn.slice(0, abandonFn.indexOf("\n  }\n"));

@@ -28,6 +28,10 @@ const LIBRARY = readFileSync(
   "src/components/willab/LibraryOverlay.tsx",
   "utf8",
 );
+const GESTURES = readFileSync(
+  "src/components/willab/useRecordingGestures.ts",
+  "utf8"
+);
 const CSS = readFileSync("src/app/globals.css", "utf8");
 const TW = readFileSync("tailwind.config.ts", "utf8");
 
@@ -56,8 +60,14 @@ describe("the recording screen", () => {
     expect(PHASE).toMatch(/mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col/);
     expect(PHASE).toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/);
     expect(PHASE).toMatch(/<RecordingRoadmap/);
-    expect(PHASE).toMatch(/shrink-0 border-t/);
     expect(ROADMAP).toMatch(/relative min-h-0 flex-1/);
+  });
+
+  it("draws no line above the strip (founder lock 2026-10-07)", () => {
+    const dock = PHASE.slice(PHASE.indexOf('data-testid="recording-strip"'));
+    const cls = dock.slice(0, dock.indexOf("{strip}"));
+    expect(cls).toMatch(/relative z-10 -mx-1 shrink-0 bg-background/);
+    expect(cls).not.toMatch(/border-t|border-b|divide-/);
   });
 
   it("keeps the slide visible above one native root scroller", () => {
@@ -66,7 +76,7 @@ describe("the recording screen", () => {
     expect(ROADMAP).toMatch(/currentRoots\.map/);
     expect(ROADMAP).toMatch(/aria-current=\{currentSlide === index/);
     expect(ROADMAP).toMatch(/onClick=\{\(\) => goToSlide\(index\)\}/);
-    expect(ROADMAP).toMatch(/wheelGestureStep\(wheelGestureRef\.current/);
+    expect(ROADMAP).toMatch(/useRecordingGestures\(/);
     expect(ROADMAP).not.toMatch(/max-h-\[26vh\]/);
   });
 
@@ -163,21 +173,30 @@ describe("the recording screen", () => {
     );
   });
 
-  it("uses native-feeling scroll rather than the prototype's delayed clamp", () => {
-    expect(ROADMAP).not.toMatch(
-      /clampingRef|setTimeout|320|snap-y|snap-proximity/
+  it("moves only the slide and its helper words (founder lock 2026-10-07)", () => {
+    // The roadmap hands the gesture hook exactly two moving elements: the
+    // slide box and the helper words' scroller. The rail sits beside them,
+    // outside what moves; the strip and the top bar are not in this file.
+    expect(ROADMAP).toMatch(
+      /\[slideBoxRef\.current, scrollRef\.current\]\.filter/
     );
-    expect(ROADMAP).not.toMatch(/onTouchStart|onTouchMove/);
-    expect(ROADMAP).toMatch(/scroller\.scrollTop \+= deltaY/);
-    expect(ROADMAP).toMatch(/wheelGestureStep/);
-    expect(ROADMAP).not.toMatch(/behavior: "smooth"/);
+    expect(ROADMAP).not.toMatch(/snap-y|snap-proximity|clampingRef/);
+    expect(ROADMAP).not.toMatch(/onTouchStart|onTouchMove|onKeyDown/);
+    // The helper words take the wheel first; the swap is flushed so the
+    // landing animates the new slide, not the old one.
+    expect(GESTURES).toMatch(/scroller\.scrollTop \+= deltaY/);
+    expect(GESTURES).toMatch(/flushSync\(swap\)/);
   });
 
-  it("keeps the established Willab recording navbar", () => {
-    expect(LAB).toMatch(/state === "lab_recording" \? "Recording" : ""/);
+  it("puts Take · Slide in the top bar, with no Recording label (founder lock 2026-10-07)", () => {
+    expect(LAB).not.toMatch(/"Recording" : ""/);
     expect(LAB).toMatch(
-      /<header className="flex h-12 shrink-0 items-center justify-between px-4">/
+      /<header className="flex h-12 shrink-0 items-center justify-between px-4">\s*\{\/\*[\s\S]*?\*\/\}\s*<RecordingWhere/
     );
+    // The line lives in the header only: no second "Take · Slide" line
+    // above the slide.
+    const phaseBody = PHASE.slice(0, PHASE.indexOf("export function RecordingWhere"));
+    expect(phaseBody).not.toMatch(/<RecordingWhere/);
     expect(LAB).not.toMatch(/\?\s*"Practice run"/);
   });
 
