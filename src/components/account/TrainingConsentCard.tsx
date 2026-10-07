@@ -19,7 +19,9 @@
 import { useEffect, useState } from "react";
 import {
   fetchTrainingConsent,
+  reportTrainingRefusal,
   setTrainingConsent,
+  trainingRefusalCode,
   type TrainingConsent,
 } from "@/services/api/trainingConsent";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
@@ -59,8 +61,12 @@ export default function TrainingConsentCard({
     setFailed(false);
     const next = await setTrainingConsent(on, state);
     setBusy(false);
-    if (next) setState(next);
-    else setFailed(true);
+    if (!next || "ok" in next) {
+      setFailed(true);
+      reportTrainingRefusal(trainingRefusalCode(next) ?? "NO_STATE", "card");
+      return;
+    }
+    setState(next);
   };
 
   return (
