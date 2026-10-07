@@ -11,6 +11,7 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEdi
 import FeedbackWalk, { type FeedbackWalkPractiseWords } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
+import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -64,6 +65,37 @@ const ITEMS: FeedbackWalkItem<string>[] = [
     clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 11000 },
     rewrite: { quote: SAID, proposedText: OFFERED, item: "s-rewrite" },
     item: "s-rewrite",
+  },
+];
+
+/** The exercise a moment carries (D-FW-17): the served offer. */
+const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
+  exerciseId: "ex-landing",
+  version: 3,
+  title: "Land the ending",
+  instruction: "Slow down on the last word, then let it fall.",
+  introduction: "",
+  yesIntroduction: "",
+  noIntroduction: "",
+  explanationVideoRef: "https://media.example/ex-landing.mp4",
+  passage: "Two hires by March keep that lead.",
+  practiceId: null,
+  resume: false,
+  doneBefore: false,
+  chosenByCoach: true,
+};
+const exerciseItems = (video: string | null): FeedbackWalkItem<string>[] => [
+  {
+    partId: "p4", start: 200, slide: 1, blockId: "b4", openCard: "exercise", hasExercise: true,
+    paragraphText: "Two hires by March keep that lead.", slideLabel: "Slide 2",
+    clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000 },
+    exercise: {
+      video,
+      byCoach: true,
+      instruction: EXERCISE_OFFER.instruction,
+      say: EXERCISE_OFFER.passage,
+      item: "s-ex",
+    },
   },
 ];
 
@@ -141,9 +173,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function draw(over: { guest?: boolean; onGuest?: () => void; readLimitMs?: number; practiceOn?: boolean } = {}) {
-  const model = buildFeedbackWalk({ items: ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
-  const io = walkPractiseIO<string>((item) => ({ snippetId: "snip-1", evidence: EVIDENCE, feedbackId: item }));
+function draw(
+  over: {
+    guest?: boolean;
+    onGuest?: () => void;
+    readLimitMs?: number;
+    practiceOn?: boolean;
+    items?: FeedbackWalkItem<string>[];
+    at?: number;
+  } = {},
+) {
+  const model = buildFeedbackWalk({ items: over.items ?? ITEMS, coachNote: false, practiceOn: over.practiceOn ?? true, guest: false });
+  const io = walkPractiseIO<string>((item) => ({
+    snippetId: "snip-1",
+    evidence: EVIDENCE,
+    feedbackId: item,
+    exercise: item === "s-ex" ? EXERCISE_OFFER : null,
+  }));
   const props = {
     model,
     coachNote: null,
@@ -159,7 +205,7 @@ function draw(over: { guest?: boolean; onGuest?: () => void; readLimitMs?: numbe
     },
   };
   act(() => root.render(<FeedbackWalk {...props} request={null} />));
-  act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: 1 }} />));
+  act(() => root.render(<FeedbackWalk {...props} request={{ seq: 1, at: over.at ?? 1 }} />));
 }
 
 const live = () => host.querySelector<HTMLElement>(".walk-layer:not(.walk-ghost)");
@@ -387,5 +433,81 @@ describe("the fences", () => {
     expect(mic.starts).toBe(0);
     expect(calls).toEqual([]);
     expect(ended).toBe(1);
+  });
+});
+
+describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
+  const VIDEO = "https://media.example/coach-ex.mp4";
+
+  it("plays the video in the 4:5 frame, with Practise and Skip, under the moment bar", () => {
+    draw({ items: exerciseItems(VIDEO) });
+    expect(screen()).toBe("walk-screen-exVideo");
+    const frame = live()!.querySelector<HTMLElement>("[data-coach-video]")!;
+    expect(frame.querySelector("video")!.getAttribute("src")).toBe(VIDEO);
+    expect(frame.className).toContain("[&>video]:aspect-[4/5]");
+    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.titleExercise);
+    expect(live()!.querySelector("[data-walk-nav]")).not.toBeNull();
+    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(WALK_COPY.exercisePractise);
+    expect(live()!.querySelector("[data-testid='walk-skip']")!.textContent).toBe(WALK_COPY.skip);
+    // Nothing is opened, and the mic stays off, until Practise.
+    expect(mic.starts).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it("Practise opens the practise loop on the exercise: its instruction, then its words, recording at once", async () => {
+    draw({ items: exerciseItems(VIDEO) });
+    forward();
+    await settle();
+    expect(screen()).toBe("walk-screen-practise");
+    expect(mic.starts).toBe(1);
+    expect(message()).toBe(EXERCISE_OFFER.instruction);
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(EXERCISE_OFFER.passage);
+    const open = calls.find((c) => c.url.includes("/snippets/snip-1/confidence-practice"))!;
+    expect(JSON.parse(String(open.body))).toMatchObject({ kind: "exercise", exercise_id: "ex-landing" });
+    // The same loop as every practise: Stop, the machine, its answer.
+    answers = [{ next: "praise", key: "cue:landed_ending" }];
+    await tryAndRead();
+    expect(screen()).toBe("walk-screen-improved");
+  });
+
+  it("Skip moves past the exercise and its practise, opening nothing", () => {
+    draw({ items: exerciseItems(VIDEO) });
+    click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(ended).toBe(1);
+    expect(mic.starts).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it("with no video at all the walk goes straight to the practise", async () => {
+    draw({ items: exerciseItems(null) });
+    await settle();
+    expect(screen()).toBe("walk-screen-practise");
+    expect(host.querySelector("[data-coach-video]")).toBeNull();
+    expect(message()).toBe(EXERCISE_OFFER.instruction);
+    expect(mic.starts).toBe(1);
+  });
+
+  it("never waits for a coach, and shows no number (AC-9)", async () => {
+    for (const video of [VIDEO, null]) {
+      draw({ items: exerciseItems(video) });
+      await settle();
+      const text = host.textContent ?? "";
+      expect(text).not.toContain(COPY.coachWorkingOnExercise);
+      expect(host.querySelector("[data-walk-loading]")).toBeNull();
+      expect(text).not.toMatch(/%|score/i);
+      // The only figures are the moment's position and the strip's clock.
+      const rest = live()!.cloneNode(true) as HTMLElement;
+      rest.querySelectorAll("[data-walk-nav], [data-walk-recording-strip]").forEach((el) => el.remove());
+      expect(rest.textContent).not.toMatch(/\d/);
+    }
+  });
+
+  it("a guest's Practise asks to sign up and opens nothing", () => {
+    let asked = 0;
+    draw({ items: exerciseItems(VIDEO), guest: true, onGuest: () => (asked += 1) });
+    forward();
+    expect(asked).toBe(1);
+    expect(screen()).toBe("walk-screen-exVideo");
+    expect(calls).toEqual([]);
   });
 });

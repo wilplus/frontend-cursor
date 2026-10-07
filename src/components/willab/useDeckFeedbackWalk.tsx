@@ -20,6 +20,7 @@ import {
   walkStart,
   walkStepForPart,
   type FeedbackWalkItem,
+  type FeedbackWalkItemExercise,
 } from "@/lib/willab/feedbackWalkModel";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import { quoteSpan } from "@/lib/willab/phraseTokens";
@@ -62,7 +63,9 @@ import type { LockResult } from "./DeckChunkModal";
 /*  The practise (D-FW-16) is opened on the served item's own snippet and     */
 /*  evidence (walkPractiseIO), the same routes today's practise sheet uses;   */
 /*  helper words from a praised try go on the practice, then the lock, behind */
-/*  the screen (`practiseWordsBehind`).                                       */
+/*  the screen (`practiseWordsBehind`). An exercise (D-FW-17) is the served   */
+/*  offer the Feedback sheet's Exercise step plays: its video (the coach's,   */
+/*  else the library's), its instruction and its words (`exerciseOf`).        */
 /* -------------------------------------------------------------------------- */
 
 type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
@@ -99,13 +102,14 @@ export function deckWalkItems(
     const slide = slideOf(groups, partId);
     for (const item of pendingOf(chunk)) {
       const praise = item.openCard === "praise" || item.feedbackFamily === "great_formulation";
+      const exercise = exerciseOf(item);
       out.push({
         start: item.start,
         slide: slide ?? 0,
         blockId: item.blockId ?? null,
         openCard: item.openCard ?? null,
         feedbackFamily: item.feedbackFamily ?? null,
-        hasExercise: Boolean(item.practiceExercise),
+        hasExercise: exercise !== null,
         partId,
         paragraphText: chunk.part.text,
         slideLabel: slideLabel(partId),
@@ -115,6 +119,7 @@ export function deckWalkItems(
           : null,
         rewrite: rewriteOf(item),
         item: suggestionSource(item) ? item : null,
+        exercise,
       });
     }
   }
@@ -128,6 +133,27 @@ export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSu
   if (item.kind !== "replace" || !item.proposedText?.trim()) return null;
   if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
   return { quote: item.quote, proposedText: item.proposedText, item };
+}
+
+/** The exercise an item's follow-up opens on (D-FW-17): the served offer,
+ *  where the follow-up matrix names the exercise card (`openCard`, N48.1)
+ *  or the coach chose it (its video rides the moment when shared, 35g-2),
+ *  and the item can be practised on. The video, instruction and words are
+ *  the offer's own, the ones the Feedback sheet's Exercise step shows;
+ *  nothing new is fetched. Pure. */
+export function exerciseOf(item: DocumentSuggestion): FeedbackWalkItemExercise<DocumentSuggestion> | null {
+  const offer = item.practiceExercise;
+  if (!offer || !suggestionSource(item)) return null;
+  if (item.openCard !== "exercise" && offer.chosenByCoach !== true) return null;
+  const say = (offer.passage || item.quote || "").trim();
+  if (!say) return null;
+  return {
+    video: offer.explanationVideoRef?.trim() || null,
+    byCoach: offer.chosenByCoach === true,
+    instruction: (offer.instruction ?? "").trim() || null,
+    say,
+    item,
+  };
 }
 
 /** The span to save on the paragraph as it is now: the walk's own span when

@@ -37,11 +37,19 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  sinks it in 0.28 s, and every move is instant with reduce motion.         */
 /*                                                                            */
 /*  THIS PHASE draws the coach's note, the praise, the helper words, the      */
-/*  clearer version (D-FW-15) and the practise loop (D-FW-16); the plan it is */
-/*  given (feedbackWalkModel.ts) holds only those, then the end card, which   */
-/*  is the host's. The other screens come with their own tasks:              */
-/*  TODO(D-FW-17/18/20) the exercise video, "Judgement time!" with the        */
-/*  judgements, and sharing.                                                  */
+/*  clearer version (D-FW-15), the practise loop (D-FW-16) and the exercise   */
+/*  (D-FW-17); the plan it is given (feedbackWalkModel.ts) holds only those,  */
+/*  then the end card, which is the host's. The other screens come with their */
+/*  own tasks: TODO(D-FW-18/20) "Judgement time!" with the judgements, and    */
+/*  sharing.                                                                  */
+/*                                                                            */
+/*  The exercise (flow 8; WQ2 B, Q-B15 A): the coach's video in the 4:5       */
+/*  frame, else the library exercise's, with "Practise" and "Skip"; then the  */
+/*  practise loop on the exercise's words, its instruction first. With no     */
+/*  video the plan holds no video screen and the practise comes straight     */
+/*  away. The walk never waits for a coach: there is no screen for a coach   */
+/*  still working, and "Your coach is working on your exercise." is not in   */
+/*  it.                                                                       */
 /*                                                                            */
 /*  The practise loop (flow 7; N52.3, CM3a A, CM3b A, O5): the try records    */
 /*  as its screen arrives, Stop sends it to the machine behind the voice      */
@@ -281,6 +289,14 @@ export default function FeedbackWalk<R = unknown>({
       onKeepWords?.(moment.clearer.item);
       pastLoop();
     },
+    exercise: (s) => {
+      if (blocked(s)) return;
+      // "Practise" opens the practise on the exercise; it records as it
+      // arrives. With no practise to do, the walk goes on.
+      if (practiseIO) forward();
+      else pastLoop();
+    },
+    pastLoop,
     practise,
     nav: (s, moment) => momentNav(ctx, s, moment),
   };
@@ -312,6 +328,10 @@ type ScreenCtx<R = unknown> = {
   save: (step: WalkStep, moment: FeedbackWalkMoment) => void;
   accept(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
   keep(step: WalkStep, moment: FeedbackWalkMoment<R>): void;
+  /** "Practise" under an exercise's video. */
+  exercise: (step: WalkStep) => void;
+  /** Past this moment's practise: Skip under an exercise's video. */
+  pastLoop: () => void;
   practise: WalkPractise;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
 };
@@ -465,6 +485,30 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
   );
 }
 
+/** The exercise (flow 8): its video in the 4:5 frame (the coach's, else
+ *  the library's; the plan holds this screen only when there is one), with
+ *  "Practise" and "Skip". Nothing here waits on a coach (WQ2 B). */
+function ExVideo<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const video = moment.exercise?.video;
+  if (!video) return null;
+  return (
+    <WalkOverlay
+      testId={testId(step)}
+      nav={momentNav(ctx, step, moment)}
+      onClose={ctx.close}
+      title={COPY.titleExercise}
+      footer={
+        <WalkFooter
+          pill={{ label: WALK_COPY.exercisePractise, onClick: () => ctx.exercise(step), testId: "walk-forward" }}
+          links={[{ label: WALK_COPY.skip, onClick: ctx.pastLoop, testId: "walk-skip" }]}
+        />
+      }
+    >
+      <CoachVideo src={video} className="w-full flex-none [&>video]:aspect-[4/5] [&>video]:object-cover" />
+    </WalkOverlay>
+  );
+}
+
 function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "coachnote") return CoachNote(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
@@ -472,6 +516,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
   if (step.key === "clearer") return Clearer(ctx, step, moment);
+  if (step.key === "exVideo") return ExVideo(ctx, step, moment);
   const practiseCtx: PractiseScreenCtx = {
     plan: ctx.walk.plan,
     at: ctx.at,
@@ -481,7 +526,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
     forward: ctx.forward,
     ...ctx.practise,
   };
-  // TODO(D-FW-17/18/20): the exercise video, "Judgement time!" with the
-  // judgements, and sharing. The plan this phase is given holds none of them.
+  // TODO(D-FW-18/20): "Judgement time!" with the judgements, and sharing.
+  // The plan this phase is given holds none of them.
   return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;
 }

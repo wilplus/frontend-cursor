@@ -1,4 +1,4 @@
-import type { DocumentSuggestion } from "@/services/api/idealText";
+import type { ConfidentVoicePracticeOffer, DocumentSuggestion } from "@/services/api/idealText";
 import {
   startConfidencePractice,
   uploadConfidencePracticeAttempt,
@@ -10,7 +10,8 @@ import { checkPracticeAttempt, type PracticeCheckResult } from "@/services/api/p
 /*                                                                            */
 /*  The three calls one practise loop makes, through the BFF routes that       */
 /*  already exist: open the practice on the moment (the snippet's own         */
-/*  route), upload each try (the attempts route) and ask the machine about   */
+/*  route; an exercise's practise on the exercise the item carries, D-FW-17), */
+/*  upload each try (the attempts route) and ask the machine about   */
 /*  it (the check route; only `next` and the line's `key` come back, AC-9).   */
 /*  Helper words tapped from a praised try are saved by the host, with the    */
 /*  paragraph's lock (savePracticeHelperWords). Each call resolves to null on */
@@ -26,11 +27,15 @@ export type WalkPractiseSource = {
   snippetId: string;
   evidence: Evidence;
   feedbackId: string | null;
+  /** The exercise the item carries (the coach's or the library's), for the
+   *  practise that follows its video (D-FW-17). Only the served offer. */
+  exercise?: ConfidentVoicePracticeOffer | null;
 };
 
-/** What is practised: the accepted words of a clearer version, or the
- *  moment said again. */
-export type WalkPractisePassage = { kind: "rewrite"; say: string } | { kind: "plain" };
+/** What is practised: the accepted words of a clearer version, the
+ *  exercise the moment carries (after its video, D-FW-17), or the moment
+ *  said again. */
+export type WalkPractisePassage = { kind: "rewrite"; say: string } | { kind: "exercise" } | { kind: "plain" };
 
 /** One uploaded try: its id for the check, and its number as the server
  *  counts it (a position, never a score). */
@@ -45,7 +50,12 @@ export interface WalkPractiseIO<R> {
 /** A served item's practise source, when it carries one. */
 export function suggestionSource(item: DocumentSuggestion): WalkPractiseSource | null {
   if (!item.snippetId || !item.evidence) return null;
-  return { snippetId: item.snippetId, evidence: item.evidence, feedbackId: item.id };
+  return {
+    snippetId: item.snippetId,
+    evidence: item.evidence,
+    feedbackId: item.id,
+    exercise: item.practiceExercise ?? null,
+  };
 }
 
 /** The walk's practise through the app's own clients. `source` finds the
@@ -55,14 +65,20 @@ export function walkPractiseIO<R>(source: (item: R) => WalkPractiseSource | null
     async open(item, passage) {
       const from = source(item);
       if (!from) return null;
+      // An exercise's practise is opened on the exercise the item carries,
+      // exactly as the Feedback sheet opens it; with none there is nothing
+      // to open (the walk then offers Next or Practise again, O5).
+      if (passage.kind === "exercise" && !from.exercise) return null;
       const opened = await startConfidencePractice(
         from.snippetId,
-        null,
+        passage.kind === "exercise" ? (from.exercise ?? null) : null,
         from.evidence,
         null,
         passage.kind === "rewrite"
           ? { kind: "rewrite", passage: passage.say, feedbackId: from.feedbackId }
-          : { kind: "plain", feedbackId: from.feedbackId },
+          : passage.kind === "exercise"
+            ? { kind: "exercise" }
+            : { kind: "plain", feedbackId: from.feedbackId },
       );
       return opened.ok ? opened.practice.id : null;
     },

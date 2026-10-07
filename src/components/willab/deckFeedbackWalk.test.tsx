@@ -16,7 +16,7 @@ import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { coachWordKey, coachWordSeen } from "./coachWordSeen";
-import { praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
+import { exerciseOf, praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
@@ -407,5 +407,67 @@ describe("the practise in the walk (D-FW-16)", () => {
     await click(live()!.querySelector("[data-testid='walk-forward']"));
     expect(screen()).not.toBe("walk-screen-practise");
     expect(mic.starts).toBe(0);
+  });
+});
+
+describe("the exercise in the walk (D-FW-17)", () => {
+  const EVIDENCE = { projectId: "arc-1", takeSessionId: "take-2", slideIndex: 1, paragraphIndex: 1, start: 0, end: 17 };
+  const OFFER = {
+    exerciseId: "ex-1", version: 1, title: "Land it", instruction: "Let the last word fall.",
+    introduction: "", yesIntroduction: "", noIntroduction: "",
+    explanationVideoRef: "https://media/library-ex.mp4", passage: "retention went up",
+    practiceId: null, resume: false, doneBefore: false, chosenByCoach: false,
+  };
+  /** The moment's Confident Voice item, its follow-up the exercise card. */
+  const withExercise = (over: Record<string, unknown> = {}) =>
+    ({ ...judgement, openCard: "exercise", evidence: EVIDENCE, practiceExercise: { ...OFFER, ...over } }) as unknown as DocumentSuggestion;
+  const practiseCalls = () =>
+    vi.mocked(fetch).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("confidence-practice"));
+
+  it("the switch off: no walk, no exercise video, nothing opened", async () => {
+    const p = props({ suggestions: [withExercise(), praise] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(walk()).toBeNull();
+    expect(pager()).not.toBeNull();
+    expect(document.querySelector("[data-testid='walk-screen-exVideo']")).toBeNull();
+    expect(mic.starts).toBe(0);
+    expect(practiseCalls()).toEqual([]);
+  });
+
+  it("after the praise, the library exercise's video, then Practise opens the practise on it", async () => {
+    walkOn();
+    const p = props({ suggestions: [withExercise(), praise] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(screen()).toBe("walk-screen-exVideo");
+    expect(live()!.querySelector("[data-coach-video] video")!.getAttribute("src")).toBe("https://media/library-ex.mp4");
+    expect(container.textContent).not.toContain(COPY.coachWorkingOnExercise);
+    await click(live()!.querySelector("[data-testid='walk-forward']"));
+    await act(async () => undefined);
+    expect(screen()).toBe("walk-screen-practise");
+    expect(mic.starts).toBe(1);
+    expect(practiseCalls()).toEqual(["/api/v2/user/snippets/snip-1/confidence-practice"]);
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe("retention went up");
+  });
+
+  it("the coach's video wins over the library's; with no video the practise comes straight away", () => {
+    expect(exerciseOf(withExercise({ chosenByCoach: true, explanationVideoRef: "https://media/coach.mp4" }))).toMatchObject({
+      video: "https://media/coach.mp4",
+      byCoach: true,
+      instruction: "Let the last word fall.",
+      say: "retention went up",
+    });
+    expect(exerciseOf(withExercise({ explanationVideoRef: "" }))!.video).toBeNull();
+  });
+
+  it("only where the follow-up names the exercise, or the coach chose it, and a practise can open", () => {
+    // A praise moment carrying a library offer is praise, not an exercise.
+    expect(exerciseOf({ ...withExercise(), openCard: "praise" } as DocumentSuggestion)).toBeNull();
+    expect(exerciseOf({ ...withExercise({ chosenByCoach: true }), openCard: "praise" } as DocumentSuggestion)).not.toBeNull();
+    expect(exerciseOf({ ...withExercise(), evidence: null } as DocumentSuggestion)).toBeNull();
+    expect(exerciseOf(judgement)).toBeNull();
   });
 });

@@ -20,7 +20,8 @@ import type { WalkTry } from "./useWalkPractise";
 /*  the controller (useWalkPractise) holds.                                   */
 /*                                                                            */
 /*    practise    no title, no slide bar, no helper text: the words to say    */
-/*                and the Take's own recording strip, with Skip               */
+/*                (after an exercise, its instruction first) and the Take's   */
+/*                own recording strip, with Skip                              */
 /*    processing  the breathing voice mark only                               */
 /*    improved    "Good job", the try's voice, a line of the signed bank      */
 /*    encourage   "Practise", the try's voice, "It was better, …" or an NX3a  */
@@ -71,9 +72,20 @@ function TryPlayer({ ctx, moment }: { ctx: PractiseScreenCtx; moment: FeedbackWa
   );
 }
 
-/** Practising: recording from the start; no title, no slide bar. */
+/** The words a practise asks for: a clearer version's accepted words, an
+ *  exercise's passage, or the moment's own words said again. */
+function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | undefined {
+  if (step.kind === "words") return moment.clearer?.say;
+  if (step.kind === "instruction") return moment.exercise?.say;
+  return moment.paragraphText;
+}
+
+/** Practising: recording from the start; no title, no slide bar. After an
+ *  exercise, its instruction comes first, as a message (flow 8), when the
+ *  exercise carries one. */
 function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  const say = step.kind === "words" ? moment.clearer?.say : moment.paragraphText;
+  const say = wordsToSay(step, moment);
+  const instruction = step.kind === "instruction" ? moment.exercise?.instruction : null;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -84,6 +96,7 @@ function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
         </WalkFooter>
       }
     >
+      {instruction ? <WalkMessage>{instruction}</WalkMessage> : null}
       <p data-walk-say className="m-0 text-[25px] font-semibold leading-[1.35]">
         {say}
       </p>

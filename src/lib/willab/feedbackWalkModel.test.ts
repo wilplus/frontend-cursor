@@ -4,9 +4,11 @@ import {
   bankLine,
   buildFeedbackWalk,
   clearerTurn,
+  pickExercise,
   walkStart,
   walkStepForPart,
   type FeedbackWalkItem,
+  type FeedbackWalkItemExercise,
 } from "./feedbackWalkModel";
 
 /* The Feedback walk as mounted in this phase (build plan D-FW-14): the plan
@@ -120,5 +122,103 @@ describe("the clearer version (D-FW-15)", () => {
     const plan = [{ key: "page" }, { key: "clearer" }, { key: "clearer" }, { key: "end" }] as const;
     expect(clearerTurn([...plan], 1)).toBe(0);
     expect(clearerTurn([...plan], 2)).toBe(1);
+  });
+});
+
+describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
+  const offer = (over: Partial<FeedbackWalkItemExercise<string>> = {}): FeedbackWalkItemExercise<string> => ({
+    video: null,
+    byCoach: false,
+    instruction: "Slow down on the last word.",
+    say: "Two hires by March keep that lead.",
+    item: "s-ex",
+    ...over,
+  });
+  const exerciseItem = (ex: FeedbackWalkItemExercise<string> | null, over: Partial<FeedbackWalkItem<string>> = {}) =>
+    item({ partId: "p5", start: 200, blockId: "b5", openCard: "exercise", hasExercise: ex !== null, exercise: ex, ...over }) as FeedbackWalkItem<string>;
+  const keysOf = (items: FeedbackWalkItem<string>[], practiceOn = true) =>
+    buildFeedbackWalk({ items, coachNote: false, practiceOn, guest: false }).plan.map((s) =>
+      s.key === "practise" ? `practise:${s.kind}` : s.key,
+    );
+
+  it("picks the coach's video first, then the library's, and with none no video at all", () => {
+    const coach = offer({ video: "https://media/coach.mp4", byCoach: true, item: "s-coach" });
+    const library = offer({ video: "https://media/library.mp4", item: "s-lib" });
+    expect(pickExercise([library, coach])).toMatchObject({ video: "https://media/coach.mp4", item: "s-coach" });
+    expect(pickExercise([library, offer({ byCoach: true, item: "s-coach-novideo" })])).toMatchObject({
+      video: "https://media/library.mp4",
+      item: "s-lib",
+    });
+    expect(pickExercise([offer({ video: "  " })])).toMatchObject({ video: null, item: "s-ex" });
+    expect(pickExercise([])).toBeNull();
+  });
+
+  it("the coach's video, then the practise on the exercise's words", () => {
+    const walk = buildFeedbackWalk({
+      items: [exerciseItem(offer({ video: "https://media/coach.mp4", byCoach: true }))],
+      coachNote: false,
+      practiceOn: true,
+      guest: false,
+    });
+    expect(walk.plan.map((s) => s.key)).toEqual(["page", "exVideo", "practise", "end"]);
+    expect(walk.plan[2]).toMatchObject({ kind: "instruction", attempt: 1 });
+    expect(walk.moments[0].exercise).toEqual({
+      video: "https://media/coach.mp4",
+      instruction: "Slow down on the last word.",
+      say: "Two hires by March keep that lead.",
+      item: "s-ex",
+    });
+    expect(walk.plan[walkStart(walk)!].key).toBe("exVideo");
+    expect(walk.plan[walkStepForPart(walk, "p5")!].key).toBe("exVideo");
+  });
+
+  it("without the coach's, the library exercise's video plays", () => {
+    const walk = buildFeedbackWalk({
+      items: [exerciseItem(offer({ video: "https://media/library.mp4" }))],
+      coachNote: false,
+      practiceOn: true,
+      guest: false,
+    });
+    expect(walk.plan.map((s) => s.key)).toEqual(["page", "exVideo", "practise", "end"]);
+    expect(walk.moments[0].exercise!.video).toBe("https://media/library.mp4");
+  });
+
+  it("with no video at all, the walk goes straight to the practise", () => {
+    const walk = buildFeedbackWalk({ items: [exerciseItem(offer())], coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan.map((s) => s.key)).toEqual(["page", "practise", "end"]);
+    expect(walk.plan[walkStart(walk)!]).toMatchObject({ key: "practise", kind: "instruction" });
+  });
+
+  it("never waits for a coach: a moment still with the coach is said again, with no screen of its own", () => {
+    const waiting = item({ partId: "p6", start: 300, blockId: "b6", openCard: "coach_request", item: "s-wait" }) as FeedbackWalkItem<string>;
+    const plan = buildFeedbackWalk({ items: [waiting], coachNote: false, practiceOn: true, guest: false }).plan;
+    expect(plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
+      "page", "practise:moment", "end",
+    ]);
+    // The coach's exercise, once shared, takes the moment's place: no other
+    // state lies between them.
+    const shared = { ...waiting, exercise: offer({ video: "https://media/coach.mp4", byCoach: true }), hasExercise: true };
+    expect(keysOf([shared])).toEqual(["page", "exVideo", "practise:instruction", "end"]);
+    for (const step of plan) expect(WALK_PHASE_SCREENS.has(step.key)).toBe(true);
+  });
+
+  it("is left out where the follow-up names an exercise but none is served", () => {
+    expect(keysOf([exerciseItem(null)])).toEqual(["page", "end"]);
+  });
+
+  it("is not practised, nor its video shown, with personalised practice off", () => {
+    expect(keysOf([exerciseItem(offer({ video: "https://media/coach.mp4", byCoach: true }))], false)).toEqual([
+      "page", "end",
+    ]);
+  });
+
+  it("comes after all the praise, in the practising", () => {
+    const items = [
+      ...(ITEMS as FeedbackWalkItem<string>[]),
+      exerciseItem(offer({ video: "https://media/library.mp4" })),
+    ];
+    expect(keysOf(items)).toEqual([
+      "page", "praise", "helpers", "praise", "helpers", "exVideo", "practise:instruction", "end",
+    ]);
   });
 });
