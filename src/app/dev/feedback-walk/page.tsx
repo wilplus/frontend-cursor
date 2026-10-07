@@ -44,6 +44,7 @@ import {
   type Step,
 } from "./walkFixtures";
 import { renderWalkScreen, type WalkCtx } from "./walkScreens";
+import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 
 type Mode = { kind: "index" } | { kind: "single"; name: ScreenName } | { kind: "flow" };
 
@@ -141,7 +142,7 @@ function Walk({ mode }: { mode: Exclude<Mode, { kind: "index" }> }) {
   const [at, setAt] = useState(0);
   const [dir, setDir] = useState<WalkDir | undefined>(undefined);
   const [answers, setAnswers] = useState<Record<number, ConfidenceRatingValue>>({});
-  const [helpers, setHelpers] = useState<Record<number, number[]>>({});
+  const [helpers, setHelpers] = useState<Record<number, PhraseSelection | null>>({});
   const [community, setCommunity] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [endLeaving, setEndLeaving] = useState(false);

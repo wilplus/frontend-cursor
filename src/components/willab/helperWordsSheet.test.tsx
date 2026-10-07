@@ -150,7 +150,7 @@ describe("the overlay", () => {
   });
 
   it("tapping in the current Take updates the card live, marks it new, lights the button, and saves a span", async () => {
-    await renderSheet();
+    await renderSheet(null);
     await act(async () => word("window").click());
     await act(async () => word("shuts").click());
     expect(card().getAttribute("data-new")).toBe("true");
@@ -195,13 +195,14 @@ describe("the overlay", () => {
     expect(card().textContent).not.toContain("the timing matters");
     const confirm = container.querySelector('[data-testid="helper-words-delete-confirm"]') as HTMLButtonElement;
     expect(confirm.textContent).toBe("Delete helper words");
-    // Cancel: a word keeps the words.
-    await act(async () => word("window").click());
+    // Cancel: a word keeps the words. One tap adds the word beside the
+    // saved ones (QA4 A, Q-B5 A): a new selection.
+    await act(async () => word("here:").click());
     expect(container.querySelector('[data-testid="helper-words-delete-confirm"]')).toBeNull();
     expect(container.querySelector('[data-testid="helper-words-delete"]')).toBeNull(); // a new selection: the button, not Delete
-    // Back to the saved words (a second tap clears the one word), then
+    // Back to the saved words (a tap on the last word takes it away), then
     // Delete again, and through.
-    await act(async () => word("window").click());
+    await act(async () => word("here:").click());
     expect(container.querySelector('[data-testid="helper-words-delete"]')).not.toBeNull();
     await act(async () => (container.querySelector('[data-testid="helper-words-delete"]') as HTMLButtonElement).click());
     await act(async () => (container.querySelector('[data-testid="helper-words-delete-confirm"]') as HTMLButtonElement).click());
@@ -211,13 +212,17 @@ describe("the overlay", () => {
 
   it("four words at most, from whichever Take is open (B3)", async () => {
     await renderSheet(null);
+    // One tap, one word, next to the others (QA4 A, Q-B5 A): four taps make
+    // four words; a word the run cannot reach in one step is greyed.
     await act(async () => word("The").click());
-    // From one word, a second tap that would make the run longer than four
-    // cannot be reached; the fourth word can.
     expect(word("window").disabled).toBe(true);
-    expect(word("here:").disabled).toBe(false);
+    expect(word("timing").disabled).toBe(false);
+    await act(async () => word("timing").click());
+    await act(async () => word("matters").click());
     await act(async () => word("here:").click());
     expect(container.textContent).toContain("4 of 4 words");
+    // The fifth word cannot be reached.
+    expect(word("the").disabled).toBe(true);
   });
 });
 

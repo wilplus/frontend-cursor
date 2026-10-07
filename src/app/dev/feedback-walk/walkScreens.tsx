@@ -11,6 +11,7 @@ import WalkFooter from "@/components/willab/walk/WalkFooter";
 import WalkOptions, { WalkField, type WalkOption } from "@/components/willab/walk/WalkOptions";
 import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
+import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 import RecordingStrip from "@/components/willab/walk/RecordingStrip";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import {
@@ -39,8 +40,8 @@ export type WalkCtx = {
   close: () => void;
   answers: Record<number, ConfidenceRatingValue>;
   answer: (moment: number, value: ConfidenceRatingValue) => void;
-  helpers: Record<number, number[]>;
-  pickHelpers: (moment: number, picked: number[]) => void;
+  helpers: Record<number, PhraseSelection | null>;
+  pickHelpers: (moment: number, picked: PhraseSelection | null) => void;
   community: string[];
   setCommunity: (next: string[]) => void;
   elapsed: number;
@@ -231,7 +232,7 @@ function Encourage(ctx: WalkCtx) {
 
 function Helpers(ctx: WalkCtx) {
   const m = mom(ctx);
-  const picked = ctx.helpers[m.index] ?? [];
+  const picked = ctx.helpers[m.index] ?? null;
   return (
     <WalkOverlay
       testId={testId(ctx)}
@@ -239,7 +240,7 @@ function Helpers(ctx: WalkCtx) {
       title={COPY.titleEmphasis}
       footer={
         <WalkFooter
-          pill={{ label: COPY.pillEmphasise, onClick: ctx.forward, disabled: picked.length === 0, testId: "walk-forward" }}
+          pill={{ label: COPY.pillEmphasise, onClick: ctx.forward, disabled: picked === null, testId: "walk-forward" }}
           links={[{ label: WALK_COPY.skip, onClick: ctx.forward, testId: "walk-skip" }]}
         />
       }
@@ -247,7 +248,7 @@ function Helpers(ctx: WalkCtx) {
       <p className="m-0 text-[14.5px] text-muted-foreground">{COPY.emphasisFirstTakeNote}</p>
       <WalkWordPicker
         words={PARAGRAPHS[m.index].split(" ")}
-        picked={picked}
+        selection={picked}
         onChange={(next) => ctx.pickHelpers(m.index, next)}
       />
     </WalkOverlay>
