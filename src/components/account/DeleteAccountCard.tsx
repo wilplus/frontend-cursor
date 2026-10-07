@@ -24,6 +24,10 @@ import {
 } from "@/lib/legal/leavingCopy";
 import { fetchTrainingConsent } from "@/services/api/trainingConsent";
 
+/** The settings prototype's .sbtn buttons hover grey, not the outline
+ *  variant's orange, and keep their text colour; .sbtn.red stays red (D-CS-6). */
+export const SBTN_HOVER = "hover:bg-muted hover:text-foreground";
+export const SBTN_RED_HOVER = "hover:bg-muted hover:text-destructive";
 /* -------------------------------------------------------------------------- */
 /*  Delete my account, in Data & consent (founder 2026-10-05, Q3a).           */
 /*                                                                            */
@@ -129,7 +133,7 @@ export default function DeleteAccountCard({
           {canCancel ? (
             <Button
               variant="outline"
-              className="mt-3"
+              className={`mt-3 ${SBTN_HOVER}`}
               disabled={busy}
               onClick={() => void cancel()}
             >
@@ -146,7 +150,7 @@ export default function DeleteAccountCard({
             <p className="mt-2 text-sm text-foreground" role="status">{LEAVING.cancelled}</p>
           ) : null}
           <p className="mt-2 text-sm text-muted-foreground">{COPY.body}</p>
-          <Button variant="outline" className="mt-3 text-destructive" onClick={() => setConfirming(true)}>
+          <Button variant="outline" className={`mt-3 text-destructive ${SBTN_RED_HOVER}`} onClick={() => setConfirming(true)}>
             {COPY.button}
           </Button>
         </>
