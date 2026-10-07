@@ -63,17 +63,30 @@ export function VoiceMark({ size, className }: { size: number; className?: strin
 export default function LoadingState({
   placement,
   label = "Loading",
+  labelVisible = false,
 }: {
   /** Viewport owns the screen; surface fills its already-mounted parent. */
   readonly placement: "viewport" | "surface";
   readonly label?: string;
+  /** The label as small grey text 16px under the mark, as the recording
+   *  prototype's renderMic draws "Getting your mic ready" (founder lock
+   *  2026-10-07; Q-B4 A signed the prototype's words, N63). Only the
+   *  recording's mic wait sets this; every other wait keeps the label for
+   *  screen readers alone. */
+  readonly labelVisible?: boolean;
 }) {
   const presentation = (
-    <div className="flex min-h-full w-full flex-1 items-center justify-center">
+    <div className="flex min-h-full w-full flex-1 flex-col items-center justify-center">
       <VoiceMark size={64} />
-      <span className="sr-only" role="status">
-        {label}
-      </span>
+      {labelVisible ? (
+        <p role="status" data-loading-label className="mt-4 text-[15px] text-muted-foreground">
+          {label}
+        </p>
+      ) : (
+        <span className="sr-only" role="status">
+          {label}
+        </span>
+      )}
     </div>
   );
 
