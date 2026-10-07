@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import LegalBackLink from "@/components/legal/LegalBackLink";
 import { PublishedPolicyText } from "@/components/legal/PublishedPolicyText";
 import { SectionLoadingState } from "@/components/willab/LoadingState";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
@@ -31,13 +30,7 @@ export default async function PrivacyPage() {
   const initial = await loadPublishedPolicyText("privacy");
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
-      <Link
-        href="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back home
-      </Link>
+      <LegalBackLink />
 
       <PublishedPolicyText
         which="privacy"

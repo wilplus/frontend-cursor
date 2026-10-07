@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,11 @@ import type { ProductMenuEntry } from "@/lib/productDiscovery";
 export const MENU_ITEM_CLASS =
   "block w-full px-4 py-3.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
 
+/** The row of the page you are on keeps the hover look for good (founder
+ *  2026-10-07: "when you are on the page show it orange text light orange
+ *  background not only when you hover over it"). */
+const MENU_ITEM_CURRENT_CLASS = "bg-accent text-accent-foreground";
+
 const MENU_ID = "app-header-menu";
 
 export interface AppMenuProps {
@@ -59,10 +65,6 @@ export interface AppMenuProps {
   lifeMenu?: LifeMenuEntry[];
   /** Products introduced through a persisted, structured main-chat action. */
   productMenu?: ProductMenuEntry[];
-  /** Support mailto target. */
-  supportEmail: string;
-  /** The Skool community. Off-site, so a new tab. */
-  communityUrl: string;
   onLogout?: () => void;
   loggingOut?: boolean;
   /** Where "Lab" goes. The blog links into the product; the lab itself is
@@ -82,8 +84,6 @@ export default function AppMenu({
   tokensLabel = null,
   lifeMenu = [],
   productMenu = [],
-  supportEmail,
-  communityUrl,
   onLogout,
   loggingOut = false,
   labHref = null,
@@ -91,6 +91,12 @@ export default function AppMenu({
   dataConsentHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  // An in-app row for the current page: marked, and announced as the page.
+  const current = (href: string) =>
+    pathname === href
+      ? { className: cn(MENU_ITEM_CLASS, MENU_ITEM_CURRENT_CLASS), "aria-current": "page" as const }
+      : { className: MENU_ITEM_CLASS };
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
@@ -180,7 +186,7 @@ export default function AppMenu({
             <Link
               ref={firstRef()}
               href={labHref}
-              className={MENU_ITEM_CLASS}
+              {...current(labHref)}
               onClick={() => setOpen(false)}
             >
               Lab
@@ -193,7 +199,7 @@ export default function AppMenu({
                   key={entry.product}
                   ref={firstRef()}
                   href={entry.href}
-                  className={MENU_ITEM_CLASS}
+                  {...current(entry.href)}
                   onClick={() => setOpen(false)}
                 >
                   {entry.label}
@@ -207,7 +213,7 @@ export default function AppMenu({
             <Link
               ref={firstRef()}
               href={corpusHref}
-              className={MENU_ITEM_CLASS}
+              {...current(corpusHref)}
               onClick={() => setOpen(false)}
             >
               Training corpus
@@ -218,7 +224,7 @@ export default function AppMenu({
             <Link
               ref={firstRef()}
               href={dataConsentHref}
-              className={MENU_ITEM_CLASS}
+              {...current(dataConsentHref)}
               onClick={() => setOpen(false)}
             >
               Data &amp; consent
@@ -246,7 +252,7 @@ export default function AppMenu({
                     key={entry.key}
                     ref={firstRef()}
                     href={entry.href}
-                    className={MENU_ITEM_CLASS}
+                    {...current(entry.href)}
                     onClick={() => setOpen(false)}
                   >
                     {entry.label}
@@ -256,24 +262,8 @@ export default function AppMenu({
             </>
           ) : null}
 
-          <a
-            ref={firstRef()}
-            href={`mailto:${supportEmail}`}
-            className={MENU_ITEM_CLASS}
-            onClick={() => setOpen(false)}
-          >
-            Support
-          </a>
-
-          <a
-            href={communityUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={MENU_ITEM_CLASS}
-            onClick={() => setOpen(false)}
-          >
-            Community
-          </a>
+          {/* No Support or Community rows (founder 2026-10-07): the support
+              address is on the Data & consent page. */}
 
           {/* Tokens take the credits row's place when pricing is live, in the
               SAME shape and the SAME slot. Founder 2026-07-31: the balance
@@ -285,9 +275,10 @@ export default function AppMenu({
             <Link
               href="/dashboard/pricing"
               className={cn(
-                MENU_ITEM_CLASS,
+                current("/dashboard/pricing").className,
                 "flex items-center justify-between",
               )}
+              aria-current={pathname === "/dashboard/pricing" ? "page" : undefined}
               onClick={() => setOpen(false)}
             >
               <span>{TOKENS_COPY.menuRowLabel}</span>
