@@ -522,3 +522,15 @@ body.no-scroll {
     transform: none;
   }
 }
+
+/* The acceptance walk (consent lock 2026-10-07): each step fades in over
+   220ms, as the prototype's `.enter`; instant with reduce motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .acceptance-step {
+    animation: acceptance-step-in 0.22s ease-out both;
+  }
+}
+@keyframes acceptance-step-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
