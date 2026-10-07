@@ -5,9 +5,11 @@
 /*  every call on window.__panelCalls so the spec can prove what was asked    */
 /*  and WHEN: the moment read answers 409 until a rating for that snippet has */
 /*  been PUT, exactly as the backend's blind gate does, and the queue carries */
-/*  no kind before a rating. Two speakers: Quiet Heron (Take 2 with four      */
-/*  moments to judge, Take 1 answered) and Calm Otter (a Take still waiting   */
-/*  for its text). The blind lines answer 404: switched off, as today.        */
+/*  no kind before a rating. Two speakers in the queue: Quiet Heron (Take 2   */
+/*  with four moments to judge, Take 1 answered; their goal) and Calm Otter   */
+/*  (a Take still waiting for its text). The Speakers read (D-CP-12) adds the */
+/*  two with every moment answered, Bold Finch and Quick Wren, counts alone.  */
+/*  The blind lines answer 404: switched off, as today.                       */
 /*                                                                            */
 /*  Sample content, never shown by the product.                               */
 /* -------------------------------------------------------------------------- */
@@ -56,7 +58,7 @@ export function queueJson(rated: ReadonlySet<string>, resolved: ReadonlySet<stri
   const state = (id: string) => (resolved.has(id) ? "answered" : rated.has(id) ? "answer_it" : "judge_it");
   const open = SNIPS.filter((id) => !resolved.has(id)).length;
   return [
-    { pseudonym: "Quiet Heron", waiting: open, takes: [
+    { pseudonym: "Quiet Heron", goal: HERON_GOAL, waiting: open, takes: [
       { session_id: TAKE_1, take_index: 1, sent_at: "2026-10-01T10:00:00Z", waiting: 0,
         moments: ["a", "b", "c"].map((x) => ({ snippet_id: `done-${x}`, state: "answered", kind: "praise" })) },
       { session_id: TAKE_2, take_index: 2, sent_at: "2026-10-06T10:00:00Z", waiting: open,
@@ -67,6 +69,32 @@ export function queueJson(rated: ReadonlySet<string>, resolved: ReadonlySet<stri
         waiting_for_text: true, moments: [] },
     ] },
   ];
+}
+
+export const HERON_GOAL = "Sound calm and sure in the board meeting.";
+
+/** GET /v2/coach/speakers: every speaker, counts alone, never a moment. */
+export function speakersJson(rated: ReadonlySet<string>, resolved: ReadonlySet<string> = new Set()) {
+  const queue = queueJson(rated, resolved);
+  const summary = queue.map((sp) => ({
+    pseudonym: sp.pseudonym, goal: sp.goal ?? null, waiting: sp.waiting,
+    waiting_for_text: sp.takes.filter((t) => "waiting_for_text" in t && t.waiting_for_text).length,
+    take_count: sp.takes.length,
+    takes: sp.takes.map((t) => ({
+      session_id: t.session_id, take_index: t.take_index, sent_at: t.sent_at, waiting: t.waiting,
+      waiting_for_text: "waiting_for_text" in t && t.waiting_for_text === true,
+      answered: !("waiting_for_text" in t && t.waiting_for_text) && t.waiting === 0,
+    })),
+  }));
+  const answered = (name: string, goal: string, n: number) => ({
+    pseudonym: name, goal, waiting: 0, waiting_for_text: 0, take_count: n,
+    takes: Array.from({ length: n }, (_, i) => ({
+      session_id: `${name.toLowerCase().replace(" ", "-")}-${n - i}`, take_index: n - i,
+      sent_at: `2026-09-${10 + i}T10:00:00Z`, waiting: 0, waiting_for_text: false, answered: true,
+    })),
+  });
+  return [...summary, answered("Bold Finch", "Open the keynote without notes.", 3),
+    answered("Quick Wren", "Pitch to investors in five minutes.", 1)];
 }
 
 /** The queue as the panel holds it, for the still screens' starting state. */
@@ -97,6 +125,7 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.includes("/api/v2/coach/take-bubbles"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
+    { when: (c) => c.url.includes("/api/v2/coach/speakers"), reply: () => json(speakersJson(new Set(rated.keys()), resolved)) },
     { when: (c) => c.url.includes("/exercise-preference"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => moment(c.url, "/moment"),
       reply: (c) => {

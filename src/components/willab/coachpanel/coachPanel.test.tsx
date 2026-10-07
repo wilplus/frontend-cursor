@@ -32,8 +32,10 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 
 import CoachPanel from "./CoachPanel";
 import {
-  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, revealLines, speakerChoice, takeChoice, takesNewestFirst,
+  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, revealLines, speakerChoice,
+  takeChoice, takesNewestFirst,
 } from "./CoachPanelScreens";
+import { mapCoachSpeakers, queueSpeakerFor, type PanelSpeaker } from "@/services/api/coachSpeakers";
 import { CoachPanelPinned } from "./CoachPanelDoor";
 import WalkOverlay from "../walk/WalkOverlay";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
@@ -70,6 +72,20 @@ const HERON: QueueSpeaker = { pseudonym: "Quiet Heron", waiting: 2, takes: [OLD,
 const OTTER: QueueSpeaker = { pseudonym: "Calm Otter", waiting: 0, takes: [{ ...TAKE, sessionId: "t9", waiting: 0, moments: [], waitingForText: true }] };
 const DONE: QueueSpeaker = { pseudonym: "Bold Finch", waiting: 0, takes: [OLD] };
 const NAV: WalkNav = { label: "Quiet Heron", index: 0, total: 4, onBack: () => {}, onNext: () => {} };
+/** GET /v2/coach/speakers, as the backend sends it: counts alone, never a moment. */
+const SPEAKERS_JSON = [
+  { pseudonym: "Quiet Heron", goal: "Sound calm and sure in the board meeting.", waiting: 2, waiting_for_text: 0, take_count: 2,
+    takes: [{ session_id: "t1", take_index: 1, sent_at: "", waiting: 0, waiting_for_text: false, answered: true },
+      { session_id: "t2", take_index: 2, sent_at: "", waiting: 2, waiting_for_text: false, answered: false }] },
+  { pseudonym: "Calm Otter", goal: null, waiting: 0, waiting_for_text: 1, take_count: 1,
+    takes: [{ session_id: "t9", take_index: 1, sent_at: "", waiting: 0, waiting_for_text: true, answered: false }] },
+  { pseudonym: "Bold Finch", goal: "Open the keynote without notes.", waiting: 0, waiting_for_text: 0, take_count: 3,
+    takes: [3, 2, 1].map((i) => ({ session_id: `f${i}`, take_index: i, sent_at: "", waiting: 0, waiting_for_text: false, answered: true })) },
+  { pseudonym: "Quick Wren", goal: "  ", waiting: 0, waiting_for_text: 0, take_count: 1,
+    takes: [{ session_id: "w1", take_index: 1, sent_at: "", waiting: 0, waiting_for_text: false, answered: true }] },
+  "not a speaker",
+];
+const ALL: PanelSpeaker[] = mapCoachSpeakers(SPEAKERS_JSON);
 const READ: MomentRead = {
   passage: "We grew revenue forty percent.",
   speakerAnswer: "no",
@@ -85,6 +101,29 @@ describe("the pure parts", () => {
     expect(speakerChoice({ ...HERON, waiting: 1 }, 0).subtitle).toBe("1 moment waiting");
     expect(speakerChoice(OTTER, 1)).toMatchObject({ subtitle: COPY.waitingForText, done: true, dim: true });
     expect(speakerChoice(DONE, 2)).toMatchObject({ subtitle: COPY.answered, mark: "check" });
+  });
+
+  it("every speaker (D-CP-12): the dot on those waiting, waiting for the text, or all answered with their Takes", () => {
+    expect(ALL.map((s) => s.pseudonym)).toEqual(["Quiet Heron", "Calm Otter", "Bold Finch", "Quick Wren"]);
+    expect(ALL[0].goal).toBe("Sound calm and sure in the board meeting.");
+    expect(ALL[3].goal).toBeNull(); // blank is no goal
+    expect(allSpeakersChoice(ALL[0], 0)).toMatchObject({ label: "Quiet Heron", subtitle: "2 moments waiting", dot: true });
+    expect(allSpeakersChoice(ALL[1], 1)).toMatchObject({ subtitle: COPY.waitingForText, done: true, dim: true });
+    expect(allSpeakersChoice(ALL[1], 1).dot).toBeUndefined();
+    expect(allSpeakersChoice(ALL[2], 2)).toMatchObject({ subtitle: "All answered · 3 Takes" });
+    expect(allSpeakersChoice(ALL[3], 3)).toMatchObject({ subtitle: "All answered · 1 Take" });
+    // Nothing about a moment reaches the list.
+    expect(JSON.stringify(ALL)).not.toMatch(/snippet|moments|passage|kind/);
+  });
+
+  it("a speaker from the list walks as the queue's own entry, else as counts alone", () => {
+    const heron = queueSpeakerFor(ALL[0], [HERON]);
+    expect(heron.takes).toBe(HERON.takes);
+    expect(heron.goal).toBe("Sound calm and sure in the board meeting.");
+    const finch = queueSpeakerFor(ALL[2], [HERON]);
+    expect(finch.goal).toBe("Open the keynote without notes.");
+    expect(finch.takes.map((t) => [t.takeIndex, t.moments.length, t.waiting])).toEqual([[3, 0, 0], [2, 0, 0], [1, 0, 0]]);
+    expect(takeChoice(finch.takes[1], 1)).toMatchObject({ label: "Take 2", subtitle: COPY.allMomentsAnswered, done: true, mark: "check" });
   });
 
   it("a Take: waiting of all, answered, or waiting for the text; newest first", () => {
@@ -130,6 +169,35 @@ describe("the screens", () => {
       onSpeaker={() => {}} onClose={() => {}} />);
     expect(q("[data-testid='coach-panel-blind']")!.textContent).toContain("Also waiting · blind");
     expect(q("[data-testid='coach-panel-blind']")!.textContent).toContain("Do you hear it?");
+  });
+
+  it("Your speakers: every speaker as shaded choices, the orange dot on those waiting", () => {
+    const picked: string[] = [];
+    draw(<SpeakersScreen speakers={ALL} loading={false} onSpeaker={(s) => picked.push(s.pseudonym)} onClose={() => {}} />);
+    expect(q('[data-testid="coach-panel-all-speakers"] h2')?.textContent).toBe(COPY.yourSpeakers);
+    expect(qa("[data-walk-choice]").map((e) => e.textContent)).toEqual([
+      "Quiet Heron2 moments waiting", `Calm Otter${COPY.waitingForText}`, "Bold FinchAll answered · 3 Takes", "Quick WrenAll answered · 1 Take",
+    ]);
+    expect(qa("[data-walk-choice-dot]").length).toBe(1);
+    expect(q('[data-walk-choice="0"] [data-walk-choice-dot]')).not.toBeNull();
+    expect(qa("button[data-walk-choice]").length).toBe(3); // Calm Otter is not pressable
+    expect(q('button[aria-label="Back"]')).toBeNull();
+    act(() => q('[data-walk-choice="2"]')?.click());
+    expect(picked).toEqual(["Bold Finch"]);
+  });
+
+  it("Your speakers while it loads: the breathing mark; empty: nobody waiting", () => {
+    draw(<SpeakersScreen speakers={null} loading onSpeaker={() => {}} onClose={() => {}} />);
+    expect(q("[data-walk-loading]")).not.toBeNull();
+    draw(<SpeakersScreen speakers={[]} loading={false} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(host.textContent).toContain(COPY.queueEmpty);
+  });
+
+  it("A speaker: the goal under the name, as the caption; none when they have none", () => {
+    draw(<SpeakerScreen speaker={{ ...HERON, goal: "Sound calm and sure in the board meeting." }} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    expect(q("[data-walk-caption]")?.textContent).toBe("Goal: Sound calm and sure in the board meeting.");
+    draw(<SpeakerScreen speaker={HERON} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    expect(q("[data-walk-caption]")).toBeNull();
   });
 
   it("A speaker: ‹ alone in the top bar, the Takes newest first", () => {

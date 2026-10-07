@@ -5,11 +5,13 @@
 /*    PANEL_URL=http://localhost:<port>/dev/coach-panel \                     */
 /*      SHOTS_DIR=<dir> node e2e/coach-panel.spec.mjs                          */
 /*                                                                            */
-/*  What this proves: each P1 screen (door, queue, speaker, judge, What       */
-/*  happened) draws at phone size (402 x 860) with no page error, nothing on  */
+/*  What this proves: each screen (door, queue, Your speakers, speaker,       */
+/*  judge, What happened) draws at phone size (402 x 860) with no page error, nothing on  */
 /*  it is a percentage (AC-9), and the overlays cover the screen. Then the    */
 /*  real door is driven through the switch (?coach2=1): the bubble opens the  */
-/*  queue; the speaker's Takes; Judge shows the player, the question and the  */
+/*  queue; Speakers opens every speaker with the orange dot on those waiting  */
+/*  (D-CP-12); the speaker's goal and Takes; Judge shows the player, the      */
+/*  question and the                                                          */
 /*  five answers and NOTHING of the moment — no passage text anywhere in the  */
 /*  DOM and no moment read asked for — until the rating is saved; the rating */
 /*  moves on by itself with "Answer saved"; the moment read is asked for only */
@@ -70,6 +72,7 @@ const browser = await launchChromium();
 const KEY = {
   door: '[data-testid="coach-panel-pinned"]',
   queue: `${LIVE} [data-testid="coach-panel-queue"]`,
+  speakers: `${LIVE} [data-testid="coach-panel-all-speakers"]`,
   speaker: `${LIVE} [data-testid="coach-panel-speaker"]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
@@ -89,6 +92,20 @@ for (const [screen, selector] of Object.entries(KEY)) {
   }
   const text = await page.evaluate(() => document.body.innerText);
   check(`${screen}: no percentage on screen (AC-9)`, !/\d\s?%/.test(text));
+  if (screen === "speakers") {
+    const rows = await page.locator(`${LIVE} [data-walk-choice]`).allInnerTexts();
+    check("speakers: every speaker, the queue's and the answered ones",
+      rows.length === 4 && /Quiet Heron[\s\S]*4 moments waiting/.test(rows[0]) && /Calm Otter[\s\S]*Waiting for the text/.test(rows[1]) &&
+      /Bold Finch[\s\S]*All answered · 3 Takes/.test(rows[2]) && /Quick Wren[\s\S]*All answered · 1 Take$/.test(rows[3]), rows.join(" | "));
+    check("speakers: the orange dot on the one waiting only",
+      (await page.locator(`${LIVE} [data-walk-choice-dot]`).count()) === 1 &&
+      (await page.locator(`${LIVE} [data-walk-choice="0"] [data-walk-choice-dot]`).count()) === 1);
+    const dom = await domText(page);
+    check("speakers: no passage anywhere in the DOM (BLIND COACH)", PASSAGES.every((p) => !dom.includes(p)));
+  }
+  if (screen === "speaker") {
+    check("speaker: the goal under the name", (await liveText(page)).includes("Goal: Sound calm and sure in the board meeting."));
+  }
   if (screen === "judge") {
     const dom = await domText(page);
     check("judge: no passage anywhere in the DOM (BLIND COACH)", PASSAGES.every((p) => !dom.includes(p)));
@@ -121,12 +138,35 @@ for (const [screen, selector] of Object.entries(KEY)) {
     (await page.locator('[data-testid="coach-panel-pinned"] svg').count()) === 2);
   check("door: today's queue button is gone", (await page.getByRole("button", { name: "Your queue", exact: true }).count()) === 0);
 
+  // Speakers: every speaker, the orange dot on those waiting; a speaker with
+  // every moment answered opens on their goal and their Takes, all answered.
+  await page.locator('[data-testid="coach-panel-speakers-button"]').click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-all-speakers"]`);
+  await settle(page);
+  let text = await liveText(page);
+  check("speakers: Your speakers, every speaker", text.includes("Your speakers") && text.includes("Bold Finch") && text.includes("Quick Wren"));
+  check("speakers: no moment read asked for", !(await calls(page)).some((c) => c.url.endsWith("/moment")));
+  await page.locator(`${LIVE} [data-walk-choice="2"]`).click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-speaker"]`);
+  await settle(page);
+  text = await liveText(page);
+  check("speaker (all answered): the goal and three answered Takes",
+    text.includes("Goal: Open the keynote without notes.") &&
+    /Take 3[\s\S]*All moments answered[\s\S]*Take 2[\s\S]*All moments answered[\s\S]*Take 1[\s\S]*All moments answered/.test(text) &&
+    (await page.locator(`${LIVE} button[data-walk-choice]`).count()) === 0, text.replace(/\n/g, " | "));
+  await page.screenshot({ path: join(SHOTS, "flow-speakers-answered.png") });
+  await page.locator(`${LIVE} button[aria-label="Back"]`).last().click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-all-speakers"]`);
+  await settle(page);
+  await page.locator(`${LIVE} button[aria-label="Close"]`).last().click();
+  await page.waitForTimeout(500);
+
   // The queue.
   await page.locator('[data-testid="coach-walk-bubble"]').click();
   await page.waitForSelector(`${LIVE} [data-testid="coach-panel-queue"]`);
   check("queue: rises over the Lounge", (await page.locator(`${LIVE}`).last().getAttribute("data-walk-move")) === "open");
   await settle(page);
-  let text = await liveText(page);
+  text = await liveText(page);
   check("queue: Your queue, Your speakers", text.includes("Your queue") && /your speakers/i.test(text));
   check("queue: Quiet Heron with 4 moments waiting", text.includes("Quiet Heron") && text.includes("4 moments waiting"));
   check("queue: Calm Otter waiting for the text, not pressable",
@@ -146,7 +186,7 @@ for (const [screen, selector] of Object.entries(KEY)) {
   text = await liveText(page);
   check("speaker: the Takes, newest first, with their moments",
     /Take 2[\s\S]*4 of 4 moments waiting[\s\S]*Take 1[\s\S]*Answered · 3 moments/.test(text), text.replace(/\n/g, " | "));
-  check("speaker: no goal drawn (the queue does not carry it yet)", !text.includes("Goal"));
+  check("speaker: the goal under the name", text.includes("Goal: Sound calm and sure in the board meeting."));
 
   // Judge, blind.
   await page.locator(`${LIVE} button[data-walk-choice]`).first().click();

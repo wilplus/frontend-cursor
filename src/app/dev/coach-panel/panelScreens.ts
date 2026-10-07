@@ -7,12 +7,12 @@
 import { PANEL_START, type PanelState } from "@/lib/willab/coachPanel";
 import { SNIPS, queueSpeakers } from "./panelFixtures";
 
-export const SCREEN_NAMES = ["door", "queue", "speaker", "judge", "reveal"] as const;
+export const SCREEN_NAMES = ["door", "queue", "speakers", "speaker", "judge", "reveal"] as const;
 export type ScreenName = (typeof SCREEN_NAMES)[number];
 
 /** The snippets each still screen needs rated before it draws. */
 export const PRE_RATED: Record<ScreenName, readonly string[]> = {
-  door: [], queue: [], speaker: [], judge: [], reveal: [SNIPS[0]],
+  door: [], queue: [], speakers: [], speaker: [], judge: [], reveal: [SNIPS[0]],
 };
 
 export function startFor(name: ScreenName): PanelState {
@@ -25,6 +25,8 @@ export function startFor(name: ScreenName): PanelState {
       return PANEL_START;
     case "queue":
       return { ...PANEL_START, screen: { key: "queue" } };
+    case "speakers":
+      return { ...PANEL_START, screen: { key: "speakers" } };
     case "speaker":
       return { ...PANEL_START, screen: speaker, history: [{ key: "queue" }] };
     case "judge":

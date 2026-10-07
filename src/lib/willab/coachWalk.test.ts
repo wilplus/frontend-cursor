@@ -102,3 +102,16 @@ describe("the slide on Read (B5)", () => {
     expect(readSlideFor(PDF, { index: 1.5, title: "" })).toBeNull();
   });
 });
+
+describe("the speaker's goal on the queue (D-CP-12)", () => {
+  it("reads goal, or speaker_goal, trimmed; blank is none", () => {
+    const [a, b, c] = mapMomentsQueue([
+      { pseudonym: "A", waiting: 0, takes: [], goal: " Sound calm. " },
+      { pseudonym: "B", waiting: 0, takes: [], speaker_goal: "Pitch well." },
+      { pseudonym: "C", waiting: 0, takes: [], goal: "   " },
+    ]);
+    expect(a.goal).toBe("Sound calm.");
+    expect(b.goal).toBe("Pitch well.");
+    expect(c.goal).toBeNull();
+  });
+});

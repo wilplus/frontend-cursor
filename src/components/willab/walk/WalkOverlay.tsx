@@ -83,6 +83,7 @@ export default function WalkOverlay({
   onBack,
   onClose,
   title,
+  caption,
   footer,
   bare = false,
   testId,
@@ -93,6 +94,9 @@ export default function WalkOverlay({
   onBack?: () => void;
   onClose?: () => void;
   title?: string | null;
+  /** The grey line under the title (the coach panel's "Goal: …", "Treats:
+   *  …"); still, like the title, while the body moves. */
+  caption?: string | null;
   /** Normally a WalkFooter. */
   footer?: ReactNode;
   /** Children go straight under the top bar instead of the scrolling body
@@ -123,6 +127,7 @@ export default function WalkOverlay({
       {title ? (
         <h2 className="px-5 pb-1 pt-3 text-[22px] font-bold leading-[1.2] tracking-[-0.01em]">{title}</h2>
       ) : null}
+      {caption ? <p data-walk-caption className="m-0 px-5 text-[13.5px] text-muted-foreground">{caption}</p> : null}
       {bare ? (
         children
       ) : (
