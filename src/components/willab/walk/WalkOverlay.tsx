@@ -112,10 +112,10 @@ export default function WalkOverlay({
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
         {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} /> : <span />}
         {onClose ? (
-          <OverlayCloseButton
-            onClick={onClose}
-            className="walk-press-sm mr-2.5 h-[30px] w-[30px] border-transparent bg-muted"
-          />
+          // The app's one small grey X, unchanged (founder 2026-10-07,
+          // Q-B14 A (1); D-RC-6): only its place and the walk's press are
+          // the overlay's.
+          <OverlayCloseButton onClick={onClose} className="walk-press-sm mr-2.5" />
         ) : (
           <span />
         )}
