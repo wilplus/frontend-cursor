@@ -212,7 +212,11 @@ describe("the switch on", () => {
     await render(p);
     await render({ ...p, reviewRequest: 1 });
     expect(live()).toBeNull();
-    expect(pager()).not.toBeNull();
+    // Today's walk across the bookmarks, its paragraph sheet drawn in the
+    // walk's look with the switch on (D-IT-6): the ‹ › bar is the walk's.
+    const sheet = document.querySelector('[data-walk-stage] [data-testid="paragraph-sheet"]');
+    expect(sheet?.querySelector("[data-walk-nav]")).not.toBeNull();
+    expect(pager()).toBeNull();
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {

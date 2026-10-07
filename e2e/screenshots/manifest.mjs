@@ -128,6 +128,19 @@ const LIVE_WALK = [
   area: "walk", audience: "speaker", path: "/dev/feedback-walk?live=1", settleMs: 400, allow: WALK_ALLOW, ...entry,
 }));
 
+/** The paragraph's own screens and the helper-words overlay in the walk's
+ *  look (build plan D-IT-6; Q-B3 A): the PRODUCTION ParagraphSheet over the
+ *  harness's page, /dev/feedback-walk?paragraph=…. */
+const PARAGRAPH_LAYER = "[data-paragraph-walk] [data-walk-stage] .walk-layer:not(.walk-ghost)";
+const PARAGRAPH_WALK = [
+  { name: "paragraph-this", path: "/dev/feedback-walk?paragraph=this",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="overlay-practise"]` },
+  { name: "paragraph-saved", path: "/dev/feedback-walk?paragraph=saved",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="overlay-saved"]` },
+  { name: "paragraph-helpers", path: "/dev/feedback-walk?paragraph=helpers",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="helper-words-card"]` },
+].map((entry) => ({ area: "walk", audience: "speaker", settleMs: 400, allow: WALK_ALLOW, ...entry }));
+
 /* ------------------------------ coach-panel --------------------------------- */
 /** The coach panel's P1 still screens, as /dev/coach-panel draws them (the
  *  names and key elements are e2e/coach-panel.spec.mjs's). */
@@ -215,4 +228,4 @@ const CONSENT = [
     prepare: guestWithPolicy, act: enterTheLab },
 ];
 
-export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];
+export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];

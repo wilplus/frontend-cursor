@@ -15,6 +15,10 @@
 /*                                       its first screen; &guest=1 as a guest; */
 /*                                       &practice=0 with personalised         */
 /*                                       practice off (D-FW-15)                */
+/*    /dev/feedback-walk?paragraph=this|saved|helpers                         */
+/*                                       the PRODUCTION paragraph sheet and   */
+/*                                       helper-words overlay in the walk's   */
+/*                                       look (D-IT-6)                        */
 /*                                                                            */
 /*  Nothing here is mounted by the product, and nothing is fetched. Every     */
 /*  word is a signed one (the copy files and the line bank of N54).           */
@@ -43,6 +47,7 @@ import {
 } from "./walkFixtures";
 import PageStandIn from "./pageStandIn";
 import LiveWalk from "./liveWalk";
+import ParagraphWalk, { type ParagraphView } from "./paragraphWalk";
 import { renderWalkScreen, type WalkCtx } from "./walkScreens";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 
@@ -50,7 +55,10 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean; practiceOn: boolean };
+  | { kind: "live"; guest: boolean; practiceOn: boolean }
+  | { kind: "paragraph"; view: ParagraphView };
+
+const PARAGRAPH_VIEWS: readonly ParagraphView[] = ["this", "saved", "helpers"];
 
 function readMode(search: string): Mode {
   const q = new URLSearchParams(search);
@@ -58,6 +66,10 @@ function readMode(search: string): Mode {
     return { kind: "live", guest: q.get("guest") === "1", practiceOn: q.get("practice") !== "0" };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
+  const view = q.get("paragraph");
+  if (view && (PARAGRAPH_VIEWS as readonly string[]).includes(view)) {
+    return { kind: "paragraph", view: view as ParagraphView };
+  }
   const name = q.get("screen");
   if (name && (SCREEN_NAMES as readonly string[]).includes(name)) return { kind: "single", name: name as ScreenName };
   return { kind: "index" };
@@ -192,6 +204,7 @@ function Harness() {
   if (!mode) return null;
   if (mode.kind === "index") return <IndexList />;
   if (mode.kind === "live") return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} />;
+  if (mode.kind === "paragraph") return <ParagraphWalk view={mode.view} />;
   return <Walk mode={mode} />;
 }
 
