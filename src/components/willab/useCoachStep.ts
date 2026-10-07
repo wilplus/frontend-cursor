@@ -32,6 +32,9 @@ export function useCoachStep(args: {
   show: () => boolean;
   proceed: () => void;
   close: () => void;
+  /** The word was shown elsewhere (the Feedback walk's coach's note,
+   *  D-FW-14): mark it seen without opening step 0. */
+  seen: () => void;
 } {
   const { arcId, message, next } = args;
   const [open, setOpen] = useState(false);
@@ -53,9 +56,13 @@ export function useCoachStep(args: {
     return true;
   }, [has, key]);
   const close = useCallback(() => setOpen(false), []);
+  const seen = useCallback(() => {
+    markCoachWordSeen(key);
+    setUnseen(false);
+  }, [key]);
   const proceed = useCallback(() => {
     close();
     nextRef.current();
   }, [close]);
-  return { open, unseen, show, proceed, close };
+  return { open, unseen, show, proceed, close, seen };
 }
