@@ -159,8 +159,9 @@ The rules, as for the Ideal Text lock:
 ## Design lock — the recording screens (founder, 2026-10-07)
 
 The speaker's recording screens follow **the recording screen prototype**
-exactly: <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>, version 6
-(founder 2026-10-07: "Lock the recording screens"). Read it before touching
+exactly: <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h>, version 7
+(founder 2026-10-07: "Lock the recording screens"; amended the same day:
+every helper word orange, the slide close under the top bar). Read it before touching
 any of them, on a phone and on a desktop. The written lock, with the flow,
 the motion and every word, is `docs/FOUNDER-LOCK-recording-screens-2026-10-07.md`
 in the backend repo (decisions log N59), and a copy of the page as locked is
@@ -171,8 +172,8 @@ in the backend repo (decisions log N59), and a copy of the page as locked is
   and no recording controls until the speaker starts;
 - **Getting your mic ready** before a later Take;
 - the recording screen: **Take N · Slide n of m** in the top bar beside the
-  close button (no "Recording" label), the slide, the speaker's orange
-  helper words (none on Take 1), the slide dots on the right, and the strip
+  close button (no "Recording" label), the slide close under it, the
+  speaker's helper words, every one orange (none on Take 1), the slide dots on the right, and the strip
   (clock, bar, **Finish take**) with no line above it;
 - how it moves: only the slide and its helper words move; the top bar, the
   dots and the strip stay still and are never rebuilt; the content follows

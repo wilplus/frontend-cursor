@@ -90,7 +90,7 @@ export default function RecordingHarness() {
         <OverlayCloseButton onClick={() => {}} />
       </header>
       <div
-        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+        className={`scrollbar-none mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-4 pt-0 ${SCREEN_BOTTOM_GAP}`}
       >
         <RecordingPhase
           micState={

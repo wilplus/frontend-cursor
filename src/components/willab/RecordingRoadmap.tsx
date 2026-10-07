@@ -144,11 +144,9 @@ export default function RecordingRoadmap({
             {currentRoots.map((root, rootIndex) => (
               <p
                 key={`${rootIndex}-${root.text}`}
-                className={`${rootIndex === 0 ? "" : "mt-6"} text-[clamp(1.4rem,4.2vw,1.9rem)] leading-[1.35] ${
-                  root.type === "flagship"
-                    ? "font-semibold text-primary"
-                    : "font-medium text-muted-foreground"
-                }`}
+                // Every helper word is orange, neutral ones too (founder
+                // 2026-10-07: "make them orange!").
+                className={`${rootIndex === 0 ? "" : "mt-6"} text-[clamp(1.4rem,4.2vw,1.9rem)] font-semibold leading-[1.35] text-primary`}
               >
                 {root.text}
               </p>
