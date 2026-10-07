@@ -115,3 +115,28 @@ describe("the speaker's goal on the queue (D-CP-12)", () => {
     expect(c.goal).toBeNull();
   });
 });
+
+describe("the moment read's `heard` (D-CP-13)", () => {
+  it("maps every kind by key, keeps the library's label, drops the malformed, null when absent", async () => {
+    const { mapMomentRead } = await import("@/services/api/coachWalk");
+    const read = mapMomentRead({
+      passage: "p",
+      heard: [
+        { kind: "error", key: "rushing", label: "Rushing" },
+        { kind: "cue", key: "landed_ending" },
+        { kind: "reason", key: "weak_delivery_read" },
+        { kind: "nothing", key: "nothing" },
+        { kind: "score", key: "0.9" },
+        { kind: "error" },
+        "x",
+      ],
+    });
+    expect(read?.heard).toEqual([
+      { kind: "error", key: "rushing", label: "Rushing" },
+      { kind: "cue", key: "landed_ending", label: null },
+      { kind: "reason", key: "weak_delivery_read", label: null },
+      { kind: "nothing", key: "nothing", label: null },
+    ]);
+    expect(mapMomentRead({ passage: "p" })?.heard).toBeNull();
+  });
+});

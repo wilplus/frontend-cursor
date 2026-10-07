@@ -32,7 +32,7 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 
 import CoachPanel from "./CoachPanel";
 import {
-  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, revealLines, speakerChoice,
+  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, heardWords, revealLines, speakerChoice,
   takeChoice, takesNewestFirst,
 } from "./CoachPanelScreens";
 import { mapCoachSpeakers, queueSpeakerFor, type PanelSpeaker } from "@/services/api/coachSpeakers";
@@ -92,6 +92,7 @@ const READ: MomentRead = {
   coachAnswer: null,
   speakerGoal: null,
   practice: null,
+  heard: [{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "ec", label: "Ending compression" }],
   request: { spotted: [{ errorId: "rushing", label: "Rushing" }, { errorId: "ec", label: "Ending compression" }] } as MomentRead["request"],
 };
 
@@ -134,15 +135,39 @@ describe("the pure parts", () => {
     expect(takeChoice(OTTER.takes[0], 0)).toMatchObject({ subtitle: COPY.waitingForText, done: true });
   });
 
-  it("What happened's lines: You, the speaker, The machine heard; each only when the data has it", () => {
+  it("What happened's lines, always three: You, the speaker, The machine heard", () => {
     expect(revealLines(READ, "Quiet Heron", "in_between")).toEqual([
       { label: "You", value: "In-between" },
       { label: "Quiet Heron", value: "Not confident" },
       { label: "The machine heard", value: "Rushing · Ending compression" },
     ]);
-    // A praise or rewrite moment: the read carries no "heard", so no line.
-    const praise = { ...READ, speakerAnswer: null, request: { spotted: [] } as unknown as MomentRead["request"] };
-    expect(revealLines(praise, "Quiet Heron", "yes")).toEqual([{ label: "You", value: "Confident" }]);
+    // An answer not given reads "—".
+    expect(revealLines({ ...READ, speakerAnswer: null }, "Quiet Heron", null).map((l) => l.value)).toEqual(["—", "—", "Rushing · Ending compression"]);
+  });
+
+  it("The machine heard, per kind, in signed words only (D-CP-13)", () => {
+    const heard = (list: MomentRead["heard"]) => heardWords({ heard: list, request: null });
+    // An error moment: the library's own labels.
+    expect(heard([{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "x", label: null }])).toEqual(["Rushing", "x"]);
+    // A praise moment: the cues behind it, by the kind question's words.
+    expect(heard([{ kind: "cue", key: "landed_ending", label: null }, { kind: "cue", key: "settled_pitch", label: null }]))
+      .toEqual(["landed the ending", "settled pitch"]);
+    expect(heard([{ kind: "cue", key: "wide_range", label: null }, { kind: "cue", key: "full_volume", label: null },
+      { kind: "cue", key: "no_hesitation", label: null }, { kind: "cue", key: "kept_moving", label: null }, { kind: "cue", key: "opened_strong", label: null }]))
+      .toEqual(["wide range", "full volume", "no hesitation", "kept moving", "opened strong"]);
+    // A rewrite moment: the reason keys have no signed word, so nothing.
+    expect(heard([{ kind: "reason", key: "weak_delivery_read", label: null }])).toEqual([]);
+    expect(heard([{ kind: "reason", key: "weak_slide_fit_read", label: null }, { kind: "reason", key: "profanity_read", label: null }])).toEqual([]);
+    // A cue the copy does not know shows nothing either; never the raw key.
+    expect(heard([{ kind: "cue", key: "new_cue", label: null }])).toEqual([]);
+    // A note: "nothing" when the machine heard nothing.
+    expect(heard([{ kind: "nothing", key: "nothing", label: null }])).toEqual(["nothing"]);
+    // An older read without `heard`: the request's spotted errors.
+    expect(heardWords({ heard: null, request: READ.request })).toEqual(["Rushing", "Ending compression"]);
+    expect(heardWords({ heard: null, request: null })).toEqual([]);
+    // The line is drawn even when nothing can be said.
+    expect(revealLines({ ...READ, heard: [{ kind: "reason", key: "weak_delivery_read", label: null }] }, "Quiet Heron", "yes")[2])
+      .toEqual({ label: "The machine heard", value: "" });
   });
 });
 

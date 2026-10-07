@@ -54,6 +54,8 @@ const LOCK_FLOW_NAMES = ["Speakers", "Training corpus"] as const;
 const PROTOTYPE_Q_B4_A = [
   "lounge: Library · Lounge",
   "summary: Summary",
+  "reveal: — · nothing",
+  "kind: confident read · opened strong · landed the ending · kept moving · settled pitch · no hesitation · full volume · wide range",
   "speakers: All answered · {n} Takes",
   "corpushome: Import audio · No speaker label · All {n} labelled",
   "corpusimport: Import · What the talk is about · The topic · Whose voice this is · Speaker name · Optional, but it is the only way the corpus can tell whose voice a piece is. Worth filling in per batch. · What language it is in · Choose… · Required — auto-detect is a choice, not a default. Whisper is primed with an English prompt, so a talk left on auto-detect can come back translated into English rather than transcribed: the audio is right, the words are not, and nothing says so. · Where it came from · 2019 conference, YouTube · What to run · Confidence · Always on — this is what produces the pieces and the label queue, i.e. the corpus itself. · Analytics · Ideal text",
@@ -229,6 +231,9 @@ describe("COACH_PANEL_COPY", () => {
       library: [C.library],
       lounge: [C.lounge],
       summary: [C.summary],
+      noAnswer: [C.noAnswer],
+      heardNothing: [C.heardNothing],
+      cue: Object.values(C.cue),
       allAnsweredTakes: [C.allAnsweredTakes(1), C.allAnsweredTakes(3)],
       importAudio: [C.importAudio],
       importPill: [C.importPill],
