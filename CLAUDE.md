@@ -108,7 +108,51 @@ Recording Mode, and their wording (`CHUNK_SHEET_COPY` in `idealEditCopy.ts`).
   shows and nothing added, each screen shown to the founder in the panel's
   Done list before it goes live; and the coach and the app share one grey
   profile picture, no photos (NX2 B).
-- Not covered: the coach review, the CMS and everything else in this repo.
+- Not covered: the coach panel (its own lock below), the CMS and everything
+  else in this repo.
+
+## Design lock — the coach panel (founder, 2026-10-07)
+
+The coach's screens follow **the coach panel prototype** exactly:
+<https://claude.ai/artifact/TEBvGMehRF6wXCvJTEYTUA> (founder 2026-10-07:
+"generally you can lock the design of the coach panel, it's done; lock it
+just like you locked the ideal text design"). Read it before touching any
+of them. The written lock, with the flow and every signed word, is
+`docs/FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md` in the backend repo,
+and a copy of the page as locked is `docs/design/coach-panel-redesign-2026-10-06.html`
+there. It covers:
+
+- the Lounge door (the bubble and the pinned **Speakers** and **Training
+  corpus** buttons), the queue (speakers first, then the blind work), a
+  speaker's goal and Takes, the blind **Judge this moment**, **What
+  happened**, the diagnosis ("What kind of error is it?") before the cure
+  ("Choose exercise" / "What will you do?"), the coach's words under the
+  speaker's passage with the pencil, the coach's video, the kind question
+  with Skip, **Ready for {p}**, **Summary** with "Change my answer", and
+  **A word for this Take** with its video;
+- the training corpus flow (its set-up fields before any judging, its
+  blind judging) and the founder's Library and Speaking errors pages in the
+  admin area (CP3 A);
+- their wording (`coachPanelCopy.ts`; the words were signed as CP2 A) and
+  their look: one action per screen; choice cards shading from white to a
+  darker grey, one step per card, black text, no grey text inside a choice;
+  "Something else" in orange, not bold; the Feedback walk's overlay, grey
+  profile picture, single player and motion.
+
+The rules, as for the Ideal Text lock:
+
+- Build these screens exactly as the prototype shows. Do not change their
+  layout, flow or wording, and add no element or string the prototype
+  doesn't show. If a task seems to need one, stop and ask the founder in
+  the Navigation Panel, with a clickable prototype of the change.
+- Data may still reach these screens unrendered for the design to use later.
+- The judgement stays blind: the Judge screen holds no passage, read,
+  machine pick or score, and nothing about the moment is fetched until the
+  coach's answer is saved (BLIND COACH, AC-9).
+- The new panel sits behind `NEXT_PUBLIC_COACH_PANEL_V2` until the founder
+  approves it screen by screen (build plan P6). Today's coach walk stays
+  live until then and is not redesigned in the meantime.
+- Where this section and the backend lock file disagree, the lock file wins.
 
 ---
 
