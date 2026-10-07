@@ -7,11 +7,11 @@ failure.
 | spec | harness page | default target |
 | --- | --- | --- |
 | `bets-reorder.spec.mjs` | `/dev/life-bets` | `BETS_URL` → `:3111` |
-| `coach-panel.spec.mjs` | `/dev/coach-panel` | `PANEL_URL` → `:3111`; screenshots to `SHOTS_DIR` (default `e2e/artifacts/coach-panel`, gitignored) |
+| `coach-panel.spec.mjs` | `/dev/coach-panel` | `PANEL_URL` → `:3111`; flow screenshots to `SHOTS_DIR` (default `e2e/artifacts/coach-panel`, gitignored) |
 | `corpus.spec.mjs` | `/dev/corpus` | `CORPUS_URL` → `:3111` |
 | `csp-violations.spec.mjs` | public routes (REAL surfaces) | `BASE_URL` → `:3140` |
 | `deck.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` — **stale, not in CI** (see below) |
-| `feedback-walk.spec.mjs` | `/dev/feedback-walk` | `WALK_P1_URL` → `:3111`; screenshots + flow video to `SHOTS_DIR` (default `e2e/artifacts/feedback-walk`, gitignored) |
+| `feedback-walk.spec.mjs` | `/dev/feedback-walk` | `WALK_P1_URL` → `:3111`; flow video to `SHOTS_DIR` (default `e2e/artifacts/feedback-walk`, gitignored) |
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
@@ -70,6 +70,51 @@ Point a spec at a different port with its URL env var
 once in a browser (or curl it) before the first spec run — `next dev`
 compiles on demand, and a spec navigating mid-compile races its own
 selectors.
+
+## The screenshot harness — `e2e/screenshots/` (build plan X7)
+
+One script draws every founder-locked screen, for every area, instead of a
+screenshot loop per spec:
+
+```sh
+npm run screenshots                       # boots the fixture backend + next dev, draws, stops them
+npm run screenshots -- --area walk,consent
+BASE_URL=http://localhost:3111 node e2e/screenshots/capture.mjs   # against a server you run
+WILLAB_SCREENSHOTS=1 scripts/local_ci.sh  # the same, inside the local gate
+```
+
+- `manifest.mjs` — the screens, by area (`ideal-text`, `walk`, `coach-panel`,
+  `recording`, `consent`). Its header says exactly what an entry holds. An
+  area adds a screen by adding one entry; nothing else changes.
+- `capture.mjs` — draws each entry at 390x844 (`phone`) and 1280x800
+  (`desktop`) into `OUT_DIR` (default `e2e/artifacts/screenshots`, gitignored)
+  as `<area>/<name>.<viewport>.png`, writes `index.html` to look through, and
+  when an entry names a `reference` image of the locked prototype's frame,
+  `<name>.<viewport>.vs-prototype.png` with the app and the prototype side by
+  side. A missing reference is noted, not failed.
+- `visibleNumbers.mjs` — AC-9 on the rendered text: every `speaker` or
+  `coach` screen fails on a visible number that is not a count or a position
+  (`Take 2`, `Slide 1 of 3`, `3 Takes`, `2 of 5`, `0:12`, a document's
+  `Version 3.3` or date, a bare year). A percentage never passes. An entry's
+  `allow` widens the list for its own legitimate numbers (the fixture's
+  "Q3 Board pitch", the stand-in deck's "~3 points") — name each in the PR.
+
+CI runs it in the `e2e` job (the pictures are the `design-screens` artifact);
+the screens must be reachable with fixtures: the `/dev/*` harness pages, the
+fixture backend behind the BFF, or an entry's own `prepare` routes.
+
+## The design-lock guard — `scripts/check-design-lock.mjs` (build plan X5)
+
+Not a browser check, but the other half of the same lock: a commit that
+changes a file in `scripts/design-locked-files.txt` (the screens CLAUDE.md's
+"Design lock" sections name) must carry a `Founder-Approved:` trailer, or
+`npm run check:design-lock` fails — in the `unit` job and always in
+`scripts/local_ci.sh`. The trailer goes at the end of the commit message
+with the other trailers:
+
+```
+Founder-Approved: Navigation Panel GO-W1, 2026-10-07
+```
 
 ## Browser resolution — no hardcoded paths
 

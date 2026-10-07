@@ -4,13 +4,19 @@ name: tests
 #
 #   unit — vitest (935 cases), next lint, tsc --noEmit. All three were green
 #          at the commit that introduced this gate; a red here is a NEW
-#          defect, not environmental noise. BLOCKING.
+#          defect, not environmental noise. BLOCKING. Since 2026-10-07 it
+#          also runs the design-lock guard (build plan X5): a commit on the
+#          PR that changes a founder-locked screen's file without a
+#          `Founder-Approved:` trailer is red.
 #
 #   e2e  — the five self-contained real-browser specs against `next dev`
 #          (see e2e/README.md). BLOCKING (founder decision 2026-08-14: the policy is
 #          enforced at the configuration level immediately, without waiting
 #          for the Actions minutes outage to clear — the observation-period
-#          continue-on-error is retired).
+#          continue-on-error is retired). Since 2026-10-07 it also runs the
+#          shared screenshot harness (build plan X7): every locked screen at
+#          phone and desktop size, uploaded as the `design-screens` artifact,
+#          and red on any number that is not a count or a position (AC-9).
 #
 #   csp  — one real-browser spec against a PRODUCTION build, asserting the
 #          Content-Security-Policy blocks nothing the app actually loads,
@@ -36,6 +42,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The design-lock guard reads the trailers of every commit on the
+          # PR, so it needs the history and the base, not a depth-1 checkout.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -66,6 +76,16 @@ jobs:
       - name: Complexity ratchet
         run: npm run check:complexity
 
+      # Design-lock guard (build plan X5, 2026-10-07): the files behind the
+      # founder-locked screens (scripts/design-locked-files.txt) change only
+      # with a `Founder-Approved:` trailer on the commit. Compares against
+      # origin/main.
+      - name: Fetch the base for the design-lock guard
+        run: git fetch --no-tags origin +main:refs/remotes/origin/main
+
+      - name: Design-lock guard
+        run: npm run check:design-lock
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -90,7 +110,12 @@ jobs:
           # be "dummy". Placeholders only — nothing connects to them.
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+          # The BFF forwards to e2e/_fixture-backend.mjs, so the screenshot
+          # harness can draw a real surface (the consent screens) too.
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3999
+          OPENAI_API_KEY: sk-dummy-never-called
         run: |
+          node e2e/_fixture-backend.mjs > /tmp/fixture-backend.log 2>&1 &
           npx next dev -p 3111 > /tmp/nextdev.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf -o /dev/null http://localhost:3111/ && break
@@ -118,9 +143,27 @@ jobs:
           # until the spec is rewritten against the current harness or deleted.
           MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.mjs
 
+      # The shared screenshot harness (build plan X7): every screen in
+      # e2e/screenshots/manifest.mjs at 390x844 and 1280x800, side by side
+      # with its locked prototype where a reference is given, and the AC-9
+      # scan — no number but a count or a position on a speaker or coach
+      # screen. Red fails the job; the pictures are the artifact below.
+      - name: Design screenshots and the AC-9 number scan
+        run: BASE_URL=http://localhost:3111 OUT_DIR=e2e/artifacts/screenshots node e2e/screenshots/capture.mjs
+
+      - name: Upload the design screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-screens
+          path: e2e/artifacts/screenshots
+          if-no-files-found: ignore
+
       - name: Dev-server log on failure
         if: failure()
-        run: tail -50 /tmp/nextdev.log
+        run: |
+          tail -50 /tmp/nextdev.log
+          tail -30 /tmp/fixture-backend.log
 
   csp:
     runs-on: ubuntu-latest
