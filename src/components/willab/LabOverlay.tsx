@@ -23,10 +23,7 @@ import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import {
-  fetchIdealTextCore,
-  fetchRecordingRoots,
-} from "@/services/api/idealText";
+import { fetchIdealTextCore } from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {
@@ -64,6 +61,7 @@ import {
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import RecordingLearn from "./RecordingLearn";
+import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
@@ -353,9 +351,6 @@ export default function LabOverlay({
     prefetchTrainingAsk();
     return resetTrainingAsk;
   }, []);
-  const [recordingRoots, setRecordingRoots] = useState<
-    Array<{ slideIndex: number; text: string; type: "flagship" | "neutral" }>
-  >([]);
 
   useEffect(() => {
     if (signedIn === null || (signedIn && !userId)) return;
@@ -371,40 +366,17 @@ export default function LabOverlay({
     }
   }, [signedIn, userId]);
 
-  // Take 1 intentionally has no roadmap. Every later recording entry reads
-  // the current project again and shows ONLY phrases the user explicitly
-  // locked and approved orange. Preload on the readiness screen: starting the
-  // microphone must not race the first root read. A bounded retry covers the
-  // short publication window after a root write; it never guesses a phrase.
-  useEffect(() => {
-    const aid = arcId ?? initArc?.arcId;
-    const enteringRecording =
-      state === "lab_session_context" ||
-      state === "lab_prerecord" ||
-      state === "lab_recording";
-    if (!aid || arcTakeIndex <= 1 || signedIn !== true || !enteringRecording) {
-      setRecordingRoots([]);
-      return;
-    }
-    let active = true;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    const load = async (attempt: number) => {
-      const result = await fetchRecordingRoots(aid);
-      if (!active) return;
-      if (result.kind === "ready") {
-        setRecordingRoots(result.roots);
-        return;
-      }
-      if (attempt < 2) {
-        retry = setTimeout(() => void load(attempt + 1), 350 * (attempt + 1));
-      }
-    };
-    void load(0);
-    return () => {
-      active = false;
-      if (retry) clearTimeout(retry);
-    };
-  }, [arcId, arcTakeIndex, initArc?.arcId, signedIn, state]);
+  // Take 1 intentionally has no roadmap; a later Take reads the project's
+  // locked helper words once per entry, from the setup through the mic wait
+  // to the recording, and its start waits for that read (capped, see
+  // ContinuedTakeAutoStart) so the words arrive with the first slide.
+  const { roots: recordingRoots, settled: rootsSettled } = useRecordingRoots({
+    arcId,
+    initArc,
+    takeIndex: arcTakeIndex,
+    signedIn,
+    entering: enteringRecording(state),
+  });
 
   // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
   // project inherits its full setup from the ARC, not a specific session —
@@ -1457,6 +1429,7 @@ export default function LabOverlay({
           <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
             <ContinuedTakeAutoStart
               ready={!setupArriving}
+              rootsSettled={rootsSettled}
               onStart={startContinuedTake}
             />
           </TrainingAskGate>
@@ -2029,25 +2002,46 @@ export function RecordingPhase({
   );
 }
 
-/** A later Take starts by itself: once the project's setup has arrived it
- *  calls `onStart` exactly once. It draws nothing; the host's one mic-wait
- *  loader covers it. */
-function ContinuedTakeAutoStart({
+/** A later Take starts by itself: once the project's setup has arrived and
+ *  its helper words have been read, it calls `onStart` exactly once. The
+ *  words never block the recording (LIVE LOOP): after ROOTS_WAIT_CAP_MS the
+ *  Take starts without them and they join it when the read lands. It draws
+ *  nothing; the host's one mic-wait loader covers it. Exported for tests. */
+export function ContinuedTakeAutoStart({
   ready,
+  rootsSettled = true,
   onStart,
 }: {
   ready: boolean;
+  /** The helper words' read has answered (or given up). */
+  rootsSettled?: boolean;
   onStart: () => void;
 }) {
   const started = useRef(false);
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+  const [capped, setCapped] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setCapped(true), ROOTS_WAIT_CAP_MS);
+    return () => clearTimeout(timer);
+  }, []);
   useEffect(() => {
     if (!ready || started.current) return;
+    if (!rootsSettled && !capped) return;
     started.current = true;
     onStartRef.current();
-  }, [ready]);
+  }, [ready, rootsSettled, capped]);
   return null;
+}
+
+/** On the way into recording: the read of a later Take's helper words runs
+ *  across all three, so it is not dropped between them. */
+function enteringRecording(state: WillabState): boolean {
+  return (
+    state === "lab_session_context" ||
+    state === "lab_prerecord" ||
+    state === "lab_recording"
+  );
 }
 
 /** "Getting your mic ready": before a later Take (once any training question

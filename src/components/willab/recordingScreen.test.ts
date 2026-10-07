@@ -32,6 +32,10 @@ const GESTURES = readFileSync(
   "src/components/willab/useRecordingGestures.ts",
   "utf8"
 );
+const ROOTS = readFileSync(
+  "src/components/willab/useRecordingRoots.ts",
+  "utf8"
+);
 const CSS = readFileSync("src/app/globals.css", "utf8");
 const TW = readFileSync("tailwind.config.ts", "utf8");
 
@@ -206,9 +210,12 @@ describe("the recording screen", () => {
   });
 
   it("preloads exact committed roots before a continued Take starts", () => {
-    expect(LAB).toMatch(/fetchRecordingRoots\(aid\)/);
-    expect(LAB).toMatch(/state === "lab_prerecord"/);
-    expect(LAB).toMatch(/attempt < 2/);
+    expect(ROOTS).toMatch(/fetchRecordingRoots\(arcId\)/);
+    expect(ROOTS).toMatch(/const RETRIES = 2;/);
+    expect(ROOTS).toMatch(/attempt < RETRIES/);
+    expect(LAB).toMatch(/entering: enteringRecording\(state\)/);
+    const entering = LAB.slice(LAB.indexOf("function enteringRecording("));
+    expect(entering.slice(0, entering.indexOf("\n}\n"))).toMatch(/state === "lab_prerecord"/);
     expect(LAB).not.toMatch(/buildCommittedSlideRoots\(result\.pieces/);
   });
 
