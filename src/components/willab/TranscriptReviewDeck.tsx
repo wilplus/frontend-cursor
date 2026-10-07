@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
   type LockResult,
@@ -32,7 +31,6 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 import DeckLockMark from "@/components/willab/DeckLockMark";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
-import DeckSlidePreview from "@/components/willab/DeckSlidePreview";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
 import {
   buildChunkStates,
@@ -1574,9 +1572,7 @@ export default function TranscriptReviewDeck({
       {deckReady && editingSlideIndex !== undefined ? (
         <SlideEditor
           key={editingSlideIndex ?? "unlinked"}
-          title={titleFor(editingSlideIndex) || copyLabelFor(editingSlideIndex)}
-          presentationRef={presentationRef}
-          slideIndex={editingSlideIndex}
+          where={copyLabelFor(editingSlideIndex)}
           chunks={
             groups.find((group) => group.slideIndex === editingSlideIndex)
               ?.chunks ?? []
@@ -1622,17 +1618,21 @@ export default function TranscriptReviewDeck({
   );
 }
 
-function SlideEditor({
-  title,
-  presentationRef,
-  slideIndex,
+/** The slide editor, drawn like Ideal Text Final Screens' editor frame
+ *  (build plan D-IT-4): a full-screen sheet with a top bar ("Edit the text"
+ *  over "Slide n", and ✕), the slide's paragraphs as cards, the signed note,
+ *  a black Save pill with a grey Cancel link under it. No slide picture: the
+ *  page behind already shows it. The write is unchanged — only the
+ *  paragraphs whose words changed go to `onSave`, the host's compare-and-set
+ *  edit. Exported for tests. */
+export function SlideEditor({
+  where,
   chunks,
   onCancel,
   onSave,
 }: {
-  title: string;
-  presentationRef: string | null;
-  slideIndex: number | null;
+  /** Where the text sits: "Slide 2", or "Your talk" with no deck. */
+  where: string;
   chunks: readonly DeckChunk[];
   onCancel: () => void;
   onSave: (edits: Array<{ chunk: DeckChunk; text: string }>) => Promise<boolean>;
@@ -1640,30 +1640,36 @@ function SlideEditor({
   const [drafts, setDrafts] = useState(() => chunks.map((chunk) => chunk.part.text));
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const save = () => {
+    setSaving(true);
+    setFailed(false);
+    void onSave(
+      chunks.flatMap((chunk, index) =>
+        drafts[index]?.trim() !== chunk.part.text.trim()
+          ? [{ chunk, text: drafts[index].trim() }]
+          : []
+      )
+    ).then((ok) => {
+      setSaving(false);
+      setFailed(!ok);
+    });
+  };
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]"
       role="dialog"
       aria-modal="true"
       aria-label="Edit the text"
     >
-      <div className="flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:rounded-3xl">
-        <div className="shrink-0 border-b border-border px-5 py-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Edit the text
-          </p>
-          <h2 className="mt-1 text-[17px] font-semibold text-foreground">{title}</h2>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="flex min-w-0 flex-col">
+          <h2 className="truncate text-[17px] font-semibold text-foreground">Edit the text</h2>
+          <p className="text-[11px] leading-snug text-muted-foreground">{where}</p>
         </div>
-        <div className="scrollbar-none flex flex-col gap-4 overflow-y-auto px-5 py-4">
-          {/* Same rule as the deck above: the slide editor shows whichever
-              deck this project has, uploaded or canonical. */}
-          {slideIndex !== null ? (
-            <DeckSlidePreview
-              presentationRef={presentationRef}
-              pageIndex={slideIndex}
-              className=""
-            />
-          ) : null}
+        <OverlayCloseButton onClick={onCancel} />
+      </div>
+      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-5">
           {chunks.map((chunk, index) => (
             <MarkedEditor
               key={chunk.part.id}
@@ -1677,7 +1683,7 @@ function SlideEditor({
               }
               toolbar={false}
               textSizeClass="text-[16px]"
-              frameClass="min-h-32 border border-border bg-background focus-within:border-primary"
+              frameClass="min-h-32 border border-border bg-background focus-within:border-foreground"
             />
           ))}
           {/* WHAT AN EDIT IS FOR (founder 2026-09-26, J11): the next Take
@@ -1688,36 +1694,30 @@ function SlideEditor({
             {CHUNK_SHEET_COPY.editorNextTakeNote}
           </p>
           {failed ? (
-            <p className="text-[12px] text-destructive">
+            <p data-testid="slide-editor-failed" className="text-[13px] text-destructive">
               Couldn&apos;t save this slide. Your edits are still here.
             </p>
           ) : null}
         </div>
-        <div className="grid shrink-0 grid-cols-2 gap-2 px-5 pb-5 pt-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={saving} className="rounded-full">
-            Cancel
-          </Button>
-          <Button
+      </div>
+      <div className="shrink-0 border-t border-border pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-0.5 px-5">
+          <button
             type="button"
             disabled={saving || drafts.some((draft) => !draft.trim())}
-            onClick={() => {
-              setSaving(true);
-              setFailed(false);
-              void onSave(
-                chunks.flatMap((chunk, index) =>
-                  drafts[index]?.trim() !== chunk.part.text.trim()
-                    ? [{ chunk, text: drafts[index].trim() }]
-                    : []
-                )
-              ).then((ok) => {
-                setSaving(false);
-                setFailed(!ok);
-              });
-            }}
-            className="rounded-full"
+            onClick={save}
+            className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
-          </Button>
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="flex min-h-[48px] w-full items-center justify-center text-[16px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>

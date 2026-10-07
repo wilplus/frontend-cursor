@@ -171,7 +171,11 @@ describe("the deck uses it instead of a raw page with a swallowed error", () => 
   );
 
   it("renders the recoverable preview on the deck", () => {
-    expect(deck).toMatch(/<DeckSlidePreview\b/);
+    // Through the slide tile beside each kicker (the slide editor shows no
+    // picture since D-IT-4: the page behind it already does).
+    const thumb = readFileSync("src/components/willab/DeckSlideThumb.tsx", "utf8");
+    expect(deck).toMatch(/<DeckSlideThumb\b/);
+    expect(thumb).toMatch(/<DeckSlidePreview\b/);
   });
 
   it("no longer drops the failure on the floor", () => {
@@ -179,8 +183,8 @@ describe("the deck uses it instead of a raw page with a swallowed error", () => 
   });
 
   it("and neither surface renders a raw PdfPage any more", () => {
-    // Both the deck and the slide editor go through the bounded component, so
-    // a size or failure rule can only be written once.
+    // The deck goes through the bounded component, so a size or failure rule
+    // can only be written once.
     expect(deck).not.toMatch(/<PdfPage\b/);
   });
 });

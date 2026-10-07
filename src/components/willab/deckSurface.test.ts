@@ -516,9 +516,11 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // The kicker STAYS. It says where you are, which the picture cannot.
     expect(DECK_SRC).toMatch(/kickerFor\(g\.slideIndex, slideCount\)/);
 
-    // And the title is still carried everywhere it is NOT redundant: the
-    // slide editor's header, and the copy output, which has no picture in it.
-    expect(DECK_SRC).toMatch(/title=\{titleFor\(editingSlideIndex\)/);
+    // And the title is still carried where it is NOT redundant: the copy
+    // output, which has no picture in it. The slide editor's top bar says
+    // where the text sits, "Slide n", as Ideal Text Final Screens' editor
+    // frame draws it (build plan D-IT-4).
+    expect(DECK_SRC).toMatch(/where=\{copyLabelFor\(editingSlideIndex\)\}/);
     expect(DECK_SRC).toMatch(/copyLabelFor\(g\.slideIndex\), titleFor\(g\.slideIndex\)/);
   });
 
