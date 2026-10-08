@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
+  afterJudging,
   bankLine,
+  firstJudgement,
+  unansweredJudgements,
   buildFeedbackWalk,
   clearerTurn,
   pickExercise,
@@ -220,5 +223,67 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
     expect(keysOf(items)).toEqual([
       "page", "praise", "helpers", "praise", "helpers", "exVideo", "practise:instruction", "end",
     ]);
+  });
+});
+
+describe("\"Judgement time!\" and the judgements (D-FW-18; walk lock flow 9-10, Q-B6 A)", () => {
+  const judged = (over: Partial<FeedbackWalkItem> & { partId: string; start: number }) =>
+    item({ ...over, judge: `cv-${over.partId}` });
+  const JUDGED: FeedbackWalkItem[] = [
+    judged({ partId: "p1", start: 0, blockId: "b1", feedbackFamily: "confident_voice" }),
+    item({ partId: "p1", start: 5, blockId: "b1", feedbackFamily: "great_formulation", praiseWords: ["A signed line."] }),
+    item({ partId: "p2", start: 50, blockId: "b2", openCard: "rewrite", rewrite: { quote: "the old words", proposedText: "the new words", item: "rw" } }),
+    judged({ partId: "p2", start: 51, blockId: "b2", feedbackFamily: "confident_voice" }),
+    judged({ partId: "p3", start: 90, blockId: "b3", feedbackFamily: "confident_voice" }),
+  ];
+
+  it("comes after the practising: the intro, one judgement per moment still open, then the end", () => {
+    const walk = buildFeedbackWalk({ items: JUDGED, coachNote: false, practiceOn: false, guest: false });
+    expect(walk.plan.map((s) => (s.moment == null ? s.key : `${s.key}:${s.moment}`))).toEqual([
+      "page", "praise:0", "helpers:0", "clearer:1", "intro", "judge:0", "judge:1", "judge:2", "end",
+    ]);
+    expect(walk.moments.map((m) => m.judgeItem)).toEqual(["cv-p1", "cv-p2", "cv-p3"]);
+  });
+
+  it("asks only where the moment's Confident Voice item is there to save the answer on", () => {
+    const walk = buildFeedbackWalk({ items: [JUDGED[1], JUDGED[2], JUDGED[4]], coachNote: false, practiceOn: false, guest: false });
+    expect(walk.plan.filter((s) => s.key === "judge").map((s) => s.moment)).toEqual([2]);
+  });
+
+  it("has no intro with nothing to judge", () => {
+    const walk = buildFeedbackWalk({ items: ITEMS, coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan.some((s) => s.key === "intro")).toBe(false);
+  });
+
+  it("opens on the intro when the judgements are all there is", () => {
+    const walk = buildFeedbackWalk({ items: [JUDGED[0], JUDGED[4]], coachNote: false, practiceOn: true, guest: false });
+    expect(walk.plan[walkStart(walk)!].key).toBe("intro");
+    // A tap on a paragraph opens its own judgement (Q-B3 A).
+    expect(walk.plan[walkStepForPart(walk, "p3")!]).toMatchObject({ key: "judge", moment: 1 });
+  });
+
+  it("the judging over, or skipped, the walk goes past it (Q-B6 A: sharing, then the end; the end in this phase)", () => {
+    const walk = buildFeedbackWalk({ items: JUDGED, coachNote: false, practiceOn: false, guest: false });
+    expect(walk.plan[afterJudging(walk.plan)].key).toBe("end");
+    const sharing = [...walk.plan.slice(0, -1), { key: "community" as const }, walk.plan.at(-1)!];
+    expect(sharing[afterJudging(sharing)].key).toBe("community");
+  });
+
+  it("Skip settles every judgement the speaker has not answered in this walk", () => {
+    const walk = buildFeedbackWalk({ items: JUDGED, coachNote: false, practiceOn: false, guest: false });
+    expect(unansweredJudgements(walk.plan, {})).toEqual([0, 1, 2]);
+    expect(unansweredJudgements(walk.plan, { 1: "yes" })).toEqual([0, 2]);
+  });
+
+  it("‹ is off on the first judgement only", () => {
+    const walk = buildFeedbackWalk({ items: JUDGED, coachNote: false, practiceOn: false, guest: false });
+    const at = (m: number) => walk.plan.findIndex((s) => s.key === "judge" && s.moment === m);
+    expect(firstJudgement(walk.plan, at(0))).toBe(true);
+    expect(firstJudgement(walk.plan, at(1))).toBe(false);
+  });
+
+  it("is read-only for a guest", () => {
+    const walk = buildFeedbackWalk({ items: JUDGED, coachNote: false, practiceOn: false, guest: true });
+    for (const s of walk.plan.filter((x) => x.key === "intro" || x.key === "judge")) expect(s.readOnly).toBe(true);
   });
 });

@@ -718,6 +718,7 @@ export default function TranscriptReviewDeck({
     onKeepMine,
     lockPart: onLockPart,
     saveBehind,
+    onJudged,
     onEnd: finishWalk,
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):

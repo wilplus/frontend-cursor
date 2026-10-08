@@ -112,11 +112,13 @@ describe("the walk's words", () => {
       // (useGuestBlock: no words of its own here) and reads a span type. The
       // practise loop (D-FW-16) records on the app's own recorder
       // (useDualCaptureMic) and calls its routes (walkPractise); neither has
-      // words to show.
+      // words to show. "Judgement time!" (D-FW-18) draws the published
+      // Journal post through the Journal's one renderer (BodyBlocks): the
+      // post's words are the post's own, never the walk's.
       const imports = [...src.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
       for (const path of imports) {
         expect(path, `${file} imports ${path}`).toMatch(
-          /^(react|lucide-react|@\/lib\/|@\/hooks\/useDualCaptureMic$|@\/services\/api\/(stateRatings|partLock|walkPractise)$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers|CoachVideo|GuestSignUpDialog)$|\.\/)/,
+          /^(react|lucide-react|@\/lib\/|@\/hooks\/useDualCaptureMic$|@\/services\/api\/(stateRatings|partLock|walkPractise)$|\.\.\/(idealEditCopy|ConfidenceLabelChips|OverlayCloseButton|SnippetWavePlayer|LoadingState|willabHelpers|CoachVideo|GuestSignUpDialog)$|@\/components\/journal\/BodyBlocks$|\.\/)/,
         );
       }
     }

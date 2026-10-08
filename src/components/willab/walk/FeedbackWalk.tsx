@@ -10,6 +10,9 @@ import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
+import WalkToast from "./WalkToast";
+import { JournalPostScreen, JudgeScreen, JudgementIntro, type WalkJournalPost } from "./WalkJudgementScreens";
+import { useWalkJudging, type WalkJudgementSave, type WalkJudging } from "./useWalkJudging";
 import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -19,6 +22,7 @@ import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import {
   bankLine,
   clearerTurn,
+  firstJudgement,
   type FeedbackWalkModel,
   type FeedbackWalkMoment,
 } from "@/lib/willab/feedbackWalkModel";
@@ -37,11 +41,21 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*  sinks it in 0.28 s, and every move is instant with reduce motion.         */
 /*                                                                            */
 /*  THIS PHASE draws the coach's note, the praise, the helper words, the      */
-/*  clearer version (D-FW-15), the practise loop (D-FW-16) and the exercise   */
-/*  (D-FW-17); the plan it is given (feedbackWalkModel.ts) holds only those,  */
-/*  then the end card, which is the host's. The other screens come with their */
-/*  own tasks: TODO(D-FW-18/20) "Judgement time!" with the judgements, and    */
-/*  sharing.                                                                  */
+/*  clearer version (D-FW-15), the practise loop (D-FW-16), the exercise      */
+/*  (D-FW-17) and "Judgement time!" with the Journal post and the judgements  */
+/*  (D-FW-18); the plan it is given (feedbackWalkModel.ts) holds only those,  */
+/*  then the end card, which is the host's. Sharing comes with its own task:  */
+/*  TODO(D-FW-20).                                                            */
+/*                                                                            */
+/*  The judging (flow 9-10; JP1 A, Q-B4 A, WQ4 A, Q-B6 A): "Judgement time!"  */
+/*  cross-fades in; its grey link opens the published Journal post inside the */
+/*  overlay (none to open: no link), and ‹ or "Back" return to it. Each       */
+/*  judgement is the one judgement screen on the moment's voice; the answer   */
+/*  is handed to the host to save (the speaker's own, L3), the walk moves on  */
+/*  and the toast says the answer with a tick. ‹ reopens a judgement with the */
+/*  earlier answer pressed. Skip hands every unanswered judgement to the host */
+/*  to settle as skipped, so the bars clear, and the walk goes on past the    */
+/*  judging (useWalkJudging).                                                 */
 /*                                                                            */
 /*  The exercise (flow 8; WQ2 B, Q-B15 A): the coach's video in the 4:5       */
 /*  frame, else the library exercise's, with "Practise" and "Skip"; then the  */
@@ -132,6 +146,15 @@ type Props<R> = {
   onSavePractiseWords?: (save: FeedbackWalkPractiseWords) => void;
   /** O5's limit on the machine's read; tests shorten it. */
   readLimitMs?: number;
+  /** The speaker's judgement on a moment: the host saves it (only when it
+   *  differs from the earlier answer). The walk never waits on the write. */
+  onJudge?: (save: WalkJudgementSave<R>) => void;
+  /** Skip on "Judgement time!": every judgement left unanswered, for the
+   *  host to settle as skipped. */
+  onSkipJudging?: (items: R[]) => void;
+  /** The Journal post "More about self-modeling theory" opens; none: no
+   *  link. */
+  journal?: WalkJournalPost | null;
   /** The walk ran out: the host's end card. */
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
@@ -153,6 +176,9 @@ export default function FeedbackWalk<R = unknown>({
   practise: practiseIO = null,
   onSavePractiseWords,
   readLimitMs,
+  onJudge,
+  onSkipJudging,
+  journal = null,
   onEnd,
   onClose,
 }: Props<R>) {
@@ -237,12 +263,26 @@ export default function FeedbackWalk<R = unknown>({
     relay,
     readLimitMs,
   });
-  resetRef.current = practise.reset;
+  const judging = useWalkJudging<R>({
+    plan,
+    moments: walk.moments,
+    guest,
+    blocked,
+    forward,
+    land,
+    onJudge,
+    onSkipJudging,
+  });
+  resetRef.current = () => {
+    practise.reset();
+    judging.reset();
+  };
   const close = useCallback(() => {
     practise.cancel();
+    judging.closeJournal();
     go(0, undefined);
     onClose?.();
-  }, [practise, go, onClose]);
+  }, [practise, judging, go, onClose]);
   /** Past this moment's practise: "Keep my words", or no practise to do. */
   const pastLoop = useCallback(() => land(plan, loopEnd(plan, at), "forward"), [plan, at, land]);
 
@@ -298,12 +338,19 @@ export default function FeedbackWalk<R = unknown>({
     },
     pastLoop,
     practise,
+    judging,
+    journal,
     nav: (s, moment) => momentNav(ctx, s, moment),
   };
+  // The Journal post is drawn over "Judgement time!", never planned.
+  const screen: WalkStep = judging.journalOpen && step.key === "intro" ? { key: "journal" } : step;
 
   return (
-    <div data-feedback-walk data-walk-step={step.key}>
-      <WalkStage screen={step} dir={dir} render={(s) => renderScreen(ctx, s)} />
+    <div data-feedback-walk data-walk-step={screen.key}>
+      <WalkStage screen={screen} dir={dir} render={(s) => renderScreen(ctx, s)} />
+      {judging.toast ? (
+        <WalkToast key={judging.toast.seq} message={judging.toast.text} onDone={judging.clearToast} />
+      ) : null}
     </div>
   );
 }
@@ -333,6 +380,8 @@ type ScreenCtx<R = unknown> = {
   /** Past this moment's practise: Skip under an exercise's video. */
   pastLoop: () => void;
   practise: WalkPractise;
+  judging: WalkJudging;
+  journal: WalkJournalPost | null;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
 };
 
@@ -509,14 +558,65 @@ function ExVideo<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
   );
 }
 
+/** "Judgement time!": a screen that stands apart, with the Journal post's
+ *  link when there is a post to open. */
+function Intro(ctx: ScreenCtx, step: WalkStep) {
+  const { judging, journal } = ctx;
+  return (
+    <JudgementIntro
+      testId={testId(step)}
+      onClose={ctx.close}
+      onPromise={ctx.forward}
+      onSkip={() => judging.skip(step)}
+      onJournal={journal ? judging.openJournal : null}
+    />
+  );
+}
+
+/** The Journal post inside the overlay; ‹ and "Back" return to the intro. */
+function Journal(ctx: ScreenCtx, step: WalkStep) {
+  if (!ctx.journal) return null;
+  return <JournalPostScreen testId={testId(step)} post={ctx.journal} onBack={ctx.judging.closeJournal} />;
+}
+
+/** One judgement: the moment's voice only, and the one judgement screen. */
+function Judge(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
+  const { judging } = ctx;
+  const nav = { ...momentNav(ctx, step, moment), backDisabled: firstJudgement(ctx.walk.plan, ctx.at(step)) };
+  return (
+    <JudgeScreen
+      key={`${moment.index}:${judging.nonce}`}
+      testId={testId(step)}
+      nav={nav}
+      onClose={ctx.close}
+      player={
+        moment.clip ? (
+          <WalkPlayer
+            seed={`moment-${moment.index}`}
+            src={moment.clip.src}
+            startOffsetMs={moment.clip.startOffsetMs}
+            durationMs={moment.clip.durationMs}
+            label={`${COPY.pagerMoment} ${moment.index + 1} ${COPY.pagerOf} ${ctx.walk.moments.length}`}
+          />
+        ) : null
+      }
+      value={judging.answers[moment.index] ?? null}
+      onAnswer={(value) => judging.answer(step, moment, value)}
+    />
+  );
+}
+
 function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "coachnote") return CoachNote(ctx, step);
+  if (step.key === "intro") return Intro(ctx, step);
+  if (step.key === "journal") return Journal(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];
   if (!moment) return null;
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
   if (step.key === "clearer") return Clearer(ctx, step, moment);
   if (step.key === "exVideo") return ExVideo(ctx, step, moment);
+  if (step.key === "judge") return Judge(ctx, step, moment);
   const practiseCtx: PractiseScreenCtx = {
     plan: ctx.walk.plan,
     at: ctx.at,
@@ -526,7 +626,6 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
     forward: ctx.forward,
     ...ctx.practise,
   };
-  // TODO(D-FW-18/20): "Judgement time!" with the judgements, and sharing.
-  // The plan this phase is given holds none of them.
+  // TODO(D-FW-20): sharing. The plan this phase is given holds none of it.
   return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;
 }

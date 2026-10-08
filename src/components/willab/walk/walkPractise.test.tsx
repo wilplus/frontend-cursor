@@ -348,8 +348,27 @@ describe("the machine's answer", () => {
     expect(message()).toBe(WALK_COPY.afterThirdTry[0]);
     expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
     expect(mic.starts).toBe(3);
-    forward(); // TODO(D-FW-18): "Judgement time!"; in this phase, the end card
+    forward(); // no judgement to ask on this moment: the end card
     expect(ended).toBe(1);
+  });
+
+  it("the cap, on a moment still to judge: on to \"Judgement time!\" (CM3a A)", async () => {
+    draw({ items: [{ ...ITEMS[0], judge: "s-cv" }] });
+    await accept();
+    answers = [
+      { next: "again", key: "effort" },
+      { next: "again", key: "effort" },
+      { next: "moved_on", key: "CM3b" },
+    ];
+    for (let i = 0; i < 2; i += 1) {
+      await tryAndRead();
+      forward();
+    }
+    await tryAndRead();
+    expect(screen()).toBe("walk-screen-thanks");
+    forward();
+    expect(screen()).toBe("walk-screen-intro");
+    expect(ended).toBe(0);
   });
 });
 
