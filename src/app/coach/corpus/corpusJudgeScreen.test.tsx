@@ -44,7 +44,7 @@ import CorpusPageClient, { importRowStatus, nextUnlabelled } from "./page.client
 
 const IMPORT: TrainingImport = {
   sessionId: "sess-1", arcId: null, topic: "Board pitch", speakerLabel: "Jane Doe",
-  createdAt: null, state: "done", queueCount: 3, detail: null, language: null,
+  createdAt: null, state: "done", queueCount: 3, detail: null, language: null, setupComplete: true, labelledCount: null, archivedAt: null,
 };
 
 function piece(id: string, transcript: string, over: Partial<QueuePiece> = {}): QueuePiece {

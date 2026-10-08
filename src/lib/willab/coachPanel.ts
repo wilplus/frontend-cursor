@@ -4,6 +4,8 @@
 /*                                                                            */
 /*    lounge → Your queue → a speaker → Judge this moment → What happened     */
 /*    lounge → Your speakers (the pinned button) → a speaker → …              */
+/*    lounge → Training corpus (the pinned button) → Import audio / Finish    */
+/*             the set-up → Analysing → Judge this moment (D-CP-20)           */
 /*                                                                            */
 /*  One reducer, no fetch, no React, so every rule is a unit test:             */
 /*    - ‹ goes back through a history stack, as the prototype's back();      */
@@ -44,6 +46,13 @@ export type PanelScreen =
   /** Your speakers: every speaker, from the pinned button (D-CP-12). */
   | { key: "speakers" }
   | { key: "speaker"; speaker: QueueSpeaker }
+  /** The training corpus (CO1 A): the imports, the set-up (of a new file,
+   *  or of an import whose set-up is not finished), the loader, the blind
+   *  judging of one import's moments. */
+  | { key: "corpushome" }
+  | { key: "corpusimport"; setupOf: string | null }
+  | { key: "corpusanalyse" }
+  | { key: "corpus"; importId: string; topic: string }
   | MomentScreen;
 
 export type PanelState = {
@@ -58,6 +67,16 @@ export type PanelState = {
 export type PanelAction =
   | { type: "open" }
   | { type: "speakers" }
+  | { type: "corpus" }
+  | { type: "corpusImport"; setupOf?: string | null }
+  | { type: "corpusAnalyse" }
+  | { type: "corpusJudge"; importId: string; topic: string }
+  /** A set-up just saved: straight to its judging, as the prototype's
+   *  doImport does (history cleared, a soft cross-fade). */
+  | { type: "corpusSetUp"; importId: string; topic: string }
+  /** Back to the imports after an import or a judged moment set (the
+   *  prototype goes "back" there with nothing behind). */
+  | { type: "corpusHome" }
   | { type: "close" }
   | { type: "speaker"; speaker: QueueSpeaker }
   | { type: "take"; speaker: QueueSpeaker; take: QueueTake }
@@ -106,6 +125,8 @@ export function takeWithRatings(take: QueueTake, rated: Record<string, AnswerVal
 function sameScreen(a: PanelScreen, b: PanelScreen): boolean {
   if (a.key !== b.key) return false;
   if (a.key === "speaker" && b.key === "speaker") return a.speaker.pseudonym === b.speaker.pseudonym;
+  if (a.key === "corpusimport" && b.key === "corpusimport") return a.setupOf === b.setupOf;
+  if (a.key === "corpus" && b.key === "corpus") return a.importId === b.importId;
   const ma = momentOf(a);
   const mb = momentOf(b);
   return ma?.snippetId === mb?.snippetId;
@@ -168,6 +189,18 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return { ...state, screen: { key: "queue" }, history: [], dir: undefined };
     case "speakers":
       return { ...state, screen: { key: "speakers" }, history: [], dir: undefined };
+    case "corpus":
+      return { ...state, screen: { key: "corpushome" }, history: [], dir: undefined };
+    case "corpusImport":
+      return push(state, { key: "corpusimport", setupOf: action.setupOf ?? null });
+    case "corpusAnalyse":
+      return push(state, { key: "corpusanalyse" });
+    case "corpusJudge":
+      return push(state, { key: "corpus", importId: action.importId, topic: action.topic });
+    case "corpusSetUp":
+      return { ...state, screen: { key: "corpus", importId: action.importId, topic: action.topic }, history: [], dir: "fade" };
+    case "corpusHome":
+      return { ...state, screen: { key: "corpushome" }, history: [], dir: "back" };
     case "close":
       return { ...state, screen: { key: "lounge" }, history: [], dir: undefined };
     case "speaker":
@@ -198,6 +231,23 @@ export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "lounge") return { key: "lounge", overlay: false };
   if (screen.key === "queue") return { key: "queue" };
   if (screen.key === "speakers") return { key: "speakers" };
+  if (screen.key === "corpushome" || screen.key === "corpusanalyse") return { key: screen.key };
+  if (screen.key === "corpusimport") return { key: "corpusimport", kind: screen.setupOf ?? "new" };
+  if (screen.key === "corpus") return { key: "corpus", kind: screen.importId };
   if (screen.key === "speaker") return { key: "speaker", kind: screen.speaker.pseudonym };
   return { key: screen.key, moment: screen.index, kind: screen.take.sessionId };
+}
+
+/** The next piece of an import the coach has not labelled, after `at`, in
+ *  payload order (never re-sorted: the order is the server's, N2), or -1
+ *  when none is left ahead. Pure. */
+export function nextUnlabelledIndex(labelled: readonly boolean[], at: number): number {
+  for (let i = at + 1; i < labelled.length; i += 1) if (!labelled[i]) return i;
+  return -1;
+}
+
+/** Where an import's judging opens: its first unlabelled piece, or the first. */
+export function firstUnlabelledIndex(labelled: readonly boolean[]): number {
+  const i = labelled.findIndex((done) => !done);
+  return i >= 0 ? i : 0;
 }

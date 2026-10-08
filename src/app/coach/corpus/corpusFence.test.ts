@@ -27,7 +27,8 @@ const SRC = join(fileURLToPath(new URL("../../../", import.meta.url)));
 const SERVICE = join("services", "api", "trainingCorpus.ts");
 const CLIENT = join("app", "coach", "corpus", "page.client.tsx");
 const PAGE = join("app", "coach", "corpus", "page.tsx");
-/** The coach panel's Lounge door, with its pinned Training corpus button. */
+/** The coach panel's Lounge door, with its pinned Training corpus button
+ *  (which opens the corpus inside the panel, D-CP-20, not the workbench). */
 const PANEL_DOOR = join("components", "willab", "coachpanel", "CoachPanelDoor.tsx");
 
 /** Any quoted path naming the corpus lane — shape-agnostic on purpose, so it
@@ -89,12 +90,13 @@ describe("training corpus fences", () => {
     //
     // CO1 A (founder lock 2026-10-06, the coach panel redrawn): the corpus
     // also gets its own button pinned above the coach's Lounge message box.
-    // That door is coach-gated by its one mount (the test below).
+    // Since D-CP-20 that button opens the corpus INSIDE the panel (its
+    // screens, behind the panel's switch), so it links nowhere; the door is
+    // coach-gated by its one mount (the test below).
     expect(linkers.sort()).toEqual(
       [
         join("components", "SiteHeader.tsx"),
         join("components", "dashboard", "DashboardHeader.tsx"),
-        PANEL_DOOR,
       ].sort(),
     );
   });

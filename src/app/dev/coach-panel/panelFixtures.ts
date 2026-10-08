@@ -9,7 +9,12 @@
 /*  with four moments to judge, Take 1 answered; their goal) and Calm Otter   */
 /*  (a Take still waiting for its text). The Speakers read (D-CP-12) adds the */
 /*  two with every moment answered, Bold Finch and Quick Wren, counts alone.  */
-/*  The blind lines answer 404: switched off, as today.                       */
+/*  The blind lines answer 404: switched off, as today. The training corpus  */
+/*  (D-CP-20) answers three imports as the prototype draws them: "Workshop   */
+/*  recording" with its set-up not finished, "Board update, March" (Jane     */
+/*  Doe, three moments to judge) and "Keynote rehearsal" (Sam Lee, all eight */
+/*  labelled); an import's queue carries ids alone, its clip comes from the  */
+/*  playback route, and a label PUT marks the piece done.                    */
 /*                                                                            */
 /*  Sample content, never shown by the product.                               */
 /* -------------------------------------------------------------------------- */
@@ -82,6 +87,39 @@ export function queueJson(rated: ReadonlySet<string>, resolved: ReadonlySet<stri
 
 export const HERON_GOAL = "Sound calm and sure in the board meeting.";
 
+/* ── the training corpus ─────────────────────────────────────────────── */
+export const IMPORT_SETUP = "66666666-6666-4666-8666-666666666661";
+export const IMPORT_BOARD = "66666666-6666-4666-8666-666666666662";
+export const IMPORT_KEYNOTE = "66666666-6666-4666-8666-666666666663";
+export const CORPUS_SNIPS = [
+  "77777777-7777-4777-8777-777777777771",
+  "77777777-7777-4777-8777-777777777772",
+  "77777777-7777-4777-8777-777777777773",
+] as const;
+/** The words of each corpus piece: never drawn by the panel, before or after
+ *  the label (N1); the spec proves it. */
+export const CORPUS_WORDS: Record<string, string> = {
+  [CORPUS_SNIPS[0]]: "Our margins held through the second quarter.",
+  [CORPUS_SNIPS[1]]: "I think, maybe, we could consider the other option.",
+  [CORPUS_SNIPS[2]]: "This is where the numbers tell the story.",
+  ["77777777-7777-4777-8777-777777777774"]: "We kept the workshop to the three things that matter.",
+  ["77777777-7777-4777-8777-777777777775"]: "Write it down before you forget it.",
+};
+/** The workshop import's pieces, served once its set-up is saved. */
+export const SETUP_SNIPS = ["77777777-7777-4777-8777-777777777774", "77777777-7777-4777-8777-777777777775"] as const;
+
+export function importsJson(labelled: ReadonlySet<string>) {
+  return { imports: [
+    { session_id: IMPORT_SETUP, arc_id: null, topic: "Workshop recording", speaker_label: null, created_at: "2026-10-06T09:00:00Z",
+      status: "ready", queue_count: 5, labelled_count: 0, language: null, setup_complete: false, duration_sec: 192, archived_at: null },
+    { session_id: IMPORT_BOARD, arc_id: null, topic: "Board update, March", speaker_label: "Jane Doe", created_at: "2026-10-05T09:00:00Z",
+      status: "ready", queue_count: 3, labelled_count: CORPUS_SNIPS.filter((id) => labelled.has(id)).length, language: "en",
+      setup_complete: true, duration_sec: 600, archived_at: null },
+    { session_id: IMPORT_KEYNOTE, arc_id: null, topic: "Keynote rehearsal", speaker_label: "Sam Lee", created_at: "2026-10-04T09:00:00Z",
+      status: "ready", queue_count: 8, labelled_count: 8, language: "en", setup_complete: true, duration_sec: 1500, archived_at: null },
+  ], count: 3 };
+}
+
 /** GET /v2/coach/speakers: every speaker, counts alone, never a moment. */
 export function speakersJson(rated: ReadonlySet<string>, resolved: ReadonlySet<string> = new Set()) {
   const queue = queueJson(rated, resolved);
@@ -126,6 +164,8 @@ function request(id: string, resolved: boolean) {
 
 function handlers(rated: Map<string, string>, resolved: Set<string>, tone: string): Handler[] {
   const snip = (url: string) => SNIPS.find((id) => url.includes(id)) ?? SNIPS[0];
+  const corpusSnip = (url: string) => CORPUS_SNIPS.find((id) => url.includes(id)) ?? null;
+  const labelled = new Set<string>();
   const moment = (url: string, tail: string) => url.includes(`/api/v2/coach/sessions/${TAKE_2}/snippets/`) && url.endsWith(tail);
   return [
     { when: (c) => c.url.includes("/api/v2/user/profile"), reply: () => json({ is_coach: true, proficient_languages: ["en"] }) },
@@ -135,6 +175,25 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
     { when: (c) => c.url.includes("/api/v2/coach/speakers"), reply: () => json(speakersJson(new Set(rated.keys()), resolved)) },
+    { when: (c) => c.url.includes("/api/v2/coach/training-imports/") && c.method === "PUT",
+      reply: (c) => json({ session_id: IMPORT_SETUP, topic: c.body?.topic, language: c.body?.language,
+        speaker_label: c.body?.speaker_label ?? null, source: c.body?.source ?? null, setup_complete: true }) },
+    { when: (c) => c.url.includes("/api/v2/coach/training-imports") && c.method === "GET", reply: () => json(importsJson(labelled)) },
+    { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_SETUP}/confidence-queue`),
+      reply: () => json({ session_id: IMPORT_SETUP, queue: SETUP_SNIPS.map((id, i) => ({
+        snippet_id: id, transcript: CORPUS_WORDS[id], label: null,
+        re_review: false, canonical_position: i, learning_exposures: [], blind_review: null, mlc2_blind_review: null,
+      })) }) },
+    { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_BOARD}/confidence-queue`),
+      reply: () => json({ session_id: IMPORT_BOARD, queue: CORPUS_SNIPS.map((id, i) => ({
+        snippet_id: id, transcript: CORPUS_WORDS[id], label: labelled.has(id) ? { value: "yes", unrateable: false } : null,
+        re_review: false, canonical_position: i, learning_exposures: [], blind_review: null, mlc2_blind_review: null,
+      })) }) },
+    { when: (c) => c.url.includes("/corpus/clips/") && c.url.endsWith("/playback"),
+      reply: (c) => json({ snippet_id: corpusSnip(c.url), url: tone, start_offset_ms: 0, duration_ms: 2400, expires_in_s: 900 }) },
+    { when: (c) => c.url.includes("/api/v2/coach/snippets/") && c.url.endsWith("/confidence-label") && corpusSnip(c.url) !== null,
+      reply: (c) => { const id = corpusSnip(c.url) as string; labelled.add(id);
+        return json({ saved: true, snippet_id: id, state_id: "confidence", value: c.body?.value, unrateable: false }); } },
     { when: (c) => c.url.includes("/exercise-preference"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => moment(c.url, "/moment"),
       reply: (c) => {

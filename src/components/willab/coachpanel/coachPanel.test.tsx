@@ -38,6 +38,7 @@ import {
 import {
   mapCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
+import { BLANK_IMPORT, CorpusHomeScreen, CorpusImportScreen, importChoice, importReady } from "./CoachCorpusScreens";
 import { CoachPanelPinned } from "./CoachPanelDoor";
 import WalkOverlay from "../walk/WalkOverlay";
 import { PANEL_START, panelReducer, type PanelAction, type PanelState } from "@/lib/willab/coachPanel";
@@ -321,17 +322,92 @@ describe("the screens", () => {
     expect(q("[data-walk-pill]")).toBeNull();
   });
 
-  it("the pinned buttons: Speakers and Training corpus, with icons", () => {
+  it("the pinned buttons: Speakers and Training corpus, with icons; both open inside the panel", () => {
     const onSpeakers = vi.fn();
-    draw(<CoachPanelPinned onSpeakers={onSpeakers} />);
+    const onCorpus = vi.fn();
+    draw(<CoachPanelPinned onSpeakers={onSpeakers} onCorpus={onCorpus} />);
     const speakers = q("[data-testid='coach-panel-speakers-button']")!;
     const corpus = q("[data-testid='coach-panel-corpus-button']")!;
     expect(speakers.textContent).toBe(COPY.speakers);
     expect(corpus.textContent).toBe(COPY.trainingCorpus);
-    expect(corpus.getAttribute("href")).toBe("/coach/corpus");
+    expect(corpus.getAttribute("href")).toBeNull(); // not today's workbench: the corpus inside the panel (D-CP-20)
     expect(speakers.querySelector("svg")).not.toBeNull();
+    expect(corpus.querySelector("svg")).not.toBeNull();
     act(() => speakers.click());
     expect(onSpeakers).toHaveBeenCalled();
+    act(() => corpus.click());
+    expect(onCorpus).toHaveBeenCalled();
+  });
+
+  it("the training corpus (D-CP-20): an import's row, and when Import is ready", () => {
+    const im = { sessionId: "i1", arcId: null, topic: "Board update, March", speakerLabel: "Jane Doe", createdAt: null,
+      state: "done" as const, queueCount: 3, detail: null, language: "en", setupComplete: true, labelledCount: 0, archivedAt: null };
+    expect(importChoice(im)).toEqual({ value: "i1", label: "Board update, March", subtitle: "Jane Doe · 3 of 3 moments to judge" });
+    expect(importChoice({ ...im, labelledCount: 2 }).subtitle).toBe("Jane Doe · 1 of 3 moments to judge");
+    expect(importChoice({ ...im, labelledCount: 3 })).toMatchObject({ subtitle: "Jane Doe · All 3 labelled", done: true, mark: "check" });
+    expect(importChoice({ ...im, speakerLabel: null, setupComplete: false }))
+      .toEqual({ value: "i1", label: "Board update, March", subtitle: "Set-up not finished · finish it before judging" });
+    expect(importChoice({ ...im, speakerLabel: null, state: "running" })).toMatchObject({ subtitle: "No speaker label · Analysing on the server…", done: true, dim: true });
+    expect(importChoice({ ...im, queueCount: 0, labelledCount: 0 })).toMatchObject({ subtitle: "Jane Doe · 0 moments", done: true });
+    // No counts in the list: whose voice alone, never "0 moments".
+    const unknown = importChoice({ ...im, queueCount: null, labelledCount: null });
+    expect(unknown).toEqual({ value: "i1", label: "Board update, March", subtitle: "Jane Doe" });
+    // Import needs a file, a topic and a language; the set-up of an import that exists needs no file.
+    const file = new File(["x"], "talk.mp3", { type: "audio/mpeg" });
+    expect(importReady({ ...BLANK_IMPORT, file, topic: "Workshop", language: "en" }, null)).toBe(true);
+    expect(importReady({ ...BLANK_IMPORT, topic: "Workshop", language: "en" }, null)).toBe(false);
+    expect(importReady({ ...BLANK_IMPORT, file, topic: " ", language: "en" }, null)).toBe(false);
+    expect(importReady({ ...BLANK_IMPORT, file, topic: "Workshop", language: null }, null)).toBe(false);
+    expect(importReady({ ...BLANK_IMPORT, file, topic: "Workshop", language: "" }, null)).toBe(true); // auto-detect is a choice
+    expect(importReady({ ...BLANK_IMPORT, topic: "Workshop", language: "pl" }, "i1")).toBe(true);
+    expect(importReady({ ...BLANK_IMPORT, topic: "Workshop", language: null }, "i1")).toBe(false);
+  });
+
+  it("Training corpus: the imports as choices; empty, the one line; the pill Import audio", () => {
+    const im = { sessionId: "i1", arcId: null, topic: "Board update, March", speakerLabel: "Jane Doe", createdAt: null,
+      state: "done" as const, queueCount: 3, detail: null, language: "en", setupComplete: true, labelledCount: 0, archivedAt: null };
+    const onOpen = vi.fn();
+    draw(<CorpusHomeScreen imports={[im]} loading={false} fail={null} onImport={() => {}} onOpen={onOpen} onClose={() => {}} />);
+    expect(q("h2")?.textContent).toBe(COPY.trainingCorpus);
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("Import audio, label it, then judge its moments blind");
+    expect(q("[data-walk-pill]")?.textContent).toBe("Import audio");
+    act(() => q("[data-walk-choice='i1']")!.click());
+    expect(onOpen).toHaveBeenCalledWith(im);
+    draw(<CorpusHomeScreen imports={[]} loading={false} fail="Pooled datasets, training, and promotion are not active." onImport={() => {}} onOpen={() => {}} onClose={() => {}} />);
+    expect(q("[data-testid='corpus-empty']")?.textContent).toBe("One recording · it is cut into moments you judge blind");
+    expect(q("[role='alert']")?.textContent).toBe("Pooled datasets, training, and promotion are not active.");
+  });
+
+  it("Import audio: the file, the corpus page's fields, what to run; Import off until ready; Finish the set-up has no file row", () => {
+    const onPickFile = vi.fn();
+    const onSubmit = vi.fn();
+    draw(<CorpusImportScreen setupOf={null} form={BLANK_IMPORT} busy={false} fail={null} onChange={() => {}}
+      onPickFile={onPickFile} onSubmit={onSubmit} onBack={() => {}} onClose={() => {}} />);
+    expect(q("h2")?.textContent).toBe("Import audio");
+    expect(q("[data-testid='corpus-file']")?.textContent).toBe("Choose a fileAudio or video, up to 30 minutes");
+    expect(host.textContent).toContain("What the talk is about");
+    expect(host.textContent).toContain("Whose voice this is");
+    expect(host.textContent).toContain("What language it is in");
+    expect(host.textContent).toContain("Where it came from");
+    expect(host.textContent).toContain("What to run");
+    expect(qa("input[type='checkbox']").map((c) => (c as HTMLInputElement).disabled)).toEqual([true, false, false]);
+    expect(q("[data-testid='corpus-submit']")?.textContent).toBe("Import");
+    expect((q("[data-testid='corpus-submit']") as HTMLButtonElement).disabled).toBe(true);
+    act(() => q("[data-testid='corpus-file']")!.click());
+    expect(onPickFile).toHaveBeenCalled();
+    const file = new File(["x"], "workshop-0912.mp4", { type: "video/mp4" });
+    draw(<CorpusImportScreen setupOf={null} form={{ ...BLANK_IMPORT, file, topic: "Workshop", language: "en" }} busy={false} fail={null}
+      onChange={() => {}} onPickFile={onPickFile} onSubmit={onSubmit} onBack={() => {}} onClose={() => {}} />);
+    expect(q("[data-testid='corpus-file']")?.textContent).toBe("workshop-0912.mp4");
+    expect((q("[data-testid='corpus-submit']") as HTMLButtonElement).disabled).toBe(false);
+    draw(<CorpusImportScreen setupOf="i1" form={{ ...BLANK_IMPORT, topic: "Workshop recording", language: null }} busy={false} fail={null}
+      onChange={() => {}} onPickFile={onPickFile} onSubmit={onSubmit} onBack={() => {}} onClose={() => {}} />);
+    expect(q("h2")?.textContent).toBe("Finish the set-up");
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("Before its moments can be judged");
+    expect(q("[data-testid='corpus-file']")).toBeNull();
+    expect(host.textContent).not.toContain("What to run");
+    expect(q("[data-testid='corpus-submit']")?.textContent).toBe("Set up");
+    expect((q("[data-testid='corpus-submit']") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("WalkOverlay: ‹ alone only when asked, and never beside the moment bar", () => {
