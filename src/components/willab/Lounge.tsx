@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
 import { postChatQuery } from "@/services/api/chatQuery";
-import type { LoungeMessage } from "@/services/api/loungeMessages";
+import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   batchTake,
@@ -1523,6 +1523,9 @@ export default function Lounge({
           onClose={() => {
             // The dot follows what was opened (Q40 B, Q42 A).
             refreshLiveIdealDoc(idealTextArcId);
+            // So does the "new" outline: read again once the walk's shows
+            // have landed (D-FW-19).
+            if (thread.signedIn) void refreshNewCoachFeedback();
             setIdealTextArcId(null);
             setIdealTextLaunchMode("notebook");
           }}

@@ -16,6 +16,10 @@
 /*                                       &practice=0 with personalised         */
 /*                                       practice off (D-FW-15); &exvideo=0    */
 /*                                       its exercise with no video (D-FW-17)  */
+/*    /dev/feedback-walk?lounge=new|plain&walk=1                              */
+/*                                       the PRODUCTION Ideal Text bubble in  */
+/*                                       the Lounge, with and without the     */
+/*                                       "new" mark (D-FW-19)                 */
 /*    /dev/feedback-walk?paragraph=this|saved|helpers                         */
 /*                                       the PRODUCTION paragraph sheet and   */
 /*                                       helper-words overlay in the walk's   */
@@ -49,6 +53,7 @@ import {
 import PageStandIn from "./pageStandIn";
 import LiveWalk from "./liveWalk";
 import ParagraphWalk, { type ParagraphView } from "./paragraphWalk";
+import LoungeBubble, { type LoungeView } from "./loungeBubble";
 import { renderWalkScreen, type WalkCtx } from "./walkScreens";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 
@@ -57,7 +62,10 @@ type Mode =
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
   | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean }
-  | { kind: "paragraph"; view: ParagraphView };
+  | { kind: "paragraph"; view: ParagraphView }
+  | { kind: "lounge"; view: LoungeView };
+
+const LOUNGE_VIEWS: readonly LoungeView[] = ["new", "plain"];
 
 const PARAGRAPH_VIEWS: readonly ParagraphView[] = ["this", "saved", "helpers"];
 
@@ -72,6 +80,10 @@ function readMode(search: string): Mode {
     };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
+  const lounge = q.get("lounge");
+  if (lounge && (LOUNGE_VIEWS as readonly string[]).includes(lounge)) {
+    return { kind: "lounge", view: lounge as LoungeView };
+  }
   const view = q.get("paragraph");
   if (view && (PARAGRAPH_VIEWS as readonly string[]).includes(view)) {
     return { kind: "paragraph", view: view as ParagraphView };
@@ -213,6 +225,7 @@ function Harness() {
     return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} exerciseVideo={mode.exerciseVideo} />;
   }
   if (mode.kind === "paragraph") return <ParagraphWalk view={mode.view} />;
+  if (mode.kind === "lounge") return <LoungeBubble view={mode.view} />;
   return <Walk mode={mode} />;
 }
 
