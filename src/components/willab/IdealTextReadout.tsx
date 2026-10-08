@@ -71,14 +71,12 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu from "./IdealTextMenu";
-import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import type { ReadoutPayload } from "./readout";
 import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
 import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
-import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
 
 /* -------------------------------------------------------------------------- */
@@ -133,7 +131,6 @@ export default function IdealTextReadout({
   signedIn,
   onAutoSent,
   onSignUp,
-  onSignUpForNextSteps,
   onReRead,
   onClose,
   analysisPending = false,
@@ -157,9 +154,6 @@ export default function IdealTextReadout({
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
   onSignUp: () => void;
-  /** A guest's "See next steps": sign up, then the step is taken as the
-   *  account (Phase 0.6). Absent → the guest is sent to plain sign-up. */
-  onSignUpForNextSteps?: () => void;
   /** Re-read: reading this ideal text aloud is just the next take — the host
    *  drops us back into the record flow for this presentation, and the reading
    *  sharpens the text. Absent → the re-read block hides. */
@@ -170,7 +164,6 @@ export default function IdealTextReadout({
    *  than duplicating. Absent → no ✕ (a host with its own exit). */
   onClose?: () => void;
 }) {
-  const { reload: reloadLounge } = useLoungeThreadCtx();
   // A GUEST READS THE WHOLE PAGE (founder 2026-10-04, Phase 0.6): the same
   // document, slides and sheets as an account; every step that keeps or
   // changes something asks to sign up first (see GuestSignUpDialog).
@@ -178,7 +171,6 @@ export default function IdealTextReadout({
     signedIn,
     arcId,
     onSignUp,
-    onSignUpForNextSteps,
   });
   const { gate, canRead } = guestGate;
   const composed = useMemo(() => composeIdealText(payload), [payload]);
@@ -1015,22 +1007,12 @@ export default function IdealTextReadout({
     if (!sd || !arcId || !onReRead) return null;
     return (
       <IdealTextActions
-        arcId={arcId}
         canRecordTake={sd.canRecordTake}
         takeCount={sd.takeCount}
-        journeyNextStepsSeen={sd.journeyNextStepsSeen}
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
         onNewTake={gate(onReRead, undefined)}
-        onSeeNextStepsAsGuest={guestGate.forGuest(() =>
-          guestGate.ask("journey_next_steps"),
-        )}
-        onSeeNextSteps={() => {
-          void reloadLounge();
-          notifyThreadToLatest();
-          onClose?.();
-        }}
       />
     );
   }

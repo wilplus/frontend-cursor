@@ -49,14 +49,18 @@ const check = (name, ok, detail = "") => {
 
 /** The key element each screen must draw. */
 const KEY = {
+  lounge: "[data-walk-lounge]",
   coachnote: "[data-coach-video]",
   praise: "[data-walk-player]",
   clearer: "[data-walk-new-words] em",
+  clearerOff: "[data-walk-new-words] em",
   exVideo: "[data-coach-video]",
   practise: "[data-walk-recording-strip]",
   processing: "[data-walk-loading]",
   improved: "[data-walk-message]",
   encourage: "[data-walk-message]",
+  nothingMoved: "[data-walk-message]",
+  thirdTry: "[data-walk-message]",
   helpers: "[data-walk-word-picker]",
   intro: "[data-walk-pill]",
   journal: "[data-walk-journal-title]",
@@ -64,6 +68,8 @@ const KEY = {
   community: "[data-walk-options]",
   end: "[data-walk-endsheet]",
 };
+/** The screens that are not an overlay: the Lounge and the end card's page. */
+const NOT_OVERLAY = new Set(["lounge", "end"]);
 
 const browser = await launchChromium();
 
@@ -75,7 +81,7 @@ for (const [screen, selector] of Object.entries(KEY)) {
   await page.goto(`${BASE}?screen=${screen}`, { waitUntil: "networkidle" });
   const found = await page.waitForSelector(selector, { timeout: 15000 }).then(() => true, () => false);
   check(`${screen}: draws its key element`, found, selector);
-  if (screen !== "end") {
+  if (!NOT_OVERLAY.has(screen)) {
     check(`${screen}: is a full-screen overlay`,
       (await page.locator(`[data-testid="walk-screen-${screen}"]`).count()) === 1 &&
       (await page.evaluate(() => {
@@ -141,6 +147,9 @@ for (const [screen, selector] of Object.entries(KEY)) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`${BASE}?flow=1`, { waitUntil: "networkidle" });
+  // The flow starts in the Lounge (walk lock, flow 1): the marked bubble opens the text.
+  await page.waitForSelector('[data-testid="walk-lounge-bubble"][data-walk-marked="true"]');
+  await page.locator('[data-testid="walk-lounge-bubble"]').click();
   await page.waitForSelector('[data-testid="walk-review"]');
   await page.waitForTimeout(600);
 
@@ -197,6 +206,13 @@ for (const [screen, selector] of Object.entries(KEY)) {
   await page.locator('[data-testid="walk-end-back"]').click();
   await page.waitForTimeout(700);
   check("back to the text", (await stepKey()).endsWith(":page"));
+  // Every moment was answered Yes, so every bar is green and none is orange.
+  // (The Lounge's mark after the walk is pinned in walkHarness.test.tsx: the
+  // flow does not go back to the Lounge.)
+  const greenBars = await page.locator("[data-testid='walk-page'] span.bg-affirm").count();
+  const orangeBars = await page.locator("[data-testid='walk-page'] span.bg-primary").count();
+  check("after the walk the bars stay as the answers left them", greenBars === 4 && orangeBars === 0,
+    `${greenBars} green, ${orangeBars} orange`);
   // And once more: open, then back with ‹.
   await page.locator('[data-testid="walk-review"]').click();
   await pause();

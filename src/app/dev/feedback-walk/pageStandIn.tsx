@@ -9,15 +9,22 @@ import { MOMENTS, PAGE_WORDS, PARAGRAPHS, PROJECT_TITLE, SLIDE_LABEL, TAKE_SHOWN
 /* The Ideal Text page under the walk's overlay, for the dev harness's still
    screens and its live entry (?live=1). DEV ONLY. */
 
-/** The Ideal Text page under the overlay (a still stand-in). */
+/** The Ideal Text page under the overlay (a still stand-in). `cleared`:
+ *  Skip on "Judgement time!" cleared the bars (Q-B6 A). */
 export default function PageStandIn({
   answers,
+  accepted = {},
+  cleared = false,
   onReview,
 }: {
   answers: Record<number, ConfidenceRatingValue>;
+  /** Moments whose clearer words were accepted: the paragraph shows them. */
+  accepted?: Record<number, boolean>;
+  cleared?: boolean;
   onReview: () => void;
 }) {
   const bar = (i: number) => {
+    if (cleared) return "bg-transparent";
     const a = answers[i];
     if (a === "yes" || a === "in_between") return "bg-affirm";
     if (a || MOMENTS[i]?.clearer || MOMENTS[i]?.exercise) return "bg-primary";
@@ -34,7 +41,7 @@ export default function PageStandIn({
         {PARAGRAPHS.map((p, i) => (
           <p key={i} className="relative m-0 text-[17px] leading-[1.65]">
             <span aria-hidden className={cn("absolute -left-[13px] bottom-0.5 top-0.5 w-[3px] rounded-full", bar(i))} />
-            {p}
+            {accepted[i] && MOMENTS[i]?.clearer ? MOMENTS[i].clearer.say : p}
           </p>
         ))}
       </div>

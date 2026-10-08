@@ -519,6 +519,12 @@ export default function DeckHarness() {
         onClose={() => {
           // The harness has nowhere to go back to.
         }}
+        // The page's bottom (IdealTextActions) draws only with a way into
+        // the record flow; the harness has none, so the tap does nothing.
+        // It is here so the X7 pictures show the bottom too (D-IT-8).
+        onReadAloud={() => {
+          // Nothing to record against in the harness.
+        }}
       />
     </LoungeThreadProvider>
   );
