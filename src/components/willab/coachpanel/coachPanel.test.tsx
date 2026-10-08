@@ -25,6 +25,8 @@ vi.mock("@/services/api/coachReview", () => ({
 vi.mock("@/services/api/coachPanel", () => ({
   fetchErrorAudit: vi.fn(async () => null),
   fetchBlockPicks: vi.fn(async () => null),
+  fetchV4MomentPicks: vi.fn(async () => null),
+  fetchV4SurerPairs: vi.fn(async () => null),
 }));
 vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
   useConfidenceChainReceipt: () => ({ current: null }),

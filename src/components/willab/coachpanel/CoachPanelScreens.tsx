@@ -35,7 +35,7 @@ import { OWNER_PRIMARY_RATING_OPTIONS } from "../ConfidenceLabelChips";
 import { answerWord, type AnswerValue, type QueueSpeaker, type QueueTake, type ReadSlide } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import type { MomentRead } from "@/services/api/coachWalk";
-import type { BlockPickQueue, ErrorAuditQueue } from "@/services/api/coachPanel";
+import type { BlockPickQueue, ErrorAuditQueue, V4MomentPickQueue, V4SurerQueue } from "@/services/api/coachPanel";
 import type { PanelSpeaker } from "@/services/api/coachSpeakers";
 
 /** A moment's clip, from the coach's review session. */
@@ -93,30 +93,44 @@ export type BlindRows = {
   picks: BlockPickQueue | null;
   onOpenAudit: () => void;
   onOpenPicks: () => void;
+  /** V4's two blind sheets (S-B8 A), under the same line; dark until on. */
+  v4Picks?: V4MomentPickQueue | null;
+  v4Surer?: V4SurerQueue | null;
+  onOpenV4Picks?: () => void;
+  onOpenV4Surer?: () => void;
 };
 
 /** "Also waiting · blind": drawn only when the backend serves a line with
  *  something in it. Its words are the backend's own, as in today's queue. */
+type BlindQueue = { items: readonly unknown[]; wording: Record<string, string> };
+
+/** The blind rows that have something waiting, in the panel's order, each
+ *  with its row label (the backend's signed words). */
+function waitingRows(blind: BlindRows): { value: string; queue: BlindQueue; label: string; open?: () => void }[] {
+  const rows = [
+    { value: "audit", queue: blind.audit, label: (w: Record<string, string>) => w.title, open: blind.onOpenAudit },
+    { value: "picks", queue: blind.picks, label: (w: Record<string, string>) => w.short_title ?? w.title, open: blind.onOpenPicks },
+    { value: "v4picks", queue: blind.v4Picks, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Picks },
+    { value: "v4surer", queue: blind.v4Surer, label: (w: Record<string, string>) => w.row, open: blind.onOpenV4Surer },
+  ];
+  return rows.flatMap((r) => (r.queue && r.queue.items.length > 0
+    ? [{ value: r.value, queue: r.queue, label: r.label(r.queue.wording) ?? "", open: r.open }]
+    : []));
+}
+
 function BlindGroup({ blind }: { blind: BlindRows }) {
-  const audit = blind.audit && blind.audit.items.length > 0 ? blind.audit : null;
-  const picks = blind.picks && blind.picks.items.length > 0 ? blind.picks : null;
-  if (!audit && !picks) return null;
-  const choices: WalkChoice[] = [];
-  if (audit) choices.push({ value: "audit", label: audit.wording.title ?? "", subtitle: COPY.blindWaiting(audit.items.length) });
-  if (picks) {
-    choices.push({
-      value: "picks",
-      label: picks.wording.short_title ?? picks.wording.title ?? "",
-      subtitle: COPY.blindWaiting(picks.items.length),
-    });
-  }
-  const line = audit?.wording.queue_line ?? picks?.wording.queue_line ?? "";
+  const rows = waitingRows(blind);
+  if (rows.length === 0) return null;
+  const choices: WalkChoice[] = rows.map((r) => ({
+    value: r.value, label: r.label, subtitle: COPY.blindWaiting(r.queue.items.length),
+  }));
+  const line = rows.map((r) => r.queue.wording.queue_line).find((l) => l !== undefined) ?? "";
   return (
     <Group label={line} testId="coach-panel-blind">
       <WalkChoices
         label={line}
         choices={choices}
-        onPick={(v) => (v === "audit" ? blind.onOpenAudit() : blind.onOpenPicks())}
+        onPick={(v) => rows.find((r) => r.value === v)?.open?.()}
       />
     </Group>
   );

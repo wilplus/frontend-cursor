@@ -37,6 +37,7 @@ import WalkStage from "../walk/WalkStage";
 import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
 import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
+import { V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
 import { useConfidenceChainReceipt } from "../coachwalk/useConfidenceChainReceipt";
 import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
@@ -50,7 +51,10 @@ import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
-import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
+import {
+  fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
+  type BlockPickQueue, type ErrorAuditQueue, type V4MomentPickQueue, type V4SurerQueue,
+} from "@/services/api/coachPanel";
 import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
@@ -105,14 +109,18 @@ function useRevealRead(screen: PanelScreen): Record<string, MomentRead | null> {
 function useBlindLines(queueOpen: boolean) {
   const [audit, setAudit] = useState<ErrorAuditQueue | null>(null);
   const [picks, setPicks] = useState<BlockPickQueue | null>(null);
+  const [v4Picks, setV4Picks] = useState<V4MomentPickQueue | null>(null);
+  const [v4Surer, setV4Surer] = useState<V4SurerQueue | null>(null);
   useEffect(() => {
     if (!queueOpen) return;
     let cancelled = false;
     void fetchErrorAudit().then((next) => { if (!cancelled) setAudit(next); });
     void fetchBlockPicks().then((next) => { if (!cancelled) setPicks(next); });
+    void fetchV4MomentPicks().then((next) => { if (!cancelled) setV4Picks(next); });
+    void fetchV4SurerPairs().then((next) => { if (!cancelled) setV4Surer(next); });
     return () => { cancelled = true; };
   }, [queueOpen]);
-  return { audit, picks, setAudit, setPicks };
+  return { audit, picks, setAudit, setPicks, v4Picks, setV4Picks, v4Surer, setV4Surer };
 }
 
 /** Every speaker, read each time Your speakers opens. `failed` when the read
@@ -213,7 +221,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const [corpusBusy, setCorpusBusy] = useState(false);
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | null>(null);
+  const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const close = () => dispatch({ type: "close" });
@@ -303,7 +311,9 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
         <QueueScreen speakers={speakers} loading={loading} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker })}
           blind={{ audit: blind.audit, picks: blind.picks,
-            onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks") }} />
+            onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks"),
+            v4Picks: blind.v4Picks, v4Surer: blind.v4Surer,
+            onOpenV4Picks: () => setBlindOpen("v4picks"), onOpenV4Surer: () => setBlindOpen("v4surer") }} />
       );
     }
     if (panel.key === "speakers") {
@@ -381,6 +391,18 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
       {blindOpen === "picks" && blind.picks ? (
         <CoachBlockPickSheet queue={blind.picks} onClose={() => setBlindOpen(null)}
           onDone={() => { setBlindOpen(null); blind.setPicks(null); }} />
+      ) : null}
+      {blindOpen === "v4picks" && blind.v4Picks ? (
+        <div className="fixed inset-0 z-50">
+          <V4MomentPickSheet queue={blind.v4Picks} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
+            onDone={() => { setBlindOpen(null); blind.setV4Picks(null); }} />
+        </div>
+      ) : null}
+      {blindOpen === "v4surer" && blind.v4Surer ? (
+        <div className="fixed inset-0 z-50">
+          <V4SurerSheet queue={blind.v4Surer} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
+            onDone={() => { setBlindOpen(null); blind.setV4Surer(null); }} />
+        </div>
       ) : null}
     </>
   );
