@@ -14,7 +14,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const history = vi.fn();
 const answers = vi.fn();
+const batch = vi.fn();
 vi.mock("@/services/api/bookmarkHistory", () => ({
+  fetchParagraphHistories: (...args: unknown[]) => batch(...args),
   fetchParagraphHistory: (...args: unknown[]) => history(...args),
   fetchOwnerAnswers: (...args: unknown[]) => answers(...args),
 }));
@@ -28,10 +30,17 @@ import {
   forgetParagraphSheetData,
   prefetchParagraphSheets,
   useParagraphSheetData,
+  usePrefetchParagraphSheets,
   type SheetData,
 } from "./paragraphSheetData";
-import { CONFIRM_RETRY_MS, CONFIRM_TRIES, useHeadlinesWithPending } from "./useSlideHeadlines";
+import {
+  CONFIRM_RETRY_MS,
+  CONFIRM_TRIES,
+  forgetHeadlineReads,
+  useHeadlinesWithPending,
+} from "./useSlideHeadlines";
 import OpenChunkSheet from "./OpenChunkSheet";
+import { forgetLabHandover, primedLabRoots } from "@/lib/willab/labEntryHandover";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -40,8 +49,10 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   forgetParagraphSheetData();
+  forgetHeadlineReads();
   history.mockReset();
   answers.mockReset();
+  batch.mockReset();
   roots.mockReset();
 });
 afterEach(() => {
@@ -116,6 +127,88 @@ describe("1A: the paragraph sheet opens complete", () => {
   });
 });
 
+describe("F5: one batched read-ahead, and only the closed paragraph after a close", () => {
+  const ok = (entries: Record<string, unknown>) =>
+    ({ kind: "ok", histories: new Map(Object.entries(entries)) });
+  let seen: (SheetData | null)[];
+  function Sheet({ partId }: { partId: string }) {
+    seen.push(useParagraphSheetData("arc", "take", partId));
+    return null;
+  }
+  function Page({ parts, open }: { parts: string[]; open: string | null }) {
+    usePrefetchParagraphSheets("arc", "take", parts, open);
+    return open ? createElement(Sheet, { partId: open }) : null;
+  }
+  beforeEach(() => {
+    seen = [];
+    answers.mockResolvedValue([]);
+    history.mockResolvedValue({ single: true });
+  });
+
+  it("reads N paragraphs' histories in one request", async () => {
+    batch.mockResolvedValue(ok({ p1: { h: 1 }, p2: { h: 2 }, p3: { h: 3 } }));
+    act(() => root.render(createElement(Page, { parts: ["p1", "p2", "p3"], open: null })));
+    await flush();
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledWith("arc", ["p1", "p2", "p3"]);
+    expect(history).not.toHaveBeenCalled();
+    act(() => root.render(createElement(Page, { parts: ["p1", "p2", "p3"], open: "p2" })));
+    expect(seen[0]).toEqual({ history: { h: 2 }, answers: [] });
+  });
+
+  it("falls back to one read each on a 404, and does not try the batch again", async () => {
+    batch.mockResolvedValue({ kind: "absent" });
+    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
+    await flush();
+    await flush();
+    expect(history).toHaveBeenCalledTimes(2);
+    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(history).toHaveBeenCalledTimes(4);
+  });
+
+  it("falls back to one read each when the batch fails, and tries it again later", async () => {
+    batch.mockResolvedValue({ kind: "failed" });
+    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
+    await flush();
+    await flush();
+    expect(history).toHaveBeenCalledTimes(2);
+    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
+    expect(batch).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-reads only the closed paragraph, and the Take's answers, after a close", async () => {
+    batch.mockResolvedValue(ok({ p1: { h: 1 }, p2: { h: 2 }, p3: { h: 3 } }));
+    const parts = ["p1", "p2", "p3"];
+    act(() => root.render(createElement(Page, { parts, open: null })));
+    await flush();
+    act(() => root.render(createElement(Page, { parts, open: "p2" })));
+    expect(answers).toHaveBeenCalledTimes(1);
+    act(() => root.render(createElement(Page, { parts, open: null })));
+    await flush();
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(history).toHaveBeenCalledTimes(1);
+    expect(history).toHaveBeenCalledWith("arc", "p2");
+    expect(answers).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens complete on an early tap once the batch lands", async () => {
+    let land: (v: unknown) => void = () => {};
+    batch.mockReturnValue(new Promise((r) => { land = r; }));
+    const parts = ["p1", "p2"];
+    act(() => root.render(createElement(Page, { parts, open: null })));
+    act(() => root.render(createElement(Page, { parts, open: "p1" })));
+    await flush();
+    expect(seen.every((d) => d === null)).toBe(true);
+    expect(history).not.toHaveBeenCalled();
+    land(ok({ p1: { h: 1 }, p2: { h: 2 } }));
+    await flush();
+    await flush();
+    expect(seen.at(-1)).toEqual({ history: { h: 1 }, answers: [] });
+    expect(seen.filter((d) => d !== null)).toEqual([{ history: { h: 1 }, answers: [] }]);
+  });
+});
+
 describe("2A: helper words show at once", () => {
   let api: ReturnType<typeof useHeadlinesWithPending>;
   function Probe({ sheetOpen }: { sheetOpen: boolean }) {
@@ -130,6 +223,15 @@ describe("2A: helper words show at once", () => {
     await flush();
     act(() => api.expect("p1", "just a test"));
     expect(api.headlines.get("p1")).toBe("just a test");
+  });
+
+  it("hands the words it read to the next Take's start (P2)", async () => {
+    forgetLabHandover();
+    const list = [{ partId: "p1", slideIndex: 0, text: "kept", type: "flagship" }];
+    roots.mockResolvedValue(ready(list));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    expect(primedLabRoots("arc")).toEqual(list);
   });
 
   it("replaces the paragraph's old words rather than joining them", async () => {

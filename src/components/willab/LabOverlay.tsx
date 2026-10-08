@@ -63,6 +63,7 @@ import {
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import RecordingLearn from "./RecordingLearn";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
+import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
@@ -327,6 +328,8 @@ export default function LabOverlay({
      so a continued Take goes straight to recording. Bounded: a slow or failed
      read releases it after a few seconds and the form fallback still works. */
   const [setupArriving, setSetupArriving] = useState(true);
+  /** The deck came from the Ideal Text page's read (P2): read it again. */
+  const revalidateSetupRef = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => setSetupArriving(false), 6000);
     return () => clearTimeout(timer);
@@ -361,9 +364,13 @@ export default function LabOverlay({
     setArcId(cached?.arcId ?? null);
     setArcTakeIndex(cached?.nextTakeIndex ?? 1);
     setExploreEnabled(!!cached);
-    setPreloadDeck(cached?.deck ?? null);
+    // The device's cached deck, else the setup the Ideal Text page just read
+    // (P2): the Take starts on it at once and the read below runs behind.
+    const start = continuedTakeDeck(cached, signedIn);
+    revalidateSetupRef.current = start.primed;
+    setPreloadDeck(start.deck);
     // Nothing more to wait for unless the arc setup read below will run.
-    if (cached?.deck || !cached?.arcId || signedIn !== true) {
+    if (start.deck || !cached?.arcId || signedIn !== true) {
       setSetupArriving(false);
     }
   }, [signedIn, userId]);
@@ -389,18 +396,14 @@ export default function LabOverlay({
   // owner / no takes) → null → the session/deckless fallbacks below.
   useEffect(() => {
     const aid = initArc?.arcId;
-    if (!aid || preloadDeck || signedIn !== true) return;
+    // A setup handed over by the page is still read again, behind it (P2).
+    if (!aid || (preloadDeck && !revalidateSetupRef.current) || signedIn !== true) return;
+    revalidateSetupRef.current = false;
     let active = true;
     void fetchArcSetup(aid)
       .then((setup) => {
         if (!active || !setup) return;
-        setPreloadDeck({
-          topic: setup.topic,
-          audience: setup.audience,
-          presentationRef: setup.presentationRef,
-          slides: setup.slides,
-          targetLengthSeconds: setup.targetLengthSeconds,
-        });
+        setPreloadDeck(deckOf(setup));
       })
       .finally(() => {
         if (active) setSetupArriving(false);

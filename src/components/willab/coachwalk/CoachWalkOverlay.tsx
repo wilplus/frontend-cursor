@@ -18,6 +18,7 @@ import CoachReadSheet from "./CoachReadSheet";
 import CoachAnswerOverlay, { type AnswerOutcome } from "./CoachAnswerOverlay";
 import CoachTakeWordSheet from "./CoachTakeWordSheet";
 import CoachWalkRail from "./CoachWalkRail";
+import { useMomentReadSeeds } from "./momentReadSeeds";
 import type { PatternOption } from "./CoachHomeSheet";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { listSpeakingErrors } from "@/services/api/speakingErrors";
@@ -91,6 +92,11 @@ export default function CoachWalkOverlay({
   const [answering, setAnswering] = useState<Answering | null>(null);
   const [wordStep, setWordStep] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const seeds = useMomentReadSeeds();
+  /** Ratings tapped whose save is still in flight, and the sentence of each
+   *  moment's last failed save (C1). */
+  const [saving, setSaving] = useState<Record<string, true>>({});
+  const [saveFails, setSaveFails] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -146,12 +152,31 @@ export default function CoachWalkOverlay({
     setWordStep(true);
   }
 
+  /** The tap (C1): on to Read at once, the save in flight. */
   function judged(value: AnswerValue): void {
     if (!moment) return;
-    setAnswers((prev) => ({ ...prev, [moment.snippetId]: value }));
+    const id = moment.snippetId;
+    setAnswers((prev) => ({ ...prev, [id]: value }));
     setMoments((prev) => replaceMoment(prev, afterJudged(moment)));
+    setSaving((prev) => ({ ...prev, [id]: true }));
+    setSaveFails(({ [id]: _cleared, ...rest }) => rest);
+  }
+
+  function saved(id: string, read: MomentRead | null): void {
+    if (read) seeds.put(id, read);
+    setSaving(({ [id]: _done, ...rest }) => rest);
     setToast(COPY.toastJudged);
     onChanged();
+  }
+
+  /** The save failed: the moment is open again, and its Judge screen shows
+   *  the sentence when it is on screen. */
+  function saveFailed(original: QueueMoment, error: string): void {
+    const id = original.snippetId;
+    setAnswers(({ [id]: _undone, ...rest }) => rest);
+    setMoments((prev) => replaceMoment(prev, original));
+    setSaving(({ [id]: _done, ...rest }) => rest);
+    setSaveFails((prev) => ({ ...prev, [id]: error }));
   }
 
   function nothingToAdd(): void {
@@ -234,6 +259,9 @@ export default function CoachWalkOverlay({
         clip={clips[moment.snippetId] ?? null}
         onClose={onClose}
         onJudged={judged}
+        onSaved={(read) => saved(moment.snippetId, read)}
+        onSaveFailed={(error) => saveFailed(moment, error)}
+        failed={saveFails[moment.snippetId] ?? null}
         railed
       />
     );
@@ -252,6 +280,8 @@ export default function CoachWalkOverlay({
         onNothingToAdd={nothingToAdd}
         onNext={() => moveOn(moments)}
         railed
+        seeds={seeds}
+        held={saving[moment.snippetId] === true}
       />
     );
   }

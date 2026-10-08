@@ -41,9 +41,19 @@ describe("a later Take starts by itself once the project's setup has arrived", (
   it("is released at once when no read will run", () => {
     const hydrate = HOST.slice(HOST.indexOf("const cached = readExploreArc(userId);"));
     const body = hydrate.slice(0, hydrate.indexOf("}, [signedIn, userId]);"));
+    expect(body).toMatch(/const start = continuedTakeDeck\(cached, signedIn\);/);
     expect(body).toMatch(
-      /if \(cached\?\.deck \|\| !cached\?\.arcId \|\| signedIn !== true\) \{\s*setSetupArriving\(false\);/,
+      /if \(start\.deck \|\| !cached\?\.arcId \|\| signedIn !== true\) \{\s*setSetupArriving\(false\);/,
     );
+  });
+
+  it("starts on a setup the page handed over, and still reads it again behind (P2)", () => {
+    const hydrate = HOST.slice(HOST.indexOf("const cached = readExploreArc(userId);"));
+    const body = hydrate.slice(0, hydrate.indexOf("}, [signedIn, userId]);"));
+    expect(body).toMatch(/revalidateSetupRef\.current = start\.primed;/);
+    expect(body).toMatch(/setPreloadDeck\(start\.deck\);/);
+    const read = HOST.slice(HOST.lastIndexOf("const aid = initArc?.arcId;"), HOST.indexOf("void fetchArcSetup(aid)"));
+    expect(read).toMatch(/\(preloadDeck && !revalidateSetupRef\.current\)/);
   });
 
   it("can never hold the button forever", () => {

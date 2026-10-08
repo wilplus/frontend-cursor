@@ -102,6 +102,33 @@ const READ: MomentRead = {
   request: { spotted: [{ errorId: "rushing", label: "Rushing" }, { errorId: "ec", label: "Ending compression" }] } as MomentRead["request"],
 };
 
+describe("the reducer's un-rating (C1)", () => {
+  const judging = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
+    .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+
+  it("a failed save takes What happened back to the moment's Judge screen, unrated", () => {
+    const moved = panelReducer(judging, { type: "rated", snippetId: "s1", value: "yes" });
+    expect(moved.screen.key).toBe("reveal");
+    const failed = panelReducer(moved, { type: "unrated", snippetId: "s1" });
+    expect(failed.screen).toMatchObject({ key: "judge", index: 0 });
+    expect(failed.rated).toEqual({});
+    expect(failed.history).toEqual(judging.history);
+  });
+
+  it("elsewhere, it only un-rates; ‹ back onto that moment lands on Judge, never on What happened", () => {
+    const moved = panelReducer(judging, { type: "rated", snippetId: "s1", value: "yes" });
+    const onward = panelReducer(moved, { type: "next" });
+    expect(onward.screen).toMatchObject({ key: "judge", index: 1 });
+    const failed = panelReducer(onward, { type: "unrated", snippetId: "s1" });
+    expect(failed.screen).toMatchObject({ key: "judge", index: 1 });
+    expect(panelReducer(failed, { type: "back" }).screen).toMatchObject({ key: "judge", index: 0 });
+  });
+
+  it("a moment not rated is left as it is", () => {
+    expect(panelReducer(judging, { type: "unrated", snippetId: "s1" })).toBe(judging);
+  });
+});
+
 describe("the pure parts", () => {
   it("a speaker: moments waiting, waiting for the text, or answered", () => {
     expect(speakerChoice(HERON, 0)).toMatchObject({ label: "Quiet Heron", subtitle: "2 moments waiting" });
@@ -454,6 +481,82 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
     await flush();
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+  });
+
+  it("C1: the tap moves to What happened at once; its loader holds until the save succeeds, and only then is the moment read", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let resolve: (v: unknown) => void = () => {};
+    saveStateRating.mockReturnValue(new Promise((r) => { resolve = r; }));
+    fetchMomentRead.mockResolvedValue(READ);
+    const start = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
+      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    act(() => (document.querySelector("[data-walk-answer='yes']") as HTMLElement).click());
+    await act(async () => { vi.advanceTimersByTime(300); });
+    await flush();
+    expect(saveStateRating).toHaveBeenCalledTimes(1);
+    const reveal = document.querySelector("[data-testid='coach-panel-reveal']");
+    expect(reveal).not.toBeNull(); // moved on with the save still in flight
+    expect(reveal!.querySelector("[data-walk-loading]")).not.toBeNull();
+    expect(fetchMomentRead).not.toHaveBeenCalled(); // BLIND: nothing read before the save
+    expect(document.body.textContent).not.toContain(READ.passage);
+    expect(document.querySelector("[data-walk-toast]")).toBeNull();
+
+    await act(async () => { resolve({ ok: true }); });
+    await flush();
+    await flush();
+    expect(fetchMomentRead).toHaveBeenCalledWith("t2", "s1");
+    expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+    expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
+  });
+
+  it("C1: a save that fails after the move goes back to Judge with the error, answers unfilled, and Retry saves again", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let resolve: (v: unknown) => void = () => {};
+    saveStateRating.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    const start = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
+      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    act(() => (document.querySelector("[data-walk-answer='yes']") as HTMLElement).click());
+    await act(async () => { vi.advanceTimersByTime(300); });
+    await flush();
+    expect(document.querySelector("[data-testid='coach-panel-reveal']")).not.toBeNull();
+
+    await act(async () => { resolve({ ok: false, error: "Rate in a language you know." }); });
+    await act(async () => { vi.advanceTimersByTime(600); });
+    await flush();
+    expect(document.querySelector("[data-testid='coach-panel-reveal']")).toBeNull();
+    expect(document.querySelector("[data-testid='coach-panel-judge']")).not.toBeNull();
+    expect(document.querySelector("[role='alert']")!.textContent).toBe("Rate in a language you know.");
+    expect(document.querySelector("[data-walk-answer='yes']")!.getAttribute("aria-pressed")).toBe("false");
+    expect(fetchMomentRead).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-walk-toast]")).toBeNull();
+
+    saveStateRating.mockResolvedValue({ ok: true, momentRead: READ });
+    act(() => (document.querySelector("[data-walk-answer='no']") as HTMLElement).click());
+    await act(async () => { vi.advanceTimersByTime(300); });
+    await flush();
+    await flush();
+    expect(saveStateRating).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+    expect(document.querySelector("[role='alert']")).toBeNull();
+  });
+
+  it("C2: the read rides the saved rating, so What happened makes no second request", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveStateRating.mockResolvedValue({ ok: true, momentRead: READ });
+    const start = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
+      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    act(() => (document.querySelector("[data-walk-answer='yes']") as HTMLElement).click());
+    await act(async () => { vi.advanceTimersByTime(300); });
+    await flush();
+    await flush();
+    expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+    expect(fetchMomentRead).not.toHaveBeenCalled();
   });
 
   it("Your speakers: when GET /v2/coach/speakers fails, the queue's own speakers, never the Lounge's line", async () => {

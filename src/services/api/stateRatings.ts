@@ -23,6 +23,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { getAuthToken } from "@/lib/api/auth-client";
+import { mapMomentRead, type MomentRead } from "./coachWalk";
 
 /** The fixed answer space. Never varies by state — the QUESTION carries the
  *  state. Per-state answer labels would make raters' behaviour incomparable
@@ -82,7 +83,11 @@ export function buildRatingBody(
 }
 
 export type SaveRatingResult =
-  | { ok: true; transcript?: string }
+  /** `momentRead`: the coach's What happened, when the label PUT carries it
+   *  (`moment_read`, exactly the body of GET …/snippets/:snip/moment, served
+   *  only after the save, so still blind before it). Absent on an older
+   *  backend: the caller reads it with fetchMomentRead as before. */
+  | { ok: true; transcript?: string; momentRead?: MomentRead }
   | { ok: false; error: string | null };
 
 /** The legacy coach card's handle on the canonical confidence chain (Q2).
@@ -307,11 +312,13 @@ export async function saveStateRating(
     unknown
   > | null;
   if (res.ok) {
+    const momentRead = mapMomentRead(data?.moment_read);
     return {
       ok: true,
       ...(typeof data?.transcript === "string"
         ? { transcript: data.transcript }
         : {}),
+      ...(momentRead ? { momentRead } : {}),
     };
   }
   const err = data?.error;

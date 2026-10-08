@@ -6,19 +6,26 @@ const source = (name: string) =>
   readFileSync(join(process.cwd(), "src", "components", "willab", name), "utf8");
 
 describe("Ideal Text core-first screen contract", () => {
-  for (const file of ["IdealTextOverlay.tsx", "IdealTextReadout.tsx"]) {
+  // The overlay asks for enrichment through `loadIdealTextEnrichment`
+  // (idealTextLoad.ts, 2026-10-08, F1); the readout still asks directly.
+  const surfaces = [
+    { file: "IdealTextOverlay.tsx", request: "loadIdealTextEnrichment(", lanes: "idealTextLoad.ts" },
+    { file: "IdealTextReadout.tsx", request: "fetchIdealTextEnrichment(", lanes: "IdealTextReadout.tsx" },
+  ];
+  for (const { file, request, lanes } of surfaces) {
     it(`${file} paints core before requesting enrichment`, () => {
       const code = source(file);
       expect(code).toContain("fetchIdealTextCore");
-      expect(code).toContain("fetchIdealTextEnrichment");
+      expect(source(lanes)).toContain("fetchIdealTextEnrichment");
       // The PROPERTY, not one spelling of it: the core is on screen before
       // any enrichment request is made. Since 2026-09-22 a first open asks
       // in two lanes at once, so the call is inside a `Promise.all` and the
       // `await` no longer sits against the function name.
+      expect(code.indexOf("applySingle(r, true)")).toBeGreaterThan(-1);
       expect(code.indexOf("applySingle(r, true)")).toBeLessThan(
-        code.indexOf("fetchIdealTextEnrichment("),
+        code.indexOf(request),
       );
-      expect(code).toContain("mergeIdealTextEnrichment");
+      expect(source(lanes)).toContain("mergeIdealTextEnrichment");
     });
   }
 

@@ -14,6 +14,7 @@ import {
   type CoachStudent, type CoachStudentProfile,
 } from "@/lib/willab/coachStudents";
 import type { QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
+import { coachReadInit } from "./coachAuth";
 
 export type StudentsResult =
   | { ok: true; students: CoachStudent[] }
@@ -21,7 +22,7 @@ export type StudentsResult =
 
 async function get(url: string): Promise<Response | null> {
   try {
-    return await fetch(url, { credentials: "include", cache: "no-store" });
+    return await fetch(url, await coachReadInit());
   } catch {
     return null;
   }

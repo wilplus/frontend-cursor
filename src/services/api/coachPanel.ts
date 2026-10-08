@@ -12,6 +12,8 @@
 /*    GET /coach/block-picks, POST …/:id/answer       → 8 blind pick          */
 /* -------------------------------------------------------------------------- */
 
+import { coachReadInit } from "./coachAuth";
+
 type Raw = Record<string, unknown>;
 
 function str(v: unknown): string | null {
@@ -38,7 +40,7 @@ async function post(path: string, body: unknown): Promise<{ status: number; data
 
 async function get(path: string): Promise<{ status: number; data: Raw | null }> {
   try {
-    const res = await fetch(path, { credentials: "include", cache: "no-store" });
+    const res = await fetch(path, await coachReadInit());
     return { status: res.status, data: await readJson(res) };
   } catch {
     return { status: 0, data: null };

@@ -12,6 +12,7 @@
 
 import { isAnswer, mapMomentsQueue, type AnswerValue, type QueueSpeaker } from "@/lib/willab/coachWalk";
 import { mapCoachExerciseRequest, type CoachExerciseRequest } from "./coachExerciseRequest";
+import { coachReadInit } from "./coachAuth";
 
 export type MomentsQueueResult =
   | { ok: true; speakers: QueueSpeaker[] }
@@ -20,10 +21,7 @@ export type MomentsQueueResult =
 export async function fetchMomentsQueue(): Promise<MomentsQueueResult> {
   let res: Response;
   try {
-    res = await fetch("/api/v2/coach/queue/moments", {
-      credentials: "include",
-      cache: "no-store",
-    });
+    res = await fetch("/api/v2/coach/queue/moments", await coachReadInit());
   } catch {
     return { ok: false, code: "UNAVAILABLE" };
   }
@@ -118,7 +116,7 @@ export async function fetchMomentRead(
   try {
     const res = await fetch(
       `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/moment`,
-      { credentials: "include", cache: "no-store" },
+      await coachReadInit(),
     );
     if (!res.ok) return null;
     return mapMomentRead(await res.json().catch(() => null));
@@ -282,9 +280,7 @@ function mapTakeWord(raw: unknown): TakeWord | null {
 /** GET …/word: this coach's own word for the Take, or null. */
 export async function fetchTakeWord(sessionId: string): Promise<TakeWord | null> {
   try {
-    const res = await fetch(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, {
-      credentials: "include", cache: "no-store",
-    });
+    const res = await fetch(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, await coachReadInit());
     if (!res.ok) return null;
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     return mapTakeWord(data?.word);
@@ -350,7 +346,7 @@ function mapLine(raw: unknown): CatalogueLine | null {
 
 export async function listCatalogue(): Promise<CatalogueLine[]> {
   try {
-    const res = await fetch("/api/v2/coach/catalogue", { credentials: "include", cache: "no-store" });
+    const res = await fetch("/api/v2/coach/catalogue", await coachReadInit());
     if (!res.ok) return [];
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     return Array.isArray(data?.lines)

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { fetchArcSetup } from "@/services/api/arcSetup";
+import { primeLabSetup } from "@/lib/willab/labEntryHandover";
 import { useUserId } from "./useUserId";
 
 /* -------------------------------------------------------------------------- */
@@ -53,6 +54,8 @@ export function useArcDeckRef(
     triedRef.current = arcId; // one shot per arc
     let active = true;
     void fetchArcSetup(arcId).then((r) => {
+      // The Lab takes this setup at once on "Record Take N" (P2).
+      if (r) primeLabSetup(arcId, r);
       if (!active || !r) return;
       if (r.presentationRef) setFetched(r.presentationRef);
     });

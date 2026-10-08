@@ -10,10 +10,13 @@
 /*    the clips      GET /v2/coach/sessions/:sid, once per Take opened (the   */
 /*                   player needs them; their words are never kept)          */
 /*    the rating     saveStateRating, exactly as today's Judge sheet saves    */
-/*                   it, with the confidence chain's echo                     */
-/*    What happened  fetchMomentRead, ONLY once the screen is What happened,  */
-/*                   which the reducer reaches only for a rated moment.       */
-/*                   Never prefetched (BLIND COACH).                          */
+/*                   it, with the confidence chain's echo. The tap moves to  */
+/*                   What happened at once with the save in flight (C1); a   */
+/*                   failed save goes back to Judge with today's error.      */
+/*    What happened  the read the saved rating returned (C2), else           */
+/*                   fetchMomentRead, ONLY once the screen is What happened  */
+/*                   AND the rating's save has succeeded; the loader until   */
+/*                   then. Never prefetched (BLIND COACH).                    */
 /*    blind lines    the error audit and the block pick, read when the queue  */
 /*                   opens; drawn only when the backend serves them           */
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
@@ -38,7 +41,8 @@ import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
 import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
 import { V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
-import { useConfidenceChainReceipt } from "../coachwalk/useConfidenceChainReceipt";
+import { useConfidenceChainReceipt, type ConfidenceChainEcho } from "../coachwalk/useConfidenceChainReceipt";
+import { readMoment, useMomentReadSeeds, type MomentReadSeeds } from "../coachwalk/momentReadSeeds";
 import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
 import CoachCorpusJudge from "./CoachCorpusJudge";
@@ -49,7 +53,7 @@ import { readSlideFor, type AnswerValue, type QueueSpeaker, type ReadSlide } fro
 import type { WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
-import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
+import type { MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import {
   fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
@@ -88,20 +92,27 @@ function useTakeMedia(sessionId: string | null): Record<string, TakeMedia> {
   return media;
 }
 
-/** What happened's read, asked for only while What happened is on screen. */
-function useRevealRead(screen: PanelScreen): Record<string, MomentRead | null> {
+/** What happened's read, asked for only while What happened is on screen
+ *  and its rating is no longer saving (C1); the saved rating's own read when
+ *  it brought one (C2). */
+function useRevealRead(
+  screen: PanelScreen,
+  seeds: MomentReadSeeds,
+  saving: Readonly<Record<string, true>>,
+): Record<string, MomentRead | null> {
   const [reads, setReads] = useState<Record<string, MomentRead | null>>({});
   const reveal = screen.key === "reveal" ? screen : null;
   const sessionId = reveal?.take.sessionId ?? null;
   const snippetId = reveal ? momentOf(reveal)?.snippetId ?? null : null;
+  const held = snippetId !== null && saving[snippetId] === true;
   useEffect(() => {
-    if (!sessionId || !snippetId) return;
+    if (!sessionId || !snippetId || held) return;
     let cancelled = false;
-    void fetchMomentRead(sessionId, snippetId).then((read) => {
+    void readMoment(seeds, sessionId, snippetId).then((read) => {
       if (!cancelled) setReads((prev) => ({ ...prev, [snippetId]: read }));
     });
     return () => { cancelled = true; };
-  }, [sessionId, snippetId]);
+  }, [sessionId, snippetId, seeds, held]);
   return reads;
 }
 
@@ -158,38 +169,64 @@ function useImports(open: boolean) {
   return { imports, loading, refresh: () => setTick((n) => n + 1) };
 }
 
-/** The live Judge screen: the save, and the chain's render receipt. */
-function JudgeLive({ screen, nav, clip, onRated, onClose }: {
+type JudgeFail = { error: string; attempt: number };
+
+/** The rating's save (C1, founder 2026-10-08). The tap moves to What
+ *  happened at once, with the save in flight; What happened holds its
+ *  loader until the save succeeds (BLIND COACH: nothing about the moment is
+ *  read before). A failed save un-rates the moment, which takes What
+ *  happened back to its Judge screen, and the Judge screen shows today's
+ *  error with its answers unfilled. Kept here, not on the Judge screen,
+ *  because that screen is gone by the time the save answers. */
+function useJudgeSave(dispatch: Dispatch<PanelAction>, seeds: MomentReadSeeds, onSaved: () => void) {
+  const [saving, setSaving] = useState<Record<string, true>>({});
+  const [fails, setFails] = useState<Record<string, JudgeFail>>({});
+  const inFlight = useRef(new Set<string>());
+
+  const settle = (snippetId: string) => {
+    inFlight.current.delete(snippetId);
+    setSaving(({ [snippetId]: _done, ...rest }) => rest);
+  };
+
+  async function answer(snippetId: string, value: AnswerValue, echo: ConfidenceChainEcho | null): Promise<void> {
+    const body = buildRatingBody(value);
+    if (!body || inFlight.current.has(snippetId)) return;
+    inFlight.current.add(snippetId);
+    setSaving((prev) => ({ ...prev, [snippetId]: true }));
+    setFails(({ [snippetId]: _cleared, ...rest }) => rest);
+    dispatch({ type: "rated", snippetId, value });
+    const result = await saveStateRating(snippetId, body, echo);
+    if (!result.ok) {
+      const error = result.error ?? COPY.judgeFail;
+      // The attempt redraws the answers unfilled, as before.
+      setFails((prev) => ({ ...prev, [snippetId]: { error, attempt: (prev[snippetId]?.attempt ?? 0) + 1 } }));
+      settle(snippetId);
+      dispatch({ type: "unrated", snippetId });
+      return;
+    }
+    if (result.momentRead) seeds.put(snippetId, result.momentRead);
+    settle(snippetId);
+    onSaved();
+  }
+
+  return { saving, fails, answer };
+}
+
+/** The live Judge screen: the chain's render receipt, and the tap. */
+function JudgeLive({ screen, nav, clip, fail, onAnswer, onClose }: {
   screen: MomentScreen;
   nav: WalkNav;
   clip: PanelClip | null;
-  onRated: (snippetId: string, value: AnswerValue) => void;
+  /** The last failed save of this moment, if any. */
+  fail: JudgeFail | undefined;
+  onAnswer: (snippetId: string, value: AnswerValue, echo: ConfidenceChainEcho | null) => void;
   onClose: () => void;
 }) {
   const snippetId = momentOf(screen)?.snippetId ?? "";
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const saving = useRef(false);
   const chain = useConfidenceChainReceipt(snippetId, clip !== null);
-
-  async function answer(value: AnswerValue): Promise<void> {
-    const body = buildRatingBody(value);
-    if (saving.current || !body) return;
-    saving.current = true;
-    setError(null);
-    const result = await saveStateRating(snippetId, body, chain.current);
-    saving.current = false;
-    if (!result.ok) {
-      setError(result.error ?? COPY.judgeFail);
-      setAttempt((n) => n + 1); // the answers come back unfilled
-      return;
-    }
-    onRated(snippetId, value);
-  }
-
   return (
-    <JudgeScreen nav={nav} momentId={snippetId} clip={clip} error={error} attempt={attempt}
-      onAnswer={(value) => void answer(value)} onClose={onClose} />
+    <JudgeScreen nav={nav} momentId={snippetId} clip={clip} error={fail?.error ?? null} attempt={fail?.attempt ?? 0}
+      onAnswer={(value) => onAnswer(snippetId, value, chain.current)} onClose={onClose} />
   );
 }
 
@@ -213,7 +250,11 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = screen.key === "judge" || screen.key === "reveal" ? screen.take.sessionId : null;
   const media = useTakeMedia(takeId);
-  const reads = useRevealRead(screen);
+  const seeds = useMomentReadSeeds();
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
+  const judge = useJudgeSave(dispatch, seeds, () => say(COPY.toastJudged));
+  const reads = useRevealRead(screen, seeds, judge.saving);
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
@@ -222,14 +263,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
-  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const close = () => dispatch({ type: "close" });
-  const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
-  const rated = (snippetId: string, value: AnswerValue) => {
-    dispatch({ type: "rated", snippetId, value });
-    say(COPY.toastJudged);
-  };
   /** An import opens its set-up first when that is not finished (CO1 A). */
   function openImport(im: TrainingImport): void {
     setCorpusFail(null);
@@ -363,7 +398,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     const clip = takeMedia?.clips[moment.snippetId] ?? null;
     if (panel.key === "judge") {
       return live ? (
-        <JudgeLive screen={panel} nav={nav} clip={clip} onRated={rated} onClose={close} />
+        <JudgeLive screen={panel} nav={nav} clip={clip} fail={judge.fails[moment.snippetId]}
+          onAnswer={(id, value, echo) => void judge.answer(id, value, echo)} onClose={close} />
       ) : (
         <JudgeScreen nav={nav} momentId={moment.snippetId} clip={clip} error={null} attempt={0}
           onAnswer={() => undefined} onClose={close} />

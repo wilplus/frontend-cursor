@@ -177,6 +177,62 @@ export async function fetchParagraphHistory(
   return mapParagraphHistory(body);
 }
 
+/** What one batched read of many Paragraphs' histories gave back. `absent`
+ *  is a 404: the batched endpoint is not deployed yet, so the caller reads
+ *  each Paragraph on its own, as before. */
+export type ParagraphHistoriesRead =
+  | { kind: "ok"; histories: Map<string, ParagraphHistory | null> }
+  | { kind: "absent" }
+  | { kind: "failed" };
+
+/** At most this many Paragraphs per batched request, so the URL stays
+ *  short on a long deck; a longer list goes in a few requests at once. */
+export const HISTORIES_PER_REQUEST = 60;
+
+async function fetchHistoriesOnce(
+  arcId: string,
+  partIds: readonly string[],
+): Promise<ParagraphHistoriesRead> {
+  const query = partIds.map(encodeURIComponent).join(",");
+  const result = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/part-histories?part_ids=${query}`,
+    { auth: "optional", guest: true, credentials: "include", cache: "no-store" },
+  );
+  if (result.kind !== "response") return { kind: "failed" };
+  if (result.status === 404) return { kind: "absent" };
+  const body = result.body;
+  const raw =
+    result.ok && body && typeof body === "object"
+      ? (body as Record<string, unknown>).histories
+      : null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { kind: "failed" };
+  const histories = new Map<string, ParagraphHistory | null>();
+  for (const [partId, one] of Object.entries(raw as Record<string, unknown>)) {
+    histories.set(partId, mapParagraphHistory(one));
+  }
+  return { kind: "ok", histories };
+}
+
+/** Many Paragraphs' histories in one request (the sheet's read-ahead).
+ *  Each body is exactly the single-Paragraph read's, mapped the same way; a
+ *  Paragraph the server could not answer is left out of the map. */
+export async function fetchParagraphHistories(
+  arcId: string,
+  partIds: readonly string[],
+): Promise<ParagraphHistoriesRead> {
+  const groups: string[][] = [];
+  for (let i = 0; i < partIds.length; i += HISTORIES_PER_REQUEST) {
+    groups.push(partIds.slice(i, i + HISTORIES_PER_REQUEST));
+  }
+  const reads = await Promise.all(groups.map((g) => fetchHistoriesOnce(arcId, g)));
+  const histories = new Map<string, ParagraphHistory | null>();
+  for (const read of reads) {
+    if (read.kind !== "ok") return read;
+    read.histories.forEach((h, id) => histories.set(id, h));
+  }
+  return { kind: "ok", histories };
+}
+
 export async function fetchOwnerAnswers(
   takeSessionId: string,
 ): Promise<OwnerAnswer[]> {

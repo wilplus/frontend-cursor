@@ -1,8 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchRecordingRoots } from "@/services/api/idealText";
+import {
+  fetchRecordingRoots,
+  type RecordingRootsResult,
+} from "@/services/api/idealText";
 import { paragraphHeadlines } from "@/lib/willab/answeredBookmark";
+import { holdLabRoots, primeLabRoots } from "@/lib/willab/labEntryHandover";
 
 /** Each paragraph's helper words as its headline (founder 2026-09-26: above
  *  the paragraph they came from, superseding one headline per Slide).
@@ -35,6 +39,109 @@ export function useDeliveryHeadlines(
   return read.ready ? read.headlines : null;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ONE ROOTS READ PER ARC, SHARED (founder 2026-10-08, F4).                   */
+/*                                                                            */
+/*  The page and the deck each asked for the recording roots, and again on    */
+/*  every document change. The deck mounts only after the core read lands, so  */
+/*  its headlines started ~450 ms behind the text. Now the page's read starts  */
+/*  at mount and the deck joins it: one read per arc at a time, kept with its  */
+/*  answer, like paragraphSheetData's cache.                                   */
+/*                                                                            */
+/*  A read is shared only when it is still news:                              */
+/*    "mount"   a first read (or the first text after an empty one) joins any */
+/*              read of the arc started within SHARE_WINDOW_MS that has not   */
+/*              failed;                                                       */
+/*    "change"  a document change joins only a read started in the same      */
+/*              effect flush (before a microtask passes), so the page and the */
+/*              deck seeing one change ask once, and never adopt a read from  */
+/*              before it;                                                    */
+/*    "fresh"   a sheet closing or a refresh after a save always reads anew,  */
+/*              so a confirmation only ever comes from a read that started    */
+/*              after the save (2A).                                          */
+/* -------------------------------------------------------------------------- */
+
+export const SHARE_WINDOW_MS = 5_000;
+
+export type RootsNeed = "mount" | "change" | "fresh";
+
+interface SharedRootsRead {
+  startedAt: number;
+  /** True until a microtask passes: the effects of one commit run in one
+   *  synchronous flush, so this is "started by this same commit". */
+  sameFlush: boolean;
+  promise: Promise<RecordingRootsResult>;
+  result: RecordingRootsResult | null;
+}
+
+const sharedRootsReads = new Map<string, SharedRootsRead>();
+
+/** Whether a read already started may answer this need. Pure. */
+export function mayShareRootsRead(
+  read:
+    | { startedAt: number; sameFlush: boolean; result: { kind: string } | null }
+    | undefined,
+  need: RootsNeed,
+  now: number,
+): boolean {
+  if (!read || need === "fresh") return false;
+  if (read.result && read.result.kind !== "ready") return false;
+  if (need === "change") return read.sameFlush;
+  const age = now - read.startedAt;
+  return age >= 0 && age <= SHARE_WINDOW_MS;
+}
+
+/** The arc's roots read for `need`: the shared one when it may answer,
+ *  otherwise a new read that becomes the shared one. */
+export function readRecordingRootsShared(
+  arcId: string,
+  need: RootsNeed,
+  now: number = Date.now(),
+): Promise<RecordingRootsResult> {
+  const last = sharedRootsReads.get(arcId);
+  if (last && mayShareRootsRead(last, need, now)) return last.promise;
+  const read: SharedRootsRead = {
+    startedAt: now,
+    sameFlush: true,
+    promise: fetchRecordingRoots(arcId),
+    result: null,
+  };
+  queueMicrotask(() => {
+    read.sameFlush = false;
+  });
+  read.promise = read.promise.then((result) => {
+    read.result = result;
+    return result;
+  });
+  sharedRootsReads.set(arcId, read);
+  return read.promise;
+}
+
+/** The arc's last answered read, when it may still seed a first render. */
+function sharedRootsSeed(arcId: string | null): Map<string, string> | null {
+  const last = arcId ? sharedRootsReads.get(arcId) : undefined;
+  if (!last?.result || last.result.kind !== "ready") return null;
+  if (!mayShareRootsRead(last, "mount", Date.now())) return null;
+  return paragraphHeadlines(last.result.roots);
+}
+
+/** Test fence: forget every shared read. */
+export function forgetHeadlineReads(): void {
+  sharedRootsReads.clear();
+}
+
+/** What this run of the read effect needs, from what changed since the last
+ *  run of the same hook. Pure. */
+export function rootsNeedFor(
+  prev: { document: string | null; sheetOpen: boolean; refresh: number },
+  next: { document: string; sheetOpen: boolean; refresh: number },
+): RootsNeed {
+  if (next.refresh !== prev.refresh) return "fresh";
+  if (prev.sheetOpen && !next.sheetOpen) return "fresh";
+  if (prev.document && prev.document !== next.document) return "change";
+  return "mount";
+}
+
 /** The read itself. `refresh` asks for a fresh read; `readOf` says which
  *  refresh the current map answers, so a read that started before a save
  *  landed is never taken as confirming it. */
@@ -45,12 +152,29 @@ function useHeadlineRead(
   refresh: number,
 ): { headlines: Map<string, string>; readOf: number; ready: boolean } {
   const [read, setRead] = useState<{ headlines: Map<string, string>; readOf: number; ready: boolean }>(
-    () => ({ headlines: new Map(), readOf: -1, ready: false }),
+    () => {
+      const seed = sharedRootsSeed(arcId);
+      return { headlines: seed ?? new Map(), readOf: -1, ready: seed !== null };
+    },
   );
+  const lastRunRef = useRef<{
+    arcId: string | null;
+    document: string | null;
+    sheetOpen: boolean;
+    refresh: number;
+  }>({ arcId, document: null, sheetOpen: false, refresh });
   useEffect(() => {
+    const prev = lastRunRef.current;
+    lastRunRef.current = { arcId, document, sheetOpen, refresh };
     if (!arcId || sheetOpen) return;
+    const need =
+      prev.arcId === arcId
+        ? rootsNeedFor(prev, { document, sheetOpen, refresh })
+        : "mount";
     let alive = true;
-    void fetchRecordingRoots(arcId).then((result) => {
+    void readRecordingRootsShared(arcId, need).then((result) => {
+      // The Lab starts "Record Take N" on these words at once (P2).
+      if (result.kind === "ready") primeLabRoots(arcId, result.roots);
       if (!alive) return;
       // A read that failed or met the document mid-change (a lock landing)
       // keeps the words already shown rather than wiping every headline.
@@ -155,11 +279,20 @@ export function useHeadlinesWithPending(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [read]);
 
+  // While new helper words are being saved, Record Take N must not open on
+  // the words they replace (P2): the handover to the Lab is held until every
+  // stand-in has been confirmed or taken back.
+  const saving = pending.size > 0;
+  useEffect(() => {
+    if (!saving) holdLabRoots(arcId, false);
+  }, [arcId, saving]);
+
   const expect = useCallback((partId: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    holdLabRoots(arcId, true);
     setPending((prev) => new Map(prev).set(partId, { text: trimmed, settledAt: null, tries: 0 }));
-  }, []);
+  }, [arcId]);
 
   const settle = useCallback((partId: string, saved: boolean) => {
     if (!saved) {

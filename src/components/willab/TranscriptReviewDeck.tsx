@@ -205,6 +205,16 @@ function linkageAttrs(
   };
 }
 
+/** The open sheet's paragraph: the live id, which an accept may have
+ *  re-minted, else the one it opened with; null when no sheet is open. */
+function liveOpenPartId(
+  openPart: { id: string } | null,
+  openChunk: { part: { id: string } } | null | undefined,
+): string | null {
+  if (!openPart) return null;
+  return openChunk?.part.id ?? openPart.id;
+}
+
 export default function TranscriptReviewDeck({
   title = "",
   statusChip = null,
@@ -577,7 +587,14 @@ export default function TranscriptReviewDeck({
     () => chunks.filter((c) => opensOwnSheet(c)).map((c) => c.part.id),
     [chunks, opensOwnSheet],
   );
-  usePrefetchParagraphSheets(arcId, takeSessionId, answeredPartIds, openPart !== null);
+  // After a close only that paragraph is read again (F5): the live id,
+  // which an accept may have re-minted, else the one it opened with.
+  usePrefetchParagraphSheets(
+    arcId,
+    takeSessionId,
+    answeredPartIds,
+    liveOpenPartId(openPart, openChunk),
+  );
 
   /* BACK / NEXT ACROSS THE BOOKMARKS (founder 2026-09-25, Q29 A–Q32 A). Every
      bookmark of the Take in text order; a coach moment opens the coaching
