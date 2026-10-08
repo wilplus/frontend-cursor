@@ -213,7 +213,7 @@ describe("the judgements", () => {
     }
     expect(judged.map((j) => j.item)).toEqual(["cv-1", "cv-2", "cv-3"]);
     expect(judged.map((j) => j.item)).not.toContain("rw-2");
-    // The last answer leads past the judging: the end card (sharing, D-FW-20, is not drawn yet).
+    // The last answer leads past the judging: the end card (sharing is off in this walk).
     expect(ended).toBe(1);
     // No toast rides onto the end card: it would sit on "Record Take N".
     expect(toast()).toBeNull();

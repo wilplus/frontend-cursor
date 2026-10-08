@@ -18,6 +18,7 @@ import {
   type FeedbackWalkItem,
 } from "@/lib/willab/feedbackWalkModel";
 import PageStandIn from "./pageStandIn";
+import type { ShareIO } from "@/lib/willab/walkShare";
 import {
   COACH_NOTE,
   MOMENTS,
@@ -153,6 +154,26 @@ const PRACTISE_SOURCE: WalkPractiseSource = {
   feedbackId: null,
 };
 
+/** A stand-in server for the sharing screen (D-FW-20): the pass code
+ *  "taken1" is taken, "nobody" joins nothing, a community named "terms"
+ *  answers that the Terms must be accepted first; everything else shares. */
+function standInShare(record: (line: string) => void): ShareIO {
+  const fail = (status: number, code: string) => Promise.resolve({ ok: false as const, status, code });
+  let terms = false;
+  return {
+    join: (code) => (code === "nobody" ? fail(404, "COMMUNITY_NOT_FOUND") : Promise.resolve({ ok: true, data: { id: `joined:${code}` } })),
+    create: (name, code) => {
+      terms = name === "terms";
+      return code === "taken1" ? fail(409, "PASS_CODE_TAKEN") : Promise.resolve({ ok: true, data: { id: `own:${name}` } });
+    },
+    share: (choice) => {
+      if (terms && !choice.none) return fail(409, "TERMS_REACCEPT_REQUIRED");
+      record(choice.none ? "none" : [choice.general ? "general" : "", ...choice.communityIds, choice.shareWordsVersion].filter(Boolean).join(","));
+      return Promise.resolve({ ok: true, data: {} });
+    },
+  };
+}
+
 export default function LiveWalk({
   guest,
   practiceOn,
@@ -170,6 +191,7 @@ export default function LiveWalk({
         coachNote: true,
         practiceOn,
         guest,
+        sharing: true,
       }),
     [audioSrc, guest, practiceOn, exerciseVideo],
   );
@@ -180,6 +202,8 @@ export default function LiveWalk({
   const [decided, setDecided] = useState<string[]>([]);
   const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
   const [judged, setJudged] = useState<string[]>([]);
+  const [shared, setShared] = useState<string[]>([]);
+  const share = useMemo(() => standInShare((line) => setShared((list) => [...list, line])), []);
   const journal = useWalkJournalPost(true);
   const practise = useMemo(
     () =>
@@ -210,6 +234,7 @@ export default function LiveWalk({
       data-walk-decided={decided.join("|")}
       data-walk-practised={practised.map((p) => p.phrase).join("|")}
       data-walk-judged={judged.join("|")}
+      data-walk-shared={shared.join("|")}
     >
       <PageStandIn answers={{}} onReview={review} />
       <FeedbackWalk
@@ -227,6 +252,7 @@ export default function LiveWalk({
         onJudge={(save) => setJudged((list) => [...list, `${save.item}:${save.answer}${save.earlier ? `<${save.earlier}` : ""}`])}
         onSkipJudging={(items) => setJudged((list) => [...list, ...items.map((item) => `${item}:skipped`)])}
         journal={journal}
+        share={share}
         onEnd={() => setEnd(true)}
       />
       {end ? (

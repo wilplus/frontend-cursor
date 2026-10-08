@@ -8,7 +8,7 @@ import WalkMessage, { WalkNewWords } from "@/components/willab/walk/WalkMessage"
 import WalkPlayer from "@/components/willab/walk/WalkPlayer";
 import { JournalPostScreen, JudgeScreen, JudgementIntro } from "@/components/willab/walk/WalkJudgementScreens";
 import WalkFooter from "@/components/willab/walk/WalkFooter";
-import WalkOptions, { WalkField, type WalkOption } from "@/components/willab/walk/WalkOptions";
+import WalkShareScreen from "@/components/willab/walk/WalkShareScreen";
 import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
@@ -289,55 +289,17 @@ function Judge(ctx: WalkCtx) {
   );
 }
 
-const COMMUNITY: readonly WalkOption[] = [
-  { value: "general", label: WALK_COPY.shareGeneral, hint: WALK_COPY.shareGeneralHint },
-  {
-    value: "mine",
-    label: WALK_COPY.shareMine,
-    hint: WALK_COPY.shareMineHint,
-    fields: <WalkField placeholder={WALK_COPY.fieldPassCode} />,
-  },
-  {
-    value: "own",
-    label: WALK_COPY.shareOwn,
-    fields: (
-      <>
-        <WalkField placeholder={WALK_COPY.fieldCommunityName} />
-        <WalkField placeholder={WALK_COPY.fieldPassCode} />
-      </>
-    ),
-  },
-  { value: "none", label: WALK_COPY.shareNone, hint: WALK_COPY.shareNoneHint, exclusive: true },
-];
-
 /** Sharing: a screen that stands apart; several ticks, the last alone. */
 function Community(ctx: WalkCtx) {
   return (
-    <WalkOverlay
+    <WalkShareScreen
       testId={testId(ctx)}
+      ticks={ctx.community}
+      onTicks={ctx.setCommunity}
+      ready={ctx.community.length > 0}
+      onContinue={ctx.forward}
       onClose={ctx.forward}
-      bare
-      footer={
-        <WalkFooter
-          pill={{
-            label: COPY.pillContinue,
-            onClick: ctx.forward,
-            disabled: ctx.community.length === 0,
-            testId: "walk-forward",
-          }}
-        />
-      }
-    >
-      <div className="flex flex-col gap-2.5 px-6 pb-1.5 pt-7">
-        <h2 className="m-0 text-balance text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em]">
-          {WALK_COPY.shareTitle}
-        </h2>
-        <p className="m-0 text-[16px] leading-[1.5]">{WALK_COPY.shareAsk}</p>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5">
-        <WalkOptions options={COMMUNITY} selected={ctx.community} onChange={ctx.setCommunity} />
-      </div>
-    </WalkOverlay>
+    />
   );
 }
 
