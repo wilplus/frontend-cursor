@@ -40,6 +40,7 @@ import {
   useHeadlinesWithPending,
 } from "./useSlideHeadlines";
 import OpenChunkSheet from "./OpenChunkSheet";
+import { forgetLabHandover, primedLabRoots } from "@/lib/willab/labEntryHandover";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -222,6 +223,15 @@ describe("2A: helper words show at once", () => {
     await flush();
     act(() => api.expect("p1", "just a test"));
     expect(api.headlines.get("p1")).toBe("just a test");
+  });
+
+  it("hands the words it read to the next Take's start (P2)", async () => {
+    forgetLabHandover();
+    const list = [{ partId: "p1", slideIndex: 0, text: "kept", type: "flagship" }];
+    roots.mockResolvedValue(ready(list));
+    act(() => root.render(createElement(Probe, { sheetOpen: false })));
+    await flush();
+    expect(primedLabRoots("arc")).toEqual(list);
   });
 
   it("replaces the paragraph's old words rather than joining them", async () => {

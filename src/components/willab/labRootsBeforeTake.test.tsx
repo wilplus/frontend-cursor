@@ -28,6 +28,7 @@ vi.mock("./pdfSlides", () => ({
 }));
 
 import { ContinuedTakeAutoStart, RecordingPhase } from "./LabOverlay";
+import { forgetLabHandover, primeLabRoots } from "@/lib/willab/labEntryHandover";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 
 const SLIDES = [0, 1].map((i) => ({ title: `Slide ${i + 1}`, body: "" })) as never[];
@@ -106,6 +107,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
   vi.setSystemTime(0);
   api.fetchRecordingRoots.mockReset();
+  forgetLabHandover();
   startedAt = null;
   frames = [];
   host = document.createElement("div");
@@ -178,6 +180,40 @@ describe("a later Take waits for its helper words, never more than 1.5 s", () =>
     await flush();
     expect(startedAt).toBe(0);
     expect(api.fetchRecordingRoots).not.toHaveBeenCalled();
+  });
+});
+
+describe("the Ideal Text page's words start the Take at once (P2)", () => {
+  it("starts with no wait on the words the page just read, and still reads behind", async () => {
+    primeLabRoots("arc-1", READY.roots as never);
+    let answer: (value: unknown) => void = () => undefined;
+    api.fetchRecordingRoots.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    act(() => root.render(createElement(Host, { takeIndex: 2 })));
+    await flush();
+    record();
+    expect(startedAt).toBe(0);
+    expect(frames[0]).toEqual({ slide: true, words: true });
+    // The read behind still runs, and its newer answer replaces the words.
+    expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(1);
+    answer({ ...READY, roots: [{ partId: "p1", slideIndex: 0, text: "A newer lock", type: "flagship" }] });
+    await flush();
+    expect(host.textContent).toContain("A newer lock");
+    expect(host.textContent).not.toContain("Open with the one idea");
+  });
+
+  it("waits for its own read as before when the page handed nothing over", async () => {
+    primeLabRoots("another-arc", READY.roots as never);
+    api.fetchRecordingRoots.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(READY), 800)),
+    );
+    act(() => root.render(createElement(Host, { takeIndex: 2 })));
+    await flush();
+    await advance(799);
+    expect(startedAt).toBeNull();
+    await advance(1);
+    expect(startedAt).toBe(800);
   });
 });
 

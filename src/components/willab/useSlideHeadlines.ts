@@ -6,6 +6,7 @@ import {
   type RecordingRootsResult,
 } from "@/services/api/idealText";
 import { paragraphHeadlines } from "@/lib/willab/answeredBookmark";
+import { holdLabRoots, primeLabRoots } from "@/lib/willab/labEntryHandover";
 
 /** Each paragraph's helper words as its headline (founder 2026-09-26: above
  *  the paragraph they came from, superseding one headline per Slide).
@@ -172,6 +173,8 @@ function useHeadlineRead(
         : "mount";
     let alive = true;
     void readRecordingRootsShared(arcId, need).then((result) => {
+      // The Lab starts "Record Take N" on these words at once (P2).
+      if (result.kind === "ready") primeLabRoots(arcId, result.roots);
       if (!alive) return;
       // A read that failed or met the document mid-change (a lock landing)
       // keeps the words already shown rather than wiping every headline.
@@ -276,11 +279,20 @@ export function useHeadlinesWithPending(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [read]);
 
+  // While new helper words are being saved, Record Take N must not open on
+  // the words they replace (P2): the handover to the Lab is held until every
+  // stand-in has been confirmed or taken back.
+  const saving = pending.size > 0;
+  useEffect(() => {
+    if (!saving) holdLabRoots(arcId, false);
+  }, [arcId, saving]);
+
   const expect = useCallback((partId: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    holdLabRoots(arcId, true);
     setPending((prev) => new Map(prev).set(partId, { text: trimmed, settledAt: null, tries: 0 }));
-  }, []);
+  }, [arcId]);
 
   const settle = useCallback((partId: string, saved: boolean) => {
     if (!saved) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchRecordingRoots } from "@/services/api/idealText";
+import { primedLabRoots } from "@/lib/willab/labEntryHandover";
 import type { RecordingRoot } from "./RecordingRoadmap";
 
 /* -------------------------------------------------------------------------- */
@@ -18,6 +19,10 @@ import type { RecordingRoot } from "./RecordingRoadmap";
 /*  ready" to the recording screen does not drop the read in flight and start */
 /*  another. `settled` says the read has answered (or given up) for exactly   */
 /*  this project and Take, so the Take can start with its words in place.     */
+/*                                                                            */
+/*  HANDED OVER FROM THE PAGE (founder 2026-10-08, P2). When the Ideal Text   */
+/*  page read the words a moment ago, they count as the answer at once and   */
+/*  the read runs behind them; a newer answer replaces them in place.        */
 /* -------------------------------------------------------------------------- */
 
 /** How long a later Take waits for its helper words before it starts anyway
@@ -47,13 +52,24 @@ export function useRecordingRoots({
     arcId && takeIndex > 1 && signedIn === true && entering
       ? `${arcId}:${takeIndex}`
       : null;
-  const [roots, setRoots] = useState<RecordingRoot[]>([]);
-  const [settledFor, setSettledFor] = useState<string | null>(null);
+  // What the Ideal Text page just read (P2): the Take starts on it at once,
+  // and the read below still runs behind and replaces it when it lands.
+  const [roots, setRoots] = useState<RecordingRoot[]>(
+    () => (key ? primedLabRoots(arcId) : null) ?? [],
+  );
+  const [settledFor, setSettledFor] = useState<string | null>(
+    () => (key && primedLabRoots(arcId) ? key : null),
+  );
 
   useEffect(() => {
     if (!key || !arcId) {
       setRoots([]);
       return;
+    }
+    const primed = primedLabRoots(arcId);
+    if (primed) {
+      setRoots(primed);
+      setSettledFor(key);
     }
     let active = true;
     let retry: ReturnType<typeof setTimeout> | null = null;
