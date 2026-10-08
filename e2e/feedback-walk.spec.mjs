@@ -206,8 +206,13 @@ for (const [screen, selector] of Object.entries(KEY)) {
   await page.locator('[data-testid="walk-end-back"]').click();
   await page.waitForTimeout(700);
   check("back to the text", (await stepKey()).endsWith(":page"));
-  check("after the walk the bars stay as the answers left them, and the Lounge mark is gone",
-    (await page.locator("[data-testid='walk-page'] .bg-affirm").count()) >= 1);
+  // Every moment was answered Yes, so every bar is green and none is orange.
+  // (The Lounge's mark after the walk is pinned in walkHarness.test.tsx: the
+  // flow does not go back to the Lounge.)
+  const greenBars = await page.locator("[data-testid='walk-page'] span.bg-affirm").count();
+  const orangeBars = await page.locator("[data-testid='walk-page'] span.bg-primary").count();
+  check("after the walk the bars stay as the answers left them", greenBars === 4 && orangeBars === 0,
+    `${greenBars} green, ${orangeBars} orange`);
   // And once more: open, then back with ‹.
   await page.locator('[data-testid="walk-review"]').click();
   await pause();

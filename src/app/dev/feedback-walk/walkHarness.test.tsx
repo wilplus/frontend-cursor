@@ -20,6 +20,7 @@ import { CHUNK_SHEET_COPY, WALK_COPY, WALK_LINE_BANK } from "@/components/willab
 import { PRIMARY_RATING_OPTIONS, SECONDARY_RATING_OPTIONS } from "@/components/willab/ConfidenceLabelChips";
 import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import FeedbackWalkHarness from "./page";
+import { LoungeStandIn, renderWalkScreen, type WalkCtx } from "./walkScreens";
 import {
   COACH_NOTE,
   JOURNAL_POST,
@@ -191,6 +192,47 @@ describe("every screen says only signed words or the fixtures' sample content", 
     const bubble = host.querySelector('[data-testid="walk-lounge-bubble"]') as HTMLElement;
     expect(bubble.getAttribute("data-walk-marked")).toBe("true");
     expect(bubble.textContent).toContain(CHUNK_SHEET_COPY.chipNew);
+  });
+
+  it("after the walk the Lounge's bubble loses its mark and its 'new' tag", () => {
+    act(() => root.render(createElement(LoungeStandIn, { onOpen: () => undefined, walked: true })));
+    const bubble = host.querySelector('[data-testid="walk-lounge-bubble"]') as HTMLElement;
+    expect(bubble.hasAttribute("data-walk-marked")).toBe(false);
+    expect(bubble.className).not.toContain("outline-primary");
+    expect(bubble.textContent).not.toContain(CHUNK_SHEET_COPY.chipNew);
+  });
+
+  it("the practice-off clearer version: Accept takes the accept path, Keep my words the keep path", () => {
+    const acceptWords = vi.fn();
+    const keepWords = vi.fn();
+    const ctx = {
+      step: { key: "clearerOff", moment: 1 },
+      first: false,
+      audioSrc: null,
+      forward: vi.fn(),
+      back: vi.fn(),
+      close: vi.fn(),
+      openJournal: vi.fn(),
+      keepWords,
+      acceptWords,
+      skipJudging: vi.fn(),
+      answers: {},
+      answer: vi.fn(),
+      helpers: {},
+      pickHelpers: vi.fn(),
+      community: [],
+      setCommunity: vi.fn(),
+      elapsed: 0,
+    } as WalkCtx;
+    act(() => root.render(createElement("div", null, renderWalkScreen(ctx))));
+    const pill = host.querySelector('[data-testid="walk-forward"]') as HTMLButtonElement;
+    expect(pill.textContent).toBe(WALK_COPY.clearerAccept);
+    act(() => pill.click());
+    expect(acceptWords).toHaveBeenCalledTimes(1);
+    expect(keepWords).not.toHaveBeenCalled();
+    act(() => (host.querySelector('[data-testid="walk-keep-words"]') as HTMLButtonElement).click());
+    expect(keepWords).toHaveBeenCalledTimes(1);
+    expect(acceptWords).toHaveBeenCalledTimes(1);
   });
 
   it("the checker catches a word nobody signed", () => {

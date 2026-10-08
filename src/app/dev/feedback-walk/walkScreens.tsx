@@ -48,6 +48,9 @@ export type WalkCtx = {
   /** "Keep my words": the clearer version is declined and its practise is
    *  skipped; the walk goes on with the next moment (D-FW-12). */
   keepWords: () => void;
+  /** "Accept" while practice is off (WQ3c A): the clearer words go into the
+   *  text, nothing is practised, and the walk goes on with the next moment. */
+  acceptWords: () => void;
   /** Skip on "Judgement time!": the bars are cleared and the walk still
    *  asks to share, then the end card (Q-B6 A). */
   skipJudging: () => void;
@@ -174,7 +177,7 @@ function ClearerOff(ctx: WalkCtx) {
       title={COPY.cardClearerVersion}
       footer={
         <WalkFooter
-          pill={{ label: WALK_COPY.clearerAccept, onClick: ctx.keepWords, testId: "walk-forward" }}
+          pill={{ label: WALK_COPY.clearerAccept, onClick: ctx.acceptWords, testId: "walk-forward" }}
           links={[{ label: COPY.linkKeepMyWords, onClick: ctx.keepWords, testId: "walk-keep-words" }]}
         />
       }

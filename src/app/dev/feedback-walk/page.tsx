@@ -140,6 +140,8 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
   const [barsCleared, setBarsCleared] = useState(false);
   // The Journal post, opened from "Judgement time!" and closed back to it.
   const [journalFrom, setJournalFrom] = useState<number | null>(null);
+  // The moments whose clearer words were accepted without a practise.
+  const [accepted, setAccepted] = useState<Record<number, boolean>>({});
   const audioSrc = useAudioSrc();
   const step: Step = journalFrom === null ? steps[at] : { key: "journal" };
   const elapsed = useClock(step.key === "practise", `${at}`);
@@ -162,10 +164,9 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     go(at - 1, "back");
   }, [go, at, journalFrom]);
   const close = useCallback(() => go(1), [go]);
-  /** "Keep my words" (D-FW-12): the clearer version's practise is skipped.
-   *  The walk goes on at the first later step that is not this moment's
-   *  practise loop (practise, checking, praise or encouragement, helpers). */
-  const keepWords = useCallback(() => {
+  /** Past this moment's practise loop: the first later step that is not its
+   *  practise, checking, praise or encouragement, or helper words. */
+  const pastPractise = useCallback(() => {
     if (!flow) return;
     const moment = steps[at].moment;
     const loop = new Set(["practise", "processing", "improved", "encourage", "nothingMoved", "thirdTry", "helpers"]);
@@ -173,6 +174,17 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     while (next < steps.length - 1 && steps[next].moment === moment && loop.has(steps[next].key)) next += 1;
     go(next, "forward");
   }, [flow, steps, at, go]);
+  /** "Keep my words" (D-FW-12): the clearer version is declined and its
+   *  practise is skipped. */
+  const keepWords = pastPractise;
+  /** "Accept" while practice is off (WQ3c A): the clearer words go into the
+   *  text and nothing is practised. */
+  const acceptWords = useCallback(() => {
+    if (!flow) return;
+    const moment = steps[at].moment;
+    if (typeof moment === "number") setAccepted((a) => ({ ...a, [moment]: true }));
+    pastPractise();
+  }, [flow, steps, at, pastPractise]);
   /** Skip on "Judgement time!" (Q-B6 A): the bars are cleared, and the walk
    *  still asks to share, then the end card. */
   const skipJudging = useCallback(() => {
@@ -205,6 +217,7 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     close,
     openJournal,
     keepWords,
+    acceptWords,
     skipJudging,
     answers,
     answer: (moment, value) => {
@@ -234,7 +247,7 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
       {step.key === "lounge" ? (
         <LoungeStandIn walked={barsCleared || Object.keys(answers).length > 0} onOpen={() => go(pageIndex === -1 ? at + 1 : pageIndex, "forward")} />
       ) : (
-        <PageStandIn answers={answers} cleared={barsCleared} onReview={() => go(pageIndex === -1 ? 1 : pageIndex + 1, "forward")} />
+        <PageStandIn answers={answers} accepted={accepted} cleared={barsCleared} onReview={() => go(pageIndex === -1 ? 1 : pageIndex + 1, "forward")} />
       )}
       <WalkStage screen={step} dir={dir} render={(s) => renderWalkScreen(ctx(s))} />
       {step.key === "end" ? (
