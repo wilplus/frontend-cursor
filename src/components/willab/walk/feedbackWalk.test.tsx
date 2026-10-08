@@ -125,6 +125,20 @@ describe("FeedbackWalk", () => {
     }
   });
 
+  it("on a desktop the walk is the phone's column, centred on the same white (Q-WALK-DESK A)", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    // The overlay keeps the whole screen; its parts sit in a 430px column.
+    expect(css).toMatch(
+      /\[data-feedback-walk\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
+    );
+    expect(css).toMatch(/--walk-column: 430px;/);
+    expect(css).toMatch(/\.walk-endsheet \{\s*margin-inline: auto;\s*max-width: var\(--walk-column\);/);
+    // The rule is scoped to the walk: its overlay is drawn inside [data-feedback-walk].
+    draw(null);
+    draw({ seq: 1, at: 1 });
+    expect(live()!.querySelector(".walk-ov")!.closest("[data-feedback-walk]")).not.toBeNull();
+  });
+
   it("saves the picked helper words as one phrase, then moves on", () => {
     const props = draw(null);
     draw({ seq: 1, at: 3 });

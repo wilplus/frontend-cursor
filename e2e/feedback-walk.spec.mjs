@@ -441,6 +441,42 @@ await judgingRun("no post to open", "missing", async ({ page }) => {
     !(await page.locator(liveScreen("intro")).innerText()).includes("More about self-modeling theory"));
 });
 
+/* ------------------- desktop: the phone's column, centred ------------------- */
+/* Founder 2026-10-08, Q-WALK-DESK A: on a desktop the walk is the phone's
+   column on the same white; the top bar, the content and the actions all sit
+   in it. The overlay itself still covers the screen. */
+{
+  const DESK = { width: 1440, height: 900 };
+  const COLUMN = 430;
+  const context = await browser.newContext({ viewport: DESK });
+  await routeJournal(context, "published");
+  const page = await context.newPage();
+  await page.goto(LIVE_URL, { waitUntil: "networkidle" });
+  await page.waitForSelector(liveScreen("coachnote"), { timeout: 20_000 });
+  await page.waitForTimeout(600);
+  const inColumn = (key) => page.evaluate(([sel, col]) => {
+    const ov = document.querySelector(sel);
+    if (!ov) return { ok: false, why: "no overlay" };
+    const r = ov.getBoundingClientRect();
+    const left = (window.innerWidth - col) / 2 - 1;
+    const right = (window.innerWidth + col) / 2 + 1;
+    const parts = [...ov.children].map((c) => c.getBoundingClientRect()).filter((b) => b.width > 0);
+    const buttons = [...ov.querySelectorAll("button, video, [data-coach-video]")]
+      .map((b) => b.getBoundingClientRect()).filter((b) => b.width > 0);
+    const outside = [...parts, ...buttons].filter((b) => b.left < left || b.right > right);
+    return { ok: r.width === window.innerWidth && r.height === window.innerHeight && outside.length === 0 && parts.length > 1,
+      why: `overlay ${r.width}x${r.height}, ${outside.length} outside the column` };
+  }, [liveScreen(key), COLUMN]);
+  let r = await inColumn("coachnote");
+  check("desktop: the coach's note sits in the centred column on a full white overlay", r.ok, r.why);
+  await page.locator(`${liveScreen("coachnote")} [data-testid="walk-forward"]`).click();
+  await page.waitForTimeout(600);
+  r = await inColumn("praise");
+  check("desktop: a praise sits in the column", r.ok, r.why);
+  await page.close();
+  await context.close();
+}
+
 await browser.close();
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
