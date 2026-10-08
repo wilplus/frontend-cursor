@@ -50,8 +50,8 @@ export const HEARD = [
   { error_id: "ending_compression", label: "Ending compression" },
 ];
 /** "The machine heard", for every kind (D-CP-13): the errors on the error
- *  moment, the cues behind the praise, the clearer version's reason (no
- *  signed word: shows nothing), and "nothing" on the note. */
+ *  moment, the cues behind the praise, the clearer version's reason (the
+ *  line is left out on that moment, Q-CP13a A), and "nothing" on the note. */
 const MACHINE_HEARD: Record<string, { kind: string; key: string; label?: string }[]> = {
   [SNIPS[0]]: HEARD.map((h) => ({ kind: "error", key: h.error_id, label: h.label })),
   [SNIPS[1]]: [{ kind: "cue", key: "landed_ending" }, { kind: "cue", key: "settled_pitch" }],

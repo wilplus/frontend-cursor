@@ -166,7 +166,7 @@ describe("the pure parts", () => {
     expect(takeChoice(OTTER.takes[0], 0)).toMatchObject({ subtitle: COPY.waitingForText, done: true });
   });
 
-  it("What happened's lines, always three: You, the speaker, The machine heard", () => {
+  it("What happened's lines: You, the speaker, The machine heard", () => {
     expect(revealLines(READ, "Quiet Heron", "in_between")).toEqual([
       { label: "You", value: "In-between" },
       { label: "Quiet Heron", value: "Not confident" },
@@ -179,7 +179,8 @@ describe("the pure parts", () => {
   it("The machine heard, per kind, in signed words only (D-CP-13)", () => {
     const heard = (list: MomentRead["heard"]) => heardWords({ heard: list, request: null });
     // An error moment: the library's own labels.
-    expect(heard([{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "x", label: null }])).toEqual(["Rushing", "x"]);
+    // An error without its label is left out: never a raw key on screen.
+    expect(heard([{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "x", label: null }])).toEqual(["Rushing"]);
     // A praise moment: the cues behind it, by the kind question's words.
     expect(heard([{ kind: "cue", key: "landed_ending", label: null }, { kind: "cue", key: "settled_pitch", label: null }]))
       .toEqual(["landed the ending", "settled pitch"]);
@@ -196,9 +197,20 @@ describe("the pure parts", () => {
     // An older read without `heard`: the request's spotted errors.
     expect(heardWords({ heard: null, request: READ.request })).toEqual(["Rushing", "Ending compression"]);
     expect(heardWords({ heard: null, request: null })).toEqual([]);
-    // The line is drawn even when nothing can be said.
-    expect(revealLines({ ...READ, heard: [{ kind: "reason", key: "weak_delivery_read", label: null }] }, "Quiet Heron", "yes")[2])
-      .toEqual({ label: "The machine heard", value: "" });
+  });
+
+  it("a clearer-version moment leaves The machine heard out, never drawn blank (Q-CP13a A)", () => {
+    const labels = (r: MomentRead) => revealLines(r, "Quiet Heron", "yes").map((l) => l.label);
+    // By the request's kind.
+    const rewrite = { ...READ, heard: null, request: { ...READ.request!, kind: "rewrite" } as MomentRead["request"] };
+    expect(labels(rewrite)).toEqual(["You", "Quiet Heron"]);
+    // By what the machine heard: the clearer version's reason alone.
+    expect(labels({ ...READ, request: null, heard: [{ kind: "reason", key: "weak_delivery_read", label: null }] }))
+      .toEqual(["You", "Quiet Heron"]);
+    // Nothing signed to say on another kind: the line is left out too, never blank.
+    const unknown = revealLines({ ...READ, request: null, heard: [{ kind: "cue", key: "new_cue", label: null }] }, "Quiet Heron", "yes");
+    expect(unknown.map((l) => l.label)).toEqual(["You", "Quiet Heron"]);
+    expect(unknown.every((l) => l.value !== "")).toBe(true);
   });
 });
 
