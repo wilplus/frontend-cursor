@@ -20,7 +20,8 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 /*             has held it 0.28 s: handed to the host with the answer given   */
 /*             earlier in this walk, so a change is saved beside the first    */
 /*             and the same answer sends nothing (changeJudgement.ts); then   */
-/*             the walk moves on and the toast says the answer with a tick.   */
+/*             the walk moves on and the toast says the answer with a tick    */
+/*             (onto a judgement or sharing; none onto the end card).         */
 /*             ‹ back to a judgement draws the earlier answer pressed.       */
 /*    skip     Skip on "Judgement time!": every judgement still unanswered is */
 /*             handed to the host, which settles it as skipped so its bar     */
@@ -47,6 +48,16 @@ const LABELS: ReadonlyMap<string, string> = new Map(
 /** The answer toast (WQ4 A): the chosen answer's own word, with a tick. */
 export const answerToastOf = (answer: ConfidenceRatingValue): string =>
   WALK_COPY.answerToast(LABELS.get(answer) ?? "");
+
+/** Does an answer on `step` move on with the toast? Only onto another
+ *  overlay screen (a judgement, sharing): the prototype gives the toast to
+ *  the judgement and sharing screens only, never to the end card. Pure. */
+export function toastRides(plan: readonly WalkStep[], step: WalkStep): boolean {
+  let at = plan.indexOf(step);
+  if (at < 0) at = plan.findIndex((s) => s.key === step.key && s.moment === step.moment);
+  const next = at >= 0 ? plan[at + 1] : undefined;
+  return next !== undefined && next.overlay !== false;
+}
 
 export type WalkJudging = {
   answers: Readonly<Record<number, ConfidenceRatingValue>>;
@@ -83,7 +94,7 @@ export function useWalkJudging<R>(args: {
 
   const answer = useCallback(
     (step: WalkStep, moment: FeedbackWalkMoment<unknown>, value: ConfidenceRatingValue) => {
-      const { blocked, forward, onJudge, moments } = live.current;
+      const { blocked, forward, onJudge, moments, plan } = live.current;
       if (blocked(step)) {
         setNonce((n) => n + 1);
         return;
@@ -92,7 +103,12 @@ export function useWalkJudging<R>(args: {
       const item = moments[moment.index]?.judgeItem ?? null;
       setAnswers((a) => ({ ...a, [moment.index]: value }));
       if (item !== null) onJudge?.({ item, answer: value, earlier });
-      setToast((t) => ({ seq: (t?.seq ?? 0) + 1, text: answerToastOf(value) }));
+      // The toast rides the next overlay screen (another judgement, or
+      // sharing), as the prototype shows it; an answer that leads out of the
+      // walk to the end card shows none, and an earlier one goes with the
+      // screen it rode, so nothing sits on "Record Take N".
+      if (toastRides(plan, step)) setToast((t) => ({ seq: (t?.seq ?? 0) + 1, text: answerToastOf(value) }));
+      else setToast(null);
       forward();
     },
     [],
