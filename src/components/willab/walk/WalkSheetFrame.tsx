@@ -98,6 +98,7 @@ function sinkOf(copy: HTMLElement): HTMLElement | null {
   stage.className = "walk-stage pointer-events-none fixed inset-0 z-50 overflow-hidden";
   stage.setAttribute("aria-hidden", "true");
   stage.setAttribute("data-walk-sink", "");
+  stage.setAttribute("data-walk-sheet", "");
   const layer = document.createElement("div");
   layer.className = leaveClass("close");
   layer.setAttribute("data-walk-ghost", "");
@@ -203,7 +204,7 @@ export default function WalkSheetFrame({
   );
 
   return (
-    <div data-walk-stage className="walk-stage pointer-events-none fixed inset-0 z-50 overflow-hidden">
+    <div data-walk-stage data-walk-sheet className="walk-stage pointer-events-none fixed inset-0 z-50 overflow-hidden">
       {arrived ? (
         <div
           key={`layer-${id}`}

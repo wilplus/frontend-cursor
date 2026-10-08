@@ -129,7 +129,7 @@ describe("FeedbackWalk", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     // The overlay keeps the whole screen; its parts sit in a 430px column.
     expect(css).toMatch(
-      /\[data-feedback-walk\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
+      /\[data-feedback-walk\] \.walk-ov,\s*\[data-walk-sheet\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
     );
     expect(css).toMatch(/--walk-column: 430px;/);
     expect(css).toMatch(/\.walk-endsheet \{\s*margin-inline: auto;\s*max-width: var\(--walk-column\);/);
