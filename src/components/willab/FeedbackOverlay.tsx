@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
@@ -66,19 +67,28 @@ export default function FeedbackOverlay({
   useBackDismiss(onClose);
   const [data, setData] = useState<ArcFeedback | null>(null);
   const [loading, setLoading] = useState(true);
+  // Fresh signed links (a player's error, a tab back after hours): the same
+  // read again, in place — no loader, and a failed read keeps what shows.
+  const media = useMediaRefresher();
+  const { nonce: mediaNonce, settle: mediaSettled } = media;
+  const loadedFor = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const refresh = loadedFor.current === arcId;
+    if (!refresh) setLoading(true);
     void fetchArcFeedback(arcId).then((r) => {
+      mediaSettled();
       if (!active) return;
+      if (refresh && !r) return;
+      loadedFor.current = arcId;
       setData(r);
       setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [arcId]);
+  }, [arcId, mediaNonce, mediaSettled]);
 
   const take: FeedbackTake | null = (() => {
     if (!data || data.takes.length === 0) return null;
@@ -103,6 +113,7 @@ export default function FeedbackOverlay({
   const title = take ? `Feedback · Take ${take.takeIndex}` : "Feedback";
 
   return (
+    <MediaRefreshProvider refresh={media.refresh} payload={data}>
     <div
       className={`fixed inset-0 flex flex-col bg-background ${
         topLayer ? "z-50" : "z-40"
@@ -128,6 +139,7 @@ export default function FeedbackOverlay({
         </div>
       </div>
     </div>
+    </MediaRefreshProvider>
   );
 }
 

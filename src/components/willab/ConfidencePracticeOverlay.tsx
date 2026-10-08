@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import LoadingState from "@/components/willab/LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import NativeVideo from "./NativeVideo";
+import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import {
   fetchConfidencePractice,
   type ConfidencePractice,
@@ -23,19 +25,27 @@ export default function ConfidencePracticeOverlay({
   const [practice, setPractice] = useState<ConfidencePractice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Fresh signed links on a player's error or a long-hidden tab: read the
+  // exercise again in place; a failed re-read keeps what is shown.
+  const media = useMediaRefresher();
+  const { nonce: mediaNonce, settle: mediaSettled } = media;
 
   useEffect(() => {
     let alive = true;
+    // A re-read for fresh links never turns a shown exercise into an error.
+    const refresh = mediaNonce > 0;
     void fetchConfidencePractice(practiceId).then((result) => {
+      mediaSettled();
       if (!alive) return;
       setLoading(false);
       if (result.ok) setPractice(result.practice);
-      else setError(result.error ?? "Couldn't open this exercise.");
+      else if (!refresh) setError(result.error ?? "Couldn't open this exercise.");
     });
     return () => { alive = false; };
-  }, [practiceId]);
+  }, [practiceId, mediaNonce, mediaSettled]);
 
   return (
+    <MediaRefreshProvider refresh={media.refresh} payload={practice}>
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
         <div>
@@ -70,13 +80,7 @@ export default function ConfidencePracticeOverlay({
               </p>
               {practice.exercise.explanationVideoRef ? (
                 <div className="overflow-hidden rounded-2xl border border-border bg-black">
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                  <video
-                    src={practice.exercise.explanationVideoRef}
-                    controls
-                    playsInline
-                    className="max-h-80 w-full"
-                  />
+                  <NativeVideo src={practice.exercise.explanationVideoRef} className="max-h-80 w-full" />
                 </div>
               ) : null}
               <div className="rounded-2xl border border-border bg-muted/35 p-4">
@@ -113,5 +117,6 @@ export default function ConfidencePracticeOverlay({
         </div>
       </main>
     </div>
+    </MediaRefreshProvider>
   );
 }

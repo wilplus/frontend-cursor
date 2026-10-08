@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import LoadingState from "@/components/willab/LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import VoiceAlbumMoment from "@/components/willab/VoiceAlbumMoment";
 import PracticeNewQueue from "@/components/willab/PracticeNewQueue";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import {
   fetchVoiceAlbum,
   type VoiceAlbumProject,
@@ -54,6 +55,16 @@ export default function VoiceAlbumPageClient({
   const [openMoment, setOpenMoment] = useState<string | null>(null);
   const bandRefs = useRef(new Map<string, HTMLElement>());
   const jumpTo = useRef<string | null>(initialProjectId);
+
+  /** Fresh signed links for the feed's players (an error, a tab back after
+   *  hours): the album read again; a failed read keeps what is shown. */
+  const refreshMedia = useCallback(
+    () =>
+      fetchVoiceAlbum().then((result) => {
+        if (result) setProjects(result);
+      }),
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -162,6 +173,7 @@ export default function VoiceAlbumPageClient({
         window.scrollTo(0, 0);
       }}
     >
+      <MediaRefreshProvider refresh={refreshMedia} payload={projects}>
       <div className="pb-24">
         {projects.map((project, index) => (
           <section key={project.projectId}>
@@ -200,6 +212,7 @@ export default function VoiceAlbumPageClient({
           </section>
         ))}
       </div>
+      </MediaRefreshProvider>
     </Shell>
   );
 }

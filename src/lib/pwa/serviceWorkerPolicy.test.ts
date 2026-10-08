@@ -210,9 +210,15 @@ let lastWaitUntilCount = 0;
 async function request(
   sw: Scope,
   url: string,
-  init: { mode?: string; method?: string; preload?: any } = {}
+  init: { mode?: string; method?: string; preload?: any; destination?: string; range?: boolean } = {}
 ) {
-  const req = { url, method: init.method ?? "GET", mode: init.mode ?? "cors" };
+  const req = {
+    url,
+    method: init.method ?? "GET",
+    mode: init.mode ?? "cors",
+    destination: init.destination ?? "",
+    headers: { has: (name: string) => init.range === true && name.toLowerCase() === "range" },
+  };
   let responded: Promise<any> | null = null;
   const pending: Promise<any>[] = [];
   lastWaitUntilCount = 0;
@@ -293,6 +299,17 @@ describe("the service worker caching policy", () => {
     expect([...sw.store.keys()]).not.toContain(
       "https://willpowerlab.com/api/v2/life/state"
     );
+  });
+
+  it("never intercepts media: audio, video, or any Range read", async () => {
+    // Players read byte ranges (206) and must see their own errors to ask for
+    // a fresh signed link (founder 2026-10-08). Same-origin or not, cached
+    // copy or not, the worker stands aside.
+    sw.store.set(`${ORIGIN}/clip.webm`, "cached clip");
+    expect(await request(sw, `${ORIGIN}/clip.webm`, { destination: "audio" })).toBeNull();
+    expect(await request(sw, `${ORIGIN}/coach.mp4`, { destination: "video" })).toBeNull();
+    expect(await request(sw, `${ORIGIN}/clip.webm`, { range: true })).toBeNull();
+    expect(sw.networkCalls).toHaveLength(0);
   });
 
   it("stands aside for a WRITE to the API too", async () => {
@@ -445,7 +462,7 @@ describe("the service worker caching policy", () => {
     // every build, which is the frozen shell again by another route.
     const bare = bootWorker(`${ORIGIN}/sw.js`);
     await request(bare, `${ORIGIN}/icon`);
-    expect(bare.cachesOpened[0]).toBe("willab-shell-v7");
+    expect(bare.cachesOpened[0]).toBe("willab-shell-v8");
   });
 
   it("reads only from its own cache, never the whole origin", async () => {

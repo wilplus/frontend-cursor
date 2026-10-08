@@ -102,7 +102,7 @@ export default function CoachVideoSheet({
   if (kept) {
     body = (
       <>
-        <video src={kept.url} controls playsInline className="w-full rounded-xl bg-foreground" data-testid="coach-video-kept" />
+        <video src={kept.url} controls playsInline preload="metadata" className="w-full rounded-xl bg-foreground" data-testid="coach-video-kept" />
       </>
     );
     footer = (
@@ -126,7 +126,7 @@ export default function CoachVideoSheet({
   } else if (state.status === "stopped") {
     body = (
       <>
-        <video src={state.url} controls playsInline className="w-full rounded-xl bg-foreground" />
+        <video src={state.url} controls playsInline preload="metadata" className="w-full rounded-xl bg-foreground" />
         {oversized ? (
           <p role="alert" className="text-[13px] text-destructive">
             The clip is too large to send; record a shorter one.

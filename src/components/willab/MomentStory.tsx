@@ -8,6 +8,7 @@ import {
   type MomentHistory,
 } from "@/services/api/voiceAlbum";
 import { Event, Origin } from "./VoiceAlbumMoment";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 
 /* -------------------------------------------------------------------------- */
 /*  THE STORY BEHIND ANY MOMENT (founder 2026-09-25).                          */
@@ -57,6 +58,13 @@ export default function MomentStory({
     }
     setHistory(next);
     setStatus("ready");
+  }, [arcId, sessionId, snippetId]);
+
+  /** Fresh signed links for the story's players; a failed read keeps it. */
+  const refresh = useCallback(async () => {
+    if (!arcId || !sessionId || !snippetId) return;
+    const next = await fetchSnippetHistory(arcId, sessionId, snippetId);
+    if (next) setHistory(next);
   }, [arcId, sessionId, snippetId]);
 
   useEffect(() => {
@@ -110,11 +118,13 @@ export default function MomentStory({
                 slideIndex={history?.origin.slideIndex ?? null}
                 recorded={null}
               />
-              <ul className="m-0 list-none p-0">
-                {events.map((event, index) => (
-                  <Event key={`${event.kind}-${index}`} event={event} />
-                ))}
-              </ul>
+              <MediaRefreshProvider refresh={refresh} payload={history}>
+                <ul className="m-0 list-none p-0">
+                  {events.map((event, index) => (
+                    <Event key={`${event.kind}-${index}`} event={event} />
+                  ))}
+                </ul>
+              </MediaRefreshProvider>
             </>
           ) : null}
         </div>

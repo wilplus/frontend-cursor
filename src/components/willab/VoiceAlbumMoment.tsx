@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SnippetWavePlayer from "./SnippetWavePlayer";
+import NativeVideo from "./NativeVideo";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import LoadingState from "./LoadingState";
 import {
   fetchMomentHistory,
@@ -86,6 +88,16 @@ export default function VoiceAlbumMoment({
     setExtraNotes((current) => [...current, note]);
   }, []);
 
+  /** Fresh signed links for the history's players: the history read again;
+   *  a failed read keeps what is shown. */
+  const refreshHistory = useCallback(
+    () =>
+      fetchMomentHistory(projectId, entry.momentKey).then((result) => {
+        if (result) setHistory(result);
+      }),
+    [projectId, entry.momentKey],
+  );
+
   return (
     <article
       className={cn(
@@ -145,11 +157,13 @@ export default function VoiceAlbumMoment({
                 slideIndex={history?.origin.slideIndex ?? entry.slideIndex}
                 recorded={recorded}
               />
-              <ul className="m-0 list-none p-0">
-                {events.map((event, index) => (
-                  <Event key={`${event.kind}-${index}`} event={event} />
-                ))}
-              </ul>
+              <MediaRefreshProvider refresh={refreshHistory} payload={history}>
+                <ul className="m-0 list-none p-0">
+                  {events.map((event, index) => (
+                    <Event key={`${event.kind}-${index}`} event={event} />
+                  ))}
+                </ul>
+              </MediaRefreshProvider>
               <NoteComposer
                 projectId={projectId}
                 momentKey={entry.momentKey}
@@ -279,15 +293,9 @@ function Exercise({
         {showVideo ? (
           <div className="mt-2.5 flex flex-col gap-2.5">
             {event.videoUrl ? (
-              // eslint-disable-next-line jsx-a11y/media-has-caption -- the
-              // exercise video is coach-recorded; captions are authored with
-              // the exercise, not injected here.
-              <video
-                src={event.videoUrl}
-                controls
-                preload="metadata"
-                className="w-full rounded-lg bg-foreground/90"
-              />
+              // The exercise video is coach-recorded; captions are authored
+              // with the exercise, not injected here.
+              <NativeVideo src={event.videoUrl} className="w-full rounded-lg bg-foreground/90" />
             ) : (
               <p className="m-0 text-[13px] text-muted-foreground">
                 This exercise has no video.

@@ -66,7 +66,7 @@ describe("what happens when there is no id", () => {
   });
 
   it("falls back to a named constant in the worker", () => {
-    expect(WORKER).toMatch(/BUILD_ID \? `willab-shell-\$\{BUILD_ID\}` : "willab-shell-v7"/);
+    expect(WORKER).toMatch(/BUILD_ID \? `willab-shell-\$\{BUILD_ID\}` : "willab-shell-v8"/);
   });
 
   it("never resolves the id to the string undefined in the config", () => {

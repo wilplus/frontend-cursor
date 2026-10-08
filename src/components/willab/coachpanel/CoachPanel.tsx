@@ -35,7 +35,7 @@
 /*  receipt.                                                                  */
 /* -------------------------------------------------------------------------- */
 
-import { useEffect, useMemo, useRef, useState, type Dispatch } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import WalkStage from "../walk/WalkStage";
 import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
@@ -52,6 +52,7 @@ import {
 import { readSlideFor, type AnswerValue, type QueueSpeaker, type ReadSlide } from "@/lib/willab/coachWalk";
 import type { WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import type { MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
@@ -70,26 +71,49 @@ type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
 
 /** The clip and the slide of every moment of the open Take. The words the
- *  session carries are not kept: the Judge screen must not have them. */
-function useTakeMedia(sessionId: string | null): Record<string, TakeMedia> {
+ *  session carries are not kept: the Judge screen must not have them.
+ *  Read once per Take opened; `refresh` reads the open Take again for fresh
+ *  signed links (a clip's error, a tab back after hours) past that cache. */
+export function useTakeMedia(sessionId: string | null): {
+  media: Record<string, TakeMedia>;
+  refresh: () => Promise<void>;
+} {
   const [media, setMedia] = useState<Record<string, TakeMedia>>({});
   const asked = useRef(new Set<string>());
+  const load = useCallback(async (sid: string): Promise<void> => {
+    const session = await fetchCoachReviewSession(sid);
+    if (!session) return;
+    const clips: Record<string, PanelClip> = {};
+    const slides: Record<string, ReadSlide> = {};
+    for (const s of session.snippets) {
+      clips[s.id] = { src: s.audioRef, startOffsetMs: s.startOffsetMs, durationMs: s.durationMs };
+      const picture = readSlideFor(session.presentationRef, s.slide);
+      if (picture) slides[s.id] = picture;
+    }
+    setMedia((prev) => ({ ...prev, [sid]: { clips, slides } }));
+  }, []);
   useEffect(() => {
     if (!sessionId || asked.current.has(sessionId)) return;
     asked.current.add(sessionId);
-    void fetchCoachReviewSession(sessionId).then((session) => {
-      if (!session) return;
-      const clips: Record<string, PanelClip> = {};
-      const slides: Record<string, ReadSlide> = {};
-      for (const s of session.snippets) {
-        clips[s.id] = { src: s.audioRef, startOffsetMs: s.startOffsetMs, durationMs: s.durationMs };
-        const picture = readSlideFor(session.presentationRef, s.slide);
-        if (picture) slides[s.id] = picture;
-      }
-      setMedia((prev) => ({ ...prev, [sessionId]: { clips, slides } }));
-    });
-  }, [sessionId]);
-  return media;
+    void load(sessionId);
+  }, [sessionId, load]);
+  const refresh = useCallback(
+    () => (sessionId ? load(sessionId) : Promise.resolve()),
+    [sessionId, load],
+  );
+  return { media, refresh };
+}
+
+/** Fresh links for the blind lines' players, read only for their links: the
+ *  open sheet keeps its own queue (and its place in it); a clip finds its
+ *  fresh link by the link's path. Nothing new is shown (BLIND COACH). */
+function useBlindLinks(open: boolean): { links: unknown; refresh: () => Promise<void> } {
+  const [links, setLinks] = useState<unknown>(null);
+  const refresh = useCallback(async () => {
+    if (!open) return;
+    setLinks(await Promise.all([fetchErrorAudit(), fetchBlockPicks(), fetchV4MomentPicks(), fetchV4SurerPairs()]));
+  }, [open]);
+  return { links, refresh };
 }
 
 /** What happened's read, asked for only while What happened is on screen
@@ -249,7 +273,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = screen.key === "judge" || screen.key === "reveal" ? screen.take.sessionId : null;
-  const media = useTakeMedia(takeId);
+  const { media, refresh: refreshTake } = useTakeMedia(takeId);
   const seeds = useMomentReadSeeds();
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
@@ -263,6 +287,9 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const [corpusFail, setCorpusFail] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | "v4picks" | "v4surer" | null>(null);
+  const blindLinks = useBlindLinks(blindOpen !== null);
+  const refreshMedia = () => Promise.all([refreshTake(), blindLinks.refresh()]);
+  const mediaPayload = [media, blind.audit, blind.picks, blind.v4Picks, blind.v4Surer, blindLinks.links];
 
   const close = () => dispatch({ type: "close" });
   /** An import opens its set-up first when that is not finished (CO1 A). */
@@ -415,7 +442,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   }
 
   return (
-    <>
+    <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
       <WalkStage screen={stage} dir={state.dir} render={render} />
       <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
@@ -440,6 +467,6 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
             onDone={() => { setBlindOpen(null); blind.setV4Surer(null); }} />
         </div>
       ) : null}
-    </>
+    </MediaRefreshProvider>
   );
 }

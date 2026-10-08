@@ -32,7 +32,8 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
   useConfidenceChainReceipt: () => ({ current: null }),
 }));
 
-import CoachPanel from "./CoachPanel";
+import CoachPanel, { useTakeMedia } from "./CoachPanel";
+import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import {
   JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, awaitingMoments, heardWords,
   revealLines, speakerChoice, takeChoice, takesNewestFirst,
@@ -590,5 +591,28 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[role='alert']")!.textContent).toBe(COPY.judgeFail);
     expect(document.querySelector("[data-walk-answer='yes']")!.getAttribute("aria-pressed")).toBe("false");
     expect(fetchMomentRead).not.toHaveBeenCalled();
+  });
+});
+
+describe("the open Take's clips get one fresh read past the cache (playback, 2026-10-08)", () => {
+  it("reads a Take once on open, and again on refresh", async () => {
+    const fetchSession = vi.mocked(fetchCoachReviewSession);
+    fetchSession.mockClear();
+    let api: ReturnType<typeof useTakeMedia> | null = null;
+    function Probe({ sid }: { sid: string | null }) {
+      api = useTakeMedia(sid);
+      return null;
+    }
+    const el = document.createElement("div");
+    const r = createRoot(el);
+    await act(async () => { r.render(<Probe sid="t-1" />); });
+    await act(async () => { r.render(<Probe sid="t-1" />); });
+    expect(fetchSession).toHaveBeenCalledTimes(1);
+    await act(async () => { await api!.refresh(); });
+    expect(fetchSession).toHaveBeenCalledTimes(2);
+    expect(api!.media["t-1"].clips.s1.src).toBe("blob:a");
+    // The words the session carries are still never kept (BLIND COACH).
+    expect(JSON.stringify(api!.media)).not.toContain("SECRET WORDS");
+    act(() => r.unmount());
   });
 });

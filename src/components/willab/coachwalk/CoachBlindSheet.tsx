@@ -8,7 +8,7 @@
 /*  per item, once; the sheet moves on by itself.                            */
 /* -------------------------------------------------------------------------- */
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import {
   answerBlockPick,
@@ -17,6 +17,8 @@ import {
   type BlockPickQueue,
   type ErrorAuditQueue,
 } from "@/services/api/coachPanel";
+import { claimPlayback, releasePlayback } from "@/lib/media/exclusivePlayback";
+import { useRecoverableSrc } from "@/lib/media/mediaRefresh";
 
 const PILL =
   "flex min-h-[54px] items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
@@ -27,9 +29,46 @@ const SMALL =
 const DARK =
   "rounded-full bg-foreground px-3 py-1.5 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
 
-function Audio({ src }: { src: string | null }) {
+/** The item's sound, the browser's own controls. When the backend says
+ *  where the clip sits in its file (start_offset_ms / duration_ms), play
+ *  only that window, as MediaPlayer does; without them, the whole file as
+ *  before. Plays alone; a dead link asks the host once for a fresh one. */
+export function Audio({ src: rawSrc, startOffsetMs = null, durationMs = null }: {
+  src: string | null; startOffsetMs?: number | null; durationMs?: number | null;
+}) {
+  const { src, handleError, handleLoaded } = useRecoverableSrc(rawSrc);
+  const ref = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    return () => releasePlayback(el);
+  }, [src]);
   if (!src) return null;
-  return <audio controls preload="none" src={src} className="w-full" />;
+  const startSec = (startOffsetMs ?? 0) / 1000;
+  const endSec = durationMs ? startSec + durationMs / 1000 : null;
+  const outside = (el: HTMLAudioElement) =>
+    el.currentTime < startSec || (endSec !== null && el.currentTime >= endSec);
+  return (
+    <audio ref={ref} controls preload="none" src={src} className="w-full"
+      onLoadedMetadata={(e: SyntheticEvent<HTMLAudioElement>) => {
+        handleLoaded();
+        if (startSec > 0) e.currentTarget.currentTime = startSec;
+      }}
+      onPlay={(e: SyntheticEvent<HTMLAudioElement>) => {
+        const el = e.currentTarget;
+        if (outside(el)) el.currentTime = startSec;
+        claimPlayback(el);
+      }}
+      onPause={(e: SyntheticEvent<HTMLAudioElement>) => releasePlayback(e.currentTarget)}
+      onTimeUpdate={(e: SyntheticEvent<HTMLAudioElement>) => {
+        const el = e.currentTarget;
+        if (endSec !== null && el.currentTime >= endSec) {
+          el.pause();
+          el.currentTime = startSec;
+        }
+      }}
+      onError={handleError}
+    />
+  );
 }
 
 export function CoachAuditSheet({ queue, onClose, onDone }: {
@@ -65,7 +104,7 @@ export function CoachAuditSheet({ queue, onClose, onDone }: {
         <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary">{w.private ?? ""}</span>
         {item ? (
           <>
-            <Audio src={item.audioRef} />
+            <Audio src={item.audioRef} startOffsetMs={item.startOffsetMs} durationMs={item.durationMs} />
             <p className="text-[17px] font-semibold text-foreground" data-testid="coach-audit-question">
               {(w.question ?? "{asks}").replace("{asks}", item.asks || item.label)}
             </p>
@@ -131,7 +170,7 @@ export function CoachBlockPickSheet({ queue, onClose, onDone }: {
                     {choice === c.clipId ? (w.most_confident ?? "") : (w.this_one ?? "")}
                   </button>
                 </div>
-                <Audio src={c.audioRef} />
+                <Audio src={c.audioRef} startOffsetMs={c.startOffsetMs} durationMs={c.durationMs} />
               </div>
             ))}
           </>

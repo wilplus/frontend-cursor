@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { claimPlayback, releasePlayback } from "@/lib/media/exclusivePlayback";
+import { useRecoverableSrc } from "@/lib/media/mediaRefresh";
 
 /* -------------------------------------------------------------------------- */
 /*  SnippetWavePlayer — the Voice Album's clip player.                         */
@@ -55,12 +57,13 @@ function clock(seconds: number): string {
 
 export default function SnippetWavePlayer({
   seed,
-  src,
+  src: rawSrc,
   startOffsetMs = 0,
   durationMs,
   size = "default",
   tone = "accent",
   label,
+  onError,
 }: {
   /** Stable identity for the waveform — the moment key, or an attempt id. */
   seed: string;
@@ -74,34 +77,46 @@ export default function SnippetWavePlayer({
   tone?: "accent" | "ink";
   /** Accessible name; the visual has no text of its own. */
   label: string;
+  /** Told when the <audio> errors (an expired signed link, a 404), as
+   *  MediaPlayer's is. A fresh link from the host is asked for on its own
+   *  (useRecoverableSrc); this is for a host that manages its own. */
+  onError?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
-  const [errored, setErrored] = useState(false);
+  const { src, errored, recovering, handleError, handleLoaded } =
+    useRecoverableSrc(rawSrc, onError);
 
   const bars = useMemo(() => barsFor(seed), [seed]);
   const seekSec = (startOffsetMs ?? 0) / 1000;
   const clipDuration =
     typeof durationMs === "number" && durationMs > 0 ? durationMs / 1000 : mediaDuration;
   const clipEndSec = seekSec + clipDuration;
-  const disabled = !src || errored;
+  const disabled = !src || errored || recovering;
 
+  // A new src is a new clip: not playing, back at its start.
   useEffect(() => {
-    setErrored(false);
     setMediaDuration(0);
     setElapsed(0);
+    setPlaying(false);
+  }, [src]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    return () => releasePlayback(el);
   }, [src]);
 
   const handleLoadedMetadata = useCallback(() => {
     const el = audioRef.current;
     if (!el) return;
+    handleLoaded();
     if (!(typeof durationMs === "number" && durationMs > 0)) {
       setMediaDuration(Number.isFinite(el.duration) ? el.duration : 0);
     }
     if (seekSec > 0) el.currentTime = seekSec;
-  }, [durationMs, seekSec]);
+  }, [durationMs, handleLoaded, seekSec]);
 
   const handleTimeUpdate = useCallback(() => {
     const el = audioRef.current;
@@ -123,11 +138,11 @@ export default function SnippetWavePlayer({
       el.pause();
       return;
     }
-    if (el.currentTime < seekSec || el.currentTime >= clipEndSec) {
+    if (el.currentTime < seekSec || (clipDuration > 0 && el.currentTime >= clipEndSec)) {
       el.currentTime = seekSec;
     }
     void el.play().catch(() => setPlaying(false));
-  }, [clipEndSec, disabled, playing, seekSec]);
+  }, [clipDuration, clipEndSec, disabled, playing, seekSec]);
 
   const fraction = clipDuration > 0 ? Math.min(1, elapsed / clipDuration) : 0;
   const litBars = Math.round(fraction * bars.length);
@@ -185,8 +200,14 @@ export default function SnippetWavePlayer({
           preload="metadata"
           className="hidden"
           onLoadedMetadata={handleLoadedMetadata}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlay={(event) => {
+            claimPlayback(event.currentTarget);
+            setPlaying(true);
+          }}
+          onPause={(event) => {
+            releasePlayback(event.currentTarget);
+            setPlaying(false);
+          }}
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => {
             const el = audioRef.current;
@@ -195,8 +216,8 @@ export default function SnippetWavePlayer({
             setElapsed(0);
           }}
           onError={() => {
-            setErrored(true);
             setPlaying(false);
+            handleError();
           }}
         />
       ) : null}

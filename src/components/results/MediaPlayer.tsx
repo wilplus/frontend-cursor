@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { claimPlayback, releasePlayback } from "@/lib/media/exclusivePlayback";
+import { useRecoverableSrc } from "@/lib/media/mediaRefresh";
 
 interface MediaPlayerProps {
   /** Resolved playable URL (R2 public or signed). */
@@ -47,7 +49,7 @@ interface MediaPlayerProps {
  * src/app/admin/users/[userId]/page.tsx::SnippetPreviewPlayer.
  */
 export default function MediaPlayer({
-  src,
+  src: rawSrc,
   startOffsetMs = 0,
   durationMs,
   compact = false,
@@ -59,9 +61,12 @@ export default function MediaPlayer({
   // Position INSIDE the slice (audio.currentTime - seekSec).
   const [sliceCurrent, setSliceCurrent] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
-  // True once <audio> emits an `error` (404 / decode failure). We swap
-  // in a small disabled state instead of leaving a silent player.
-  const [errored, setErrored] = useState(false);
+  // An <audio> `error` (404 / an expired signed link / decode failure) asks
+  // the host once for a fresh link (useRecoverableSrc); `errored` is true
+  // only when that did not help, and swaps in the small disabled state
+  // instead of leaving a silent player.
+  const { src, errored, recovering, handleError, handleLoaded } =
+    useRecoverableSrc(rawSrc, onError);
 
   const seekSec = startOffsetMs / 1000;
   const clipDuration = typeof durationMs === "number" && durationMs > 0
@@ -69,10 +74,18 @@ export default function MediaPlayer({
     : mediaDuration;
   const clipEndSec = seekSec + clipDuration;
 
-  // Reset error flag when src changes — re-fetched URLs deserve a retry.
+  // A new src is a new clip: nothing is playing it yet and its position
+  // starts at the slice's start. (The error state is keyed by src.)
   useEffect(() => {
-    setErrored(false);
     setMediaDuration(0);
+    setPlaying(false);
+    setSliceCurrent(0);
+  }, [src]);
+
+  // Unmounting while playing must not leave this element as "the" player.
+  useEffect(() => {
+    const el = audioRef.current;
+    return () => releasePlayback(el);
   }, [src]);
 
   // Pre-position the playhead whenever boundaries change so press-play
@@ -86,6 +99,7 @@ export default function MediaPlayer({
   const handleLoadedMetadata = () => {
     const el = audioRef.current;
     if (!el) return;
+    handleLoaded();
     if (!(typeof durationMs === "number" && durationMs > 0)) {
       setMediaDuration(Number.isFinite(el.duration) ? el.duration : 0);
     }
@@ -95,18 +109,24 @@ export default function MediaPlayer({
   const handlePlay = () => {
     const el = audioRef.current;
     if (!el) return;
-    if (el.currentTime < seekSec || el.currentTime >= clipEndSec) {
+    // No known length (a streamed WebM reports Infinity): play to the
+    // file's natural end, and resume where it was paused.
+    if (el.currentTime < seekSec || (clipDuration > 0 && el.currentTime >= clipEndSec)) {
       el.currentTime = seekSec;
     }
+    claimPlayback(el);
     setPlaying(true);
   };
 
-  const handlePause = () => setPlaying(false);
+  const handlePause = () => {
+    releasePlayback(audioRef.current);
+    setPlaying(false);
+  };
 
   const handleTimeUpdate = () => {
     const el = audioRef.current;
     if (!el) return;
-    if (el.currentTime >= clipEndSec) {
+    if (clipDuration > 0 && el.currentTime >= clipEndSec) {
       el.pause();
       el.currentTime = seekSec;
       setPlaying(false);
@@ -147,7 +167,7 @@ export default function MediaPlayer({
   // No audio at all — render the player surface but with the play
   // button visually disabled. Keeps the row height stable so the page
   // doesn't reflow when audio_url is null.
-  const disabled = !src || errored;
+  const disabled = !src || errored || recovering;
   const audio = src ? (
     <audio
       ref={audioRef}
@@ -160,9 +180,8 @@ export default function MediaPlayer({
       onTimeUpdate={handleTimeUpdate}
       onEnded={handleEnded}
       onError={() => {
-        setErrored(true);
         setPlaying(false);
-        onError?.();
+        handleError();
       }}
     />
   ) : null;
