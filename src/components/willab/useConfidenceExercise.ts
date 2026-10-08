@@ -170,6 +170,8 @@ export function useConfidenceExercise(args: {
 
   const submitAttempt = useCallback(
     async (audio: Blob, durationSec: number) => {
+      // V4 B1.4: the wait is measured from Stop, before the practice opens.
+      const stoppedAtMs = Date.now();
       // THE RECORDING SCREEN ENDS WITH THE MIC, NOT WITH THE UPLOAD. The take
       // is over the moment the speaker tapped Stop; what follows is the
       // server assessing it, which the offer shows as a disabled pill
@@ -188,6 +190,7 @@ export function useConfidenceExercise(args: {
         opened.id,
         audio,
         durationSec,
+        stoppedAtMs,
       );
       setBusy(false);
       if (!result.ok) {

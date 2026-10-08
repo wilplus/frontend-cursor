@@ -225,6 +225,7 @@ export async function startConfidencePractice(
 
 export async function uploadConfidencePracticeAttempt(
   practiceId: string, audio: Blob, durationSec: number,
+  stoppedAtMs: number = Date.now(),
 ): Promise<PracticeResult> {
   const headers = await tokenHeaders();
   if (!headers) return { ok: false, error: null };
@@ -236,10 +237,38 @@ export async function uploadConfidencePracticeAttempt(
       `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/attempts`,
       { method: "POST", headers, body: form, cache: "no-store" },
     );
-    return result(res);
+    const out = await result(res);
+    if (out.ok) reportPractiseTiming(practiceId, out.practice, stoppedAtMs, Date.now());
+    return out;
   } catch {
     return { ok: false, error: null };
   }
+}
+
+/** V4 B1.4 (founder O5, V7 A): how long the speaker waited from Stop to the
+ *  answer, on the phone's own clock. Sent once per try, after the answer is
+ *  in hand, and never awaited: it cannot delay or fail the practise. The
+ *  backend answers 204 with no body (AC-9). */
+export function reportPractiseTiming(
+  practiceId: string, practice: ConfidencePractice, stoppedAtMs: number, shownAtMs: number,
+): void {
+  const latest = [...practice.attempts].sort((a, b) => b.attemptIndex - a.attemptIndex)[0];
+  if (!latest || !(shownAtMs >= stoppedAtMs)) return;
+  void (async () => {
+    try {
+      const headers = await tokenHeaders(true);
+      if (!headers) return;
+      await fetch(
+        `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/attempts/${encodeURIComponent(latest.id)}/timing`,
+        {
+          method: "POST", headers, cache: "no-store", keepalive: true,
+          body: JSON.stringify({ stopped_at_ms: Math.round(stoppedAtMs), shown_at_ms: Math.round(shownAtMs) }),
+        },
+      );
+    } catch {
+      /* measurement only */
+    }
+  })();
 }
 
 export async function finishConfidencePractice(

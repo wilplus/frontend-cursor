@@ -43,7 +43,9 @@ export type WalkPractiseTry = { attemptId: string; attempt: number };
 
 export interface WalkPractiseIO<R> {
   open(item: R, passage: WalkPractisePassage): Promise<string | null>;
-  upload(practiceId: string, audio: Blob, durationSec: number): Promise<WalkPractiseTry | null>;
+  /** `stoppedAtMs`: when the speaker pressed Stop, on the phone's clock
+   *  (V4 B1.4, O5); only measured, never shown. */
+  upload(practiceId: string, audio: Blob, durationSec: number, stoppedAtMs?: number): Promise<WalkPractiseTry | null>;
   check(practiceId: string, attemptId: string): Promise<PracticeCheckResult | null>;
 }
 
@@ -82,8 +84,8 @@ export function walkPractiseIO<R>(source: (item: R) => WalkPractiseSource | null
       );
       return opened.ok ? opened.practice.id : null;
     },
-    async upload(practiceId, audio, durationSec) {
-      const result = await uploadConfidencePracticeAttempt(practiceId, audio, durationSec);
+    async upload(practiceId, audio, durationSec, stoppedAtMs) {
+      const result = await uploadConfidencePracticeAttempt(practiceId, audio, durationSec, stoppedAtMs);
       if (!result.ok) return null;
       const latest = [...result.practice.attempts].sort((a, b) => b.attemptIndex - a.attemptIndex)[0];
       if (!latest) return null;
