@@ -64,17 +64,21 @@ function NavBar({ nav }: { nav: WalkNav }) {
 }
 
 /** ‹ alone, for a screen with somewhere to go back to but no moments to walk
- *  (the coach panel's speaker screen). */
-function BackOnly({ onBack }: { onBack: () => void }) {
+ *  (the coach panel's speaker screen), with where it goes when the screen
+ *  says so ("‹ Library", "‹ Speaking errors"). */
+function BackOnly({ onBack, label }: { onBack: () => void; label?: string | null }) {
   return (
-    <button
-      type="button"
-      onClick={onBack}
-      aria-label={COPY.pagerBack}
-      className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-    >
-      <ChevronLeft className="h-5 w-5" aria-hidden />
-    </button>
+    <span className="flex min-w-0 items-center gap-0.5 text-[13.5px] font-semibold">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label={COPY.pagerBack}
+        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+      >
+        <ChevronLeft className="h-5 w-5" aria-hidden />
+      </button>
+      {label ? <span data-walk-back-label className="min-w-0 truncate">{label}</span> : null}
+    </span>
   );
 }
 
@@ -82,6 +86,7 @@ export default function WalkOverlay({
   nav,
   caption = null,
   onBack,
+  backLabel,
   onClose,
   title,
   subtitle = null,
@@ -97,6 +102,8 @@ export default function WalkOverlay({
   caption?: string | null;
   /** ‹ without the moment bar; ignored when `nav` is given. */
   onBack?: () => void;
+  /** The words beside that ‹: where it goes. */
+  backLabel?: string | null;
   onClose?: () => void;
   title?: string | null;
   /** The grey line under the title (the coach panel's "Goal: …", "Treats:
@@ -122,7 +129,7 @@ export default function WalkOverlay({
         {nav ? (
           <NavBar nav={nav} />
         ) : onBack ? (
-          <BackOnly onBack={onBack} />
+          <BackOnly onBack={onBack} label={backLabel} />
         ) : caption ? (
           <span data-walk-caption className="min-w-0 truncate px-2 text-[13.5px] font-semibold">
             {caption}

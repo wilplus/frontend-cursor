@@ -268,6 +268,47 @@ const COACH_PANEL = Object.entries(PANEL_KEYS).map(([name, waitFor]) => ({
   area: "coach-panel", name, audience: "coach",
   path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450, viewports: PANEL_PHONE,
 }));
+/** The founder's Library and Speaking errors pages (CP3 A; D-CP-21), as
+ *  /dev/admin-library draws them over stubs: the admin area, so the AC-9
+ *  scan does not run (the readiness line is the founder's own count). */
+const ADMIN_PAGES = [
+  { area: "coach-panel", name: "library", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: '[data-testid="admin-library"] [data-walk-choice]', settleMs: 450, viewports: PANEL_PHONE },
+  { area: "coach-panel", name: "libitem", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-item"] [data-coach-words]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-walk-choice="e:land-the-last-word"]').click(); } },
+  { area: "coach-panel", name: "libpraise", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-praise"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-walk-choice="p:landed_ending"]').click(); } },
+  { area: "coach-panel", name: "libkind", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-kind"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-testid="library-new"]').click(); } },
+  { area: "coach-panel", name: "libwords", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-words"] [data-coach-words]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => {
+      await page.locator('[data-testid="library-new"]').click();
+      await page.locator(`${LIVE} [data-walk-choice="rushing"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-kind-next"]`).click();
+    } },
+  { area: "coach-panel", name: "libvideo", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-video"] [data-coach-video-box]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => {
+      await page.locator('[data-testid="library-new"]').click();
+      await page.locator(`${LIVE} [data-walk-choice="rushing"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-kind-next"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-words-next"]`).click();
+    } },
+  { area: "coach-panel", name: "errors", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-list"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE },
+  { area: "coach-panel", name: "error", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-definition"]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="hedging"]`).click(); } },
+  // An error a coach named: its definition and its one question, each with
+  // the pencil (Q-CP645 A).
+  { area: "coach-panel", name: "error-named", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-words"]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="filler_words"]`).click(); } },
+];
 
 /* ------------------------------- recording ---------------------------------- */
 const RECORDING = [
@@ -340,4 +381,4 @@ const CONSENT = [
     prepare: guestWithPolicy, act: enterTheLab },
 ];
 
-export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];
+export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...COACH_PANEL, ...ADMIN_PAGES, ...RECORDING, ...CONSENT];
