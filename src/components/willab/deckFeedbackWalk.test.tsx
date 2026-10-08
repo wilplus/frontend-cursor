@@ -609,3 +609,50 @@ describe("judgementBehind (QA1 A)", () => {
     expect(await judgementBehind({ item: judgement, answer: "yes", earlier: null })).toBe("failed");
   });
 });
+
+describe("the finished walk, played again (Q-IT643b A)", () => {
+  const answered = { ...judgement, status: "approved" } as unknown as DocumentSuggestion;
+  const forward = () => click(live()!.querySelector("[data-testid='walk-forward']"));
+  const skip = () => click(live()!.querySelector("[data-testid='walk-skip']"));
+  const settle = () => act(async () => new Promise((r) => setTimeout(r, 0)));
+
+  it("the switch off: the link is never offered and nothing plays", async () => {
+    const onReplayReady = vi.fn();
+    const p = props({ suggestions: [answered, praise], onReplayReady });
+    await render(p);
+    await settle();
+    expect(onReplayReady).not.toHaveBeenCalledWith(true);
+    await render({ ...p, replayRequest: 1 } as typeof p);
+    expect(walk()).toBeNull();
+  });
+
+  it("while a moment waits, the link is not offered", async () => {
+    walkOn();
+    const onReplayReady = vi.fn();
+    await render(props({ onReplayReady }));
+    await settle();
+    expect(onReplayReady).not.toHaveBeenCalledWith(true);
+  });
+
+  it("once nothing waits, the link is offered and plays the walk with the judgement pressed as answered", async () => {
+    walkOn();
+    const { fetchOwnerAnswers } = await import("@/services/api/bookmarkHistory");
+    vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: "yes" }]);
+    const onReplayReady = vi.fn();
+    const p = props({ suggestions: [answered, praise], onReplayReady });
+    await render(p);
+    await settle();
+    expect(onReplayReady).toHaveBeenLastCalledWith(true);
+    await render({ ...p, replayRequest: 1 } as typeof p);
+    await settle();
+    expect(screen()).toBe("walk-screen-praise");
+    await forward();
+    await skip();
+    expect(screen()).toBe("walk-screen-intro");
+    await forward();
+    expect(screen()).toBe("walk-screen-judge");
+    expect(live()!.querySelector("[data-walk-answer='yes']")!.getAttribute("aria-pressed")).toBe("true");
+    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
+    vi.mocked(fetchOwnerAnswers).mockResolvedValue([]);
+  });
+});

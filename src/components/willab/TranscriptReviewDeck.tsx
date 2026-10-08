@@ -92,7 +92,7 @@ import {
 import { usePrefetchParagraphSheets } from "./paragraphSheetData";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
-import { useDeckFeedbackWalk } from "./useDeckFeedbackWalk";
+import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
@@ -239,6 +239,8 @@ export default function TranscriptReviewDeck({
   coachMessage = null,
   reviewRequest = 0,
   onReviewWaiting,
+  replayRequest,
+  onReplayReady,
   renderNextStep,
   feedbackPending = false,
   takeCount = null,
@@ -331,6 +333,12 @@ export default function TranscriptReviewDeck({
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   onReviewWaiting?: (waiting: boolean) => void;
+  /** Bumped by the host's "Review feedback" link under "Record Take N":
+   *  play the finished walk again (founder 2026-10-08, Q-IT643b A). */
+  replayRequest?: number;
+  /** Whether the finished walk can be played again — the host offers the
+   *  link only then. */
+  onReplayReady?: (ready: boolean) => void;
   /** The host's next step (the next take, or See next steps), drawn on the
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
@@ -703,6 +711,8 @@ export default function TranscriptReviewDeck({
      are saved through `setRootPhrase` and the lock, behind the screen, as
      the paragraph sheet saves them. */
   const pendingOf = useCallback((c: DeckChunk) => stateOf(c).pending, [stateOf]);
+  const answeredOf = useCallback((c: DeckChunk) => stateOf(c).decided, [stateOf]);
+  const helperWordsOf = useCallback((partId: string) => headlines.get(partId) ?? null, [headlines]);
   const partLabel = useCallback((partId: string) => slideLabelOf(groups, partId), [groups]);
   const feedbackWalk = useDeckFeedbackWalk({
     chunks,
@@ -721,6 +731,9 @@ export default function TranscriptReviewDeck({
     saveBehind,
     onJudged,
     onEnd: finishWalk,
+    answeredOf,
+    helperWordsOf,
+    finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
@@ -742,6 +755,10 @@ export default function TranscriptReviewDeck({
     // screen, whenever a judgement still waits somewhere in the text.
     if (firstWaiting >= 0) walk.openAt(0);
   }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk]);
+  /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
+     link under "Record Take N" is offered only once nothing waits and the
+     walk has a screen to play; its tap plays it with the answers as given. */
+  useWalkReplayRequest(feedbackWalk, replayRequest, onReplayReady);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *

@@ -241,3 +241,19 @@ export function quoteSpan(raw: string, quote: string): RootPhraseSpan | null {
   if (start === undefined || end === undefined) return null;
   return { text: raw.slice(start, end + 1), start, end: end + 1 };
 }
+
+/** Saved helper words as a selection of the paragraph's words, so a screen
+ *  can draw them pressed (the replayed walk, Q-IT643b A). Null when the
+ *  words cannot be found once, or are more than four: nothing is guessed. */
+export function phraseSelection(raw: string, phrase: string | null | undefined): PhraseSelection | null {
+  const span = quoteSpan(raw, stripRichMarkers(phrase ?? "").trim());
+  if (!span) return null;
+  const tokens = phraseTokens(raw);
+  const from = tokens.findIndex((t) => t.end > span.start);
+  let to = -1;
+  tokens.forEach((t, i) => {
+    if (t.start < span.end) to = i;
+  });
+  if (from < 0 || to < from || to - from + 1 > HELPER_WORDS_MAX) return null;
+  return { from, to };
+}

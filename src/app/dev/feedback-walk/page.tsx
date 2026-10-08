@@ -16,6 +16,9 @@
 /*                                       &practice=0 with personalised         */
 /*                                       practice off (D-FW-15); &exvideo=0    */
 /*                                       its exercise with no video (D-FW-17)  */
+/*                                       &replay=1 the walk already finished: */
+/*                                       the page's "Review feedback" link    */
+/*                                       plays it again (Q-IT643b A)          */
 /*    /dev/feedback-walk?lounge=new|plain&walk=1                              */
 /*                                       the PRODUCTION Ideal Text bubble in  */
 /*                                       the Lounge, with and without the     */
@@ -61,7 +64,7 @@ type Mode =
   | { kind: "index" }
   | { kind: "single"; name: ScreenName }
   | { kind: "flow" }
-  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean }
+  | { kind: "live"; guest: boolean; practiceOn: boolean; exerciseVideo: boolean; finished: boolean }
   | { kind: "paragraph"; view: ParagraphView }
   | { kind: "lounge"; view: LoungeView };
 
@@ -77,6 +80,7 @@ function readMode(search: string): Mode {
       guest: q.get("guest") === "1",
       practiceOn: q.get("practice") !== "0",
       exerciseVideo: q.get("exvideo") !== "0",
+      finished: q.get("replay") === "1",
     };
   }
   if (q.get("flow") === "1") return { kind: "flow" };
@@ -280,7 +284,14 @@ function Harness() {
   if (!mode) return null;
   if (mode.kind === "index") return <IndexList />;
   if (mode.kind === "live") {
-    return <LiveWalk guest={mode.guest} practiceOn={mode.practiceOn} exerciseVideo={mode.exerciseVideo} />;
+    return (
+      <LiveWalk
+        guest={mode.guest}
+        practiceOn={mode.practiceOn}
+        exerciseVideo={mode.exerciseVideo}
+        finished={mode.finished}
+      />
+    );
   }
   if (mode.kind === "paragraph") return <ParagraphWalk view={mode.view} />;
   if (mode.kind === "lounge") return <LoungeBubble view={mode.view} />;

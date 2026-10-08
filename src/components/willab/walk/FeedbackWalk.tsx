@@ -34,6 +34,7 @@ import {
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
 import { phraseTokens, selectionSpan, selectionText, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 
 /* -------------------------------------------------------------------------- */
 /*  FeedbackWalk — the Feedback walk, mounted on a real Take (build plan       */
@@ -100,6 +101,12 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 /*                                                                            */
 /*  A guest reads every screen; a pick or a save opens the sign-up dialog     */
 /*  and writes nothing (N32.5).                                               */
+/*                                                                            */
+/*  The finished walk played again (Q-IT643b A; buildFeedbackReplay): the     */
+/*  same screens, with the helper words as saved drawn pressed and every      */
+/*  judgement pressed as answered. A tap that would write moves on instead    */
+/*  (a step marked `replay`); a judgement may still be changed, saved beside  */
+/*  the first (D-FW-9).                                                       */
 /* -------------------------------------------------------------------------- */
 
 /** "Open the walk at step `at`". A new `seq` is a new request. */
@@ -218,13 +225,14 @@ export default function FeedbackWalk<R = unknown>({
   const requestRef = useRef(request);
   requestRef.current = request;
   const seq = request?.seq ?? null;
-  const resetRef = useRef<() => void>(() => undefined);
+  const resetRef = useRef<(answers: Readonly<Record<number, ConfidenceRatingValue>>) => void>(() => undefined);
   useEffect(() => {
     const asked = requestRef.current;
     if (seq === null || !asked) return;
-    resetRef.current();
-    setWalk(liveModel.current);
-    setPicks({});
+    const opened = liveModel.current;
+    resetRef.current(opened.replay?.answers ?? {});
+    setWalk(opened);
+    setPicks(replayPicks(opened));
     setDir(undefined);
     setAt(asked.at);
   }, [seq]);
@@ -310,9 +318,9 @@ export default function FeedbackWalk<R = unknown>({
   });
   const share = useWalkShare({ io: shareIO, blocked, forward });
   const walkLines = useWalkLines(linesIO);
-  resetRef.current = () => {
+  resetRef.current = (answers) => {
     practise.reset();
-    judging.reset();
+    judging.reset(answers);
     walkLines.reopen();
     share.reset();
   };
@@ -341,10 +349,11 @@ export default function FeedbackWalk<R = unknown>({
     close,
     picks,
     pick: (s, next) => {
-      if (blocked(s)) return;
+      if (s.replay || blocked(s)) return;
       setPicks((p) => ({ ...p, [pickKey(s)]: next }));
     },
     save: (s, moment) => {
+      if (s.replay) return forward();
       if (blocked(s)) return;
       const picked = picks[pickKey(s)] ?? null;
       const tried = s.kind === "try" ? practise.tryOf(moment.index) : undefined;
@@ -361,6 +370,7 @@ export default function FeedbackWalk<R = unknown>({
       forward();
     },
     accept: (s, moment) => {
+      if (s.replay) return pastLoop();
       if (blocked(s) || !moment.clearer) return;
       onAcceptClearer?.(moment.clearer.item);
       // "Accept and practise" opens the practise on the accepted words; it
@@ -369,11 +379,13 @@ export default function FeedbackWalk<R = unknown>({
       else pastLoop();
     },
     keep: (s, moment) => {
+      if (s.replay) return pastLoop();
       if (blocked(s) || !moment.clearer) return;
       onKeepWords?.(moment.clearer.item);
       pastLoop();
     },
     exercise: (s) => {
+      if (s.replay) return pastLoop();
       if (blocked(s)) return;
       // "Practise" opens the practise on the exercise; it records as it
       // arrives. With no practise to do, the walk goes on.
@@ -409,6 +421,16 @@ export default function FeedbackWalk<R = unknown>({
 /** Helper words are picked once per screen kind and moment: after a praise
  *  from the paragraph, after a praised try from the try's words. */
 const pickKey = (step: WalkStep) => `${step.moment ?? -1}:${step.kind ?? ""}`;
+
+/** The replayed walk's helper words as saved, pressed on the screen after
+ *  each praise (Q-IT643b A); the live walk starts with none. */
+function replayPicks(model: FeedbackWalkModel<unknown>): Record<string, PhraseSelection | null> {
+  const out: Record<string, PhraseSelection | null> = {};
+  for (const [moment, selection] of Object.entries(model.replay?.picks ?? {})) {
+    out[pickKey({ key: "helpers", moment: Number(moment) })] = selection;
+  }
+  return out;
+}
 
 type ScreenCtx<R = unknown> = {
   walk: FeedbackWalkModel<R>;

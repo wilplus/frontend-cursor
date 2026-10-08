@@ -21,7 +21,9 @@
 /*  opens the Journal post inside the overlay (its route answered here) and  */
 /*  Back returns; each judgement holds 0.28 s, moves on with "Yes ✓", and ‹   */
 /*  reopens it with the earlier answer pressed; then the end card. Skip       */
-/*  settles every moment and goes to the end; with no post, no link.         */
+/*  settles every moment and goes to the end; with no post, no link. Then    */
+/*  the finished walk played again from the page's "Review feedback" link    */
+/*  (Q-IT643b A): the answers as given, nothing written again.               */
 /*                                                                            */
 /*  Video of the flow: <SHOTS_DIR>/flow.webm. SHOTS_DIR defaults to            */
 /*  e2e/artifacts/feedback-walk (gitignored). The still screens are drawn by  */
@@ -465,6 +467,116 @@ await judgingRun("no post to open", "missing", async ({ page }) => {
   check("with no post, no link", (await page.locator(`${liveScreen("intro")} [data-testid="walk-journal"]`).count()) === 0 &&
     !(await page.locator(liveScreen("intro")).innerText()).includes("More about self-modeling theory"));
 });
+
+/* ----------------- the finished walk, played again (Q-IT643b A) ----------------- */
+/* After the end card, "Back to the text" leaves the page's own bottom: "Record
+   Take 3" with the "Review feedback" link. The link plays the walk again from
+   the coach's note: the helper words as saved, pressed; the clearer version's
+   and the exercise's buttons move on and write nothing, and no practise
+   records; every judgement pressed as answered, and a change is handed over
+   with the earlier answer beside it (D-FW-9). */
+{
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  await routeJournal(context, "missing");
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const routes = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/confidence-practice") || r.url().includes("/practice")) routes.push(r.url());
+  });
+  await page.goto(LIVE_URL, { waitUntil: "networkidle" });
+  const tapIn = (key, testId) =>
+    page.locator(`${liveScreen(key)} [data-testid="${testId}"]`).filter({ visible: true }).first().click({ timeout: 20_000 });
+  const shown = (key) => page.waitForSelector(liveScreen(key), { timeout: 20_000 }).then(() => true, () => false);
+  const harness = (attr) => page.locator("[data-walk-harness]").getAttribute(attr);
+  const pressedWords = () => page.locator(`${liveScreen("helpers")} [data-walk-word-picker] button[aria-pressed="true"]`).allInnerTexts();
+  const pressedAnswer = () => page.locator(`${liveScreen("judge")} [data-walk-answer][aria-pressed="true"]`).getAttribute("data-walk-answer");
+  const navAt = (n) => page.waitForFunction((m) => document.querySelector(
+    '[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid="walk-screen-judge"] [data-walk-nav]',
+  )?.getAttribute("aria-label")?.includes(`moment ${m} of 4`), n, { timeout: 10_000 });
+
+  // The live walk: helper words picked on the first praise, the rest passed.
+  await tapIn("coachnote", "walk-forward");
+  await tapIn("praise", "walk-forward");
+  await shown("helpers");
+  const words = page.locator(`${liveScreen("helpers")} [data-walk-word-picker] button`);
+  await words.nth(2).click();
+  await words.nth(3).click();
+  await tapIn("helpers", "walk-forward");
+  await tapIn("praise", "walk-forward");
+  await tapIn("helpers", "walk-skip");
+  await tapIn("clearer", "walk-keep");
+  await tapIn("exVideo", "walk-skip");
+  await tapIn("intro", "walk-forward");
+  for (const [n, answer] of [[1, "yes"], [2, "in_between"], [3, "no"], [4, "yes"]]) {
+    await navAt(n);
+    await page.locator(`${liveScreen("judge")} [data-walk-answer="${answer}"]`).click();
+  }
+  await shown("community");
+  await page.locator(`${liveScreen("community")} [data-walk-option="general"] [role="checkbox"]`).click();
+  await tapIn("community", "walk-forward");
+  await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 });
+  const sharedBefore = await harness("data-walk-shared");
+  await page.locator('[data-testid="walk-end-back"]').click();
+  await page.waitForTimeout(500);
+  const savedBefore = await harness("data-walk-saved");
+  const decidedBefore = await harness("data-walk-decided");
+  const again = page.locator("[data-ideal-text-actions] [data-walk-link]");
+  check("after the walk: Record Take 3, with the Review feedback link under it",
+    (await page.locator("[data-ideal-text-actions] [data-walk-pill]").innerText()).includes("Record Take 3") &&
+    (await again.innerText()) === "Review feedback");
+
+  await again.click();
+  check("the link plays the walk again from the coach's note, rising over the page", await shown("coachnote") &&
+    (await page.locator(LIVE_LAYER_OF("coachnote")).getAttribute("data-walk-move")) === "open");
+  await tapIn("coachnote", "walk-forward");
+  await tapIn("praise", "walk-forward");
+  await shown("helpers");
+  check("the helper words as saved, pressed", JSON.stringify(await pressedWords()) === JSON.stringify(["our", "growth"]),
+    JSON.stringify(await pressedWords()));
+  await words.nth(4).click(); // next to the phrase: in the live walk it would grow it
+  check("a tap on a word changes nothing", JSON.stringify(await pressedWords()) === JSON.stringify(["our", "growth"]));
+  await tapIn("helpers", "walk-forward");
+  await tapIn("praise", "walk-forward");
+  await shown("helpers");
+  check("helper words skipped stay unpicked", (await pressedWords()).length === 0);
+  await tapIn("helpers", "walk-skip");
+  await shown("clearer");
+  await tapIn("clearer", "walk-forward");
+  check("Accept and practise moves on to the exercise: no practise records", await shown("exVideo") &&
+    (await page.locator(liveScreen("practise")).count()) === 0);
+  await tapIn("exVideo", "walk-forward");
+  check("Practise moves on to Judgement time!: no practise records", await shown("intro"));
+  await tapIn("intro", "walk-forward");
+  await navAt(1);
+  check("judgement 1 pressed as answered", (await pressedAnswer()) === "yes");
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="yes"]`).click();
+  await navAt(2);
+  check("judgement 2 pressed as answered", (await pressedAnswer()) === "in_between");
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="no"]`).click();
+  await navAt(3);
+  check("judgement 3 pressed as answered", (await pressedAnswer()) === "no");
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="no"]`).click();
+  await navAt(4);
+  check("judgement 4 pressed as answered", (await pressedAnswer()) === "yes");
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="yes"]`).click();
+  check("the replay asks nothing about sharing: no share is written again", (await page.locator(liveScreen("community")).count()) === 0);
+  check("the replay ends on the end card",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  check("nothing was saved or decided again in the replay",
+    (await harness("data-walk-saved")) === savedBefore && (await harness("data-walk-decided")) === decidedBefore &&
+    (await harness("data-walk-shared")) === sharedBefore,
+    `${await harness("data-walk-saved")} / ${await harness("data-walk-decided")}`);
+  check("each replayed judgement handed over with the answer given; the change beside the first",
+    (await harness("data-walk-judged")).endsWith("|cv-0:yes<yes|cv-1:no<in_between|cv-2:no<no|cv-3:yes<yes"),
+    await harness("data-walk-judged"));
+  check("no practise route was called", routes.length === 0, routes.join(" "));
+  const body = await page.evaluate(() => document.body.innerText);
+  check("replay: no score on screen (AC-9)", !/score|%/i.test(body));
+  check("replay: no page errors", errors.length === 0, errors.join(" | "));
+  await context.close();
+}
 
 /* ------------------- desktop: the phone's column, centred ------------------- */
 /* Founder 2026-10-08, Q-WALK-DESK A: on a desktop the walk is the phone's

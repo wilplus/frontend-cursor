@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import { WalkLink, WalkPill } from "@/components/willab/walk/WalkFooter";
+import IdealTextActions from "@/components/willab/IdealTextActions";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import { MOMENTS, PAGE_WORDS, PARAGRAPHS, PROJECT_TITLE, SLIDE_LABEL, TAKE_SHOWN } from "./walkFixtures";
 
@@ -16,12 +17,16 @@ export default function PageStandIn({
   accepted = {},
   cleared = false,
   onReview,
+  onReviewAgain = null,
 }: {
   answers: Record<number, ConfidenceRatingValue>;
   /** Moments whose clearer words were accepted: the paragraph shows them. */
   accepted?: Record<number, boolean>;
   cleared?: boolean;
   onReview: () => void;
+  /** The walk is finished: the page's own bottom, "Record Take N" with the
+   *  "Review feedback" link that plays the walk again (Q-IT643b A). */
+  onReviewAgain?: (() => void) | null;
 }) {
   const bar = (i: number) => {
     if (cleared) return "bg-transparent";
@@ -46,8 +51,14 @@ export default function PageStandIn({
         ))}
       </div>
       <div className="flex flex-col gap-1 px-5 pb-[30px] pt-2.5">
-        <WalkPill action={{ label: PAGE_WORDS.reviewFeedback, onClick: onReview, testId: "walk-review" }} />
-        <WalkLink action={{ label: PAGE_WORDS.recordTake(TAKE_SHOWN + 1), onClick: () => undefined }} />
+        {onReviewAgain ? (
+          <IdealTextActions takeCount={TAKE_SHOWN} onNewTake={() => undefined} onReviewAgain={onReviewAgain} />
+        ) : (
+          <>
+            <WalkPill action={{ label: PAGE_WORDS.reviewFeedback, onClick: onReview, testId: "walk-review" }} />
+            <WalkLink action={{ label: PAGE_WORDS.recordTake(TAKE_SHOWN + 1), onClick: () => undefined }} />
+          </>
+        )}
       </div>
     </main>
   );
