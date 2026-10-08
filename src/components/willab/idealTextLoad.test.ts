@@ -17,6 +17,7 @@ import {
   type SingleIdealText,
 } from "./idealTextLoad";
 import { withSuggestionStatus } from "@/lib/willab/idealTextDecisions";
+import { collectMediaLinks, freshestByKey, mediaKey } from "@/lib/media/mediaRefresh";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
@@ -246,6 +247,27 @@ describe("F2: a refetch keeps the bars until the new enrichment replaces them", 
     expect(carryKeyMoments(prev, next, {}, true).text).toBe("t2");
     expect(carryKeyMoments(prev, next, { feedback: "ready" }, true)).toBe(next);
     expect(carryKeyMoments(prev, next, {}, false)).toBe(next);
+  });
+
+  it("a refresh for fresh links: the answered layers bring the new links, never the kept ones", () => {
+    // Founder 2026-10-08: a player whose signed link died asks for the
+    // document again (a same-Take refetch, so it carries).
+    const OLD = "https://media.example/take.webm?sig=old";
+    const NEW = "https://media.example/take.webm?sig=new";
+    const withLink = (ref: string) => ({ id: "s1", status: "pending", snippetAudioRef: ref }) as unknown as DocumentSuggestion;
+    const before = sdFromResult(core({ suggestions: [withLink(OLD)] }));
+    const landed = sdFromResult(core({ suggestions: [withLink(NEW)] }));
+    expect(mayCarry(false, "take-1", "take-1")).toBe(true);
+    const next = carryShownFeedback(before, landed, { document_layers: "ready" }, true);
+    expect(next.suggestions?.[0].snippetAudioRef).toBe(NEW);
+    // Until the layers answer the row on screen is kept, and its player
+    // resolves its link by path to the freshest one the page holds.
+    const kept = carryShownFeedback(before, landed, {}, true);
+    expect(kept.suggestions?.[0].snippetAudioRef).toBe(OLD);
+    const seen = new Map<string, number>();
+    freshestByKey(collectMediaLinks(before), seen);
+    const links = freshestByKey(collectMediaLinks([kept, { coachMessage: { videoUrl: NEW } }]), seen);
+    expect(links.get(mediaKey(OLD))).toBe(NEW);
   });
 
   it("carries only a refetch of the same Take", () => {

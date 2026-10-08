@@ -4,6 +4,7 @@ import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
@@ -157,6 +158,16 @@ export default function IdealTextOverlay({
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   const [refetchNonce, setRefetchNonce] = useState(0);
+  /* FRESH LINKS FOR THE PLAYERS (founder 2026-10-08). The clip and video
+     links are signed for hours; a player whose link died, or a tab back
+     after more than 5 h, asks for the document again through the refetch
+     below (a refetch in place, F2), and the players take the fresh links
+     by their path, frozen sheets included (lib/media/mediaRefresh). */
+  const {
+    nonce: mediaNonce,
+    refresh: refreshMedia,
+    settle: mediaSettled,
+  } = useMediaRefresher();
   /* FEEDBACK ARRIVES AFTER THE WORDS, and the deck must be told so (founder
      2026-09-17). The core read paints the document; feedback comes in a
      SECOND request, and a third while the server settles it. Until those
@@ -404,11 +415,11 @@ export default function IdealTextOverlay({
       } else {
         setStatus(r.kind);
       }
-    });
+    }).finally(mediaSettled);
     return () => {
       active = false;
     };
-  }, [arcId, analysisPending, refetchNonce, refreshVariants]);
+  }, [arcId, analysisPending, refetchNonce, refreshVariants, mediaNonce, mediaSettled]);
 
   const displayText = notes ?? ideal?.text ?? "";
   // The page's helper words by part id for Presentation Mode and export,
@@ -918,8 +929,10 @@ export default function IdealTextOverlay({
   // the bottom no longer waits on any fact ("See next steps" is gone,
   // Q-B10 A), so the page draws its own status as it is.
   const shownStatus = status;
+  const mediaPayload = useMemo(() => [sd, ideal], [sd, ideal]);
 
   return (
+    <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
     <div
       data-ideal-text-wheel-owner
       {...aiGeneratedAttrs("ideal-text")}
@@ -1187,6 +1200,7 @@ export default function IdealTextOverlay({
         onClose={() => setTimelineOpen(false)}
       />
     </div>
+    </MediaRefreshProvider>
   );
 }
 

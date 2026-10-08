@@ -31,9 +31,12 @@
  * cannot disagree.
  *
  * The literal below is the FALLBACK, not the version: it is what an
- * unversioned registration gets, and it behaves exactly as v6 did. */
+ * unversioned registration gets, and it behaves exactly as v6 did.
+ *
+ * v8 (2026-10-08): media is never intercepted (see the fetch handler), so an
+ * unversioned worker that may have cached a clip drops it. */
 const BUILD_ID = new URL(self.location.href).searchParams.get("v");
-const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v7";
+const CACHE_NAME = BUILD_ID ? `willab-shell-${BUILD_ID}` : "willab-shell-v8";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -150,6 +153,14 @@ self.addEventListener("activate", (event) => {
    worker has not deleted yet. That is what makes a cache-name bump take
    effect immediately instead of eventually.
    ──────────────────────────────────────────────────────────────────────── */
+
+/** A clip or a video, or any byte-range read: the browser's, never ours. */
+function isMediaRequest(request) {
+  const destination = request.destination;
+  if (destination === "audio" || destination === "video" || destination === "track") return true;
+  const headers = request.headers;
+  return Boolean(headers && typeof headers.has === "function" && headers.has("range"));
+}
 
 /** Content-addressed build output: the hash in the filename IS the version. */
 function isImmutableBuildAsset(url) {
@@ -268,6 +279,14 @@ self.addEventListener("fetch", (event) => {
   // nothing for a service worker to add to an API call it is forbidden to
   // cache; being in the path can only lose information.
   if (url.pathname.startsWith("/api/")) return;
+
+  // (3) Media: never intercepted (founder 2026-10-08, "make sure the
+  // playbacks work all across the app"). An <audio>/<video> asks for byte
+  // ranges and gets 206s; a cached whole file, a stale-while-revalidate
+  // answer to a Range request, or a respondWith over an expired signed link
+  // breaks seeking and playback, and hides the error the player needs to ask
+  // for a fresh link. The browser handles media itself.
+  if (isMediaRequest(request)) return;
 
   if (request.mode === "navigate") {
     event.respondWith(navigateNetworkFirst(event));

@@ -13,6 +13,8 @@ import { useEffect, useRef, useState } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
 import CoachVideoRecorder from "../CoachVideoRecorder";
+import NativeVideo from "../NativeVideo";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import { newUploadKey, videoProvenance } from "@/services/api/coachVideoMeta";
 import { fetchTakeWord, saveTakeWord } from "@/services/api/coachWalk";
@@ -43,6 +45,10 @@ export default function CoachTakeWordSheet({
 }) {
   const [text, setText] = useState("");
   const [videoRef, setVideoRef] = useState<string | null>(null);
+  /** What the player plays: the re-signed link the word GET serves (the
+   *  stored `videoRef` is what is saved, not a playable link), or the file
+   *  just recorded or picked, played from the device. */
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,7 @@ export default function CoachTakeWordSheet({
       if (cancelled) return;
       if (word?.text) setText(word.text);
       if (word?.videoRef) setVideoRef(word.videoRef);
+      if (word?.videoUrl) setVideoUrl(word.videoUrl);
       if (word?.text) return;
       // Phase 7 (C5-a): a draft from the transcript, only once every moment
       // is judged and only while the backend serves it; the coach edits
@@ -80,6 +87,13 @@ export default function CoachTakeWordSheet({
       return;
     }
     setVideoRef(ref);
+    setVideoUrl(localUrl(file));
+  }
+
+  /** A fresh signed link for the saved video (MediaRefreshProvider). */
+  async function refreshVideo(): Promise<void> {
+    const word = await fetchTakeWord(sessionId);
+    if (word?.videoUrl) setVideoUrl(word.videoUrl);
   }
 
   async function send(): Promise<void> {
@@ -143,7 +157,9 @@ export default function CoachTakeWordSheet({
           className="min-h-[120px] w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-[15px] leading-[1.5] text-foreground outline-none focus:border-foreground/40"
         />
         {videoRef ? (
-          <video src={videoRef} controls playsInline className="w-full rounded-xl bg-foreground" />
+          <MediaRefreshProvider refresh={refreshVideo} payload={videoUrl}>
+            <NativeVideo src={videoUrl ?? videoRef} className="w-full rounded-xl bg-foreground" />
+          </MediaRefreshProvider>
         ) : uploading ? (
           <p className="text-[13px] text-muted-foreground">{COPY.videoUploading}</p>
         ) : (
@@ -160,4 +176,11 @@ export default function CoachTakeWordSheet({
       </div>
     </SheetFrame>
   );
+}
+
+/** The file just recorded or picked, playable from the device. */
+function localUrl(file: File): string | null {
+  return typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+    ? URL.createObjectURL(file)
+    : null;
 }

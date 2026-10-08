@@ -148,6 +148,7 @@ export default async function JournalPostPage({
             <div className={COVER_BOX}>
               <video
                 controls
+                playsInline
                 preload="metadata"
                 poster={post.coverImageUrl ?? undefined}
                 // contain, not cover: cropping a photo is fine, cropping the

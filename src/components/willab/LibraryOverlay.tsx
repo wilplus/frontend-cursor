@@ -20,6 +20,7 @@ import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { SlideRender } from "./pdfSlides";
 import { SlidePlaceholder } from "./SlideTake";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -304,6 +305,15 @@ export default function LibraryOverlay({
     });
   };
 
+  /* Fresh signed links for the decks' players (an error, a tab back after
+     hours): the decks' own read again. An open deck keeps its frozen copy;
+     its players find the fresh link by the link's path. */
+  const refreshMedia = () =>
+    fetchStrengths().then((v) => {
+      setPresentations(v.presentations);
+      setGeneral(v.general);
+    });
+
   /* ── slide navigation ── */
   const openDeck = (deck: Deck, topic: string, takeLabel: string) =>
     setNav({ level: "L3", deck, topic, takeLabel });
@@ -314,6 +324,7 @@ export default function LibraryOverlay({
   };
 
   return (
+    <MediaRefreshProvider refresh={refreshMedia} payload={presentations.length || general.length ? { presentations, general } : null}>
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
       {/* header */}
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
@@ -456,6 +467,7 @@ export default function LibraryOverlay({
         <IdealTextOverlay arcId={idealArcId} onClose={() => setIdealArcId(null)} />
       ) : null}
     </div>
+    </MediaRefreshProvider>
   );
 }
 

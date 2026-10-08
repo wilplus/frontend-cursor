@@ -173,7 +173,24 @@ export async function draftMomentLine(
 
 export type AuditAnswer = "yes" | "no" | "cant_tell";
 
-export interface ErrorAuditItem {
+/** Where the clip sits inside its audio file, when the backend says
+ *  (fix/playback-serving); null → play the whole file, as before. */
+export interface ClipWindow {
+  startOffsetMs?: number | null;
+  durationMs?: number | null;
+}
+
+/** Only the keys the backend sent: an older payload maps as it always did. */
+function clipWindow(r: Raw): ClipWindow {
+  const start = r.start_offset_ms;
+  const length = r.duration_ms;
+  const out: ClipWindow = {};
+  if (typeof start === "number" && Number.isFinite(start) && start >= 0) out.startOffsetMs = start;
+  if (typeof length === "number" && Number.isFinite(length) && length > 0) out.durationMs = length;
+  return out;
+}
+
+export interface ErrorAuditItem extends ClipWindow {
   auditId: string;
   clipId: string;
   audioRef: string | null;
@@ -204,6 +221,7 @@ export function mapErrorAuditQueue(raw: unknown): ErrorAuditQueue {
           auditId: str(i.audit_id) ?? "",
           clipId: str(i.clip_id) ?? "",
           audioRef: str(i.audio_ref),
+          ...clipWindow(i),
           errorId: str(i.error_id) ?? "",
           label: str(i.label) ?? str(i.error_id) ?? "",
           asks: str(i.asks) ?? "",
@@ -229,7 +247,7 @@ export async function answerErrorAudit(
 
 /* ── 8 · the blind block pick ────────────────────────────────────────── */
 
-export interface BlockPickClip {
+export interface BlockPickClip extends ClipWindow {
   clipId: string;
   letter: string;
   audioRef: string | null;
@@ -257,7 +275,9 @@ export function mapBlockPickQueue(raw: unknown): BlockPickQueue {
           clips: Array.isArray(i.clips)
             ? i.clips
                 .filter((c): c is Raw => !!c && typeof c === "object")
-                .map((c) => ({ clipId: str(c.clip_id) ?? "", letter: str(c.letter) ?? "", audioRef: str(c.audio_ref) }))
+                .map((c) => ({
+                  clipId: str(c.clip_id) ?? "", letter: str(c.letter) ?? "", audioRef: str(c.audio_ref), ...clipWindow(c),
+                }))
                 .filter((c) => c.clipId)
             : [],
           n: typeof i.n === "number" ? i.n : 0,

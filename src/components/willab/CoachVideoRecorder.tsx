@@ -175,6 +175,7 @@ export default function CoachVideoRecorder({
         src={state.url}
         controls
         playsInline
+        preload="metadata"
         className="w-full rounded-xl bg-black"
       />
       {tooBig ? (

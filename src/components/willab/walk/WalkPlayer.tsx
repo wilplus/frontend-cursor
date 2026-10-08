@@ -20,6 +20,7 @@ export default function WalkPlayer({
   durationMs,
   label,
   words,
+  onError,
 }: {
   seed: string;
   src: string | null;
@@ -28,6 +29,9 @@ export default function WalkPlayer({
   /** The accessible name of the clip. */
   label: string;
   words?: ReactNode;
+  /** Told when the clip errors; a fresh link is asked of the host's
+   *  MediaRefreshProvider on its own. */
+  onError?: () => void;
 }) {
   return (
     <div
@@ -47,6 +51,7 @@ export default function WalkPlayer({
         size="compact"
         tone="ink"
         label={label}
+        onError={onError}
       />
     </div>
   );
