@@ -118,6 +118,14 @@ function answersEntry(takeSessionId: string | null) {
     ?? remember(answersByTake, takeSessionId, () => fetchOwnerAnswers(takeSessionId));
 }
 
+/** The speaker's own answers on a Take, from the same read the sheets use
+ *  (with any answer just given standing in, noteOwnAnswer): the replayed
+ *  walk draws them pressed (Q-IT643b A). Empty with no Take. */
+export function ownAnswersOf(takeSessionId: string | null): Promise<OwnerAnswer[]> {
+  const entry = answersEntry(takeSessionId);
+  return entry ? entry.promise : Promise.resolve([]);
+}
+
 /** What the sheet can show right now, or null while a read is in flight. */
 export function readySheetData(
   arcId: string | null,

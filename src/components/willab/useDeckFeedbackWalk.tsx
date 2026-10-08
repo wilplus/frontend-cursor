@@ -10,7 +10,8 @@ import FeedbackWalk, {
 } from "./walk/FeedbackWalk";
 import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
-import { noteOwnAnswer } from "./paragraphSheetData";
+import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
+import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import {
   acceptRewriteBehind,
@@ -20,9 +21,10 @@ import {
   type SaveBehind,
 } from "./saveBehind";
 import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
-import { answerChanged, reopensJudgement } from "@/lib/willab/changeJudgement";
+import { answerChanged, latestAnswerOf, reopensJudgement } from "@/lib/willab/changeJudgement";
 import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
+  buildFeedbackReplay,
   buildFeedbackWalk,
   walkStart,
   walkStepForPart,
@@ -132,32 +134,67 @@ export function deckWalkItems(
     const partId = chunk.part.id;
     if (seen.has(partId) || !waiting(chunk)) continue;
     seen.add(partId);
-    const slide = slideOf(groups, partId);
-    for (const item of pendingOf(chunk)) {
-      const praise = item.openCard === "praise" || item.feedbackFamily === "great_formulation";
-      const exercise = exerciseOf(item);
-      out.push({
-        start: item.start,
-        slide: slide ?? 0,
-        blockId: item.blockId ?? null,
-        openCard: item.openCard ?? null,
-        feedbackFamily: item.feedbackFamily ?? null,
-        hasExercise: exercise !== null,
-        partId,
-        paragraphText: chunk.part.text,
-        slideLabel: slideLabel(partId),
-        praiseWords: praise ? praiseWordsOf(item) : null,
-        clip: item.snippetAudioRef
-          ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
-          : null,
-        rewrite: rewriteOf(item),
-        item: suggestionSource(item) ? item : null,
-        exercise,
-        judge: reopensJudgement(item) ? item : null,
-      });
+    const slide = slideOf(groups, partId) ?? 0;
+    for (const item of pendingOf(chunk)) out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
+  }
+  return out;
+}
+
+/** The Take's feedback once the walk is finished, as the replay reads it
+ *  (Q-IT643b A): every item on every paragraph, waiting or answered, in
+ *  page order. The replay keeps a judgement only where the speaker gave an
+ *  answer (buildFeedbackReplay). Pure. */
+export function deckReplayItems(
+  chunks: readonly DeckChunk[],
+  groups: readonly SlideGroup[],
+  itemsOf: (chunk: DeckChunk) => readonly DocumentSuggestion[],
+  slideLabel: (partId: string) => string | null,
+): FeedbackWalkItem<DocumentSuggestion>[] {
+  const seenParts = new Set<string>();
+  const seenItems = new Set<string>();
+  const out: FeedbackWalkItem<DocumentSuggestion>[] = [];
+  for (const chunk of chunks) {
+    const partId = chunk.part.id;
+    if (seenParts.has(partId)) continue;
+    seenParts.add(partId);
+    const slide = slideOf(groups, partId) ?? 0;
+    for (const item of itemsOf(chunk)) {
+      if (seenItems.has(item.id)) continue;
+      seenItems.add(item.id);
+      out.push(walkItemOf(item, chunk, slide, slideLabel(partId)));
     }
   }
   return out;
+}
+
+/** One served item as the walk reads it. Pure. */
+function walkItemOf(
+  item: DocumentSuggestion,
+  chunk: DeckChunk,
+  slide: number,
+  label: string | null,
+): FeedbackWalkItem<DocumentSuggestion> {
+  const praise = item.openCard === "praise" || item.feedbackFamily === "great_formulation";
+  const exercise = exerciseOf(item);
+  return {
+    start: item.start,
+    slide,
+    blockId: item.blockId ?? null,
+    openCard: item.openCard ?? null,
+    feedbackFamily: item.feedbackFamily ?? null,
+    hasExercise: exercise !== null,
+    partId: chunk.part.id,
+    paragraphText: chunk.part.text,
+    slideLabel: label,
+    praiseWords: praise ? praiseWordsOf(item) : null,
+    clip: item.snippetAudioRef
+      ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
+      : null,
+    rewrite: rewriteOf(item),
+    item: suggestionSource(item) ? item : null,
+    exercise,
+    judge: reopensJudgement(item) ? item : null,
+  };
 }
 
 /** A served rewrite the walk can draw and decide: a replace with words to
@@ -357,8 +394,26 @@ export function useDeckFeedbackWalk(args: {
   onJudged?: (s: DocumentSuggestion, decided: "approved" | "dismissed") => void;
   /** The walk ran out: the deck's end card. */
   onEnd: () => void;
-}): { review: () => boolean; tapPart: (partId: string, open: boolean) => boolean; element: ReactNode } {
+  /** The answered items on a paragraph (the replay reads them with the
+   *  waiting ones, Q-IT643b A). */
+  answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
+  /** The helper words saved on a paragraph, drawn pressed in the replay. */
+  helperWordsOf?: (partId: string) => string | null;
+  /** Nothing of this Take waits on the speaker: the walk is finished, and
+   *  "Review feedback" under "Record Take N" plays it again. */
+  finished?: boolean;
+}): {
+  review: () => boolean;
+  tapPart: (partId: string, open: boolean) => boolean;
+  /** Plays the finished walk again (Q-IT643b A). False when there is
+   *  nothing to play. */
+  replay: () => boolean;
+  /** The finished walk has a screen to play again. */
+  canReplay: boolean;
+  element: ReactNode;
+} {
   const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
+  const { answeredOf, helperWordsOf, finished = false } = args;
   // Read after mount: the address is not there on the server render.
   const [on, setOn] = useState(false);
   useEffect(() => setOn(feedbackWalkOn()), []);
@@ -385,6 +440,41 @@ export function useDeckFeedbackWalk(args: {
   );
   const share = useMemo(() => (take ? shareIO(take) : null), [take]);
 
+  /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
+     Take's moments, answered or not, with the speaker's own answers (the
+     sheets' read) and the helper words as saved. Read only while the switch
+     is on and nothing waits. */
+  const replayable = on && finished && answeredOf !== undefined;
+  const [ownAnswers, setOwnAnswers] = useState<readonly OwnerAnswer[]>([]);
+  useEffect(() => {
+    if (!replayable || !pageTake) return;
+    let live = true;
+    void ownAnswersOf(pageTake).then((answers) => {
+      if (live) setOwnAnswers(answers);
+    });
+    return () => {
+      live = false;
+    };
+  }, [replayable, pageTake]);
+  const buildReplay = useCallback(
+    (answers: readonly OwnerAnswer[]) =>
+      buildFeedbackReplay({
+        items:
+          replayable && answeredOf
+            ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
+            : [],
+        coachNote: replayable && coachMessage !== null,
+        practiceOn,
+        answerOf: (item) => latestAnswerOf(item.id, answers),
+        helperWordsOf: (partId) => helperWordsOf?.(partId) ?? null,
+      }),
+    [replayable, answeredOf, chunks, groups, pendingOf, slideLabel, coachMessage, practiceOn, helperWordsOf],
+  );
+  const canReplay = useMemo(() => walkStart(buildReplay(ownAnswers)) !== null, [buildReplay, ownAnswers]);
+  // The model the walk is opened on: the replay's while it plays.
+  const [replaying, setReplaying] = useState<typeof model | null>(null);
+  const walkModel = replaying ?? model;
+
   const seqRef = useRef(0);
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   // What this opening of the walk already told the server (D-FW-19).
@@ -401,6 +491,7 @@ export function useDeckFeedbackWalk(args: {
   coachSeenRef.current = coachSeen;
   const review = useCallback((): boolean => {
     if (!on) return false;
+    setReplaying(null);
     const opened = openAt(walkStart(model));
     if (opened && model.plan.some((step) => step.key === "coachnote")) coachSeenRef.current();
     return opened;
@@ -409,10 +500,24 @@ export function useDeckFeedbackWalk(args: {
   const tapPart = useCallback(
     (partId: string, open: boolean): boolean => {
       if (!on || !open) return false;
+      setReplaying(null);
       return openAt(walkStepForPart(model, partId));
     },
     [on, model, openAt],
   );
+
+  const replay = useCallback((): boolean => {
+    if (!canReplay) return false;
+    void ownAnswersOf(pageTake).then((answers) => {
+      const again = buildReplay(answers);
+      const at = walkStart(again);
+      if (at === null) return;
+      setOwnAnswers(answers);
+      setReplaying(again);
+      openAt(at);
+    });
+    return true;
+  }, [canReplay, pageTake, buildReplay, openAt]);
 
   const live = useRef(args);
   live.current = args;
@@ -466,7 +571,7 @@ export function useDeckFeedbackWalk(args: {
   const onShown = useCallback(
     (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
-      const parts = moment ? (model.partsOf[moment.index] ?? []) : [];
+      const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
       for (const shown of coachShownOn(step, moment, coach, openOn)) {
         const key = shownKey(shown);
@@ -475,14 +580,14 @@ export function useDeckFeedbackWalk(args: {
         void markCoachFeedbackSeen(shown);
       }
     },
-    [model],
+    [walkModel],
   );
 
   const element = useMemo(
     () =>
       on ? (
         <FeedbackWalk
-          model={model}
+          model={walkModel}
           request={request}
           coachNote={coachMessage}
           firstTake={firstTake}
@@ -502,7 +607,7 @@ export function useDeckFeedbackWalk(args: {
       ) : null,
     [
       on,
-      model,
+      walkModel,
       request,
       coachMessage,
       firstTake,
@@ -520,5 +625,34 @@ export function useDeckFeedbackWalk(args: {
     ],
   );
 
-  return useMemo(() => ({ review, tapPart, element }), [review, tapPart, element]);
+  return useMemo(
+    () => ({ review, tapPart, replay, canReplay, element }),
+    [review, tapPart, replay, canReplay, element],
+  );
+}
+
+/** Nothing of the Take waits on the speaker: no open moment and no unseen
+ *  word from the coach. The walk is finished (Q-IT643b A). Pure. */
+export function walkFinished(ready: boolean, firstWaiting: number, coachWordUnseen: boolean): boolean {
+  return ready && firstWaiting < 0 && !coachWordUnseen;
+}
+
+/** The host's "Review feedback" link under "Record Take N" (Q-IT643b A):
+ *  the host hears whether the finished walk can play again, and each bump
+ *  of its request plays it. */
+export function useWalkReplayRequest(
+  walk: { replay: () => boolean; canReplay: boolean },
+  request: number | undefined,
+  onReady: ((ready: boolean) => void) | undefined,
+): void {
+  const { canReplay, replay } = walk;
+  useEffect(() => {
+    onReady?.(canReplay);
+  }, [canReplay, onReady]);
+  const seenRef = useRef(request);
+  useEffect(() => {
+    if (request === seenRef.current) return;
+    seenRef.current = request;
+    replay();
+  }, [request, replay]);
 }

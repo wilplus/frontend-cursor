@@ -311,6 +311,11 @@ export default function IdealTextOverlay({
      still waits; the bottom button bumps the request that opens the walk. */
   const [reviewWaiting, setReviewWaiting] = useState(false);
   const [reviewRequest, setReviewRequest] = useState(0);
+  /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
+     finished walk can be played again; the link under "Record Take N" bumps
+     the request that plays it. */
+  const [replayReady, setReplayReady] = useState(false);
+  const [replayRequest, setReplayRequest] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -1025,6 +1030,7 @@ export default function IdealTextOverlay({
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
+        onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={() => onReadAloud(sd.version)}
       />
     );
@@ -1098,6 +1104,8 @@ export default function IdealTextOverlay({
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
+            replayRequest={replayRequest}
+            onReplayReady={setReplayReady}
             renderNextStep={() => nextStep(false, true)}
             openFeedback={initialMode === "feedback"}
             chrome="stage"

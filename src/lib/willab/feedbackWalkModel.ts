@@ -21,6 +21,8 @@
 /* -------------------------------------------------------------------------- */
 
 import { clearerPieces, type ClearerPieces } from "./clearerPieces";
+import { phraseSelection, type PhraseSelection } from "./phraseTokens";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import {
   buildWalkPlan,
   stepForMoment,
@@ -129,6 +131,16 @@ export type FeedbackWalkModel<R = unknown> = {
   moments: FeedbackWalkMoment<R>[];
   /** The paragraphs each moment touches, by moment index. */
   partsOf: string[][];
+  /** The finished walk played again (Q-IT643b A): the answers as given,
+   *  drawn pressed. Absent on the live walk. */
+  replay?: FeedbackWalkReplay | null;
+};
+
+/** What the replayed walk draws as given, by moment index: the helper words
+ *  saved on the moment's paragraph, and the speaker's own judgement (L3). */
+export type FeedbackWalkReplay = {
+  picks: Readonly<Record<number, PhraseSelection>>;
+  answers: Readonly<Record<number, ConfidenceRatingValue>>;
 };
 
 /** The screens this phase draws (D-FW-14 to D-FW-18, sharing D-FW-20).
@@ -335,4 +347,47 @@ export function unansweredJudgements(
  *  gone back to, as in the prototype). */
 export function firstJudgement(plan: readonly WalkStep[], at: number): boolean {
   return plan[at]?.key === "judge" && plan[at - 1]?.key !== "judge";
+}
+
+/** The screens of the replayed walk whose taps would write: drawn with the
+ *  answer as given, and a tap moves on instead (helper words, a clearer
+ *  version's decision, an exercise's practise). */
+const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["helpers", "clearer", "exVideo"]);
+
+/** THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A; the walk
+ *  prototype's "Review feedback" under "Record Take N"). Built from every
+ *  moment of the Take, answered or not, in the walk's own order: the
+ *  coach's note, each praise with its helper words as saved, each clearer
+ *  version and exercise, "Judgement time!" and a judgement per moment the
+ *  speaker answered, drawn pressed. A judgement may still be changed (‹ and
+ *  D-FW-9: saved beside the first); nothing else writes, and no practise is
+ *  recorded (a practise screen records as it arrives, so none is planned).
+ *  A moment the speaker never answered has no judgement here. Pure. */
+export function buildFeedbackReplay<R = unknown>(input: {
+  items: readonly FeedbackWalkItem<R>[];
+  coachNote: boolean;
+  practiceOn: boolean;
+  /** The speaker's latest answer on a Confident Voice item; null: none. */
+  answerOf: (judge: R) => ConfidenceRatingValue | null;
+  /** The helper words saved on a paragraph; null: none. */
+  helperWordsOf: (partId: string) => string | null;
+}): FeedbackWalkModel<R> {
+  const items = input.items.map((i) =>
+    i.judge != null && input.answerOf(i.judge) === null ? { ...i, judge: null } : i,
+  );
+  const base = buildFeedbackWalk({ items, coachNote: input.coachNote, practiceOn: input.practiceOn, guest: false });
+  const plan = withoutLoneIntro(
+    base.plan
+      .filter((step) => step.key !== "practise")
+      .map((step) => (REPLAY_AS_GIVEN.has(step.key) ? { ...step, replay: true } : step)),
+  );
+  const picks: Record<number, PhraseSelection> = {};
+  const answers: Record<number, ConfidenceRatingValue> = {};
+  for (const moment of base.moments) {
+    const saved = phraseSelection(moment.paragraphText, input.helperWordsOf(moment.partId));
+    if (saved) picks[moment.index] = saved;
+    const answer = moment.judgeItem != null ? input.answerOf(moment.judgeItem) : null;
+    if (answer) answers[moment.index] = answer;
+  }
+  return { ...base, plan, replay: { picks, answers } };
 }

@@ -70,7 +70,10 @@ export type WalkJudging = {
   closeJournal: () => void;
   answer: (step: WalkStep, moment: FeedbackWalkMoment<unknown>, value: ConfidenceRatingValue) => void;
   skip: (step: WalkStep) => void;
-  reset: () => void;
+  /** A new opening: the answers start empty, or as given when the finished
+   *  walk is played again (Q-IT643b A), drawn pressed and changed only as ‹
+   *  changes one (D-FW-9). */
+  reset: (given?: Readonly<Record<number, ConfidenceRatingValue>>) => void;
 };
 
 export function useWalkJudging<R>(args: {
@@ -127,8 +130,9 @@ export function useWalkJudging<R>(args: {
     land(plan, afterJudging(plan), "forward");
   }, []);
 
-  const reset = useCallback(() => {
-    setAnswers({});
+  const reset = useCallback((given: Readonly<Record<number, ConfidenceRatingValue>> = {}) => {
+    answersRef.current = { ...given };
+    setAnswers({ ...given });
     setToast(null);
     setJournalOpen(false);
   }, []);

@@ -13,10 +13,13 @@ import { useWalkJournalPost } from "@/components/willab/useWalkJournalPost";
 import GuestSignUpDialog from "@/components/willab/GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 import {
+  buildFeedbackReplay,
   buildFeedbackWalk,
   walkStart,
   type FeedbackWalkItem,
 } from "@/lib/willab/feedbackWalkModel";
+import { quoteSpan } from "@/lib/willab/phraseTokens";
+import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import PageStandIn from "./pageStandIn";
 import type { ShareIO } from "@/lib/willab/walkShare";
 import {
@@ -63,6 +66,12 @@ import {
 /*  hidden unless the browser answers the route, as the e2e spec and the      */
 /*  screenshot manifest do.                                                   */
 /* -------------------------------------------------------------------------- */
+
+/*  The finished walk played again (Q-IT643b A): once the walk has reached    */
+/*  its end card, the page's bottom is the product's own (IdealTextActions)  */
+/*  and its "Review feedback" link plays the walk again from what this        */
+/*  harness noted: the helper words saved, the judgements given.             */
+/*  &replay=1 starts with the walk already finished on SAMPLE answers.       */
 
 /** No network, no file: the dark box with its play button. */
 const NO_VIDEO = "data:video/mp4;base64,";
@@ -174,14 +183,36 @@ function standInShare(record: (line: string) => void): ShareIO {
   };
 }
 
+/** SAMPLE answers for &replay=1: a walk already finished. */
+const FINISHED_JUDGED = ["cv-0:yes", "cv-1:in_between", "cv-2:no", "cv-3:yes"];
+function finishedSaved(): FeedbackWalkHelperWords[] {
+  const span = quoteSpan(PARAGRAPHS[0], "our growth doubled,");
+  return span ? [{ partId: "part-0", span, paragraphText: PARAGRAPHS[0] }] : [];
+}
+
+/** The latest answer the harness noted on an item ("cv-0:no<yes" is a
+ *  change); a Skip is no answer. */
+function latestAnswer(judged: readonly string[], item: string): ConfidenceRatingValue | null {
+  for (let i = judged.length - 1; i >= 0; i -= 1) {
+    const [who, rest] = judged[i].split(":");
+    if (who !== item) continue;
+    const answer = rest.split("<")[0];
+    return answer === "skipped" ? null : (answer as ConfidenceRatingValue);
+  }
+  return null;
+}
+
 export default function LiveWalk({
   guest,
   practiceOn,
   exerciseVideo = true,
+  finished: startFinished = false,
 }: {
   guest: boolean;
   practiceOn: boolean;
   exerciseVideo?: boolean;
+  /** Start with the walk already finished (&replay=1). */
+  finished?: boolean;
 }) {
   const audioSrc = useToneSrc();
   const model = useMemo(
@@ -198,12 +229,40 @@ export default function LiveWalk({
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   const [end, setEnd] = useState(false);
   const [signUp, setSignUp] = useState(false);
-  const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>([]);
+  const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>(() => (startFinished ? finishedSaved() : []));
   const [decided, setDecided] = useState<string[]>([]);
   const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
-  const [judged, setJudged] = useState<string[]>([]);
+  const [judged, setJudged] = useState<string[]>(() => (startFinished ? FINISHED_JUDGED : []));
   const [shared, setShared] = useState<string[]>([]);
   const share = useMemo(() => standInShare((line) => setShared((list) => [...list, line])), []);
+  const [finished, setFinished] = useState(startFinished);
+  const [replaying, setReplaying] = useState(false);
+  const replayModel = useMemo(
+    () =>
+      buildFeedbackReplay({
+        items: audioSrc && finished ? liveItems(audioSrc, exerciseVideo) : [],
+        coachNote: true,
+        practiceOn,
+        answerOf: (item) => latestAnswer(judged, item),
+        helperWordsOf: (partId) => [...saved].reverse().find((s) => s.partId === partId)?.span.text ?? null,
+      }),
+    [audioSrc, finished, exerciseVideo, practiceOn, judged, saved],
+  );
+  const reviewAgain = useCallback(() => {
+    const at = walkStart(replayModel);
+    if (at === null) return;
+    setReplaying(true);
+    setEnd(false);
+    setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, at }));
+  }, [replayModel]);
+  const pageAnswers = useMemo(() => {
+    const out: Record<number, ConfidenceRatingValue> = {};
+    MOMENTS.forEach((m) => {
+      const answer = latestAnswer(judged, `cv-${m.index}`);
+      if (answer) out[m.index] = answer;
+    });
+    return out;
+  }, [judged]);
   const journal = useWalkJournalPost(true);
   const practise = useMemo(
     () =>
@@ -218,14 +277,15 @@ export default function LiveWalk({
   const review = useCallback(() => {
     const at = walkStart(model);
     if (at === null) return;
+    setReplaying(false);
     setEnd(false);
     setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, at }));
   }, [model]);
   // Opens by itself here only, so a picture needs no tap; the product opens
   // it on "Review feedback" alone (journey question 1).
   useEffect(() => {
-    if (audioSrc) review();
-  }, [audioSrc, review]);
+    if (audioSrc && !startFinished) review();
+  }, [audioSrc, review, startFinished]);
 
   return (
     <div
@@ -236,9 +296,13 @@ export default function LiveWalk({
       data-walk-judged={judged.join("|")}
       data-walk-shared={shared.join("|")}
     >
-      <PageStandIn answers={{}} onReview={review} />
+      <PageStandIn
+        answers={finished ? pageAnswers : {}}
+        onReview={review}
+        onReviewAgain={finished && walkStart(replayModel) !== null ? reviewAgain : null}
+      />
       <FeedbackWalk
-        model={model}
+        model={replaying ? replayModel : model}
         request={request}
         coachNote={{ text: COACH_NOTE, videoUrl: NO_VIDEO, takeIndex: TAKE_SHOWN }}
         firstTake={false}
@@ -253,7 +317,10 @@ export default function LiveWalk({
         onSkipJudging={(items) => setJudged((list) => [...list, ...items.map((item) => `${item}:skipped`)])}
         journal={journal}
         share={share}
-        onEnd={() => setEnd(true)}
+        onEnd={() => {
+          setEnd(true);
+          setFinished(true);
+        }}
       />
       {end ? (
         <WalkEndSheet

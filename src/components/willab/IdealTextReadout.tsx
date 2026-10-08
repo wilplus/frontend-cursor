@@ -179,6 +179,11 @@ export default function IdealTextReadout({
      still waits; the bottom button bumps the request that opens the walk. */
   const [reviewWaiting, setReviewWaiting] = useState(false);
   const [reviewRequest, setReviewRequest] = useState(0);
+  /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
+     finished walk can be played again; the link under "Record Take N" bumps
+     the request that plays it. */
+  const [replayReady, setReplayReady] = useState(false);
+  const [replayRequest, setReplayRequest] = useState(0);
   const firedRef = useRef(false);
   // #214 — edit persistence: armed once the SD GET confirms the contract and
   // hands us the current version. Until then (flag OFF / guest) edits are
@@ -1012,6 +1017,7 @@ export default function IdealTextReadout({
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
+        onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={gate(onReRead, undefined)}
       />
     );
@@ -1098,6 +1104,8 @@ export default function IdealTextReadout({
             reviewRequest={reviewRequest}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
+            replayRequest={replayRequest}
+            onReplayReady={setReplayReady}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={text}

@@ -93,6 +93,9 @@ export type WalkStep = WalkScreen & {
   slide?: number;
   /** Shown to a guest: an answer, pick or practise opens sign-up. */
   readOnly?: boolean;
+  /** A screen of the finished walk played again (Q-IT643b A): drawn with the
+   *  answer as given, and a tap that would write moves on instead. */
+  replay?: boolean;
 };
 
 /** The machine's answer to one try (D-FW-1): praise ends the loop. */
