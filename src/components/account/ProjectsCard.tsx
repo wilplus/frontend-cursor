@@ -151,6 +151,10 @@ export default function ProjectsCard() {
             // as "no projects" (founder 2026-10-07: "your projects is
             // empty, and I do have projects!").
             <SectionLoadingState />
+          ) : projects.length === 0 ? (
+            // The signed empty state (Q-B15 A, D-CS-8): the h2, then the
+            // line where the list would be.
+            <p className="mt-3 text-sm text-muted-foreground">{ARCHIVE.empty}</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {projects.map((project) => (
