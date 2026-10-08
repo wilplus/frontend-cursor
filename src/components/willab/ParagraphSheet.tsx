@@ -40,6 +40,7 @@ export type PractiseMode = "card" | "accepted" | "own";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { useGuestBlock } from "./GuestSignUpDialog";
 import MomentPlayer from "./MomentPlayer";
+import WalkPlayer from "./walk/WalkPlayer";
 import CoachVideo from "./CoachVideo";
 import HelperWordsSheet from "./HelperWordsSheet";
 import { useParagraphSheetData } from "./paragraphSheetData";
@@ -164,8 +165,11 @@ const TONE_CLASS: Record<LabelTone, string> = {
   grey: "bg-muted text-muted-foreground",
 };
 
-function JudgementLabel({ judgement }: { judgement: Judgement | null }) {
-  if (!judgement) return null;
+function JudgementLabel({ judgement, walkLook }: { judgement: Judgement | null; walkLook: boolean }) {
+  // The walk's look is black, white, grey and one orange (founder lock
+  // 2026-10-06; Q-WALK-PARA A): no tinted chip there. The answer still
+  // reaches the screen and decides its buttons.
+  if (!judgement || walkLook) return null;
   const tone = judgementTone(judgement);
   return (
     <p
@@ -179,6 +183,52 @@ function JudgementLabel({ judgement }: { judgement: Judgement | null }) {
       {COPY.judgementWord[judgement]}
     </p>
   );
+}
+
+/* ---- the walk's one player (Q-WALK-PARA A) ------------------------------- */
+
+/** Inside the walk's look the paragraph's screens use the walk's single
+ *  player (founder lock 2026-10-06, "one player"; Q-WALK-PARA A), with the
+ *  same clip MomentPlayer would play. Nothing when there is no audio. */
+function WalkMomentPlayer({
+  item,
+  pager,
+  slideLabel,
+}: {
+  item: DocumentSuggestion | null;
+  pager: Pager | null;
+  slideLabel: string | null;
+}) {
+  if (!item?.snippetAudioRef) return null;
+  const label = pager
+    ? `${COPY.pagerMoment} ${pager.index + 1} ${COPY.pagerOf} ${pager.total}`
+    : (slideLabel ?? COPY.pagerMoment);
+  return (
+    <WalkPlayer
+      seed={`paragraph-${item.id}`}
+      src={item.snippetAudioRef}
+      startOffsetMs={item.startOffsetMs ?? 0}
+      durationMs={item.durationMs ?? 0}
+      label={label}
+    />
+  );
+}
+
+/** The paragraph's player: the walk's one player in the walk's look, else
+ *  today's "Play this moment". */
+function ParagraphPlayer({
+  walkLook,
+  item,
+  pager,
+  slideLabel,
+}: {
+  walkLook: boolean;
+  item: DocumentSuggestion | null;
+  pager: Pager | null;
+  slideLabel: string | null;
+}) {
+  if (walkLook) return <WalkMomentPlayer item={item} pager={pager} slideLabel={slideLabel} />;
+  return <MomentPlayer item={item} compact />;
 }
 
 /* ---- the practise card (B5) --------------------------------------------- */
@@ -981,7 +1031,7 @@ export default function ParagraphSheet({
     );
   }
 
-  const player = <MomentPlayer item={moment} compact />;
+  const player = <ParagraphPlayer walkLook={look} item={moment} pager={pager} slideLabel={slideLabel} />;
   const history = <HistoryRowView rows={rows} />;
 
   /* STATE TWO — SAVED (B8, D6): the words, History, Next, and the player on
@@ -1080,7 +1130,7 @@ export default function ParagraphSheet({
         className="flex flex-col gap-4"
       >
         {player}
-        <JudgementLabel judgement={judgement} />
+        <JudgementLabel judgement={judgement} walkLook={look} />
         <PractiseCardView card={card} onStale={onDocumentChanged} />
         {acceptFailed ? (
           <p role="alert" className="text-[14px] text-destructive">{COPY.failApply}</p>
