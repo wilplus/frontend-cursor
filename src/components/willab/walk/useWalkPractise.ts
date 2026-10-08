@@ -181,6 +181,8 @@ export function useWalkPractise<R>(args: {
   /** Upload the try, ask the machine, lay its answer in. */
   const submit = useCallback(
     async (audio: Blob, durationSec: number, from: { at: number; step: WalkStep; run: number }) => {
+      // V4 B1.4: the wait is measured from Stop, on the phone's clock.
+      const stoppedAtMs = Date.now();
       const { io: practiseIO, readLimit: limit } = live.current;
       const moment = from.step.moment ?? -1;
       const checkingAt = from.at + 1;
@@ -194,7 +196,7 @@ export function useWalkPractise<R>(args: {
         if (current()) late(checkingAt, from.step, attempt);
         return;
       }
-      const sent = await within(practiseIO.upload(practiceId, audio, durationSec), UPLOAD_LIMIT_MS);
+      const sent = await within(practiseIO.upload(practiceId, audio, durationSec, stoppedAtMs), UPLOAD_LIMIT_MS);
       if (!sent) {
         if (current()) late(checkingAt, from.step, attempt);
         return;
