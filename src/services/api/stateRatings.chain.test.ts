@@ -78,8 +78,6 @@ describe("Q2: the legacy coach card's receipt on the confidence chain", () => {
     const result = await saveStateRating(
       "snip-1",
       { state_id: "confidence", value: "yes", idempotency_key: "k-1" },
-      null,
-      null,
       { handle, exposureId: "exposure-9" },
     );
 

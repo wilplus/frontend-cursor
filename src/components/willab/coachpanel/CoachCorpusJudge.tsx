@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { JudgeScreen } from "./CoachPanelScreens";
 import type { WalkNav } from "../walk/WalkOverlay";
-import { BlindExposureBoundary } from "../CoachInlineBlindExposureBoundary";
+import { BlindExposureBoundary } from "../BlindExposureBoundary";
 import { useCorpusClip } from "@/hooks/useCorpusClip";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import { firstUnlabelledIndex, nextUnlabelledIndex } from "@/lib/willab/coachPanel";
@@ -29,24 +29,8 @@ import {
   fetchBlindConfidenceQueue, type BlindConfidenceQueue, type BlindQueuePiece,
 } from "@/services/api/trainingCorpus";
 import {
-  acknowledgeCoachInlineBlindRender, acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating,
-  type BlindRenderResult, type CoachInlineBlindReviewHandle, type ConfidenceChainBlindHandle,
+  acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating, type ConfidenceChainBlindHandle,
 } from "@/services/api/stateRatings";
-
-type BlindHandle = CoachInlineBlindReviewHandle | ConfidenceChainBlindHandle;
-
-function blindHandle(piece: BlindQueuePiece): BlindHandle | null {
-  return piece.blindReview ?? piece.mlc2BlindReview;
-}
-
-function acknowledge(
-  handle: BlindHandle,
-  request: { renderInstanceId: string; clientRenderedAt: string; idempotencyKey: string },
-): Promise<BlindRenderResult> {
-  return "blindPacketId" in handle
-    ? acknowledgeCoachInlineBlindRender(handle, request)
-    : acknowledgeConfidenceChainRender(handle, request);
-}
 
 export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onClose }: {
   importId: string;
@@ -96,7 +80,7 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
     saving.current = true;
     setError(null);
     const chain = piece.mlc2BlindReview && exposureId ? { handle: piece.mlc2BlindReview, exposureId } : null;
-    const result = await saveStateRating(piece.snippetId, body, piece.blindReview, exposureId, chain);
+    const result = await saveStateRating(piece.snippetId, body, chain);
     saving.current = false;
     if (!result.ok) {
       setError(result.error ?? COPY.judgeFail);
@@ -126,11 +110,11 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
   }
 
   return (
-    <BlindExposureBoundary<BlindHandle>
+    <BlindExposureBoundary<ConfidenceChainBlindHandle>
       key={piece.reviewActId}
-      blindReview={blindHandle(piece)}
-      acknowledge={acknowledge}
-      scope={piece.blindReview ? "coach-inline" : "coach-card"}
+      blindReview={piece.mlc2BlindReview}
+      acknowledge={acknowledgeConfidenceChainRender}
+      scope="coach-card"
       className="h-full"
     >
       {({ exposureId, error: renderError }) => (
@@ -140,12 +124,8 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
           clip={playback.clip}
           error={error ?? renderError ?? playback.error}
           attempt={attempt}
-          onAnswer={(value) => {
-            // A D5 answer needs its exact exposure; the legacy card's receipt
-            // never blocks the coach's own label (Q2).
-            if (piece.blindReview && !exposureId) return;
-            void answer(value, exposureId);
-          }}
+          // The chain's receipt never blocks the coach's own label (Q2).
+          onAnswer={(value) => void answer(value, exposureId)}
           onClose={onClose}
         />
       )}

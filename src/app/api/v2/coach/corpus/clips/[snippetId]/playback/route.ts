@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  *   → BE GET /v2/coach/corpus/clips/<snippet_id>/playback
  *
  * How the training corpus plays a queue row (backend PR #920; it replaces
- * the retired /v2/coach/mlc3/source-playback/<reference> audio stream). The
+ * the retired MLC-3 source-playback audio stream). The
  * backend answers JSON, not audio:
  *
  *   200 { snippet_id, url, start_offset_ms, duration_ms, expires_in_s }

@@ -6,10 +6,7 @@ import {
   mapLearningExposureHandles,
   type LearningExposureHandle,
 } from "@/services/api/learningExposures";
-import type {
-  CoachInlineBlindReviewHandle,
-  ConfidenceChainBlindHandle,
-} from "@/services/api/stateRatings";
+import type { ConfidenceChainBlindHandle } from "@/services/api/stateRatings";
 
 /** Browser-visible backend base, mirroring `presentationExtract`. Empty =
  *  no public URL in this env, so everything goes through the BFF proxy. */
@@ -664,8 +661,8 @@ export interface ConfidenceLabel {
 }
 
 export interface QueuePiece {
-  /** Exact review-act identity. D5 uses the canonical assignment, while the
-   * legacy path falls back to the globally unique snippet. */
+  /** Review-act identity: the globally unique snippet, which is also where
+   * the label PUT goes. */
   reviewActId: string;
   snippetId: string;
   transcript: string;
@@ -674,8 +671,6 @@ export interface QueuePiece {
   label: ConfidenceLabel | null;
   reReview: boolean;
   learningExposures: LearningExposureHandle[];
-  canonicalPosition: number | null;
-  blindReview: CoachInlineBlindReviewHandle | null;
   /** The legacy card's handle on the canonical confidence chain (Q2), only
    * while the writer state is founder_canary. Identifiers only. */
   mlc2BlindReview: ConfidenceChainBlindHandle | null;
@@ -770,39 +765,17 @@ export function mapQueuePiece(raw: unknown): QueuePiece | null {
   const r = raw as Record<string, unknown>;
   const snippetId = str(r.snippet_id);
   const transcript = str(r.transcript);
-  const blind = r.blind_review && typeof r.blind_review === "object"
-    ? r.blind_review as Record<string, unknown>
-    : null;
-  const blindReview = blind && [
-    "project_id", "review_batch_id", "review_assignment_id",
-    "blind_packet_id", "presentation_id", "acknowledgement_token",
-  ].every((key) => OPAQUE_ID.test(str(blind[key]))) &&
-    /^[0-9a-f]{64}$/.test(str(blind.visible_payload_sha256))
-    ? {
-        projectId: str(blind.project_id),
-        reviewBatchId: str(blind.review_batch_id),
-        reviewAssignmentId: str(blind.review_assignment_id),
-        blindPacketId: str(blind.blind_packet_id),
-        presentationId: str(blind.presentation_id),
-        acknowledgementToken: str(blind.acknowledgement_token),
-        visiblePayloadSha256: str(blind.visible_payload_sha256),
-      }
-    : null;
   // No id = the label PUT has nowhere to go, and no clip can be asked for.
   // Any media URL or timing a row might carry is ignored: the clip comes only
   // from the coach-only playback route, by snippet (fetchCorpusClipPlayback).
   if (!snippetId) return null;
   return {
-    reviewActId: blindReview?.reviewAssignmentId ?? snippetId,
+    reviewActId: snippetId,
     snippetId,
     transcript,
     label: pickLabel(r.label),
     reReview: r.re_review === true,
-    canonicalPosition: Number.isInteger(r.canonical_position)
-      ? Number(r.canonical_position)
-      : null,
     learningExposures: mapLearningExposureHandles(r.learning_exposures),
-    blindReview,
     mlc2BlindReview: mapConfidenceChainHandle(r.mlc2_blind_review),
   };
 }
@@ -897,8 +870,6 @@ export function blindPiece(piece: QueuePiece): BlindQueuePiece {
     label: piece.label,
     reReview: piece.reReview,
     learningExposures: piece.learningExposures,
-    canonicalPosition: piece.canonicalPosition,
-    blindReview: piece.blindReview,
     mlc2BlindReview: piece.mlc2BlindReview,
   };
 }

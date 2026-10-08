@@ -37,7 +37,7 @@ import { blindPiece, type QueuePiece } from "@/services/api/trainingCorpus";
 const IMPORT = { sessionId: "i1", arcId: null, topic: "Workshop recording", speakerLabel: null, createdAt: null,
   state: "done" as const, queueCount: null, detail: null, language: "en", setupComplete: false, labelledCount: null, archivedAt: null };
 const PIECE = (id: string): QueuePiece => ({ reviewActId: id, snippetId: id, transcript: "SECRET WORDS", label: null, reReview: false,
-  learningExposures: [], canonicalPosition: null, blindReview: null, mlc2BlindReview: null });
+  learningExposures: [], mlc2BlindReview: null });
 
 let host: HTMLDivElement;
 let root: Root;

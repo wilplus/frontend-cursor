@@ -169,7 +169,7 @@ function JudgeLive({ screen, nav, clip, onRated, onClose }: {
     if (saving.current || !body) return;
     saving.current = true;
     setError(null);
-    const result = await saveStateRating(snippetId, body, null, null, chain.current);
+    const result = await saveStateRating(snippetId, body, chain.current);
     saving.current = false;
     if (!result.ok) {
       setError(result.error ?? COPY.judgeFail);

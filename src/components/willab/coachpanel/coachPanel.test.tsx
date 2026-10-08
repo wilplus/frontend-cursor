@@ -446,7 +446,7 @@ describe("CoachPanel", () => {
     expect(fetchMomentRead).not.toHaveBeenCalled(); // held, not yet saved
     await act(async () => { vi.advanceTimersByTime(300); });
     await flush();
-    expect(saveStateRating).toHaveBeenCalledWith("s1", expect.anything(), null, null, null);
+    expect(saveStateRating).toHaveBeenCalledWith("s1", expect.anything(), null);
     expect(fetchMomentRead).toHaveBeenCalledWith("t2", "s1");
     expect(document.querySelector("[data-testid='coach-panel-reveal']")).not.toBeNull();
     expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
