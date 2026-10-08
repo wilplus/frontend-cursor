@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   MockPresentationSlide,
   PdfPage,
@@ -28,7 +28,8 @@ import { helperWordRanges } from "@/lib/willab/answeredBookmark";
 /*   next slide"                                                              */
 /*                                                                            */
 /*  So: one continuous scroll — slide, its words, next slide, its words. No    */
-/*  arrows, no page counter, no header, no progress. One X, floating.          */
+/*  arrows, no page counter, no header, no progress, no slide-dot rail (Q-B14  */
+/*  A (2), 2026-10-07). One X, floating, on a dark screen.                     */
 /*                                                                            */
 /*  READ-ONLY BY CONSTRUCTION. This does NOT record. The take pipeline is      */
 /*  untouched and stays in the Lab panel, where advancing a slide is a TAP     */
@@ -85,7 +86,6 @@ export default function PresentMode({
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [activeSlide, setActiveSlide] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
   const deckStillLoading = Boolean(presentationRef && pageCount === null);
@@ -111,31 +111,17 @@ export default function PresentMode({
       setDownloading(false);
     }
   };
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root || slides.length < 2) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const index = Number((visible.target as HTMLElement).dataset.slideIndex);
-        if (Number.isFinite(index)) setActiveSlide(index);
-      },
-      { root, threshold: [0.2, 0.55, 0.85] }
-    );
-    root.querySelectorAll<HTMLElement>("[data-slide-index]").forEach((node) =>
-      observer.observe(node)
-    );
-    return () => observer.disconnect();
-  }, [slides.length]);
 
-  // Fullscreen. Nothing behind it, nothing over it but the X.
+  // Fullscreen. Nothing behind it, nothing over it but the X. DARK, as the
+  // Final Screens' L5 frame draws it (founder 2026-10-07, Q-B14 A (2); build
+  // plan D-IT-9): the `dark` theme on this one root, so every token on it
+  // (the page, the words, the X) reads on the dark surface; and no slide-dot
+  // rail.
   return (
     <div
       data-ideal-text-wheel-native
-      className="fixed inset-0 z-50 bg-background"
+      data-present-mode
+      className="dark fixed inset-0 z-50 bg-background text-foreground"
     >
       {exportFormat ? (
         <div className="print:hidden absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
@@ -201,8 +187,13 @@ export default function PresentMode({
                   the same rule as the Ideal Text): a bold orange headline
                   directly above the paragraph they came from, and the same
                   words italic — never orange — inside the running text. Only
-                  locked flagship phrases; no root means no headline. */}
-              <div className="flex flex-col gap-5 text-[17px] leading-[1.7] text-foreground">
+                  locked flagship phrases; no root means no headline. The
+                  paragraphs run 17px on a phone rising to 20px, as the page
+                  does (founder 2026-09-30, "D"; D-IT-9). */}
+              <div
+                data-present-text
+                className="flex flex-col gap-5 text-[17px] leading-[1.7] text-foreground md:text-[20px]"
+              >
                 {slide.rows.map((row) => {
                   const root = buildRootPhraseLayer(
                     [{ key: row.key, rootPhrase: row.rootPhrase, rootType: row.rootType }],
@@ -211,7 +202,10 @@ export default function PresentMode({
                   return (
                     <div key={`text-${row.key}`} className="flex flex-col gap-1">
                       {root ? (
-                        <p className="text-[clamp(1.55rem,4vw,2.25rem)] font-semibold leading-tight text-primary">
+                        <p
+                          data-present-headline
+                          className="text-[clamp(1.45rem,1.1rem+1.3vw,2.15rem)] font-bold leading-snug text-primary"
+                        >
                           {root.text}
                         </p>
                       ) : null}
@@ -232,23 +226,6 @@ export default function PresentMode({
         </div>
       </div>
 
-      {!exportFormat && slides.length > 1 ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-2 rounded-full bg-background/75 px-2 py-3 backdrop-blur"
-        >
-          {slides.map((slide, index) => (
-            <span
-              key={slide.key}
-              className={
-                index === activeSlide
-                  ? "h-5 w-1.5 rounded-full bg-primary"
-                  : "h-1.5 w-1.5 rounded-full bg-border"
-              }
-            />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

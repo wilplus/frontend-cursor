@@ -98,6 +98,36 @@ describe("the order: each headline directly above its own paragraph", () => {
   });
 });
 
+describe("every headline is orange and bold, whatever its row's kind (Q-B9 A, D-IT-10)", () => {
+  it("draws a neutral row's helper words exactly as a flagship row's", async () => {
+    calls.length = 0;
+    await slideCanvas(
+      {
+        ...slide,
+        rows: [
+          { key: 0, rootPhrase: "the timing matters", rootType: "flagship", idealText: "We think the timing matters here." },
+          { key: 1, rootPhrase: "one more quarter", rootType: "neutral", idealText: "Give it one more quarter please." },
+        ],
+      },
+      null,
+    );
+    const headline = (word: string) => calls.find((c) => c.text.trim() === word && c.fill === ORANGE);
+    for (const word of ["timing", "quarter"]) {
+      const h = headline(word);
+      expect(h, word).toBeDefined();
+      expect(h?.font.startsWith("700 ")).toBe(true);
+    }
+    // No grey headline anywhere.
+    expect(calls.some((c) => c.fill === "#666666")).toBe(false);
+    const italic = calls.filter((c) => c.font.startsWith("italic ")).map((c) => c.text.trim()).filter(Boolean);
+    expect(italic).toEqual(["the", "timing", "matters", "one", "more", "quarter"]);
+    expect(pdfTextBlocks(slide.rows).filter((b) => b.kind === "headline")).toEqual([
+      { kind: "headline", text: "the timing matters" },
+      { kind: "headline", text: "one more quarter" },
+    ]);
+  });
+});
+
 describe("inside the text: italic, the paragraph's own colour; the headline is the only orange", () => {
   it("marks the helper words italic where the paragraph says them, and nowhere else", () => {
     const [, paragraph] = pdfTextBlocks(slide.rows);

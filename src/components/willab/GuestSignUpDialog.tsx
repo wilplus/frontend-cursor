@@ -101,10 +101,8 @@ export interface GuestGate {
   plainSignUp: (pageLoaded: boolean) => boolean;
   /** `fn` for a guest, undefined for an account: a step only a guest takes. */
   forGuest: <F>(fn: F) => F | undefined;
-  /** Open the dialog. "journey_next_steps": its Create an account carries
-   *  "See next steps" through sign-up (founder 2026-10-04: "that should also
-   *  prompt the sign up. Same page."). */
-  ask: (then?: "journey_next_steps") => void;
+  /** Open the dialog. */
+  ask: () => void;
   /** For `GuestGateContext`: open the dialog and answer true for a guest. */
   block: () => boolean;
   /** An account gets `fn` back; a guest gets "open the dialog, answer
@@ -118,18 +116,14 @@ export function useGuestGate({
   signedIn,
   arcId,
   onSignUp,
-  onSignUpForNextSteps,
 }: {
   signedIn: boolean | null;
   arcId: string | null;
   onSignUp: () => void;
-  onSignUpForNextSteps?: () => void;
 }): GuestGate {
   const guest = signedIn === false && !!arcId && !!readGuestOwnerToken();
   const [open, setOpen] = useState(false);
-  const [then, setThen] = useState<"journey_next_steps" | undefined>();
-  const ask = useCallback((next?: "journey_next_steps") => {
-    setThen(next);
+  const ask = useCallback(() => {
     setOpen(true);
   }, []);
   const block = useCallback(() => {
@@ -147,14 +141,10 @@ export function useGuestGate({
         : fn,
     [guest, ask],
   );
-  const signUp =
-    then === "journey_next_steps" && onSignUpForNextSteps
-      ? onSignUpForNextSteps
-      : onSignUp;
   const dialog = guest ? (
     <GuestSignUpDialog
       open={open}
-      onSignUp={signUp}
+      onSignUp={onSignUp}
       onClose={() => setOpen(false)}
     />
   ) : null;

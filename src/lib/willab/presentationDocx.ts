@@ -23,13 +23,29 @@ import {
 
 const ORANGE = "E56F2D";
 const INK = "191919";
-const MUTED = "666666";
 
 /* The paragraph's runs (helper words italic, clause 20) live in
    `helperWordSegments`, shared with the PDF export so the two formats can
    never disagree; re-exported here for the callers that read them from the
    Word export. */
 export { idealTextSegments };
+
+/** One row's headline: its helper words, bold and orange, whatever the
+ *  row's kind (founder 2026-10-07, Q-B9 A: the walk's orange rule applies
+ *  inside the walk only; helper-word headlines stay orange on the page, in
+ *  Presentation Mode and in the exports; build plan D-IT-10). There is no
+ *  grey branch. null when the row has no helper words. Pure, for its test. */
+export function docxHeadline(row: {
+  rootPhrase: string;
+}): { text: string; color: string; bold: true } | null {
+  return row.rootPhrase ? { text: row.rootPhrase, color: ORANGE, bold: true } : null;
+}
+
+/** The paragraph's runs: its helper words italic inside it (clause 20),
+ *  for every row that has them. */
+export function docxTextSegments(row: { idealText: string; rootPhrase: string }) {
+  return idealTextSegments(row.idealText, row.rootPhrase || null);
+}
 
 function idealTextRuns(text: string, headline: string | null): TextRun[] {
   return idealTextSegments(text, headline).map(
@@ -113,16 +129,16 @@ export async function downloadPresentationDocx({
     // Each headline over its OWN paragraph, like a newspaper headline over
     // its article (clause 20) — not every headline first and the text after.
     for (const row of slide.rows) {
-      const flagship = row.rootType === "flagship";
-      if (row.rootPhrase) {
+      const headline = docxHeadline(row);
+      if (headline) {
         children.push(
           new Paragraph({
             spacing: { before: 120, after: 60 },
             children: [
               new TextRun({
-                text: row.rootPhrase,
-                bold: flagship,
-                color: flagship ? ORANGE : MUTED,
+                text: headline.text,
+                bold: headline.bold,
+                color: headline.color,
                 size: 32,
               }),
             ],
@@ -132,10 +148,7 @@ export async function downloadPresentationDocx({
       children.push(
         new Paragraph({
           spacing: { before: 60, after: 180, line: 360 },
-          children: idealTextRuns(
-            row.idealText,
-            flagship ? row.rootPhrase : null,
-          ),
+          children: idealTextRuns(row.idealText, row.rootPhrase || null),
         })
       );
     }

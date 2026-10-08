@@ -19,6 +19,7 @@ import {
 } from "./willabHelpers";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
+import { postJourneyForSavedTake } from "@/services/api/journeyNextSteps";
 import {
   useFailedTakeRecheck,
   probeTakeVerdict,
@@ -760,8 +761,10 @@ export default function Lounge({
       // LEAVE AND COME BACK (J2, founder 2026-09-29; Phase 7): the text no
       // longer opens by itself when the Take settles -- the speaker may be
       // anywhere. The reload brings the Take's bubble with its button to the
-      // text, where "Review feedback" waits (J1).
-      void reload();
+      // text, where "Review feedback" waits (J1). On Takes 1-3 a signed-in
+      // speaker's journey message is posted first, so the same reload brings
+      // it (Q-IT643 A).
+      void postJourneyForSavedTake(take, thread.signedIn).then(() => reload().catch(() => undefined));
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {

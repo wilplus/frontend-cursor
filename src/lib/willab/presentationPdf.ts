@@ -25,7 +25,6 @@ const WORK_HEIGHT = 12000;
 const MARGIN = 84;
 const ORANGE = "#e56f2d";
 const INK = "#191919";
-const MUTED = "#666666";
 
 function font(size: number, weight = 400, italic = false): string {
   const style = italic ? "italic " : "";
@@ -103,7 +102,7 @@ function drawIdealText(
 
 /** One thing a slide's text draws: a paragraph's headline, or the paragraph. */
 export type PdfTextBlock =
-  | { kind: "headline"; text: string; flagship: boolean }
+  | { kind: "headline"; text: string }
   | { kind: "paragraph"; segments: IdealTextSegment[] };
 
 /** What one slide's text draws, in order: each paragraph's helper words as
@@ -115,14 +114,16 @@ export function pdfTextBlocks(
   rows: PresentationPdfSlide["rows"],
 ): PdfTextBlock[] {
   const out: PdfTextBlock[] = [];
+  // Every headline is the same: bold and orange, its words italic inside
+  // the paragraph, whatever the row's kind (Q-B9 A, 2026-10-07; D-IT-10;
+  // the Word export's rule). No grey branch.
   for (const row of rows) {
-    const flagship = row.rootType === "flagship";
     if (row.rootPhrase) {
-      out.push({ kind: "headline", text: row.rootPhrase, flagship });
+      out.push({ kind: "headline", text: row.rootPhrase });
     }
     out.push({
       kind: "paragraph",
-      segments: idealTextSegments(row.idealText, flagship ? row.rootPhrase : null),
+      segments: idealTextSegments(row.idealText, row.rootPhrase || null),
     });
   }
   return out;
@@ -176,8 +177,8 @@ export async function slideCanvas(
         contentWidth,
         48,
         62,
-        block.flagship ? ORANGE : MUTED,
-        block.flagship ? 700 : 550
+        ORANGE,
+        700
       );
       y += 14;
     } else {
