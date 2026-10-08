@@ -21,6 +21,7 @@ import {
 } from "@/services/api/projects";
 import { useLabReadoutLive } from "./useLabReadoutLive";
 import { useDocumentSettle } from "./useDocumentSettle";
+import { postJourneyForSavedTake } from "@/services/api/journeyNextSteps";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
 import { fetchIdealTextCore } from "@/services/api/idealText";
@@ -1011,6 +1012,11 @@ export default function LabOverlay({
           topic: context?.topic,
         }));
       }
+      // The Take is saved: a signed-in speaker's Take 1-3 journey message
+      // goes to the Lounge now, not from a button (Q-IT643 A, Q-B10 A).
+      void postJourneyForSavedTake(take, signedIn).then((posted) => {
+        if (posted) void reloadThread().catch(() => undefined);
+      });
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -1117,7 +1123,7 @@ export default function LabOverlay({
   // "already have an account? sign in" as the secondary link.
   // The global pending sender claims the guest-owned graph on any post-auth
   // landing, then sends this exact Project Take through the strict endpoint.
-  function startUnsignedSend(then?: "journey_next_steps") {
+  function startUnsignedSend() {
     if (readout && labSessionId && arcId) {
       writeParked({
         projectId: arcId,
@@ -1125,7 +1131,7 @@ export default function LabOverlay({
         topic: context?.topic ?? "",
         readout,
       });
-      setPendingSend(arcId, labSessionId, then);
+      setPendingSend(arcId, labSessionId);
     }
     // Suppress useBackDismiss's unmount history.back() BEFORE we close +
     // navigate. LabOverlay pushes a throwaway history entry while open and
@@ -1698,9 +1704,6 @@ export default function LabOverlay({
             // already been asked over their text, so the "One quick step"
             // page in between was a second ask with nothing new in it.
             onSignUp={() => startUnsignedSend()}
-            // "See next steps" as a guest: sign up, then the step is taken
-            // as the account (founder 2026-10-04, Phase 0.6).
-            onSignUpForNextSteps={() => startUnsignedSend("journey_next_steps")}
             onReRead={askThenStartNextTake}
           />
           </NextTakeGate>
@@ -1719,7 +1722,7 @@ export default function LabOverlay({
               dispatch("sent");
             }}
             onPark={parkReadout}
-            onSignIn={startUnsignedSend}
+            onSignIn={() => startUnsignedSend()}
           />
         )}
       </div>

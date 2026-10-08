@@ -72,7 +72,6 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
 import IdealTextMenu, { FeedbackLoadingLine } from "./IdealTextMenu";
-import { applyEarlyJourney, useFirstPaintHold } from "./idealTextFirstPaint";
 import PresentMode from "./PresentMode";
 import ExportFormatDialog from "./ExportFormatDialog";
 import type { PresentationExportFormat } from "@/lib/willab/presentationDocument";
@@ -442,9 +441,6 @@ export default function IdealTextOverlay({
              Enrichment` is a merge, so applying the two answers in whatever
              order they land is the same document either way. */
           const promptLane = fetchIdealTextEnrichment(arcId, r.documentSnapshotId, PROMPT_LANE);
-          // The bottom button's one fact, the moment the fast lane lands.
-          void promptLane.then((p) =>
-            applyEarlyJourney(p, r, setSd, () => active && gen === fetchGenRef.current));
           const [prompt, slow] = await Promise.all([
             promptLane,
             fetchIdealTextEnrichment(arcId, r.documentSnapshotId, SLOW_LANE),
@@ -1034,8 +1030,10 @@ export default function IdealTextOverlay({
     );
   }
 
-  // Words and button together on the first paint (founder 2026-09-28, "A").
-  const shownStatus = useFirstPaintHold(status, sd?.takeCount, sd?.journeyNextStepsSeen);
+  // Words and button together on the first paint (founder 2026-09-28, "A"):
+  // the bottom no longer waits on any fact ("See next steps" is gone,
+  // Q-B10 A), so the page draws its own status as it is.
+  const shownStatus = status;
 
   return (
     <div

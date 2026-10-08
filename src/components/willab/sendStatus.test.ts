@@ -53,18 +53,12 @@ describe("sendStatus — pending send", () => {
   });
 });
 
-describe("sendStatus — the step a guest asked for before signing up", () => {
-  it("carries 'See next steps' through sign-up (Phase 0.6)", () => {
-    setPendingSend("p1", "t1", "journey_next_steps");
-    expect(getPendingSend()).toEqual({
-      projectId: "p1",
-      takeId: "t1",
-      then: "journey_next_steps",
-    });
-  });
-
-  it("a plain sign-up carries no step", () => {
-    setPendingSend("p1", "t1");
+describe("sendStatus — no step rides the sign-up any more", () => {
+  it("drops a stored 'See next steps' step: the button is gone (Q-B10 A)", () => {
+    window.localStorage.setItem(
+      "willab.pending_send",
+      JSON.stringify({ projectId: "p1", takeId: "t1", then: "journey_next_steps" }),
+    );
     expect(getPendingSend()).toEqual({ projectId: "p1", takeId: "t1" });
   });
 });
