@@ -23,6 +23,11 @@ export interface ConsentChoices {
   /** Present only after turning practice off: false while deletion is still
    *  finishing in the background. */
   practiceErasureComplete: boolean | null;
+  /** Whether the policy in force offers practice as a choice at all. False
+   *  under Privacy 3.4 (N55, N66.2), where practice is part of the service:
+   *  then neither the acceptance tick nor the Settings card is shown, and
+   *  the server refuses a tick for it. True when the server does not say. */
+  practiceOffered: boolean;
 }
 
 function headers(): Record<string, string> {
@@ -42,6 +47,7 @@ export function mapConsentChoices(raw: unknown): ConsentChoices | null {
     personalisedPractice: r.personalised_practice === true,
     sensitiveInformation: r.sensitive_information === true,
     practiceErasureComplete: typeof erasure === "boolean" ? erasure : null,
+    practiceOffered: Array.isArray(r.optional_purposes) ? r.optional_purposes.length > 0 : true,
   };
 }
 

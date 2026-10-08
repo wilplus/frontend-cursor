@@ -71,14 +71,17 @@ export default function DataConsentChoices({ intro = COPY.intro }: { intro?: str
       ) : null}
       {choices?.hasReceipt ? (
         <>
-          <PracticeCard
+          {/* Only while the policy offers practice as a choice: under 3.4 it
+              is part of the service and has no switch (N66.2, prototype
+              signed 2026-10-08). */}
+          {choices.practiceOffered ? <PracticeCard
             on={choices.personalisedPractice}
             busy={busy === "personalised_practice"}
             failed={failed === "personalised_practice"}
             outcome={outcome?.choice === "personalised_practice" ? outcome.on : null}
             erasureFinishing={choices.practiceErasureComplete === false}
             onChange={(enabled) => void change("personalised_practice", enabled)}
-          />
+          /> : null}
           <SensitiveCard
             on={choices.sensitiveInformation}
             busy={busy === "sensitive_information"}

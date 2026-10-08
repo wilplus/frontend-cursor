@@ -39,6 +39,7 @@ function choices(over: Partial<ConsentChoices> = {}): ConsentChoices {
     personalisedPractice: true,
     sensitiveInformation: true,
     practiceErasureComplete: null,
+    practiceOffered: true,
     ...over,
   };
 }
@@ -83,6 +84,13 @@ describe("mapConsentChoices", () => {
     })).toEqual(choices({ personalisedPractice: false, practiceErasureComplete: false }));
     expect(mapConsentChoices({ nothing: true })).toBeNull();
   });
+
+  it("reads whether the policy offers practice as a choice (N66.2)", () => {
+    const base = { has_receipt: true, personalised_practice: true, sensitive_information: true };
+    expect(mapConsentChoices({ ...base, optional_purposes: [] })?.practiceOffered).toBe(false);
+    expect(mapConsentChoices({ ...base, optional_purposes: ["individual_learning_profile"] })?.practiceOffered).toBe(true);
+    expect(mapConsentChoices(base)?.practiceOffered).toBe(true);
+  });
 });
 
 describe("the page", () => {
@@ -91,6 +99,12 @@ describe("the page", () => {
     expect(section(COPY.practiceTitle)).not.toBeNull();
     expect(section(COPY.sensitiveTitle)).not.toBeNull();
     expect(container.textContent).toContain(COPY.intro);
+  });
+
+  it("has no practice switch where practice is part of the service (3.4, N66.2)", async () => {
+    await renderWith(choices({ practiceOffered: false }));
+    expect(section(COPY.practiceTitle)).toBeNull();
+    expect(section(COPY.sensitiveTitle)).not.toBeNull();
   });
 
   it("shows no switches before anything was agreed", async () => {
