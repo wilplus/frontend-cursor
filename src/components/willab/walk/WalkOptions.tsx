@@ -90,12 +90,26 @@ export default function WalkOptions({
   );
 }
 
-/** The plain field inside an option. */
-export function WalkField({ placeholder }: { placeholder: string }) {
+/** The plain field inside an option; controlled when given a value. */
+export function WalkField({
+  placeholder,
+  value,
+  onChange,
+  name,
+}: {
+  placeholder: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  name?: string;
+}) {
   return (
     <input
       aria-label={placeholder}
       placeholder={placeholder}
+      name={name}
+      autoComplete="off"
+      {...(value === undefined ? {} : { value })}
+      onChange={onChange ? (e) => onChange(e.target.value) : undefined}
       className="w-full min-w-0 rounded-[10px] border border-border bg-background px-2.5 py-2 text-[14.5px] outline-none focus:border-foreground"
     />
   );

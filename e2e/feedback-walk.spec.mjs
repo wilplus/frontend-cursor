@@ -437,19 +437,28 @@ await judgingRun("intro → journal → judge → end", "published", async ({ pa
     )?.getAttribute("aria-label")?.includes(`moment ${n} of 4`), i, { timeout: 10_000 });
     await page.locator(`${liveScreen("judge")} [data-walk-answer="in_between"]`).click();
   }
-  check("the last judgement leads to the end card",
-    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  check("the last judgement leads to sharing (D-FW-20)", await shown("community"));
+  await page.locator(`${liveScreen("community")} [data-walk-option="none"] [role="checkbox"]`).click();
+  await tapIn("community", "walk-forward");
+  check("\"None\" takes the share back, then the end card",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false) &&
+    (await page.locator("[data-walk-harness]").getAttribute("data-walk-shared")) === "none");
   await page.waitForTimeout(700);
   check("no toast sits on the end card's pill", (await page.locator("[data-walk-toast]").count()) === 0);
   check("each answer handed over once, a change with the earlier answer",
     (await judged()) === "cv-0:yes|cv-0:no<yes|cv-1:in_between|cv-2:in_between|cv-3:in_between", await judged());
 });
 
-await judgingRun("Skip on Judgement time!", "published", async ({ page, tapIn, judged }) => {
+await judgingRun("Skip on Judgement time!", "published", async ({ page, shown, tapIn, judged }) => {
   await tapIn("intro", "walk-skip");
-  check("Skip settles every moment and goes to the end card",
-    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false) &&
+  check("Skip settles every moment and still asks to share (Q-B6 A)",
+    (await shown("community")) &&
     (await judged()) === "cv-0:skipped|cv-1:skipped|cv-2:skipped|cv-3:skipped", await judged());
+  await page.locator(`${liveScreen("community")} [data-walk-option="general"] [role="checkbox"]`).click();
+  await tapIn("community", "walk-forward");
+  check("a share carries the signed words' version, then the end card",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false) &&
+    (await page.locator("[data-walk-harness]").getAttribute("data-walk-shared")) === "general,sharing-screen-2026-10-06");
 });
 
 await judgingRun("no post to open", "missing", async ({ page }) => {

@@ -26,7 +26,7 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 /*    skip     Skip on "Judgement time!": every judgement still unanswered is */
 /*             handed to the host, which settles it as skipped so its bar     */
 /*             clears; then the walk goes on past the judging (Q-B6 A: to     */
-/*             sharing once it is drawn, D-FW-20; the end card until then).   */
+/*             sharing where it is on, D-FW-20; else the end card).           */
 /*    journal  the Journal post over the intro, and back.                     */
 /*                                                                            */
 /*  A guest's answer opens sign-up and writes nothing (N32.5); a guest's Skip */
