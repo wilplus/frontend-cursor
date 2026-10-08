@@ -75,10 +75,16 @@ function openCardOf(m: Moment): FeedbackWalkItem["openCard"] {
 
 const joined = (pieces: readonly Piece[]) => pieces.map((p) => p.text).join("");
 
-/** A served rewrite as the walk receives it: the quote and the proposal. */
+/** A served rewrite as the walk receives it: the quote, the proposal and
+ *  its signed move (the fixture's line above the words to say). */
 function rewriteOf(m: Moment): FeedbackWalkItem<string>["rewrite"] {
   if (!m.clearer) return null;
-  return { quote: joined(m.clearer.before), proposedText: joined(m.clearer.after), item: `rewrite-${m.index}` };
+  return {
+    quote: joined(m.clearer.before),
+    proposedText: joined(m.clearer.after),
+    move: m.clearer.coachLine ?? null,
+    item: `rewrite-${m.index}`,
+  };
 }
 
 /** A served exercise as the walk receives it: the coach's, with its video

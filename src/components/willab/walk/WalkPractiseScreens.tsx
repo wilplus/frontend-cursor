@@ -20,7 +20,8 @@ import type { WalkTry } from "./useWalkPractise";
 /*  the controller (useWalkPractise) holds.                                   */
 /*                                                                            */
 /*    practise    no title, no slide bar, no helper text: the words to say    */
-/*                (after an exercise, its instruction first) and the Take's   */
+/*                (after an exercise its instruction first, on a clearer      */
+/*                version the served line first) and the Take's               */
 /*                own recording strip, with Skip                              */
 /*    processing  the breathing voice mark only                               */
 /*    improved    "Good job", the try's voice, a line of the signed bank      */
@@ -80,12 +81,21 @@ function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string
   return moment.paragraphText;
 }
 
+/** The message above the words to say: an exercise's instruction (flow 8),
+ *  or a clearer version's served line (its signed `rewriteMove`, as the
+ *  prototype's "Say it this way, …"). Only from the served item; none, none. */
+function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
+  if (step.kind === "instruction") return moment.exercise?.instruction ?? null;
+  if (step.kind === "words") return moment.clearer?.coachLine ?? null;
+  return null;
+}
+
 /** Practising: recording from the start; no title, no slide bar. After an
- *  exercise, its instruction comes first, as a message (flow 8), when the
- *  exercise carries one. */
+ *  exercise its instruction comes first, and on a clearer version's words
+ *  the served line, as a message, when the item carries one. */
 function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   const say = wordsToSay(step, moment);
-  const instruction = step.kind === "instruction" ? moment.exercise?.instruction : null;
+  const instruction = lineAbove(step, moment);
   return (
     <WalkOverlay
       testId={testId(step)}
