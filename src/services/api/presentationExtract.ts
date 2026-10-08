@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { guestOwnerHeaders } from "@/services/api/projects";
 import {
   deckFileError,
   fileTooLargeMessage,
@@ -40,7 +41,10 @@ export async function extractPresentation(file: File): Promise<ExtractResult> {
 
   const token = await getAuthToken(); // optional — guest-friendly
   const headers: Record<string, string> = { Accept: "application/json" };
+  // A guest proves who they are with the owner token: the backend's
+  // processing gate covers /v2/lab/ and refuses an anonymous deck outright.
   if (token) headers.Authorization = `Bearer ${token}`;
+  else Object.assign(headers, guestOwnerHeaders());
   // R6-FE4 — a deliberately non-safelisted header so the DIRECT cross-origin
   // attempt always PREFLIGHTS. Without it, a guest's multipart POST is a CORS
   // "simple request": the whole deck uploads and the BE fully processes it
