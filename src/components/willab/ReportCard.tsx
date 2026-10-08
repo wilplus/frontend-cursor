@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
+import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import {
   Check,
   Crown,
@@ -675,6 +677,24 @@ export function UnreadDot({ count }: { count: number }) {
   );
 }
 
+/** The tag on a marked bubble, as the locked walk prototype writes it
+ *  (founder lock 2026-10-06, flow 1). */
+const NEW_TAG = "new";
+
+/** THE "NEW" MARK (build plan D-FW-19; walk lock 2026-10-06, flow 1): the
+ *  orange outline round the bubble and the small orange "new" tag on its
+ *  top-right corner, as the prototype's `.itcard.marked` and `.newtag`. */
+function NewTag() {
+  return (
+    <span
+      data-testid="new-coach-feedback-tag"
+      className="absolute -right-1.5 -top-3.5 rounded-full bg-primary px-[9px] py-px text-[11px] font-semibold leading-[1.5] text-white"
+    >
+      {NEW_TAG}
+    </span>
+  );
+}
+
 function IdealRecordingCard({
   title,
   meta,
@@ -682,9 +702,13 @@ function IdealRecordingCard({
   ctaLabel,
   onOpen,
   unread = 0,
+  marked = false,
 }: {
   /** The orange dot's number; 0 hides the dot (Q42 A). */
   unread?: number;
+  /** New coach feedback waits for the walk: the outline and the "new" tag
+   *  (D-FW-19). Never a count (AC-9). */
+  marked?: boolean;
   title: string;
   /** The DATE line under the title. null hides it.
    *
@@ -700,8 +724,13 @@ function IdealRecordingCard({
   onOpen: (() => void) | null;
 }) {
   return (
-    <div className="relative my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]">
+    <div
+      data-marked={marked ? "" : undefined}
+      className={`relative my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]${
+        marked ? " outline outline-2 outline-offset-[3px] outline-primary" : ""}`}
+    >
       <UnreadDot count={unread} />
+      {marked ? <NewTag /> : null}
       {/* Header: icon tile + title/date + version chip. The uppercase
           "IDEAL RECORDING" attachment label sat above this; it went with the
           minimisation — the icon tile already says "artifact, not chat", and
@@ -868,8 +897,17 @@ function LiveStatusIdealTextCard({
       listeners.delete(read);
     };
   }, [arcId]);
+  // With the Feedback walk on, the walk lock's mark replaces the dot (flow
+  // 1, D-FW-19): the orange outline and "new" while the coach's feedback
+  // waits for the walk, on the project's latest bubble only; a tap opens the
+  // text, where "Review feedback" starts the walk (Six Journey Questions 1).
+  // Read after mount: the address is not there on the server render.
+  const [walkOn, setWalkOn] = useState(false);
+  useEffect(() => setWalkOn(feedbackWalkOn()), []);
+  const fresh = useNewCoachFeedback(arcId);
+  const marked = walkOn && latest && fresh;
   // The dot sits only on the project's latest Ideal Text bubble (Q39 B).
-  const unread = latest ? (live?.unread ?? 0) : 0;
+  const unread = latest && !walkOn ? (live?.unread ?? 0) : 0;
   return (
     <IdealRecordingCard
       /* Live → stamped-on-the-row → remembered → the generic. The generic is
@@ -886,6 +924,7 @@ function LiveStatusIdealTextCard({
       badge={version !== null ? `${version}.0` : null}
       ctaLabel="Open your ideal text"
       unread={unread}
+      marked={marked}
       // While feedback waits, the bubble opens it (the same place as the
       // email's link); otherwise the notebook, as always.
       onOpen={unread > 0 && onOpenFeedback ? onOpenFeedback : onOpen}

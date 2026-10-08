@@ -316,3 +316,18 @@ describe("the clearer version (D-FW-15)", () => {
     expect(body).not.toMatch(/\d/);
   });
 });
+
+describe("what the speaker sees, for the Lounge's \"new\" (D-FW-19)", () => {
+  it("nothing before the walk is asked open; then each screen as it comes on", () => {
+    const onShown = vi.fn();
+    draw(null, { onShown });
+    expect(onShown).not.toHaveBeenCalled();
+    draw({ seq: 1, at: 1 }, { onShown });
+    expect(screen()).toBe("walk-screen-coachnote");
+    expect(onShown).toHaveBeenLastCalledWith(expect.objectContaining({ key: "coachnote" }), null);
+    forward();
+    const [step, moment] = onShown.mock.calls.at(-1)!;
+    expect(step.key).not.toBe("coachnote");
+    expect(moment?.index).toBe(step.moment);
+  });
+});

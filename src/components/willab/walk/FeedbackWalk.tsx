@@ -159,6 +159,10 @@ type Props<R> = {
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
+  /** A screen of the walk is on: the coach's note, or a screen of moment
+   *  `moment`. The host tells the server what was shown (the Lounge's
+   *  "new", D-FW-19). Nothing is drawn from it. */
+  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -181,6 +185,7 @@ export default function FeedbackWalk<R = unknown>({
   journal = null,
   onEnd,
   onClose,
+  onShown,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -206,6 +211,16 @@ export default function FeedbackWalk<R = unknown>({
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
+
+  // What the speaker now sees, for the host (D-FW-19): only once the walk
+  // was asked open, and only an overlay screen.
+  const shownRef = useRef(onShown);
+  shownRef.current = onShown;
+  useEffect(() => {
+    if (seq === null || !step || step.overlay === false) return;
+    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    shownRef.current?.(step, moment);
+  }, [seq, step, walk.moments]);
 
   const go = useCallback(
     (to: number, how: WalkDir | undefined) => {

@@ -250,6 +250,19 @@ const PARAGRAPH_WALK = [
     waitFor: `${PARAGRAPH_LAYER} [data-testid="helper-words-card"]` },
 ].map((entry) => ({ area: "walk", audience: "speaker", settleMs: 400, allow: WALK_ALLOW, ...entry }));
 
+/** The Lounge's Ideal Text bubble with new coach feedback waiting for the
+ *  walk (build plan D-FW-19; walk lock flow 1): the PRODUCTION ReportCard,
+ *  /dev/feedback-walk?lounge=…&walk=1. */
+/* The bubble's own date and its version badge (the Take it came from), as
+   the Lounge has always drawn them: a date and a version, never a score. */
+const LOUNGE_ALLOW = [...WALK_ALLOW, /\b[A-Z][a-z]{2} \d{1,2},/, /\b\d+\.0\b/];
+const LOUNGE_BUBBLE = [
+  { name: "lounge-new", path: "/dev/feedback-walk?lounge=new&walk=1",
+    waitFor: '[data-lounge-bubble="new"] [data-testid="new-coach-feedback-tag"]' },
+  { name: "lounge-plain", path: "/dev/feedback-walk?lounge=plain&walk=1",
+    waitFor: '[data-lounge-bubble="plain"] button' },
+].map((entry) => ({ area: "walk", audience: "speaker", settleMs: 400, allow: LOUNGE_ALLOW, ...entry }));
+
 /* ------------------------------ coach-panel --------------------------------- */
 /** The coach panel's P1 still screens, as /dev/coach-panel draws them (the
  *  names and key elements are e2e/coach-panel.spec.mjs's). */
@@ -394,4 +407,4 @@ const CONSENT = [
     prepare: guestWithPolicy, act: enterTheLab },
 ];
 
-export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...COACH_PANEL, ...ADMIN_PAGES, ...RECORDING, ...CONSENT];
+export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...LOUNGE_BUBBLE, ...COACH_PANEL, ...ADMIN_PAGES, ...RECORDING, ...CONSENT];
