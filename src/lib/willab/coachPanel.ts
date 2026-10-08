@@ -3,6 +3,7 @@
 /*  FOUNDER-LOCK-coach-panel-redesign-2026-10-06, flow steps 1 to 5).          */
 /*                                                                            */
 /*    lounge → Your queue → a speaker → Judge this moment → What happened     */
+/*    lounge → Your speakers (the pinned button) → a speaker → …              */
 /*                                                                            */
 /*  One reducer, no fetch, no React, so every rule is a unit test:             */
 /*    - ‹ goes back through a history stack, as the prototype's back();      */
@@ -40,6 +41,8 @@ export type MomentScreen = {
 export type PanelScreen =
   | { key: "lounge" }
   | { key: "queue" }
+  /** Your speakers: every speaker, from the pinned button (D-CP-12). */
+  | { key: "speakers" }
   | { key: "speaker"; speaker: QueueSpeaker }
   | MomentScreen;
 
@@ -54,6 +57,7 @@ export type PanelState = {
 
 export type PanelAction =
   | { type: "open" }
+  | { type: "speakers" }
   | { type: "close" }
   | { type: "speaker"; speaker: QueueSpeaker }
   | { type: "take"; speaker: QueueSpeaker; take: QueueTake }
@@ -151,7 +155,7 @@ function openTake(state: PanelState, speaker: QueueSpeaker, take: QueueTake): Pa
 }
 
 function resume(state: PanelState, speaker: QueueSpeaker, take: QueueTake, index: number): PanelState {
-  const history: PanelScreen[] = [{ key: "queue" }, { key: "speaker", speaker }];
+  const history: PanelScreen[] = [state.history[0]?.key === "speakers" ? { key: "speakers" } : { key: "queue" }, { key: "speaker", speaker }];
   const later = nextOpenIndex(take.moments, index);
   const after = later !== -1 ? later : nextOpenIndex(take.moments, null);
   if (after === -1) return { ...state, screen: history[1], history: [history[0]], dir: "forward" };
@@ -162,6 +166,8 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
   switch (action.type) {
     case "open":
       return { ...state, screen: { key: "queue" }, history: [], dir: undefined };
+    case "speakers":
+      return { ...state, screen: { key: "speakers" }, history: [], dir: undefined };
     case "close":
       return { ...state, screen: { key: "lounge" }, history: [], dir: undefined };
     case "speaker":
@@ -191,6 +197,7 @@ export function momentCounter(screen: PanelScreen): { index: number; total: numb
 export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "lounge") return { key: "lounge", overlay: false };
   if (screen.key === "queue") return { key: "queue" };
+  if (screen.key === "speakers") return { key: "speakers" };
   if (screen.key === "speaker") return { key: "speaker", kind: screen.speaker.pseudonym };
   return { key: screen.key, moment: screen.index, kind: screen.take.sessionId };
 }

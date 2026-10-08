@@ -16,6 +16,9 @@
 /*                   Never prefetched (BLIND COACH).                          */
 /*    blind lines    the error audit and the block pick, read when the queue  */
 /*                   opens; drawn only when the backend serves them           */
+/*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
+/*                   opens (D-CP-12): pseudonyms, goals and counts, never a  */
+/*                   moment                                                   */
 /*                                                                            */
 /*  The leaving copy of a screen (the stage's ghost) is drawn without its     */
 /*  hooks, so a Judge screen on its way out never asks for a second render    */
@@ -28,7 +31,7 @@ import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
 import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
 import { useConfidenceChainReceipt } from "../coachwalk/useConfidenceChainReceipt";
-import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, type PanelClip } from "./CoachPanelScreens";
+import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
 import {
   momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
 } from "@/lib/willab/coachPanel";
@@ -39,6 +42,9 @@ import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
+import {
+  fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
+} from "@/services/api/coachSpeakers";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
@@ -97,6 +103,22 @@ function useBlindLines(queueOpen: boolean) {
   return { audit, picks, setAudit, setPicks };
 }
 
+/** Every speaker, read each time Your speakers opens. `failed` when the read
+ *  could not be had: the list then draws the queue's own speakers. */
+function useAllSpeakers(open: boolean) {
+  const [read, setRead] = useState<{ speakers: PanelSpeaker[] | null; done: boolean }>({ speakers: null, done: false });
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setRead({ speakers: null, done: false });
+    void fetchCoachSpeakers().then((next) => {
+      if (!cancelled) setRead({ speakers: next, done: true });
+    });
+    return () => { cancelled = true; };
+  }, [open]);
+  return { speakers: read.speakers, loading: open && !read.done, failed: read.done && read.speakers === null };
+}
+
 /** The live Judge screen: the save, and the chain's render receipt. */
 function JudgeLive({ screen, nav, clip, onRated, onClose }: {
   screen: MomentScreen;
@@ -142,7 +164,9 @@ export type CoachPanelProps = {
 };
 
 function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker): QueueSpeaker {
-  return speakers.find((s) => s.pseudonym === snapshot.pseudonym) ?? snapshot;
+  const live = speakers.find((s) => s.pseudonym === snapshot.pseudonym);
+  if (!live) return snapshot;
+  return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
 export default function CoachPanel({ state, dispatch, speakers, loading, onHandover }: CoachPanelProps) {
@@ -152,6 +176,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const media = useTakeMedia(takeId);
   const reads = useRevealRead(screen);
   const blind = useBlindLines(screen.key === "queue");
+  const all = useAllSpeakers(screen.key === "speakers");
   const [blindOpen, setBlindOpen] = useState<"audit" | "picks" | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
@@ -180,10 +205,17 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
             onOpenAudit: () => setBlindOpen("audit"), onOpenPicks: () => setBlindOpen("picks") }} />
       );
     }
+    if (panel.key === "speakers") {
+      return (
+        <SpeakersScreen speakers={all.failed ? speakersFromQueue(speakers) : all.speakers}
+          loading={all.loading || (all.failed && loading)} onClose={close}
+          onSpeaker={(speaker) => dispatch({ type: "speaker", speaker: queueSpeakerFor(speaker, speakers) })} />
+      );
+    }
     if (panel.key === "speaker") {
       const speaker = liveSpeaker(speakers, panel.speaker);
       return (
-        <SpeakerScreen speaker={speaker} onClose={close} onBack={() => dispatch({ type: "back" })}
+        <SpeakerScreen speaker={speaker} loading={loading} onClose={close} onBack={() => dispatch({ type: "back" })}
           onTake={(take) => dispatch({ type: "take", speaker, take })} />
       );
     }

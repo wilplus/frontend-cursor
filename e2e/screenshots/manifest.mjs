@@ -14,6 +14,9 @@
 /*      waitFor: "[data-walk-player]",  the screen's key element; the shot    */
 /*                                    waits for it (a selector, or "text=…")  */
 /*      settleMs: 400,                optional: let arrive-motion finish       */
+/*      viewports: { phone: {…} },    optional: an area's own frame for a      */
+/*                                    viewport (the coach panel's prototype   */
+/*                                    phone is 402 x 860)                     */
 /*      reference: "docs/design/refs/walk/praise.png",                        */
 /*                                    optional: the locked prototype's frame; */
 /*                                    a string for both viewports, or         */
@@ -254,13 +257,16 @@ const LIVE = "[data-walk-stage] .walk-layer:not(.walk-ghost)";
 const PANEL_KEYS = {
   door: '[data-testid="coach-panel-pinned"]',
   queue: `${LIVE} [data-testid="coach-panel-queue"]`,
-  speaker: `${LIVE} [data-testid="coach-panel-speaker"]`,
+  speakers: `${LIVE} [data-testid="coach-panel-all-speakers"]`,
+  speaker: `${LIVE} [data-walk-subtitle]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
 };
+/** The prototype's phone (its `.ph` is 402 wide), as e2e/coach-panel.spec.mjs draws it. */
+const PANEL_PHONE = { phone: { width: 402, height: 860 } };
 const COACH_PANEL = Object.entries(PANEL_KEYS).map(([name, waitFor]) => ({
   area: "coach-panel", name, audience: "coach",
-  path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450,
+  path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450, viewports: PANEL_PHONE,
 }));
 
 /* ------------------------------- recording ---------------------------------- */

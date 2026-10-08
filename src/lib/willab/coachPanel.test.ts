@@ -59,6 +59,44 @@ describe("opening", () => {
   });
 });
 
+describe("Your speakers (D-CP-12)", () => {
+  it("the pinned button opens Your speakers with nothing behind it", () => {
+    const s = run({ type: "speakers" });
+    expect(s.screen.key).toBe("speakers");
+    expect(s.history).toEqual([]);
+    expect(walkScreenOf(s.screen)).toEqual({ key: "speakers" });
+  });
+
+  it("a speaker opens from the list, and ‹ returns to the list, then the Lounge", () => {
+    let s = run({ type: "speakers" }, { type: "speaker", speaker: HERON });
+    expect(where(s)).toBe("speaker");
+    expect(s.history.map((h) => h.key)).toEqual(["speakers"]);
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("speakers");
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("lounge");
+  });
+
+  it("a speaker with every moment answered has Takes that open nothing", () => {
+    const finch: QueueSpeaker = {
+      pseudonym: "Bold Finch", goal: "Open the keynote without notes.", waiting: 0,
+      takes: [{ ...TAKE, sessionId: "finch-3", takeIndex: 3, waiting: 0, moments: [] }],
+    };
+    const s = run({ type: "speakers" }, { type: "speaker", speaker: finch }, { type: "take", speaker: finch, take: finch.takes[0] });
+    expect(where(s)).toBe("speaker");
+  });
+
+  it("the hand-over's resume keeps the way in: Your speakers, not the queue", () => {
+    let s = run({ type: "speakers" }, { type: "speaker", speaker: HERON }, { type: "take", speaker: HERON, take: TAKE });
+    s = panelReducer(s, { type: "resume", speaker: HERON, take: TAKE, index: 0 });
+    expect(where(s)).toBe("judge:s3");
+    expect(s.history.map((h) => h.key)).toEqual(["speakers", "speaker"]);
+    s = panelReducer(s, { type: "back" });
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("speakers");
+  });
+});
+
 describe("judging", () => {
   it("a saved rating moves on to What happened by itself", () => {
     const s = panelReducer(atTake(), { type: "rated", snippetId: "s1", value: "no" });

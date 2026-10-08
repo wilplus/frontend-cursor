@@ -7,10 +7,10 @@
 /*                                                                            */
 /*    the bubble        "N speakers waiting · Open your queue" opens the new   */
 /*                      queue (CoachPanel)                                    */
-/*    Speakers          P1: opens the same queue, whose list is "Your         */
-/*                      speakers". The list of EVERY speaker, an orange dot   */
-/*                      on those waiting, is P5 (it needs the backend's       */
-/*                      students read)                                        */
+/*    Speakers          Your speakers: EVERY speaker this coach may hear, an  */
+/*                      orange dot on those waiting (D-CP-12, from            */
+/*                      GET /v2/coach/speakers); a speaker opens on their     */
+/*                      goal and their Takes                                  */
 /*    Training corpus   P1: today's corpus page (/coach/corpus)               */
 /*                                                                            */
 /*  THE HAND-OVER (P1 only). What happened's Next gives the moment to today's */
@@ -89,7 +89,7 @@ export default function CoachPanelDoor({
   return (
     <>
       {bubble ? <CoachWalkBubble waiting={waiting} onOpen={() => dispatch({ type: "open" })} /> : null}
-      <CoachPanelPinned onSpeakers={() => dispatch({ type: "open" })} />
+      <CoachPanelPinned onSpeakers={() => dispatch({ type: "speakers" })} />
       <CoachPanel state={state} dispatch={dispatch} speakers={queue.speakers} loading={queue.loading}
         onHandover={handOver} />
       {handed ? (
