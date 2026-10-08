@@ -6,6 +6,9 @@ import FeedbackWalk, {
   type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
 } from "./walk/FeedbackWalk";
+import type { WalkJudgementSave } from "./walk/useWalkJudging";
+import { useWalkJournalPost } from "./useWalkJournalPost";
+import { noteOwnAnswer } from "./paragraphSheetData";
 import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import {
   acceptRewriteBehind,
@@ -15,6 +18,8 @@ import {
   type SaveBehind,
 } from "./saveBehind";
 import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
+import { answerChanged, reopensJudgement } from "@/lib/willab/changeJudgement";
+import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackWalk,
   walkStart,
@@ -30,6 +35,8 @@ import { practiseOfferedNow, readPractiseOffered } from "@/services/api/consentC
 import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
 import { savePracticeHelperWords } from "@/services/api/confidentVoicePractice";
 import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+import { reportMomentEvent } from "@/services/api/momentEvents";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 
@@ -66,6 +73,16 @@ import type { LockResult } from "./DeckChunkModal";
 /*  the screen (`practiseWordsBehind`). An exercise (D-FW-17) is the served   */
 /*  offer the Feedback sheet's Exercise step plays: its video (the coach's,   */
 /*  else the library's), its instruction and its words (`exerciseOf`).        */
+/*                                                                            */
+/*  The judgements (D-FW-18) are saved as the Feedback sheet saves them: the  */
+/*  speaker's own answer on the Confident Voice item (L3), through the        */
+/*  feedback-response route, behind the screen; a changed answer is saved     */
+/*  beside the first (200 `revised`, QA1 A) and the same answer sends nothing */
+/*  (`judgementBehind`). Its bar leaves the page at once (`onJudged`). Skip   */
+/*  on "Judgement time!" settles every unanswered moment as the paragraph     */
+/*  sheet's Skip does: a `skipped` moment event (0408), and the bar leaves at */
+/*  once. The Journal post the intro links to is the published self-modeling */
+/*  post (JP1 A), read only while the switch is on.                           */
 /* -------------------------------------------------------------------------- */
 
 type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
@@ -120,6 +137,7 @@ export function deckWalkItems(
         rewrite: rewriteOf(item),
         item: suggestionSource(item) ? item : null,
         exercise,
+        judge: reopensJudgement(item) ? item : null,
       });
     }
   }
@@ -164,6 +182,45 @@ export function spanOnLiveText(save: FeedbackWalkHelperWords, liveText: string):
   return quoteSpan(liveText, stripRichMarkers(save.span.text).trim());
 }
 
+/** One judgement from the walk, saved behind the screen as the Feedback
+ *  sheet saves it: only a change from the answer given earlier in the walk
+ *  is sent (QA1 A: a changed answer is saved beside the first, the server's
+ *  200 `revised` is a save like any other); a Take a newer one replaced
+ *  cannot be retried away. */
+export async function judgementBehind(save: WalkJudgementSave<DocumentSuggestion>): Promise<"ok" | "failed" | "final"> {
+  const { item, answer, earlier } = save;
+  if (!item.takeSessionId) return "final";
+  if (!answerChanged(earlier ? { item, answer: earlier } : null, answer)) return "ok";
+  const result = await saveTakeFeedbackResponse({
+    takeSessionId: item.takeSessionId,
+    feedbackId: item.id,
+    feedbackFamily: "confident_voice",
+    response: answer,
+    candidateId: item.candidateId,
+    feedbackMembershipId: item.feedbackMembershipId,
+    feedbackExposureId: item.feedbackExposureId,
+  });
+  if (result.ok) return "ok";
+  return result.reason === "superseded" ? "final" : "failed";
+}
+
+/** Skip on "Judgement time!": each moment settled as skipped, once per
+ *  bookmark (the paragraph sheet's Skip, useFeedbackFirst). */
+export function skipJudgements(
+  items: readonly DocumentSuggestion[],
+  settle: (item: DocumentSuggestion) => void,
+): void {
+  const told = new Set<string>();
+  for (const item of items) {
+    const snippetId = item.snippetId;
+    if (snippetId && !told.has(snippetId)) {
+      told.add(snippetId);
+      void reportMomentEvent(snippetId, "skipped");
+    }
+    settle(item);
+  }
+}
+
 /** Personalised practice, read only while the walk is on (the deck makes no
  *  new read with the switch off). */
 function usePracticeOn(on: boolean): boolean {
@@ -199,6 +256,9 @@ export function useDeckFeedbackWalk(args: {
   onKeepMine: (s: DocumentSuggestion) => Promise<boolean>;
   lockPart: (chunk: DeckChunk, text: string) => Promise<LockResult>;
   saveBehind: SaveBehind;
+  /** A moment judged or skipped in the walk: its bar leaves the page at
+   *  once, settled as the server settles it (the Feedback sheet's own). */
+  onJudged?: (s: DocumentSuggestion, decided: "approved" | "dismissed") => void;
   /** The walk ran out: the deck's end card. */
   onEnd: () => void;
 }): { review: () => boolean; tapPart: (partId: string, open: boolean) => boolean; element: ReactNode } {
@@ -207,6 +267,7 @@ export function useDeckFeedbackWalk(args: {
   const [on, setOn] = useState(false);
   useEffect(() => setOn(feedbackWalkOn()), []);
   const practiceOn = usePracticeOn(on);
+  const journal = useWalkJournalPost(on);
 
   const model = useMemo(
     () =>
@@ -280,6 +341,16 @@ export function useDeckFeedbackWalk(args: {
       CHUNK_SHEET_COPY.failWordsBehind,
     );
   }, []);
+  const judge = useCallback((save: WalkJudgementSave<DocumentSuggestion>) => {
+    const { saveBehind, onJudged } = live.current;
+    const { item, answer } = save;
+    if (item.takeSessionId) noteOwnAnswer(item.takeSessionId, item.id, answer);
+    onJudged?.(item, judgedStatus(answer === "yes" ? "yes" : "other"));
+    saveBehind(() => judgementBehind(save), CHUNK_SHEET_COPY.failAnswerBehind);
+  }, []);
+  const skipJudging = useCallback((items: DocumentSuggestion[]) => {
+    skipJudgements(items, (item) => live.current.onJudged?.(item, "dismissed"));
+  }, []);
   const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
   const onEnd = useCallback(() => live.current.onEnd(), []);
 
@@ -296,6 +367,9 @@ export function useDeckFeedbackWalk(args: {
           onKeepWords={keepWords}
           practise={practise}
           onSavePractiseWords={savePractiseWords}
+          onJudge={judge}
+          onSkipJudging={skipJudging}
+          journal={journal}
           onEnd={onEnd}
         />
       ) : null,
@@ -310,6 +384,9 @@ export function useDeckFeedbackWalk(args: {
       keepWords,
       practise,
       savePractiseWords,
+      judge,
+      skipJudging,
+      journal,
       onEnd,
     ],
   );

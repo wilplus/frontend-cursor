@@ -9,6 +9,7 @@ import FeedbackWalk, {
 import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 import WalkEndSheet from "@/components/willab/walk/WalkEndSheet";
+import { useWalkJournalPost } from "@/components/willab/useWalkJournalPost";
 import GuestSignUpDialog from "@/components/willab/GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 import {
@@ -53,6 +54,13 @@ import {
 /*  the coach's video (the harness's dark box), the instruction and the       */
 /*  words. &exvideo=0 hands it with no video: the walk goes straight to the   */
 /*  practise (Q-B15 A).                                                       */
+/*                                                                            */
+/*  "Judgement time!" and the judgements (D-FW-18): every moment carries its  */
+/*  Confident Voice item to judge; an answer or a Skip is only noted on the   */
+/*  harness. The Journal post is read through the app's own client and BFF    */
+/*  route (useWalkJournalPost): nothing answers it here, so the link is       */
+/*  hidden unless the browser answers the route, as the e2e spec and the      */
+/*  screenshot manifest do.                                                   */
 /* -------------------------------------------------------------------------- */
 
 /** No network, no file: the dark box with its play button. */
@@ -118,6 +126,7 @@ function liveItems(audioSrc: string, exerciseVideo: boolean): FeedbackWalkItem<s
     rewrite: rewriteOf(m),
     item: m.clearer ? `rewrite-${m.index}` : null,
     exercise: exerciseOf(m, exerciseVideo),
+    judge: `cv-${m.index}`,
   }));
 }
 
@@ -164,6 +173,8 @@ export default function LiveWalk({
   const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>([]);
   const [decided, setDecided] = useState<string[]>([]);
   const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
+  const [judged, setJudged] = useState<string[]>([]);
+  const journal = useWalkJournalPost(true);
   const practise = useMemo(
     () =>
       walkPractiseIO<string>((item) => ({
@@ -192,6 +203,7 @@ export default function LiveWalk({
       data-walk-saved={saved.map((s) => s.span.text).join("|")}
       data-walk-decided={decided.join("|")}
       data-walk-practised={practised.map((p) => p.phrase).join("|")}
+      data-walk-judged={judged.join("|")}
     >
       <PageStandIn answers={{}} onReview={review} />
       <FeedbackWalk
@@ -206,6 +218,9 @@ export default function LiveWalk({
         onKeepWords={(item) => setDecided((list) => [...list, `keep:${item}`])}
         practise={practise}
         onSavePractiseWords={(save) => setPractised((list) => [...list, save])}
+        onJudge={(save) => setJudged((list) => [...list, `${save.item}:${save.answer}${save.earlier ? `<${save.earlier}` : ""}`])}
+        onSkipJudging={(items) => setJudged((list) => [...list, ...items.map((item) => `${item}:skipped`)])}
+        journal={journal}
         onEnd={() => setEnd(true)}
       />
       {end ? (

@@ -16,7 +16,7 @@ import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { coachWordKey, coachWordSeen } from "./coachWordSeen";
-import { exerciseOf, praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
+import { exerciseOf, judgementBehind, praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
@@ -227,7 +227,8 @@ describe("the switch on", () => {
 
   it("with nothing for this phase to show, Review feedback keeps today's sheet", async () => {
     walkOn();
-    const p = props({ suggestions: [judgement] });
+    // A judgement with no snippet to save the answer on draws no screen.
+    const p = props({ suggestions: [{ ...judgement, snippetId: null }] });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
     expect(live()).toBeNull();
@@ -469,5 +470,138 @@ describe("the exercise in the walk (D-FW-17)", () => {
     expect(exerciseOf({ ...withExercise({ chosenByCoach: true }), openCard: "praise" } as DocumentSuggestion)).not.toBeNull();
     expect(exerciseOf({ ...withExercise(), evidence: null } as DocumentSuggestion)).toBeNull();
     expect(exerciseOf(judgement)).toBeNull();
+  });
+});
+
+describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
+  const POST = {
+    slug: "why-we-ask-you-to-judge-honestly",
+    title: "Why we ask you to judge honestly",
+    excerpt: "",
+    category: "science",
+    body: "The first paragraph.\n\nThe second paragraph.",
+    author_name: "WillpowerLab",
+  };
+  let requests: { url: string; body: unknown }[];
+  function serve(journal: "published" | "missing") {
+    requests = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        requests.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
+        if (url.endsWith("/api/v2/journal/posts/why-we-ask-you-to-judge-honestly") && journal === "published") {
+          return new Response(JSON.stringify(POST), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
+        if (url.endsWith("/moment-event")) {
+          return new Response(JSON.stringify({ recorded: true, follow_up: "none" }), { status: 200 });
+        }
+        return new Response("{}", { status: 404 });
+      }),
+    );
+  }
+  const forward = () => click(live()!.querySelector("[data-testid='walk-forward']"));
+  const skip = () => click(live()!.querySelector("[data-testid='walk-skip']"));
+  const wait = (ms: number) => act(async () => new Promise((r) => setTimeout(r, ms)));
+  /** Review feedback, past the praise and its helper words (skipped). */
+  async function toIntro(p: ReturnType<typeof props>) {
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-praise");
+    await forward();
+    await skip();
+    expect(screen()).toBe("walk-screen-intro");
+  }
+
+  it("the switch off: no walk, no Journal read, nothing judged", async () => {
+    serve("published");
+    const onJudged = vi.fn();
+    const p = props({ onJudged });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(walk()).toBeNull();
+    expect(requests.some((r) => r.url.includes("/journal/"))).toBe(false);
+    expect(onJudged).not.toHaveBeenCalled();
+  });
+
+  it("with only a judgement left, Review feedback opens \"Judgement time!\"", async () => {
+    walkOn();
+    serve("missing");
+    const p = props({ suggestions: [judgement] });
+    await render(p);
+    await render({ ...p, reviewRequest: 1 });
+    expect(screen()).toBe("walk-screen-intro");
+  });
+
+  it("the link opens the published post inside the walk; with none to read there is no link", async () => {
+    walkOn();
+    serve("published");
+    await toIntro(props());
+    expect(requests.filter((r) => r.url.endsWith("/api/v2/journal/posts/why-we-ask-you-to-judge-honestly"))).toHaveLength(1);
+    await click(live()!.querySelector("[data-testid='walk-journal']"));
+    expect(screen()).toBe("walk-screen-journal");
+    expect(live()!.querySelector("[data-walk-journal-title]")!.textContent).toBe(POST.title);
+    await click(live()!.querySelector("[data-testid='walk-journal-back']"));
+    expect(screen()).toBe("walk-screen-intro");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    serve("missing");
+    await toIntro(props());
+    expect(live()!.querySelector("[data-testid='walk-journal']")).toBeNull();
+  });
+
+  it("an answer saves the speaker's own Confident Voice answer through the feedback-response route, behind the screen", async () => {
+    walkOn();
+    serve("missing");
+    const onJudged = vi.fn();
+    await toIntro(props({ onJudged }));
+    await forward();
+    expect(screen()).toBe("walk-screen-judge");
+    await click(live()!.querySelector("[data-walk-answer='yes']"));
+    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
+    await wait(320);
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveTakeFeedbackResponse).mock.calls[0][0]).toMatchObject({
+      takeSessionId: "take-2",
+      feedbackId: "s-cv",
+      feedbackFamily: "confident_voice",
+      response: "yes",
+    });
+    expect(onJudged).toHaveBeenCalledWith(expect.objectContaining({ id: "s-cv" }), "approved");
+    expect(document.querySelector("[data-walk-toast]")!.textContent).toBe("Yes ✓");
+    expect(requests.some((r) => r.url.endsWith("/moment-event"))).toBe(false);
+  });
+
+  it("Skip settles the moment as skipped: a moment event, its bar cleared, no answer written", async () => {
+    walkOn();
+    serve("missing");
+    const onJudged = vi.fn();
+    await toIntro(props({ onJudged }));
+    await skip();
+    await wait(0);
+    const events = requests.filter((r) => r.url.endsWith("/moment-event"));
+    expect(events).toHaveLength(1);
+    expect(events[0].url).toContain("/api/v2/user/snippets/snip-1/moment-event");
+    expect(events[0].body).toMatchObject({ event: "skipped" });
+    expect(onJudged).toHaveBeenCalledWith(expect.objectContaining({ id: "s-cv" }), "dismissed");
+    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
+    expect(live()).toBeNull();
+  });
+});
+
+describe("judgementBehind (QA1 A)", () => {
+  it("sends only a change; a changed answer's 200 `revised` is a save; a replaced Take is final", async () => {
+    const save = vi.mocked(saveTakeFeedbackResponse);
+    save.mockClear();
+    expect(await judgementBehind({ item: judgement, answer: "yes", earlier: "yes" })).toBe("ok");
+    expect(save).not.toHaveBeenCalled();
+    save.mockResolvedValueOnce({ ok: true, revised: true });
+    expect(await judgementBehind({ item: judgement, answer: "no", earlier: "yes" })).toBe("ok");
+    expect(save.mock.calls[0][0]).toMatchObject({ feedbackFamily: "confident_voice", response: "no" });
+    save.mockResolvedValueOnce({ ok: false, error: "x", reason: "superseded" });
+    expect(await judgementBehind({ item: judgement, answer: "yes", earlier: null })).toBe("final");
+    save.mockResolvedValueOnce({ ok: false, error: null });
+    expect(await judgementBehind({ item: judgement, answer: "yes", earlier: null })).toBe("failed");
   });
 });

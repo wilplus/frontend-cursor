@@ -80,6 +80,9 @@ export type WalkStepKey =
    *  "Practise again", never a verdict. */
   | "late"
   | "intro"
+  /** The Journal post opened from "Judgement time!" (JP1 A, Q-B4 A): drawn
+   *  over the intro, never planned. */
+  | "journal"
   | "judge"
   | "community"
   | "end";

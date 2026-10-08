@@ -17,6 +17,11 @@
 /*  three tries, and a late read (O5). Then the exercise (D-FW-17): the       */
 /*  coach's video in the 4:5 frame with Practise and Skip, Practise opening   */
 /*  the same loop on the exercise, and with no video the practise at once.    */
+/*  Last, "Judgement time!" (D-FW-18): the intro cross-fades in, its link     */
+/*  opens the Journal post inside the overlay (its route answered here) and  */
+/*  Back returns; each judgement holds 0.28 s, moves on with "Yes ✓", and ‹   */
+/*  reopens it with the earlier answer pressed; then the end card. Skip       */
+/*  settles every moment and goes to the end; with no post, no link.         */
 /*                                                                            */
 /*  Video of the flow: <SHOTS_DIR>/flow.webm. SHOTS_DIR defaults to            */
 /*  e2e/artifacts/feedback-walk (gitignored). The still screens are drawn by  */
@@ -29,6 +34,7 @@ import { launchChromium } from "./_launch.mjs";
 import {
   TRY_WORDS, liveScreen, routePractise, seedPractise, stopTry, toLiveExercise, toLivePractise,
 } from "./_walkPractise.mjs";
+import { JOURNAL_POST, routeJournal, toLiveIntro } from "./_walkJudging.mjs";
 
 const BASE = process.env.WALK_P1_URL ?? "http://localhost:3111/dev/feedback-walk";
 const SHOTS = process.env.SHOTS_DIR ?? "e2e/artifacts/feedback-walk";
@@ -53,6 +59,7 @@ const KEY = {
   encourage: "[data-walk-message]",
   helpers: "[data-walk-word-picker]",
   intro: "[data-walk-pill]",
+  journal: "[data-walk-journal-title]",
   judge: "[data-walk-judgement]",
   community: "[data-walk-options]",
   end: "[data-walk-endsheet]",
@@ -79,6 +86,11 @@ for (const [screen, selector] of Object.entries(KEY)) {
   const text = await page.evaluate(() => document.body.innerText);
   check(`${screen}: no sender label`, !/Your coach|What you said/.test(text));
   check(`${screen}: no percentage on screen (AC-9)`, !/\d\s?%/.test(text));
+  if (screen === "intro" || screen === "judge") {
+    const overlay = await page.locator(`[data-testid="walk-screen-${screen}"]`).innerText();
+    const rest = overlay.replace(/Slide \d+ · moment \d+ of \d+/, "").replace(/\d:\d{2}/g, "");
+    check(`${screen}: no number on the overlay beyond the moment's position (AC-9)`, !/\d/.test(rest), rest);
+  }
   await page.waitForTimeout(400); // let the arrive-animations settle
   check(`${screen}: no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
@@ -210,6 +222,8 @@ for (const [screen, selector] of Object.entries(KEY)) {
 
 /* ------------------------- the practise loop, live -------------------------- */
 const LIVE_URL = `${BASE}?live=1`;
+const LIVE_LAYER_OF = (key) =>
+  `[data-feedback-walk] .walk-layer:not(.walk-ghost):has([data-testid="walk-screen-${key}"])`;
 const CM3B = "Great effort! Let's move on and come back to this one later.";
 const NX3A = ["Let's try it once more. I have another practice for you!", "Let's give it another go. I have one more practice for you!"];
 
@@ -271,8 +285,7 @@ await practiseRun("the cap", [{ next: "again", key: "effort" }, { next: "again",
     check("after the third try: a CM3b line", await shown("thanks") && (await text("thanks")).includes(CM3B));
     check("three tries, three checks", calls.filter((c) => c.startsWith("check:")).length === 3, calls.join(","));
     await page.locator(`${liveScreen("thanks")} [data-testid="walk-forward"]`).click();
-    // TODO(D-FW-18): "Judgement time!" follows the practising; in this phase
-    // the next moment's exercise, then the end card.
+    // The next moment's exercise, then "Judgement time!" (D-FW-18).
     check("then the walk moves on", await shown("exVideo"));
   });
 
@@ -336,14 +349,87 @@ await exerciseRun("the exercise video", "", async ({ page, shown, calls, bodies 
 await exerciseRun("Skip on the exercise", "", async ({ page, shown }) => {
   await shown("exVideo");
   await page.locator(`${liveScreen("exVideo")} [data-testid="walk-skip"]`).click();
-  check("Skip moves on past the exercise",
-    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  check("Skip moves on past the exercise, to \"Judgement time!\"", await shown("intro"));
 });
 
 await exerciseRun("no video at all", "&exvideo=0", async ({ page, shown }) => {
   check("with no video, straight to the practise", await shown("practise") &&
     (await page.locator(`${liveScreen("practise")} [data-walk-message]`).count()) === 1 &&
     (await page.locator("[data-testid='walk-screen-exVideo']").count()) === 0);
+});
+
+/* ----------------------------- "Judgement time!" ---------------------------- */
+/** One judging run on the live walk; `journal` answers the post's route. */
+async function judgingRun(name, journal, drive) {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  await routeJournal(context, journal);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(LIVE_URL, { waitUntil: "networkidle" });
+  await toLiveIntro(page);
+  const shown = async (key) =>
+    page.waitForSelector(liveScreen(key), { timeout: 20_000 }).then(() => true, () => false);
+  const tapIn = (key, testId) => page.locator(`${liveScreen(key)} [data-testid="${testId}"]`).click({ timeout: 20_000 });
+  const judged = () => page.locator("[data-walk-harness]").getAttribute("data-walk-judged");
+  await drive({ page, shown, tapIn, judged });
+  const body = await page.evaluate(() => document.body.innerText);
+  check(`${name}: no score on screen (AC-9)`, !/score|%/i.test(body));
+  check(`${name}: no page errors`, errors.length === 0, errors.join(" | "));
+  await context.close();
+}
+
+await judgingRun("intro → journal → judge → end", "published", async ({ page, shown, tapIn, judged }) => {
+  check("the intro cross-fades in", (await page.locator(`${LIVE_LAYER_OF("intro")}`).getAttribute("data-walk-move")) === "fade");
+  const intro = await page.locator(liveScreen("intro")).innerText();
+  check("the intro: the signed words", intro.includes("Judgement time!") &&
+    intro.includes("I am going to judge them honestly") && intro.includes("Skip") &&
+    intro.includes("More about self-modeling theory"));
+  await tapIn("intro", "walk-journal");
+  check("the link opens the Journal post inside the overlay", await shown("journal") &&
+    (await page.locator(`${liveScreen("journal")} [data-walk-eyebrow]`).innerText()).toLowerCase() === "journal" &&
+    (await page.locator(`${liveScreen("journal")} [data-walk-journal-title]`).innerText()) === JOURNAL_POST.title &&
+    (await page.locator("[data-walk-stage]").count()) === 1);
+  await tapIn("journal", "walk-journal-back");
+  check("Back returns to the intro", await shown("intro"));
+  await tapIn("intro", "walk-forward");
+  check("I am going to judge them honestly: the first judgement", await shown("judge"));
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="yes"]`).click();
+  await page.waitForTimeout(150);
+  check("the answer holds before it moves on",
+    (await page.locator(`${liveScreen("judge")} [data-walk-answer="yes"][aria-pressed="true"]`).count()) === 1 &&
+    (await page.locator("[data-walk-toast]").count()) === 0);
+  await page.waitForSelector("[data-walk-toast]", { timeout: 5000 });
+  check("then moves on with the toast", (await page.locator("[data-walk-toast]").innerText()) === "Yes ✓" &&
+    (await page.locator(`${liveScreen("judge")} [data-walk-nav]`).getAttribute("aria-label")).includes("moment 2 of 4"));
+  await page.locator(`${liveScreen("judge")} [data-walk-nav] button`).first().click();
+  await page.waitForTimeout(500);
+  check("‹ reopens the judgement with the earlier answer pressed",
+    (await page.locator(`${liveScreen("judge")} [data-walk-nav]`).getAttribute("aria-label")).includes("moment 1 of 4") &&
+    (await page.locator(`${liveScreen("judge")} [data-walk-answer="yes"][aria-pressed="true"]`).count()) === 1);
+  await page.locator(`${liveScreen("judge")} [data-walk-answer="no"]`).click();
+  for (let i = 2; i <= 4; i += 1) {
+    await page.waitForFunction((n) => document.querySelector(
+      '[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid="walk-screen-judge"] [data-walk-nav]',
+    )?.getAttribute("aria-label")?.includes(`moment ${n} of 4`), i, { timeout: 10_000 });
+    await page.locator(`${liveScreen("judge")} [data-walk-answer="in_between"]`).click();
+  }
+  check("the last judgement leads to the end card",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  check("each answer handed over once, a change with the earlier answer",
+    (await judged()) === "cv-0:yes|cv-0:no<yes|cv-1:in_between|cv-2:in_between|cv-3:in_between", await judged());
+});
+
+await judgingRun("Skip on Judgement time!", "published", async ({ page, tapIn, judged }) => {
+  await tapIn("intro", "walk-skip");
+  check("Skip settles every moment and goes to the end card",
+    await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false) &&
+    (await judged()) === "cv-0:skipped|cv-1:skipped|cv-2:skipped|cv-3:skipped", await judged());
+});
+
+await judgingRun("no post to open", "missing", async ({ page }) => {
+  check("with no post, no link", (await page.locator(`${liveScreen("intro")} [data-testid="walk-journal"]`).count()) === 0 &&
+    !(await page.locator(liveScreen("intro")).innerText()).includes("More about self-modeling theory"));
 });
 
 await browser.close();

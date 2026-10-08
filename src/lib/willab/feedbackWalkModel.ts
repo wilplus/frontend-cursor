@@ -11,9 +11,10 @@
 /*  clearer version (D-FW-15), the practise loop on the accepted words or the */
 /*  moment said again (D-FW-16; the machine's check lays its screens in live, */
 /*  walkPractise.ts), the exercise (D-FW-17: its video, then the practise on  */
-/*  its instruction), then the end card. The other screens of the plan are    */
-/*  left out here, not drawn half-built:                                      */
-/*    TODO(D-FW-18) "Judgement time!" and the judgements                      */
+/*  its instruction), "Judgement time!" and one judgement per moment still    */
+/*  open (D-FW-18: only where the moment's Confident Voice item is there to   */
+/*  save the speaker's answer on), then the end card. Sharing is left out     */
+/*  here, not drawn half-built:                                               */
 /*    TODO(D-FW-20) sharing                                                   */
 /*                                                                            */
 /*  No number, read or score is an input or an output (AC-9). The words are   */
@@ -64,6 +65,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
    *  exercise cell, or one the coach chose), with the served item it is
    *  practised on. Only from the served offer; never made up. */
   exercise?: FeedbackWalkItemExercise<R> | null;
+  /** On the Confident Voice item still waiting for the speaker's judgement:
+   *  the item itself, the one the speaker's own answer is saved on (L3).
+   *  Only handed back. */
+  judge?: R | null;
 };
 
 /** An exercise as an item carries it: its video (the coach's when the coach
@@ -111,6 +116,9 @@ export type FeedbackWalkMoment<R = unknown> = {
   practiseItem: R | null;
   /** The moment's exercise (D-FW-17), when one is served on it. */
   exercise: FeedbackWalkExercise<R> | null;
+  /** The Confident Voice item the moment's judgement is saved on (D-FW-18).
+   *  None: the moment has no judgement screen. */
+  judgeItem: R | null;
 };
 
 export type FeedbackWalkModel<R = unknown> = {
@@ -120,8 +128,8 @@ export type FeedbackWalkModel<R = unknown> = {
   partsOf: string[][];
 };
 
-/** The screens this phase draws (D-FW-14 to D-FW-17). The rest of the plan
- *  waits for D-FW-18/20. The practise loop's later screens
+/** The screens this phase draws (D-FW-14 to D-FW-18). Sharing waits for
+ *  D-FW-20. The practise loop's later screens
  *  (checking, praise, encouragement, the thank-you, a late read) are laid in
  *  live by walkPractise.ts, never planned ahead. */
 export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
@@ -132,6 +140,8 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "clearer",
   "exVideo",
   "practise",
+  "intro",
+  "judge",
   "end",
 ]);
 
@@ -203,7 +213,14 @@ function momentOf<R>(group: readonly FeedbackWalkItem<R>[], index: number): Feed
     practiseItem:
       group.find((i) => i.item != null && (i.rewrite != null || i.openCard === "coach_request"))?.item ?? null,
     exercise: pickExercise(group.flatMap((i) => (i.exercise ? [i.exercise] : []))),
+    judgeItem: group.find((i) => i.judge != null)?.judge ?? null,
   };
+}
+
+/** "Judgement time!" stands only in front of a judgement it opens. */
+function withoutLoneIntro(plan: WalkStep[]): WalkStep[] {
+  if (plan.some((step) => step.key === "judge")) return plan;
+  return plan.filter((step) => step.key !== "intro");
 }
 
 /** The walk for one Take, as this phase draws it. A clearer version is drawn
@@ -227,11 +244,12 @@ export function buildFeedbackWalk<R = unknown>(input: {
       WALK_PHASE_SCREENS.has(step.key) &&
       drawnPractise(step, moment) &&
       drawnVideo(step, moment) &&
-      (step.key !== "clearer" || moment?.clearer != null)
+      (step.key !== "clearer" || moment?.clearer != null) &&
+      (step.key !== "judge" || moment?.judgeItem != null)
     );
   });
   return {
-    plan,
+    plan: withoutLoneIntro(plan),
     moments,
     partsOf: groups.map((group) => [...new Set(group.map((i) => i.partId))]),
   };
@@ -251,8 +269,8 @@ export function clearerTurn(plan: readonly WalkStep[], at: number): number {
 }
 
 /** Where "Review feedback" opens the walk: its first screen. Null when this
- *  phase has nothing to show (no coach's note, no praise, no clearer
- *  version). */
+ *  phase has nothing to show (no coach's note, no praise, no practise, no
+ *  judgement). */
 export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
   const at = model.plan.findIndex((step) => step.overlay !== false);
   return at >= 0 ? at : null;
@@ -268,4 +286,35 @@ export function walkStepForPart(model: FeedbackWalkModel<unknown>, partId: strin
     if (at !== null) return at;
   }
   return null;
+}
+
+/** Where the walk goes once the judging is over, by the judgements or by
+ *  Skip on "Judgement time!" (Q-B6 A): the step after the last judgement,
+ *  which is sharing once D-FW-20 draws it, and the end card until then. */
+export function afterJudging(plan: readonly WalkStep[]): number {
+  let last = -1;
+  plan.forEach((step, i) => {
+    if (step.key === "intro" || step.key === "judge") last = i;
+  });
+  return Math.min(last + 1, plan.length - 1);
+}
+
+/** The moments the judging still holds open: every judgement in the plan
+ *  the speaker has not answered in this walk. Skip settles them. */
+export function unansweredJudgements(
+  plan: readonly WalkStep[],
+  answered: Readonly<Record<number, unknown>>,
+): number[] {
+  const out: number[] = [];
+  for (const step of plan) {
+    if (step.key !== "judge" || step.moment == null) continue;
+    if (answered[step.moment] === undefined && !out.includes(step.moment)) out.push(step.moment);
+  }
+  return out;
+}
+
+/** The first judgement of the walk: its ‹ is off ("Judgement time!" is not
+ *  gone back to, as in the prototype). */
+export function firstJudgement(plan: readonly WalkStep[], at: number): boolean {
+  return plan[at]?.key === "judge" && plan[at - 1]?.key !== "judge";
 }

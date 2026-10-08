@@ -39,6 +39,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { practisePrepare, stopTry, toLiveExercise, toLivePractise } from "../_walkPractise.mjs";
+import { JOURNAL_ALLOW, routeJournal, toLiveIntro, toLiveJournal, toLiveJudge } from "../_walkJudging.mjs";
 
 export const VIEWPORTS = {
   phone: { width: 390, height: 844 },
@@ -75,6 +76,7 @@ const WALK_KEYS = {
   encourage: "[data-walk-message]",
   helpers: "[data-walk-word-picker]",
   intro: "[data-walk-pill]",
+  journal: "[data-walk-journal-title]",
   judge: "[data-walk-judgement]",
   community: "[data-walk-options]",
   end: "[data-walk-endsheet]",
@@ -84,7 +86,9 @@ const WALK_KEYS = {
 const WALK_ALLOW = [/\bQ3\b/];
 const WALK = Object.entries(WALK_KEYS).map(([name, waitFor]) => ({
   area: "walk", name, audience: "speaker",
-  path: `/dev/feedback-walk?screen=${name}`, waitFor, settleMs: 400, allow: WALK_ALLOW,
+  path: `/dev/feedback-walk?screen=${name}`, waitFor, settleMs: 400,
+  // The Journal post's citation carries the article's own year and pages.
+  allow: name === "journal" ? [...WALK_ALLOW, ...JOURNAL_ALLOW] : WALK_ALLOW,
 }));
 /** The same screens drawn by the PRODUCTION walk (FeedbackWalk, D-FW-14) on
  *  the harness's fixtures (/dev/feedback-walk?live=1): it opens on the
@@ -197,6 +201,28 @@ const LIVE_WALK = [
     prepare: practisePrepare([]),
     waitFor: `${liveScreen("practise")} [data-walk-message]`,
     act: toLiveExercise,
+  },
+  // "Judgement time!", the Journal post inside the walk, and a judgement
+  // (D-FW-18), the Journal route answered with the signed post; the
+  // harness's 'intro', 'journal' and 'judge' stills are their pictures.
+  {
+    name: "live-intro",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("intro")} [data-testid="walk-journal"]`,
+    act: toLiveIntro,
+  },
+  {
+    name: "live-journal",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("journal")} [data-walk-journal-title]`,
+    act: toLiveJournal,
+    allow: [...WALK_ALLOW, ...JOURNAL_ALLOW],
+  },
+  {
+    name: "live-judge",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("judge")} [data-walk-judgement]`,
+    act: toLiveJudge,
   },
   {
     name: "live-clearer-practice-off",
