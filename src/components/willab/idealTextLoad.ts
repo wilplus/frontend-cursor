@@ -13,9 +13,12 @@
 /*      enrichment replaces each piece. Only rows the Manager already         */
 /*      approved and the page already showed are kept (L2); a new arc, a      */
 /*      first load or a new Take starts clean.                                */
+/*  P1  a first open paints the Lounge's handover (up to 30 s old) and, past  */
+/*      the trusted 3 s, reads the core fresh behind it.                      */
 /* -------------------------------------------------------------------------- */
 
 import {
+  fetchIdealTextCore,
   fetchIdealTextEnrichment,
   mergeIdealTextEnrichment,
   settleIdealTextEnrichment,
@@ -261,4 +264,54 @@ export async function loadIdealTextEnrichment(
   } else if (settled.kind === "stale") {
     hooks.refetch();
   }
+}
+
+/** P1 — whether a revalidating read describes the document already painted
+ *  from the Lounge's handover. Different → the page refetches in place. */
+export function sameServedDocument(
+  shown: IdealTextResult,
+  fresh: IdealTextResult,
+): boolean {
+  if (fresh.kind !== shown.kind) return false;
+  if (fresh.kind !== "single" || shown.kind !== "single") {
+    return (
+      "ideal" in fresh &&
+      "ideal" in shown &&
+      fresh.ideal.text === shown.ideal.text
+    );
+  }
+  return (
+    fresh.documentSnapshotId === shown.documentSnapshotId &&
+    fresh.version === shown.version &&
+    fresh.ideal.text === shown.ideal.text &&
+    JSON.stringify(fresh.confidentMomentSummary ?? null) ===
+      JSON.stringify(shown.confidentMomentSummary ?? null) &&
+    JSON.stringify(fresh.confidentMomentOwnerEdit ?? null) ===
+      JSON.stringify(shown.confidentMomentOwnerEdit ?? null)
+  );
+}
+
+/** A refetch's read, in the shape of the first open's. */
+export async function readFreshCore(
+  arcId: string,
+): Promise<{ result: IdealTextResult; revalidate: boolean }> {
+  return { result: await fetchIdealTextCore(arcId), revalidate: false };
+}
+
+/** P1 — after painting a handover older than the trusted window, read the
+ *  core fresh behind it; when the document moved, refetch in place (the
+ *  F2 rule keeps the page from blanking). The enrichment of the painted
+ *  snapshot keeps running meanwhile: a snapshot is immutable. */
+export function revalidateHandoff(
+  arcId: string,
+  shown: IdealTextResult,
+  hooks: { isCurrent: () => boolean; refetch: () => void },
+  read: (arcId: string) => Promise<IdealTextResult> = fetchIdealTextCore,
+): Promise<void> {
+  return read(arcId).then((fresh) => {
+    if (!hooks.isCurrent()) return;
+    const usable =
+      fresh.kind === "single" || fresh.kind === "ready" || fresh.kind === "instant";
+    if (usable && !sameServedDocument(shown, fresh)) hooks.refetch();
+  });
 }

@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   fetchIdealTextCore,
+  prefetchIdealTextDisplay,
   primeIdealTextDisplay,
 } from "@/services/api/idealText";
 import {
@@ -701,9 +702,13 @@ function IdealRecordingCard({
   badge,
   ctaLabel,
   onOpen,
+  onWarm,
   unread = 0,
   marked = false,
 }: {
+  /** P1 (2026-10-08): a press on the CTA starts the read the opened screen
+   *  needs, before the click lands. Timing only; nothing drawn changes. */
+  onWarm?: () => void;
   /** The orange dot's number; 0 hides the dot (Q42 A). */
   unread?: number;
   /** New coach feedback waits for the walk: the outline and the "new" tag
@@ -760,6 +765,7 @@ function IdealRecordingCard({
         <Button
           type="button"
           onClick={onOpen}
+          onPointerDown={onWarm}
           className="mt-4 h-11 w-full rounded-xl bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90 active:scale-[0.99]"
         >
           <Sparkles className="mr-2 h-4 w-4" aria-hidden />
@@ -928,6 +934,7 @@ function LiveStatusIdealTextCard({
       // While feedback waits, the bubble opens it (the same place as the
       // email's link); otherwise the notebook, as always.
       onOpen={unread > 0 && onOpenFeedback ? onOpenFeedback : onOpen}
+      onWarm={arcId ? () => prefetchIdealTextDisplay(arcId) : undefined}
     />
   );
 }

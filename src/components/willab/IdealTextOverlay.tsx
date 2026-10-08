@@ -21,7 +21,7 @@ import {
 import {
   type Addition,
   fetchIdealTextCore,
-  fetchIdealTextForDisplay,
+  fetchIdealTextForOpen,
   saveIdealUserEdit,
   segmentIdealText,
   type DecisionHistoryEntry,
@@ -65,6 +65,8 @@ import {
   carryShownFeedback,
   loadIdealTextEnrichment,
   mayCarry,
+  readFreshCore,
+  revalidateHandoff,
   sdFromResult,
   type IdealTextSd,
 } from "./idealTextLoad";
@@ -97,7 +99,6 @@ import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
-import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -312,9 +313,9 @@ export default function IdealTextOverlay({
       return;
     }
     const gen = ++fetchGenRef.current;
-    const read = confidentMomentBundleEnabled()
-      ? fetchIdealTextCore
-      : firstLoad ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    // P1 — a first open paints the Lounge's handover (bundle flag or not:
+    // every handover is this same core read) and revalidates an older one.
+    const read = firstLoad ? fetchIdealTextForOpen : readFreshCore;
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
       refreshDocumentVariants: boolean,
@@ -351,7 +352,7 @@ export default function IdealTextOverlay({
       }
       return keep;
     };
-    void read(arcId).then(async (r) => {
+    void read(arcId).then(async ({ result: r, revalidate }) => {
       if (!active || gen !== fetchGenRef.current) return;
       /* A REFETCH that did not come back with a document keeps the one we are
        * already showing. Replacing a good document with "couldn't load this"
@@ -368,6 +369,12 @@ export default function IdealTextOverlay({
         return;
       }
       if (usable) loadedArcRef.current = arcId;
+      if (usable && revalidate) {
+        revalidateHandoff(arcId, r, {
+          isCurrent: () => active && gen === fetchGenRef.current,
+          refetch: () => setRefetchNonce((value) => value + 1),
+        });
+      }
       if (r.kind === "single") {
         // Paint the immutable core first. Optional feedback and controls are
         // attached only when they return for this exact snapshot.

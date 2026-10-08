@@ -2345,18 +2345,26 @@ function numberOrNull(value: unknown): number | null {
 /*  canonical document immediately before opening it. A second identical GET  */
 /*  made the opening screen pay for the same owner check, composition and      */
 /*  enrichment reads twice. This one-use handoff carries only a successful     */
-/*  live display result, for a very short window. Pollers remain network-fresh; */
-/*  the display consumes and deletes the entry, so this is not a document      */
-/*  cache and cannot keep serving an old Take.                                 */
+/*  live display result, for a short window (30 s; past 3 s the page paints   */
+/*  it and revalidates behind it). Pollers remain network-fresh; the display  */
+/*  consumes and deletes the entry, so this is not a document cache and       */
+/*  cannot keep serving an old Take.                                          */
 /* -------------------------------------------------------------------------- */
 
-// Long enough for the synchronous settle→open transition, short enough that
-// a coach edit or another Take cannot be masked by a general-purpose cache.
-const IDEAL_TEXT_DISPLAY_HANDOFF_MS = 3_000;
+// How long a handed-over read may still paint the opening screen (P1,
+// founder 2026-10-08: the Lounge's read used to live 3 s, so most opens paid
+// for the same core read again). An entry older than the trusted window is
+// painted and then REVALIDATED behind it by the Ideal Text page, which reads
+// fresh and refetches in place when the document moved — so a coach edit or
+// another Take is never masked, only painted a moment later.
+export const IDEAL_TEXT_DISPLAY_HANDOFF_MS = 30_000;
+// Younger than this, a handover is served as-is (the old one-use rule), and
+// it is the only window the read-aloud surface accepts.
+export const IDEAL_TEXT_DISPLAY_TRUSTED_MS = 3_000;
 
 const idealTextDisplayHandoffs = new Map<
   string,
-  { createdAt: number; result: IdealTextResult }
+  { createdAt: number; result: Promise<IdealTextResult> }
 >();
 
 function isDisplayableIdealText(
@@ -2373,7 +2381,7 @@ function isDisplayableIdealText(
 }
 
 /** Hand a fresh canonical read to the next screen. Never call this with a
- * speculative/local document; only a successful `fetchIdealText` result. */
+ * speculative/local document; only a successful `fetchIdealTextCore` result. */
 export function primeIdealTextDisplay(
   arcId: string,
   result: IdealTextResult,
@@ -2381,24 +2389,84 @@ export function primeIdealTextDisplay(
   if (!arcId || !isDisplayableIdealText(result)) return;
   idealTextDisplayHandoffs.set(arcId, {
     createdAt: Date.now(),
-    result,
+    result: Promise.resolve(result),
   });
 }
 
-/** First-paint read. Reuses one fresh canonical payload at most once, then
- * falls back to the normal owner-authenticated network request. */
+/** P1 — start the opening read ahead (a press on the card that opens the
+ * Ideal Text). Deduped: a handover still trusted, or a read already in
+ * flight, is left alone. The read is the page's own core read, so the
+ * confident-moment bundle fields ride it exactly as the page would read them. */
+export function prefetchIdealTextDisplay(
+  arcId: string,
+  now: number = Date.now(),
+): void {
+  if (!arcId) return;
+  const existing = idealTextDisplayHandoffs.get(arcId);
+  if (existing && now - existing.createdAt <= IDEAL_TEXT_DISPLAY_TRUSTED_MS) {
+    return;
+  }
+  const entry = {
+    createdAt: now,
+    result: fetchIdealTextCore(arcId).then((result) => {
+      if (
+        !isDisplayableIdealText(result) &&
+        idealTextDisplayHandoffs.get(arcId) === entry
+      ) {
+        idealTextDisplayHandoffs.delete(arcId);
+      }
+      return result;
+    }),
+  };
+  idealTextDisplayHandoffs.set(arcId, entry);
+}
+
+/** Take (and delete) the arc's handover when it may still paint. */
+function takeIdealTextDisplayHandoff(
+  arcId: string,
+  maxAgeMs: number,
+): { result: Promise<IdealTextResult>; ageMs: number } | null {
+  const handoff = idealTextDisplayHandoffs.get(arcId);
+  idealTextDisplayHandoffs.delete(arcId);
+  if (!handoff) return null;
+  const ageMs = Date.now() - handoff.createdAt;
+  return ageMs <= maxAgeMs ? { result: handoff.result, ageMs } : null;
+}
+
+/** First-paint read for the read-aloud surface. Reuses one trusted canonical
+ * payload at most once, then falls back to the normal owner-authenticated
+ * network request. */
 export async function fetchIdealTextForDisplay(
   arcId: string,
 ): Promise<IdealTextResult> {
-  const handoff = idealTextDisplayHandoffs.get(arcId);
-  idealTextDisplayHandoffs.delete(arcId);
-  if (
-    handoff &&
-    Date.now() - handoff.createdAt <= IDEAL_TEXT_DISPLAY_HANDOFF_MS
-  ) {
-    return handoff.result;
+  const handoff = takeIdealTextDisplayHandoff(
+    arcId,
+    IDEAL_TEXT_DISPLAY_TRUSTED_MS,
+  );
+  const result = handoff ? await handoff.result : null;
+  return result && isDisplayableIdealText(result)
+    ? result
+    : fetchIdealTextCore(arcId);
+}
+
+/** P1 — the Ideal Text page's first-paint read. Uses a handover up to
+ * IDEAL_TEXT_DISPLAY_HANDOFF_MS old (awaiting one still in flight) and says
+ * whether it must be revalidated: anything past the trusted window is. */
+export async function fetchIdealTextForOpen(
+  arcId: string,
+): Promise<{ result: IdealTextResult; revalidate: boolean }> {
+  const handoff = takeIdealTextDisplayHandoff(
+    arcId,
+    IDEAL_TEXT_DISPLAY_HANDOFF_MS,
+  );
+  const result = handoff ? await handoff.result : null;
+  if (handoff && result && isDisplayableIdealText(result)) {
+    return {
+      result,
+      revalidate: handoff.ageMs > IDEAL_TEXT_DISPLAY_TRUSTED_MS,
+    };
   }
-  return fetchIdealTextCore(arcId);
+  return { result: await fetchIdealTextCore(arcId), revalidate: false };
 }
 
 /** Mutation and test fence. Most entries are consumed immediately; this is

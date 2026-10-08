@@ -11,6 +11,8 @@ import {
   carryShownFeedback,
   loadIdealTextEnrichment,
   mayCarry,
+  revalidateHandoff,
+  sameServedDocument,
   sdFromResult,
   type SingleIdealText,
 } from "./idealTextLoad";
@@ -254,5 +256,34 @@ describe("F2: a refetch keeps the bars until the new enrichment replaces them", 
     expect(mayCarry(false, undefined, "take-1")).toBe(false);
     // A new Take's feedback is about other words.
     expect(mayCarry(false, "take-1", "take-2")).toBe(false);
+  });
+});
+
+describe("P1: a painted handover is revalidated behind it", () => {
+  it("treats the same snapshot, version, text and bundle as the same document", () => {
+    expect(sameServedDocument(core(), core())).toBe(true);
+    expect(sameServedDocument(core(), core({ documentSnapshotId: "snap-2" }))).toBe(false);
+    expect(sameServedDocument(core(), core({ version: 3 }))).toBe(false);
+    expect(
+      sameServedDocument(core(), core({ ideal: { text: "Other.", keyMoments: [], notes: null } as never })),
+    ).toBe(false);
+    expect(
+      sameServedDocument(core(), core({ confidentMomentSummary: { items: [] } as never })),
+    ).toBe(false);
+  });
+
+  it("refetches in place only when the fresh read differs", async () => {
+    const refetch = vi.fn();
+    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => core());
+    expect(refetch).not.toHaveBeenCalled();
+    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => core({ version: 3 }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing after the page moved on, or when the fresh read failed", async () => {
+    const refetch = vi.fn();
+    await revalidateHandoff("arc", core(), { isCurrent: () => false, refetch }, async () => core({ version: 3 }));
+    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => ({ kind: "error" }));
+    expect(refetch).not.toHaveBeenCalled();
   });
 });
