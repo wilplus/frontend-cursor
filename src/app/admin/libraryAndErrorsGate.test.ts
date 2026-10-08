@@ -81,12 +81,12 @@ describe("the library and the speaking errors pages, founder only", () => {
     }
   });
 
-  it("/admin/corpus is Not Found, even for the founder, until the coach panel's switch is on", async () => {
+  it("/admin/corpus opens for the founder whatever the coach panel's switch says (N66.1)", async () => {
     auth.user = { email: FOUNDER_EMAIL };
     vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "");
     vi.stubEnv("NODE_ENV", "production");
     try {
-      await expect(AdminCorpusPage({ searchParams: { coach2: "1" } })).rejects.toThrow("NOT_FOUND");
+      await expect(AdminCorpusPage({})).resolves.toBeTruthy();
       vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "on");
       await expect(AdminCorpusPage({})).resolves.toBeTruthy();
     } finally {
