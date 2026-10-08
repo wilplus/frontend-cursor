@@ -85,6 +85,8 @@ const CORPUS_WORDS = [
   "Our margins held through the second quarter.",
   "I think, maybe, we could consider the other option.",
   "This is where the numbers tell the story.",
+  "We kept the workshop to the three things that matter.",
+  "Write it down before you forget it.",
 ];
 for (const [screen, selector] of Object.entries(KEY)) {
   const page = await browser.newPage({ viewport: VIEWPORT });
@@ -212,10 +214,23 @@ for (const [screen, selector] of Object.entries(KEY)) {
   await page.locator(`${LIVE} [data-testid="corpus-language"]`).selectOption("en");
   check("corpus: Set up is on with topic and language", !(await page.locator(`${LIVE} [data-testid="corpus-submit"]`).isDisabled()));
   await page.locator(`${LIVE} [data-testid="corpus-submit"]`).click();
-  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`);
+  // As the prototype: a saved set-up goes straight to its judging, with the
+  // signed toast "Set up · {n} moments".
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`);
   const setupPut = (await calls(page)).find((c) => c.url.includes("/api/v2/coach/training-imports/") && c.method === "PUT");
   check("corpus: the set-up was saved with topic and language", Boolean(setupPut) && setupPut.body?.topic === "Workshop recording" && setupPut.body?.language === "en",
     JSON.stringify(setupPut?.body));
+  const setupToast = await page.locator("[data-walk-toast]").innerText().catch(() => "");
+  check("corpus: a saved set-up goes straight to judging with Set up · 2 moments",
+    (await navText(page)) === "Workshop recording · moment 1 of 2" && setupToast === "Set up · 2 moments", `${await navText(page)} | ${setupToast}`);
+  const setupDom = await domText(page);
+  check("corpus: no words of the set-up's pieces in the DOM (N1)", CORPUS_WORDS.every((w) => !setupDom.includes(w)));
+  await page.screenshot({ path: join(SHOTS, "flow-corpus-setup-judge.png") });
+  // ✕, then the pinned button again: the imports.
+  await page.locator(`${LIVE} button[aria-label="Close"]`).click();
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="coach-panel-corpus-button"]').click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`);
   await settle(page);
   await page.locator(`${LIVE} [data-walk-choice]`).nth(1).click();
   await page.waitForSelector(`${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`);

@@ -254,10 +254,12 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
       }
       // How many moments wait: the blind read (ids only, never the words).
       const queue = await fetchBlindConfidenceQueue(setupOf);
-      const n = queue?.queue.length ?? 0;
       setCorpusBusy(false);
       setForm(BLANK_IMPORT);
       corpus.refresh();
+      // The queue could not be read: the imports, with no count to claim.
+      if (!queue) { dispatch({ type: "corpusHome" }); return; }
+      const n = queue.queue.length;
       say(`${COPY.setUp} · ${COPY.moments(n)}`);
       // An import with nothing to judge is never offered for judging.
       dispatch(n > 0 ? { type: "corpusSetUp", importId: setupOf, topic } : { type: "corpusHome" });

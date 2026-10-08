@@ -102,7 +102,11 @@ export const CORPUS_WORDS: Record<string, string> = {
   [CORPUS_SNIPS[0]]: "Our margins held through the second quarter.",
   [CORPUS_SNIPS[1]]: "I think, maybe, we could consider the other option.",
   [CORPUS_SNIPS[2]]: "This is where the numbers tell the story.",
+  ["77777777-7777-4777-8777-777777777774"]: "We kept the workshop to the three things that matter.",
+  ["77777777-7777-4777-8777-777777777775"]: "Write it down before you forget it.",
 };
+/** The workshop import's pieces, served once its set-up is saved. */
+export const SETUP_SNIPS = ["77777777-7777-4777-8777-777777777774", "77777777-7777-4777-8777-777777777775"] as const;
 
 export function importsJson(labelled: ReadonlySet<string>) {
   return { imports: [
@@ -175,6 +179,11 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
       reply: (c) => json({ session_id: IMPORT_SETUP, topic: c.body?.topic, language: c.body?.language,
         speaker_label: c.body?.speaker_label ?? null, source: c.body?.source ?? null, setup_complete: true }) },
     { when: (c) => c.url.includes("/api/v2/coach/training-imports") && c.method === "GET", reply: () => json(importsJson(labelled)) },
+    { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_SETUP}/confidence-queue`),
+      reply: () => json({ session_id: IMPORT_SETUP, queue: SETUP_SNIPS.map((id, i) => ({
+        snippet_id: id, transcript: CORPUS_WORDS[id], label: null,
+        re_review: false, canonical_position: i, learning_exposures: [], blind_review: null, mlc2_blind_review: null,
+      })) }) },
     { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_BOARD}/confidence-queue`),
       reply: () => json({ session_id: IMPORT_BOARD, queue: CORPUS_SNIPS.map((id, i) => ({
         snippet_id: id, transcript: CORPUS_WORDS[id], label: labelled.has(id) ? { value: "yes", unrateable: false } : null,
