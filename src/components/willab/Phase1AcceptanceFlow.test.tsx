@@ -26,6 +26,15 @@ vi.mock("@/services/api/processingAuthorization", async (importOriginal) => ({
   acceptAuthorization: vi.fn(async () => ({ kind: "accepted" as const })),
 }));
 
+const consent = vi.hoisted(() => ({ offered: true }));
+vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fetchConsentChoices: vi.fn(async () => ({
+    hasReceipt: false, personalisedPractice: false, sensitiveInformation: true,
+    practiceErasureComplete: null, practiceOffered: consent.offered,
+  })),
+}));
+
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
 import {
   acceptAuthorization,
@@ -291,5 +300,49 @@ describe("the step fade and the notch", () => {
   it("pads the notch on the gate and keeps the document pane on screen", () => {
     expect(gate).toMatch(/fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background pt-\[env\(safe-area-inset-top\)\]/);
     expect(flow).toMatch(/h-\[calc\(100dvh-env\(safe-area-inset-top\)\)\]/);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  PRIVACY 3.4: PRACTICE IS PART OF THE SERVICE (N55, N66.2; prototype       */
+/*  signed 2026-10-08). The tick follows the policy in force: offered, it is  */
+/*  today's screen; not offered, the tick and its "Optional" label go, the    */
+/*  heading counts two, and nothing optional is sent (the server refuses a   */
+/*  tick for a purpose the policy makes required).                           */
+/* -------------------------------------------------------------------------- */
+
+async function walkToConfirm() {
+  await walkToCountry();
+  await click("Poland");
+  await act(async () => {
+    vi.advanceTimersByTime(400);
+  });
+}
+
+describe("the practice tick follows the policy (N66.2)", () => {
+  afterEach(() => {
+    consent.offered = true;
+  });
+
+  it("is today's screen while the policy offers practice", async () => {
+    await walkToConfirm();
+    expect(host.textContent).toContain("Three things to confirm");
+    expect(host.textContent).toContain("Optional");
+    expect(host.textContent).toContain("Personalised practice.");
+  });
+
+  it("goes, and the heading counts two, where practice is part of the service", async () => {
+    consent.offered = false;
+    vi.mocked(acceptAuthorization).mockClear();
+    await walkToConfirm();
+    expect(host.textContent).toContain("Two things to confirm");
+    expect(host.textContent).not.toContain("Three things to confirm");
+    expect(host.textContent).not.toContain("Optional");
+    expect(host.textContent).not.toContain("Personalised practice.");
+    await click("I am 18");
+    await click("I agree that a recording");
+    await click("Agree and continue");
+    expect(vi.mocked(acceptAuthorization)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(acceptAuthorization).mock.calls[0][0].optionalPurposes).toEqual([]);
   });
 });

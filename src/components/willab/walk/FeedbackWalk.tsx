@@ -18,6 +18,8 @@ import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkShareScreen from "./WalkShareScreen";
 import { useWalkShare, type WalkShare } from "./useWalkShare";
 import type { ShareIO } from "@/lib/willab/walkShare";
+import { useWalkLines } from "./useWalkLines";
+import type { SayLine, WalkLinesIO } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import { loopEnd } from "@/lib/willab/walkPractise";
@@ -171,6 +173,14 @@ type Props<R> = {
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
   onClose?: () => void;
+  /** The line bank's memory (D-FW-3): the walk reads which line each bank
+   *  says next and records each one it shows, so a line is never said twice
+   *  in a row across Takes. Absent: each bank starts at its first line. */
+  lines?: WalkLinesIO | null;
+  /** A screen of the walk is on: the coach's note, or a screen of moment
+   *  `moment`. The host tells the server what was shown (the Lounge's
+   *  "new", D-FW-19). Nothing is drawn from it. */
+  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -194,6 +204,8 @@ export default function FeedbackWalk<R = unknown>({
   share: shareIO = null,
   onEnd,
   onClose,
+  lines: linesIO = null,
+  onShown,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -219,6 +231,16 @@ export default function FeedbackWalk<R = unknown>({
 
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
+
+  // What the speaker now sees, for the host (D-FW-19): only once the walk
+  // was asked open, and only an overlay screen.
+  const shownRef = useRef(onShown);
+  shownRef.current = onShown;
+  useEffect(() => {
+    if (seq === null || !step || step.overlay === false) return;
+    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    shownRef.current?.(step, moment);
+  }, [seq, step, walk.moments]);
 
   const go = useCallback(
     (to: number, how: WalkDir | undefined) => {
@@ -287,11 +309,18 @@ export default function FeedbackWalk<R = unknown>({
     onSkipJudging,
   });
   const share = useWalkShare({ io: shareIO, blocked, forward });
+  const walkLines = useWalkLines(linesIO);
   resetRef.current = () => {
     practise.reset();
     judging.reset();
+    walkLines.reopen();
     share.reset();
   };
+  // A line screen on screen is recorded as said (D-FW-3).
+  const { onScreen } = walkLines;
+  useEffect(() => {
+    if (seq !== null && step && step.overlay !== false) onScreen(step);
+  }, [seq, step, onScreen]);
   const close = useCallback(() => {
     practise.cancel();
     judging.closeJournal();
@@ -357,6 +386,7 @@ export default function FeedbackWalk<R = unknown>({
     journal,
     share,
     nav: (s, moment) => momentNav(ctx, s, moment),
+    say: walkLines.say,
   };
   // The Journal post is drawn over "Judgement time!", never planned.
   const screen: WalkStep = judging.journalOpen && step.key === "intro" ? { key: "journal" } : step;
@@ -405,6 +435,8 @@ type ScreenCtx<R = unknown> = {
   journal: WalkJournalPost | null;
   share: WalkShare;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
+  /** The signed line a screen says (D-FW-3). */
+  say: SayLine;
 };
 
 function momentNav(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment): WalkNav {
@@ -523,7 +555,6 @@ function pieces(list: readonly ClearerPiece[]) {
 function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
   const clearer = moment.clearer;
   if (!clearer) return null;
-  const turn = clearerTurn(ctx.walk.plan, ctx.at(step));
   const practiseOff = step.kind === "accept";
   return (
     <WalkOverlay
@@ -551,9 +582,9 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
         words={pieces(clearer.before)}
       />
       <WalkMessage>
-        <span>{bankLine(WALK_LINE_BANK.B13.lines, turn)}</span>
+        <span>{ctx.say(step, "B13")}</span>
         <WalkNewWords>{pieces(clearer.after)}</WalkNewWords>
-        {practiseOff ? null : <span>{bankLine(WALK_LINE_BANK.B14.lines, turn)}</span>}
+        {practiseOff ? null : <span>{ctx.say(step, "B14")}</span>}
       </WalkMessage>
     </WalkOverlay>
   );
@@ -668,6 +699,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
     total: ctx.walk.moments.length,
     close: ctx.close,
     forward: ctx.forward,
+    say: ctx.say,
     ...ctx.practise,
   };
   return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;

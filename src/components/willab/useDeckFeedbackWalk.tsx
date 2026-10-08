@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { WalkStep } from "@/lib/willab/walkPlan";
+import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
   type FeedbackWalkPractiseWords,
@@ -39,6 +41,12 @@ import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
 import { createCommunity, fetchCommunities, joinCommunity, shareTake } from "@/services/api/communities";
 import type { ShareIO } from "@/lib/willab/walkShare";
+import { lineBankIO } from "@/services/api/lineBank";
+import {
+  markCoachFeedbackSeen,
+  shownKey,
+  type CoachFeedbackShown,
+} from "@/services/api/coachFeedbackSeen";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 
@@ -277,6 +285,36 @@ function useSharingOn(on: boolean): boolean {
   return sharing;
 }
 
+/** What a walk screen showed of the coach's work, for the Lounge's "new"
+ *  (D-FW-19; backend 0439): the Take's coach note on its screen; on a
+ *  moment's screen, the moment itself, once per snippet, from every item the
+ *  moment carries and every item still open on its paragraphs. Pure. */
+export function coachShownOn(
+  step: WalkStep,
+  moment: FeedbackWalkMoment<DocumentSuggestion> | null,
+  coach: CoachMessage | null,
+  openOn: readonly DocumentSuggestion[] = [],
+): CoachFeedbackShown[] {
+  if (step.key === "coachnote") {
+    return coach?.takeSessionId ? [{ takeSessionId: coach.takeSessionId }] : [];
+  }
+  if (!moment) return [];
+  const items = [
+    moment.judgeItem,
+    moment.practiseItem,
+    moment.clearer?.item,
+    moment.exercise?.item,
+    ...openOn,
+  ];
+  const out = new Map<string, CoachFeedbackShown>();
+  for (const item of items) {
+    if (!item?.takeSessionId || !item.snippetId) continue;
+    const shown = { takeSessionId: item.takeSessionId, snippetId: item.snippetId };
+    out.set(shownKey(shown), shown);
+  }
+  return [...out.values()];
+}
+
 /** Personalised practice, read only while the walk is on (the deck makes no
  *  new read with the switch off). */
 function usePracticeOn(on: boolean): boolean {
@@ -349,8 +387,11 @@ export function useDeckFeedbackWalk(args: {
 
   const seqRef = useRef(0);
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
+  // What this opening of the walk already told the server (D-FW-19).
+  const toldRef = useRef(new Set<string>());
   const openAt = useCallback((at: number | null): boolean => {
     if (at === null) return false;
+    toldRef.current = new Set<string>();
     seqRef.current += 1;
     setRequest({ seq: seqRef.current, at });
     return true;
@@ -420,6 +461,22 @@ export function useDeckFeedbackWalk(args: {
   }, []);
   const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
   const onEnd = useCallback(() => live.current.onEnd(), []);
+  /** The walk showed the coach's note or a moment: the server hears it once
+   *  per opening, behind the screen, and the Lounge's "new" clears. */
+  const onShown = useCallback(
+    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
+      const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const parts = moment ? (model.partsOf[moment.index] ?? []) : [];
+      const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
+      for (const shown of coachShownOn(step, moment, coach, openOn)) {
+        const key = shownKey(shown);
+        if (toldRef.current.has(key)) continue;
+        toldRef.current.add(key);
+        void markCoachFeedbackSeen(shown);
+      }
+    },
+    [model],
+  );
 
   const element = useMemo(
     () =>
@@ -439,6 +496,8 @@ export function useDeckFeedbackWalk(args: {
           journal={journal}
           share={share}
           onEnd={onEnd}
+          lines={lineBankIO}
+          onShown={onShown}
         />
       ) : null,
     [
@@ -457,6 +516,7 @@ export function useDeckFeedbackWalk(args: {
       journal,
       share,
       onEnd,
+      onShown,
     ],
   );
 

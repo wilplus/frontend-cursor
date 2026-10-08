@@ -12,6 +12,8 @@
  */
 
 import { getAuthToken } from "@/lib/api/auth-client";
+import { readNewCoachFeedback, setNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
+import { coachFeedbackSeenSettled } from "./coachFeedbackSeen";
 
 export type LoungeRole = "user" | "bot" | "system";
 export type LoungeKind =
@@ -147,8 +149,17 @@ export async function fetchLoungeHistory(opts?: {
     return empty;
   }
   if (!res.ok) return empty;
-  const data = (await res.json().catch(() => null)) as LoungeHistoryPage | null;
+  const data = (await res.json().catch(() => null)) as
+    | (LoungeHistoryPage & { new_coach_feedback?: unknown })
+    | null;
   if (!data || !Array.isArray(data.messages)) return empty;
+  // The newest page carries the Ideal Text bubble's "new", one yes/no per
+  // project (D-FW-19; backend 0439). Absent or unreadable: what is known
+  // stays, never a guess.
+  if (!opts?.before) {
+    const fresh = readNewCoachFeedback(data.new_coach_feedback);
+    if (fresh) setNewCoachFeedback(fresh);
+  }
   return {
     messages: data.messages,
     has_more: data.has_more === true,
@@ -197,4 +208,14 @@ export async function clearLoungeThread(): Promise<void> {
   const headers = await authHeaders();
   if (!headers) return;
   await fetch(ENDPOINT, { method: "DELETE", headers }).catch(() => {});
+}
+
+/**
+ * Read the Ideal Text bubbles' "new" again (D-FW-19): the newest page, one
+ * row long, carries it. Called when the text closes; it waits for the walk's
+ * shows to land first. Best-effort, like every history read.
+ */
+export async function refreshNewCoachFeedback(): Promise<void> {
+  await coachFeedbackSeenSettled();
+  await fetchLoungeHistory({ limit: 1 });
 }
