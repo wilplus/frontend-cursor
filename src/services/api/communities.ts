@@ -13,6 +13,9 @@ export interface ShareChoice {
   general: boolean;
   communityIds: string[];
   none: boolean;
+  /** The version of the sharing screen's words the speaker saw (0443); a
+   *  share needs it, "None" does not (null sends none). */
+  shareWordsVersion?: string | null;
 }
 
 export interface ShareResult {
@@ -149,6 +152,7 @@ export function shareTake(takeSessionId: string, choice: ShareChoice): Promise<O
         general: choice.general,
         community_ids: choice.communityIds,
         none: choice.none,
+        ...(choice.shareWordsVersion ? { share_words_version: choice.shareWordsVersion } : {}),
       },
     },
     mapShare,

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isFounderEmail } from "@/lib/founder";
 import AdminCorpusClient from "./page.client";
+import { coachPanelOnForPage } from "@/lib/willab/coachPanelSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -13,15 +14,15 @@ export const dynamic = "force-dynamic";
 /*                                                                            */
 /*  FOUNDER ONLY, the same check /admin/pace uses. The backend's               */
 /*  `require_admin_or_coach` still gates every endpoint behind this screen.   */
-/*  Not a locked screen: no prototype draws it. Its words were signed on    */
-/*  8 October 2026 (decisions log N66.1) and live in adminCorpusCopy.ts, so  */
-/*  nothing hides it any more: until then it answered Not Found unless the  */
-/*  coach panel's switch was on.                                            */
+/*  Not a locked screen: no prototype draws it. Its words are not signed yet, */
+/*  so the page answers Not Found until the coach panel's switch is on, the  */
+/*  same switch as the panel's corpus screens and the rebuilt admin pages    */
+/*  (Q-CP645 A): the founder sees it from the Done list before it is live.   */
 /* -------------------------------------------------------------------------- */
 
 type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
 
-export default async function AdminCorpusPage(_props: PageProps) {
+export default async function AdminCorpusPage({ searchParams }: PageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -30,5 +31,6 @@ export default async function AdminCorpusPage(_props: PageProps) {
     redirect("/login?redirectTo=/admin/corpus");
   }
   if (!isFounderEmail(user.email)) notFound();
+  if (!coachPanelOnForPage(searchParams)) notFound();
   return <AdminCorpusClient />;
 }
