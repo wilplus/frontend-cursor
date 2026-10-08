@@ -67,7 +67,7 @@ export function CorpusHomeScreen({ imports, loading, fail, onImport, onOpen, onC
     </WalkFooter>
   );
   return (
-    <WalkOverlay title={COPY.trainingCorpus} caption={COPY.corpusCaption} onClose={onClose} footer={footer} testId="coach-panel-corpushome">
+    <WalkOverlay title={COPY.trainingCorpus} subtitle={COPY.corpusCaption} onClose={onClose} footer={footer} testId="coach-panel-corpushome">
       {imports && imports.length > 0 ? (
         <WalkChoices
           label={COPY.trainingCorpus}
@@ -158,7 +158,7 @@ export function CorpusImportScreen({ setupOf, form, busy, fail, onChange, onPick
   return (
     <WalkOverlay
       title={setupOf ? COPY.finishTheSetUp : COPY.importAudio}
-      caption={setupOf ? COPY.beforeItsMomentsCanBeJudged : null}
+      subtitle={setupOf ? COPY.beforeItsMomentsCanBeJudged : null}
       onBack={onBack} onClose={onClose} footer={footer} testId="coach-panel-corpusimport"
     >
       {setupOf ? null : (

@@ -32,10 +32,12 @@ vi.mock("../coachwalk/useConfidenceChainReceipt", () => ({
 
 import CoachPanel from "./CoachPanel";
 import {
-  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, heardWords, revealLines, speakerChoice,
-  takeChoice, takesNewestFirst,
+  JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, awaitingMoments, heardWords,
+  revealLines, speakerChoice, takeChoice, takesNewestFirst,
 } from "./CoachPanelScreens";
-import { mapCoachSpeakers, queueSpeakerFor, type PanelSpeaker } from "@/services/api/coachSpeakers";
+import {
+  mapCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
+} from "@/services/api/coachSpeakers";
 import { BLANK_IMPORT, CorpusHomeScreen, CorpusImportScreen, importChoice, importReady } from "./CoachCorpusScreens";
 import { CoachPanelPinned } from "./CoachPanelDoor";
 import WalkOverlay from "../walk/WalkOverlay";
@@ -69,7 +71,8 @@ const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0))
 const m = (snippetId: string, state: QueueMoment["state"] = "judge_it"): QueueMoment => ({ snippetId, state, kind: null });
 const TAKE: QueueTake = { sessionId: "t2", takeIndex: 2, sentAt: "", waiting: 2, waitingForText: false, moments: [m("s1"), m("s2")] };
 const OLD: QueueTake = { sessionId: "t1", takeIndex: 1, sentAt: "", waiting: 0, waitingForText: false, moments: [m("a", "answered"), m("b", "answered"), m("c", "answered")] };
-const HERON: QueueSpeaker = { pseudonym: "Quiet Heron", waiting: 2, takes: [OLD, TAKE] };
+// The queue's mapper sets a missing goal to null (coachWalk.ts), never undefined.
+const HERON: QueueSpeaker = { pseudonym: "Quiet Heron", goal: null, waiting: 2, takes: [OLD, TAKE] };
 const OTTER: QueueSpeaker = { pseudonym: "Calm Otter", waiting: 0, takes: [{ ...TAKE, sessionId: "t9", waiting: 0, moments: [], waitingForText: true }] };
 const DONE: QueueSpeaker = { pseudonym: "Bold Finch", waiting: 0, takes: [OLD] };
 const NAV: WalkNav = { label: "Quiet Heron", index: 0, total: 4, onBack: () => {}, onNext: () => {} };
@@ -118,8 +121,36 @@ describe("the pure parts", () => {
     expect(JSON.stringify(ALL)).not.toMatch(/snippet|moments|passage|kind/);
   });
 
+  it("every speaker: faded only when a Take waiting for its text is all they have", () => {
+    const mixed: PanelSpeaker = { ...ALL[2], waitingForText: 1, takeCount: 4 };
+    const choice = allSpeakersChoice(mixed, 2);
+    expect(choice).toMatchObject({ subtitle: "All answered · 3 Takes" });
+    expect(choice.done).toBeUndefined();
+    expect(choice.dim).toBeUndefined();
+  });
+
+  it("when the Speakers read fails, the queue's own speakers stand in", () => {
+    const fallback = speakersFromQueue([HERON, OTTER, DONE]);
+    expect(fallback.map((s) => [s.pseudonym, s.waiting, s.waitingForText, s.takeCount])).toEqual([
+      ["Quiet Heron", 2, 0, 2], ["Calm Otter", 0, 1, 1], ["Bold Finch", 0, 0, 1],
+    ]);
+    expect(fallback.map(allSpeakersChoice).map((c) => c.subtitle)).toEqual([
+      "2 moments waiting", COPY.waitingForText, "All answered · 1 Take",
+    ]);
+  });
+
+  it("a speaker opened from the list before the queue has their moments: wait, then a count that does not open", () => {
+    const early = queueSpeakerFor(ALL[0], []);
+    expect(awaitingMoments(early, true)).toBe(true);
+    expect(awaitingMoments(early, false)).toBe(false);
+    expect(awaitingMoments(HERON, true)).toBe(false);
+    const take = early.takes.find((t) => t.waiting > 0)!;
+    expect(takeChoice(take, 0)).toMatchObject({ subtitle: "2 moments waiting", done: true });
+    expect(takeChoice(take, 0).subtitle).not.toMatch(/of 0/);
+  });
+
   it("a speaker from the list walks as the queue's own entry, else as counts alone", () => {
-    const heron = queueSpeakerFor(ALL[0], [HERON]);
+    const heron = queueSpeakerFor(ALL[0], [HERON]); // HERON's queue goal is null
     expect(heron.takes).toBe(HERON.takes);
     expect(heron.goal).toBe("Sound calm and sure in the board meeting.");
     const finch = queueSpeakerFor(ALL[2], [HERON]);
@@ -136,7 +167,7 @@ describe("the pure parts", () => {
     expect(takeChoice(OTTER.takes[0], 0)).toMatchObject({ subtitle: COPY.waitingForText, done: true });
   });
 
-  it("What happened's lines, always three: You, the speaker, The machine heard", () => {
+  it("What happened's lines: You, the speaker, The machine heard", () => {
     expect(revealLines(READ, "Quiet Heron", "in_between")).toEqual([
       { label: "You", value: "In-between" },
       { label: "Quiet Heron", value: "Not confident" },
@@ -149,7 +180,8 @@ describe("the pure parts", () => {
   it("The machine heard, per kind, in signed words only (D-CP-13)", () => {
     const heard = (list: MomentRead["heard"]) => heardWords({ heard: list, request: null });
     // An error moment: the library's own labels.
-    expect(heard([{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "x", label: null }])).toEqual(["Rushing", "x"]);
+    // An error without its label is left out: never a raw key on screen.
+    expect(heard([{ kind: "error", key: "rushing", label: "Rushing" }, { kind: "error", key: "x", label: null }])).toEqual(["Rushing"]);
     // A praise moment: the cues behind it, by the kind question's words.
     expect(heard([{ kind: "cue", key: "landed_ending", label: null }, { kind: "cue", key: "settled_pitch", label: null }]))
       .toEqual(["landed the ending", "settled pitch"]);
@@ -166,9 +198,20 @@ describe("the pure parts", () => {
     // An older read without `heard`: the request's spotted errors.
     expect(heardWords({ heard: null, request: READ.request })).toEqual(["Rushing", "Ending compression"]);
     expect(heardWords({ heard: null, request: null })).toEqual([]);
-    // The line is drawn even when nothing can be said.
-    expect(revealLines({ ...READ, heard: [{ kind: "reason", key: "weak_delivery_read", label: null }] }, "Quiet Heron", "yes")[2])
-      .toEqual({ label: "The machine heard", value: "" });
+  });
+
+  it("a clearer-version moment leaves The machine heard out, never drawn blank (Q-CP13a A)", () => {
+    const labels = (r: MomentRead) => revealLines(r, "Quiet Heron", "yes").map((l) => l.label);
+    // By the request's kind.
+    const rewrite = { ...READ, heard: null, request: { ...READ.request!, kind: "rewrite" } as MomentRead["request"] };
+    expect(labels(rewrite)).toEqual(["You", "Quiet Heron"]);
+    // By what the machine heard: the clearer version's reason alone.
+    expect(labels({ ...READ, request: null, heard: [{ kind: "reason", key: "weak_delivery_read", label: null }] }))
+      .toEqual(["You", "Quiet Heron"]);
+    // Nothing signed to say on another kind: the line is left out too, never blank.
+    const unknown = revealLines({ ...READ, request: null, heard: [{ kind: "cue", key: "new_cue", label: null }] }, "Quiet Heron", "yes");
+    expect(unknown.map((l) => l.label)).toEqual(["You", "Quiet Heron"]);
+    expect(unknown.every((l) => l.value !== "")).toBe(true);
   });
 });
 
@@ -212,18 +255,27 @@ describe("the screens", () => {
     expect(picked).toEqual(["Bold Finch"]);
   });
 
-  it("Your speakers while it loads: the breathing mark; empty: nobody waiting", () => {
+  it("Your speakers while it loads: the breathing mark; empty: the list stays empty, no Lounge line", () => {
     draw(<SpeakersScreen speakers={null} loading onSpeaker={() => {}} onClose={() => {}} />);
     expect(q("[data-walk-loading]")).not.toBeNull();
     draw(<SpeakersScreen speakers={[]} loading={false} onSpeaker={() => {}} onClose={() => {}} />);
-    expect(host.textContent).toContain(COPY.queueEmpty);
+    expect(host.textContent).not.toContain(COPY.queueEmpty);
+    expect(qa("[data-walk-choice]")).toHaveLength(0);
+    draw(<SpeakersScreen speakers={null} loading={false} onSpeaker={() => {}} onClose={() => {}} />);
+    expect(host.textContent).not.toContain(COPY.queueEmpty);
+  });
+
+  it("A speaker opened before the queue holds their moments: the breathing mark, not a dead Take", () => {
+    draw(<SpeakerScreen speaker={queueSpeakerFor(ALL[0], [])} loading onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
+    expect(q("[data-walk-loading]")).not.toBeNull();
+    expect(host.textContent).not.toMatch(/of 0 moments/);
   });
 
   it("A speaker: the goal under the name, as the caption; none when they have none", () => {
     draw(<SpeakerScreen speaker={{ ...HERON, goal: "Sound calm and sure in the board meeting." }} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
-    expect(q("[data-walk-caption]")?.textContent).toBe("Goal: Sound calm and sure in the board meeting.");
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("Goal: Sound calm and sure in the board meeting.");
     draw(<SpeakerScreen speaker={HERON} onTake={() => {}} onBack={() => {}} onClose={() => {}} />);
-    expect(q("[data-walk-caption]")).toBeNull();
+    expect(q("[data-walk-subtitle]")).toBeNull();
   });
 
   it("A speaker: ‹ alone in the top bar, the Takes newest first", () => {
@@ -314,7 +366,7 @@ describe("the screens", () => {
     const onOpen = vi.fn();
     draw(<CorpusHomeScreen imports={[im]} loading={false} fail={null} onImport={() => {}} onOpen={onOpen} onClose={() => {}} />);
     expect(q("h2")?.textContent).toBe(COPY.trainingCorpus);
-    expect(q("[data-walk-caption]")?.textContent).toBe("Import audio, label it, then judge its moments blind");
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("Import audio, label it, then judge its moments blind");
     expect(q("[data-walk-pill]")?.textContent).toBe("Import audio");
     act(() => q("[data-walk-choice='i1']")!.click());
     expect(onOpen).toHaveBeenCalledWith(im);
@@ -348,7 +400,7 @@ describe("the screens", () => {
     draw(<CorpusImportScreen setupOf="i1" form={{ ...BLANK_IMPORT, topic: "Workshop recording", language: null }} busy={false} fail={null}
       onChange={() => {}} onPickFile={onPickFile} onSubmit={onSubmit} onBack={() => {}} onClose={() => {}} />);
     expect(q("h2")?.textContent).toBe("Finish the set-up");
-    expect(q("[data-walk-caption]")?.textContent).toBe("Before its moments can be judged");
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("Before its moments can be judged");
     expect(q("[data-testid='corpus-file']")).toBeNull();
     expect(host.textContent).not.toContain("What to run");
     expect(q("[data-testid='corpus-submit']")?.textContent).toBe("Set up");
@@ -397,6 +449,23 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-walk-toast]")!.textContent).toBe(COPY.toastJudged);
     await flush();
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+  });
+
+  it("Your speakers: when GET /v2/coach/speakers fails, the queue's own speakers, never the Lounge's line", async () => {
+    const failing = vi.fn(async () => new Response("", { status: 502 }));
+    vi.stubGlobal("fetch", failing);
+    try {
+      draw(<Host start={panelReducer(PANEL_START, { type: "speakers" })} />);
+      await flush();
+      await flush();
+      expect(failing).toHaveBeenCalledWith("/api/v2/coach/speakers", expect.anything());
+      const panel = document.querySelector("[data-testid='coach-panel-all-speakers']")!;
+      expect(panel.textContent).toContain("Quiet Heron");
+      expect(panel.textContent).toContain("2 moments waiting");
+      expect(panel.textContent).not.toContain(COPY.queueEmpty);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("a failed save stays on Judge, says so, and never reads the moment", async () => {

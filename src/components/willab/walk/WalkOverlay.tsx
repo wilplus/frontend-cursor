@@ -84,17 +84,22 @@ function BackOnly({ onBack, label }: { onBack: () => void; label?: string | null
 
 export default function WalkOverlay({
   nav,
+  caption = null,
   onBack,
   backLabel,
   onClose,
   title,
-  caption,
+  subtitle = null,
   footer,
   bare = false,
   testId,
   children,
 }: {
   nav?: WalkNav | null;
+  /** Where the screen sits ("Slide 2") when there is nowhere to walk: the
+   *  bar's text alone, without ‹ ›. Ignored when `nav` or `onBack` is given
+   *  (a paragraph opened outside the walk, build plan D-IT-6). */
+  caption?: string | null;
   /** ‹ without the moment bar; ignored when `nav` is given. */
   onBack?: () => void;
   /** The words beside that ‹: where it goes. */
@@ -103,7 +108,7 @@ export default function WalkOverlay({
   title?: string | null;
   /** The grey line under the title (the coach panel's "Goal: …", "Treats:
    *  …"); still, like the title, while the body moves. */
-  caption?: string | null;
+  subtitle?: string | null;
   /** Normally a WalkFooter. */
   footer?: ReactNode;
   /** Children go straight under the top bar instead of the scrolling body
@@ -121,12 +126,22 @@ export default function WalkOverlay({
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} label={backLabel} /> : <span />}
+        {nav ? (
+          <NavBar nav={nav} />
+        ) : onBack ? (
+          <BackOnly onBack={onBack} label={backLabel} />
+        ) : caption ? (
+          <span data-walk-caption className="min-w-0 truncate px-2 text-[13.5px] font-semibold">
+            {caption}
+          </span>
+        ) : (
+          <span />
+        )}
         {onClose ? (
-          <OverlayCloseButton
-            onClick={onClose}
-            className="walk-press-sm mr-2.5 h-[30px] w-[30px] border-transparent bg-muted"
-          />
+          // The app's one small grey X, unchanged (founder 2026-10-07,
+          // Q-B14 A (1); D-RC-6): only its place and the walk's press are
+          // the overlay's.
+          <OverlayCloseButton onClick={onClose} className="walk-press-sm mr-2.5" />
         ) : (
           <span />
         )}
@@ -134,7 +149,7 @@ export default function WalkOverlay({
       {title ? (
         <h2 className="px-5 pb-1 pt-3 text-[22px] font-bold leading-[1.2] tracking-[-0.01em]">{title}</h2>
       ) : null}
-      {caption ? <p data-walk-caption className="m-0 px-5 text-[13.5px] text-muted-foreground">{caption}</p> : null}
+      {subtitle ? <p data-walk-subtitle className="m-0 px-5 text-[13.5px] text-muted-foreground">{subtitle}</p> : null}
       {bare ? (
         children
       ) : (

@@ -13,9 +13,9 @@
 /*    JudgeScreen    the player, the question, the five answers. NOTHING     */
 /*                   ELSE (BLIND COACH): no passage, no kind, no machine      */
 /*                   read, no slide                                           */
-/*    RevealScreen   What happened: the passage with its player; the three    */
-/*                   lines, always: You, the speaker, The machine heard (in   */
-/*                   signed words only, D-CP-13)                              */
+/*    RevealScreen   What happened: the passage with its player; You, the     */
+/*                   speaker, The machine heard (in signed words only,        */
+/*                   D-CP-13; left out on a clearer version, Q-CP13a A)       */
 /*                                                                            */
 /*  Presentational: the host (CoachPanel) owns the state, the fetches and the */
 /*  saves. Every word comes from COACH_PANEL_COPY or from the data; nothing   */
@@ -162,10 +162,14 @@ export function allSpeakersChoice(speaker: PanelSpeaker, index: number): WalkCho
   if (speaker.waiting > 0) {
     return { value, label: speaker.pseudonym, subtitle: COPY.momentsWaiting(speaker.waiting), dot: true };
   }
-  if (speaker.waitingForText > 0) {
+  // Faded, and not pressable, only while the speaker has nothing but a Take
+  // waiting for its text (the prototype's Calm Otter); a speaker with answered
+  // Takes beside it stays a row that opens.
+  const answeredTakes = Math.max(0, speaker.takeCount - speaker.waitingForText);
+  if (speaker.waitingForText > 0 && answeredTakes === 0) {
     return { value, label: speaker.pseudonym, subtitle: COPY.waitingForText, done: true, dim: true };
   }
-  return { value, label: speaker.pseudonym, subtitle: COPY.allAnsweredTakes(speaker.takeCount) };
+  return { value, label: speaker.pseudonym, subtitle: COPY.allAnsweredTakes(answeredTakes) };
 }
 
 export function SpeakersScreen({ speakers, loading, onSpeaker, onClose }: {
@@ -188,9 +192,7 @@ export function SpeakersScreen({ speakers, loading, onSpeaker, onClose }: {
         />
       ) : loading ? (
         <WalkLoading />
-      ) : (
-        <p className="m-0 text-[16px]">{COPY.queueEmpty}</p>
-      )}
+      ) : null}
     </WalkOverlay>
   );
 }
@@ -207,6 +209,11 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   const label = COPY.take(take.takeIndex);
   const value = take.sessionId;
   if (take.waitingForText) return { value, label, subtitle: COPY.waitingForText, done: true, dim: true };
+  // A Take the Speakers read lists before the queue holds its moments: its
+  // count alone, not pressable (nothing to open until the moments arrive).
+  if (take.waiting > 0 && take.moments.length === 0) {
+    return { value, label, subtitle: COPY.momentsWaiting(take.waiting), done: true };
+  }
   if (take.waiting > 0) return { value, label, subtitle: COPY.takeWaiting(take.waiting, take.moments.length) };
   // A Take the Speakers read lists carries counts alone, no moments: it reads
   // "All moments answered" (the list's words win over the prototype's "All
@@ -216,8 +223,16 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   return { value, label, subtitle, done: true, mark: "check" };
 }
 
-export function SpeakerScreen({ speaker, onTake, onBack, onClose }: {
+/** A speaker opened from Your speakers before the queue has their moments:
+ *  wait for the queue rather than draw Takes that cannot open. Pure. */
+export function awaitingMoments(speaker: QueueSpeaker, queueLoading: boolean): boolean {
+  return queueLoading && speaker.takes.some((t) => t.waiting > 0 && t.moments.length === 0);
+}
+
+export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClose }: {
   speaker: QueueSpeaker;
+  /** The queue is still being read. */
+  loading?: boolean;
   onTake: (take: QueueTake) => void;
   onBack: () => void;
   onClose: () => void;
@@ -226,19 +241,23 @@ export function SpeakerScreen({ speaker, onTake, onBack, onClose }: {
   return (
     <WalkOverlay
       title={speaker.pseudonym}
-      caption={speaker.goal ? COPY.goal(speaker.goal) : null}
+      subtitle={speaker.goal ? COPY.goal(speaker.goal) : null}
       onBack={onBack}
       onClose={onClose}
       testId="coach-panel-speaker"
     >
-      <WalkChoices
-        label={speaker.pseudonym}
-        choices={takes.map(takeChoice)}
-        onPick={(v) => {
-          const take = takes.find((t) => t.sessionId === v);
-          if (take) onTake(take);
-        }}
-      />
+      {awaitingMoments(speaker, loading) ? (
+        <WalkLoading />
+      ) : (
+        <WalkChoices
+          label={speaker.pseudonym}
+          choices={takes.map(takeChoice)}
+          onPick={(v) => {
+            const take = takes.find((t) => t.sessionId === v);
+            if (take) onTake(take);
+          }}
+        />
+      )}
     </WalkOverlay>
   );
 }
@@ -271,32 +290,47 @@ export type RevealLine = { label: string; value: string };
 /** What the machine heard, in the signed words only (D-CP-13): an error by
  *  the library's own label, a cue by the kind question's word, "nothing" when
  *  it heard nothing. A reason key (the clearer version's weak read) has no
- *  signed word and shows nothing; so does a cue the copy does not know. An
- *  older read without `heard` falls back to the request's spotted errors.
- *  Pure. */
+ *  signed word and shows nothing; so does a cue the copy does not know, and
+ *  an error without its label (never a raw key). An older read without
+ *  `heard` falls back to the request's spotted errors. Pure. */
 export function heardWords(read: Pick<MomentRead, "heard" | "request">): string[] {
   if (!read.heard) return (read.request?.spotted ?? []).map((s) => s.label).filter(Boolean);
   const words: string[] = [];
   for (const h of read.heard) {
-    if (h.kind === "error") words.push(h.label ?? h.key);
+    if (h.kind === "error") {
+      if (h.label) words.push(h.label);
+    }
     else if (h.kind === "cue" && COPY.cue[h.key]) words.push(COPY.cue[h.key]);
     else if (h.kind === "nothing") words.push(COPY.heardNothing);
   }
   return words;
 }
 
-/** The three lines, always: You, the speaker, The machine heard. An answer
- *  not given reads "—", as the prototype draws it. Pure. */
+/** A clearer-version moment: the request reached the coach as a rewrite, or
+ *  all the machine heard is the clearer version's reason. Pure. */
+export function isClearerVersion(read: Pick<MomentRead, "heard" | "request">): boolean {
+  if (read.request?.kind === "rewrite") return true;
+  return !!read.heard && read.heard.length > 0 && read.heard.every((h) => h.kind === "reason");
+}
+
+/** The lines: You and the speaker always (an answer not given reads "—", as
+ *  the prototype draws it), then The machine heard. That last line is left
+ *  out on a clearer-version moment (founder 2026-10-08, Q-CP13a A: never
+ *  drawn blank) and wherever the machine's words have no signed word to
+ *  show. Pure. */
 export function revealLines(
   read: MomentRead,
   pseudonym: string,
   justRated: AnswerValue | null,
 ): RevealLine[] {
-  return [
+  const lines: RevealLine[] = [
     { label: COPY.you, value: answerWord(justRated ?? read.coachAnswer) ?? COPY.noAnswer },
     { label: pseudonym, value: answerWord(read.speakerAnswer) ?? COPY.noAnswer },
-    { label: COPY.machineHeard, value: heardWords(read).join(" · ") },
   ];
+  if (isClearerVersion(read)) return lines;
+  const heard = heardWords(read).join(" · ");
+  if (heard) lines.push({ label: COPY.machineHeard, value: heard });
+  return lines;
 }
 
 function Facts({ lines }: { lines: RevealLine[] }) {

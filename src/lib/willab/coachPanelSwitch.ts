@@ -39,3 +39,15 @@ export function coachPanelOn(): boolean {
     search: typeof window === "undefined" ? "" : window.location.search,
   });
 }
+
+/** The same decision on the server, for a page that picks between today's
+ *  screen and the panel's before anything is drawn (the founder's Library and
+ *  Speaking errors pages, Q-CP645 A): `searchParams` is the page's own. */
+export function coachPanelOnForPage(searchParams?: Record<string, string | string[] | undefined>): boolean {
+  const coach2 = searchParams?.coach2;
+  return coachPanelSwitchFrom({
+    flag: process.env.NEXT_PUBLIC_COACH_PANEL_V2,
+    nodeEnv: process.env.NODE_ENV,
+    search: coach2 === "1" ? "?coach2=1" : "",
+  });
+}

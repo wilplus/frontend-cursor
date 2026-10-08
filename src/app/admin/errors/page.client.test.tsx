@@ -1,181 +1,273 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  /admin/errors rendered — the founder's Speaking errors page, drawn to the */
-/*  coach panel prototype's `errors` and `error` screens (CP3 A; D-CP-21).    */
+/*  /admin/errors rendered — the speaking error library, founder only.       */
 /*                                                                            */
-/*  What a grep cannot prove: that the three groups are told apart on sight  */
-/*  by the signed words, that a coach-named error sits under "Named only"    */
-/*  as "Observed" (Q-B7 A), that one error opens on its definition, the      */
-/*  signed readiness line only where the founder's ledger has a row, and the */
-/*  exercises that treat it or "None yet.", and that a non-coach sees nothing. */
+/*  The source fences in speakingErrors.test.ts prove the write path can only  */
+/*  ever say `observed`. This file renders the REAL component and proves the   */
+/*  thing a grep cannot: that an author can TELL THE TWO GROUPS APART on       */
+/*  sight, and that the one refusal which protects live routing arrives as a   */
+/*  sentence they can act on.                                                  */
+/*                                                                            */
+/*  Why that matters more than it looks: saving over a `detected` entry would  */
+/*  demote it to `observed` and silently stop it routing exercises — no        */
+/*  exception, no log, nothing to notice. The database and the service both    */
+/*  refuse it. This screen's job is to make the author never try.              */
 /* -------------------------------------------------------------------------- */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const listSpeakingErrors = vi.fn();
-const listCoachExercises = vi.fn();
-const ledger = vi.fn();
-const push = vi.fn();
+const saveSpeakingError = vi.fn();
 const isCoach = { value: true };
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/components/willab/useUserProfile", () => ({
   useUserProfile: () => ({ isCoach: isCoach.value, loading: false, profile: null }),
 }));
 vi.mock("@/components/willab/LoadingState", () => ({ default: () => null }));
 vi.mock("@/services/api/speakingErrors", async (load) => {
-  const actual = await load<typeof import("@/services/api/speakingErrors")>();
-  return { ...actual, listSpeakingErrors };
+  const actual =
+    await load<typeof import("@/services/api/speakingErrors")>();
+  return { ...actual, listSpeakingErrors, saveSpeakingError };
 });
-vi.mock("@/services/api/coachExercises", async (load) => {
-  const actual = await load<typeof import("@/services/api/coachExercises")>();
-  return { ...actual, listCoachExercises };
-});
-vi.mock("@/services/api/founderLearning", () => ({ founderLearning: { ledger } }));
 
-const { default: SpeakingErrorsClient, readinessLine, errorChoice, exercisesFor } = await import("./page.client");
+const { default: SpeakingErrorLibraryClient, readinessLine } = await import("./page.client");
 
 const RUSHING = {
-  errorId: "rushing", label: "Rushing",
-  definition: "The passage leaves too little silence between its words for a listener to keep up.",
+  errorId: "rushing",
+  label: "Rushing",
+  definition:
+    "The passage leaves too little silence between its words for a listener to keep up.",
   asks: "Did this passage give the listener room to follow it?",
-  status: "detected" as const, detectorRef: "insufficient_pauses", observedBy: null, active: true,
+  status: "detected" as const,
+  detectorRef: "insufficient_pauses,irregular_rushed_pacing",
+  observedBy: null,
+  active: true,
 };
-const HEDGING = {
-  errorId: "hedging", label: "Hedging", definition: "Softening words that take the weight off a claim.",
-  asks: "Did the claim keep its weight?", status: "shadow" as const, detectorRef: "verbal_cues:hedging", observedBy: null, active: true,
-};
-const MUMBLE = {
-  errorId: "trailing_mumble", label: "Trailing mumble", definition: "The last words lose volume while the pace stays even.",
-  asks: "Did the speaker carry the end of the sentence?", status: "observed" as const, detectorRef: null, observedBy: "coach-1", active: true,
-};
-const LAND = {
-  exerciseId: "land-the-last-word", title: "Land the last word", instruction: "Slow down on the last three words.",
-  introductionCopy: "", explanationVideoUrl: "https://v/land.mp4", acousticProblemTags: ["rushing"],
-  matchingCriteria: { primary_problem_tag: "rushing" }, active: true, version: 1, latestVersion: null,
-};
-const PACE = { jar: "shadow_cues.hedging", current: 6, bar: 10, rate: null, observedRate: null, weeksToBar: null, caughtRate: null, caughtBar: null, ready: false };
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const MUMBLE = {
+  errorId: "trailing_mumble",
+  label: "Trailing mumble",
+  definition: "The last words lose volume while the pace stays even.",
+  asks: "Did the speaker carry the end of the sentence?",
+  status: "observed" as const,
+  detectorRef: null,
+  observedBy: "coach-1",
+  active: true,
+};
 
 let host: HTMLDivElement;
 let root: Root;
+
 beforeEach(() => {
   isCoach.value = true;
-  listSpeakingErrors.mockReset().mockResolvedValue({ ok: true, data: [RUSHING, HEDGING, MUMBLE] });
-  listCoachExercises.mockReset().mockResolvedValue({ ok: true, data: { exercises: [LAND], speakingErrors: [] } });
-  ledger.mockReset().mockResolvedValue({ ok: true, value: { pace: [PACE] } });
-  push.mockReset();
+  listSpeakingErrors.mockReset().mockResolvedValue({
+    ok: true,
+    data: [RUSHING, MUMBLE],
+  });
+  saveSpeakingError.mockReset();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
 });
+
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
 });
 
-async function render(founder = true) {
-  await act(async () => { root.render(<SpeakingErrorsClient founder={founder} />); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+async function render() {
+  await act(async () => {
+    root.render(<SpeakingErrorLibraryClient />);
+  });
 }
-const q = (sel: string) => host.querySelector<HTMLElement>(sel);
-const qa = (sel: string) => [...host.querySelectorAll<HTMLElement>(sel)];
-const live = () => host.querySelector<HTMLElement>("[data-walk-stage] .walk-layer:not(.walk-ghost)")!;
 
-describe("the errors screen", () => {
-  it("the title, the caption, and three groups with the signed labels", async () => {
+function button(label: string): HTMLButtonElement {
+  const found = [...host.querySelectorAll("button")].find(
+    (b) => b.textContent?.trim() === label,
+  );
+  if (!found) {
+    throw new Error(
+      `no button "${label}" — have: ${[...host.querySelectorAll("button")]
+        .map((b) => JSON.stringify(b.textContent?.trim()))
+        .join(", ")}`,
+    );
+  }
+  return found as HTMLButtonElement;
+}
+
+async function click(label: string) {
+  await act(async () => {
+    button(label).click();
+  });
+}
+
+async function type(placeholder: string, value: string) {
+  const field = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    `[placeholder="${placeholder}"]`,
+  );
+  if (!field) throw new Error(`no field with placeholder "${placeholder}"`);
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      field instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(field, value);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+/** The rendered section whose heading starts with `heading`. Assertions are
+ *  scoped to a section on purpose: asserting on the whole document proves only
+ *  that both entries appear SOMEWHERE, which stays true if the two groups are
+ *  swapped — the one mistake that would have an author save over a detected
+ *  entry and silently stop it routing. */
+function section(heading: string): HTMLElement {
+  const found = [...host.querySelectorAll("section")].find((s) =>
+    s.querySelector("h2")?.textContent?.startsWith(heading),
+  );
+  if (!found) throw new Error(`no section headed "${heading}"`);
+  return found as HTMLElement;
+}
+
+describe("the two groups are distinguishable on sight", () => {
+  it("puts each entry under the heading that matches its status", async () => {
     await render();
-    expect(q("h2")?.textContent).toBe("Speaking errors");
-    expect(q("[data-walk-caption]")?.textContent).toBe("The patterns coaches name in moments. A pattern routes exercises only once a detector can hear it.");
-    expect(qa("section > span").map((s) => s.textContent)).toEqual([
-      "Detected in audio · routes exercises", "Being tested · routes nothing yet", "Named only · waiting on a detector",
-    ]);
+    const routes = section("Detected in audio").textContent ?? "";
+    const named = section("Named only").textContent ?? "";
+    expect(routes).toContain("Rushing");
+    expect(routes).not.toContain("Trailing mumble");
+    expect(named).toContain("Trailing mumble");
+    expect(named).not.toContain("Rushing");
   });
 
-  it("puts each entry under its group with its state word; a coach-named error is Observed (Q-B7 A)", async () => {
+  it("says, for each entry, whether it actually routes anything", async () => {
     await render();
-    const row = (group: string) => q(`[data-testid="errors-${group}"]`)!.textContent;
-    expect(row("detected")).toContain("Rushing");
-    expect(row("detected")).toContain("Detected");
-    expect(row("detected")).not.toContain("Trailing mumble");
-    expect(row("shadow")).toContain("HedgingBeing tested silently");
-    expect(row("observed")).toContain("Trailing mumbleObserved");
-    expect(errorChoice(MUMBLE)).toEqual({ value: "trailing_mumble", label: "Trailing mumble", subtitle: "Observed" });
+    // The detected one names the thing doing the measuring — the construct
+    // fence made visible rather than merely enforced.
+    expect(section("Detected in audio").textContent).toContain(
+      "insufficient_pauses,irregular_rushed_pacing",
+    );
+    expect(section("Named only").textContent).toContain(
+      "routes nothing until a detector is written",
+    );
+    // And the reverse: a detected entry must never carry the "routes nothing"
+    // line, which is the sentence an author reads to decide it is safe to edit.
+    expect(section("Detected in audio").textContent).not.toContain(
+      "routes nothing until a detector is written",
+    );
   });
 
-  it("no form, no clip, no take and no student on the screen (L3)", async () => {
+  it("locks the detected entries and only those", async () => {
     await render();
-    expect(host.querySelector("input, textarea")).toBeNull();
-    expect(host.textContent).not.toMatch(/File it|Name a pattern|%/);
+    expect(section("Detected in audio").textContent).toContain("Detected");
+    expect(section("Named only").textContent).not.toContain("Detected");
   });
 
-  it("✕ goes to the Lounge", async () => {
+  it("shows the written definition AND the one question, for both", async () => {
+    // A name with no definition is the defect that retired charisma. If this
+    // screen can show a name without showing what it means, it has become the
+    // same unwritten vocabulary the library replaced.
     await render();
-    act(() => q('button[aria-label="Close"]')!.click());
-    expect(push).toHaveBeenCalledWith("/chat");
+    const text = host.textContent ?? "";
+    for (const entry of [RUSHING, MUMBLE]) {
+      expect(text).toContain(entry.definition);
+      expect(text).toContain(entry.asks);
+    }
   });
 });
 
-describe("one error", () => {
-  it("opens on its definition, the signed readiness line, and the exercises that treat it", async () => {
+describe("naming a pattern", () => {
+  it("files it and says plainly that it routes nothing yet", async () => {
+    saveSpeakingError.mockResolvedValue({ ok: true, data: MUMBLE });
     await render();
-    act(() => q('[data-walk-choice="hedging"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    const screen = live();
-    expect(screen.querySelector("h2")?.textContent).toBe("Hedging");
-    expect(screen.querySelector("[data-walk-caption]")?.textContent).toBe("Being tested silently");
-    expect(screen.querySelector("[data-walk-back-label]")?.textContent).toBe("Speaking errors");
-    expect(screen.querySelector('[data-testid="error-definition"]')?.textContent).toBe(HEDGING.definition);
-    expect(screen.querySelector('[data-testid="error-readiness"]')?.textContent).toBe("Coaches heard it on 6 of 10 checked moments.");
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).toContain("None yet.");
+    await click("Name a pattern");
+    await type("Trailing mumble", "Trailing mumble");
+    await type(
+      "The last words of a sentence lose volume and articulation while the pace stays even.",
+      "The last words lose volume.",
+    );
+    await type(
+      "Did the speaker carry the end of the sentence?",
+      "Did the speaker carry the end?",
+    );
+    await click("File it");
+
+    expect(saveSpeakingError).toHaveBeenCalledOnce();
+    // The id was derived from the name, so the author never had to think
+    // about a shape that silently routes nothing when it is wrong.
+    expect(saveSpeakingError.mock.calls[0][0].errorId).toBe("trailing_mumble");
+    expect(host.textContent).toContain("routes nothing until a detector");
   });
 
-  it("a detected error: no readiness line (the ledger has no row), the exercises that treat it open in the library", async () => {
+  it("refuses an id that would match nothing, before sending it", async () => {
     await render();
-    act(() => q('[data-walk-choice="rushing"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    const screen = live();
-    expect(screen.querySelector('[data-testid="error-readiness"]')).toBeNull();
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).toContain("Land the last word");
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).not.toContain("None yet.");
-    act(() => screen.querySelector<HTMLElement>('[data-walk-choice="land-the-last-word"]')!.click());
-    expect(push).toHaveBeenCalledWith("/admin/library?item=land-the-last-word");
-    expect(exercisesFor("rushing", [LAND, { ...LAND, exerciseId: "x", active: false }])).toEqual([LAND]);
+    await click("Name a pattern");
+    await type("Trailing mumble", "Trailing mumble");
+    await type("trailing_mumble", "Trailing Mumble");   // the id field
+    await type(
+      "The last words of a sentence lose volume and articulation while the pace stays even.",
+      "d",
+    );
+    await type("Did the speaker carry the end of the sentence?", "a");
+    await click("File it");
+
+    expect(saveSpeakingError).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("match nothing");
   });
 
-  it("the readiness line is the founder's alone; a coach's page draws none", async () => {
-    await render(false);
-    expect(ledger).not.toHaveBeenCalled();
-    act(() => q('[data-walk-choice="hedging"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(live().querySelector('[data-testid="error-readiness"]')).toBeNull();
-  });
-
-  it("‹ returns to the list", async () => {
+  it("surfaces the already-detected refusal as something to read", async () => {
+    // THE refusal that protects live routing. It is not a mistake the author
+    // can fix by editing the form, so it must not read like a validation slip.
+    saveSpeakingError.mockResolvedValue({
+      ok: false,
+      status: 409,
+      code: "ALREADY_DETECTED",
+      message:
+        "this error is already detected in code; saving it here would demote it to observed and silently stop it routing exercises",
+    });
     await render();
-    act(() => q('[data-walk-choice="rushing"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    act(() => live().querySelector<HTMLElement>('button[aria-label="Back"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(live().querySelector("h2")?.textContent).toBe("Speaking errors");
+    await click("Name a pattern");
+    await type("Trailing mumble", "Rushing");
+    await type(
+      "The last words of a sentence lose volume and articulation while the pace stays even.",
+      "d",
+    );
+    await type("Did the speaker carry the end of the sentence?", "a");
+    await click("File it");
+
+    expect(host.textContent).toContain("silently stop it routing exercises");
+    // The draft survives the refusal — retyping it is how an author gives up.
+    expect(
+      host.querySelector('[placeholder="Trailing mumble"]'),
+    ).not.toBeNull();
   });
 });
 
-describe("the readiness line", () => {
-  it("reads the signed words with the coaches' count and the bar, or nothing", () => {
-    expect(readinessLine(PACE)).toBe("Coaches heard it on 6 of 10 checked moments.");
-    expect(readinessLine({ ...PACE, current: null })).toBeNull();
-    expect(readinessLine(undefined)).toBeNull();
-  });
-});
-
-describe("a non-coach", () => {
+describe("N4 — the screen does not exist for a non-coach", () => {
   it("renders nothing and does not even ask for the library", async () => {
     isCoach.value = false;
     await render();
-    expect(host.textContent).toBe("");
+    expect(host.textContent).toContain("Nothing here");
+    expect(host.textContent).not.toContain("Rushing");
     expect(listSpeakingErrors).not.toHaveBeenCalled();
+  });
+});
+
+describe("the founder's readiness line (P51b A, signed 2026-10-06)", () => {
+  it("reads the signed words with the coaches' count and the bar", () => {
+    const row = {
+      jar: "shadow_cues.hedging", current: 7, bar: 30, observedRate: null,
+      weeksToBar: null, caughtRate: 0.5, caughtBar: 0.8, ready: false,
+    };
+    expect(readinessLine(row)).toBe(
+      "Coaches heard it on 7 of 30 checked moments. · caught 50% of 80% needed",
+    );
+    expect(readinessLine({ ...row, current: null, ready: true })).toBe(
+      "READY to propose · Coaches heard it on — of 30 checked moments. · caught 50% of 80% needed",
+    );
+    expect(readinessLine(undefined)).toBe("No readiness read yet.");
   });
 });

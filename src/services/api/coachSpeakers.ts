@@ -80,11 +80,32 @@ export async function fetchCoachSpeakers(): Promise<PanelSpeaker[] | null> {
   }
 }
 
+/** The queue's own speakers as the Speakers list draws them: the fallback
+ *  when GET /v2/coach/speakers cannot be read (they are the speakers with
+ *  moments waiting, which the queue already holds). Pure. */
+export function speakersFromQueue(queue: readonly QueueSpeaker[]): PanelSpeaker[] {
+  return queue.map((s) => ({
+    pseudonym: s.pseudonym,
+    goal: s.goal ?? null,
+    waiting: s.waiting,
+    waitingForText: s.takes.filter((t) => t.waitingForText).length,
+    takeCount: s.takes.length,
+    takes: s.takes.map((t) => ({
+      sessionId: t.sessionId,
+      takeIndex: t.takeIndex,
+      sentAt: t.sentAt,
+      waiting: t.waiting,
+      waitingForText: t.waitingForText,
+      answered: !t.waitingForText && t.waiting === 0,
+    })),
+  }));
+}
+
 /** A speaker as the panel walks them: the queue's own entry when they are in
  *  it (their moments are there), else their Takes as counts alone. Pure. */
 export function queueSpeakerFor(speaker: PanelSpeaker, queue: readonly QueueSpeaker[]): QueueSpeaker {
   const live = queue.find((s) => s.pseudonym === speaker.pseudonym);
-  if (live) return live.goal === undefined ? { ...live, goal: speaker.goal } : live;
+  if (live) return live.goal == null && speaker.goal != null ? { ...live, goal: speaker.goal } : live;
   const takes: QueueTake[] = speaker.takes.map((t) => ({
     sessionId: t.sessionId,
     takeIndex: t.takeIndex,

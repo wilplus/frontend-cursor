@@ -4,7 +4,7 @@
 /*  Dev harness for the founder's Library and Speaking errors pages (coach    */
 /*  panel lock CP3 A; build plan D-CP-21), for the X7 screenshot harness:      */
 /*                                                                            */
-/*    /dev/admin-library?screen=library | errors     the REAL page clients,    */
+/*    /dev/admin-library?screen=library | errors     the REAL panel screens,   */
 /*    drawn over stubbed routes (the exercises, the catalogue, the speaking   */
 /*    errors, the founder's ledger, the coach's profile); the manifest's      */
 /*    `act` taps into one exercise or one error.                              */
@@ -14,8 +14,8 @@
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useState } from "react";
-import LibraryClient from "@/app/admin/library/page.client";
-import SpeakingErrorsClient from "@/app/admin/errors/page.client";
+import LibraryClient from "@/app/admin/library/LibraryPanel";
+import SpeakingErrorsClient from "@/app/admin/errors/SpeakingErrorsPanel";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
