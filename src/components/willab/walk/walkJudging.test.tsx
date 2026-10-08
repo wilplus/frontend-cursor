@@ -10,10 +10,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
-import type { WalkJudgementSave } from "./useWalkJudging";
+import { toastRides, type WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
+import type { WalkStep } from "@/lib/willab/walkPlan";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -214,7 +215,39 @@ describe("the judgements", () => {
     expect(judged.map((j) => j.item)).not.toContain("rw-2");
     // The last answer leads past the judging: the end card (sharing, D-FW-20, is not drawn yet).
     expect(ended).toBe(1);
-    expect(toast()).toBe("Not sure ✓");
+    // No toast rides onto the end card: it would sit on "Record Take N".
+    expect(toast()).toBeNull();
+  });
+
+  it("the last answer takes no toast to the end card, and the one before goes with its screen", () => {
+    draw();
+    toIntro();
+    promise();
+    click(answerButton("yes"));
+    hold();
+    click(answerButton("no"));
+    hold();
+    expect(toast()).toBe("No ✓");
+    // Straight on, while "No ✓" is still showing: the last answer ends the walk.
+    click(answerButton("in_between"));
+    hold();
+    expect(ended).toBe(1);
+    expect(toast()).toBeNull();
+    expect(host.querySelector("[data-walk-toast]")).toBeNull();
+  });
+});
+
+describe("toastRides", () => {
+  it("is true onto another overlay screen, false onto the end card or off the plan", () => {
+    const judgeA: WalkStep = { key: "judge", moment: 0 };
+    const judgeB: WalkStep = { key: "judge", moment: 1 };
+    const share: WalkStep = { key: "community" };
+    const end: WalkStep = { key: "end", overlay: false };
+    expect(toastRides([judgeA, judgeB, end], judgeA)).toBe(true);
+    expect(toastRides([judgeA, judgeB, end], judgeB)).toBe(false);
+    expect(toastRides([judgeA, judgeB, share, end], judgeB)).toBe(true);
+    expect(toastRides([judgeA, end], { key: "judge", moment: 0 })).toBe(false);
+    expect(toastRides([judgeA], judgeA)).toBe(false);
   });
 });
 

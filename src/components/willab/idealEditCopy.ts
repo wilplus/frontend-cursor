@@ -403,6 +403,11 @@ export const WALK_COPY = {
   clearerAsk: "Do you accept and want to practise it?",
   /* The exercise video's button. */
   exercisePractise: "Practise",
+  /* Under "Choose your helper words" in the walk, on every Take: the locked
+     prototype's subtitle, signed with its design (Q-B4 A, N62). The same
+     words as CHUNK_SHEET_COPY.emphasisFirstTakeNote, which the sheets show
+     on Take 1 only. */
+  helpersSubtitle: CHUNK_SHEET_COPY.emphasisFirstTakeNote,
   /* Sharing, after every finished review. */
   shareTitle: "After all, it's about speaking publicly!",
   shareAsk: "Do you agree to share this take with others?",

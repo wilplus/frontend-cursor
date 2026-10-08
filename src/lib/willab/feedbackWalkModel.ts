@@ -55,8 +55,10 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
   clip?: WalkClip | null;
   /** On a served rewrite: the speaker's words it anchors on (`quote`), the
    *  words offered in their place (`proposedText`), and the item itself for
-   *  the decision. Only from the served item; never made up. */
-  rewrite?: { quote: string; proposedText: string; item: R } | null;
+   *  the decision. Only from the served item; never made up. `move` is the
+   *  served item's signed sentence for the rewrite (`rewriteMove`, 35f), the
+   *  coach's line above the words to say on the practise; absent, none. */
+  rewrite?: { quote: string; proposedText: string; move?: string | null; item: R } | null;
   /** The served item itself, set only where a practise can be opened on it
    *  (its clearer version's words, or the moment said again). Only handed
    *  back. */
@@ -95,9 +97,11 @@ export type FeedbackWalkExercise<R = unknown> = {
 };
 
 /** A moment's clearer version: the served pair as pieces, the words to say
- *  once accepted, and the item the decision is written on. */
+ *  once accepted, the served line above them on the practise (null: none),
+ *  and the item the decision is written on. */
 export type FeedbackWalkClearer<R = unknown> = ClearerPieces & {
   say: string;
+  coachLine: string | null;
   item: R;
 };
 
@@ -192,7 +196,10 @@ function clearerOf<R>(group: readonly FeedbackWalkItem<R>[]): FeedbackWalkCleare
   for (const i of group) {
     if (!i.rewrite) continue;
     const pieces = clearerPieces(i.rewrite.quote, i.rewrite.proposedText);
-    if (pieces) return { ...pieces, say: i.rewrite.proposedText.trim(), item: i.rewrite.item };
+    if (pieces) {
+      const coachLine = i.rewrite.move?.trim() || null;
+      return { ...pieces, say: i.rewrite.proposedText.trim(), coachLine, item: i.rewrite.item };
+    }
   }
   return null;
 }

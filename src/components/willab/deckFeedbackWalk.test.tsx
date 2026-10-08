@@ -344,7 +344,9 @@ describe("the clearer version in the walk (D-FW-15)", () => {
 
 describe("rewriteOf", () => {
   it("is the served quote and proposal of a clearer-version replace, and nothing else", () => {
-    expect(rewriteOf(rewrite)).toEqual({ quote: "retention went up", proposedText: "retention rose", item: rewrite });
+    expect(rewriteOf(rewrite)).toEqual({ quote: "retention went up", proposedText: "retention rose", move: null, item: rewrite });
+    // The served move (35f) rides along: the line above the words to say.
+    expect(rewriteOf({ ...rewrite, rewriteMove: "Split the clause." })!.move).toBe("Split the clause.");
     expect(rewriteOf({ ...rewrite, kind: "bold" })).toBeNull();
     expect(rewriteOf({ ...rewrite, proposedText: null })).toBeNull();
     expect(rewriteOf({ ...rewrite, feedbackFamily: "confident_voice" })).toBeNull();
@@ -569,7 +571,9 @@ describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
       response: "yes",
     });
     expect(onJudged).toHaveBeenCalledWith(expect.objectContaining({ id: "s-cv" }), "approved");
-    expect(document.querySelector("[data-walk-toast]")!.textContent).toBe("Yes ✓");
+    // The only judgement leads to the end card: no toast rides onto it, so
+    // nothing sits on "Record Take N".
+    expect(document.querySelector("[data-walk-toast]")).toBeNull();
     expect(requests.some((r) => r.url.endsWith("/moment-event"))).toBe(false);
   });
 

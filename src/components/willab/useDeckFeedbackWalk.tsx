@@ -146,11 +146,12 @@ export function deckWalkItems(
 
 /** A served rewrite the walk can draw and decide: a replace with words to
  *  offer, from the clearer-version family or routed to the rewrite card.
- *  The same fields the Feedback sheet's rewrite card shows. Pure. */
+ *  The same fields the Feedback sheet's rewrite card shows, its signed move
+ *  (`rewriteMove`) among them: the line above the words to say. Pure. */
 export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSuggestion>["rewrite"] {
   if (item.kind !== "replace" || !item.proposedText?.trim()) return null;
   if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
-  return { quote: item.quote, proposedText: item.proposedText, item };
+  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, item };
 }
 
 /** The exercise an item's follow-up opens on (D-FW-17): the served offer,
