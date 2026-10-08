@@ -25,6 +25,7 @@
 
 import { WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
 import { bankLine } from "./feedbackWalkModel";
+import type { SayLine } from "./walkLines";
 import { WALK_MAX_TRIES, afterTry, type WalkStep, type WalkStepKey } from "./walkPlan";
 
 /** O5: a read later than this is "not reached yet"; the walk offers Next or
@@ -153,21 +154,25 @@ export function practisePraiseBank(key: string | null | undefined): keyof typeof
   return "B09";
 }
 
-/** The praise after a try at `at`. */
-export function improvedLine(plan: readonly WalkStep[], at: number): string {
+/** The praise after a try at `at`. With `say` (the walk's memory, D-FW-3)
+ *  the bank's next line for this speaker; without, its turn in the plan. */
+export function improvedLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
   const bank = practisePraiseBank(plan[at]?.kind);
+  if (say && plan[at]) return say(plan[at], bank);
   return bankLine(WALK_LINE_BANK[bank].lines, turnOf(plan, at, (s) => s.key === "improved"));
 }
 
 /** The encouragement at `at`: the founder's own line when something moved
  *  (NX3 A), else the NX3a lines in turn. */
-export function encourageLine(plan: readonly WalkStep[], at: number): string {
+export function encourageLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
   if (plan[at]?.kind === "step") return WALK_COPY.encourage;
+  if (say && plan[at]) return say(plan[at], "NX3a");
   const turn = turnOf(plan, at, (s) => s.key === "encourage" && s.kind !== "step");
   return bankLine(WALK_COPY.encourageNothingMoved, turn);
 }
 
 /** The thank-you after the third try that is not praise (CM3b A). */
-export function thanksLine(plan: readonly WalkStep[], at: number): string {
+export function thanksLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
+  if (say && plan[at]) return say(plan[at], "CM3b");
   return bankLine(WALK_COPY.afterThirdTry, turnOf(plan, at, (s) => s.key === "thanks"));
 }
