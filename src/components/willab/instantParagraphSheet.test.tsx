@@ -30,7 +30,12 @@ import {
   useParagraphSheetData,
   type SheetData,
 } from "./paragraphSheetData";
-import { CONFIRM_RETRY_MS, CONFIRM_TRIES, useHeadlinesWithPending } from "./useSlideHeadlines";
+import {
+  CONFIRM_RETRY_MS,
+  CONFIRM_TRIES,
+  forgetHeadlineReads,
+  useHeadlinesWithPending,
+} from "./useSlideHeadlines";
 import OpenChunkSheet from "./OpenChunkSheet";
 
 let container: HTMLDivElement;
@@ -40,6 +45,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   forgetParagraphSheetData();
+  forgetHeadlineReads();
   history.mockReset();
   answers.mockReset();
   roots.mockReset();

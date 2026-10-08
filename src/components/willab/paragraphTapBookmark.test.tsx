@@ -14,6 +14,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
+import { forgetHeadlineReads } from "./useSlideHeadlines";
 import { bookmarkPartIds, opensFromPage, type Bookmark } from "./feedbackPager";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -99,6 +100,7 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => un
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
+  forgetHeadlineReads();
   window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
