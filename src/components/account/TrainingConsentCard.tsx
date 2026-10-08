@@ -11,9 +11,9 @@
 /*  The sentence is the backend's, exactly as the database holds it; the yes */
 /*  is sent with that sentence's fingerprint and refused on any other.       */
 /*  Turning off asks first, with the signed wording, and deletes the copies. */
-/*  The four lines above the sentence are the founder's (2026-10-01, from   */
-/*  counsel): text only, off by default, OpenAI under the SCCs, what a       */
-/*  withdrawal does. They render before the switch can be turned on.         */
+/*  The eight lines above the sentence are the founder's (v2, signed         */
+/*  2026-10-08; v1's four were counsel's, 2026-10-01). They render before    */
+/*  the switch can be turned on.                                             */
 /* -------------------------------------------------------------------------- */
 
 import { useEffect, useState } from "react";

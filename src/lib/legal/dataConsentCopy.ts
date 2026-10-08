@@ -51,19 +51,25 @@ export const DATA_CONSENT_COPY = {
   trainingOffTitle: "Turn off training?",
   trainingOffBody:
     "Your training copies will be deleted. Anything already used to train stays in that training, but it won’t be used again.",
-  // Signed by the founder 2026-10-01 (counsel's wording, backend
-  // docs/LEARNING-DOORS.md and legal/phase1-2026.1/13-…-SIGNED-2026-10-01.md).
-  // The four lines above the switch, shown before it can be turned on; the
+  // Signed by the founder 2026-10-08, "with its eight lines" (training switch
+  // wording v2, backend legal/phase1-2026.1/23-training-consent-wording-v2-*.md
+  // and SIGN-3.5-2026-10-08.md; supersedes v1's four lines of 2026-10-01).
+  // The eight lines above the switch, shown before it can be turned on; the
   // switch's own sentence still comes from the backend, fingerprinted.
   trainingBeforeLines: [
-    "Text only. Never your voice.",
+    "Text and numbers only. No recording of your voice, and no clip of one, is ever copied or sent for training.",
     "Off unless you turn it on. Saying no costs you nothing.",
-    "OpenAI trains the models for us, in the United States, under the European Commission’s standard contractual clauses.",
+    "Your coach's words include their line on a moment and their word for a take.",
+    "The numbers are measurements such as your pace and pauses, and whether an exercise helped you. They stay with us.",
+    "A coach may hear a moment of yours, without your name, to answer a question that teaches our software.",
+    "The trained models write feedback for every speaker. We test that they do not repeat your text.",
+    "OpenAI trains the text models for us, in the United States, under the European Commission's standard contractual clauses.",
     "Turning it off deletes your training copies and keeps you out of any new training. A model already trained stays.",
   ],
-  // Approved by the founder 2026-09-26 (backend N12, answer 3). Shown in
+  // Approved by the founder 2026-09-26 (backend N12, answer 3); wording v2
+  // signed 2026-10-08 (SIGN-3.5-2026-10-08.md). Shown in
   // place of `intro` only while the training switch is offered: until then
   // `intro` stays, because it is still true.
   introWithTraining:
-    "Your recordings are used to run your own coaching. They are used to train models only if you turn on Help improve WillpowerLab.",
+    "Your recordings are used to run your own coaching. Their words, and numbers measured from them, train models only if you turn on Help improve WillpowerLab.",
 } as const;
