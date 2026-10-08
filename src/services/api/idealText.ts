@@ -4,7 +4,7 @@ import type { Part } from "@/lib/willab/documentParts";
 import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import {
   nextSettleDelayMs,
-  retryableSections,
+  retryableMarkSections,
 } from "@/lib/willab/enrichmentSettle";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 import type {
@@ -2125,7 +2125,9 @@ export async function fetchIdealTextEnrichment(
   };
 }
 
-/** Finish only the optional sections that explicitly asked to be retried.
+/** Finish only the MARK sections (`document_layers`, `feedback`) that
+ * explicitly asked to be retried — S1, 2026-10-08: a retryable `learning`,
+ * `notes` or `journey` is left for the next read, never re-asked here.
  *
  * The immutable core is already on screen while this runs.  Manager work can
  * commit just after the first two-second enrichment budget expires; one eager
@@ -2164,7 +2166,8 @@ export async function settleIdealTextEnrichment(
   const now = options?.now ?? (() => Date.now());
   const startedAt = now();
   for (let attempt = 0; ; attempt += 1) {
-    const retryable = retryableSections(current.sections);
+    // Only the mark sections are worth another request (S1, 2026-10-08).
+    const retryable = retryableMarkSections(current.sections);
     if (retryable.length === 0) return current;
     const delay = nextSettleDelayMs(
       attempt,

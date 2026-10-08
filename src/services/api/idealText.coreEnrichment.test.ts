@@ -342,6 +342,57 @@ describe("Ideal Text core-first transport", () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
+  it("never re-asks a retryable non-mark section (S1, 2026-10-08)", async () => {
+    // `learning` (the F2 receipt) failing retryably used to keep the settle
+    // polling for ninety seconds. It draws no mark, so it is not re-asked.
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const settled = await settleIdealTextEnrichment(
+      "arc-1",
+      "snapshot-1",
+      {
+        kind: "ready",
+        documentSnapshotId: "snapshot-1",
+        sections: {
+          document_layers: { status: "ready", data: {}, retryable: false },
+          learning: { status: "failed", retryable: true },
+        },
+      },
+      { wait: async () => undefined },
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    if (settled.kind !== "ready") throw new Error("expected enrichment");
+    expect(settled.sections.learning.retryable).toBe(true);
+    expect(feedbackStillComing(settled.sections)).toBe(false);
+  });
+
+  it("re-asks the mark sections without the non-mark ones", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      response({
+        document_snapshot_id: "snapshot-1",
+        sections: { document_layers: { status: "ready", data: {} } },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await settleIdealTextEnrichment(
+      "arc-1",
+      "snapshot-1",
+      {
+        kind: "ready",
+        documentSnapshotId: "snapshot-1",
+        sections: {
+          document_layers: { status: "pending", retryable: true },
+          learning: { status: "failed", retryable: true },
+        },
+      },
+      { wait: async () => undefined },
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = decodeURIComponent(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url).toContain("sections=document_layers");
+    expect(url).not.toContain("learning");
+  });
+
   it("hands back the retryable sections when the budget runs out", async () => {
     /* "READY" IS THE ENVELOPE, NOT THE ANSWER. A settle that spent its budget
        returns the same `kind` as one that finished, so the caller must be able

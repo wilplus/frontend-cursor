@@ -7,6 +7,7 @@ import {
   SLOW_LANE,
   feedbackStillComing,
   nextSettleDelayMs,
+  retryableMarkSections,
   retryableSections,
   settleDelayMs,
 } from "./enrichmentSettle";
@@ -248,5 +249,28 @@ describe("the two lanes a first open asks in", () => {
     // bookmarks, or its budget becomes theirs.
     expect(SLOW_LANE).not.toContain("learning");
     expect(PROMPT_LANE).toContain("learning");
+  });
+});
+
+describe("what a settle asks for again (S1, founder 2026-10-08)", () => {
+  it("re-asks only the mark sections", () => {
+    expect(
+      retryableMarkSections({
+        learning: { retryable: true },
+        journey: { retryable: true },
+        notes: { retryable: true },
+        feedback: { retryable: true },
+        document_layers: { retryable: true },
+      }),
+    ).toEqual(["document_layers", "feedback"]);
+  });
+
+  it("has nothing to re-ask when only a non-mark section is retryable", () => {
+    expect(
+      retryableMarkSections({
+        document_layers: {},
+        learning: { retryable: true },
+      }),
+    ).toEqual([]);
   });
 });

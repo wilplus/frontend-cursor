@@ -110,6 +110,20 @@ export function retryableSections(
  *  mark on the page. */
 export const MARK_SECTIONS: readonly string[] = ["document_layers", "feedback"];
 
+/** The retryable sections a SETTLE asks for again: the mark sections only
+ *  (founder 2026-10-08, S1). The settle exists to hold the reserved slot
+ *  until the marks land; re-asking for `learning`, `notes` or `journey` for
+ *  up to ninety seconds spent requests on sections that draw no mark and that
+ *  the next read picks up anyway. A non-mark section left retryable stays so
+ *  in the result — the caller still sees the server's word. */
+export function retryableMarkSections(
+  sections: Readonly<Record<string, { retryable?: boolean }>>,
+): string[] {
+  return retryableSections(sections).filter((name) =>
+    MARK_SECTIONS.includes(name),
+  );
+}
+
 /** THE TWO LANES A FIRST OPEN ASKS IN (founder 2026-09-22: "can you do
  *  something to make loading of the bookmarks faster? cause it is really
  *  long").
