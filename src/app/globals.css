@@ -401,6 +401,25 @@ body.no-scroll {
   animation: walk-fade 0.4s ease both;
 }
 
+/* Desktop (founder 2026-10-08, Q-WALK-DESK A): the Feedback walk is the
+   phone's column, centred on the same white. The overlay keeps the whole
+   screen white (nothing of the page behind it); its top bar, title, body
+   and footer sit in a column as wide as the phone layout. At phone width the
+   padding is 0, so the phone is unchanged. Padding on the overlay, not a
+   wrapper, so the moves above still address its direct children. */
+[data-feedback-walk] .walk-ov {
+  padding-inline: max(0px, calc((100% - var(--walk-column)) / 2));
+}
+[data-feedback-walk] .walk-ov,
+.walk-endsheet {
+  --walk-column: 430px;
+}
+/* The end card, too, is the column's width, at the bottom of the screen. */
+.walk-endsheet {
+  margin-inline: auto;
+  max-width: var(--walk-column);
+}
+
 /* the end card: the page dims and the card rises; leaving, it sinks */
 .walk-endsheet {
   animation: walk-up 0.3s var(--walk-ease-arrive);

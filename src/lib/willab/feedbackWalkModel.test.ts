@@ -96,6 +96,21 @@ describe("the clearer version (D-FW-15)", () => {
     expect(clearer.say).toBe("The window closes.");
     expect(clearer.before).toEqual([{ text: "We think the", cut: true }, { text: " window closes." }]);
     expect(clearer.after).toEqual([{ text: "The", fresh: true }, { text: " window closes." }]);
+    // No served move: no line above the words to say.
+    expect(clearer.coachLine).toBeNull();
+  });
+
+  it("carries the served move as the practise's line, trimmed; blank is none", () => {
+    const withMove = (move: string | null) =>
+      buildFeedbackWalk({
+        items: [
+          item({ partId: "p4", start: 120, blockId: "b4", feedbackFamily: "rewrite_clarity", rewrite: { ...REWRITE, move } }) as FeedbackWalkItem<string>,
+        ],
+        coachNote: false, practiceOn: true, guest: false,
+      }).moments[0].clearer!.coachLine;
+    expect(withMove(" Say it this way. ")).toBe("Say it this way.");
+    expect(withMove("   ")).toBeNull();
+    expect(withMove(null)).toBeNull();
   });
 
   it("is the `accept` screen with personalised practice off (WQ3 A)", () => {
