@@ -102,3 +102,41 @@ describe("the slide on Read (B5)", () => {
     expect(readSlideFor(PDF, { index: 1.5, title: "" })).toBeNull();
   });
 });
+
+describe("the speaker's goal on the queue (D-CP-12)", () => {
+  it("reads goal, or speaker_goal, trimmed; blank is none", () => {
+    const [a, b, c] = mapMomentsQueue([
+      { pseudonym: "A", waiting: 0, takes: [], goal: " Sound calm. " },
+      { pseudonym: "B", waiting: 0, takes: [], speaker_goal: "Pitch well." },
+      { pseudonym: "C", waiting: 0, takes: [], goal: "   " },
+    ]);
+    expect(a.goal).toBe("Sound calm.");
+    expect(b.goal).toBe("Pitch well.");
+    expect(c.goal).toBeNull();
+  });
+});
+
+describe("the moment read's `heard` (D-CP-13)", () => {
+  it("maps every kind by key, keeps the library's label, drops the malformed, null when absent", async () => {
+    const { mapMomentRead } = await import("@/services/api/coachWalk");
+    const read = mapMomentRead({
+      passage: "p",
+      heard: [
+        { kind: "error", key: "rushing", label: "Rushing" },
+        { kind: "cue", key: "landed_ending" },
+        { kind: "reason", key: "weak_delivery_read" },
+        { kind: "nothing", key: "nothing" },
+        { kind: "score", key: "0.9" },
+        { kind: "error" },
+        "x",
+      ],
+    });
+    expect(read?.heard).toEqual([
+      { kind: "error", key: "rushing", label: "Rushing" },
+      { kind: "cue", key: "landed_ending", label: null },
+      { kind: "reason", key: "weak_delivery_read", label: null },
+      { kind: "nothing", key: "nothing", label: null },
+    ]);
+    expect(mapMomentRead({ passage: "p" })?.heard).toBeNull();
+  });
+});

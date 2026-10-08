@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   PANEL_START,
+  firstUnlabelledIndex,
   isRated,
+  nextUnlabelledIndex,
   momentCounter,
   momentOf,
   panelReducer,
@@ -56,6 +58,100 @@ describe("opening", () => {
   it("a Take with no moments (waiting for the text) opens nothing", () => {
     const take = { ...TAKE, moments: [], waitingForText: true };
     expect(where(run({ type: "open" }, { type: "take", speaker: HERON, take }))).toBe("queue");
+  });
+});
+
+describe("Your speakers (D-CP-12)", () => {
+  it("the pinned button opens Your speakers with nothing behind it", () => {
+    const s = run({ type: "speakers" });
+    expect(s.screen.key).toBe("speakers");
+    expect(s.history).toEqual([]);
+    expect(walkScreenOf(s.screen)).toEqual({ key: "speakers" });
+  });
+
+  it("a speaker opens from the list, and ‹ returns to the list, then the Lounge", () => {
+    let s = run({ type: "speakers" }, { type: "speaker", speaker: HERON });
+    expect(where(s)).toBe("speaker");
+    expect(s.history.map((h) => h.key)).toEqual(["speakers"]);
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("speakers");
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("lounge");
+  });
+
+  it("a speaker with every moment answered has Takes that open nothing", () => {
+    const finch: QueueSpeaker = {
+      pseudonym: "Bold Finch", goal: "Open the keynote without notes.", waiting: 0,
+      takes: [{ ...TAKE, sessionId: "finch-3", takeIndex: 3, waiting: 0, moments: [] }],
+    };
+    const s = run({ type: "speakers" }, { type: "speaker", speaker: finch }, { type: "take", speaker: finch, take: finch.takes[0] });
+    expect(where(s)).toBe("speaker");
+  });
+
+  it("the hand-over's resume keeps the way in: Your speakers, not the queue", () => {
+    let s = run({ type: "speakers" }, { type: "speaker", speaker: HERON }, { type: "take", speaker: HERON, take: TAKE });
+    s = panelReducer(s, { type: "resume", speaker: HERON, take: TAKE, index: 0 });
+    expect(where(s)).toBe("judge:s3");
+    expect(s.history.map((h) => h.key)).toEqual(["speakers", "speaker"]);
+    s = panelReducer(s, { type: "back" });
+    s = panelReducer(s, { type: "back" });
+    expect(where(s)).toBe("speakers");
+  });
+});
+
+describe("the training corpus (D-CP-20)", () => {
+  it("the pinned button opens the imports with nothing behind; Import audio, the loader, the judging stack on it", () => {
+    let s = run({ type: "corpus" });
+    expect(s.screen.key).toBe("corpushome");
+    expect(s.history).toEqual([]);
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpushome" });
+    s = panelReducer(s, { type: "corpusImport" });
+    expect(s.screen).toEqual({ key: "corpusimport", setupOf: null });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpusimport", kind: "new" });
+    s = panelReducer(s, { type: "corpusAnalyse" });
+    expect(s.screen.key).toBe("corpusanalyse");
+    s = panelReducer(s, { type: "corpusHome" });
+    expect(s.screen.key).toBe("corpushome");
+    expect(s.history).toEqual([]);
+    expect(s.dir).toBe("back");
+  });
+
+  it("an unfinished import opens its set-up; ‹ returns to the imports, then the Lounge", () => {
+    let s = run({ type: "corpus" }, { type: "corpusImport", setupOf: "import-1" });
+    expect(s.screen).toEqual({ key: "corpusimport", setupOf: "import-1" });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpusimport", kind: "import-1" });
+    s = panelReducer(s, { type: "back" });
+    expect(s.screen.key).toBe("corpushome");
+    s = panelReducer(s, { type: "back" });
+    expect(s.screen.key).toBe("lounge");
+  });
+
+  it("judging an import: the panel's Judge screen, back to the imports when done", () => {
+    let s = run({ type: "corpus" }, { type: "corpusJudge", importId: "import-2", topic: "Board update, March" });
+    expect(s.screen).toEqual({ key: "corpus", importId: "import-2", topic: "Board update, March" });
+    expect(walkScreenOf(s.screen)).toEqual({ key: "corpus", kind: "import-2" });
+    expect(momentOf(s.screen)).toBeNull(); // not a speaker's moment
+    expect(momentCounter(s.screen)).toBeNull();
+    s = panelReducer(s, { type: "corpusHome" });
+    expect(s.screen.key).toBe("corpushome");
+  });
+
+  it("a saved set-up goes straight to its judging, history cleared, a soft cross-fade", () => {
+    const s = run({ type: "corpus" }, { type: "corpusImport", setupOf: "i1" }, { type: "corpusAnalyse" },
+      { type: "corpusSetUp", importId: "i1", topic: "Workshop" });
+    expect(s.screen).toEqual({ key: "corpus", importId: "i1", topic: "Workshop" });
+    expect(s.history).toEqual([]);
+    expect(s.dir).toBe("fade");
+  });
+
+  it("the next unlabelled piece, in payload order, never re-sorted", () => {
+    expect(firstUnlabelledIndex([true, true, false, true])).toBe(2);
+    expect(firstUnlabelledIndex([true, true])).toBe(0);
+    expect(firstUnlabelledIndex([])).toBe(0);
+    expect(nextUnlabelledIndex([false, true, false, false], 0)).toBe(2);
+    expect(nextUnlabelledIndex([false, true, false, false], 2)).toBe(3);
+    expect(nextUnlabelledIndex([false, true, false, false], 3)).toBe(-1);
+    expect(nextUnlabelledIndex([true, false], 1)).toBe(-1);
   });
 });
 

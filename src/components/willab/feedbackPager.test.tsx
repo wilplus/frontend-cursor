@@ -145,6 +145,7 @@ function Harness({
     null,
     createElement("span", { "data-testid": "at" }, String(walk.pager?.index ?? "none")),
     createElement("span", { "data-testid": "total" }, String(walk.pager?.total ?? "none")),
+    createElement("span", { "data-testid": "back" }, String(walk.cameBack)),
     createElement(FeedbackPagerBar, { pager: walk.pager }),
     createElement("button", { onClick: () => walk.openPart("a") }, "open-a"),
     createElement("button", { onClick: () => walk.openPart("c") }, "open-c"),
@@ -168,10 +169,15 @@ describe("the walk", () => {
       const b = buttons().find((x) => x.label === label)!;
       await act(async () => b.el.click());
     };
+    const back = () => container.querySelector('[data-testid="back"]')?.textContent;
+    expect(back()).toBe("false");
     await click("Back");
     expect(opened.at(-1)).toBe("a");
+    // Reached by ‹: an answered judgement there may reopen (QA1 A, D-FW-9).
+    expect(back()).toBe("true");
     await click("Next");
     expect(opened.at(-1)).toBe("d");
+    expect(back()).toBe("false");
     await click("Next");
     expect(closeAll).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");

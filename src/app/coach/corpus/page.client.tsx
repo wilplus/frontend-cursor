@@ -37,7 +37,7 @@ import { JudgeFrame } from "@/components/willab/coachwalk/CoachJudgeSheet";
 import type { Pager } from "@/components/willab/feedbackPager";
 import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
-import { useCorpusClip } from "./useCorpusClip";
+import { useCorpusClip } from "@/hooks/useCorpusClip";
 
 /** One queue row carries at most one blind handle: the D5 inline packet, or
  *  (Q2, while the writer state is founder_canary) the legacy card's handle on
@@ -606,6 +606,9 @@ function ImportPanel({
                       queueCount: f.queueCount,
                       detail: null,
                       language: language || null,
+                      setupComplete: true,
+                      labelledCount: null,
+                      archivedAt: null,
                     })
                   }
                   className="mt-1 flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-2 text-left transition-colors hover:border-primary/60"

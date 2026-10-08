@@ -17,6 +17,7 @@ import Mlc2FounderConsentGate from "./Mlc2FounderConsentGate";
 import Phase1AcceptanceGate from "./Phase1AcceptanceGate";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
+import { LabFadeOut } from "./labFade";
 import ProjectPicker from "./ProjectPicker";
 import IdealTextOverlay from "./IdealTextOverlay";
 import { useDocumentSettle } from "./useDocumentSettle";
@@ -293,6 +294,8 @@ export default function WillabSurface({
           onRecordingProgress={setRecordingProgress}
         />
       )}
+      {/* The Lab's screens fade back out over the Lounge (Q-B14 A, D-RC-7). */}
+      <LabFadeOut open={flow.labOverlayOpen} />
     </LoungeThreadProvider>,
     true // A2 — home/Lounge: flush the chat to the navbar (no top gap)
   );

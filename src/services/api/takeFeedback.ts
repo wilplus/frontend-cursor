@@ -37,6 +37,15 @@ export type SaveTakeFeedbackResult =
       /** An accepted V3 rewrite only: what the server did to the Paragraph
        *  (F1 Repair Plan Phase 4, P1-1) -- see `acceptOutcome`. */
       textUpdate?: string;
+      /** A CHANGED JUDGEMENT (founder QA1 A, D-FW-9; backend migration
+       *  0440): the server kept the first Confident Voice answer and stored
+       *  this one beside it. Present only when it says so; the latest answer
+       *  is what every reader now uses. Never a count: no revision number
+       *  reaches the client (AC-9). */
+      revised?: true;
+      /** What the judgement opens next, as the server chose it
+       *  (`judgement_follow_up`), when it sent one. */
+      followUp?: string;
     }
   | {
       ok: false;
@@ -78,18 +87,28 @@ export async function saveTakeFeedbackResponse(input: {
     }
   );
   if (result.kind !== "response") return { ok: false, error: null };
-  if (result.ok) {
-    const body = result.body as Record<string, unknown> | null;
-    return typeof body?.text_update === "string"
-      ? { ok: true, textUpdate: body.text_update }
-      : { ok: true };
-  }
+  if (result.ok) return savedResult(result.body as Record<string, unknown> | null);
   const body = result.body as Record<string, unknown> | null;
   const error = typeof body?.error === "string" ? body.error : null;
   if (result.status === 400 && error === FROZEN_SET_MISMATCH) {
     return { ok: false, error, reason: "superseded" };
   }
   return { ok: false, error };
+}
+
+/** The 200 body as the caller reads it: only what the server sent. A
+ *  changed Confident Voice judgement answers 200 with `revised: true`
+ *  (QA1 A, D-FW-9) where it used to answer 409; it is a save like any
+ *  other. */
+function savedResult(
+  body: Record<string, unknown> | null,
+): Extract<SaveTakeFeedbackResult, { ok: true }> {
+  return {
+    ok: true,
+    ...(typeof body?.text_update === "string" ? { textUpdate: body.text_update } : {}),
+    ...(body?.revised === true ? { revised: true as const } : {}),
+    ...(typeof body?.follow_up === "string" ? { followUp: body.follow_up } : {}),
+  };
 }
 
 /** What an accepted rewrite's answer means for the page (F1 Repair Plan

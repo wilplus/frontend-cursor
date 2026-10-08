@@ -5,9 +5,16 @@
 /*  every call on window.__panelCalls so the spec can prove what was asked    */
 /*  and WHEN: the moment read answers 409 until a rating for that snippet has */
 /*  been PUT, exactly as the backend's blind gate does, and the queue carries */
-/*  no kind before a rating. Two speakers: Quiet Heron (Take 2 with four      */
-/*  moments to judge, Take 1 answered) and Calm Otter (a Take still waiting   */
-/*  for its text). The blind lines answer 404: switched off, as today.        */
+/*  no kind before a rating. Two speakers in the queue: Quiet Heron (Take 2   */
+/*  with four moments to judge, Take 1 answered; their goal) and Calm Otter   */
+/*  (a Take still waiting for its text). The Speakers read (D-CP-12) adds the */
+/*  two with every moment answered, Bold Finch and Quick Wren, counts alone.  */
+/*  The blind lines answer 404: switched off, as today. The training corpus  */
+/*  (D-CP-20) answers three imports as the prototype draws them: "Workshop   */
+/*  recording" with its set-up not finished, "Board update, March" (Jane     */
+/*  Doe, three moments to judge) and "Keynote rehearsal" (Sam Lee, all eight */
+/*  labelled); an import's queue carries ids alone, its clip comes from the  */
+/*  playback route, and a label PUT marks the piece done.                    */
 /*                                                                            */
 /*  Sample content, never shown by the product.                               */
 /* -------------------------------------------------------------------------- */
@@ -42,11 +49,20 @@ const KINDS: Record<string, string> = {
 const SPEAKER_ANSWERS: Record<string, string> = {
   [SNIPS[0]]: "no", [SNIPS[1]]: "yes", [SNIPS[2]]: "in_between", [SNIPS[3]]: "not_sure",
 };
-/** What fired, error moments only (the read carries nothing for the rest). */
+/** What fired, error moments only (the request carries nothing for the rest). */
 export const HEARD = [
   { error_id: "rushing", label: "Rushing" },
   { error_id: "ending_compression", label: "Ending compression" },
 ];
+/** "The machine heard", for every kind (D-CP-13): the errors on the error
+ *  moment, the cues behind the praise, the clearer version's reason (the
+ *  line is left out on that moment, Q-CP13a A), and "nothing" on the note. */
+const MACHINE_HEARD: Record<string, { kind: string; key: string; label?: string }[]> = {
+  [SNIPS[0]]: HEARD.map((h) => ({ kind: "error", key: h.error_id, label: h.label })),
+  [SNIPS[1]]: [{ kind: "cue", key: "landed_ending" }, { kind: "cue", key: "settled_pitch" }],
+  [SNIPS[2]]: [{ kind: "reason", key: "weak_delivery_read" }],
+  [SNIPS[3]]: [{ kind: "nothing", key: "nothing" }],
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -56,7 +72,7 @@ export function queueJson(rated: ReadonlySet<string>, resolved: ReadonlySet<stri
   const state = (id: string) => (resolved.has(id) ? "answered" : rated.has(id) ? "answer_it" : "judge_it");
   const open = SNIPS.filter((id) => !resolved.has(id)).length;
   return [
-    { pseudonym: "Quiet Heron", waiting: open, takes: [
+    { pseudonym: "Quiet Heron", goal: HERON_GOAL, waiting: open, takes: [
       { session_id: TAKE_1, take_index: 1, sent_at: "2026-10-01T10:00:00Z", waiting: 0,
         moments: ["a", "b", "c"].map((x) => ({ snippet_id: `done-${x}`, state: "answered", kind: "praise" })) },
       { session_id: TAKE_2, take_index: 2, sent_at: "2026-10-06T10:00:00Z", waiting: open,
@@ -67,6 +83,65 @@ export function queueJson(rated: ReadonlySet<string>, resolved: ReadonlySet<stri
         waiting_for_text: true, moments: [] },
     ] },
   ];
+}
+
+export const HERON_GOAL = "Sound calm and sure in the board meeting.";
+
+/* ── the training corpus ─────────────────────────────────────────────── */
+export const IMPORT_SETUP = "66666666-6666-4666-8666-666666666661";
+export const IMPORT_BOARD = "66666666-6666-4666-8666-666666666662";
+export const IMPORT_KEYNOTE = "66666666-6666-4666-8666-666666666663";
+export const CORPUS_SNIPS = [
+  "77777777-7777-4777-8777-777777777771",
+  "77777777-7777-4777-8777-777777777772",
+  "77777777-7777-4777-8777-777777777773",
+] as const;
+/** The words of each corpus piece: never drawn by the panel, before or after
+ *  the label (N1); the spec proves it. */
+export const CORPUS_WORDS: Record<string, string> = {
+  [CORPUS_SNIPS[0]]: "Our margins held through the second quarter.",
+  [CORPUS_SNIPS[1]]: "I think, maybe, we could consider the other option.",
+  [CORPUS_SNIPS[2]]: "This is where the numbers tell the story.",
+  ["77777777-7777-4777-8777-777777777774"]: "We kept the workshop to the three things that matter.",
+  ["77777777-7777-4777-8777-777777777775"]: "Write it down before you forget it.",
+};
+/** The workshop import's pieces, served once its set-up is saved. */
+export const SETUP_SNIPS = ["77777777-7777-4777-8777-777777777774", "77777777-7777-4777-8777-777777777775"] as const;
+
+export function importsJson(labelled: ReadonlySet<string>) {
+  return { imports: [
+    { session_id: IMPORT_SETUP, arc_id: null, topic: "Workshop recording", speaker_label: null, created_at: "2026-10-06T09:00:00Z",
+      status: "ready", queue_count: 5, labelled_count: 0, language: null, setup_complete: false, duration_sec: 192, archived_at: null },
+    { session_id: IMPORT_BOARD, arc_id: null, topic: "Board update, March", speaker_label: "Jane Doe", created_at: "2026-10-05T09:00:00Z",
+      status: "ready", queue_count: 3, labelled_count: CORPUS_SNIPS.filter((id) => labelled.has(id)).length, language: "en",
+      setup_complete: true, duration_sec: 600, archived_at: null },
+    { session_id: IMPORT_KEYNOTE, arc_id: null, topic: "Keynote rehearsal", speaker_label: "Sam Lee", created_at: "2026-10-04T09:00:00Z",
+      status: "ready", queue_count: 8, labelled_count: 8, language: "en", setup_complete: true, duration_sec: 1500, archived_at: null },
+  ], count: 3 };
+}
+
+/** GET /v2/coach/speakers: every speaker, counts alone, never a moment. */
+export function speakersJson(rated: ReadonlySet<string>, resolved: ReadonlySet<string> = new Set()) {
+  const queue = queueJson(rated, resolved);
+  const summary = queue.map((sp) => ({
+    pseudonym: sp.pseudonym, goal: sp.goal ?? null, waiting: sp.waiting,
+    waiting_for_text: sp.takes.filter((t) => "waiting_for_text" in t && t.waiting_for_text).length,
+    take_count: sp.takes.length,
+    takes: sp.takes.map((t) => ({
+      session_id: t.session_id, take_index: t.take_index, sent_at: t.sent_at, waiting: t.waiting,
+      waiting_for_text: "waiting_for_text" in t && t.waiting_for_text === true,
+      answered: !("waiting_for_text" in t && t.waiting_for_text) && t.waiting === 0,
+    })),
+  }));
+  const answered = (name: string, goal: string, n: number) => ({
+    pseudonym: name, goal, waiting: 0, waiting_for_text: 0, take_count: n,
+    takes: Array.from({ length: n }, (_, i) => ({
+      session_id: `${name.toLowerCase().replace(" ", "-")}-${n - i}`, take_index: n - i,
+      sent_at: `2026-09-${10 + i}T10:00:00Z`, waiting: 0, waiting_for_text: false, answered: true,
+    })),
+  });
+  return [...summary, answered("Bold Finch", "Open the keynote without notes.", 3),
+    answered("Quick Wren", "Pitch to investors in five minutes.", 1)];
 }
 
 /** The queue as the panel holds it, for the still screens' starting state. */
@@ -89,6 +164,8 @@ function request(id: string, resolved: boolean) {
 
 function handlers(rated: Map<string, string>, resolved: Set<string>, tone: string): Handler[] {
   const snip = (url: string) => SNIPS.find((id) => url.includes(id)) ?? SNIPS[0];
+  const corpusSnip = (url: string) => CORPUS_SNIPS.find((id) => url.includes(id)) ?? null;
+  const labelled = new Set<string>();
   const moment = (url: string, tail: string) => url.includes(`/api/v2/coach/sessions/${TAKE_2}/snippets/`) && url.endsWith(tail);
   return [
     { when: (c) => c.url.includes("/api/v2/user/profile"), reply: () => json({ is_coach: true, proficient_languages: ["en"] }) },
@@ -97,13 +174,33 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.includes("/api/v2/coach/take-bubbles"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
+    { when: (c) => c.url.includes("/api/v2/coach/speakers"), reply: () => json(speakersJson(new Set(rated.keys()), resolved)) },
+    { when: (c) => c.url.includes("/api/v2/coach/training-imports/") && c.method === "PUT",
+      reply: (c) => json({ session_id: IMPORT_SETUP, topic: c.body?.topic, language: c.body?.language,
+        speaker_label: c.body?.speaker_label ?? null, source: c.body?.source ?? null, setup_complete: true }) },
+    { when: (c) => c.url.includes("/api/v2/coach/training-imports") && c.method === "GET", reply: () => json(importsJson(labelled)) },
+    { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_SETUP}/confidence-queue`),
+      reply: () => json({ session_id: IMPORT_SETUP, queue: SETUP_SNIPS.map((id, i) => ({
+        snippet_id: id, transcript: CORPUS_WORDS[id], label: null,
+        re_review: false, canonical_position: i, learning_exposures: [], blind_review: null, mlc2_blind_review: null,
+      })) }) },
+    { when: (c) => c.url.includes(`/api/v2/coach/sessions/${IMPORT_BOARD}/confidence-queue`),
+      reply: () => json({ session_id: IMPORT_BOARD, queue: CORPUS_SNIPS.map((id, i) => ({
+        snippet_id: id, transcript: CORPUS_WORDS[id], label: labelled.has(id) ? { value: "yes", unrateable: false } : null,
+        re_review: false, canonical_position: i, learning_exposures: [], blind_review: null, mlc2_blind_review: null,
+      })) }) },
+    { when: (c) => c.url.includes("/corpus/clips/") && c.url.endsWith("/playback"),
+      reply: (c) => json({ snippet_id: corpusSnip(c.url), url: tone, start_offset_ms: 0, duration_ms: 2400, expires_in_s: 900 }) },
+    { when: (c) => c.url.includes("/api/v2/coach/snippets/") && c.url.endsWith("/confidence-label") && corpusSnip(c.url) !== null,
+      reply: (c) => { const id = corpusSnip(c.url) as string; labelled.add(id);
+        return json({ saved: true, snippet_id: id, state_id: "confidence", value: c.body?.value, unrateable: false }); } },
     { when: (c) => c.url.includes("/exercise-preference"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => moment(c.url, "/moment"),
       reply: (c) => {
         const id = snip(c.url);
         if (!rated.has(id)) return json({ code: "BLIND_RATING_REQUIRED", error: "Rate the original moment first." }, 409);
         return json({ passage: PASSAGES[id], speaker_answer: SPEAKER_ANSWERS[id], coach_answer: rated.get(id) ?? null,
-          speaker_goal: null, request: request(id, resolved.has(id)), named_errors: [] });
+          speaker_goal: null, request: request(id, resolved.has(id)), heard: MACHINE_HEARD[id], named_errors: [] });
       } },
     { when: (c) => moment(c.url, "/exercise-request") && c.method === "PUT",
       reply: (c) => { const id = snip(c.url); resolved.add(id); return json({ request: request(id, true) }); } },

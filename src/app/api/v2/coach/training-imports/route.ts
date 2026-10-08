@@ -102,7 +102,11 @@ export async function GET(req: NextRequest) {
   try {
     // Forwarded explicitly — nothing is passed through wholesale.
     const userId = req.nextUrl.searchParams.get("user_id");
-    const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+    const params = new URLSearchParams();
+    if (userId) params.set("user_id", userId);
+    // The founder's admin list shows archived imports too (Q-B15 A).
+    if (req.nextUrl.searchParams.get("include_archived") === "1") params.set("include_archived", "1");
+    const qs = params.size > 0 ? `?${params.toString()}` : "";
     return await callBackend(`/v2/coach/training-imports${qs}`, {
       method: "GET",
       failures: GET_FAILURES,

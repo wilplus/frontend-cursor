@@ -5,11 +5,13 @@
 /*    PANEL_URL=http://localhost:<port>/dev/coach-panel \                     */
 /*      SHOTS_DIR=<dir> node e2e/coach-panel.spec.mjs                          */
 /*                                                                            */
-/*  What this proves: each P1 screen (door, queue, speaker, judge, What       */
-/*  happened) draws at phone size (402 x 860) with no page error, nothing on  */
+/*  What this proves: each screen (door, queue, Your speakers, speaker,       */
+/*  judge, What happened) draws at phone size (402 x 860) with no page error, nothing on  */
 /*  it is a percentage (AC-9), and the overlays cover the screen. Then the    */
 /*  real door is driven through the switch (?coach2=1): the bubble opens the  */
-/*  queue; the speaker's Takes; Judge shows the player, the question and the  */
+/*  queue; Speakers opens every speaker with the orange dot on those waiting  */
+/*  (D-CP-12); the speaker's goal and Takes; Judge shows the player, the      */
+/*  question and the                                                          */
 /*  five answers and NOTHING of the moment — no passage text anywhere in the  */
 /*  DOM and no moment read asked for — until the rating is saved; the rating */
 /*  moves on by itself with "Answer saved"; the moment read is asked for only */
@@ -70,10 +72,22 @@ const browser = await launchChromium();
 const KEY = {
   door: '[data-testid="coach-panel-pinned"]',
   queue: `${LIVE} [data-testid="coach-panel-queue"]`,
+  speakers: `${LIVE} [data-testid="coach-panel-all-speakers"]`,
   speaker: `${LIVE} [data-testid="coach-panel-speaker"]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
+  corpushome: `${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`,
+  corpusimport: `${LIVE} [data-testid="coach-panel-corpusimport"]`,
+  corpusanalyse: `${LIVE} [data-testid="coach-panel-corpusanalyse"] [data-walk-loading]`,
+  corpus: `${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`,
 };
+const CORPUS_WORDS = [
+  "Our margins held through the second quarter.",
+  "I think, maybe, we could consider the other option.",
+  "This is where the numbers tell the story.",
+  "We kept the workshop to the three things that matter.",
+  "Write it down before you forget it.",
+];
 for (const [screen, selector] of Object.entries(KEY)) {
   const page = await browser.newPage({ viewport: VIEWPORT });
   const errors = [];
@@ -89,6 +103,44 @@ for (const [screen, selector] of Object.entries(KEY)) {
   }
   const text = await page.evaluate(() => document.body.innerText);
   check(`${screen}: no percentage on screen (AC-9)`, !/\d\s?%/.test(text));
+  if (screen === "speakers") {
+    const rows = await page.locator(`${LIVE} [data-walk-choice]`).allInnerTexts();
+    check("speakers: every speaker, the queue's and the answered ones",
+      rows.length === 4 && /Quiet Heron[\s\S]*4 moments waiting/.test(rows[0]) && /Calm Otter[\s\S]*Waiting for the text/.test(rows[1]) &&
+      /Bold Finch[\s\S]*All answered · 3 Takes/.test(rows[2]) && /Quick Wren[\s\S]*All answered · 1 Take$/.test(rows[3]), rows.join(" | "));
+    check("speakers: the orange dot on the one waiting only",
+      (await page.locator(`${LIVE} [data-walk-choice-dot]`).count()) === 1 &&
+      (await page.locator(`${LIVE} [data-walk-choice="0"] [data-walk-choice-dot]`).count()) === 1);
+    const dom = await domText(page);
+    check("speakers: no passage anywhere in the DOM (BLIND COACH)", PASSAGES.every((p) => !dom.includes(p)));
+  }
+  if (screen === "speaker") {
+    check("speaker: the goal under the name", (await liveText(page)).includes("Goal: Sound calm and sure in the board meeting."));
+  }
+  if (screen === "corpushome") {
+    const rows = await page.locator(`${LIVE} [data-walk-choice]`).allInnerTexts();
+    check("corpushome: the imports as the prototype draws them",
+      rows.length === 3 && /Workshop recording[\s\S]*Set-up not finished · finish it before judging/.test(rows[0]) &&
+      /Board update, March[\s\S]*Jane Doe · 3 of 3 moments to judge/.test(rows[1]) && /Keynote rehearsal[\s\S]*Sam Lee · All 8 labelled/.test(rows[2]),
+      rows.join(" | "));
+    check("corpushome: the pill Import audio", (await page.locator(`${LIVE} [data-walk-pill]`).innerText()) === "Import audio");
+  }
+  if (screen === "corpusimport") {
+    const t = await liveText(page);
+    check("corpusimport: the file row and the corpus page's fields, Import off",
+      t.includes("Choose a file") && t.includes("Audio or video, up to 30 minutes") && t.includes("What the talk is about") &&
+      t.includes("Whose voice this is") && t.includes("What language it is in") && t.includes("Where it came from") && /what to run/i.test(t) &&
+      (await page.locator(`${LIVE} [data-testid="corpus-submit"]`).isDisabled()), t.replace(/\n/g, " | ").slice(0, 200));
+  }
+  if (screen === "corpus") {
+    const dom = await domText(page);
+    check("corpus: the words of a piece are nowhere in the DOM (N1)", CORPUS_WORDS.every((w) => !dom.includes(w)));
+    check("corpus: the judge screen, the topic and the moment counter", (await navText(page)) === "Board update, March · moment 1 of 3", await navText(page));
+    check("corpus: the question and the five answers", (await liveText(page)).includes("Does the speaker sound confident here?") &&
+      (await page.locator(`${LIVE} [data-walk-answer]`).count()) === 5);
+    check("corpus: the clip asked for by snippet through the playback route",
+      (await calls(page)).some((c) => c.url.includes("/corpus/clips/") && c.url.endsWith("/playback")));
+  }
   if (screen === "judge") {
     const dom = await domText(page);
     check("judge: no passage anywhere in the DOM (BLIND COACH)", PASSAGES.every((p) => !dom.includes(p)));
@@ -115,18 +167,95 @@ for (const [screen, selector] of Object.entries(KEY)) {
   check("door: two pinned buttons, Speakers and Training corpus",
     (await page.locator('[data-testid="coach-panel-speakers-button"]').innerText()) === "Speakers" &&
     (await page.locator('[data-testid="coach-panel-corpus-button"]').innerText()) === "Training corpus");
-  check("door: Training corpus is today's corpus page",
-    (await page.locator('[data-testid="coach-panel-corpus-button"]').getAttribute("href")) === "/coach/corpus");
+  check("door: Training corpus opens inside the panel, not today's corpus page",
+    (await page.locator('[data-testid="coach-panel-corpus-button"]').getAttribute("href")) === null);
   check("door: each pinned button has its icon",
     (await page.locator('[data-testid="coach-panel-pinned"] svg').count()) === 2);
   check("door: today's queue button is gone", (await page.getByRole("button", { name: "Your queue", exact: true }).count()) === 0);
+
+  // Speakers: every speaker, the orange dot on those waiting; a speaker with
+  // every moment answered opens on their goal and their Takes, all answered.
+  await page.locator('[data-testid="coach-panel-speakers-button"]').click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-all-speakers"]`);
+  await settle(page);
+  let text = await liveText(page);
+  check("speakers: Your speakers, every speaker", text.includes("Your speakers") && text.includes("Bold Finch") && text.includes("Quick Wren"));
+  check("speakers: no moment read asked for", !(await calls(page)).some((c) => c.url.endsWith("/moment")));
+  await page.locator(`${LIVE} [data-walk-choice="2"]`).click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-speaker"]`);
+  await settle(page);
+  text = await liveText(page);
+  check("speaker (all answered): the goal and three answered Takes",
+    text.includes("Goal: Open the keynote without notes.") &&
+    /Take 3[\s\S]*All moments answered[\s\S]*Take 2[\s\S]*All moments answered[\s\S]*Take 1[\s\S]*All moments answered/.test(text) &&
+    (await page.locator(`${LIVE} button[data-walk-choice]`).count()) === 0, text.replace(/\n/g, " | "));
+  await page.screenshot({ path: join(SHOTS, "flow-speakers-answered.png") });
+  await page.locator(`${LIVE} button[aria-label="Back"]`).last().click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-all-speakers"]`);
+  await settle(page);
+  await page.locator(`${LIVE} button[aria-label="Close"]`).last().click();
+  await page.waitForTimeout(500);
+
+  // Training corpus from its pinned button: the imports; an unfinished
+  // set-up opens the set-up first; an import's moments are judged blind on
+  // the panel's Judge screen and an answer moves on by itself.
+  await page.locator('[data-testid="coach-panel-corpus-button"]').click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`);
+  await settle(page);
+  check("corpus: Training corpus opens inside the panel", (await liveText(page)).includes("Training corpus"));
+  await page.locator(`${LIVE} [data-walk-choice]`).first().click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-corpusimport"]`);
+  await settle(page);
+  text = await liveText(page);
+  check("corpus: an unfinished import opens its set-up first", text.includes("Finish the set-up") && text.includes("Before its moments can be judged") &&
+    (await page.locator(`${LIVE} [data-testid="corpus-topic"]`).inputValue()) === "Workshop recording" &&
+    (await page.locator(`${LIVE} [data-testid="corpus-file"]`).count()) === 0);
+  check("corpus: Set up is off until the language is chosen", await page.locator(`${LIVE} [data-testid="corpus-submit"]`).isDisabled());
+  await page.locator(`${LIVE} [data-testid="corpus-language"]`).selectOption("en");
+  check("corpus: Set up is on with topic and language", !(await page.locator(`${LIVE} [data-testid="corpus-submit"]`).isDisabled()));
+  await page.locator(`${LIVE} [data-testid="corpus-submit"]`).click();
+  // As the prototype: a saved set-up goes straight to its judging, with the
+  // signed toast "Set up · {n} moments".
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`);
+  const setupPut = (await calls(page)).find((c) => c.url.includes("/api/v2/coach/training-imports/") && c.method === "PUT");
+  check("corpus: the set-up was saved with topic and language", Boolean(setupPut) && setupPut.body?.topic === "Workshop recording" && setupPut.body?.language === "en",
+    JSON.stringify(setupPut?.body));
+  const setupToast = await page.locator("[data-walk-toast]").innerText().catch(() => "");
+  check("corpus: a saved set-up goes straight to judging with Set up · 2 moments",
+    (await navText(page)) === "Workshop recording · moment 1 of 2" && setupToast === "Set up · 2 moments", `${await navText(page)} | ${setupToast}`);
+  const setupDom = await domText(page);
+  check("corpus: no words of the set-up's pieces in the DOM (N1)", CORPUS_WORDS.every((w) => !setupDom.includes(w)));
+  await page.screenshot({ path: join(SHOTS, "flow-corpus-setup-judge.png") });
+  // ✕, then the pinned button again: the imports.
+  await page.locator(`${LIVE} button[aria-label="Close"]`).click();
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="coach-panel-corpus-button"]').click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`);
+  await settle(page);
+  await page.locator(`${LIVE} [data-walk-choice]`).nth(1).click();
+  await page.waitForSelector(`${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`);
+  await settle(page);
+  check("corpus: judging opens on the panel's Judge screen, moment 1 of 3", (await navText(page)) === "Board update, March · moment 1 of 3", await navText(page));
+  let corpusDom = await domText(page);
+  check("corpus: no words of any piece in the DOM before the label (N1)", CORPUS_WORDS.every((w) => !corpusDom.includes(w)));
+  await page.screenshot({ path: join(SHOTS, "flow-corpus-judge.png") });
+  await page.locator(`${LIVE} [data-walk-answer="yes"]`).click();
+  await page.waitForFunction((sel) => document.querySelector(sel)?.getAttribute("aria-label")?.includes("moment 2 of 3"), `${LIVE} [data-walk-nav]`, { timeout: 10000 }).catch(() => undefined);
+  const corpusPut = (await calls(page)).find((c) => c.url.endsWith("/confidence-label") && c.method === "PUT" && c.url.includes("77777777"));
+  check("corpus: the label PUT carried the answer and the piece moved on by itself",
+    Boolean(corpusPut) && corpusPut.body?.value === "yes" && (await navText(page)) === "Board update, March · moment 2 of 3", String(await navText(page)));
+  corpusDom = await domText(page);
+  check("corpus: no words of any piece in the DOM after the label either", CORPUS_WORDS.every((w) => !corpusDom.includes(w)));
+  await settle(page);
+  await page.locator(`${LIVE} button[aria-label="Close"]`).last().click();
+  await page.waitForTimeout(500);
 
   // The queue.
   await page.locator('[data-testid="coach-walk-bubble"]').click();
   await page.waitForSelector(`${LIVE} [data-testid="coach-panel-queue"]`);
   check("queue: rises over the Lounge", (await page.locator(`${LIVE}`).last().getAttribute("data-walk-move")) === "open");
   await settle(page);
-  let text = await liveText(page);
+  text = await liveText(page);
   check("queue: Your queue, Your speakers", text.includes("Your queue") && /your speakers/i.test(text));
   check("queue: Quiet Heron with 4 moments waiting", text.includes("Quiet Heron") && text.includes("4 moments waiting"));
   check("queue: Calm Otter waiting for the text, not pressable",
@@ -146,7 +275,7 @@ for (const [screen, selector] of Object.entries(KEY)) {
   text = await liveText(page);
   check("speaker: the Takes, newest first, with their moments",
     /Take 2[\s\S]*4 of 4 moments waiting[\s\S]*Take 1[\s\S]*Answered · 3 moments/.test(text), text.replace(/\n/g, " | "));
-  check("speaker: no goal drawn (the queue does not carry it yet)", !text.includes("Goal"));
+  check("speaker: the goal under the name", text.includes("Goal: Sound calm and sure in the board meeting."));
 
   // Judge, blind.
   await page.locator(`${LIVE} button[data-walk-choice]`).first().click();
@@ -184,7 +313,8 @@ for (const [screen, selector] of Object.entries(KEY)) {
   check("judge: moves on by itself with the toast", toast === "Answer saved", toast);
   await page.waitForSelector(`${LIVE} [data-testid="coach-panel-passage"]`, { timeout: 10000 });
   const log = await calls(page);
-  const putAt = log.findIndex((c) => c.url.endsWith("/confidence-label") && c.method === "PUT");
+  // The speaker's moment (the corpus pieces, labelled earlier in this flow, have their own ids).
+  const putAt = log.findIndex((c) => c.url.endsWith("/confidence-label") && c.method === "PUT" && c.url.includes("55555555"));
   const readAt = log.findIndex((c) => c.url.endsWith("/moment"));
   check("the rating PUT carried the answer", putAt >= 0 && log[putAt].body?.value === "in_between", JSON.stringify(log[putAt]?.body));
   check("the moment read was asked for only after the rating PUT", putAt >= 0 && readAt > putAt, `put ${putAt}, read ${readAt}`);

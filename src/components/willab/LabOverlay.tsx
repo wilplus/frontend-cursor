@@ -62,7 +62,7 @@ import {
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
 import RecordingLearn from "./RecordingLearn";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
-import { recordingWhere } from "./recordingCopy";
+import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
 import {
   clearExploreArc,
   readExploreArc,
@@ -83,6 +83,7 @@ import { type PresentationSlide } from "./presentation";
 import { deckForRecording } from "@/lib/willab/defaultDeck";
 import { restoredSetupFor } from "./restoredSetup";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
+import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -490,6 +491,9 @@ export default function LabOverlay({
   // "Getting your mic ready" before a later Take (founder lock 2026-10-07).
   // Behaviour only: nothing on the screen moves or changes.
   useLabNoPull(state, mic.state.status);
+  // "Record Take N" from the text: the recording screens fade in over the
+  // text (Q-B14 A, D-RC-7). Paint only — the Take starts exactly as before.
+  const recordingEntryFade = useRecordingEntryFade(state);
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
@@ -1354,7 +1358,9 @@ export default function LabOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
+    // A soft 0.4 s fade into the white screens (Q-B14 A, D-RC-7): the class
+    // is paint only; see labFade.tsx.
+    <div className={`${LAB_FADE_IN_CLASS} fixed inset-0 z-30 flex flex-col bg-background`}>
       {/* Unified X-only header, on every step. The manual "Same as last time"
           re-fill was removed (FE-2): continuing a project still prefills from
           the server, so the button only duplicated that with a worse guess.
@@ -1406,13 +1412,13 @@ export default function LabOverlay({
           slide + roots move together. `min-h-0` is what lets either surface
           shrink to the available phone height. Every other state still
           scrolls: they are ordinary content. */}
-      <div className={labColumnClass(state, mic.state.status)}>
+      <div className={`${labColumnClass(state, mic.state.status)} ${recordingEntryFade}`}>
         {/* ONE LOADER FOR THE WHOLE WAIT (build plan D-RC-1). "Getting your
             mic ready" before a later Take and the mic still opening on the
             recording screen are one wait: one element in one place, so the
             voice mark neither jumps nor restarts its breathing between them. */}
         {showsMicWait(state, trainingAsked, mic.state.status, mic.armed, rejectedMsg) ? (
-          <LoadingState placement="surface" label="Getting your mic ready" />
+          <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />
         ) : null}
         {state === "lab_feelings" && (
           <TrainingAskGate asked={trainingAsked} onDone={markTrainingAsked}>
@@ -1849,7 +1855,7 @@ export function RecordingPhase({
       );
     }
     if (micWaitShownByHost) return null;
-    return <LoadingState placement="surface" label="Getting your mic ready" />;
+    return <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />;
   }
 
   if (micState.status === "error") {

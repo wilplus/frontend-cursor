@@ -88,11 +88,15 @@ export function BlindExposureBoundary<H extends BlindHandleIdentity>({
   blindReview,
   acknowledge,
   scope,
+  className,
   children,
 }: {
   blindReview: H | null;
   acknowledge: AcknowledgeBlindRender<H>;
   scope: string;
+  /** The boundary's own element, e.g. "h-full" when it wraps a full-screen
+   *  overlay (the coach panel's corpus judging). */
+  className?: string;
   children: (state: BlindExposureState) => ReactNode;
 }) {
   const targetRef = useRef<HTMLDivElement | null>(null);
@@ -182,7 +186,7 @@ export function BlindExposureBoundary<H extends BlindHandleIdentity>({
     };
   }, [blindReview, acknowledge, scope]);
 
-  return createElement("div", { ref: targetRef }, children(state));
+  return createElement("div", { ref: targetRef, className }, children(state));
 }
 
 /** The D5 visible-render boundary: the inline blind receipt, as before. */
