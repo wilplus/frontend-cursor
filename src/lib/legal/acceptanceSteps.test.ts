@@ -169,6 +169,23 @@ describe("countryChoices", () => {
     const rows = countryChoices(policy({ allowedCountries: ["fr", "de"] }), "en");
     expect(rows.map((r) => r.label)).toEqual(["France", "Germany"]);
   });
+
+  it("falls back to English on a tag Intl rejects, instead of throwing", () => {
+    // A Chromium launched under a POSIX LANG reports this as navigator.language;
+    // localeCompare throws a RangeError on it.
+    const allowed = policy({ allowedCountries: ["fr", "de", "pl", "at"] });
+    expect(() => "a".localeCompare("b", "en-US@posix")).toThrow(RangeError);
+    expect(() => countryChoices(allowed, "en-US@posix")).not.toThrow();
+    expect(countryChoices(allowed, "en-US@posix"))
+      .toEqual(countryChoices(allowed, "en"));
+  });
+
+  it("keeps a valid tag exactly as it was", () => {
+    const allowed = policy({ allowedCountries: ["fr", "de", "pl", "at"] });
+    const rows = countryChoices(allowed, "de-DE");
+    expect(rows.map((r) => r.label))
+      .toEqual(["Polen", "Deutschland", "Frankreich", "Österreich"]);
+  });
 });
 
 describe("prefilledCountry (founder 2026-10-05, N48.4 Q21 A)", () => {
