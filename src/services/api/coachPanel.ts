@@ -280,3 +280,122 @@ export async function answerBlockPick(
   const { status } = await post(`/api/v2/coach/block-picks/${encodeURIComponent(pickId)}/answer`, body);
   return status === 200 ? { ok: true } : { ok: false, status };
 }
+
+/* ── V4's two blind sheets (B1.8, B1.9; founder S-B8 A) ───────────────── */
+/*    GET /coach/v4-moment-picks, POST …/:id/answer  → Pick the moment       */
+/*    GET /coach/v4-surer-pairs,  POST …/:id/answer  → Which sounds surer    */
+/*  Words, audio and letters only: the machine's picks, the slice and the    */
+/*  level never reach the client (BLIND COACH, AC-9).                         */
+
+export interface V4Moment {
+  clipId: string;
+  letter: string;
+  words: string;
+  audioRef: string | null;
+  /** Where the moment sits in its recording: a position, never a score. */
+  startOffsetMs: number | null;
+  durationMs: number | null;
+}
+
+export interface V4MomentPickItem {
+  sheetId: string;
+  moments: V4Moment[];
+  n: number;
+  of: number;
+}
+
+export interface V4MomentPickQueue {
+  items: V4MomentPickItem[];
+  wording: Record<string, string>;
+}
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+export function mapV4MomentPickQueue(raw: unknown): V4MomentPickQueue {
+  const r = (raw ?? {}) as Raw;
+  const items = Array.isArray(r.items)
+    ? r.items
+        .filter((i): i is Raw => !!i && typeof i === "object")
+        .map((i) => ({
+          sheetId: str(i.sheet_id) ?? "",
+          moments: Array.isArray(i.moments)
+            ? i.moments
+                .filter((m): m is Raw => !!m && typeof m === "object")
+                .map((m) => ({
+                  clipId: str(m.clip_id) ?? "",
+                  letter: str(m.letter) ?? "",
+                  words: str(m.words) ?? "",
+                  audioRef: str(m.audio_ref),
+                  startOffsetMs: num(m.start_offset_ms),
+                  durationMs: num(m.duration_ms),
+                }))
+                .filter((m) => m.clipId)
+            : [],
+          n: typeof i.n === "number" ? i.n : 0,
+          of: typeof i.of === "number" ? i.of : 0,
+        }))
+        .filter((i) => i.sheetId && i.moments.length > 0)
+    : [];
+  return { items, wording: wording(r.wording) };
+}
+
+/** null while dark or on any failure. */
+export async function fetchV4MomentPicks(): Promise<V4MomentPickQueue | null> {
+  const { status, data } = await get("/api/v2/coach/v4-moment-picks");
+  return status === 200 ? mapV4MomentPickQueue(data) : null;
+}
+
+export async function answerV4MomentPick(
+  sheetId: string,
+  input: { clipId: string } | { noneNeedsIt: true },
+): Promise<{ ok: true } | { ok: false; status: number }> {
+  const body = "noneNeedsIt" in input ? { none_needs_it: true } : { clip_id: input.clipId };
+  const { status } = await post(`/api/v2/coach/v4-moment-picks/${encodeURIComponent(sheetId)}/answer`, body);
+  return status === 200 ? { ok: true } : { ok: false, status };
+}
+
+export interface V4SurerItem {
+  sheetId: string;
+  said: string;
+  newVersion: string;
+  n: number;
+  of: number;
+}
+
+export interface V4SurerQueue {
+  items: V4SurerItem[];
+  wording: Record<string, string>;
+}
+
+export type V4SurerAnswer = "yes" | "no" | "cant_tell";
+
+export function mapV4SurerQueue(raw: unknown): V4SurerQueue {
+  const r = (raw ?? {}) as Raw;
+  const items = Array.isArray(r.items)
+    ? r.items
+        .filter((i): i is Raw => !!i && typeof i === "object")
+        .map((i) => ({
+          sheetId: str(i.sheet_id) ?? "",
+          said: str(i.said) ?? "",
+          newVersion: str(i.new) ?? "",
+          n: typeof i.n === "number" ? i.n : 0,
+          of: typeof i.of === "number" ? i.of : 0,
+        }))
+        .filter((i) => i.sheetId && i.said && i.newVersion)
+    : [];
+  return { items, wording: wording(r.wording) };
+}
+
+/** null while dark or on any failure. */
+export async function fetchV4SurerPairs(): Promise<V4SurerQueue | null> {
+  const { status, data } = await get("/api/v2/coach/v4-surer-pairs");
+  return status === 200 ? mapV4SurerQueue(data) : null;
+}
+
+export async function answerV4Surer(
+  sheetId: string,
+  answer: V4SurerAnswer,
+): Promise<{ ok: true } | { ok: false; status: number }> {
+  const { status } = await post(`/api/v2/coach/v4-surer-pairs/${encodeURIComponent(sheetId)}/answer`, { answer });
+  return status === 200 ? { ok: true } : { ok: false, status };
+}

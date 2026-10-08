@@ -149,7 +149,42 @@ export function queueSpeakers(rated: ReadonlySet<string> = new Set()): QueueSpea
   return mapMomentsQueue(queueJson(rated));
 }
 
+/** V4's two blind sheets (S-B8 A): the signed wording the backend serves and
+ *  the prototype's sample words. Never a machine pick, a slice or a level. */
+const V4_PICKS = {
+  wording: {
+    queue_line: "Also waiting · blind", row: "Pick the moment for feedback",
+    title: "Pick the moment for feedback", caption: "Words and audio. No names, no hint of the machine's pick.",
+    question: "Which moment most needs feedback?", moment: "Moment {letter}", this_one: "This one",
+    needs_it_most: "Needs it most", save: "Save my pick", none: "None needs it",
+    progress: "Block {n} of {of}", kept: "Thank you. That one is kept.",
+  },
+  items: [{ sheet_id: "v4-sheet-1", n: 1, of: 1, moments: [
+    { clip_id: "v4-a", letter: "A", audio_ref: null, start_offset_ms: 0, duration_ms: 7000,
+      words: "So what we found, and this is the part I want you to remember, is that people stay when they feel seen." },
+    { clip_id: "v4-b", letter: "B", audio_ref: null, start_offset_ms: 7000, duration_ms: 6000,
+      words: "Our second quarter numbers, which I'll go through quickly, were roughly in line." },
+    { clip_id: "v4-c", letter: "C", audio_ref: null, start_offset_ms: 13000, duration_ms: 4000,
+      words: "And that is why I'm asking you today to fund the pilot." },
+  ] }],
+};
+const V4_SURER = {
+  wording: {
+    queue_line: "Also waiting · blind", row: "Which sounds surer", title: "Which sounds surer",
+    caption: "Words only. No names, no hint of which change the machine is testing.",
+    said: "The words said", new: "The new version", question: "Is the new version surer?",
+    yes: "Yes", no: "No", cant_tell: "Can't tell", progress: "Pair {n} of {of}",
+    kept: "Thank you. That one is kept.",
+  },
+  items: [{ sheet_id: "v4-pair-1", n: 1, of: 1,
+    said: "I think maybe we could probably start the pilot in March, if that works.",
+    new: "We could start the pilot in March, if that works." }],
+};
+
 type Ctx = { url: string; method: string; body: Record<string, unknown> | null };
+const v4SheetsOn = () =>
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).get("v4") === "1";
+
 type Handler = { when: (c: Ctx) => boolean; reply: (c: Ctx) => Response };
 
 function request(id: string, resolved: boolean) {
@@ -171,6 +206,13 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.includes("/api/v2/user/profile"), reply: () => json({ is_coach: true, proficient_languages: ["en"] }) },
     { when: (c) => c.url.includes("/api/v2/coach/error-audit") || c.url.includes("/api/v2/coach/block-picks"),
       reply: () => json({ error: "off" }, 404) },
+    // V4's two blind sheets answer only with ?v4=1, as the backend does only
+    // once V4_COACH_SHEETS_ENABLED is on; dark otherwise, like production.
+    { when: (c) => c.url.includes("/api/v2/coach/v4-moment-picks") && c.method === "GET",
+      reply: () => (v4SheetsOn() ? json(V4_PICKS) : json({ error: "off" }, 404)) },
+    { when: (c) => c.url.includes("/api/v2/coach/v4-surer-pairs") && c.method === "GET",
+      reply: () => (v4SheetsOn() ? json(V4_SURER) : json({ error: "off" }, 404)) },
+    { when: (c) => c.url.includes("/api/v2/coach/v4-") && c.method === "POST", reply: () => json({ recorded: true }) },
     { when: (c) => c.url.includes("/api/v2/coach/take-bubbles"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
