@@ -31,9 +31,15 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("./library/page.client", () => ({ default: () => null }));
 vi.mock("./errors/page.client", () => ({ default: () => null }));
+vi.mock("./library/LibraryPanel", () => ({ default: () => null }));
+vi.mock("./errors/SpeakingErrorsPanel", () => ({ default: () => null }));
 
 import AdminLibraryPage from "./library/page";
 import AdminErrorsPage from "./errors/page";
+import LibraryToday from "./library/page.client";
+import ErrorsToday from "./errors/page.client";
+import LibraryPanel from "./library/LibraryPanel";
+import SpeakingErrorsPanel from "./errors/SpeakingErrorsPanel";
 
 /** The repo's own redirects, read from the config Next serves. */
 async function configRedirects(): Promise<unknown[]> {
@@ -64,6 +70,27 @@ describe("the library and the speaking errors pages, founder only", () => {
   it.each(PAGES)("%s renders for the founder", async (_path, Page) => {
     auth.user = { email: FOUNDER_EMAIL };
     await expect(Page()).resolves.toBeTruthy();
+  });
+
+  it("today's pages stand until the coach panel's switch is on (Q-CP645 A)", async () => {
+    auth.user = { email: FOUNDER_EMAIL };
+    vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "");
+    try {
+      expect(((await AdminLibraryPage()) as { type: unknown }).type).toBe(LibraryToday);
+      expect(((await AdminErrorsPage()) as { type: unknown }).type).toBe(ErrorsToday);
+      vi.stubEnv("NODE_ENV", "production");
+      // Production never reads the address.
+      expect(((await AdminLibraryPage({ searchParams: { coach2: "1" } })) as { type: unknown }).type).toBe(LibraryToday);
+      vi.stubEnv("NODE_ENV", "development");
+      expect(((await AdminLibraryPage({ searchParams: { coach2: "1" } })) as { type: unknown }).type).toBe(LibraryPanel);
+      expect(((await AdminErrorsPage({ searchParams: { coach2: "1" } })) as { type: unknown }).type).toBe(SpeakingErrorsPanel);
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "on");
+      expect(((await AdminLibraryPage()) as { type: unknown }).type).toBe(LibraryPanel);
+      expect(((await AdminErrorsPage()) as { type: unknown }).type).toBe(SpeakingErrorsPanel);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("the gate is the pace panel's, line for line", () => {

@@ -28,7 +28,7 @@ vi.mock("@/services/api/coachWalk", async (load) => {
 });
 vi.mock("@/hooks/useCoachVideoRecorder", () => ({ useCoachVideoRecorder: () => recorder }));
 
-const { default: LibraryClient, exerciseChoice, praiseByCue, itemCaption, newExerciseDraft, pastFinalFor } = await import("./page.client");
+const { default: LibraryClient, exerciseChoice, praiseByCue, itemCaption, newExerciseDraft, pastFinalFor } = await import("./LibraryPanel");
 
 const LAND = {
   exerciseId: "land-the-last-word", title: "Land the last word", instruction: "Slow down on the last three words.",

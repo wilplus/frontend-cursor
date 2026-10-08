@@ -17,12 +17,18 @@ import { cn } from "@/lib/utils";
 import { WalkAvatar } from "../walk/WalkMessage";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 
-export default function CoachWords({ text, editing, onChange, onToggle, children }: {
+export default function CoachWords({ text, editing, onChange, onToggle, bare = false, label, children }: {
   text: string;
   editing: boolean;
   onChange: (text: string) => void;
   /** The pencil: edit, or done editing. */
   onToggle: () => void;
+  /** Without the grey profile picture: words that are nobody's message (an
+   *  error's definition and its one question on the founder's Speaking
+   *  errors page, Q-CP645 A). */
+  bare?: boolean;
+  /** The field's accessible name; "Your words" by default. */
+  label?: string;
   /** The words as shown while not editing, when they are not plain text (the
    *  clearer version's new words in orange). */
   children?: ReactNode;
@@ -36,12 +42,12 @@ export default function CoachWords({ text, editing, onChange, onToggle, children
         editing && "border-solid border-foreground bg-background",
       )}
     >
-      <WalkAvatar />
+      {bare ? null : <WalkAvatar />}
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         {editing ? (
           <textarea
             data-coach-words-field
-            aria-label={COPY.yourWords}
+            aria-label={label ?? COPY.yourWords}
             value={text}
             onChange={(e) => onChange(e.target.value)}
             className="min-h-[110px] w-full resize-none border-0 bg-transparent p-0 text-[17px] leading-[1.55] text-foreground outline-none"

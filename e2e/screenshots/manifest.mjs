@@ -303,6 +303,11 @@ const ADMIN_PAGES = [
   { area: "coach-panel", name: "error", audience: "admin",
     path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-definition"]`, settleMs: 450, viewports: PANEL_PHONE,
     act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="hedging"]`).click(); } },
+  // An error a coach named: its definition and its one question, each with
+  // the pencil (Q-CP645 A).
+  { area: "coach-panel", name: "error-named", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-words"]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="filler_words"]`).click(); } },
 ];
 
 /* ------------------------------- recording ---------------------------------- */
