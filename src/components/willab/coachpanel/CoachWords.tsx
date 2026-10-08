@@ -38,7 +38,9 @@ export default function CoachWords({ text, editing, onChange, onToggle, bare = f
       data-coach-words
       data-editing={editing ? "true" : undefined}
       className={cn(
-        "relative -m-2.5 flex items-start gap-2.5 rounded-2xl border-[1.5px] border-dashed border-transparent p-2.5 pr-10 text-[17px] leading-[1.55] text-foreground transition-colors",
+        "relative -m-2.5 flex items-start gap-2.5 rounded-2xl border-[1.5px] border-dashed border-transparent p-2.5 pr-10 leading-[1.55] text-foreground transition-colors",
+        // Bare words read as the prototype's definition line: 16px, medium.
+        bare ? "text-[16px] font-medium" : "text-[17px]",
         editing && "border-solid border-foreground bg-background",
       )}
     >
@@ -50,7 +52,10 @@ export default function CoachWords({ text, editing, onChange, onToggle, bare = f
             aria-label={label ?? COPY.yourWords}
             value={text}
             onChange={(e) => onChange(e.target.value)}
-            className="min-h-[110px] w-full resize-none border-0 bg-transparent p-0 text-[17px] leading-[1.55] text-foreground outline-none"
+            className={cn(
+              "min-h-[110px] w-full resize-none border-0 bg-transparent p-0 leading-[1.55] text-foreground outline-none",
+              bare ? "text-[16px] font-medium" : "text-[17px]",
+            )}
           />
         ) : (
           children ?? <span>{text}</span>

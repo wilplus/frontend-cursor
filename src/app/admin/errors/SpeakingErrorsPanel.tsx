@@ -130,7 +130,7 @@ export function ErrorWords({ entry, onSaved }: { entry: SpeakingError; onSaved: 
   return (
     <div className="flex flex-col gap-5" data-testid="error-words">
       {(["definition", "asks"] as const).map((field) => (
-        <div key={field} data-testid={`error-${field}`} className="text-[16px] font-medium">
+        <div key={field} data-testid={`error-${field}`}>
           <CoachWords bare text={words[field]} editing={editing === field}
             onChange={(text) => setWords((w) => ({ ...w, [field]: text }))}
             onToggle={() => void toggle(field)} />

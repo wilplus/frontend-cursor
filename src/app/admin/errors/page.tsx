@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
 
-export default async function AdminErrorsPage({ searchParams }: PageProps = {}) {
+export default async function AdminErrorsPage({ searchParams }: PageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
