@@ -95,7 +95,7 @@ export default function CoachJudgeSheet({
     setValue(next);
     setSaving(true);
     setError(null);
-    const result = await saveStateRating(snippetId, body, null, null, chain.current);
+    const result = await saveStateRating(snippetId, body, chain.current);
     setSaving(false);
     if (!result.ok) {
       setValue(null);

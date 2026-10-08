@@ -169,7 +169,7 @@ describe("CoachJudgeSheet on the confidence chain (N48.5 Q27 A)", () => {
     expect(request.idempotencyKey).toContain(handle.presentationId);
     click("In-between");
     await flush();
-    expect(saveStateRating.mock.calls[0][4]).toEqual({ handle, exposureId: "exposure-9" });
+    expect(saveStateRating.mock.calls[0][2]).toEqual({ handle, exposureId: "exposure-9" });
   });
 
   it("without a packet the answer is saved exactly as before and nothing shows", async () => {
@@ -180,7 +180,7 @@ describe("CoachJudgeSheet on the confidence chain (N48.5 Q27 A)", () => {
     click("Yes — Confident");
     await flush();
     expect(acknowledgeConfidenceChainRender).not.toHaveBeenCalled();
-    expect(saveStateRating.mock.calls[0][4]).toBeNull();
+    expect(saveStateRating.mock.calls[0][2]).toBeNull();
     expect(container.textContent).toBe(before);
   });
 
@@ -192,7 +192,7 @@ describe("CoachJudgeSheet on the confidence chain (N48.5 Q27 A)", () => {
     await flush();
     click("Not sure");
     await flush();
-    expect(saveStateRating.mock.calls[0][4]).toBeNull();
+    expect(saveStateRating.mock.calls[0][2]).toBeNull();
     expect(container.textContent).not.toContain("refused");
   });
 });

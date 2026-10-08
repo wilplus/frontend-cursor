@@ -7,11 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  acknowledgeCoachInlineBlindRender,
-  type BlindRenderResult,
-  type CoachInlineBlindReviewHandle,
-} from "@/services/api/stateRatings";
+import type { BlindRenderResult } from "@/services/api/stateRatings";
 
 /** What every blind handle must carry for a receipt to be matched to it. */
 export interface BlindHandleIdentity {
@@ -80,7 +76,7 @@ function stableRenderRequest(
  * independently retryable render ACK. An answer can consume only the exact
  * exposure returned here; it never manufactures its own render event.
  *
- * `acknowledge` is the receipt's transport (D5 inline, or the legacy card's
+ * `acknowledge` is the receipt's transport (the legacy card's
  * confidence-chain receipt since Q2) and `scope` keys the stable request in
  * session storage, so two chains never share a retry identity.
  */
@@ -189,21 +185,3 @@ export function BlindExposureBoundary<H extends BlindHandleIdentity>({
   return createElement("div", { ref: targetRef, className }, children(state));
 }
 
-/** The D5 visible-render boundary: the inline blind receipt, as before. */
-export default function CoachInlineBlindExposureBoundary({
-  blindReview,
-  children,
-}: {
-  blindReview: CoachInlineBlindReviewHandle | null;
-  children: (state: BlindExposureState) => ReactNode;
-}) {
-  return (
-    <BlindExposureBoundary<CoachInlineBlindReviewHandle>
-      blindReview={blindReview}
-      acknowledge={acknowledgeCoachInlineBlindRender}
-      scope="coach-inline"
-    >
-      {children}
-    </BlindExposureBoundary>
-  );
-}

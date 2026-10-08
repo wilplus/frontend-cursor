@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QueuePiece, TrainingImport } from "@/services/api/trainingCorpus";
 
 const saveSpy = vi.fn();
+const ackSpy = vi.fn();
 const playbackSpy = vi.fn();
 let queue: () => QueuePiece[] = () => [];
 
@@ -37,7 +38,11 @@ vi.mock("@/services/api/trainingCorpus", async (importOriginal) => {
 });
 vi.mock("@/services/api/stateRatings", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/services/api/stateRatings")>();
-  return { ...real, saveStateRating: (...args: unknown[]) => saveSpy(...args) };
+  return {
+    ...real,
+    saveStateRating: (...args: unknown[]) => saveSpy(...args),
+    acknowledgeConfidenceChainRender: (...args: unknown[]) => ackSpy(...args),
+  };
 });
 
 import CorpusPageClient, { importRowStatus, nextUnlabelled } from "./page.client";
@@ -50,8 +55,8 @@ const IMPORT: TrainingImport = {
 function piece(id: string, transcript: string, over: Partial<QueuePiece> = {}): QueuePiece {
   return {
     reviewActId: id, snippetId: id, transcript,
-    label: null, reReview: false, learningExposures: [], canonicalPosition: null,
-    blindReview: null, mlc2BlindReview: null, ...over,
+    label: null, reReview: false, learningExposures: [],
+    mlc2BlindReview: null, ...over,
   };
 }
 
@@ -153,7 +158,9 @@ describe("the corpus labels on the Judge screen (B9, P2-16)", () => {
     answer("Yes — Confident");
     await flush();
     expect(saveSpy).toHaveBeenCalledTimes(1);
-    const [snippetId, body] = saveSpy.mock.calls[0] as [string, Record<string, unknown>];
+    const [snippetId, body, echo] = saveSpy.mock.calls[0] as [string, Record<string, unknown>, unknown];
+    // No chain handle on the row, so nothing rides beside the label.
+    expect(echo).toBeNull();
     expect(snippetId).toBe("piece-c");
     expect(Object.keys(body).sort()).toEqual(["idempotency_key", "state_id", "value"]);
     expect(body).toMatchObject({ state_id: "confidence", value: "yes" });
@@ -277,6 +284,80 @@ describe("the corpus row plays its window from the playback route (backend PR #9
     });
     await openImport();
     expect(sheet()?.textContent).toContain("This clip has no verified language and cannot be routed.");
+  });
+});
+
+describe("the confidence chain's handle on the card (Q2)", () => {
+  const HANDLE = {
+    reviewAssignmentId: "20000000-0000-4000-8000-000000000003",
+    presentationId: "20000000-0000-4000-8000-000000000005",
+    acknowledgementToken: "20000000-0000-4000-8000-000000000006",
+    visiblePayloadSha256: "b".repeat(64),
+  };
+  let observed: IntersectionObserverCallback | null = null;
+
+  class TestIntersectionObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "0px";
+    readonly thresholds = [0.01];
+    disconnect = vi.fn();
+    observe = vi.fn();
+    takeRecords = vi.fn(() => []);
+    unobserve = vi.fn();
+
+    constructor(callback: IntersectionObserverCallback) {
+      observed = callback;
+    }
+  }
+
+  beforeEach(() => {
+    observed = null;
+    vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    ackSpy.mockReset();
+    ackSpy.mockResolvedValue({
+      ok: true,
+      receipt: {
+        reviewAssignmentId: HANDLE.reviewAssignmentId,
+        presentationId: HANDLE.presentationId,
+        exposureId: "exposure-9",
+      },
+    });
+  });
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("the answer waits for the card's receipt, then echoes it beside the label", async () => {
+    queue = () => [piece("piece-h", "we will ship it", { mlc2BlindReview: HANDLE })];
+    await openImport();
+    answer("Yes — Confident");
+    await flush();
+    expect(saveSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      observed?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    });
+    await flush();
+    expect(ackSpy).toHaveBeenCalledTimes(1);
+    expect(ackSpy.mock.calls[0][0]).toEqual(HANDLE);
+    expect((ackSpy.mock.calls[0][1] as { idempotencyKey: string }).idempotencyKey)
+      .toMatch(new RegExp(`^coach-card-visible-render:${HANDLE.presentationId}:`));
+
+    answer("Yes — Confident");
+    await flush();
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    const [snippetId, body, echo] = saveSpy.mock.calls[0] as [string, Record<string, unknown>, unknown];
+    expect(snippetId).toBe("piece-h");
+    expect(body).toMatchObject({ state_id: "confidence", value: "yes" });
+    expect(echo).toEqual({ handle: HANDLE, exposureId: "exposure-9" });
   });
 });
 

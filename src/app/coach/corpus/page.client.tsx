@@ -23,47 +23,18 @@ import {
 } from "@/services/api/trainingCorpus";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import {
-  acknowledgeCoachInlineBlindRender,
   acknowledgeConfidenceChainRender,
   buildRatingBody,
   saveStateRating,
-  type BlindRenderResult,
-  type CoachInlineBlindReviewHandle,
   type ConfidenceChainBlindHandle,
   type ConfidenceRatingValue,
 } from "@/services/api/stateRatings";
 import CoachJudgeInstrument from "@/components/willab/coachwalk/CoachJudgeInstrument";
 import { JudgeFrame } from "@/components/willab/coachwalk/CoachJudgeSheet";
 import type { Pager } from "@/components/willab/feedbackPager";
-import { BlindExposureBoundary } from "@/components/willab/CoachInlineBlindExposureBoundary";
+import { BlindExposureBoundary } from "@/components/willab/BlindExposureBoundary";
 import RaterLanguageGate from "@/components/willab/RaterLanguageGate";
 import { useCorpusClip } from "@/hooks/useCorpusClip";
-
-/** One queue row carries at most one blind handle: the D5 inline packet, or
- *  (Q2, while the writer state is founder_canary) the legacy card's handle on
- *  the canonical confidence chain. D5 wins when both are present. */
-type CoachQueueBlindHandle =
-  | CoachInlineBlindReviewHandle
-  | ConfidenceChainBlindHandle;
-
-function queueBlindHandle(piece: QueuePiece): CoachQueueBlindHandle | null {
-  return piece.blindReview ?? piece.mlc2BlindReview;
-}
-
-function isInlineHandle(
-  handle: CoachQueueBlindHandle,
-): handle is CoachInlineBlindReviewHandle {
-  return "blindPacketId" in handle;
-}
-
-function acknowledgeQueueRender(
-  handle: CoachQueueBlindHandle,
-  request: { renderInstanceId: string; clientRenderedAt: string; idempotencyKey: string },
-): Promise<BlindRenderResult> {
-  return isInlineHandle(handle)
-    ? acknowledgeCoachInlineBlindRender(handle, request)
-    : acknowledgeConfidenceChainRender(handle, request);
-}
 
 /** The chain's echo for the label PUT: only with a real exposure. */
 function confidenceChainEcho(
@@ -929,7 +900,7 @@ function LabelScreen({
   const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   // The review act being written to the BE, or null. One save at a time
-  // (inFlightRef); tracked by review act, never by snippet identity.
+  // (inFlightRef).
   const [savingId, setSavingId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
@@ -978,8 +949,6 @@ function LabelScreen({
     const res = await saveStateRating(
       piece.snippetId,
       body,
-      piece.blindReview,
-      blindExposureId,
       confidenceChainEcho(piece, blindExposureId),
     );
     inFlightRef.current = false;
@@ -1053,11 +1022,11 @@ function LabelScreen({
     // The coach's saved call for this piece; never a default (N3).
     const abstained = piece.label?.unrateable === true;
     body = (
-      <BlindExposureBoundary<CoachQueueBlindHandle>
+      <BlindExposureBoundary<ConfidenceChainBlindHandle>
         key={piece.reviewActId}
-        blindReview={queueBlindHandle(piece)}
-        acknowledge={acknowledgeQueueRender}
-        scope={piece.blindReview ? "coach-inline" : "coach-card"}
+        blindReview={piece.mlc2BlindReview}
+        acknowledge={acknowledgeConfidenceChainRender}
+        scope="coach-card"
       >
         {({ exposureId, error: renderError }) => (
           // THE one instrument (A1, B6, B9): the clip and the five answers
@@ -1071,12 +1040,11 @@ function LabelScreen({
             transcriptRevealed={piece.label !== null}
             value={abstained ? null : piece.label?.value ?? null}
             unrateable={abstained}
-            // A D5 answer needs its exact exposure. The legacy card waits
-            // for the chain's receipt too, but a receipt the chain refused
-            // never blocks the coach's own label (Q2). One save at a time.
+            // The card waits for the chain's receipt, but a receipt the
+            // chain refused never blocks the coach's own label (Q2). One
+            // save at a time.
             disabled={
               savingId !== null ||
-              (piece.blindReview !== null && !exposureId) ||
               (piece.mlc2BlindReview !== null && !exposureId && !renderError)
             }
             saving={savingId === piece.reviewActId}

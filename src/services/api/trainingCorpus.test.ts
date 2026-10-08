@@ -30,9 +30,7 @@ describe("mapQueuePiece — drop-not-repair", () => {
       transcript: "and that is when everything changed for us",
       label: null,
       reReview: false,
-      canonicalPosition: null,
       learningExposures: [],
-      blindReview: null,
       mlc2BlindReview: null,
     });
   });
@@ -55,7 +53,6 @@ describe("mapQueuePiece — drop-not-repair", () => {
     });
     // The legacy label PUT still goes to the snippet: the chain is beside it.
     expect(mapped?.reviewActId).toBe("snip-1");
-    expect(mapped?.blindReview).toBeNull();
   });
 
   it("drops a partial or malformed confidence-chain handle rather than repairing it", () => {
@@ -98,8 +95,11 @@ describe("mapQueuePiece — drop-not-repair", () => {
     }]);
   });
 
-  it("binds the visible card to the exact D5 batch assignment and packet", () => {
+  it("ignores a retired MLC-3 inline handle — the label goes to the snippet like every row", () => {
+    // The MLC-3 loop is retired (founder 2026-09-30, L8; contract 66): the
+    // backend no longer hands one out and its routes answer 410.
     const mapped = mapQueuePiece(piece({
+      canonical_position: 1,
       blind_review: {
         project_id: "10000000-0000-4000-8000-000000000001",
         review_batch_id: "10000000-0000-4000-8000-000000000002",
@@ -110,15 +110,8 @@ describe("mapQueuePiece — drop-not-repair", () => {
         visible_payload_sha256: "a".repeat(64),
       },
     }));
-    expect(mapped?.blindReview?.reviewAssignmentId).toBe(
-      "10000000-0000-4000-8000-000000000003",
-    );
-    expect(mapped?.blindReview?.blindPacketId).toBe(
-      "10000000-0000-4000-8000-000000000004",
-    );
-    expect(mapped?.reviewActId).toBe(
-      "10000000-0000-4000-8000-000000000003",
-    );
+    expect(mapped).toEqual(mapQueuePiece(piece()));
+    expect(mapped?.reviewActId).toBe("snip-1");
   });
 
   it("drops a row with no snippet id — the label PUT would have nowhere to go", () => {
@@ -227,32 +220,6 @@ describe("mapQueuePiece — drop-not-repair", () => {
 });
 
 describe("mapConfidenceQueue", () => {
-  it("preserves two exact assignments that share one snippet", () => {
-    const blind = (suffix: string, position: number) => piece({
-      snippet_id: "shared-snippet",
-      canonical_position: position,
-      blind_review: {
-        project_id: "20000000-0000-4000-8000-000000000001",
-        review_batch_id: "20000000-0000-4000-8000-000000000002",
-        review_assignment_id: `10000000-0000-4000-8000-00000000000${suffix}`,
-        blind_packet_id: `20000000-0000-4000-8000-00000000000${suffix}`,
-        presentation_id: `30000000-0000-4000-8000-00000000000${suffix}`,
-        acknowledgement_token: `40000000-0000-4000-8000-00000000000${suffix}`,
-        visible_payload_sha256: suffix.repeat(64),
-      },
-    });
-    const mapped = mapConfidenceQueue({
-      session_id: "sess-1",
-      queue: [blind("3", 1), blind("4", 2)],
-    });
-    expect(mapped?.queue).toHaveLength(2);
-    expect(mapped?.queue.map((item) => item.reviewActId)).toEqual([
-      "10000000-0000-4000-8000-000000000003",
-      "10000000-0000-4000-8000-000000000004",
-    ]);
-    expect(mapped?.queue.map((item) => item.canonicalPosition)).toEqual([1, 2]);
-  });
-
   it("keeps payload order — the queue is band-shuffled so position is not a tell (N2)", () => {
     const m = mapConfidenceQueue({
       session_id: "sess-1",
