@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchOwnerAnswers,
+  fetchParagraphHistories,
   fetchParagraphHistory,
   type OwnerAnswer,
+  type ParagraphHistoriesRead,
   type ParagraphHistory,
 } from "@/services/api/bookmarkHistory";
 
@@ -29,6 +31,15 @@ import {
 /*  and filled in "Take 2 · Now" and the earlier Takes a moment later. Now   */
 /*  the last finished read keeps serving until the new one lands; only what  */
 /*  actually changed updates, in place.                                       */
+/*                                                                            */
+/*  One request, not one per paragraph (founder 2026-10-08, F5). The read-    */
+/*  ahead asks for every paragraph's history in a single batched read; each  */
+/*  paragraph's entry waits on it, so an early tap opens complete when the   */
+/*  batch lands. When the batch fails, each paragraph is read on its own as  */
+/*  before; a 404 (the batched read not deployed) is remembered for the      */
+/*  page's lifetime, so the batch is not tried again. After a sheet closes,  */
+/*  only the paragraphs whose sheets were open are read again, with the      */
+/*  Take's answers, not every paragraph.                                     */
 /*                                                                            */
 /*  Timing only. What the sheet shows, and where, is the locked design's.     */
 /* -------------------------------------------------------------------------- */
@@ -62,9 +73,38 @@ function remember<T>(map: Map<string, Entry<T>>, key: string, load: () => Promis
   return entry;
 }
 
+/** True once the batched read answered 404: it is not deployed, and every
+ *  read-ahead for the rest of the page's life reads each paragraph alone. */
+let batchAbsent = false;
+
+const FAILED: ParagraphHistoriesRead = { kind: "failed" };
+
+/** One batched read for `partIds`, or null when each is read alone. A
+ *  missing or throwing batched read never stops the read-ahead. */
+function startBatch(arcId: string, partIds: readonly string[]): Promise<ParagraphHistoriesRead> | null {
+  if (batchAbsent || partIds.length < 2) return null;
+  try {
+    return fetchParagraphHistories(arcId, partIds).catch(() => FAILED);
+  } catch {
+    return null;
+  }
+}
+
+async function historyFrom(
+  batch: Promise<ParagraphHistoriesRead>,
+  arcId: string,
+  partId: string,
+): Promise<ParagraphHistory | null> {
+  const read = await batch;
+  if (read.kind === "ok") return read.histories.get(partId) ?? null;
+  if (read.kind === "absent") batchAbsent = true;
+  return fetchParagraphHistory(arcId, partId);
+}
+
 /** Read ahead, replacing whatever was cached: the page calls this whenever
  *  no sheet is open, so an answer or a lock made in the last sheet is read
- *  fresh before the next one opens. */
+ *  fresh before the next one opens. The histories come in one batched read
+ *  when the server has it, else one read each. */
 export function prefetchParagraphSheets(
   arcId: string | null,
   takeSessionId: string | null,
@@ -72,8 +112,10 @@ export function prefetchParagraphSheets(
 ): void {
   if (takeSessionId) remember(answersByTake, takeSessionId, () => fetchOwnerAnswers(takeSessionId));
   if (!arcId) return;
+  const batch = startBatch(arcId, partIds);
   for (const partId of partIds) {
-    remember(histories, historyKey(arcId, partId), () => fetchParagraphHistory(arcId, partId));
+    remember(histories, historyKey(arcId, partId), () =>
+      batch ? historyFrom(batch, arcId, partId) : fetchParagraphHistory(arcId, partId));
   }
 }
 
@@ -179,22 +221,47 @@ export function useBoundedWait(waiting: boolean): boolean {
 }
 
 /** The page's side: read ahead for every paragraph that opens this sheet,
- *  each time no sheet is open. */
+ *  each time no sheet is open. `openPartId` is the paragraph whose sheet is
+ *  open (null when none). After a close only the paragraphs whose sheets
+ *  were open are read again, with the Take's answers and any paragraph not
+ *  read yet; otherwise the whole list is read (one batched read). */
 export function usePrefetchParagraphSheets(
   arcId: string | null,
   takeSessionId: string | null,
   partIds: readonly string[],
-  sheetOpen: boolean,
+  openPartId: string | null,
 ): void {
   const key = partIds.join("|");
+  const openedSince = useRef<Set<string>>(new Set());
+  const readKey = useRef<string | null>(null);
+  const sheetOpen = openPartId !== null;
+  useEffect(() => {
+    if (openPartId) openedSince.current.add(openPartId);
+  }, [openPartId]);
   useEffect(() => {
     if (sheetOpen) return;
-    prefetchParagraphSheets(arcId, takeSessionId, key ? key.split("|") : []);
+    const list = key ? key.split("|") : [];
+    const scope = `${arcId}|${takeSessionId}`;
+    const closed = openedSince.current;
+    openedSince.current = new Set();
+    const sameTake = readKey.current === scope;
+    readKey.current = scope;
+    // After a close: the closed paragraphs, and any not read yet. Otherwise
+    // (first read, a new Take, the list changed): the whole list.
+    const parts = closed.size > 0 && sameTake
+      ? list.filter((id) => closed.has(id) || !isRead(arcId, id))
+      : list;
+    prefetchParagraphSheets(arcId, takeSessionId, parts);
   }, [arcId, takeSessionId, key, sheetOpen]);
+}
+
+function isRead(arcId: string | null, partId: string): boolean {
+  return !arcId || histories.has(historyKey(arcId, partId));
 }
 
 /** Tests only: forget every cached read. */
 export function forgetParagraphSheetData(): void {
   histories.clear();
   answersByTake.clear();
+  batchAbsent = false;
 }
