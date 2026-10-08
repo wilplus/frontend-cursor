@@ -26,6 +26,7 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
 }
 
 import type { ConfidenceRatingValue } from "./stateRatings";
+import { coachReadInit } from "./coachAuth";
 
 export type CoachTag = "strong" | "to_work_on";
 
@@ -289,7 +290,7 @@ export async function fetchCoachReviewSession(
   try {
     res = await fetch(
       `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}`,
-      { credentials: "include", cache: "no-store" },
+      await coachReadInit(),
     );
   } catch {
     return null;

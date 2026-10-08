@@ -12,6 +12,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { mapCandidates, type MatchCandidate } from "./machinePick";
+import { coachReadInit } from "./coachAuth";
 
 export type ExerciseRequestResolution =
   | "exercise_chosen"
@@ -130,10 +131,7 @@ export async function fetchCoachExerciseRequest(
   snippetId: string,
 ): Promise<CoachExerciseRequest | null> {
   try {
-    const res = await fetch(requestPath(sessionId, snippetId), {
-      credentials: "include",
-      cache: "no-store",
-    });
+    const res = await fetch(requestPath(sessionId, snippetId), await coachReadInit());
     if (!res.ok) return null;
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     return mapCoachExerciseRequest(data?.request);

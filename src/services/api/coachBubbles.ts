@@ -6,6 +6,8 @@
 /*  student's real name rides only when the backend may send it (0b, A3).    */
 /* -------------------------------------------------------------------------- */
 
+import { coachReadInit } from "./coachAuth";
+
 export interface TakeBubble {
   sessionId: string;
   takeIndex: number | null;
@@ -36,7 +38,7 @@ export function mapTakeBubbles(raw: unknown): TakeBubble[] {
 /** null while dark or on any failure. */
 export async function fetchTakeBubbles(): Promise<TakeBubble[] | null> {
   try {
-    const res = await fetch("/api/v2/coach/take-bubbles", { credentials: "include", cache: "no-store" });
+    const res = await fetch("/api/v2/coach/take-bubbles", await coachReadInit());
     if (res.status !== 200) return null;
     return mapTakeBubbles(await res.json().catch(() => null));
   } catch {
