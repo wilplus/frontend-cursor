@@ -32,6 +32,7 @@ import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
 import CoachJudgeInstrument, { type JudgeClip } from "./CoachJudgeInstrument";
 import { buildRatingBody, saveStateRating, type ConfidenceRatingValue } from "@/services/api/stateRatings";
+import type { MomentRead } from "@/services/api/coachWalk";
 import { useConfidenceChainReceipt } from "./useConfidenceChainReceipt";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
 
@@ -78,8 +79,9 @@ export default function CoachJudgeSheet({
   pager: Pager;
   clip: JudgeClip | null;
   onClose: () => void;
-  /** The rating is saved; the walk moves to Read on its own. */
-  onJudged: (value: ConfidenceRatingValue) => void;
+  /** The rating is saved; the walk moves to Read on its own. `read` is the
+   *  moment's read when the save returned it (C2), else null. */
+  onJudged: (value: ConfidenceRatingValue, read: MomentRead | null) => void;
   /** Leaves room for the desktop rail (P2-14). */
   railed?: boolean;
 }) {
@@ -102,7 +104,7 @@ export default function CoachJudgeSheet({
       setError(result.error ?? COPY.judgeFail);
       return;
     }
-    onJudged(next);
+    onJudged(next, result.momentRead ?? null);
   }
 
   return (

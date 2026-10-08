@@ -456,6 +456,21 @@ describe("CoachPanel", () => {
     expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
   });
 
+  it("C2: the read rides the saved rating, so What happened makes no second request", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveStateRating.mockResolvedValue({ ok: true, momentRead: READ });
+    const start = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
+      .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
+    draw(<Host start={start} />);
+    await flush();
+    act(() => (document.querySelector("[data-walk-answer='yes']") as HTMLElement).click());
+    await act(async () => { vi.advanceTimersByTime(300); });
+    await flush();
+    await flush();
+    expect(document.querySelector("[data-testid='coach-panel-passage']")!.textContent).toBe(READ.passage);
+    expect(fetchMomentRead).not.toHaveBeenCalled();
+  });
+
   it("Your speakers: when GET /v2/coach/speakers fails, the queue's own speakers, never the Lounge's line", async () => {
     const failing = vi.fn(async () => new Response("", { status: 502 }));
     vi.stubGlobal("fetch", failing);

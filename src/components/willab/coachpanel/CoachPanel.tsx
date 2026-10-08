@@ -11,7 +11,8 @@
 /*                   player needs them; their words are never kept)          */
 /*    the rating     saveStateRating, exactly as today's Judge sheet saves    */
 /*                   it, with the confidence chain's echo                     */
-/*    What happened  fetchMomentRead, ONLY once the screen is What happened,  */
+/*    What happened  the read the saved rating returned (C2), else           */
+/*                   fetchMomentRead, ONLY once the screen is What happened, */
 /*                   which the reducer reaches only for a rated moment.       */
 /*                   Never prefetched (BLIND COACH).                          */
 /*    blind lines    the error audit and the block pick, read when the queue  */
@@ -39,6 +40,7 @@ import type { WalkNav } from "../walk/WalkOverlay";
 import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
 import { V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
 import { useConfidenceChainReceipt } from "../coachwalk/useConfidenceChainReceipt";
+import { readMoment, useMomentReadSeeds, type MomentReadSeeds } from "../coachwalk/momentReadSeeds";
 import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
 import CoachCorpusJudge from "./CoachCorpusJudge";
@@ -49,7 +51,7 @@ import { readSlideFor, type AnswerValue, type QueueSpeaker, type ReadSlide } fro
 import type { WalkScreen } from "@/lib/willab/walkMotion";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
-import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
+import type { MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import {
   fetchBlockPicks, fetchErrorAudit, fetchV4MomentPicks, fetchV4SurerPairs,
@@ -88,8 +90,9 @@ function useTakeMedia(sessionId: string | null): Record<string, TakeMedia> {
   return media;
 }
 
-/** What happened's read, asked for only while What happened is on screen. */
-function useRevealRead(screen: PanelScreen): Record<string, MomentRead | null> {
+/** What happened's read, asked for only while What happened is on screen;
+ *  the saved rating's own read when it brought one (C2). */
+function useRevealRead(screen: PanelScreen, seeds: MomentReadSeeds): Record<string, MomentRead | null> {
   const [reads, setReads] = useState<Record<string, MomentRead | null>>({});
   const reveal = screen.key === "reveal" ? screen : null;
   const sessionId = reveal?.take.sessionId ?? null;
@@ -97,11 +100,11 @@ function useRevealRead(screen: PanelScreen): Record<string, MomentRead | null> {
   useEffect(() => {
     if (!sessionId || !snippetId) return;
     let cancelled = false;
-    void fetchMomentRead(sessionId, snippetId).then((read) => {
+    void readMoment(seeds, sessionId, snippetId).then((read) => {
       if (!cancelled) setReads((prev) => ({ ...prev, [snippetId]: read }));
     });
     return () => { cancelled = true; };
-  }, [sessionId, snippetId]);
+  }, [sessionId, snippetId, seeds]);
   return reads;
 }
 
@@ -163,7 +166,7 @@ function JudgeLive({ screen, nav, clip, onRated, onClose }: {
   screen: MomentScreen;
   nav: WalkNav;
   clip: PanelClip | null;
-  onRated: (snippetId: string, value: AnswerValue) => void;
+  onRated: (snippetId: string, value: AnswerValue, read: MomentRead | null) => void;
   onClose: () => void;
 }) {
   const snippetId = momentOf(screen)?.snippetId ?? "";
@@ -184,7 +187,7 @@ function JudgeLive({ screen, nav, clip, onRated, onClose }: {
       setAttempt((n) => n + 1); // the answers come back unfilled
       return;
     }
-    onRated(snippetId, value);
+    onRated(snippetId, value, result.momentRead ?? null);
   }
 
   return (
@@ -213,7 +216,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
   const takeId = screen.key === "judge" || screen.key === "reveal" ? screen.take.sessionId : null;
   const media = useTakeMedia(takeId);
-  const reads = useRevealRead(screen);
+  const seeds = useMomentReadSeeds();
+  const reads = useRevealRead(screen, seeds);
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
@@ -226,7 +230,8 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
 
   const close = () => dispatch({ type: "close" });
   const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
-  const rated = (snippetId: string, value: AnswerValue) => {
+  const rated = (snippetId: string, value: AnswerValue, read: MomentRead | null) => {
+    if (read) seeds.put(snippetId, read);
     dispatch({ type: "rated", snippetId, value });
     say(COPY.toastJudged);
   };

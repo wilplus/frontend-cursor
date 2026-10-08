@@ -94,7 +94,7 @@ describe("CoachJudgeSheet", () => {
     expect(onJudged).not.toHaveBeenCalled();
     await act(async () => { resolve({ ok: true }); });
     await flush();
-    expect(onJudged).toHaveBeenCalledWith("no");
+    expect(onJudged).toHaveBeenCalledWith("no", null);
   });
 
   it("a refused save stays on the sheet with the sentence", async () => {

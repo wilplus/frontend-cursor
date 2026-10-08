@@ -18,6 +18,7 @@ import CoachReadSheet from "./CoachReadSheet";
 import CoachAnswerOverlay, { type AnswerOutcome } from "./CoachAnswerOverlay";
 import CoachTakeWordSheet from "./CoachTakeWordSheet";
 import CoachWalkRail from "./CoachWalkRail";
+import { useMomentReadSeeds } from "./momentReadSeeds";
 import type { PatternOption } from "./CoachHomeSheet";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { listSpeakingErrors } from "@/services/api/speakingErrors";
@@ -91,6 +92,7 @@ export default function CoachWalkOverlay({
   const [answering, setAnswering] = useState<Answering | null>(null);
   const [wordStep, setWordStep] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const seeds = useMomentReadSeeds();
 
   useEffect(() => {
     let cancelled = false;
@@ -146,8 +148,9 @@ export default function CoachWalkOverlay({
     setWordStep(true);
   }
 
-  function judged(value: AnswerValue): void {
+  function judged(value: AnswerValue, read: MomentRead | null): void {
     if (!moment) return;
+    if (read) seeds.put(moment.snippetId, read);
     setAnswers((prev) => ({ ...prev, [moment.snippetId]: value }));
     setMoments((prev) => replaceMoment(prev, afterJudged(moment)));
     setToast(COPY.toastJudged);
@@ -252,6 +255,7 @@ export default function CoachWalkOverlay({
         onNothingToAdd={nothingToAdd}
         onNext={() => moveOn(moments)}
         railed
+        seeds={seeds}
       />
     );
   }

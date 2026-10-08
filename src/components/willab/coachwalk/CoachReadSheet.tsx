@@ -18,7 +18,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { SheetFrame } from "../ParagraphSheet";
 import { FeedbackPagerBar, type Pager } from "../feedbackPager";
 import DeckSlidePreview from "../DeckSlidePreview";
-import { fetchMomentRead, judgePractice, type MomentPractice, type MomentRead } from "@/services/api/coachWalk";
+import { judgePractice, type MomentPractice, type MomentRead } from "@/services/api/coachWalk";
+import { readMoment, type MomentReadSeeds } from "./momentReadSeeds";
 import { answerCoachExerciseRequest, type CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
 import { answerWord, kindWord, type AnswerValue, type ReadSlide } from "@/lib/willab/coachWalk";
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";
@@ -185,6 +186,7 @@ export default function CoachReadSheet({
   onNext,
   slide = null,
   railed = false,
+  seeds,
 }: {
   sessionId: string;
   snippetId: string;
@@ -203,6 +205,8 @@ export default function CoachReadSheet({
   onNext: () => void;
   /** Leaves room for the desktop rail (P2-14). */
   railed?: boolean;
+  /** The read the saved rating returned, taken once (C2). */
+  seeds?: MomentReadSeeds;
 }) {
   const [read, setRead] = useState<MomentRead | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -211,11 +215,11 @@ export default function CoachReadSheet({
   useEffect(() => {
     let cancelled = false;
     setRead(undefined);
-    void fetchMomentRead(sessionId, snippetId).then((next) => {
+    void readMoment(seeds, sessionId, snippetId).then((next) => {
       if (!cancelled) setRead(next);
     });
     return () => { cancelled = true; };
-  }, [sessionId, snippetId]);
+  }, [sessionId, snippetId, seeds]);
 
   async function nothingToAdd(): Promise<void> {
     if (busy) return;
