@@ -258,7 +258,7 @@ const PANEL_KEYS = {
   door: '[data-testid="coach-panel-pinned"]',
   queue: `${LIVE} [data-testid="coach-panel-queue"]`,
   speakers: `${LIVE} [data-testid="coach-panel-all-speakers"]`,
-  speaker: `${LIVE} [data-walk-caption]`,
+  speaker: `${LIVE} [data-walk-subtitle]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
 };
