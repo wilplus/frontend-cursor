@@ -78,6 +78,19 @@ describe("the gate covers what CI does not", () => {
   });
 });
 
+describe("the gate runs on the Node the unit job runs", () => {
+  it("stops below the job's node-version, which .nvmrc names too", () => {
+    // Under Node 20 every jsdom suite dies at worker start and Vitest is red
+    // while every test passes: a gate on an older Node than CI's reports a
+    // failure CI never sees. The script stops instead (scripts/localCiVerdict.test.ts
+    // runs it), and this keeps its floor, the job and .nvmrc one number.
+    const ci = UNIT_JOB.match(/node-version:\s*"?(\d+)/)?.[1];
+    expect(ci).toBeDefined();
+    expect(SCRIPT).toMatch(new RegExp(`^NODE_MAJOR=${ci}$`, "m"));
+    expect(readFileSync(".nvmrc", "utf8").trim()).toBe(ci);
+  });
+});
+
 describe("the design-lock guard (X5) runs everywhere the gate runs", () => {
   it("is a step of the unit job, with the history it needs", () => {
     expect(commandsOf(UNIT_JOB)).toContain("npm run check:design-lock");
