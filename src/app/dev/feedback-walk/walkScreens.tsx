@@ -448,7 +448,9 @@ export function LoungeStandIn({ onOpen, walked = false }: { onOpen: () => void; 
           onClick={onOpen}
           className={cn(
             "relative mr-auto flex w-[80%] items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 text-left",
-            !walked && "outline outline-2 outline-offset-[3px] outline-primary",
+            // The style as an arbitrary property: cn (tailwind-merge) drops a bare
+            // `outline` beside `outline-2`, and the ring did not draw.
+            !walked && "[outline-style:solid] outline-2 outline-offset-[3px] outline-primary",
           )}
         >
           <span aria-hidden className="aspect-video w-[72px] flex-none rounded-md bg-muted" />

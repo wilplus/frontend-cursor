@@ -192,6 +192,11 @@ describe("every screen says only signed words or the fixtures' sample content", 
     const bubble = host.querySelector('[data-testid="walk-lounge-bubble"]') as HTMLElement;
     expect(bubble.getAttribute("data-walk-marked")).toBe("true");
     expect(bubble.textContent).toContain(CHUNK_SHEET_COPY.chipNew);
+    // The orange ring draws: its style survives cn (a bare `outline` beside
+    // `outline-2` was merged away and the ring never showed).
+    for (const c of ["[outline-style:solid]", "outline-2", "outline-primary"]) {
+      expect(bubble.className.split(" ")).toContain(c);
+    }
   });
 
   it("after the walk the Lounge's bubble loses its mark and its 'new' tag", () => {
