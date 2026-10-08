@@ -195,9 +195,13 @@ export function useFeedbackPager(args: {
   openAt: (index: number) => void;
   openPart: (partId: string) => boolean;
   stop: () => void;
+  /** The open bookmark was reached by ‹ (founder QA1 A, D-FW-9: "the back
+   *  arrow returns to change it"); any other opening clears it. */
+  cameBack: boolean;
 } {
   const { bookmarks, open, closeAll, openFeedback, ready, labelOf } = args;
   const [at, setAt] = useState<number | null>(null);
+  const [cameBack, setCameBack] = useState(false);
   const landed = useRef(false);
   /* THE LIST IS FROZEN FOR THE WALK (audit 2026-09-29). The host rebuilds
      its bookmarks from every re-read of the document — after Apply, after an
@@ -211,12 +215,13 @@ export function useFeedbackPager(args: {
   const list = frozen.current ?? bookmarks;
 
   const openAt = useCallback(
-    (index: number) => {
+    (index: number, back = false) => {
       const walkList = frozen.current ?? bookmarks;
       const bookmark = walkList[index];
       if (!bookmark) return;
       if (frozen.current === null) frozen.current = walkList;
       setAt(index);
+      setCameBack(back);
       open(bookmarks.find((b) => b.partId === bookmark.partId) ?? bookmark);
     },
     [bookmarks, open],
@@ -253,7 +258,7 @@ export function useFeedbackPager(args: {
       index: at,
       total: list.length,
       label: bookmark && labelOf ? labelOf(bookmark) : null,
-      onBack: () => openAt(Math.max(0, at - 1)),
+      onBack: () => openAt(Math.max(0, at - 1), true),
       onNext: () => {
         if (at >= list.length - 1) {
           frozen.current = null;
@@ -266,5 +271,5 @@ export function useFeedbackPager(args: {
     };
   }, [at, list, openAt, closeAll, labelOf]);
 
-  return { pager, openAt, openPart, stop };
+  return { pager, openAt, openPart, stop, cameBack };
 }

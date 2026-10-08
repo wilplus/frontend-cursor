@@ -131,7 +131,7 @@ describe("one exercise", () => {
     const s = live();
     expect(s.querySelector("[data-walk-back-label]")?.textContent).toBe("Library");
     expect(s.querySelector("h2")?.textContent).toBe("Land the last word");
-    expect(s.querySelector("[data-walk-caption]")?.textContent).toBe("Treats: Ending compression · transcribed");
+    expect(s.querySelector("[data-walk-subtitle]")?.textContent).toBe("Treats: Ending compression · transcribed");
     expect(s.querySelector("[data-coach-video]")).not.toBeNull();
     expect(s.querySelector("[data-coach-words]")?.textContent).toBe(LAND.instruction);
     expect(s.querySelector('[data-testid="library-done"]')?.textContent).toBe("Done");
@@ -167,7 +167,7 @@ describe("one exercise", () => {
     expect(host.querySelector("[data-walk-toast]")?.textContent).toBe("Retired");
     expect(live().querySelector('[data-testid="library-bring-back"]')?.textContent).toBe("Bring it back");
     expect(live().querySelector('[data-testid="library-retire"]')).toBeNull();
-    expect(live().querySelector("[data-walk-caption]")?.textContent).toBe("Treats: Ending compression · transcribed · retired");
+    expect(live().querySelector("[data-walk-subtitle]")?.textContent).toBe("Treats: Ending compression · transcribed · retired");
   });
 
   it("Bring it back refused (409) shows the backend's own sentence", async () => {
@@ -187,7 +187,7 @@ describe("one exercise", () => {
     await tick();
     const s = live();
     expect(s.querySelector("h2")?.textContent).toBe("landed the ending");
-    expect(s.querySelector("[data-walk-caption]")?.textContent).toBe("Praise lines the library offers when the machine hears this");
+    expect(s.querySelector("[data-walk-subtitle]")?.textContent).toBe("Praise lines the library offers when the machine hears this");
     expect([...s.querySelectorAll("[data-walk-choice]")].map((e) => e.textContent)).toEqual([
       "You brought the ending down and let it sit.", "The last word landed.",
     ]);
@@ -202,7 +202,7 @@ describe("New", () => {
     let s = live();
     expect(s.querySelector("[data-walk-back-label]")?.textContent).toBe("New");
     expect(s.querySelector("h2")?.textContent).toBe("What kind of error is it?");
-    expect(s.querySelector("[data-walk-caption]")?.textContent).toBe("One error · the library offers it when the machine hears it");
+    expect(s.querySelector("[data-walk-subtitle]")?.textContent).toBe("One error · the library offers it when the machine hears it");
     expect([...s.querySelectorAll("[data-walk-choice]")].map((e) => e.textContent)).toEqual(["Rushing", "Ending compression"]);
     expect(s.querySelector<HTMLButtonElement>('[data-testid="library-kind-next"]')!.disabled).toBe(true);
     act(() => s.querySelector<HTMLElement>('[data-walk-choice="rushing"]')!.click());
@@ -210,13 +210,13 @@ describe("New", () => {
     await tick();
     s = live();
     expect(s.querySelector("h2")?.textContent).toBe("Your instruction");
-    expect(s.querySelector("[data-walk-caption]")?.textContent).toBe("As a speaker will see it · the pencil edits every word");
+    expect(s.querySelector("[data-walk-subtitle]")?.textContent).toBe("As a speaker will see it · the pencil edits every word");
     expect(s.querySelector("[data-coach-words]")?.textContent).toBe("Take one full breath."); // the library's own past final
     act(() => s.querySelector<HTMLElement>('[data-testid="library-words-next"]')!.click());
     await tick();
     s = live();
     expect(s.querySelector("h2")?.textContent).toBe("Your video");
-    expect(s.querySelector("[data-walk-caption]")?.textContent).toBe("An exercise needs its video");
+    expect(s.querySelector("[data-walk-subtitle]")?.textContent).toBe("An exercise needs its video");
     expect(s.querySelector('[data-coach-video-box="idle"]')?.textContent).toBe("Camera");
     expect(s.querySelector('[data-testid="library-record"]')?.textContent).toBe("Record");
     act(() => s.querySelector<HTMLElement>('[data-testid="library-record"]')!.click());

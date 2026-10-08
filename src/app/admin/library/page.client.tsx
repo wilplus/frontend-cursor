@@ -267,7 +267,7 @@ export default function LibraryClient() {
       );
       return (
         <WalkOverlay onBack={back} backLabel={COPY.library} onClose={close} title={exercise.title}
-          caption={itemCaption(exercise, labels)} footer={footer} testId="library-item">
+          subtitle={itemCaption(exercise, labels)} footer={footer} testId="library-item">
           {exercise.explanationVideoUrl ? <CoachVideo src={exercise.explanationVideoUrl} className="w-full" /> : null}
           <CoachWords text={text} editing={live && editing}
             onChange={(v) => setEdits((all) => ({ ...all, [exercise.exerciseId]: v }))}
@@ -279,7 +279,7 @@ export default function LibraryClient() {
       const filed = lines.filter((l) => l.lane === "praise" && l.active && l.patternKey === lib.cue);
       return (
         <WalkOverlay onBack={back} backLabel={COPY.library} onClose={close} title={cueWord(lib.cue)}
-          caption={COPY.praiseLinesCaption} testId="library-praise"
+          subtitle={COPY.praiseLinesCaption} testId="library-praise"
           footer={<WalkFooter pill={{ label: COPY.done, onClick: close }} />}>
           <WalkChoices label={cueWord(lib.cue)} choices={filed.map((l) => ({ value: l.id, label: l.text, done: true }))} />
         </WalkOverlay>
@@ -289,7 +289,7 @@ export default function LibraryClient() {
       const options = errors.filter((e) => e.active);
       return (
         <WalkOverlay onBack={back} backLabel={COPY.newNav} onClose={close} title={COPY.whatKindOfError}
-          caption={`${COPY.oneError} · ${COPY.libraryOffersIt}`} testId="library-kind"
+          subtitle={`${COPY.oneError} · ${COPY.libraryOffersIt}`} testId="library-kind"
           footer={<WalkFooter pill={{ label: COPY.next, disabled: !newKind, testId: "library-kind-next",
             onClick: () => { setNewWords((w) => w || pastFinalFor(newKind ?? "", exercises)); go({ key: "libwords" }); } }} />}>
           <WalkChoices label={COPY.whatKindOfError}
@@ -301,7 +301,7 @@ export default function LibraryClient() {
     if (lib.key === "libwords") {
       return (
         <WalkOverlay onBack={back} backLabel={COPY.newNav} onClose={close} title={COPY.wordsTitle.error}
-          caption={`${COPY.asASpeakerWillSeeIt} · ${COPY.pencilEditsEveryWord}`} testId="library-words"
+          subtitle={`${COPY.asASpeakerWillSeeIt} · ${COPY.pencilEditsEveryWord}`} testId="library-words"
           footer={<WalkFooter pill={{ label: COPY.next, disabled: editing || !newWords.trim(), testId: "library-words-next",
             onClick: () => go({ key: "libvideo" }) }} />}>
           <CoachWords text={newWords} editing={live && editing} onChange={setNewWords} onToggle={() => setEditing((e) => !e)} />
@@ -318,7 +318,7 @@ export default function LibraryClient() {
       const links = v === "stopped" ? [{ label: COPY.recordAgain, onClick: () => { recorder.reset(); } }] : [];
       return (
         <WalkOverlay onBack={back} backLabel={COPY.newNav} onClose={close} title={COPY.videoTitle}
-          caption={COPY.anExerciseNeedsItsVideo} testId="library-video"
+          subtitle={COPY.anExerciseNeedsItsVideo} testId="library-video"
           footer={<WalkFooter pill={pill} dot={v === "idle" || v === "error"} links={links}>
             {live && fail ? <p role="alert" className="m-0 pb-2 text-center text-[14px] text-destructive">{fail}</p> : null}
           </WalkFooter>}>

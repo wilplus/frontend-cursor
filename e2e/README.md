@@ -1,6 +1,6 @@
 # e2e specs — real-browser checks for what jsdom can't answer
 
-Nine standalone Playwright scripts (not a test-runner suite): each boots
+Ten standalone Playwright scripts (not a test-runner suite): each boots
 Chromium, drives a page, prints PASS/FAIL lines, and exits non-zero on any
 failure.
 
@@ -15,6 +15,7 @@ failure.
 | `ideal-text-canonical.spec.mjs` | `/dev/deck` | `DECK_URL` → `:3111` |
 | `marked-editor.spec.mjs` | `/dev/marked-editor` | `MARKED_URL` → `:3123` |
 | `record-flow.spec.mjs` | `/chat` (REAL surface) | `BASE_URL` → `:3142` |
+| `recording-screens.spec.mjs` | `/dev/recording` | `RECORDING_URL` → `:3111`; the recording lock at 390x844 with touch and at 1180x860 (build plan D-RC-8) |
 | `guest-first-visit.spec.mjs` | `/chat` as a brand-new guest (REAL surface) | `BASE_URL` → `:3142` |
 
 The five `/dev/*` harness pages stub their own network, so no backend is

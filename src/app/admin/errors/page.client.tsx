@@ -137,7 +137,7 @@ export default function SpeakingErrorsClient({ founder = false }: { founder?: bo
       const treat = exercisesFor(entry.errorId, exercises);
       return (
         <WalkOverlay onBack={back} backLabel={COPY.speakingErrors} onClose={close} title={entry.label}
-          caption={stateWord(entry.status)} testId="errors-item">
+          subtitle={stateWord(entry.status)} testId="errors-item">
           <p className="m-0 text-[16px] font-medium" data-testid="error-definition">{entry.definition}</p>
           {heard ? <p className="m-0 text-[16px] font-semibold" data-testid="error-readiness">{heard}</p> : null}
           <section className="flex flex-col gap-2" data-testid="error-exercises">
@@ -154,7 +154,7 @@ export default function SpeakingErrorsClient({ founder = false }: { founder?: bo
       );
     }
     return (
-      <WalkOverlay onClose={close} title={COPY.speakingErrors} caption={COPY.errorsCaption} testId="errors-list">
+      <WalkOverlay onClose={close} title={COPY.speakingErrors} subtitle={COPY.errorsCaption} testId="errors-list">
         {loadError ? <p role="alert" className="m-0 text-[13px] text-destructive">{loadError}</p> : null}
         {GROUPS.map((group) => {
           const rows = (entries ?? []).filter((e) => e.status === group.of);

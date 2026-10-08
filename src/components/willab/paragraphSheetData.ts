@@ -77,6 +77,30 @@ export function prefetchParagraphSheets(
   }
 }
 
+/** THE ANSWER JUST GIVEN STANDS IN THE READ AT ONCE (founder QA1 A,
+ *  D-FW-9). The answer saves behind the sheet (tap and go), and the next
+ *  read ahead runs only once every sheet is closed; until then ‹ back to the
+ *  moment must show the answer the speaker gave, not the one before it. The
+ *  cached read takes it in place, and a read still in flight takes it when
+ *  it lands. The next read ahead replaces it with the server's. */
+export function noteOwnAnswer(
+  takeSessionId: string,
+  feedbackId: string,
+  response: string,
+): void {
+  const entry = answersByTake.get(takeSessionId);
+  if (!entry) return;
+  const withAnswer = (answers: OwnerAnswer[] | undefined): OwnerAnswer[] => [
+    ...(answers ?? []).filter((a) => a.feedbackId !== feedbackId),
+    { feedbackId, response },
+  ];
+  if (entry.done) entry.value = withAnswer(entry.value);
+  entry.promise = entry.promise.then((answers) => {
+    entry.value = withAnswer(answers);
+    return entry.value;
+  });
+}
+
 export interface SheetData {
   history: ParagraphHistory | null;
   answers: OwnerAnswer[];

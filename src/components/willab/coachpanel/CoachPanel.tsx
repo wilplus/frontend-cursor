@@ -42,7 +42,9 @@ import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import { fetchMomentRead, type MomentRead } from "@/services/api/coachWalk";
 import { buildRatingBody, saveStateRating } from "@/services/api/stateRatings";
 import { fetchBlockPicks, fetchErrorAudit, type BlockPickQueue, type ErrorAuditQueue } from "@/services/api/coachPanel";
-import { fetchCoachSpeakers, queueSpeakerFor, type PanelSpeaker } from "@/services/api/coachSpeakers";
+import {
+  fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
+} from "@/services/api/coachSpeakers";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
 type TakeMedia = { clips: Record<string, PanelClip>; slides: Record<string, ReadSlide> };
@@ -101,22 +103,20 @@ function useBlindLines(queueOpen: boolean) {
   return { audit, picks, setAudit, setPicks };
 }
 
-/** Every speaker, read each time Your speakers opens; null while dark. */
+/** Every speaker, read each time Your speakers opens. `failed` when the read
+ *  could not be had: the list then draws the queue's own speakers. */
 function useAllSpeakers(open: boolean) {
-  const [speakers, setSpeakers] = useState<PanelSpeaker[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [read, setRead] = useState<{ speakers: PanelSpeaker[] | null; done: boolean }>({ speakers: null, done: false });
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
+    setRead({ speakers: null, done: false });
     void fetchCoachSpeakers().then((next) => {
-      if (cancelled) return;
-      setSpeakers(next);
-      setLoading(false);
+      if (!cancelled) setRead({ speakers: next, done: true });
     });
     return () => { cancelled = true; };
   }, [open]);
-  return { speakers, loading };
+  return { speakers: read.speakers, loading: open && !read.done, failed: read.done && read.speakers === null };
 }
 
 /** The live Judge screen: the save, and the chain's render receipt. */
@@ -166,7 +166,7 @@ export type CoachPanelProps = {
 function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker): QueueSpeaker {
   const live = speakers.find((s) => s.pseudonym === snapshot.pseudonym);
   if (!live) return snapshot;
-  return live.goal === undefined && snapshot.goal !== undefined ? { ...live, goal: snapshot.goal } : live;
+  return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
 export default function CoachPanel({ state, dispatch, speakers, loading, onHandover }: CoachPanelProps) {
@@ -207,14 +207,15 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     }
     if (panel.key === "speakers") {
       return (
-        <SpeakersScreen speakers={all.speakers} loading={all.loading} onClose={close}
+        <SpeakersScreen speakers={all.failed ? speakersFromQueue(speakers) : all.speakers}
+          loading={all.loading || (all.failed && loading)} onClose={close}
           onSpeaker={(speaker) => dispatch({ type: "speaker", speaker: queueSpeakerFor(speaker, speakers) })} />
       );
     }
     if (panel.key === "speaker") {
       const speaker = liveSpeaker(speakers, panel.speaker);
       return (
-        <SpeakerScreen speaker={speaker} onClose={close} onBack={() => dispatch({ type: "back" })}
+        <SpeakerScreen speaker={speaker} loading={loading} onClose={close} onBack={() => dispatch({ type: "back" })}
           onTake={(take) => dispatch({ type: "take", speaker, take })} />
       );
     }

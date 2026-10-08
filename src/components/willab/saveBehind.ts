@@ -1,6 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import {
+  acceptOutcome,
+  saveTakeFeedbackResponse,
+  type FeedbackFamily,
+  type FeedbackResponse,
+} from "@/services/api/takeFeedback";
 
 /* -------------------------------------------------------------------------- */
 /*  Tap and go (founder 2026-09-28).                                          */
@@ -97,6 +103,24 @@ export async function helperWordsFromTakeBehind<
   return result.outcome === "ok" ? "ok" : "failed";
 }
 
+/** Helper words tapped from a praised practise try (the Feedback walk,
+ *  D-FW-16): the words go on the practice, which stores them on the Slide,
+ *  then the paragraph is locked as it is, as for any other pick. A blocked
+ *  lock is final. */
+export async function practiseWordsBehind<
+  C extends { part: { text: string } },
+>(
+  savePractise: (phrase: string) => Promise<boolean>,
+  lock: (chunk: C, text: string) => Promise<{ outcome: string }>,
+  chunk: C,
+  phrase: string,
+): Promise<BehindOutcome> {
+  if (!(await savePractise(phrase))) return "failed";
+  const result = await lock(chunk, chunk.part.text);
+  if (result.outcome === "blocked") return "final";
+  return result.outcome === "ok" ? "ok" : "failed";
+}
+
 /** Delete the helper words (founder lock 2026-09-30, D4): the paragraph's
  *  span is cleared and the lock lifted. Without an unlock the words alone
  *  are cleared. */
@@ -108,4 +132,60 @@ export async function deleteHelperWordsBehind<C>(
   const cleared = await setRoot(chunk, null);
   const unlocked = unlock ? await unlock(chunk) : true;
   return cleared && unlocked ? "ok" : "failed";
+}
+
+/** The served rewrite as the accept lane needs it (DocumentSuggestion). */
+type RewriteItem = {
+  id: string;
+  takeSessionId?: string | null;
+  feedbackFamily?: FeedbackFamily | null;
+  candidateId?: string | null;
+  feedbackMembershipId?: string | null;
+  feedbackExposureId?: string | null;
+  acceptedOnServer?: boolean;
+};
+
+async function respond(item: RewriteItem, response: FeedbackResponse) {
+  if (!item.takeSessionId || !item.feedbackFamily) return { ok: true as const };
+  return saveTakeFeedbackResponse({
+    takeSessionId: item.takeSessionId,
+    feedbackId: item.id,
+    feedbackFamily: item.feedbackFamily,
+    response,
+    candidateId: item.candidateId,
+    feedbackMembershipId: item.feedbackMembershipId,
+    feedbackExposureId: item.feedbackExposureId,
+  });
+}
+
+/** "Accept and practise" on a clearer version, run behind the Feedback walk
+ *  (build plan D-FW-15; contract 29b). The accept lane the Feedback sheet
+ *  and the paragraph sheet use: the speaker's `apply_suggestion` response,
+ *  then the host's decision on the document (the Paragraph's new version is
+ *  the speaker's decision, L1). When the server wrote the words itself the
+ *  host only refreshes; a refusal (helper words or a lock on the Paragraph,
+ *  the words moved, a superseded Take) changed no word and a retry cannot
+ *  change that. */
+export async function acceptRewriteBehind<I extends RewriteItem>(
+  accept: (item: I) => Promise<boolean>,
+  item: I,
+): Promise<BehindOutcome> {
+  const saved = await respond(item, "apply_suggestion");
+  if (!saved.ok) return saved.reason === "superseded" ? "final" : "failed";
+  const outcome = acceptOutcome(saved.textUpdate);
+  if (outcome === "refused") return "final";
+  const applied = await accept(outcome === "server" ? { ...item, acceptedOnServer: true } : item);
+  return applied ? "ok" : "failed";
+}
+
+/** "Keep my words" on a clearer version, run behind the Feedback walk: the
+ *  speaker's `keep_wording` response, then the host's decision on the
+ *  document, exactly as the Feedback sheet records it. No practise follows. */
+export async function keepWordsBehind<I extends RewriteItem>(
+  keep: (item: I) => Promise<boolean>,
+  item: I,
+): Promise<BehindOutcome> {
+  const saved = await respond(item, "keep_wording");
+  if (!saved.ok) return saved.reason === "superseded" ? "final" : "failed";
+  return (await keep(item)) ? "ok" : "failed";
 }

@@ -11,6 +11,7 @@ import {
   Save,
 } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
+import { OVERLAY_ICON_BUTTON_CLASS, OVERLAY_ICON_CLASS } from "./OverlayCloseButton";
 import { BLOCK_VARIANT_COPY } from "./blockVariantCopy";
 import { useSaveIdealText } from "./useSaveIdealText";
 
@@ -81,9 +82,10 @@ export default function IdealTextMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        // The same style as the ✕ beside it (Q-B14 A (1), D-RC-6).
+        className={OVERLAY_ICON_BUTTON_CLASS}
       >
-        <MoreHorizontal className="h-5 w-5" aria-hidden />
+        <MoreHorizontal className={OVERLAY_ICON_CLASS} aria-hidden />
       </button>
       {open ? (
         <>

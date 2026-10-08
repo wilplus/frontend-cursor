@@ -108,3 +108,52 @@ describe("an accepted rewrite's text update (Phase 4, P1-1)", () => {
     }
   });
 });
+
+describe("a changed judgement (QA1 A, D-FW-9)", () => {
+  it("reads the 200 revised body as a save, with its follow-up", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        saved: true, revised: true, feedback_id: "cv-1",
+        feedback_family: "confident_voice", response: "no", follow_up: "library_video",
+      }),
+    })));
+    expect(await saveTakeFeedbackResponse({
+      takeSessionId: "take-1", feedbackId: "cv-1",
+      feedbackFamily: "confident_voice", response: "no",
+    })).toEqual({ ok: true, revised: true, followUp: "library_video" });
+  });
+
+  it("an ordinary first save carries its follow-up and no revised flag", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, json: async () => ({ saved: true, response: "yes", follow_up: "none" }),
+    })));
+    expect(await saveTakeFeedbackResponse({
+      takeSessionId: "take-1", feedbackId: "cv-1",
+      feedbackFamily: "confident_voice", response: "yes",
+    })).toEqual({ ok: true, followUp: "none" });
+  });
+
+  it("a rewrite's answer is still final: the 409 is a failure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false, status: 409,
+      json: async () => ({ code: "RESPONSE_ALREADY_FINAL", error: "This response is already final." }),
+    })));
+    expect(await saveTakeFeedbackResponse({
+      takeSessionId: "take-1", feedbackId: "rw-1",
+      feedbackFamily: "rewrite_clarity", response: "keep_wording",
+    })).toEqual({ ok: false, error: "This response is already final." });
+  });
+
+  it("a revision that could not be saved (500) is a failure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false, status: 500,
+      json: async () => ({ code: "V2_ERROR", error: "Could not save this response." }),
+    })));
+    const result = await saveTakeFeedbackResponse({
+      takeSessionId: "take-1", feedbackId: "cv-1",
+      feedbackFamily: "confident_voice", response: "in_between",
+    });
+    expect(result.ok).toBe(false);
+  });
+});

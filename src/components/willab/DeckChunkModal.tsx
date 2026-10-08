@@ -29,6 +29,12 @@ import {
   type FeedbackResponse,
 } from "@/services/api/takeFeedback";
 import type { RootPhraseSpan } from "@/services/api/partLock";
+import {
+  answerChanged,
+  reopenedJudgement,
+  type ReopenedJudgement,
+} from "@/lib/willab/changeJudgement";
+import { noteOwnAnswer } from "./paragraphSheetData";
 /* The explanation copy is gone from this sheet (founder 2026-09-15, §6): the
    Confident Voice block (CONFIDENT_VOICE_WHY / CONFIDENT_VOICE_NO /
    AGREE_THANKS and its cue list), the praise cue list, and the machine's
@@ -185,6 +191,11 @@ interface DeckChunkModalProps {
    *  longer waits for, and reports a failure after the sheet has moved on.
    *  Without one, a failure shows in the sheet's own error line. */
   saveBehind?: SaveBehind;
+  /** ‹ BACK TO AN ANSWERED MOMENT (founder QA1 A, D-FW-9; journey Q3): the
+   *  sheet reopens this Confident Voice judgement with the latest answer
+   *  pressed. A different answer is saved beside the first; the same one
+   *  sends nothing. A rewrite or a praise never reopens (it stays final). */
+  reopen?: ReopenedJudgement | null;
 }
 
 /** The inventory the sheet opens with: the answered item being practised
@@ -192,8 +203,10 @@ interface DeckChunkModalProps {
 function initialInventory(
   pending: readonly DocumentSuggestion[],
   practiseAgain: DeckChunkModalProps["practiseAgain"],
+  reopen: ReopenedJudgement | null = null,
 ): readonly DocumentSuggestion[] {
-  const source = practiseAgain ? [practiseAgain.item] : pending;
+  const again = practiseAgain ?? reopen;
+  const source = again ? [again.item] : pending;
   const seen = new Set<string>();
   return source
     .filter((item) => {
@@ -400,6 +413,22 @@ function behindRunner(
   );
 }
 
+/** The paragraph's judgement as the sheet opens: the answer carried into a
+ *  practise again, or the one a reopened judgement shows pressed (QA1 A).
+ *  Pure, for the complexity ratchet. */
+function openingJudgement(
+  practiseAgain: DeckChunkModalProps["practiseAgain"],
+  reopen: ReopenedJudgement | null,
+): RootGateAnswer {
+  return practiseAgain?.answer ?? reopen?.answer ?? null;
+}
+
+/** The answer the judgement shows pressed as it opens: none on a first
+ *  judgement, the latest on a reopened one. Pure, for the ratchet. */
+function pressedAnswer(reopen: ReopenedJudgement | null): ConfidenceRatingValue | null {
+  return reopen?.answer ?? null;
+}
+
 function finishSheet(done: (() => void) | undefined, close: () => void): void {
   (done ?? close)();
 }
@@ -468,6 +497,7 @@ export default function DeckChunkModal({
   practiseAgain = null,
   pager = null,
   onAnswered,
+  reopen = null,
 }: DeckChunkModalProps) {
   // The chunk's state, named as the faces below have always read it. The
   // proposal to open on is the first of the pending inventory; an empty
@@ -478,8 +508,10 @@ export default function DeckChunkModal({
   // payload row, but it must not rewrite the student's memory of which items
   // were present when review began. Resolved rows are marked locally; no new
   // identity can enter this list.
+  // Frozen for this opening, as the inventory is (QA1 A).
+  const [reopened] = useState(() => reopenedJudgement(reopen));
   const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() =>
-    initialInventory(pendingSuggestions, practiseAgain),
+    initialInventory(pendingSuggestions, practiseAgain, reopened),
   );
   /* THE LADDER (founder 2026-09-15). One ordered list built when the sheet
    * opens, walked one screen at a time, ending at the lock. It replaces the
@@ -498,7 +530,7 @@ export default function DeckChunkModal({
    *  supersedes step one's when it happens: it is a judgement of the same
    *  delivery, made later and better informed. */
   const [judgement, setJudgement] = useState<RootGateAnswer>(
-    () => practiseAgain?.answer ?? null,
+    () => openingJudgement(practiseAgain, reopened),
   );
   /** What the finished practice did (contract 29a): adopted into the
    *  paragraph, or only its words to tap helper words from. */
@@ -625,7 +657,7 @@ export default function DeckChunkModal({
   const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
   const [stepId, setStepId] = useState<string>(() =>
     firstStepId(
-      buildSteps(practiseAgain?.answer ?? null),
+      buildSteps(openingJudgement(practiseAgain, reopened)),
       practiseAgain,
       opensOnCoachExercise(coachReviewStatus, onAnswered),
     ),
@@ -1189,7 +1221,9 @@ export default function DeckChunkModal({
    * merely creating a layout problem. */
   const isConfidentVoice =
     suggestion !== null && isConfidentVoiceFeedback(suggestion);
-  const [agreeValue, setAgreeValue] = useState<ConfidenceRatingValue | null>(null);
+  const [agreeValue, setAgreeValue] = useState<ConfidenceRatingValue | null>(
+    () => pressedAnswer(reopened),
+  );
   const [agreeError, setAgreeError] = useState<string | null>(null);
   const [agreeSaved, setAgreeSaved] = useState(false);
 
@@ -1217,13 +1251,22 @@ export default function DeckChunkModal({
       feedbackMembershipId: suggestion.feedbackMembershipId,
       feedbackExposureId: suggestion.feedbackExposureId,
     };
-    runBehind(async () => {
-      const r = await saveTakeFeedbackResponse(request);
-      if (r.ok) return "ok";
-      if (r.reason !== "superseded") return "failed";
-      onDocumentChangedRef.current?.();
-      return "final";
-    }, COPY.failAnswerBehind);
+    /* A CHANGED JUDGEMENT IS A SAVE LIKE ANY OTHER (founder QA1 A,
+       D-FW-9): ‹ reopened this judgement with the latest answer pressed; a
+       different answer posts, and the server keeps the first and answers
+       200 `revised: true` — `ok` here, so nothing about the move on
+       changes. The same answer is no change and sends nothing. The answer
+       stands in the cached read at once, so ‹ back again shows it. */
+    noteOwnAnswer(takeSessionId, suggestion.id, value);
+    if (answerChanged(reopened, value)) {
+      runBehind(async () => {
+        const r = await saveTakeFeedbackResponse(request);
+        if (r.ok) return "ok";
+        if (r.reason !== "superseded") return "failed";
+        onDocumentChangedRef.current?.();
+        return "final";
+      }, COPY.failAnswerBehind);
+    }
     /* THE PARAGRAPH'S JUDGEMENT, kept where advanceStep's per-item reset
        cannot reach it — and kept WHOLE.
 

@@ -88,7 +88,7 @@ describe("the errors screen", () => {
   it("the title, the caption, and three groups with the signed labels", async () => {
     await render();
     expect(q("h2")?.textContent).toBe("Speaking errors");
-    expect(q("[data-walk-caption]")?.textContent).toBe("The patterns coaches name in moments. A pattern routes exercises only once a detector can hear it.");
+    expect(q("[data-walk-subtitle]")?.textContent).toBe("The patterns coaches name in moments. A pattern routes exercises only once a detector can hear it.");
     expect(qa("section > span").map((s) => s.textContent)).toEqual([
       "Detected in audio · routes exercises", "Being tested · routes nothing yet", "Named only · waiting on a detector",
     ]);
@@ -125,7 +125,7 @@ describe("one error", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     const screen = live();
     expect(screen.querySelector("h2")?.textContent).toBe("Hedging");
-    expect(screen.querySelector("[data-walk-caption]")?.textContent).toBe("Being tested silently");
+    expect(screen.querySelector("[data-walk-subtitle]")?.textContent).toBe("Being tested silently");
     expect(screen.querySelector("[data-walk-back-label]")?.textContent).toBe("Speaking errors");
     expect(screen.querySelector('[data-testid="error-definition"]')?.textContent).toBe(HEDGING.definition);
     expect(screen.querySelector('[data-testid="error-readiness"]')?.textContent).toBe("Coaches heard it on 6 of 10 checked moments.");
