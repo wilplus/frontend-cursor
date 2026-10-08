@@ -2,7 +2,8 @@
 /* Screen 2 · Judge (founder 2026-09-30, A1; P2-9). Pins: the sheet is the
  * speaker's grammar with the coach's words; the five pills are the speaker's
  * five; nothing of the moment is on the sheet; the tap saves once and hands
- * off only after the save returns; a refusal stays with its sentence. */
+ * off at once with the save in flight (C1, 2026-10-08), then reports the
+ * save; a refusal is reported with its sentence. */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,11 +31,14 @@ const pager = { index: 2, total: 4, label: "Quiet Heron", onBack: () => {}, onNe
 let container: HTMLDivElement;
 let root: Root;
 
-function mount(onJudged: (v: string) => void = () => {}): void {
+function mount(
+  onJudged: (v: string) => void = () => {},
+  more: { onSaved?: (read: unknown) => void; onSaveFailed?: (e: string) => void; failed?: string | null } = {},
+): void {
   act(() => {
     root.render(
       createElement(CoachJudgeSheet, {
-        snippetId: "s-1", pager, clip: null, onClose: () => {}, onJudged,
+        snippetId: "s-1", pager, clip: null, onClose: () => {}, onJudged, ...more,
       }),
     );
   });
@@ -82,30 +86,39 @@ describe("CoachJudgeSheet", () => {
     expect(sheet?.querySelectorAll("button").length).toBe(5);
   });
 
-  it("saves once on tap and hands off only after the save returns", async () => {
+  it("saves once on tap and hands off at once, the save in flight (C1)", async () => {
     let resolve: (v: unknown) => void = () => {};
     saveStateRating.mockReturnValue(new Promise((r) => { resolve = r; }));
     const onJudged = vi.fn();
-    mount(onJudged);
+    const onSaved = vi.fn();
+    mount(onJudged, { onSaved });
     click("No — Not confident");
     expect(saveStateRating).toHaveBeenCalledTimes(1);
     expect(saveStateRating.mock.calls[0][0]).toBe("s-1");
     expect(saveStateRating.mock.calls[0][1]).toMatchObject({ state_id: "confidence", value: "no" });
-    expect(onJudged).not.toHaveBeenCalled();
+    expect(onJudged).toHaveBeenCalledWith("no");
+    expect(onSaved).not.toHaveBeenCalled();
     await act(async () => { resolve({ ok: true }); });
     await flush();
-    expect(onJudged).toHaveBeenCalledWith("no", null);
+    expect(onSaved).toHaveBeenCalledWith(null);
   });
 
-  it("a refused save stays on the sheet with the sentence", async () => {
+  it("a refused save is reported with the sentence, and shows it", async () => {
     saveStateRating.mockResolvedValue({ ok: false, error: "Rate in a language you know." });
-    const onJudged = vi.fn();
-    mount(onJudged);
+    const onSaved = vi.fn();
+    const onSaveFailed = vi.fn();
+    mount(() => {}, { onSaved, onSaveFailed });
     click("Not sure");
     await flush();
     await flush();
     expect(container.textContent).toContain("Rate in a language you know.");
-    expect(onJudged).not.toHaveBeenCalled();
+    expect(onSaveFailed).toHaveBeenCalledWith("Rate in a language you know.");
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("brought back after a failed save, it shows that sentence", () => {
+    mount(() => {}, { failed: "Rate in a language you know." });
+    expect(container.textContent).toContain("Rate in a language you know.");
   });
 });
 

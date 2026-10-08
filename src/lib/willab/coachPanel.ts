@@ -13,7 +13,9 @@
 /*    - the counter counts moments only ("moment 1 of 4");                    */
 /*    - ‹ › onto a moment this coach has not rated lands on Judge, onto a     */
 /*      rated one on What happened;                                           */
-/*    - Judge moves on to What happened by itself once the rating is saved.  */
+/*    - Judge moves on to What happened by itself as the rating is tapped,   */
+/*      with the save in flight (C1, founder 2026-10-08); a failed save     */
+/*      un-rates the moment and goes back to its Judge screen.               */
 /*                                                                            */
 /*  BLIND COACH: What happened is reachable ONLY for a rated moment. A ‹ that */
 /*  would land on the Judge screen of a moment already rated lands on its     */
@@ -83,6 +85,9 @@ export type PanelAction =
   | { type: "next" }
   | { type: "back" }
   | { type: "rated"; snippetId: string; value: AnswerValue }
+  /** The rating's save failed (C1): the moment is not rated after all, and
+   *  its What happened, if on screen, goes back to its Judge screen. */
+  | { type: "unrated"; snippetId: string }
   /** Back from the old answer flow (P1's hand-over): the moment after
    *  `index` that is still open, or the speaker's Takes when none is. */
   | { type: "resume"; speaker: QueueSpeaker; take: QueueTake; index: number };
@@ -137,9 +142,10 @@ function push(state: PanelState, screen: PanelScreen, dir: WalkDir = "forward"):
 }
 
 /** A screen as it is now: a Judge screen of a rated moment is its What
- *  happened (BLIND COACH). */
+ *  happened (BLIND COACH), and a What happened of a moment whose save
+ *  failed is its Judge screen again (C1). */
 function settle(screen: PanelScreen, rated: Record<string, AnswerValue>): PanelScreen {
-  if (screen.key !== "judge") return screen;
+  if (screen.key !== "judge" && screen.key !== "reveal") return screen;
   return landing(screen.speaker, screen.take, screen.index, rated);
 }
 
@@ -167,6 +173,15 @@ function rated(state: PanelState, snippetId: string, value: AnswerValue): PanelS
   const { screen } = state;
   if (screen.key !== "judge" || momentOf(screen)?.snippetId !== snippetId) return next;
   return push(next, { ...screen, key: "reveal" });
+}
+
+function unrated(state: PanelState, snippetId: string): PanelState {
+  if (state.rated[snippetId] === undefined) return state;
+  const { [snippetId]: _failed, ...rest } = state.rated;
+  const next = { ...state, rated: rest };
+  const { screen } = state;
+  if (screen.key !== "reveal" || momentOf(screen)?.snippetId !== snippetId) return next;
+  return back(next);
 }
 
 function openTake(state: PanelState, speaker: QueueSpeaker, take: QueueTake): PanelState {
@@ -213,6 +228,8 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return back(state);
     case "rated":
       return rated(state, action.snippetId, action.value);
+    case "unrated":
+      return unrated(state, action.snippetId);
     case "resume":
       return resume(state, action.speaker, action.take, action.index);
     default:

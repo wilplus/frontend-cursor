@@ -9,10 +9,14 @@
 /*  differs is only what the design lists: the pseudonym in the header, the   */
 /*  title, the eyebrow, and the question's subject.                            */
 /*                                                                            */
-/*  BLIND COACH: nothing but the clip and the question is on this screen, and  */
-/*  nothing renders under the question until the save returns. The passage,   */
-/*  the speaker's answer, the kind and what fired are the next screen's, and  */
-/*  the backend withholds them until this rating is saved.                    */
+/*  BLIND COACH: nothing but the clip and the question is on this screen. The */
+/*  passage, the speaker's answer, the kind and what fired are the next       */
+/*  screen's, and the backend withholds them until this rating is saved.      */
+/*                                                                            */
+/*  THE WAIT (C1, founder 2026-10-08). The tap hands off at once (onJudged)   */
+/*  with the save in flight; the walk holds Read's loading line until the     */
+/*  save answers (onSaved), and a failed save (onSaveFailed) brings this      */
+/*  screen back with today's sentence (`failed`).                             */
 /*                                                                            */
 /*  ONE SCREEN, TWO HOSTS (B9; build plan P2-16). JudgeFrame is the screen    */
 /*  (the sheet, the ‹ position › bar, the title); the walk puts the one       */
@@ -73,21 +77,31 @@ export default function CoachJudgeSheet({
   clip,
   onClose,
   onJudged,
+  onSaved,
+  onSaveFailed,
+  failed = null,
   railed = false,
 }: {
   snippetId: string;
   pager: Pager;
   clip: JudgeClip | null;
   onClose: () => void;
-  /** The rating is saved; the walk moves to Read on its own. `read` is the
-   *  moment's read when the save returned it (C2), else null. */
-  onJudged: (value: ConfidenceRatingValue, read: MomentRead | null) => void;
+  /** The rating is tapped: the walk moves to Read on its own, at once, with
+   *  the save in flight (C1). */
+  onJudged: (value: ConfidenceRatingValue) => void;
+  /** The save succeeded. `read` is the moment's read when the save returned
+   *  it (C2), else null. */
+  onSaved?: (read: MomentRead | null) => void;
+  /** The save failed: the walk brings Judge back with the sentence. */
+  onSaveFailed?: (error: string) => void;
+  /** The sentence of this moment's last failed save, if any. */
+  failed?: string | null;
   /** Leaves room for the desktop rail (P2-14). */
   railed?: boolean;
 }) {
   const [value, setValue] = useState<ConfidenceRatingValue | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(failed);
   const chain = useConfidenceChainReceipt(snippetId, clip !== null);
 
   async function pick(next: ConfidenceRatingValue): Promise<void> {
@@ -97,14 +111,18 @@ export default function CoachJudgeSheet({
     setValue(next);
     setSaving(true);
     setError(null);
-    const result = await saveStateRating(snippetId, body, chain.current);
+    const save = saveStateRating(snippetId, body, chain.current);
+    onJudged(next);
+    const result = await save;
     setSaving(false);
     if (!result.ok) {
+      const sentence = result.error ?? COPY.judgeFail;
       setValue(null);
-      setError(result.error ?? COPY.judgeFail);
+      setError(sentence);
+      onSaveFailed?.(sentence);
       return;
     }
-    onJudged(next, result.momentRead ?? null);
+    onSaved?.(result.momentRead ?? null);
   }
 
   return (

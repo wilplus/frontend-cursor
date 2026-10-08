@@ -187,6 +187,7 @@ export default function CoachReadSheet({
   slide = null,
   railed = false,
   seeds,
+  held = false,
 }: {
   sessionId: string;
   snippetId: string;
@@ -207,6 +208,9 @@ export default function CoachReadSheet({
   railed?: boolean;
   /** The read the saved rating returned, taken once (C2). */
   seeds?: MomentReadSeeds;
+  /** The rating is still saving (C1): the loading line, and nothing about
+   *  the moment is read until the save succeeds (BLIND COACH). */
+  held?: boolean;
 }) {
   const [read, setRead] = useState<MomentRead | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -215,11 +219,12 @@ export default function CoachReadSheet({
   useEffect(() => {
     let cancelled = false;
     setRead(undefined);
+    if (held) return;
     void readMoment(seeds, sessionId, snippetId).then((next) => {
       if (!cancelled) setRead(next);
     });
     return () => { cancelled = true; };
-  }, [sessionId, snippetId, seeds]);
+  }, [sessionId, snippetId, seeds, held]);
 
   async function nothingToAdd(): Promise<void> {
     if (busy) return;
