@@ -30,7 +30,7 @@
 # scripts/check-design-lock.mjs) — a commit that changes a founder-locked
 # screen's file without a `Founder-Approved:` trailer is red.
 #
-# Usage:
+# Usage (on Node 22, the version CI runs; `nvm use` reads .nvmrc):
 #   scripts/local_ci.sh              # the full gate
 #   scripts/local_ci.sh --no-build   # skip the build (only when iterating)
 #   WILLAB_SCREENSHOTS=1 scripts/local_ci.sh   # plus the screenshot harness
@@ -48,14 +48,40 @@ PASSED=()
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 dim() { printf '\033[2m%s\033[0m\n' "$1"; }
 
+# The Node the jobs run (`node-version` in .github/workflows/tests.yml) and
+# .nvmrc names; scripts/localCiMirror.test.ts fails if the three disagree.
+# An older Node gives a wrong verdict, not a slower one: under Node 20 every
+# `@vitest-environment jsdom` suite dies at worker start
+# (`webidl.util.markAsUncloneable is not a function`) and Vitest is red while
+# every test passes (2026-10-06, the nvm default on the founder's Mac). So the
+# gate stops before its first step.
+NODE_MAJOR=22
+node_version="$(node -v 2>/dev/null)"
+node_major="${node_version#v}"
+node_major="${node_major%%.*}"
+case "$node_major" in ''|*[!0-9]*) node_major=0 ;; esac
+if [ "$node_major" -lt "$NODE_MAJOR" ]; then
+  bold "STOPPED — the gate needs Node ${NODE_MAJOR} or newer (CI runs ${NODE_MAJOR}); \`node -v\` here says ${node_version:-nothing}."
+  echo "  On an older Node every jsdom test suite fails at start-up, so Vitest is red whatever the code does."
+  echo "  Switch first (\`nvm use\` reads .nvmrc), then run the gate again."
+  exit 2
+fi
+
+# A log of its own per run. The fixed /tmp/fe_ci_step.log was shared by every
+# run on the machine, and parallel sessions run this gate at once: one run
+# overwrote the failure tail another was about to print.
+tmp_root="${TMPDIR:-/tmp}"
+STEP_LOG="$(mktemp "${tmp_root%/}/fe_ci_step.XXXXXX")" || exit 2
+trap 'rm -f "$STEP_LOG"' EXIT
+
 step() {
   local name="$1"; shift
   bold "→ ${name}"
-  if "$@" > /tmp/fe_ci_step.log 2>&1; then
+  if "$@" > "$STEP_LOG" 2>&1; then
     PASSED+=("$name")
   else
     FAILED+=("$name")
-    tail -30 /tmp/fe_ci_step.log
+    tail -30 "$STEP_LOG"
   fi
 }
 
@@ -86,8 +112,12 @@ fi
 
 echo
 bold "── local CI ──────────────────────────────────────────────"
-for name in "${PASSED[@]}"; do printf '  pass %s\n' "$name"; done
-for name in "${FAILED[@]}"; do printf '  FAIL %s\n' "$name"; done
+# `${A[@]+"${A[@]}"}`, not `"${A[@]}"`: under `set -u`, bash 3.2 (macOS's
+# /bin/bash) calls an empty array unbound, so the plain form killed the script
+# at the FAILED loop exactly when every step had passed: exit 1, no GREEN
+# (2026-10-06).
+for name in ${PASSED[@]+"${PASSED[@]}"}; do printf '  pass %s\n' "$name"; done
+for name in ${FAILED[@]+"${FAILED[@]}"}; do printf '  FAIL %s\n' "$name"; done
 echo
 
 if [ ${#FAILED[@]} -ne 0 ]; then
