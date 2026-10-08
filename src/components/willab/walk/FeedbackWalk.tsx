@@ -364,7 +364,9 @@ export default function FeedbackWalk<R = unknown>({
   return (
     <div data-feedback-walk data-walk-step={screen.key}>
       <WalkStage screen={screen} dir={dir} render={(s) => renderScreen(ctx, s)} />
-      {judging.toast ? (
+      {/* A toast lives on the walk's own screens only: none follows the
+          speaker onto the end card ("Record Take N"). */}
+      {judging.toast && screen.overlay !== false ? (
         <WalkToast key={judging.toast.seq} message={judging.toast.text} onDone={judging.clearToast} />
       ) : null}
       {share.toast && screen.key === "community" ? (
