@@ -108,14 +108,16 @@ describe("once it is available", () => {
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
   });
 
-  it("shows the founder's four lines above the sentence, before the switch", async () => {
+  it("shows the founder's eight lines above the sentence, before the switch", async () => {
     await renderWith(state());
     const lines = Array.from(container.querySelectorAll("li")).map((li) => li.textContent);
     expect(lines).toEqual([...COPY.trainingBeforeLines]);
-    expect(COPY.trainingBeforeLines).toHaveLength(4);
-    expect(COPY.trainingBeforeLines[0]).toBe("Text only. Never your voice.");
+    expect(COPY.trainingBeforeLines).toHaveLength(8);
+    expect(COPY.trainingBeforeLines[0]).toBe(
+      "Text and numbers only. No recording of your voice, and no clip of one, is ever copied or sent for training.",
+    );
     const html = container.innerHTML;
-    expect(html.indexOf(COPY.trainingBeforeLines[3])).toBeLessThan(html.indexOf(SENTENCE));
+    expect(html.indexOf(COPY.trainingBeforeLines[7])).toBeLessThan(html.indexOf(SENTENCE));
     expect(html.indexOf(SENTENCE)).toBeLessThan(html.indexOf(COPY.turnOn));
   });
 
@@ -185,7 +187,7 @@ describe("the page intro follows the switch (founder N12, answer 3)", () => {
       "Your recordings are used to run your own coaching. They are not used to train models.",
     );
     expect(COPY.introWithTraining).toBe(
-      "Your recordings are used to run your own coaching. They are used to train models only if you turn on Help improve WillpowerLab.",
+      "Your recordings are used to run your own coaching. Their words, and numbers measured from them, train models only if you turn on Help improve WillpowerLab.",
     );
     const page = readFileSync(join(process.cwd(), "src/app/account/data-consent/page.tsx"), "utf8");
     expect(page).toContain("trainingOffered ? DATA_CONSENT_COPY.introWithTraining : DATA_CONSENT_COPY.intro");

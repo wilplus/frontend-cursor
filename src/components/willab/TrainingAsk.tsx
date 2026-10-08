@@ -24,7 +24,7 @@ import {
 /*  once-and-remember on 2026-10-03 (backend decisions log N28).              */
 /*                                                                            */
 /*  The yes is the signed training consent itself (13-…-SIGNED-2026-10-01):   */
-/*  the four lines and the backend's sentence render above the question's    */
+/*  the eight lines and the backend's sentence render above the question's   */
 /*  answer, and the yes is sent against that sentence's fingerprint, exactly  */
 /*  as the account card sends it. Nothing is pre-ticked.                      */
 /*                                                                            */

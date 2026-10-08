@@ -134,6 +134,15 @@ export const SIGNED_STATE_LINES: readonly { text: string; signed: string }[] = [
   { text: "Couldn’t load your choices. Try again.", signed: "founder 2026-09-25 (dataConsentCopy.ts)" },
   { text: "Your practice recordings are still being deleted.", signed: "founder 2026-09-25 (dataConsentCopy.ts)" },
   { text: "Your recordings are used to run your own coaching. They are not used to train models.", signed: "founder 2026-09-25 (dataConsentCopy.ts, intro before the training switch is offered)" },
+  // The training lines v2 (founder 2026-10-08, "with its eight lines"); lines 2
+  // and 8 are v1's, already drawn by the consent prototype above.
+  { text: "Text and numbers only. No recording of your voice, and no clip of one, is ever copied or sent for training.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "Your coach's words include their line on a moment and their word for a take.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "The numbers are measurements such as your pace and pauses, and whether an exercise helped you. They stay with us.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "A coach may hear a moment of yours, without your name, to answer a question that teaches our software.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "The trained models write feedback for every speaker. We test that they do not repeat your text.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "OpenAI trains the text models for us, in the United States, under the European Commission's standard contractual clauses.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
+  { text: "Your recordings are used to run your own coaching. Their words, and numbers measured from them, train models only if you turn on Help improve WillpowerLab.", signed: "founder 2026-10-08, training switch wording v2 \"with its eight lines\" (backend 23-…-v2, SIGN-3.5-2026-10-08.md)" },
   // The account deletion (founder 2026-10-05, Q3a "yes", N45; W1-W5 A, N50)
   { text: "Your account is being deleted. We'll finish within one month.", signed: "founder 2026-10-05 (deleteAccountCopy.ts)" },
   { text: "Everything you recorded and wrote here will be permanently deleted. This can't be undone. We'll finish within one month, and from now on nothing new is processed.", signed: "founder 2026-10-05 (deleteAccountCopy.ts)" },
