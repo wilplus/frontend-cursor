@@ -21,10 +21,7 @@ import {
 import {
   type Addition,
   fetchIdealTextCore,
-  fetchIdealTextEnrichment,
   fetchIdealTextForDisplay,
-  mergeIdealTextEnrichment,
-  settleIdealTextEnrichment,
   saveIdealUserEdit,
   segmentIdealText,
   type DecisionHistoryEntry,
@@ -64,10 +61,10 @@ import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import {
-  PROMPT_LANE,
-  SLOW_LANE,
-  feedbackStillComing,
-} from "@/lib/willab/enrichmentSettle";
+  loadIdealTextEnrichment,
+  sdFromResult,
+  type IdealTextSd,
+} from "./idealTextLoad";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { useArcDeckRef } from "./useArcDeckRef";
 import IdealTextActions from "./IdealTextActions";
@@ -173,44 +170,7 @@ export default function IdealTextOverlay({
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the moments unlock has run.
   // Voice Album is a separate personal surface, outside project editing.
-  const [sd, setSd] = useState<{
-    status: "unverified" | "verified";
-    version: number | null;
-    momentsUnlocked: boolean;
-    explanationsAvailable: boolean;
-    title: string | null;
-    latestTakeSessionId: string | null;
-    pieces: IdealPiece[] | null;
-    suggestions: DocumentSuggestion[] | null;
-    /** Slice 2 — the post-lock style lane + the decided-proposal history. */
-    styleChanges: DocumentSuggestion[] | null;
-    /** Phase 2: V3 could not make this Take's Feedback. */
-    feedbackFailed: boolean;
-    decisionHistory: DecisionHistoryEntry[] | null;
-    saved: boolean | null;
-    keyPoints: KeyPoint[] | null;
-    /** The arc's deck PDF (slide-per-paragraph read). Safe-ahead: null until
-     *  the BE echoes presentation_ref; useArcDeckRef then falls back. */
-    presentationRef: string | null;
-    /** Slide titles by index — the deck's title slot. */
-    slideTitles: string[] | null;
-    /** The document's stored part ids (SPEC §3.1, Step 0). null → none
-     *  stored, and the arranger mints locally so a part has an id from its
-     *  first render either way. */
-    parts: Part[] | null;
-    /** MATERIAL RECOVERY — words said on a slide the script has no block for. */
-    additions: Addition[];
-    /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
-    userEdited: boolean;
-    /** The BE's gate on a new official take. null (absent) never gates. */
-    canRecordTake: boolean | null;
-    takeCount: number | null;
-    journeyNextStepsSeen: boolean | null;
-    coachMessage: CoachMessage | null;
-    learningExposures: LearningExposureHandle[];
-    confidentMomentSummary: ConfidentMomentSummary | null;
-    confidentMomentOwnerEdit: ConfidentMomentOwnerEdit | null;
-  } | null>(null);
+  const [sd, setSd] = useState<IdealTextSd | null>(null);
 
   useVisibleLearningExposure({
     handles: sd?.learningExposures ?? [],
@@ -355,33 +315,7 @@ export default function IdealTextOverlay({
     ) => {
       setIdeal(r.ideal);
       setNotes(null);
-      setSd({
-        status: r.status,
-        version: r.version,
-        momentsUnlocked: r.momentsUnlocked,
-        explanationsAvailable: r.explanationsAvailable,
-        title: r.title,
-        latestTakeSessionId: r.latestTakeSessionId,
-        pieces: r.pieces,
-        suggestions: r.suggestions,
-        styleChanges: r.styleChanges,
-        feedbackFailed: r.feedbackFailed === true,
-        decisionHistory: r.decisionHistory,
-        saved: r.saved,
-        keyPoints: r.keyPoints,
-        presentationRef: r.presentationRef,
-        slideTitles: r.slideTitles,
-        parts: r.parts,
-        additions: r.additions,
-        userEdited: r.userEdited,
-        canRecordTake: r.canRecordTake,
-        takeCount: r.takeCount,
-        journeyNextStepsSeen: r.journeyNextStepsSeen,
-        coachMessage: r.coachMessage,
-        learningExposures: r.learningExposures,
-        confidentMomentSummary: r.confidentMomentSummary ?? null,
-        confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
-      });
+      setSd(sdFromResult(r));
       versionRef.current = r.version;
       versionArmedRef.current = true;
       // A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18).
@@ -427,92 +361,13 @@ export default function IdealTextOverlay({
         // attached only when they return for this exact snapshot.
         applySingle(r, true);
         setFeedbackPending(Boolean(r.documentSnapshotId));
-        if (r.documentSnapshotId) {
-          /* TWO LANES, ASKED AT ONCE (founder 2026-09-22: "can you do
-             something to make loading of the bookmarks faster? cause it is
-             really long").
-
-             One request for everything cost a whole wasted round trip. The
-             server picks its budget from what is asked for, and asking for
-             nothing in particular got the two-second cold open — but the
-             Manager measurably takes about four and a half seconds, so the
-             bookmarks could not possibly answer in time. The page spent two
-             seconds failing, waited, and only then asked again with room to
-             finish. Seven seconds of ring for four and a half of work.
-
-             Now the marks get the long budget immediately, in their own
-             request, while everything the page draws around them keeps the
-             tight one and arrives when it always did. `mergeIdealText-
-             Enrichment` is a merge, so applying the two answers in whatever
-             order they land is the same document either way. */
-          const promptLane = fetchIdealTextEnrichment(arcId, r.documentSnapshotId, PROMPT_LANE);
-          const [prompt, slow] = await Promise.all([
-            promptLane,
-            fetchIdealTextEnrichment(arcId, r.documentSnapshotId, SLOW_LANE),
-          ]);
-          const enrichment =
-            prompt.kind === "ready" && slow.kind === "ready"
-              ? {
-                  ...prompt,
-                  sections: { ...prompt.sections, ...slow.sections },
-                }
-              : prompt.kind === "ready"
-                ? prompt
-                : slow;
-          if (!active || gen !== fetchGenRef.current) return;
-          if (enrichment.kind === "ready") {
-            let merged = mergeIdealTextEnrichment(r, enrichment);
-            applySingle(merged, false);
-            // Judge the slot from the FIRST answer, not only after the settle
-            // returns: when the mark sections have already answered and only
-            // a non-mark section (the F2 `learning` receipt) is still being
-            // retried, the bookmarks are drawn now rather than after the
-            // settle spends its ninety-second budget on a section that puts
-            // nothing on the page. Re-judged below once the settle ends.
-            setFeedbackPending(feedbackStillComing(enrichment.sections));
-            const settled = await settleIdealTextEnrichment(
-              arcId,
-              r.documentSnapshotId,
-              enrichment,
-            );
-            if (!active || gen !== fetchGenRef.current) return;
-            if (settled.kind === "ready") {
-              merged = mergeIdealTextEnrichment(merged, settled);
-              applySingle(merged, false);
-              /* THE SLOT CLOSES WHEN THE SERVER IS DONE, NOT WHEN WE STOP
-                 ASKING (founder 2026-09-20: "it refetched and then displayed
-                 — so this is just a loading bug").
-
-                 `kind === "ready"` is the envelope, not the answer. A settle
-                 that spent its budget also returns "ready", with its sections
-                 still marked retryable — so this line used to declare feedback
-                 finished for a Take whose Manager work was still running, drop
-                 the reserved marks, and paint a finished-looking talk with no
-                 bookmarks. Nothing re-reads the document after the first paint,
-                 so those marks were gone until an unrelated refetch.
-
-                 Reading the sections tells the two apart. When the budget IS
-                 spent the flag still clears — a slot held open forever is the
-                 same lie as a late mark, told more slowly, and an honest empty
-                 lane is a real outcome (24c/24d). */
-              setFeedbackPending(feedbackStillComing(settled.sections));
-            } else if (settled.kind === "stale") {
-              setRefetchNonce((value) => value + 1);
-            }
-          } else {
-            // It answered without anything to add. The marks the page holds
-            // are all the marks there are, so stop reserving room for more:
-            // a slot kept open forever is the same lie as a late mark, told
-            // more slowly.
-            setFeedbackPending(false);
-            if (enrichment.kind === "stale") {
-              // Never mix revisions. Pull the new core while keeping the
-              // already-painted document visible until it arrives.
-              setRefetchNonce((value) => value + 1);
-              return;
-            }
-          }
-        }
+        // Both lanes at once, each applied the moment it answers (F1).
+        await loadIdealTextEnrichment(arcId, r, {
+          isCurrent: () => active && gen === fetchGenRef.current,
+          apply: (merged) => applySingle(merged, false),
+          setPending: setFeedbackPending,
+          refetch: () => setRefetchNonce((value) => value + 1),
+        });
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
