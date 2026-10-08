@@ -14,7 +14,8 @@ import { SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 /*  plain selectable text — no underline, no mail link — and beside it a      */
 /*  36px round bordered copy button. The button writes the address to the    */
 /*  clipboard and shows a check for 1.6 s; where the clipboard is refused,   */
-/*  the address is selected instead so it can be copied by hand (the         */
+/*  the address is selected and the old copy command is tried on it; if that */
+/*  fails too the selection stays so it can be copied by hand (the           */
 /*  prototype's copyAddress). No other visible word: the prototype's fallback */
 /*  toasts were not signed and are not built.                                 */
 /* -------------------------------------------------------------------------- */
@@ -24,15 +25,22 @@ export const SUPPORT_TITLE = "Support";
 /** How long the check stays after a copy (the prototype's 1600). */
 export const COPIED_MS = 1600;
 
-/** Select the address so a person can copy it by hand. */
-function selectAddress(node: HTMLElement | null): void {
-  if (!node) return;
+/** Select the address so a person can copy it by hand, then try the old
+ *  copy command on that selection as the prototype's copyAddress does.
+ *  Returns true only when the browser says the copy happened. */
+function selectAddress(node: HTMLElement | null): boolean {
+  if (!node) return false;
   const selection = window.getSelection();
-  if (!selection) return;
+  if (!selection) return false;
   const range = document.createRange();
   range.selectNodeContents(node);
   selection.removeAllRanges();
   selection.addRange(range);
+  try {
+    return typeof document.execCommand === "function" && document.execCommand("copy") === true;
+  } catch {
+    return false;
+  }
 }
 
 export default function SupportCard() {
@@ -52,7 +60,7 @@ export default function SupportCard() {
       await clipboard.writeText(SUPPORT_EMAIL);
       setCopied(true);
     } catch {
-      selectAddress(addressRef.current);
+      if (selectAddress(addressRef.current)) setCopied(true);
     }
   };
 

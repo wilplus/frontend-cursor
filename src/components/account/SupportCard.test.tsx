@@ -103,4 +103,20 @@ describe("copying", () => {
     expect(copied()).toBe(false);
     expect(window.getSelection()?.toString()).toBe(SUPPORT_EMAIL);
   });
+
+  it("shows the check when the clipboard is refused but the copy command works", async () => {
+    clipboard(vi.fn(async () => { throw new Error("denied"); }));
+    const exec = vi.fn(() => true);
+    Object.defineProperty(document, "execCommand", { configurable: true, value: exec });
+    try {
+      await act(async () => {
+        button().click();
+      });
+      expect(exec).toHaveBeenCalledWith("copy");
+      expect(copied()).toBe(true);
+      expect(host.textContent).toBe(`Support${SUPPORT_EMAIL}`);
+    } finally {
+      delete (document as { execCommand?: unknown }).execCommand;
+    }
+  });
 });
