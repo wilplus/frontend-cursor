@@ -162,10 +162,14 @@ export function allSpeakersChoice(speaker: PanelSpeaker, index: number): WalkCho
   if (speaker.waiting > 0) {
     return { value, label: speaker.pseudonym, subtitle: COPY.momentsWaiting(speaker.waiting), dot: true };
   }
-  if (speaker.waitingForText > 0) {
+  // Faded, and not pressable, only while the speaker has nothing but a Take
+  // waiting for its text (the prototype's Calm Otter); a speaker with answered
+  // Takes beside it stays a row that opens.
+  const answeredTakes = Math.max(0, speaker.takeCount - speaker.waitingForText);
+  if (speaker.waitingForText > 0 && answeredTakes === 0) {
     return { value, label: speaker.pseudonym, subtitle: COPY.waitingForText, done: true, dim: true };
   }
-  return { value, label: speaker.pseudonym, subtitle: COPY.allAnsweredTakes(speaker.takeCount) };
+  return { value, label: speaker.pseudonym, subtitle: COPY.allAnsweredTakes(answeredTakes) };
 }
 
 export function SpeakersScreen({ speakers, loading, onSpeaker, onClose }: {
@@ -188,9 +192,7 @@ export function SpeakersScreen({ speakers, loading, onSpeaker, onClose }: {
         />
       ) : loading ? (
         <WalkLoading />
-      ) : (
-        <p className="m-0 text-[16px]">{COPY.queueEmpty}</p>
-      )}
+      ) : null}
     </WalkOverlay>
   );
 }
@@ -207,6 +209,11 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   const label = COPY.take(take.takeIndex);
   const value = take.sessionId;
   if (take.waitingForText) return { value, label, subtitle: COPY.waitingForText, done: true, dim: true };
+  // A Take the Speakers read lists before the queue holds its moments: its
+  // count alone, not pressable (nothing to open until the moments arrive).
+  if (take.waiting > 0 && take.moments.length === 0) {
+    return { value, label, subtitle: COPY.momentsWaiting(take.waiting), done: true };
+  }
   if (take.waiting > 0) return { value, label, subtitle: COPY.takeWaiting(take.waiting, take.moments.length) };
   // A Take the Speakers read lists carries counts alone, no moments: it reads
   // "All moments answered" (the list's words win over the prototype's "All
@@ -216,8 +223,16 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   return { value, label, subtitle, done: true, mark: "check" };
 }
 
-export function SpeakerScreen({ speaker, onTake, onBack, onClose }: {
+/** A speaker opened from Your speakers before the queue has their moments:
+ *  wait for the queue rather than draw Takes that cannot open. Pure. */
+export function awaitingMoments(speaker: QueueSpeaker, queueLoading: boolean): boolean {
+  return queueLoading && speaker.takes.some((t) => t.waiting > 0 && t.moments.length === 0);
+}
+
+export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClose }: {
   speaker: QueueSpeaker;
+  /** The queue is still being read. */
+  loading?: boolean;
   onTake: (take: QueueTake) => void;
   onBack: () => void;
   onClose: () => void;
@@ -226,19 +241,23 @@ export function SpeakerScreen({ speaker, onTake, onBack, onClose }: {
   return (
     <WalkOverlay
       title={speaker.pseudonym}
-      caption={speaker.goal ? COPY.goal(speaker.goal) : null}
+      subtitle={speaker.goal ? COPY.goal(speaker.goal) : null}
       onBack={onBack}
       onClose={onClose}
       testId="coach-panel-speaker"
     >
-      <WalkChoices
-        label={speaker.pseudonym}
-        choices={takes.map(takeChoice)}
-        onPick={(v) => {
-          const take = takes.find((t) => t.sessionId === v);
-          if (take) onTake(take);
-        }}
-      />
+      {awaitingMoments(speaker, loading) ? (
+        <WalkLoading />
+      ) : (
+        <WalkChoices
+          label={speaker.pseudonym}
+          choices={takes.map(takeChoice)}
+          onPick={(v) => {
+            const take = takes.find((t) => t.sessionId === v);
+            if (take) onTake(take);
+          }}
+        />
+      )}
     </WalkOverlay>
   );
 }

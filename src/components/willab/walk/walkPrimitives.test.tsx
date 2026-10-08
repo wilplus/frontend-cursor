@@ -12,7 +12,7 @@ import WalkOptions, { toggleWalkOption } from "./WalkOptions";
 import WalkOverlay, { walkNavText } from "./WalkOverlay";
 import WalkStage from "./WalkStage";
 import WalkToast from "./WalkToast";
-import WalkWordPicker, { toggleHelperWord } from "./WalkWordPicker";
+import WalkWordPicker from "./WalkWordPicker";
 import RecordingStrip from "./RecordingStrip";
 import WalkPlayer from "./WalkPlayer";
 
@@ -191,14 +191,22 @@ describe("WalkOptions", () => {
 });
 
 describe("WalkWordPicker", () => {
-  it("picks at most four words", () => {
-    expect(toggleHelperWord([0, 1, 2, 3], 4)).toEqual([0, 1, 2, 3]);
-    expect(toggleHelperWord([0, 1], 1)).toEqual([0]);
-    expect(toggleHelperWord([0], 5)).toEqual([0, 5]);
+  it("one tap adds one word next to the others, up to four (QA4 A, Q-B5 A)", () => {
+    const seen: unknown[] = [];
+    const words = ["Two", "hires", "by", "March", "keep", "that"];
+    draw(createElement(WalkWordPicker, { words, selection: { from: 1, to: 4 }, onChange: (n: unknown) => seen.push(n) }));
+    const buttons = qa("button");
+    (buttons[5] as HTMLButtonElement).click();
+    (buttons[0] as HTMLButtonElement).click();
+    (buttons[2] as HTMLButtonElement).click();
+    expect(seen).toEqual([]);
+    expect(buttons[5].getAttribute("aria-disabled")).toBe("true");
+    (buttons[4] as HTMLButtonElement).click();
+    expect(seen).toEqual([{ from: 1, to: 3 }]);
   });
 
   it("says how many of the four with the signed words", () => {
-    draw(createElement(WalkWordPicker, { words: ["Two", "hires"], picked: [1], onChange: () => {} }));
+    draw(createElement(WalkWordPicker, { words: ["Two", "hires"], selection: { from: 1, to: 1 }, onChange: () => {} }));
     expect(host.textContent).toContain(COPY.cardTapWords);
     expect(host.textContent).toContain(COPY.emphasisCount(1));
   });

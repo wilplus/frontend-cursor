@@ -136,20 +136,21 @@ export function selectionLength(selection: PhraseSelection | null): number {
   return selection ? selection.to - selection.from + 1 : 0;
 }
 
-/** What a tap does to the current run.
+/** What a tap does to the current run: THE ONE HELPER-WORD RULE for every
+ *  picker (the paragraph sheet, the helper-words sheet, the practise sheet,
+ *  the Feedback sheet and the walk's picker; build plan D-IT-5).
  *
- *  `null` means nothing is selected. Tapping the only selected word clears it,
- *  so a speaker can always get back to "no phrase" without a separate control.
+ *  EACH TAP ADDS ONE WORD, ALWAYS ONE CONNECTED PHRASE (founder 2026-10-05,
+ *  N51.5 QA4 A; 2026-10-07, N63 Q-B5 A). `null` means nothing is selected:
+ *  the first tap marks one word. After that a tap on the word just before or
+ *  just after the run adds it, and a tap on the first or last picked word
+ *  takes it away, so the phrase grows and shrinks one word at a time and is
+ *  never broken in the middle. Taking away the only word clears the pick.
  *
- *  TWO TAPS MAKE A PHRASE, THE THIRD STARTS A NEW ONE (founder 2026-09-26).
- *  The first tap marks one word. The second tap marks every word from the
- *  first to it, in either direction. Any tap after that starts a new phrase
- *  at the tapped word, replacing the old one, so a phrase is never stretched
- *  by accident.
- *
- *  AT MOST FOUR WORDS (founder lock 2026-09-30, B3). A second tap that would
- *  stretch the run past `max` does nothing: the same selection comes back,
- *  by identity, so a picker can grey the words a tap cannot reach.
+ *  AT MOST FOUR WORDS (founder lock 2026-09-30, B3). A tap that would make a
+ *  fifth word does nothing, and so does a tap on any word the run cannot
+ *  reach in one step: the same selection comes back, by identity, so a
+ *  picker can grey the words a tap cannot reach.
  */
 export function nextSelection(
   selection: PhraseSelection | null,
@@ -158,12 +159,12 @@ export function nextSelection(
 ): PhraseSelection | null {
   if (!selection) return { from: index, to: index };
   const { from, to } = selection;
-  if (from === to) {
-    if (index === from) return null;
-    const run = { from: Math.min(from, index), to: Math.max(from, index) };
-    return selectionLength(run) > max ? selection : run;
-  }
-  return { from: index, to: index };
+  if (index === from && index === to) return null;
+  if (index === from) return { from: from + 1, to };
+  if (index === to) return { from, to: to - 1 };
+  const adjacent = index === from - 1 || index === to + 1;
+  if (!adjacent || selectionLength(selection) >= max) return selection;
+  return { from: Math.min(from, index), to: Math.max(to, index) };
 }
 
 /** Would a tap on this word change the selection? False for the words a
