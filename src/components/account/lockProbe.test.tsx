@@ -138,6 +138,8 @@ beforeEach(() => {
   root = createRoot(host);
   for (const fn of Object.values(api)) fn.mockReset?.();
   api.getAuthToken.mockResolvedValue("token");
+  // The acceptance flow asks whether practice is offered (#660); unknown keeps the default.
+  api.fetchConsentChoices.mockResolvedValue(null);
   resetTrainingAsk();
 });
 
@@ -282,7 +284,10 @@ describe("Data & consent", () => {
     await render(createElement(DataConsentChoices, { key: "failed" }));
     probe("choices, failed");
 
-    const on = { hasReceipt: true, personalisedPractice: true, sensitiveInformation: true, practiceErasureComplete: null };
+    const on = {
+      hasReceipt: true, personalisedPractice: true, sensitiveInformation: true,
+      practiceErasureComplete: null, practiceOffered: true,
+    };
     api.fetchConsentChoices.mockResolvedValue(on);
     await render(createElement(DataConsentChoices, { key: "on", intro: DATA_CONSENT_COPY.introWithTraining }));
     probe("choices, on");
