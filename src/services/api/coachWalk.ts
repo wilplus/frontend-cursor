@@ -34,11 +34,23 @@ export async function fetchMomentsQueue(): Promise<MomentsQueueResult> {
   return { ok: true, speakers: mapMomentsQueue(data) };
 }
 
+/** What the machine heard on a moment, for its kind (D-CP-13; backend
+ *  services/coach_moment_read.machine_heard): an error the detectors named
+ *  (with the library's label), a confident cue behind the praise, the clearer
+ *  version's reason, or an explicit "nothing". Keys only; never a number. */
+export interface HeardEntry {
+  kind: "error" | "cue" | "reason" | "nothing";
+  key: string;
+  label: string | null;
+}
+
 export interface MomentRead {
   passage: string;
   speakerAnswer: AnswerValue | null;
   coachAnswer: AnswerValue | null;
   speakerGoal: string | null;
+  /** null when the backend does not carry it (older deploy). */
+  heard: HeardEntry[] | null;
   /** null when nothing reached the coach from this moment. */
   request: CoachExerciseRequest | null;
   /** The speaker's chosen practice recording, with the coach's own saved
@@ -65,6 +77,24 @@ function mapMomentPractice(raw: unknown): MomentPractice | null {
   };
 }
 
+const HEARD_KINDS = new Set(["error", "cue", "reason", "nothing"]);
+
+function mapHeard(raw: unknown): HeardEntry[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: HeardEntry[] = [];
+  for (const h of raw) {
+    if (!h || typeof h !== "object") continue;
+    const e = h as Record<string, unknown>;
+    if (typeof e.kind !== "string" || !HEARD_KINDS.has(e.kind) || typeof e.key !== "string" || !e.key) continue;
+    out.push({
+      kind: e.kind as HeardEntry["kind"],
+      key: e.key,
+      label: typeof e.label === "string" && e.label ? e.label : null,
+    });
+  }
+  return out;
+}
+
 export function mapMomentRead(raw: unknown): MomentRead | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -73,6 +103,7 @@ export function mapMomentRead(raw: unknown): MomentRead | null {
     speakerAnswer: isAnswer(r.speaker_answer) ? r.speaker_answer : null,
     coachAnswer: isAnswer(r.coach_answer) ? r.coach_answer : null,
     speakerGoal: typeof r.speaker_goal === "string" && r.speaker_goal ? r.speaker_goal : null,
+    heard: mapHeard(r.heard),
     request: mapCoachExerciseRequest(r.request),
     practice: mapMomentPractice(r.practice),
   };

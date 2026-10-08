@@ -212,6 +212,21 @@ const PROTOTYPE = {
   lounge: "Lounge",
   /* an answered moment */
   summary: "Summary",
+  /* What happened: an answer not given yet, and the machine heard nothing */
+  noAnswer: "—",
+  heardNothing: "nothing",
+  /** The confident cues, as the kind question lists them ("What did {p} do
+   *  well?"), by the backend's cue key (services/delivery_cues). */
+  cue: {
+    confident_read: "confident read",
+    opened_strong: "opened strong",
+    landed_ending: "landed the ending",
+    kept_moving: "kept moving",
+    settled_pitch: "settled pitch",
+    no_hesitation: "no hesitation",
+    full_volume: "full volume",
+    wide_range: "wide range",
+  } as Record<string, string>,
   /* all speakers */
   allAnsweredTakes: (n: number) => `All answered · ${count(n, "Take", "Takes")}`,
   /* the training corpus */

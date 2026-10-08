@@ -44,11 +44,20 @@ const KINDS: Record<string, string> = {
 const SPEAKER_ANSWERS: Record<string, string> = {
   [SNIPS[0]]: "no", [SNIPS[1]]: "yes", [SNIPS[2]]: "in_between", [SNIPS[3]]: "not_sure",
 };
-/** What fired, error moments only (the read carries nothing for the rest). */
+/** What fired, error moments only (the request carries nothing for the rest). */
 export const HEARD = [
   { error_id: "rushing", label: "Rushing" },
   { error_id: "ending_compression", label: "Ending compression" },
 ];
+/** "The machine heard", for every kind (D-CP-13): the errors on the error
+ *  moment, the cues behind the praise, the clearer version's reason (the
+ *  line is left out on that moment, Q-CP13a A), and "nothing" on the note. */
+const MACHINE_HEARD: Record<string, { kind: string; key: string; label?: string }[]> = {
+  [SNIPS[0]]: HEARD.map((h) => ({ kind: "error", key: h.error_id, label: h.label })),
+  [SNIPS[1]]: [{ kind: "cue", key: "landed_ending" }, { kind: "cue", key: "settled_pitch" }],
+  [SNIPS[2]]: [{ kind: "reason", key: "weak_delivery_read" }],
+  [SNIPS[3]]: [{ kind: "nothing", key: "nothing" }],
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -132,7 +141,7 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
         const id = snip(c.url);
         if (!rated.has(id)) return json({ code: "BLIND_RATING_REQUIRED", error: "Rate the original moment first." }, 409);
         return json({ passage: PASSAGES[id], speaker_answer: SPEAKER_ANSWERS[id], coach_answer: rated.get(id) ?? null,
-          speaker_goal: null, request: request(id, resolved.has(id)), named_errors: [] });
+          speaker_goal: null, request: request(id, resolved.has(id)), heard: MACHINE_HEARD[id], named_errors: [] });
       } },
     { when: (c) => moment(c.url, "/exercise-request") && c.method === "PUT",
       reply: (c) => { const id = snip(c.url); resolved.add(id); return json({ request: request(id, true) }); } },
