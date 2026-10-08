@@ -8,6 +8,11 @@
 /*  F1  the prompt lane (coach message, journey, key moments, entitlement,    */
 /*      learning) is applied the moment it answers, not when the slow         */
 /*      `document_layers` lane does; the slow lane likewise on its own.       */
+/*  F2  a refetch of the document already on screen keeps the feedback it    */
+/*      showed (bars, coach note, key moments, additions) until the new       */
+/*      enrichment replaces each piece. Only rows the Manager already         */
+/*      approved and the page already showed are kept (L2); a new arc, a      */
+/*      first load or a new Take starts clean.                                */
 /* -------------------------------------------------------------------------- */
 
 import {
@@ -19,6 +24,7 @@ import {
   type DecisionHistoryEntry,
   type DocumentSuggestion,
   type IdealPiece,
+  type IdealText,
   type IdealTextEnrichmentResult,
   type IdealTextResult,
   type KeyPoint,
@@ -107,6 +113,62 @@ export function sdFromResult(r: SingleIdealText): IdealTextSd {
     confidentMomentSummary: r.confidentMomentSummary ?? null,
     confidentMomentOwnerEdit: r.confidentMomentOwnerEdit ?? null,
   };
+}
+
+type SectionStatuses = Readonly<Record<string, string>> | undefined;
+
+const answered = (sections: SectionStatuses, name: string): boolean =>
+  sections?.[name] === "ready";
+
+/** F2 — the page state for `next`, keeping what the page already showed
+ *  wherever the section that would replace it has not answered yet.
+ *
+ *  `prev` is the state ON SCREEN, so a decision recorded on it
+ *  (`withSuggestionStatus`, `withStyleApproved`) is what is kept: the item
+ *  just decided shows its new status, never as still pending. Nothing new is
+ *  ever introduced — every kept row is one the Manager approved and the page
+ *  already drew (L2). */
+export function carryShownFeedback(
+  prev: IdealTextSd | null,
+  next: IdealTextSd,
+  sections: SectionStatuses,
+  carry: boolean,
+): IdealTextSd {
+  if (!carry || !prev) return next;
+  const layers = answered(sections, "document_layers");
+  const journey = answered(sections, "journey");
+  const history = answered(sections, "history");
+  return {
+    ...next,
+    suggestions: layers ? next.suggestions : prev.suggestions,
+    styleChanges: layers ? next.styleChanges : prev.styleChanges,
+    keyPoints: layers ? next.keyPoints : prev.keyPoints,
+    additions: layers ? next.additions : prev.additions,
+    coachMessage: journey ? next.coachMessage : prev.coachMessage,
+    decisionHistory: history ? next.decisionHistory : prev.decisionHistory,
+  };
+}
+
+/** F2 — the same rule for the coach's key moments, which live on the text. */
+export function carryKeyMoments(
+  prev: IdealText | null,
+  next: IdealText,
+  sections: SectionStatuses,
+  carry: boolean,
+): IdealText {
+  if (!carry || !prev || answered(sections, "feedback")) return next;
+  return { ...next, keyMoments: prev.keyMoments };
+}
+
+/** Whether a refetch may keep what is on screen: not a first load of this
+ *  arc, and the same Take — a new Take's feedback is about other words, so
+ *  it starts clean. */
+export function mayCarry(
+  firstLoad: boolean,
+  shownTake: string | null | undefined,
+  nextTake: string | null,
+): boolean {
+  return !firstLoad && shownTake !== undefined && shownTake === nextTake;
 }
 
 /** Merge one lane's answer, keeping the section statuses of earlier lanes

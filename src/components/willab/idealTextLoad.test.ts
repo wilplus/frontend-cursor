@@ -7,9 +7,15 @@ import type {
   IdealTextResult,
 } from "@/services/api/idealText";
 import {
+  carryKeyMoments,
+  carryShownFeedback,
   loadIdealTextEnrichment,
+  mayCarry,
+  sdFromResult,
   type SingleIdealText,
 } from "./idealTextLoad";
+import { withSuggestionStatus } from "@/lib/willab/idealTextDecisions";
+import type { DocumentSuggestion } from "@/services/api/idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
 
@@ -180,5 +186,73 @@ describe("F1: the prompt lane paints on its own", () => {
       fetchLane: fetchLane as never,
     });
     expect(fetchLane).not.toHaveBeenCalled();
+  });
+});
+
+describe("F2: a refetch keeps the bars until the new enrichment replaces them", () => {
+  const bar = { id: "s1", status: "pending" } as unknown as DocumentSuggestion;
+  const style = { id: "st1", status: "pending" } as unknown as DocumentSuggestion;
+  const coach = { text: "Well done.", videoUrl: null, takeIndex: 1, publishedAt: null };
+  const shown = sdFromResult(
+    core({
+      suggestions: [bar],
+      styleChanges: [style],
+      coachMessage: coach,
+      additions: [{ slideIndex: 1, text: "extra" }] as never,
+      keyPoints: [] as never,
+      decisionHistory: [] as never,
+    }),
+  );
+  const refetched = sdFromResult(core({ version: 3 }));
+
+  it("keeps what was shown while the core alone has landed", () => {
+    const next = carryShownFeedback(shown, refetched, {}, true);
+    expect(next.version).toBe(3);
+    expect(next.suggestions).toEqual([bar]);
+    expect(next.styleChanges).toEqual([style]);
+    expect(next.coachMessage).toEqual(coach);
+    expect(next.additions).toEqual(shown.additions);
+  });
+
+  it("shows the item just decided with its new status, never as pending", () => {
+    const decided = withSuggestionStatus(shown, "s1", "approved");
+    const next = carryShownFeedback(decided, refetched, {}, true);
+    expect(next.suggestions?.[0].status).toBe("approved");
+  });
+
+  it("lets each answered section replace what it owns", () => {
+    const fresh = sdFromResult(core({ suggestions: [], coachMessage: null }));
+    const afterJourney = carryShownFeedback(shown, fresh, { journey: "ready" }, true);
+    expect(afterJourney.coachMessage).toBeNull();
+    expect(afterJourney.suggestions).toEqual([bar]);
+    const afterLayers = carryShownFeedback(shown, fresh, { document_layers: "ready" }, true);
+    expect(afterLayers.suggestions).toEqual([]);
+    expect(afterLayers.additions).toEqual([]);
+    expect(afterLayers.coachMessage).toEqual(coach);
+  });
+
+  it("starts clean when it may not carry", () => {
+    expect(carryShownFeedback(shown, refetched, {}, false)).toBe(refetched);
+    expect(carryShownFeedback(null, refetched, {}, true)).toBe(refetched);
+  });
+
+  it("keeps the coach's key moments until the feedback section answers", () => {
+    const moments = [{ snippetId: "k1" }] as never;
+    const prev = { text: "t", keyMoments: moments, notes: null } as never;
+    const next = { text: "t2", keyMoments: [], notes: null } as never;
+    expect(carryKeyMoments(prev, next, {}, true).keyMoments).toBe(moments);
+    expect(carryKeyMoments(prev, next, {}, true).text).toBe("t2");
+    expect(carryKeyMoments(prev, next, { feedback: "ready" }, true)).toBe(next);
+    expect(carryKeyMoments(prev, next, {}, false)).toBe(next);
+  });
+
+  it("carries only a refetch of the same Take", () => {
+    expect(mayCarry(false, "take-1", "take-1")).toBe(true);
+    // A first load, or a change of arc, starts clean.
+    expect(mayCarry(true, "take-1", "take-1")).toBe(false);
+    // Nothing shown yet.
+    expect(mayCarry(false, undefined, "take-1")).toBe(false);
+    // A new Take's feedback is about other words.
+    expect(mayCarry(false, "take-1", "take-2")).toBe(false);
   });
 });

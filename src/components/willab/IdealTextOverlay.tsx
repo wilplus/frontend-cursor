@@ -61,7 +61,10 @@ import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import {
+  carryKeyMoments,
+  carryShownFeedback,
   loadIdealTextEnrichment,
+  mayCarry,
   sdFromResult,
   type IdealTextSd,
 } from "./idealTextLoad";
@@ -167,6 +170,9 @@ export default function IdealTextOverlay({
    *  document already showing (it must not blank). Keyed by arc, so opening a
    *  different project still gets its loader. */
   const loadedArcRef = useRef<string | null>(null);
+  /** The Take whose feedback is on screen; a refetch of the same Take keeps
+   *  it until the new enrichment replaces it (F2). undefined → none yet. */
+  const shownTakeRef = useRef<string | null | undefined>(undefined);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the moments unlock has run.
   // Voice Album is a separate personal surface, outside project editing.
@@ -312,10 +318,15 @@ export default function IdealTextOverlay({
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
       refreshDocumentVariants: boolean,
-    ) => {
-      setIdeal(r.ideal);
+    ): boolean => {
+      // F2 — a refetch of the Take on screen keeps its bars, coach note and
+      // key moments (with any status just decided) until each is replaced.
+      const keep = mayCarry(firstLoad, shownTakeRef.current, r.latestTakeSessionId);
+      shownTakeRef.current = r.latestTakeSessionId;
+      const sections = r.enrichmentSections;
+      setIdeal((prev) => carryKeyMoments(prev, r.ideal, sections, keep));
       setNotes(null);
-      setSd(sdFromResult(r));
+      setSd((prev) => carryShownFeedback(prev, sdFromResult(r), sections, keep));
       versionRef.current = r.version;
       versionArmedRef.current = true;
       // A LOCK MUST NOT COST THE PARAGRAPH ITS SLIDE (founder 2026-09-18).
@@ -338,6 +349,7 @@ export default function IdealTextOverlay({
           });
         }
       }
+      return keep;
     };
     void read(arcId).then(async (r) => {
       if (!active || gen !== fetchGenRef.current) return;
@@ -359,13 +371,17 @@ export default function IdealTextOverlay({
       if (r.kind === "single") {
         // Paint the immutable core first. Optional feedback and controls are
         // attached only when they return for this exact snapshot.
-        applySingle(r, true);
-        setFeedbackPending(Boolean(r.documentSnapshotId));
+        const keep = applySingle(r, true);
+        // A kept refetch never re-opens the slot it already closed (F2).
+        const setPending = keep
+          ? (value: boolean) => setFeedbackPending((was) => was && value)
+          : setFeedbackPending;
+        setPending(Boolean(r.documentSnapshotId));
         // Both lanes at once, each applied the moment it answers (F1).
         await loadIdealTextEnrichment(arcId, r, {
           isCurrent: () => active && gen === fetchGenRef.current,
           apply: (merged) => applySingle(merged, false),
-          setPending: setFeedbackPending,
+          setPending,
           refetch: () => setRefetchNonce((value) => value + 1),
         });
       } else if (r.kind === "ready") {
