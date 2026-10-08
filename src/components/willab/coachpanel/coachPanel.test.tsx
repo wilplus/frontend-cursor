@@ -349,6 +349,9 @@ describe("the screens", () => {
       .toEqual({ value: "i1", label: "Board update, March", subtitle: "Set-up not finished · finish it before judging" });
     expect(importChoice({ ...im, speakerLabel: null, state: "running" })).toMatchObject({ subtitle: "No speaker label · Analysing on the server…", done: true, dim: true });
     expect(importChoice({ ...im, queueCount: 0, labelledCount: 0 })).toMatchObject({ subtitle: "Jane Doe · 0 moments", done: true });
+    // No counts in the list: whose voice alone, never "0 moments".
+    const unknown = importChoice({ ...im, queueCount: null, labelledCount: null });
+    expect(unknown).toEqual({ value: "i1", label: "Board update, March", subtitle: "Jane Doe" });
     // Import needs a file, a topic and a language; the set-up of an import that exists needs no file.
     const file = new File(["x"], "talk.mp3", { type: "audio/mpeg" });
     expect(importReady({ ...BLANK_IMPORT, file, topic: "Workshop", language: "en" }, null)).toBe(true);

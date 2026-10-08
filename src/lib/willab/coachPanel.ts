@@ -71,6 +71,9 @@ export type PanelAction =
   | { type: "corpusImport"; setupOf?: string | null }
   | { type: "corpusAnalyse" }
   | { type: "corpusJudge"; importId: string; topic: string }
+  /** A set-up just saved: straight to its judging, as the prototype's
+   *  doImport does (history cleared, a soft cross-fade). */
+  | { type: "corpusSetUp"; importId: string; topic: string }
   /** Back to the imports after an import or a judged moment set (the
    *  prototype goes "back" there with nothing behind). */
   | { type: "corpusHome" }
@@ -194,6 +197,8 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return push(state, { key: "corpusanalyse" });
     case "corpusJudge":
       return push(state, { key: "corpus", importId: action.importId, topic: action.topic });
+    case "corpusSetUp":
+      return { ...state, screen: { key: "corpus", importId: action.importId, topic: action.topic }, history: [], dir: "fade" };
     case "corpusHome":
       return { ...state, screen: { key: "corpushome" }, history: [], dir: "back" };
     case "close":

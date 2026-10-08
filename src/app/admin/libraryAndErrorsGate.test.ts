@@ -73,7 +73,25 @@ describe("the library and the speaking errors pages, founder only", () => {
 
   it.each(PAGES)("%s renders for the founder", async (_path, Page) => {
     auth.user = { email: FOUNDER_EMAIL };
-    await expect(Page({})).resolves.toBeTruthy();
+    vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "on");
+    try {
+      await expect(Page({})).resolves.toBeTruthy();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("/admin/corpus is Not Found, even for the founder, until the coach panel's switch is on", async () => {
+    auth.user = { email: FOUNDER_EMAIL };
+    vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "");
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      await expect(AdminCorpusPage({ searchParams: { coach2: "1" } })).rejects.toThrow("NOT_FOUND");
+      vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "on");
+      await expect(AdminCorpusPage({})).resolves.toBeTruthy();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("today's pages stand until the coach panel's switch is on (Q-CP645 A)", async () => {

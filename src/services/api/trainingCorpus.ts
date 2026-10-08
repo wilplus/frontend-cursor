@@ -876,6 +876,42 @@ export async function fetchConfidenceQueue(
   return result.ok ? result.queue : null;
 }
 
+/** A queue row as the coach panel's blind Judge holds it: ids, the label,
+ *  the blind handles and nothing about the moment. No `transcript` field at
+ *  all, so no screen can draw a piece's words before (or after) the label
+ *  (coach panel lock: nothing about the moment before the answer is saved;
+ *  BLIND COACH, N1). */
+export type BlindQueuePiece = Omit<QueuePiece, "transcript">;
+
+export interface BlindConfidenceQueue {
+  sessionId: string;
+  /** Payload order, preserved (N2). */
+  queue: BlindQueuePiece[];
+}
+
+/** Pure: a row without its words. */
+export function blindPiece(piece: QueuePiece): BlindQueuePiece {
+  return {
+    reviewActId: piece.reviewActId,
+    snippetId: piece.snippetId,
+    label: piece.label,
+    reReview: piece.reReview,
+    learningExposures: piece.learningExposures,
+    canonicalPosition: piece.canonicalPosition,
+    blindReview: piece.blindReview,
+    mlc2BlindReview: piece.mlc2BlindReview,
+  };
+}
+
+/** The labelling queue for the panel's blind Judge: audio is asked for by
+ *  snippet elsewhere; the words never enter the panel's state. */
+export async function fetchBlindConfidenceQueue(
+  sessionId: string
+): Promise<BlindConfidenceQueue | null> {
+  const queue = await fetchConfidenceQueue(sessionId);
+  return queue ? { sessionId: queue.sessionId, queue: queue.queue.map(blindPiece) } : null;
+}
+
 /* ---------------------------- a row's playback ----------------------------
  * GET /api/v2/coach/corpus/clips/<snippet_id>/playback (coach/admin only).
  * The backend answers a short-lived signed URL to the import's PARENT

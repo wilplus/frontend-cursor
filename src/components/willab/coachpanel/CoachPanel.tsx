@@ -55,7 +55,7 @@ import {
   fetchCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import {
-  fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
+  fetchBlindConfidenceQueue, fetchTrainingImports, importTrainingAudio, saveImportSetup, type TrainingImport,
 } from "@/services/api/trainingCorpus";
 
 type StageScreen = WalkScreen & { panel: PanelScreen };
@@ -217,9 +217,10 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   const close = () => dispatch({ type: "close" });
+  const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
   const rated = (snippetId: string, value: AnswerValue) => {
     dispatch({ type: "rated", snippetId, value });
-    setToast((t) => ({ id: (t?.id ?? 0) + 1, text: COPY.toastJudged }));
+    say(COPY.toastJudged);
   };
   /** An import opens its set-up first when that is not finished (CO1 A). */
   function openImport(im: TrainingImport): void {
@@ -238,13 +239,28 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     setCorpusBusy(true);
     setCorpusFail(null);
     if (setupOf) {
+      // As the prototype: the app's one loader while the set-up saves, then
+      // straight to judging with "Set up · {n} moments".
+      dispatch({ type: "corpusAnalyse" });
+      const topic = form.topic.trim();
       const saved = await saveImportSetup(setupOf, {
-        topic: form.topic.trim(), language: form.language, speakerLabel: form.speaker.trim() || null, source: form.source.trim() || null,
+        topic, language: form.language, speakerLabel: form.speaker.trim() || null, source: form.source.trim() || null,
       });
+      if (!saved.ok) {
+        setCorpusBusy(false);
+        setCorpusFail(saved.error ?? COPY.answerFail);
+        dispatch({ type: "back" });
+        return;
+      }
+      // How many moments wait: the blind read (ids only, never the words).
+      const queue = await fetchBlindConfidenceQueue(setupOf);
+      const n = queue?.queue.length ?? 0;
       setCorpusBusy(false);
-      if (!saved.ok) { setCorpusFail(saved.error ?? COPY.answerFail); return; }
+      setForm(BLANK_IMPORT);
       corpus.refresh();
-      dispatch({ type: "corpusHome" });
+      say(`${COPY.setUp} · ${COPY.moments(n)}`);
+      // An import with nothing to judge is never offered for judging.
+      dispatch(n > 0 ? { type: "corpusSetUp", importId: setupOf, topic } : { type: "corpusHome" });
       return;
     }
     if (!form.file) { setCorpusBusy(false); return; }
@@ -264,6 +280,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     }
     setForm(BLANK_IMPORT);
     corpus.refresh();
+    say(`${COPY.imported} · ${COPY.moments(outcome.queueCount)}`);
     dispatch({ type: "corpusHome" });
   }
 

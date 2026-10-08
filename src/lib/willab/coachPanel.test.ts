@@ -136,6 +136,14 @@ describe("the training corpus (D-CP-20)", () => {
     expect(s.screen.key).toBe("corpushome");
   });
 
+  it("a saved set-up goes straight to its judging, history cleared, a soft cross-fade", () => {
+    const s = run({ type: "corpus" }, { type: "corpusImport", setupOf: "i1" }, { type: "corpusAnalyse" },
+      { type: "corpusSetUp", importId: "i1", topic: "Workshop" });
+    expect(s.screen).toEqual({ key: "corpus", importId: "i1", topic: "Workshop" });
+    expect(s.history).toEqual([]);
+    expect(s.dir).toBe("fade");
+  });
+
   it("the next unlabelled piece, in payload order, never re-sorted", () => {
     expect(firstUnlabelledIndex([true, true, false, true])).toBe(2);
     expect(firstUnlabelledIndex([true, true])).toBe(0);

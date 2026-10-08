@@ -8,7 +8,8 @@
 /*  What makes a corpus label honest stays exactly as the corpus page keeps   */
 /*  it: payload order (N2), no default answer (N3), the visible-render receipt */
 /*  before a blind answer (BlindExposureBoundary), the re-review flag, and no */
-/*  machine read anywhere (N1): the row carries nothing but ids; the clip is  */
+/*  machine read anywhere (N1): the row carries nothing but ids (the blind   */
+/*  read drops even the words field, fetchBlindConfidenceQueue); the clip is */
 /*  asked for by snippet through the coach-only playback route. The words of  */
 /*  a piece are NEVER drawn here, before or after the label. An answer moves  */
 /*  on to the next unlabelled piece by itself; after the last one, back to    */
@@ -24,7 +25,9 @@ import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import { firstUnlabelledIndex, nextUnlabelledIndex } from "@/lib/willab/coachPanel";
 import type { AnswerValue } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
-import { fetchConfidenceQueue, type ConfidenceQueue, type QueuePiece } from "@/services/api/trainingCorpus";
+import {
+  fetchBlindConfidenceQueue, type BlindConfidenceQueue, type BlindQueuePiece,
+} from "@/services/api/trainingCorpus";
 import {
   acknowledgeCoachInlineBlindRender, acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating,
   type BlindRenderResult, type CoachInlineBlindReviewHandle, type ConfidenceChainBlindHandle,
@@ -32,7 +35,7 @@ import {
 
 type BlindHandle = CoachInlineBlindReviewHandle | ConfidenceChainBlindHandle;
 
-function blindHandle(piece: QueuePiece): BlindHandle | null {
+function blindHandle(piece: BlindQueuePiece): BlindHandle | null {
   return piece.blindReview ?? piece.mlc2BlindReview;
 }
 
@@ -53,16 +56,21 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
   onBack: () => void;
   onClose: () => void;
 }) {
-  const [queue, setQueue] = useState<ConfidenceQueue | null | undefined>(undefined);
+  const [queue, setQueue] = useState<BlindConfidenceQueue | null | undefined>(undefined);
   const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const saving = useRef(false);
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
 
   useEffect(() => {
     let live = true;
-    void fetchConfidenceQueue(importId).then((q) => {
+    void fetchBlindConfidenceQueue(importId).then((q) => {
       if (!live) return;
+      // An import with no moments is never judged: straight back to the
+      // imports, no dead Judge screen and no word of its own.
+      if (q && q.queue.length === 0) { onDoneRef.current(); return; }
       setQueue(q);
       if (q) setAt(firstUnlabelledIndex(q.queue.map((p) => p.label !== null)));
     });
@@ -70,7 +78,7 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
   }, [importId]);
 
   const pieces = queue?.queue ?? [];
-  const piece: QueuePiece | undefined = pieces[at];
+  const piece: BlindQueuePiece | undefined = pieces[at];
   const playback = useCorpusClip(queue ? piece?.snippetId ?? null : null);
 
   useVisibleLearningExposure({

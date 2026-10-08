@@ -46,7 +46,11 @@ export function importChoice(im: TrainingImport): WalkChoice {
   const who = im.speakerLabel ?? COPY.noSpeakerLabel;
   if (im.state === "running") return { value, label: im.topic, subtitle: `${who} · ${COPY.analysing}`, done: true, dim: true };
   const counts = momentsLeft(im);
-  if (!counts || counts.total === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.moments(counts?.total ?? 0)}`, done: true };
+  // The list does not say how many: whose voice alone, never "0 moments";
+  // the row still opens (an empty import goes straight back, CoachCorpusJudge).
+  if (!counts) return { value, label: im.topic, subtitle: who };
+  // Nothing to judge: drawn, never offered for judging.
+  if (counts.total === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.moments(0)}`, done: true };
   if (counts.left === 0) return { value, label: im.topic, subtitle: `${who} · ${COPY.allLabelled(counts.total)}`, done: true, mark: "check" };
   return { value, label: im.topic, subtitle: `${who} · ${COPY.momentsToJudgeOf(counts.left, counts.total)}` };
 }
