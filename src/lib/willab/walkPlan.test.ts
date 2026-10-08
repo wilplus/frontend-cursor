@@ -28,7 +28,11 @@ describe("buildWalkPlan", () => {
   it("one slide: with the harness's answers laid in, it is the harness FLOW", () => {
     const plan = buildWalkPlan({ moments: HARNESS, coachNote: true, practiceOn: true, guest: false });
     const flow = withOutcomes(plan, { 1: ["again"], 3: ["praise"] });
-    expect(shape(flow)).toEqual(shape(FLOW as readonly WalkStep[]));
+    // The harness flow opens in the Lounge (walk lock, flow 1; D-FW-12), which
+    // is not a step of the plan: the plan starts on the text page.
+    const fromThePage = FLOW.filter((s) => s.key !== "lounge") as readonly WalkStep[];
+    expect(FLOW[0].key).toBe("lounge");
+    expect(shape(flow)).toEqual(shape(fromThePage));
   });
 
   it("several slides: all praise first, then all practising, then one Judgement time! (Q-B2 A)", () => {

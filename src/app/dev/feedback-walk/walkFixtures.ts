@@ -1,5 +1,5 @@
 import type { WalkScreen } from "@/lib/willab/walkMotion";
-import { CHUNK_SHEET_COPY as COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  Fixtures for the Feedback walk harness (/dev/feedback-walk). DEV ONLY.     */
@@ -17,6 +17,17 @@ import { CHUNK_SHEET_COPY as COPY, WALK_LINE_BANK } from "@/components/willab/id
 export const BANK_PICKS = {
   /** A try the machine heard improve: B07 (the ending went down). */
   improved: WALK_LINE_BANK.B07.lines[2],
+  /** A try where nothing moved (NX3a): the first signed line. */
+  nothingMoved: WALK_COPY.encourageNothingMoved[0],
+  /** After the third try that isn't praise (CM3b A, N55): the first line. */
+  thirdTry: WALK_COPY.afterThirdTry[0],
+} as const;
+
+/** The Lounge around the walk (walk lock, flow 1): the speaker's own
+ *  message, and the Ideal Text bubble marked because feedback arrived.
+ *  SAMPLE CONTENT, from the prototype. */
+export const LOUNGE_STANDIN = {
+  speakerMessage: "Here’s my Q3 board pitch, second take.",
 } as const;
 
 export const PROJECT_TITLE = "Q3 Board pitch";
@@ -84,14 +95,18 @@ export const MOMENTS: readonly Moment[] = [
 ];
 
 export const SCREEN_NAMES = [
+  "lounge",
   "coachnote",
   "praise",
   "clearer",
+  "clearerOff",
   "exVideo",
   "practise",
   "processing",
   "improved",
   "encourage",
+  "nothingMoved",
+  "thirdTry",
   "helpers",
   "intro",
   "journal",
@@ -108,14 +123,23 @@ export const PAGE: Step = { key: "page", overlay: false };
 
 /** ?screen=<name>: each screen on its own, from the prototype's moments. */
 export const SINGLE: Record<ScreenName, Step> = {
+  // The Lounge with the marked Ideal Text bubble (walk lock, flow 1).
+  lounge: { key: "lounge", overlay: false },
   coachnote: { key: "coachnote" },
   praise: { key: "praise", moment: 0 },
   clearer: { key: "clearer", moment: 1 },
+  // The clearer version while personalised practice is off (WQ3c A):
+  // "Accept" takes the words, nothing is practised.
+  clearerOff: { key: "clearerOff", moment: 1 },
   exVideo: { key: "exVideo", moment: 3 },
   practise: { key: "practise", moment: 1, kind: "words" },
   processing: { key: "processing", moment: 1 },
   improved: { key: "improved", moment: 3 },
   encourage: { key: "encourage", moment: 1 },
+  // A try where nothing moved (NX3a), and the line after the third try
+  // that isn't praise (CM3b A), before the walk moves on.
+  nothingMoved: { key: "nothingMoved", moment: 1 },
+  thirdTry: { key: "thirdTry", moment: 1 },
   helpers: { key: "helpers", moment: 0 },
   intro: { key: "intro" },
   journal: { key: "journal" },
@@ -128,6 +152,7 @@ export const SINGLE: Record<ScreenName, Step> = {
  *  its helper words), then the practising, "Judgement time!", the
  *  judgements, sharing, the end. */
 export const FLOW: readonly Step[] = [
+  { key: "lounge", overlay: false },
   PAGE,
   { key: "coachnote" },
   { key: "praise", moment: 0 },

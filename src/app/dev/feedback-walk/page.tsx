@@ -54,7 +54,7 @@ import PageStandIn from "./pageStandIn";
 import LiveWalk from "./liveWalk";
 import ParagraphWalk, { type ParagraphView } from "./paragraphWalk";
 import LoungeBubble, { type LoungeView } from "./loungeBubble";
-import { renderWalkScreen, type WalkCtx } from "./walkScreens";
+import { LoungeStandIn, renderWalkScreen, type WalkCtx } from "./walkScreens";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 
 type Mode =
@@ -147,8 +147,15 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
   const [community, setCommunity] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [endLeaving, setEndLeaving] = useState(false);
+  // Skip on "Judgement time!" clears the bars (Q-B6 A); the walk still asks
+  // to share, then the end card.
+  const [barsCleared, setBarsCleared] = useState(false);
+  // The Journal post, opened from "Judgement time!" and closed back to it.
+  const [journalFrom, setJournalFrom] = useState<number | null>(null);
+  // The moments whose clearer words were accepted without a practise.
+  const [accepted, setAccepted] = useState<Record<number, boolean>>({});
   const audioSrc = useAudioSrc();
-  const step = steps[at];
+  const step: Step = journalFrom === null ? steps[at] : { key: "journal" };
   const elapsed = useClock(step.key === "practise", `${at}`);
 
   const go = useCallback(
@@ -160,8 +167,50 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     [flow, steps.length],
   );
   const forward = useCallback(() => go(at + 1, "forward"), [go, at]);
-  const back = useCallback(() => go(at - 1, "back"), [go, at]);
-  const close = useCallback(() => go(0), [go]);
+  const back = useCallback(() => {
+    if (journalFrom !== null) {
+      setJournalFrom(null);
+      setDir("back");
+      return;
+    }
+    go(at - 1, "back");
+  }, [go, at, journalFrom]);
+  const close = useCallback(() => go(1), [go]);
+  /** Past this moment's practise loop: the first later step that is not its
+   *  practise, checking, praise or encouragement, or helper words. */
+  const pastPractise = useCallback(() => {
+    if (!flow) return;
+    const moment = steps[at].moment;
+    const loop = new Set(["practise", "processing", "improved", "encourage", "nothingMoved", "thirdTry", "helpers"]);
+    let next = at + 1;
+    while (next < steps.length - 1 && steps[next].moment === moment && loop.has(steps[next].key)) next += 1;
+    go(next, "forward");
+  }, [flow, steps, at, go]);
+  /** "Keep my words" (D-FW-12): the clearer version is declined and its
+   *  practise is skipped. */
+  const keepWords = pastPractise;
+  /** "Accept" while practice is off (WQ3c A): the clearer words go into the
+   *  text and nothing is practised. */
+  const acceptWords = useCallback(() => {
+    if (!flow) return;
+    const moment = steps[at].moment;
+    if (typeof moment === "number") setAccepted((a) => ({ ...a, [moment]: true }));
+    pastPractise();
+  }, [flow, steps, at, pastPractise]);
+  /** Skip on "Judgement time!" (Q-B6 A): the bars are cleared, and the walk
+   *  still asks to share, then the end card. */
+  const skipJudging = useCallback(() => {
+    if (!flow) return;
+    setBarsCleared(true);
+    setAnswers({});
+    const community = steps.findIndex((s, i) => i > at && s.key === "community");
+    go(community === -1 ? steps.length - 1 : community, "fade");
+  }, [flow, steps, at, go]);
+  const openJournal = useCallback(() => {
+    if (!flow) return;
+    setJournalFrom(at);
+    setDir("forward");
+  }, [flow, at]);
 
   // Checking a try: the machine's answer arrives on its own.
   useEffect(() => {
@@ -178,6 +227,10 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     forward,
     back,
     close,
+    openJournal,
+    keepWords,
+    acceptWords,
+    skipJudging,
     answers,
     answer: (moment, value) => {
       setAnswers((a) => ({ ...a, [moment]: value }));
@@ -196,13 +249,18 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     setEndLeaving(true);
     window.setTimeout(() => {
       setEndLeaving(false);
-      go(0);
+      go(1);
     }, END_LEAVE_MS);
   };
 
+  const pageIndex = steps.findIndex((s) => s.key === "page");
   return (
     <div data-walk-harness={mode.kind} data-walk-step={`${at}:${step.key}`}>
-      <PageStandIn answers={answers} onReview={() => go(1)} />
+      {step.key === "lounge" ? (
+        <LoungeStandIn walked={barsCleared || Object.keys(answers).length > 0} onOpen={() => go(pageIndex === -1 ? at + 1 : pageIndex, "forward")} />
+      ) : (
+        <PageStandIn answers={answers} accepted={accepted} cleared={barsCleared} onReview={() => go(pageIndex === -1 ? 1 : pageIndex + 1, "forward")} />
+      )}
       <WalkStage screen={step} dir={dir} render={(s) => renderWalkScreen(ctx(s))} />
       {step.key === "end" ? (
         <WalkEndSheet
