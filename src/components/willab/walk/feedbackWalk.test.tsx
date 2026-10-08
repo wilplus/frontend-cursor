@@ -110,6 +110,21 @@ describe("FeedbackWalk", () => {
     expect(props.onEnd).toHaveBeenCalledTimes(1);
   });
 
+  it("helper words carry the prototype's subtitle under the title, on a later Take and on Take 1", () => {
+    for (const firstTake of [false, true]) {
+      draw(null, { firstTake });
+      draw({ seq: firstTake ? 3 : 2, at: 3 }, { firstTake });
+      expect(screen()).toBe("walk-screen-helpers");
+      const subs = [...live()!.querySelectorAll("[data-walk-subtitle]")];
+      expect(subs.map((p) => p.textContent)).toEqual(["These words show while you record your next take"]);
+      expect(subs[0].textContent).toBe(WALK_COPY.helpersSubtitle);
+      // Under the title, above the picker.
+      const picker = live()!.querySelector("[data-walk-word-picker]")!;
+      expect(subs[0].compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(live()!.querySelector("h2")!.compareDocumentPosition(subs[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   it("saves the picked helper words as one phrase, then moves on", () => {
     const props = draw(null);
     draw({ seq: 1, at: 3 });

@@ -251,6 +251,10 @@ await practiseRun("praise on try 1", [{ next: "praise", key: "cue:landed_ending"
   check("practise: records at once, no title, no slide bar",
     (await page.locator(`${liveScreen("practise")} h2`).count()) === 0 &&
     (await page.locator(`${liveScreen("practise")} [data-walk-nav]`).count()) === 0);
+  check("practise on a clearer version: the served line above the words to say",
+    (await page.locator(`${liveScreen("practise")} [data-walk-message]`).innerText()) ===
+      "Say it this way, and let \u201cprice\u201d land at the end." &&
+    (await page.locator(`${liveScreen("practise")} [data-walk-say]`).innerText()) === TRY_WORDS);
   await stopTry(page);
   check("Stop: the voice mark while the machine checks", await shown("processing"));
   check("praise on try 1: the praise after the try", await shown("improved"));
@@ -260,6 +264,9 @@ await practiseRun("praise on try 1", [{ next: "praise", key: "cue:landed_ending"
   await page.locator(`${liveScreen("improved")} [data-testid="walk-forward"]`).click();
   check("praise → helper words from the try's own words", await shown("helpers") &&
     (await page.locator(`${liveScreen("helpers")} [data-walk-word-picker] button`).allInnerTexts()).join(" ") === TRY_WORDS);
+  check("helper words: the prototype's subtitle under the title",
+    (await page.locator(`${liveScreen("helpers")} [data-walk-subtitle]`).innerText()) ===
+      "These words show while you record your next take");
 });
 
 await practiseRun("praise on try 2", [{ next: "again", key: "effort" }, { next: "praise", key: "more_assured" }],
@@ -416,6 +423,8 @@ await judgingRun("intro → journal → judge → end", "published", async ({ pa
   }
   check("the last judgement leads to the end card",
     await page.waitForSelector("[data-walk-endsheet]", { timeout: 10_000 }).then(() => true, () => false));
+  await page.waitForTimeout(700);
+  check("no toast sits on the end card's pill", (await page.locator("[data-walk-toast]").count()) === 0);
   check("each answer handed over once, a change with the earlier answer",
     (await judged()) === "cv-0:yes|cv-0:no<yes|cv-1:in_between|cv-2:in_between|cv-3:in_between", await judged());
 });
