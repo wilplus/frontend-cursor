@@ -72,6 +72,21 @@ export function prefilledCountry(
     : null;
 }
 
+/** The reader's locale if Intl accepts it, else "en".
+ *
+ *  `navigator.language` is not guaranteed to be a BCP 47 tag: a browser that
+ *  inherits a POSIX `LANG` reports "en-US@posix", and `localeCompare` THROWS
+ *  a RangeError on it — which took the whole acceptance flow to the error
+ *  boundary, so the person could never agree and recording stayed closed.
+ *  Validated once here so the names and the sort read the same tag. */
+export function safeLocale(locale: string): string {
+  try {
+    return Intl.getCanonicalLocales(locale)[0] ?? "en";
+  } catch {
+    return "en";
+  }
+}
+
 /** One row per allowed country, named in the reader's own language,
  *  Poland first.
  *
@@ -92,9 +107,10 @@ export function countryChoices(
   // Pologne, Polen, Polonia or Polska depending on the device, and lands in
   // a different alphabetical position in each — which is exactly why it
   // cannot be found by sorting, and has to be pinned instead.
+  const tag = safeLocale(locale);
   let names: Intl.DisplayNames | null = null;
   try {
-    names = new Intl.DisplayNames([locale], { type: "region" });
+    names = new Intl.DisplayNames([tag], { type: "region" });
   } catch {
     names = null;
   }
@@ -122,7 +138,7 @@ export function countryChoices(
   const pinned = rows.filter((row) => row.code === FIRST_CHOICE);
   const rest = rows
     .filter((row) => row.code !== FIRST_CHOICE)
-    .sort((a, b) => a.label.localeCompare(b.label, locale));
+    .sort((a, b) => a.label.localeCompare(b.label, tag));
   return [...pinned, ...rest];
 }
 
