@@ -378,15 +378,11 @@ export const CHUNK_SHEET_COPY = {
 /*  walk's screens is already in CHUNK_SHEET_COPY above or in the shared      */
 /*  answer vocabulary. The lines after the third try that isn't praise       */
 /*  (CM3b A, N55) and the clearer version's button when personalised         */
-/*  practice is off (WQ3c A) were signed minutes later. The "Journal"         */
-/*  eyebrow above the post was signed with the prototype's design on         */
-/*  2026-10-07 (Q-B4 A, decisions log N62/N63: "every word a locked           */
-/*  prototype shows is signed with its design ... 'Journal' shows").          */
+/*  practice is off (WQ3c A) were signed minutes later. The "Journal"        */
+/*  eyebrow above the post in the walk was signed with Q-B4 A (N62).          */
 /* -------------------------------------------------------------------------- */
 
 export const WALK_COPY = {
-  /* The eyebrow above the Journal post, inside the flow (Q-B4 A). */
-  journalEyebrow: "Journal",
   /* A practise the machine did not hear improve: encouragement, then another
      practise, until praise or Skip. */
   encourage: "It was better, and I have yet another practice for you to try!",
@@ -396,6 +392,10 @@ export const WALK_COPY = {
     "If you are honest when judging others, it will help you find your confident voice and calm the inner critic 😌",
   /* The grey link; opens the Journal post inside the flow. */
   judgementJournalLink: "More about self-modeling theory",
+  /* Above the Journal post the link opens inside the walk (Q-B4 A, N62: "Journal"
+     shows above the post in the walk). The post's title and words are the
+     published post's own (JP1 A, N53). */
+  journalEyebrow: "Journal",
   judgementPromise: "I am going to judge them honestly",
   skip: "Skip",
   /* The clearer version's message, around the new words. */
@@ -403,6 +403,11 @@ export const WALK_COPY = {
   clearerAsk: "Do you accept and want to practise it?",
   /* The exercise video's button. */
   exercisePractise: "Practise",
+  /* Under "Choose your helper words" in the walk, on every Take: the locked
+     prototype's subtitle, signed with its design (Q-B4 A, N62). The same
+     words as CHUNK_SHEET_COPY.emphasisFirstTakeNote, which the sheets show
+     on Take 1 only. */
+  helpersSubtitle: CHUNK_SHEET_COPY.emphasisFirstTakeNote,
   /* Sharing, after every finished review. */
   shareTitle: "After all, it's about speaking publicly!",
   shareAsk: "Do you agree to share this take with others?",

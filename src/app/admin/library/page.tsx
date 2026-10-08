@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isFounderEmail } from "@/lib/founder";
 import CoachExerciseAuthoringClient from "./page.client";
+import LibraryPanel from "./LibraryPanel";
+import { coachPanelOnForPage } from "@/lib/willab/coachPanelSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,9 @@ export const dynamic = "force-dynamic";
 /*  header only.                                                              */
 /* -------------------------------------------------------------------------- */
 
-export default async function AdminLibraryPage() {
+type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
+
+export default async function AdminLibraryPage({ searchParams }: PageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -29,5 +33,7 @@ export default async function AdminLibraryPage() {
     redirect("/login?redirectTo=/admin/library");
   }
   if (!isFounderEmail(user.email)) notFound();
-  return <CoachExerciseAuthoringClient />;
+  // The rebuilt screens wait behind the coach panel's switch until the
+  // founder approves them from the Done list (Q-CP645 A, 2026-10-08).
+  return coachPanelOnForPage(searchParams) ? <LibraryPanel /> : <CoachExerciseAuthoringClient />;
 }

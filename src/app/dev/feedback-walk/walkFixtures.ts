@@ -8,9 +8,8 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "@/component
 /*  speaker would say and a coach would write — taken from the locked          */
 /*  prototype. They are data, not product copy. Product words come from       */
 /*  CHUNK_SHEET_COPY, WALK_COPY and the signed line bank (WALK_LINE_BANK)      */
-/*  only; the "Journal" eyebrow was signed 2026-10-07 (Q-B4 A). The Journal   */
-/*  post itself is not written yet (D-OP-2): the harness shows the            */
-/*  prototype's own stand-in words for it, as sample content.                 */
+/*  only. The Journal post (JOURNAL_POST) stands in for the published post   */
+/*  the product reads from the Journal (JP1 A, signed as drafted).            */
 /* -------------------------------------------------------------------------- */
 
 /** The signed line-bank line (N54) each harness screen shows: one per
@@ -22,13 +21,6 @@ export const BANK_PICKS = {
   nothingMoved: WALK_COPY.encourageNothingMoved[0],
   /** After the third try that isn't praise (CM3b A, N55): the first line. */
   thirdTry: WALK_COPY.afterThirdTry[0],
-} as const;
-
-/** The Journal post inside the flow is not written yet (D-OP-2); the
- *  prototype's own stand-in words hold its place. SAMPLE CONTENT. */
-export const JOURNAL_STANDIN = {
-  title: "The Journal post goes here",
-  note: "A WillpowerLab Journal post, opened inside the flow. It explains self-modeling in plain words and links to the article.",
 } as const;
 
 /** The Lounge around the walk (walk lock, flow 1): the speaker's own
@@ -150,7 +142,6 @@ export const SINGLE: Record<ScreenName, Step> = {
   thirdTry: { key: "thirdTry", moment: 1 },
   helpers: { key: "helpers", moment: 0 },
   intro: { key: "intro" },
-  // The Journal post, opened from "Judgement time!" inside the flow.
   journal: { key: "journal" },
   judge: { key: "judge", moment: 0 },
   community: { key: "community" },
@@ -185,6 +176,20 @@ export const FLOW: readonly Step[] = [
   { key: "community" },
   { key: "end", overlay: false },
 ];
+
+/** The Journal post "More about self-modeling theory" opens, as the founder
+ *  signed it (JP1 A, N53.4) and published it under SELF_MODELING_POST_SLUG.
+ *  The product reads it from the Journal; the harness holds this copy so its
+ *  still and its live walk draw without a backend. */
+export const JOURNAL_POST = {
+  title: "Why we ask you to judge honestly",
+  body: [
+    "The psychologist Peter Dowrick spent decades studying how people learn by watching themselves. He called it self-modeling: when you see or hear yourself doing something a little better than you usually do, it shows you what you can already do, and you learn it quickly. His review 'Self model theory: learning from the future' (2012) brings that work together.",
+    "WillpowerLab uses the same idea. Your most confident moments are kept, so you can hear what your confident voice already sounds like.",
+    "Judging is our own addition to it. When you listen to a recording and answer one question, 'Does this sound confident to you?', you train your ear to notice confidence, in other voices and in your own. Honest answers sharpen that ear; kind answers that aren't true blur it. The clearer you can hear a confident voice, the less room is left for the inner critic.",
+    "Reference: Dowrick, P. W. (2012). Self model theory: learning from the future. WIREs Cognitive Science, 3(2), 215–230.",
+  ].join("\n\n"),
+} as const;
 
 /** A short, quiet tone as a WAV blob, so the harness player can play
  *  without a backend. */

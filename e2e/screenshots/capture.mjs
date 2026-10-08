@@ -72,7 +72,8 @@ const browser = await launchChromium();
 const gallery = [];
 
 for (const entry of screens) {
-  for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+  for (const [viewportName, defaultViewport] of Object.entries(VIEWPORTS)) {
+    const viewport = entry.viewports?.[viewportName] ?? defaultViewport;
     const label = `${entry.area}/${entry.name} @${viewportName}`;
     const dir = join(OUT, entry.area);
     mkdirSync(dir, { recursive: true });

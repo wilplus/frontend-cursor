@@ -14,6 +14,9 @@
 /*      waitFor: "[data-walk-player]",  the screen's key element; the shot    */
 /*                                    waits for it (a selector, or "text=…")  */
 /*      settleMs: 400,                optional: let arrive-motion finish       */
+/*      viewports: { phone: {…} },    optional: an area's own frame for a      */
+/*                                    viewport (the coach panel's prototype   */
+/*                                    phone is 402 x 860)                     */
 /*      reference: "docs/design/refs/walk/praise.png",                        */
 /*                                    optional: the locked prototype's frame; */
 /*                                    a string for both viewports, or         */
@@ -37,6 +40,9 @@
 /*  area that owns a screen owns its entry; the names below are the ones its  */
 /*  lock uses.                                                                */
 /* -------------------------------------------------------------------------- */
+
+import { practisePrepare, stopTry, toLiveExercise, toLivePractise } from "../_walkPractise.mjs";
+import { JOURNAL_ALLOW, routeJournal, toLiveIntro, toLiveJournal, toLiveJudge } from "../_walkJudging.mjs";
 
 export const VIEWPORTS = {
   phone: { width: 390, height: 844 },
@@ -79,8 +85,7 @@ const WALK_KEYS = {
   thirdTry: "[data-walk-message]",
   helpers: "[data-walk-word-picker]",
   intro: "[data-walk-pill]",
-  // The Journal post inside the flow (its eyebrow signed by Q-B4 A).
-  journal: "[data-walk-journal]",
+  journal: "[data-walk-journal-title]",
   judge: "[data-walk-judgement]",
   community: "[data-walk-options]",
   end: "[data-walk-endsheet]",
@@ -90,8 +95,166 @@ const WALK_KEYS = {
 const WALK_ALLOW = [/\bQ3\b/];
 const WALK = Object.entries(WALK_KEYS).map(([name, waitFor]) => ({
   area: "walk", name, audience: "speaker",
-  path: `/dev/feedback-walk?screen=${name}`, waitFor, settleMs: 400, allow: WALK_ALLOW,
+  path: `/dev/feedback-walk?screen=${name}`, waitFor, settleMs: 400,
+  // The Journal post's citation carries the article's own year and pages.
+  allow: name === "journal" ? [...WALK_ALLOW, ...JOURNAL_ALLOW] : WALK_ALLOW,
 }));
+/** The same screens drawn by the PRODUCTION walk (FeedbackWalk, D-FW-14) on
+ *  the harness's fixtures (/dev/feedback-walk?live=1): it opens on the
+ *  coach's note, and its own buttons reach the praise and the helper words. */
+const LIVE_WALK_LAYER = "[data-feedback-walk] .walk-layer:not(.walk-ghost)";
+const liveScreen = (key) => `${LIVE_WALK_LAYER} [data-testid="walk-screen-${key}"]`;
+const liveForward = (key) => async (page) => {
+  await page.locator(`${liveScreen(key)} [data-testid="walk-forward"]`).filter({ visible: true }).first()
+    .click({ timeout: 60_000 });
+};
+const liveSkip = (key) => async (page) => {
+  await page.locator(`${liveScreen(key)} [data-testid="walk-skip"]`).filter({ visible: true }).first()
+    .click({ timeout: 60_000 });
+};
+/** From the coach's note past both praises and their helper words (skipped)
+ *  to the clearer version (D-FW-15). */
+const toLiveClearer = async (page) => {
+  await liveForward("coachnote")(page);
+  await liveForward("praise")(page);
+  await liveSkip("helpers")(page);
+  await liveForward("praise")(page);
+  await liveSkip("helpers")(page);
+};
+const LIVE_WALK = [
+  { name: "live-coachnote", waitFor: `${liveScreen("coachnote")} [data-coach-video]` },
+  { name: "live-praise", waitFor: `${liveScreen("praise")} [data-walk-player]`, act: liveForward("coachnote") },
+  {
+    name: "live-helpers",
+    waitFor: `${liveScreen("helpers")} [data-walk-word-picker]`,
+    act: async (page) => {
+      await liveForward("coachnote")(page);
+      await liveForward("praise")(page);
+    },
+  },
+  { name: "live-clearer", waitFor: `${liveScreen("clearer")} [data-walk-new-words] em`, act: toLiveClearer },
+  // The practise loop live (D-FW-16): its routes answered in the browser and
+  // its microphone a tone (e2e/_walkPractise.mjs).
+  {
+    name: "live-practise",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("practise")} [data-walk-recording-strip]`,
+    act: toLivePractise,
+  },
+  {
+    name: "live-processing",
+    prepare: practisePrepare(["hang"]),
+    waitFor: `${liveScreen("processing")} [data-walk-loading]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-improved",
+    prepare: practisePrepare([{ next: "praise", key: "cue:landed_ending" }]),
+    waitFor: `${liveScreen("improved")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-encourage",
+    prepare: practisePrepare([{ next: "again", key: "effort" }]),
+    waitFor: `${liveScreen("encourage")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-thanks",
+    prepare: practisePrepare([
+      { next: "again", key: "effort" },
+      { next: "again", key: "effort" },
+      { next: "moved_on", key: "CM3b" },
+    ]),
+    waitFor: `${liveScreen("thanks")} [data-walk-message]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      for (let i = 0; i < 2; i += 1) {
+        await stopTry(page);
+        await liveForward("encourage")(page);
+        await page.waitForSelector(`${liveScreen("practise")} [data-walk-recording-strip]`, { timeout: 60_000 });
+      }
+      await stopTry(page);
+    },
+  },
+  {
+    name: "live-late",
+    prepare: practisePrepare(["hang"]),
+    waitFor: `${liveScreen("late")} [data-testid="walk-again"]`,
+    act: async (page) => {
+      await toLivePractise(page);
+      await stopTry(page);
+    },
+  },
+  // The exercise (D-FW-17): the coach's video in the 4:5 frame, with
+  // Practise and Skip (the harness's 'exVideo' still is its picture).
+  {
+    name: "live-exVideo",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("exVideo")} [data-coach-video]`,
+    act: toLiveExercise,
+  },
+  // With no video at all, straight to the practise on the exercise's words.
+  {
+    name: "live-exercise-practise",
+    path: "/dev/feedback-walk?live=1&exvideo=0",
+    prepare: practisePrepare([]),
+    waitFor: `${liveScreen("practise")} [data-walk-message]`,
+    act: toLiveExercise,
+  },
+  // "Judgement time!", the Journal post inside the walk, and a judgement
+  // (D-FW-18), the Journal route answered with the signed post; the
+  // harness's 'intro', 'journal' and 'judge' stills are their pictures.
+  {
+    name: "live-intro",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("intro")} [data-testid="walk-journal"]`,
+    act: toLiveIntro,
+  },
+  {
+    name: "live-journal",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("journal")} [data-walk-journal-title]`,
+    act: toLiveJournal,
+    allow: [...WALK_ALLOW, ...JOURNAL_ALLOW],
+  },
+  {
+    name: "live-judge",
+    prepare: (context) => routeJournal(context),
+    waitFor: `${liveScreen("judge")} [data-walk-judgement]`,
+    act: toLiveJudge,
+  },
+  {
+    name: "live-clearer-practice-off",
+    path: "/dev/feedback-walk?live=1&practice=0",
+    waitFor: `${liveScreen("clearer")} [data-walk-new-words] em`,
+    act: toLiveClearer,
+  },
+].map((entry) => ({
+  area: "walk", audience: "speaker", path: "/dev/feedback-walk?live=1", settleMs: 400, allow: WALK_ALLOW, ...entry,
+}));
+
+/** The paragraph's own screens and the helper-words overlay in the walk's
+ *  look (build plan D-IT-6; Q-B3 A): the PRODUCTION ParagraphSheet over the
+ *  harness's page, /dev/feedback-walk?paragraph=…. */
+const PARAGRAPH_LAYER = "[data-paragraph-walk] [data-walk-stage] .walk-layer:not(.walk-ghost)";
+const PARAGRAPH_WALK = [
+  { name: "paragraph-this", path: "/dev/feedback-walk?paragraph=this",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="overlay-practise"]` },
+  { name: "paragraph-saved", path: "/dev/feedback-walk?paragraph=saved",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="overlay-saved"]` },
+  { name: "paragraph-helpers", path: "/dev/feedback-walk?paragraph=helpers",
+    waitFor: `${PARAGRAPH_LAYER} [data-testid="helper-words-card"]` },
+].map((entry) => ({ area: "walk", audience: "speaker", settleMs: 400, allow: WALK_ALLOW, ...entry }));
 
 /* ------------------------------ coach-panel --------------------------------- */
 /** The coach panel's P1 still screens, as /dev/coach-panel draws them (the
@@ -100,14 +263,71 @@ const LIVE = "[data-walk-stage] .walk-layer:not(.walk-ghost)";
 const PANEL_KEYS = {
   door: '[data-testid="coach-panel-pinned"]',
   queue: `${LIVE} [data-testid="coach-panel-queue"]`,
-  speaker: `${LIVE} [data-testid="coach-panel-speaker"]`,
+  speakers: `${LIVE} [data-testid="coach-panel-all-speakers"]`,
+  speaker: `${LIVE} [data-walk-subtitle]`,
   judge: `${LIVE} [data-testid="coach-panel-judge"]`,
   reveal: `${LIVE} [data-testid="coach-panel-passage"]`,
+  corpushome: `${LIVE} [data-testid="coach-panel-corpushome"] [data-walk-choice]`,
+  corpusimport: `${LIVE} [data-testid="coach-panel-corpusimport"]`,
+  corpusanalyse: `${LIVE} [data-testid="coach-panel-corpusanalyse"] [data-walk-loading]`,
+  corpus: `${LIVE} [data-testid="coach-panel-judge"] [data-walk-player]`,
+};
+/** The prototype's phone (its `.ph` is 402 wide), as e2e/coach-panel.spec.mjs draws it. */
+const PANEL_PHONE = { phone: { width: 402, height: 860 } };
+/** Number forms the corpus screens legitimately show: an import's labelled
+ *  count ("All 8 labelled", the signed "All {n} labelled") and the corpus
+ *  page's own stage hint ("~16 model calls per file", a cost the coach
+ *  chooses, in the corpus page's words). Neither is about a speaker. */
+const PANEL_ALLOW = {
+  corpushome: [/\bAll \d+ labelled\b/],
+  corpusimport: [/~16 model calls per file/],
 };
 const COACH_PANEL = Object.entries(PANEL_KEYS).map(([name, waitFor]) => ({
   area: "coach-panel", name, audience: "coach",
-  path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450,
+  path: `/dev/coach-panel?screen=${name}`, waitFor, settleMs: 450, viewports: PANEL_PHONE,
+  ...(PANEL_ALLOW[name] ? { allow: PANEL_ALLOW[name] } : {}),
 }));
+/** The founder's Library and Speaking errors pages (CP3 A; D-CP-21), as
+ *  /dev/admin-library draws them over stubs: the admin area, so the AC-9
+ *  scan does not run (the readiness line is the founder's own count). */
+const ADMIN_PAGES = [
+  { area: "coach-panel", name: "library", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: '[data-testid="admin-library"] [data-walk-choice]', settleMs: 450, viewports: PANEL_PHONE },
+  { area: "coach-panel", name: "libitem", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-item"] [data-coach-words]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-walk-choice="e:land-the-last-word"]').click(); } },
+  { area: "coach-panel", name: "libpraise", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-praise"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-walk-choice="p:landed_ending"]').click(); } },
+  { area: "coach-panel", name: "libkind", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-kind"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator('[data-testid="library-new"]').click(); } },
+  { area: "coach-panel", name: "libwords", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-words"] [data-coach-words]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => {
+      await page.locator('[data-testid="library-new"]').click();
+      await page.locator(`${LIVE} [data-walk-choice="rushing"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-kind-next"]`).click();
+    } },
+  { area: "coach-panel", name: "libvideo", audience: "admin",
+    path: "/dev/admin-library?screen=library", waitFor: `${LIVE} [data-testid="library-video"] [data-coach-video-box]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => {
+      await page.locator('[data-testid="library-new"]').click();
+      await page.locator(`${LIVE} [data-walk-choice="rushing"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-kind-next"]`).click();
+      await page.locator(`${LIVE} [data-testid="library-words-next"]`).click();
+    } },
+  { area: "coach-panel", name: "errors", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-list"] [data-walk-choice]`, settleMs: 450, viewports: PANEL_PHONE },
+  { area: "coach-panel", name: "error", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-definition"]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="hedging"]`).click(); } },
+  // An error a coach named: its definition and its one question, each with
+  // the pencil (Q-CP645 A).
+  { area: "coach-panel", name: "error-named", audience: "admin",
+    path: "/dev/admin-library?screen=errors", waitFor: `${LIVE} [data-testid="errors-item"] [data-testid="error-words"]`, settleMs: 450, viewports: PANEL_PHONE,
+    act: async (page) => { await page.locator(`${LIVE} [data-walk-choice="filler_words"]`).click(); } },
+];
 
 /* ------------------------------- recording ---------------------------------- */
 const RECORDING = [
@@ -180,4 +400,4 @@ const CONSENT = [
     prepare: guestWithPolicy, act: enterTheLab },
 ];
 
-export const SCREENS = [...IDEAL_TEXT, ...WALK, ...COACH_PANEL, ...RECORDING, ...CONSENT];
+export const SCREENS = [...IDEAL_TEXT, ...WALK, ...LIVE_WALK, ...PARAGRAPH_WALK, ...COACH_PANEL, ...ADMIN_PAGES, ...RECORDING, ...CONSENT];

@@ -8,7 +8,9 @@
 /*  CoachPanel) over stubbed routes (panelFixtures.ts), with the real motion: */
 /*                                                                            */
 /*    /dev/coach-panel?screen=<name>     one screen, still: door, queue,       */
-/*                                       speaker, judge, reveal               */
+/*                                       speakers, speaker, judge, reveal,    */
+/*                                       corpushome, corpusimport,            */
+/*                                       corpusanalyse, corpus                */
 /*    /dev/coach-panel?flow=1&coach2=1   the Lounge door through the real     */
 /*                                       switch (CoachWalkEntry); its own     */
 /*                                       buttons move it, ‹ goes back, ✕      */

@@ -23,6 +23,8 @@ import {
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import WalkSheetFrame, { WalkSheetFooter } from "./walk/WalkSheetFrame";
+import type { WalkNav } from "./walk/WalkOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, D4, D5, Q2, Q3).   */
@@ -63,6 +65,7 @@ export default function HelperWordsSheet({
   onDelete,
   onDone = null,
   nav = null,
+  walk = null,
   onClose,
 }: {
   /** The saved helper words, joined " · ", or null. */
@@ -81,6 +84,11 @@ export default function HelperWordsSheet({
    *  Absent → the sheet closes. */
   onDone?: (() => void) | null;
   nav?: ReactNode;
+  /** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A): the
+   *  walk's full-screen overlay with its still ‹ Slide n › bar and ✕, and
+   *  its motion, instead of today's sheet; `nav` is then unused. The same
+   *  words and buttons either way. */
+  walk?: { nav: WalkNav | null; caption: string | null; moment: number | null } | null;
   onClose: () => void;
 }) {
   const chips = useMemo(() => takeChips(history, currentText, COPY.historyTake), [history, currentText]);
@@ -153,6 +161,132 @@ export default function HelperWordsSheet({
   const cardWords = confirmDelete ? "" : differs ? chosen : headline;
   const note = replaceNoteTake(history, headline, chip);
 
+  const content = (
+    <>
+      {/* THE WORDS CARD: the only thing that changes as she taps. */}
+      <div
+        data-testid="helper-words-card"
+        data-new={differs && !confirmDelete ? "true" : undefined}
+        className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <span className={EYEBROW}>
+            {COPY.historyHelperWords}
+            {differs && !confirmDelete ? ` · ${COPY.chipNew}` : ""}
+          </span>
+          {headline && onDelete && !differs && !confirmDelete ? (
+            <button
+              type="button"
+              data-testid="helper-words-delete"
+              onClick={() => void remove()}
+              className="text-[13px] font-semibold text-primary transition-opacity hover:opacity-70"
+            >
+              {COPY.helperWordsDelete}
+            </button>
+          ) : null}
+        </div>
+        <p className="min-h-[1.5em] text-[20px] font-bold leading-snug text-primary">
+          {cardWords}
+        </p>
+      </div>
+      {/* THE TAKE CHIPS, newest first, the current one "now". */}
+      <p className={EYEBROW}>
+        {COPY.tapWordsFromAnyTake} · {COPY.emphasisCount(selectionLength(run))}
+      </p>
+      <div className="flex flex-wrap gap-2" data-testid="take-chips">
+        {chips.map((c, index) => (
+          <button
+            key={`${c.label}-${index}`}
+            type="button"
+            aria-pressed={index === chipAt}
+            onClick={() => chooseChip(index)}
+            className={`rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors ${
+              index === chipAt
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {c.now ? `${c.label} · ${COPY.chipNow}` : c.label}
+          </button>
+        ))}
+      </div>
+      {/* THAT TAKE'S TEXT, tappable. No playback here (B4). */}
+      <div className="rounded-2xl border border-border px-3 py-4">
+        <div className="flex flex-wrap gap-0.5" data-testid="picker-tokens">
+          {tokens.map((token, index) => {
+            const picked = run !== null && index >= run.from && index <= run.to;
+            const reachable = canTap(run, index);
+            return (
+              <button
+                key={`${token.start}-${token.text}`}
+                type="button"
+                aria-pressed={picked}
+                disabled={!reachable}
+                onClick={() => {
+                  touched.current = true;
+                  setConfirmDelete(false);
+                  setRun(nextSelection(run, index));
+                }}
+                className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${tokenTone(picked, reachable)}`}
+              >
+                {token.text}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {note !== null ? (
+        <p data-testid="helper-words-replace-note" className="text-[13px] leading-snug text-muted-foreground">
+          {COPY.helperWordsReplaceNote(note)}
+        </p>
+      ) : null}
+      {failed ? (
+        <p role="alert" className="rounded-xl border border-border p-3 text-[13px] text-destructive">
+          {COPY.failRoot}
+        </p>
+      ) : null}
+    </>
+  );
+  const button = confirmDelete ? (
+    <button
+      type="button"
+      data-testid="helper-words-delete-confirm"
+      disabled={busy}
+      onClick={() => void remove()}
+      className={PILL}
+    >
+      {busy ? <VoiceMark size={16} /> : null}
+      {COPY.helperWordsDeleteConfirm}
+    </button>
+  ) : (
+    <button
+      type="button"
+      data-testid="helper-words-use"
+      disabled={!differs || busy || (!chip.now && !onUseFromTake)}
+      onClick={() => void use()}
+      className={PILL}
+    >
+      {busy ? <VoiceMark size={16} /> : null}
+      {COPY.pillEmphasise}
+    </button>
+  );
+
+  if (walk) {
+    return (
+      <WalkSheetFrame
+        screen={{ key: "helper-words", moment: walk.moment }}
+        title={COPY.historyHelperWords}
+        nav={walk.nav}
+        caption={walk.caption}
+        footer={<WalkSheetFooter>{button}</WalkSheetFooter>}
+        onClose={onClose}
+        testId="helper-words-sheet"
+      >
+        {content}
+      </WalkSheetFrame>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
@@ -177,114 +311,9 @@ export default function HelperWordsSheet({
           <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-2">
-          {/* THE WORDS CARD: the only thing that changes as she taps. */}
-          <div
-            data-testid="helper-words-card"
-            data-new={differs && !confirmDelete ? "true" : undefined}
-            className="flex flex-col gap-1 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <span className={EYEBROW}>
-                {COPY.historyHelperWords}
-                {differs && !confirmDelete ? ` · ${COPY.chipNew}` : ""}
-              </span>
-              {headline && onDelete && !differs && !confirmDelete ? (
-                <button
-                  type="button"
-                  data-testid="helper-words-delete"
-                  onClick={() => void remove()}
-                  className="text-[13px] font-semibold text-primary transition-opacity hover:opacity-70"
-                >
-                  {COPY.helperWordsDelete}
-                </button>
-              ) : null}
-            </div>
-            <p className="min-h-[1.5em] text-[20px] font-bold leading-snug text-primary">
-              {cardWords}
-            </p>
-          </div>
-          {/* THE TAKE CHIPS, newest first, the current one "now". */}
-          <p className={EYEBROW}>
-            {COPY.tapWordsFromAnyTake} · {COPY.emphasisCount(selectionLength(run))}
-          </p>
-          <div className="flex flex-wrap gap-2" data-testid="take-chips">
-            {chips.map((c, index) => (
-              <button
-                key={`${c.label}-${index}`}
-                type="button"
-                aria-pressed={index === chipAt}
-                onClick={() => chooseChip(index)}
-                className={`rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors ${
-                  index === chipAt
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {c.now ? `${c.label} · ${COPY.chipNow}` : c.label}
-              </button>
-            ))}
-          </div>
-          {/* THAT TAKE'S TEXT, tappable. No playback here (B4). */}
-          <div className="rounded-2xl border border-border px-3 py-4">
-            <div className="flex flex-wrap gap-0.5" data-testid="picker-tokens">
-              {tokens.map((token, index) => {
-                const picked = run !== null && index >= run.from && index <= run.to;
-                const reachable = canTap(run, index);
-                return (
-                  <button
-                    key={`${token.start}-${token.text}`}
-                    type="button"
-                    aria-pressed={picked}
-                    disabled={!reachable}
-                    onClick={() => {
-                      touched.current = true;
-                      setConfirmDelete(false);
-                      setRun(nextSelection(run, index));
-                    }}
-                    className={`inline-flex min-h-[44px] items-center rounded-lg px-1.5 text-[15px] leading-tight transition-colors ${tokenTone(picked, reachable)}`}
-                  >
-                    {token.text}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {note !== null ? (
-            <p data-testid="helper-words-replace-note" className="text-[13px] leading-snug text-muted-foreground">
-              {COPY.helperWordsReplaceNote(note)}
-            </p>
-          ) : null}
-          {failed ? (
-            <p role="alert" className="rounded-xl border border-border p-3 text-[13px] text-destructive">
-              {COPY.failRoot}
-            </p>
-          ) : null}
+          {content}
         </div>
-        <div className="shrink-0 px-5 pb-6 pt-2">
-          {confirmDelete ? (
-            <button
-              type="button"
-              data-testid="helper-words-delete-confirm"
-              disabled={busy}
-              onClick={() => void remove()}
-              className={PILL}
-            >
-              {busy ? <VoiceMark size={16} /> : null}
-              {COPY.helperWordsDeleteConfirm}
-            </button>
-          ) : (
-            <button
-              type="button"
-              data-testid="helper-words-use"
-              disabled={!differs || busy || (!chip.now && !onUseFromTake)}
-              onClick={() => void use()}
-              className={PILL}
-            >
-              {busy ? <VoiceMark size={16} /> : null}
-              {COPY.pillEmphasise}
-            </button>
-          )}
-        </div>
+        <div className="shrink-0 px-5 pb-6 pt-2">{button}</div>
       </div>
     </div>
   );

@@ -6,6 +6,12 @@ import { callBackend, failure, getAccessToken, relayLenient, type Failures } fro
 /*  /api/v2/coach/training-imports/<sessionId>                                 */
 /*                        →  BE /v2/coach/training-imports/<sessionId>         */
 /*                                                                            */
+/*  PUT — finish (or correct) the import's set-up: {topic, language,          */
+/*        speaker_label?, source?} (coach panel lock, CO1 A; D-CP-20). The    */
+/*        backend answers 400 TOPIC_REQUIRED / LANGUAGE_REQUIRED, 404, 409    */
+/*        NOT_AN_IMPORT, relayed verbatim.                                    */
+/*  DELETE — ARCHIVE the import (the backend's own semantics: the row leaves  */
+/*        the index, nothing is destroyed); the founder's admin page (Q-B15). */
 /*  GET — the status of ONE import. The POST returns 202 as soon as the upload */
 /*  lands and the analysis runs on server-side, so this is how the screen      */
 /*  learns whether a 45-minute talk produced pieces, produced nothing, or is   */
@@ -64,6 +70,56 @@ export async function GET(
         bff_revision: "coach-training-import-status-v1",
       },
       { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { sessionId: string } }) {
+  try {
+    const token = await getAccessToken();
+    if (!token) return failure(FAILURES.unauthenticated!);
+    const sessionId = params.sessionId;
+    if (!sessionId) {
+      return NextResponse.json({ code: "INVALID_SESSION", error: "No import id." }, { status: 400 });
+    }
+    const body = await req.json().catch(() => ({}));
+    return await callBackend(`/v2/coach/training-imports/${encodeURIComponent(sessionId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      token,
+      failures: FAILURES,
+      relay: RELAY,
+    });
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "Unknown";
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`coach_training_import_setup.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`, err);
+    return NextResponse.json(
+      { code: "BFF_THROWN", error: `BFF threw: ${name}: ${message}`, bff_revision: "coach-training-import-setup-v1" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: { sessionId: string } }) {
+  try {
+    const token = await getAccessToken();
+    if (!token) return failure(FAILURES.unauthenticated!);
+    const sessionId = params.sessionId;
+    if (!sessionId) {
+      return NextResponse.json({ code: "INVALID_SESSION", error: "No import id." }, { status: 400 });
+    }
+    return await callBackend(`/v2/coach/training-imports/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE", token, failures: FAILURES, relay: RELAY,
+    });
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "Unknown";
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`coach_training_import_archive.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`, err);
+    return NextResponse.json(
+      { code: "BFF_THROWN", error: `BFF threw: ${name}: ${message}`, bff_revision: "coach-training-import-archive-v1" },
+      { status: 500 },
     );
   }
 }

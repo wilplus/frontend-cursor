@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isFounderEmail } from "@/lib/founder";
 import SpeakingErrorLibraryClient from "./page.client";
+import SpeakingErrorsPanel from "./SpeakingErrorsPanel";
+import { coachPanelOnForPage } from "@/lib/willab/coachPanelSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,9 @@ export const dynamic = "force-dynamic";
 /*  read again by email.                                                      */
 /* -------------------------------------------------------------------------- */
 
-export default async function AdminErrorsPage() {
+type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
+
+export default async function AdminErrorsPage({ searchParams }: PageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -32,5 +36,7 @@ export default async function AdminErrorsPage() {
     redirect("/login?redirectTo=/admin/errors");
   }
   if (!isFounderEmail(user.email)) notFound();
-  return <SpeakingErrorLibraryClient founder />;
+  // The rebuilt screens wait behind the coach panel's switch until the
+  // founder approves them from the Done list (Q-CP645 A, 2026-10-08).
+  return coachPanelOnForPage(searchParams) ? <SpeakingErrorsPanel founder /> : <SpeakingErrorLibraryClient founder />;
 }

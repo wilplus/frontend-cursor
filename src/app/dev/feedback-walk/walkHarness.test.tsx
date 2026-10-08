@@ -22,7 +22,7 @@ import { aiGeneratedLabel } from "@/lib/willab/aiGeneratedMark";
 import FeedbackWalkHarness from "./page";
 import {
   COACH_NOTE,
-  JOURNAL_STANDIN,
+  JOURNAL_POST,
   LOUNGE_STANDIN,
   MOMENTS,
   PARAGRAPHS,
@@ -87,8 +87,8 @@ const SAMPLE = new Set<string>([
     ...(m.clearer?.after ?? []).map((p) => p.text),
   ]),
   ...PARAGRAPHS.flatMap((p) => p.split(" ")),
-  JOURNAL_STANDIN.title,
-  JOURNAL_STANDIN.note,
+  JOURNAL_POST.title,
+  ...JOURNAL_POST.body.split("\n\n"),
   LOUNGE_STANDIN.speakerMessage,
   PROJECT_TITLE,
   SLIDE_LABEL,
@@ -182,7 +182,7 @@ describe("every screen says only signed words or the fixtures' sample content", 
 
   it("the Journal shows its signed eyebrow", () => {
     mount("?screen=journal");
-    expect(host.querySelector("[data-walk-journal]")?.textContent).toContain(WALK_COPY.journalEyebrow);
+    expect(host.querySelector("[data-walk-eyebrow]")?.textContent).toBe(WALK_COPY.journalEyebrow);
     expect(WALK_COPY.journalEyebrow).toBe("Journal");
   });
 
@@ -245,7 +245,7 @@ describe("the flow's parity fixes", () => {
     vi.useFakeTimers();
     try {
       toIntro();
-      click("walk-skip-judging");
+      click("walk-skip");
       expect(stepKey()).toBe("community");
       expect(host.querySelector("[data-walk-options]")).not.toBeNull();
       // Tick a choice and continue: the end card, over a page with no bar.
@@ -265,7 +265,7 @@ describe("the flow's parity fixes", () => {
     vi.useFakeTimers();
     try {
       toIntro();
-      click("walk-journal-link");
+      click("walk-journal");
       expect(stepKey()).toBe("journal");
       expect(host.textContent).toContain(WALK_COPY.journalEyebrow);
       click("walk-journal-back");

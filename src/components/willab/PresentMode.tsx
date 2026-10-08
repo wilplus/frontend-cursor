@@ -159,7 +159,8 @@ export default function PresentMode({
         <OverlayCloseButton
           onClick={onClose}
           ariaLabel="Exit present mode"
-          className="absolute right-4 top-4 z-10 border-border/60 bg-background/80 backdrop-blur"
+          // Placed only: the app's one X, unchanged (Q-B14 A (1), D-RC-6).
+          className="absolute right-4 top-4 z-10"
         />
       )}
 
