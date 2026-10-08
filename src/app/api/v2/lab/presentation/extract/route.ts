@@ -3,6 +3,7 @@ import {
   backendFetch,
   getAccessToken,
   BackendNotConfiguredError,
+  GUEST_OWNER_HEADER,
 } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
@@ -35,6 +36,10 @@ export async function POST(req: NextRequest) {
   }
 
   const token = await getAccessToken(); // optional
+  // The backend's processing gate covers every /v2/lab/ path: a guest with no
+  // owner token is refused before the parser runs, so pass it through (as the
+  // recordings proxy does).
+  const guestOwner = req.headers.get(GUEST_OWNER_HEADER);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), BFF_ABORT_MS);
@@ -48,6 +53,7 @@ export async function POST(req: NextRequest) {
       body: form,
       signal: controller.signal,
       token,
+      ...(guestOwner ? { headers: { [GUEST_OWNER_HEADER]: guestOwner } } : {}),
     });
   } catch (err) {
     if (err instanceof BackendNotConfiguredError) {
