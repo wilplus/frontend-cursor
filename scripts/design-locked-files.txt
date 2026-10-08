@@ -34,9 +34,12 @@ src/components/willab/walk/
 src/components/willab/WalkEnd.tsx
 src/lib/willab/walkMotion.ts
 
-# ── The coach panel V2 (founder, 2026-10-07)
+# ── The coach panel V2 (founder, 2026-10-07); the founder's Library and
+#    Speaking errors pages in admin are its screens too (CP3 A)
 src/components/willab/coachpanel/
 src/lib/willab/coachPanelCopy.ts
+src/app/admin/library/
+src/app/admin/errors/
 
 # ── The recording screens (founder, 2026-10-07, N59)
 src/components/willab/LabOverlay.tsx

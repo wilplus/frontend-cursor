@@ -54,6 +54,11 @@ import {
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
+import WalkSheetFrame, {
+  WalkSheetFooter,
+  useWalkLook,
+  walkNavOfPager,
+} from "./walk/WalkSheetFrame";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PARAGRAPH'S OWN SHEET (founder lock 2026-09-30, B5, B8, D6, D7, Q1).  */
@@ -577,6 +582,7 @@ function HelperWordsPicker({
   headline,
   text,
   firstTake,
+  walkLook,
   onUse,
   onClose,
 }: {
@@ -585,6 +591,7 @@ function HelperWordsPicker({
   /** Take 1: the note under the title says where the words will show
    *  (founder 2026-10-05, N48.3 Q8 A; the Feedback sheet's own line). */
   firstTake: boolean;
+  walkLook: boolean;
   onUse: (span: RootPhraseSpan) => Promise<boolean>;
   onClose: () => void;
 }) {
@@ -605,9 +612,14 @@ function HelperWordsPicker({
   }
 
   return (
-    <SheetFrame
+    <ParagraphFrame
+      walkLook={walkLook}
+      screen="picker"
       title={COPY.titleEmphasis}
       note={firstTake ? COPY.emphasisFirstTakeNote : null}
+      pager={null}
+      slideLabel={null}
+      bar={false}
       onClose={onClose}
       footer={
         <button
@@ -659,7 +671,7 @@ function HelperWordsPicker({
           {COPY.failRoot}
         </p>
       ) : null}
-    </SheetFrame>
+    </ParagraphFrame>
   );
 }
 
@@ -686,6 +698,78 @@ function OverlayNav({
       {slideLabel}
     </p>
   );
+}
+
+/** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A, N63):
+ *  with the Feedback walk's switch on, the paragraph's screens and the
+ *  picker draw in the walk's full-screen overlay, the still ‹ Slide n › bar
+ *  and ✕, and its motion; with it off, today's sheet. Only the container
+ *  changes: the title, the content and the buttons are the same, word for
+ *  word. */
+function ParagraphFrame({
+  walkLook,
+  screen,
+  title,
+  note = null,
+  pager,
+  slideLabel,
+  bar = true,
+  footer,
+  onClose,
+  children,
+}: {
+  walkLook: boolean;
+  /** Which screen, for the walk's motion. */
+  screen: string;
+  title: string;
+  note?: ReactNode;
+  pager: Pager | null;
+  slideLabel: string | null;
+  /** False: no ‹ Slide n › bar (the picker never had one). */
+  bar?: boolean;
+  footer: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!walkLook) {
+    return (
+      <SheetFrame
+        title={title}
+        note={note}
+        onClose={onClose}
+        nav={bar ? <OverlayNav pager={pager} slideLabel={slideLabel} /> : null}
+        footer={footer}
+      >
+        {children}
+      </SheetFrame>
+    );
+  }
+  const place = walkPlaceOf(pager, slideLabel);
+  return (
+    <WalkSheetFrame
+      screen={{ key: screen, moment: place.moment }}
+      title={title}
+      note={note}
+      nav={place.nav}
+      caption={place.caption}
+      footer={<WalkSheetFooter>{footer}</WalkSheetFooter>}
+      onClose={onClose}
+      testId="paragraph-sheet"
+    >
+      {children}
+    </WalkSheetFrame>
+  );
+}
+
+/** Where a screen sits in the walk's look, for the paragraph's screens and
+ *  the helper-words overlay alike: the walk's ‹ Slide n › bar inside the
+ *  walk, the slide alone outside it, and the moment's place for the motion. */
+function walkPlaceOf(pager: Pager | null, slideLabel: string | null) {
+  return {
+    nav: walkNavOfPager(pager, slideLabel),
+    caption: pager ? null : slideLabel,
+    moment: pager?.index ?? null,
+  };
 }
 
 /** Whose history to show under the coach's work (the coaching sheet). */
@@ -760,6 +844,7 @@ export default function ParagraphSheet({
   slideLabel = null,
   onDocumentChanged = null,
   firstTake = false,
+  walkLook,
   onClose,
 }: {
   arcId: string | null;
@@ -829,11 +914,15 @@ export default function ParagraphSheet({
   /** The project has exactly one Take: the picker says where the helper
    *  words will show up. */
   firstTake?: boolean;
+  /** Draw in the Feedback walk's look (D-IT-6). Absent: the walk's switch
+   *  decides (feedbackWalkOn). */
+  walkLook?: boolean;
   onClose: () => void;
 }) {
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
   // complete instead of drawing the player and then popping in the rest.
   const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
+  const look = useWalkLook(walkLook);
   const [picking, setPicking] = useState(startPicking);
   const items = useMemo(() => itemsOf(decided, pending), [decided, pending]);
   const moment = items.find(isConfidentVoiceFeedback) ?? null;
@@ -871,6 +960,7 @@ export default function ParagraphSheet({
           moveOn();
         }}
         nav={<OverlayNav pager={pager} slideLabel={slideLabel} />}
+        walk={look ? walkPlaceOf(pager, slideLabel) : null}
         onClose={onClose}
       />
     );
@@ -881,6 +971,7 @@ export default function ParagraphSheet({
         headline={headline}
         text={text}
         firstTake={firstTake}
+        walkLook={look}
         onUse={onUseHelperWords}
         onClose={() => {
           setPicking(false);
@@ -890,7 +981,6 @@ export default function ParagraphSheet({
     );
   }
 
-  const nav = <OverlayNav pager={pager} slideLabel={slideLabel} />;
   const player = <MomentPlayer item={moment} compact />;
   const history = <HistoryRowView rows={rows} />;
 
@@ -900,10 +990,13 @@ export default function ParagraphSheet({
      card. */
   if (headline) {
     return (
-      <SheetFrame
+      <ParagraphFrame
+        walkLook={look}
+        screen="saved"
         title={COPY.titleSaved}
+        pager={pager}
+        slideLabel={slideLabel}
         onClose={onClose}
-        nav={nav}
         footer={
           <button type="button" data-testid="paragraph-sheet-next" onClick={moveOn} className={PILL}>
             {/* "Next" everywhere, on the walk's last screen and outside the
@@ -920,7 +1013,7 @@ export default function ParagraphSheet({
           />
           {history}
         </div>
-      </SheetFrame>
+      </ParagraphFrame>
     );
   }
 
@@ -968,10 +1061,13 @@ export default function ParagraphSheet({
   );
 
   return (
-    <SheetFrame
+    <ParagraphFrame
+      walkLook={look}
+      screen="paragraph"
       title={COPY.titleParagraph}
+      pager={pager}
+      slideLabel={slideLabel}
       onClose={onClose}
-      nav={nav}
       footer={
         <div className="flex flex-col gap-0.5">
           {pill}
@@ -991,6 +1087,6 @@ export default function ParagraphSheet({
         ) : null}
         {history}
       </div>
-    </SheetFrame>
+    </ParagraphFrame>
   );
 }

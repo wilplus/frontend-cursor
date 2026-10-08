@@ -593,7 +593,19 @@ describe("mapTrainingImport", () => {
       queueCount: null,
       detail: null,
       language: null,
+      // An older payload without the set-up flag opens, as it always did;
+      // the counts and the archive stamp are null when absent.
+      setupComplete: true,
+      labelledCount: null,
+      archivedAt: null,
     });
+  });
+
+  it("reads the set-up flag, the labelled count and the archive stamp (D-CP-20)", () => {
+    const row = mapTrainingImport({
+      session_id: "sess-2", topic: "Workshop", setup_complete: false, labelled_count: 4, archived_at: "2026-10-07T10:00:00Z",
+    });
+    expect(row).toMatchObject({ setupComplete: false, labelledCount: 4, archivedAt: "2026-10-07T10:00:00Z" });
   });
 
   it("drops a row with no session id — it could not open a labelling queue", () => {

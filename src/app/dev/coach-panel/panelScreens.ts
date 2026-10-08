@@ -5,14 +5,17 @@
 /* -------------------------------------------------------------------------- */
 
 import { PANEL_START, type PanelState } from "@/lib/willab/coachPanel";
-import { SNIPS, queueSpeakers } from "./panelFixtures";
+import { IMPORT_BOARD, SNIPS, queueSpeakers } from "./panelFixtures";
 
-export const SCREEN_NAMES = ["door", "queue", "speaker", "judge", "reveal"] as const;
+export const SCREEN_NAMES = [
+  "door", "queue", "speakers", "speaker", "judge", "reveal", "corpushome", "corpusimport", "corpusanalyse", "corpus",
+] as const;
 export type ScreenName = (typeof SCREEN_NAMES)[number];
 
 /** The snippets each still screen needs rated before it draws. */
 export const PRE_RATED: Record<ScreenName, readonly string[]> = {
-  door: [], queue: [], speaker: [], judge: [], reveal: [SNIPS[0]],
+  door: [], queue: [], speakers: [], speaker: [], judge: [], reveal: [SNIPS[0]],
+  corpushome: [], corpusimport: [], corpusanalyse: [], corpus: [],
 };
 
 export function startFor(name: ScreenName): PanelState {
@@ -25,6 +28,16 @@ export function startFor(name: ScreenName): PanelState {
       return PANEL_START;
     case "queue":
       return { ...PANEL_START, screen: { key: "queue" } };
+    case "speakers":
+      return { ...PANEL_START, screen: { key: "speakers" } };
+    case "corpushome":
+      return { ...PANEL_START, screen: { key: "corpushome" } };
+    case "corpusimport":
+      return { ...PANEL_START, screen: { key: "corpusimport", setupOf: null }, history: [{ key: "corpushome" }] };
+    case "corpusanalyse":
+      return { ...PANEL_START, screen: { key: "corpusanalyse" }, history: [{ key: "corpushome" }, { key: "corpusimport", setupOf: null }] };
+    case "corpus":
+      return { ...PANEL_START, screen: { key: "corpus", importId: IMPORT_BOARD, topic: "Board update, March" }, history: [{ key: "corpushome" }] };
     case "speaker":
       return { ...PANEL_START, screen: speaker, history: [{ key: "queue" }] };
     case "judge":

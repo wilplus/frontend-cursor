@@ -34,6 +34,9 @@ export interface QueueTake {
 
 export interface QueueSpeaker {
   pseudonym: string;
+  /** The speaker's goal, as the queue carries it (coach panel lock, flow 3:
+   *  "A speaker. Their goal and their Takes"); null when they have none. */
+  goal?: string | null;
   waiting: number;
   takes: QueueTake[];
 }
@@ -93,8 +96,10 @@ export function mapMomentsQueue(raw: unknown): QueueSpeaker[] {
     const takes = Array.isArray(r.takes)
       ? r.takes.map(mapTake).filter((t): t is QueueTake => t !== null)
       : [];
+    const goal = typeof r.goal === "string" ? r.goal : typeof r.speaker_goal === "string" ? r.speaker_goal : "";
     out.push({
       pseudonym: typeof r.pseudonym === "string" && r.pseudonym ? r.pseudonym : "Anonymous",
+      goal: goal.trim() || null,
       waiting:
         typeof r.waiting === "number"
           ? r.waiting
