@@ -250,6 +250,25 @@ describe("the practise screen", () => {
     expect(JSON.parse(String(open.body))).toMatchObject({ kind: "rewrite", passage: OFFERED, feedback_id: "s-rewrite" });
   });
 
+  it("the clearer version's served line (its signed move) sits above the words to say", async () => {
+    const MOVE = "Say it this way, and let \u201cprice\u201d land at the end.";
+    draw({ items: [{ ...ITEMS[0], rewrite: { ...ITEMS[0].rewrite!, move: `  ${MOVE} ` } }] });
+    await accept();
+    expect(screen()).toBe("walk-screen-practise");
+    const body = live()!.querySelector("[data-walk-message]")!;
+    expect(body.textContent).toBe(MOVE);
+    // The line comes first, then the words to say.
+    expect(body.compareDocumentPosition(live()!.querySelector("[data-walk-say]")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("with no served line, none is made up: the words to say alone", async () => {
+    draw();
+    await accept();
+    expect(screen()).toBe("walk-screen-practise");
+    expect(live()!.querySelector("[data-walk-message]")).toBeNull();
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
+  });
+
   it("Stop uploads through the attempts route, cross-fades to the voice mark and posts /check", async () => {
     draw();
     await accept();

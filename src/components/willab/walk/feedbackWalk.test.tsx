@@ -110,6 +110,35 @@ describe("FeedbackWalk", () => {
     expect(props.onEnd).toHaveBeenCalledTimes(1);
   });
 
+  it("helper words carry the prototype's subtitle under the title, on a later Take and on Take 1", () => {
+    for (const firstTake of [false, true]) {
+      draw(null, { firstTake });
+      draw({ seq: firstTake ? 3 : 2, at: 3 }, { firstTake });
+      expect(screen()).toBe("walk-screen-helpers");
+      const subs = [...live()!.querySelectorAll("[data-walk-subtitle]")];
+      expect(subs.map((p) => p.textContent)).toEqual(["These words show while you record your next take"]);
+      expect(subs[0].textContent).toBe(WALK_COPY.helpersSubtitle);
+      // Under the title, above the picker.
+      const picker = live()!.querySelector("[data-walk-word-picker]")!;
+      expect(subs[0].compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(live()!.querySelector("h2")!.compareDocumentPosition(subs[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
+  it("on a desktop the walk is the phone's column, centred on the same white (Q-WALK-DESK A)", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    // The overlay keeps the whole screen; its parts sit in a 430px column.
+    expect(css).toMatch(
+      /\[data-feedback-walk\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
+    );
+    expect(css).toMatch(/--walk-column: 430px;/);
+    expect(css).toMatch(/\.walk-endsheet \{\s*margin-inline: auto;\s*max-width: var\(--walk-column\);/);
+    // The rule is scoped to the walk: its overlay is drawn inside [data-feedback-walk].
+    draw(null);
+    draw({ seq: 1, at: 1 });
+    expect(live()!.querySelector(".walk-ov")!.closest("[data-feedback-walk]")).not.toBeNull();
+  });
+
   it("saves the picked helper words as one phrase, then moves on", () => {
     const props = draw(null);
     draw({ seq: 1, at: 3 });

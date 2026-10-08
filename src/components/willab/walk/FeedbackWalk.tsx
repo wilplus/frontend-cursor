@@ -450,7 +450,8 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   );
 }
 
-/** "Choose your helper words", after a praise: at most four, one phrase. */
+/** "Choose your helper words", after a praise: the subtitle, then at most
+ *  four words, one phrase. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
   const words = (step.kind === "try" ? ctx.practise.tryOf(moment.index)?.words : null) ?? moment.paragraphText;
@@ -471,9 +472,11 @@ function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
         />
       }
     >
-      {ctx.firstTake ? (
-        <p className="m-0 text-[14.5px] text-muted-foreground">{COPY.emphasisFirstTakeNote}</p>
-      ) : null}
+      {/* The prototype's subtitle under "Choose your helper words", on every
+          Take (founder lock 2026-10-06; Q-B4 A, N62). */}
+      <p data-walk-subtitle className="m-0 text-[14.5px] text-muted-foreground">
+        {WALK_COPY.helpersSubtitle}
+      </p>
       <WalkWordPicker
         words={phraseTokens(words).map((token) => token.text)}
         selection={picked}
