@@ -80,6 +80,7 @@ function BackOnly({ onBack }: { onBack: () => void }) {
 
 export default function WalkOverlay({
   nav,
+  caption = null,
   onBack,
   onClose,
   title,
@@ -90,6 +91,10 @@ export default function WalkOverlay({
   children,
 }: {
   nav?: WalkNav | null;
+  /** Where the screen sits ("Slide 2") when there is nowhere to walk: the
+   *  bar's text alone, without ‹ ›. Ignored when `nav` or `onBack` is given
+   *  (a paragraph opened outside the walk, build plan D-IT-6). */
+  caption?: string | null;
   /** ‹ without the moment bar; ignored when `nav` is given. */
   onBack?: () => void;
   onClose?: () => void;
@@ -114,12 +119,22 @@ export default function WalkOverlay({
       className="walk-ov flex h-full w-full flex-col bg-background pt-[env(safe-area-inset-top)] text-[17px] leading-[1.55] text-foreground"
     >
       <div className="walk-ovtop flex min-h-[44px] items-center justify-between px-2.5 pt-2">
-        {nav ? <NavBar nav={nav} /> : onBack ? <BackOnly onBack={onBack} /> : <span />}
+        {nav ? (
+          <NavBar nav={nav} />
+        ) : onBack ? (
+          <BackOnly onBack={onBack} />
+        ) : caption ? (
+          <span data-walk-caption className="min-w-0 truncate px-2 text-[13.5px] font-semibold">
+            {caption}
+          </span>
+        ) : (
+          <span />
+        )}
         {onClose ? (
-          <OverlayCloseButton
-            onClick={onClose}
-            className="walk-press-sm mr-2.5 h-[30px] w-[30px] border-transparent bg-muted"
-          />
+          // The app's one small grey X, unchanged (founder 2026-10-07,
+          // Q-B14 A (1); D-RC-6): only its place and the walk's press are
+          // the overlay's.
+          <OverlayCloseButton onClick={onClose} className="walk-press-sm mr-2.5" />
         ) : (
           <span />
         )}

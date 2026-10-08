@@ -24,6 +24,8 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { Pager } from "@/components/willab/feedbackPager";
 import { useBoundedWait } from "@/components/willab/paragraphSheetData";
+import { useReopenedJudgement } from "@/components/willab/useReopenedJudgement";
+import type { ReopenedJudgement } from "@/lib/willab/changeJudgement";
 
 export type PractiseAgain = {
   item: DocumentSuggestion;
@@ -68,6 +70,7 @@ export default function OpenChunkSheet({
   helperWordsHost = null,
   startPicking = false,
   firstTake = false,
+  reopenJudgement = false,
 }: {
   state: ChunkState<DocumentSuggestion, ChunkHistoryLite, CoachMomentLite>;
   arcId: string | null;
@@ -95,6 +98,9 @@ export default function OpenChunkSheet({
   renderSheet: (
     practiseAgain: PractiseAgain,
     onAnswered: (answer: ConfidenceRatingValue) => void,
+    /** ‹ back to an answered moment: its judgement, the latest answer
+     *  pressed (QA1 A, D-FW-9). Null on every other opening. */
+    reopen?: ReopenedJudgement | null,
   ) => ReactNode;
   /** THE PRACTISE SCREEN (founder lock 2026-09-30, B6): with a host,
    *  Practise from the overlay opens the practise loop — say, record,
@@ -115,6 +121,9 @@ export default function OpenChunkSheet({
   startPicking?: boolean;
   /** The project has exactly one Take (the picker's Take 1 note). */
   firstTake?: boolean;
+  /** Opened by ‹ (QA1 A, D-FW-9): an answered Confident Voice moment
+   *  reopens its judgement with the latest answer pressed. */
+  reopenJudgement?: boolean;
 }) {
   const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
   /** The answer given in the judgement sheet this opening, carried into the
@@ -145,7 +154,15 @@ export default function OpenChunkSheet({
     text: state.chunk.part.text,
     onDone: onSkip ?? onDone ?? onClose,
   });
-  if (ownSheet === null) return null;
+  // ‹ back to an answered moment reopens its judgement (QA1 A, D-FW-9).
+  const reopened = useReopenedJudgement({
+    asked: reopenJudgement,
+    state,
+    saved,
+    takeSessionId,
+    partId: state.chunk.part.id,
+  });
+  if (ownSheet === null || reopened.waiting) return null;
   if (practiseAgain && practiseHost) {
     const judgement = asJudgementValue(practiseAgain.answer);
     const items = [...state.decided, ...state.pending];
@@ -172,14 +189,15 @@ export default function OpenChunkSheet({
       );
     }
   }
-  if (practiseAgain || (!ownSheet && !first.awaiting)) {
+  if (practiseAgain || reopened.reopen || (!ownSheet && !first.awaiting)) {
     return (
       <>
         {renderSheet(practiseAgain, (answer) => {
           setAnswered(answer);
           setOwnSheet(true);
+          reopened.done();
           first.stopAsking();
-        })}
+        }, reopened.reopen)}
       </>
     );
   }

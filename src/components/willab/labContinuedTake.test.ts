@@ -58,11 +58,11 @@ describe("one loader for the whole later-Take wait (build plan D-RC-1)", () => {
   );
 
   it("draws Getting your mic ready once, in one place of the column", () => {
-    expect(overlay.match(/label="Getting your mic ready"/g)?.length).toBe(1);
-    const column = overlay.slice(overlay.indexOf("<div className={labColumnClass(state, mic.state.status)}>"));
+    expect(overlay.match(/label=\{RECORDING_COPY\.micReady\}/g)?.length).toBe(1);
+    const column = overlay.slice(overlay.indexOf("<div className={`${labColumnClass(state, mic.state.status)}"));
     const slot = column.slice(0, column.indexOf('{state === "lab_feelings"'));
     expect(slot).toMatch(
-      /showsMicWait\(state, trainingAsked, mic\.state\.status, mic\.armed, rejectedMsg\) \? \(\s*<LoadingState placement="surface" label="Getting your mic ready" \/>/,
+      /showsMicWait\(state, trainingAsked, mic\.state\.status, mic\.armed, rejectedMsg\) \? \(\s*<LoadingState placement="surface" label=\{RECORDING_COPY\.micReady\} labelVisible \/>/,
     );
   });
 

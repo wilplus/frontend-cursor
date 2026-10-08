@@ -6,15 +6,17 @@ import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEd
 import WalkOverlay, { type WalkNav } from "@/components/willab/walk/WalkOverlay";
 import WalkMessage, { WalkNewWords } from "@/components/willab/walk/WalkMessage";
 import WalkPlayer from "@/components/willab/walk/WalkPlayer";
-import WalkJudgement from "@/components/willab/walk/WalkJudgement";
+import { JournalPostScreen, JudgeScreen, JudgementIntro } from "@/components/willab/walk/WalkJudgementScreens";
 import WalkFooter from "@/components/willab/walk/WalkFooter";
 import WalkOptions, { WalkField, type WalkOption } from "@/components/willab/walk/WalkOptions";
 import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
+import type { PhraseSelection } from "@/lib/willab/phraseTokens";
 import RecordingStrip from "@/components/willab/walk/RecordingStrip";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import {
   COACH_NOTE,
+  JOURNAL_POST,
   MOMENTS,
   PARAGRAPHS,
   SLIDE_LABEL,
@@ -39,8 +41,8 @@ export type WalkCtx = {
   close: () => void;
   answers: Record<number, ConfidenceRatingValue>;
   answer: (moment: number, value: ConfidenceRatingValue) => void;
-  helpers: Record<number, number[]>;
-  pickHelpers: (moment: number, picked: number[]) => void;
+  helpers: Record<number, PhraseSelection | null>;
+  pickHelpers: (moment: number, picked: PhraseSelection | null) => void;
   community: string[];
   setCommunity: (next: string[]) => void;
   elapsed: number;
@@ -231,7 +233,7 @@ function Encourage(ctx: WalkCtx) {
 
 function Helpers(ctx: WalkCtx) {
   const m = mom(ctx);
-  const picked = ctx.helpers[m.index] ?? [];
+  const picked = ctx.helpers[m.index] ?? null;
   return (
     <WalkOverlay
       testId={testId(ctx)}
@@ -239,7 +241,7 @@ function Helpers(ctx: WalkCtx) {
       title={COPY.titleEmphasis}
       footer={
         <WalkFooter
-          pill={{ label: COPY.pillEmphasise, onClick: ctx.forward, disabled: picked.length === 0, testId: "walk-forward" }}
+          pill={{ label: COPY.pillEmphasise, onClick: ctx.forward, disabled: picked === null, testId: "walk-forward" }}
           links={[{ label: WALK_COPY.skip, onClick: ctx.forward, testId: "walk-skip" }]}
         />
       }
@@ -247,49 +249,43 @@ function Helpers(ctx: WalkCtx) {
       <p className="m-0 text-[14.5px] text-muted-foreground">{COPY.emphasisFirstTakeNote}</p>
       <WalkWordPicker
         words={PARAGRAPHS[m.index].split(" ")}
-        picked={picked}
+        selection={picked}
         onChange={(next) => ctx.pickHelpers(m.index, next)}
       />
     </WalkOverlay>
   );
 }
 
-/** "Judgement time!": a screen that stands apart. */
+/** "Judgement time!": a screen that stands apart (the production screen). */
 function Intro(ctx: WalkCtx) {
   return (
-    <WalkOverlay
+    <JudgementIntro
       testId={testId(ctx)}
       onClose={ctx.close}
-      bare
-      footer={
-        <WalkFooter
-          pill={{ label: WALK_COPY.judgementPromise, onClick: ctx.forward, testId: "walk-forward" }}
-          links={[{ label: WALK_COPY.skip, onClick: ctx.forward }]}
-        />
-      }
-    >
-      <div className="flex flex-1 flex-col justify-center gap-3.5 px-7 text-center">
-        <h2 className="m-0 text-[26px] font-extrabold leading-[1.15] tracking-[-0.02em]">{WALK_COPY.judgementTitle}</h2>
-        <p className="m-0 text-[16px] leading-[1.5]">{WALK_COPY.judgementHonesty}</p>
-        {/* Opens the Journal post inside the flow (P4); inert until then. */}
-        <button
-          type="button"
-          className="mx-auto text-[14px] text-muted-foreground underline underline-offset-[3px]"
-        >
-          {WALK_COPY.judgementJournalLink}
-        </button>
-      </div>
-    </WalkOverlay>
+      onPromise={ctx.forward}
+      onSkip={ctx.forward}
+      onJournal={() => undefined}
+    />
   );
+}
+
+/** The Journal post inside the flow (the production screen, on the signed
+ *  post's harness copy). */
+function Journal(ctx: WalkCtx) {
+  return <JournalPostScreen testId={testId(ctx)} post={JOURNAL_POST} onBack={ctx.back} />;
 }
 
 function Judge(ctx: WalkCtx) {
   const m = mom(ctx);
   return (
-    <WalkOverlay testId={testId(ctx)} nav={momentNav(ctx)} onClose={ctx.close} title={COPY.titleFeedback}>
-      {player(ctx)}
-      <WalkJudgement value={ctx.answers[m.index] ?? null} onAnswer={(v) => ctx.answer(m.index, v)} />
-    </WalkOverlay>
+    <JudgeScreen
+      testId={testId(ctx)}
+      nav={momentNav(ctx)}
+      onClose={ctx.close}
+      player={player(ctx)}
+      value={ctx.answers[m.index] ?? null}
+      onAnswer={(v) => ctx.answer(m.index, v)}
+    />
   );
 }
 
@@ -356,6 +352,7 @@ const SCREENS: Record<Exclude<Step["key"], "page" | "end">, (ctx: WalkCtx) => Re
   encourage: Encourage,
   helpers: Helpers,
   intro: Intro,
+  journal: Journal,
   judge: Judge,
   community: Community,
 };

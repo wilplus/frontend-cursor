@@ -810,7 +810,11 @@ describe("the ladder", () => {
         word.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
     };
+    // One tap, one word, one connected phrase (QA4 A, Q-B5 A): built
+    // leftwards from "team", word by word.
     await tap("team");
+    await tap("the");
+    await tap("and");
     await tap("clear");
     await click("Use these helper words");
     const calls = vi.mocked(props.onSetRootPhrase).mock.calls;
