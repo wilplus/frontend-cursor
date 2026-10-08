@@ -25,6 +25,7 @@ import {
   previousStep,
   type Step,
 } from "@/lib/legal/acceptanceSteps";
+import { fetchConsentChoices } from "@/services/api/consentChoices";
 
 /* -------------------------------------------------------------------------- */
 /*  The Phase-1 acceptance screens (Task 5).                                   */
@@ -287,6 +288,19 @@ export default function Phase1AcceptanceFlow({
   const [ageAttested, setAge] = useState(false);
   const [sensitiveAttested, setSensitive] = useState(false);
   const [practiceOptIn, setPractice] = useState(false);
+  // Whether the policy in force offers practice as a choice. Under Privacy
+  // 3.4 it is part of the service (N55, N66.2): the tick goes and the
+  // heading counts two (prototype signed 2026-10-08). Read from the server,
+  // which refuses a tick for a purpose the policy makes required; kept on
+  // when it cannot be read, as today.
+  const [practiceOffered, setPracticeOffered] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    void fetchConsentChoices().then((choices) => {
+      if (alive && choices) setPracticeOffered(choices.practiceOffered);
+    });
+    return () => { alive = false; };
+  }, [policy.policyId]);
   const [declined, setDeclined] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -370,7 +384,7 @@ export default function Phase1AcceptanceFlow({
       countryOfResidence: country,
       locale,
       clientVersion: CLIENT_VERSION,
-      optionalPurposes: optionalPurposesFor({ practiceOptIn }),
+      optionalPurposes: optionalPurposesFor({ practiceOptIn: practiceOffered && practiceOptIn }),
       idempotencyKey: attemptKey,
     })
       .then((result) => {
@@ -385,7 +399,7 @@ export default function Phase1AcceptanceFlow({
         setFailure(result.message);
       })
       .finally(() => setSaving(false));
-  }, [policy, country, locale, attemptKey, practiceOptIn, onAccepted, onStale]);
+  }, [policy, country, locale, attemptKey, practiceOffered, practiceOptIn, onAccepted, onStale]);
 
   /* EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; the
      prototype's render(): a new step resets the scroller and enters over
@@ -544,7 +558,7 @@ export default function Phase1AcceptanceFlow({
         <div className="m-auto flex w-full max-w-[400px] flex-col items-center text-center">
           <VoiceMark small />
           <h1 className="max-w-[22ch] text-[27px] font-semibold leading-tight tracking-tight text-foreground">
-            Three things to confirm
+            {practiceOffered ? "Three things to confirm" : "Two things to confirm"}
           </h1>
           <div className="mt-6 flex w-full max-w-[400px] flex-col gap-2">
             {/* The minimum comes from the policy, never a constant here: a screen
@@ -583,7 +597,7 @@ export default function Phase1AcceptanceFlow({
               gates the button is a required purpose wearing an optional tick.
               Founder-approved wording, 2026-09-26 (the "Optional" label and
               the sentence below) — change it only with sign-off. */}
-          <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
+          {practiceOffered ? <div className="mt-5 flex w-full max-w-[400px] flex-col gap-2">
             <p className="text-left text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
               Optional
             </p>
@@ -600,7 +614,7 @@ export default function Phase1AcceptanceFlow({
                 everything else.
               </span>
             </Choice>
-          </div>
+          </div> : null}
 
           {failure ? (
             <p

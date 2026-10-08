@@ -12,6 +12,7 @@ import type { WalkStep, WalkStepKey } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
+import type { SayLine } from "@/lib/willab/walkLines";
 
 /* -------------------------------------------------------------------------- */
 /*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-06,  */
@@ -49,6 +50,9 @@ export type PractiseScreenCtx = {
   skip: () => void;
   again: () => void;
   tryOf: (moment: number) => WalkTry | undefined;
+  /** The signed line a screen says, never the one said just before
+   *  (D-FW-3). Absent: the plan's own turn. */
+  say?: SayLine;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -132,7 +136,7 @@ function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
       footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }} />}
     >
       <TryPlayer ctx={ctx} moment={moment} />
-      <WalkMessage>{improvedLine(ctx.plan, ctx.at(step))}</WalkMessage>
+      <WalkMessage>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
 }
@@ -152,7 +156,7 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
       }
     >
       <TryPlayer ctx={ctx} moment={moment} />
-      <WalkMessage>{encourageLine(ctx.plan, ctx.at(step))}</WalkMessage>
+      <WalkMessage>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
 }
@@ -170,7 +174,7 @@ function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMome
       footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }} />}
     >
       <TryPlayer ctx={ctx} moment={moment} />
-      <WalkMessage>{thanksLine(ctx.plan, ctx.at(step))}</WalkMessage>
+      <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
 }

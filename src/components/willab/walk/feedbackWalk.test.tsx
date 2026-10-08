@@ -129,7 +129,7 @@ describe("FeedbackWalk", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
     // The overlay keeps the whole screen; its parts sit in a 430px column.
     expect(css).toMatch(
-      /\[data-feedback-walk\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
+      /\[data-feedback-walk\] \.walk-ov,\s*\[data-walk-sheet\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
     );
     expect(css).toMatch(/--walk-column: 430px;/);
     expect(css).toMatch(/\.walk-endsheet \{\s*margin-inline: auto;\s*max-width: var\(--walk-column\);/);
@@ -260,10 +260,73 @@ describe("the clearer version (D-FW-15)", () => {
     expect(buttons).toContain(COPY.linkKeepMyWords);
   });
 
-  it("the next clearer version takes the next signed lines (never the same twice in a row)", () => {
+  const said = () => [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
+
+  it("the next clearer version said takes the next signed lines (never the same twice in a row)", () => {
+    drawClearer(true, FIRST);
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
+    click(live()!.querySelector("[data-testid='walk-keep']"));
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[1], WALK_LINE_BANK.B14.lines[1]]);
+  });
+
+  it("a line follows what was said, not the screen's place: opened on the second, it is the first said (D-FW-3)", () => {
     drawClearer(true, FIRST + 1);
-    const lines = [...msg().querySelectorAll(":scope > div > span:not([data-walk-new-words])")].map((n) => n.textContent);
-    expect(lines).toEqual([WALK_LINE_BANK.B13.lines[1], WALK_LINE_BANK.B14.lines[1]]);
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
+  });
+
+  it("‹ back to a clearer version shows the same lines again", () => {
+    drawClearer(true, FIRST);
+    click(live()!.querySelector("[data-testid='walk-keep']"));
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[1], WALK_LINE_BANK.B14.lines[1]]);
+    click(live()!.querySelector(`[data-walk-nav] [aria-label='${COPY.pagerBack}']`));
+    expect(screen()).toBe("walk-screen-clearer");
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[0], WALK_LINE_BANK.B14.lines[0]]);
+  });
+
+  it("with the memory: the bank's next line for this speaker, recorded once when on screen; a new opening reads again after the records land", async () => {
+    const recorded: string[] = [];
+    const reads: number[] = [];
+    let next: Record<string, number> = { B13: 3, B14: 6 };
+    const lines = {
+      next: vi.fn(async () => {
+        reads.push(recorded.length);
+        return next;
+      }),
+      shown: vi.fn(async (bank: string) => {
+        recorded.push(bank);
+      }),
+    };
+    const model = buildFeedbackWalk({ items: REWRITE_ITEMS, coachNote: false, practiceOn: true, guest: false });
+    draw(null, { model, lines } as Over);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    draw({ seq: 1, at: FIRST }, { model, lines } as Over);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[3], WALK_LINE_BANK.B14.lines[6]]);
+    expect(recorded).toEqual(["B13", "B14"]);
+    // Redrawn (a re-read of the page): the same lines, nothing recorded twice.
+    draw({ seq: 1, at: FIRST }, { model, lines } as Over);
+    expect(said()).toEqual([WALK_LINE_BANK.B13.lines[3], WALK_LINE_BANK.B14.lines[6]]);
+    expect(recorded).toEqual(["B13", "B14"]);
+    // The next opening reads the memory again, after both records landed.
+    next = { B13: 4, B14: 0 };
+    draw({ seq: 2, at: FIRST }, { model, lines } as Over);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(reads.at(-1)).toBe(2);
+    draw({ seq: 2, at: FIRST + 1 }, { model, lines } as Over);
+    draw({ seq: 3, at: FIRST + 1 }, { model, lines } as Over);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(said()[0]).not.toBe(WALK_LINE_BANK.B13.lines[3]);
   });
 
   it("Accept and practise hands the decision on, then moves on without waiting", () => {
@@ -314,5 +377,20 @@ describe("the clearer version (D-FW-15)", () => {
       .replace(`${COPY.pagerMoment} 3 ${COPY.pagerOf} 4`, "")
       .replace(/\d:\d{2}/, "");
     expect(body).not.toMatch(/\d/);
+  });
+});
+
+describe("what the speaker sees, for the Lounge's \"new\" (D-FW-19)", () => {
+  it("nothing before the walk is asked open; then each screen as it comes on", () => {
+    const onShown = vi.fn();
+    draw(null, { onShown });
+    expect(onShown).not.toHaveBeenCalled();
+    draw({ seq: 1, at: 1 }, { onShown });
+    expect(screen()).toBe("walk-screen-coachnote");
+    expect(onShown).toHaveBeenLastCalledWith(expect.objectContaining({ key: "coachnote" }), null);
+    forward();
+    const [step, moment] = onShown.mock.calls.at(-1)!;
+    expect(step.key).not.toBe("coachnote");
+    expect(moment?.index).toBe(step.moment);
   });
 });

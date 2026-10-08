@@ -228,12 +228,20 @@ describe("the walk's look", () => {
   });
 });
 
+/** The walk's player's own words (its clip length, its accessible name: the
+ *  walk's signed "moment n of m"): the one player replaces today's, whose
+ *  words the mocked MediaPlayer does not draw (Q-WALK-PARA A). */
+const lessWalkPlayer = (list: string[]) =>
+  list.filter((line) => !/^\d+:\d\d$/.test(line) && !/^aria:(Play|Pause) moment /.test(line));
+
 describe("every string is unchanged between the two looks", () => {
-  it("This paragraph", async () => {
+  it("This paragraph: the same, less the tinted judgement chip (Q-WALK-PARA A)", async () => {
     const off = await stringsIn(false, {}, '[data-testid="paragraph-sheet"]');
     const on = await stringsIn(true, {}, '[data-testid="paragraph-sheet"]');
     expect(off).toContain(COPY.titleParagraph);
-    expect(on).toEqual(off);
+    expect(off).toContain(COPY.judgementLabel);
+    const chip = new Set<string>([COPY.judgementLabel, COPY.judgementWord.yes]);
+    expect(lessWalkPlayer(on)).toEqual(off.filter((line) => !chip.has(line)));
   });
 
   it("Helper words saved", async () => {
@@ -241,7 +249,7 @@ describe("every string is unchanged between the two looks", () => {
     const off = await stringsIn(false, over, '[data-testid="paragraph-sheet"]');
     const on = await stringsIn(true, over, '[data-testid="paragraph-sheet"]');
     expect(off).toContain(COPY.titleSaved);
-    expect(on).toEqual(off);
+    expect(lessWalkPlayer(on)).toEqual(off);
   });
 
   it("the helper-words overlay", async () => {
@@ -409,5 +417,36 @@ describe("reduce motion: every move is instant", () => {
     const block = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce) {\n  .walk-stage,"));
     expect(block).toMatch(/\.walk-stage \*,[\s\S]*?animation-duration: 0\.01s !important;[\s\S]*?transition-duration: 0\.01s !important;/);
     expect(block).toMatch(/\.walk-ghost \{\s*display: none !important;/);
+  });
+});
+
+describe("one player, no coloured chip in the walk's look (Q-WALK-PARA A)", () => {
+  it("on: the walk's player with the moment's clip; no second player; no judgement chip", async () => {
+    await draw(sheet({ walkLook: true }));
+    const players = live()!.querySelectorAll("[data-walk-player]");
+    expect(players).toHaveLength(1);
+    expect(q('[data-testid="media-player"]')).toBeNull();
+    expect(q('[data-testid="judgement-label"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Play this moment");
+    // The answer still decides the buttons: a Yes moves on with Next.
+    expect(q('[data-testid="overlay-practise"]')).not.toBeNull();
+  });
+
+  it("off: today's sheet keeps its player and its chip", async () => {
+    await draw(sheet({ walkLook: false }));
+    expect(q('[data-testid="media-player"]')).not.toBeNull();
+    expect(q("[data-walk-player]")).toBeNull();
+    expect(q('[data-testid="judgement-label"]')).not.toBeNull();
+  });
+
+  it("on a desktop the paragraph's screens are the walk's column too (Q-WALK-DESK A)", async () => {
+    await draw(sheet({ walkLook: true }));
+    expect(live()!.closest("[data-walk-sheet]")).not.toBeNull();
+  });
+
+  it("on, with no clip: no player at all", async () => {
+    const silent = { ...moment, snippetAudioRef: null } as unknown as DocumentSuggestion;
+    await draw(sheet({ walkLook: true, decided: [silent] }));
+    expect(q("[data-walk-player]")).toBeNull();
   });
 });

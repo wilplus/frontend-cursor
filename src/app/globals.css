@@ -407,10 +407,14 @@ body.no-scroll {
    and footer sit in a column as wide as the phone layout. At phone width the
    padding is 0, so the phone is unchanged. Padding on the overlay, not a
    wrapper, so the moves above still address its direct children. */
-[data-feedback-walk] .walk-ov {
+[data-feedback-walk] .walk-ov,
+[data-walk-sheet] .walk-ov {
   padding-inline: max(0px, calc((100% - var(--walk-column)) / 2));
 }
+/* The paragraph's screens and the helper-words overlay inside the walk
+   (WalkSheetFrame) are the same column (Q-WALK-PARA A). */
 [data-feedback-walk] .walk-ov,
+[data-walk-sheet] .walk-ov,
 .walk-endsheet {
   --walk-column: 430px;
 }
