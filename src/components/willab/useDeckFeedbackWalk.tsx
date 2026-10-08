@@ -39,6 +39,7 @@ import { savePracticeHelperWords } from "@/services/api/confidentVoicePractice";
 import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
+import { lineBankIO } from "@/services/api/lineBank";
 import {
   markCoachFeedbackSeen,
   shownKey,
@@ -428,6 +429,7 @@ export function useDeckFeedbackWalk(args: {
           onSkipJudging={skipJudging}
           journal={journal}
           onEnd={onEnd}
+          lines={lineBankIO}
           onShown={onShown}
         />
       ) : null,
