@@ -180,6 +180,31 @@ export default function CeoTasks({
     }
   }
 
+  // A move pressed on a ticked task moves every ticked task in the lane
+  // with it; on an unticked task it moves only that one.
+  function movedWith(task: CeoTask): CeoTask[] {
+    return selected.has(task.id) ? picked : [task];
+  }
+
+  function moveLabel(label: string, task: CeoTask): string {
+    const count = movedWith(task).length;
+    return count > 1 ? `${label} (${count})` : label;
+  }
+
+  function move(
+    task: CeoTask,
+    action: "start" | "done" | "archive" | "restore",
+    success?: string
+  ) {
+    const tasksToMove = movedWith(task);
+    void run(async () => {
+      for (const item of tasksToMove) {
+        await actOnCeoTask(project, item.id, action);
+      }
+      setSelected(new Set());
+    }, success && tasksToMove.length > 1 ? `${success} (${tasksToMove.length} tasks)` : success);
+  }
+
   async function copyAll() {
     const toCopy = picked.length ? picked : shown;
     if (!toCopy.length) return;
@@ -488,52 +513,38 @@ export default function CeoTasks({
                       />
                       {view === "active" ? (
                         <TaskButton
-                          label="Start"
+                          label={moveLabel("Start", task)}
                           icon={Play}
-                          onClick={() =>
-                            void run(
-                              () => actOnCeoTask(project, task.id, "start"),
-                              "Moved to In progress."
-                            )
-                          }
+                          onClick={() => move(task, "start", "Moved to In progress.")}
                         />
                       ) : null}
                       {view === "active" || view === "in_progress" ? (
                         <TaskButton
-                          label="Done"
+                          label={moveLabel("Done", task)}
                           icon={Check}
                           onClick={() =>
-                            void run(
-                              () => actOnCeoTask(project, task.id, "done"),
-                              "Marked done. Overview reevaluation requested."
-                            )
+                            move(task, "done", "Marked done. Overview reevaluation requested.")
                           }
                         />
                       ) : (
                         <TaskButton
-                          label="Restore"
+                          label={moveLabel("Restore", task)}
                           icon={RotateCcw}
-                          onClick={() =>
-                            void run(() => actOnCeoTask(project, task.id, "restore"))
-                          }
+                          onClick={() => move(task, "restore")}
                         />
                       )}
                       {view === "in_progress" ? (
                         <TaskButton
-                          label="Back to Active"
+                          label={moveLabel("Back to Active", task)}
                           icon={RotateCcw}
-                          onClick={() =>
-                            void run(() => actOnCeoTask(project, task.id, "restore"))
-                          }
+                          onClick={() => move(task, "restore")}
                         />
                       ) : null}
                       {view !== "archived" ? (
                         <TaskButton
-                          label="Archive"
+                          label={moveLabel("Archive", task)}
                           icon={Archive}
-                          onClick={() =>
-                            void run(() => actOnCeoTask(project, task.id, "archive"))
-                          }
+                          onClick={() => move(task, "archive")}
                         />
                       ) : null}
                       <TaskButton
