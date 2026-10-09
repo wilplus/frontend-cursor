@@ -386,6 +386,16 @@ export default function CeoTasks({
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6">
                           {task.body}
                         </p>
+                        {task.source_text ? (
+                          <details className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                              Original bug
+                            </summary>
+                            <p className="mt-2 whitespace-pre-wrap leading-6">
+                              {task.source_text}
+                            </p>
+                          </details>
+                        ) : null}
                         {task.attachments.length ? (
                           <div className="mt-4 flex flex-wrap gap-2">
                             {task.attachments

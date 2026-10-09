@@ -14,6 +14,8 @@ export interface CeoTask {
   project_key: CeoProjectKey;
   feature_id: string | null;
   bug_id: string | null;
+  /** The bug text this task was drafted from, as it was typed. */
+  source_text?: string | null;
   title: string;
   user_story: string | null;
   body: string;
