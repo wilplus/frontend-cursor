@@ -163,6 +163,17 @@ export function ceoTaskAgentText(task: CeoTask): string {
     .join("\n\n");
 }
 
+export type CeoTaskSort = "priority" | "manual";
+
+/** P1 first, then P2, then P3; ties keep the hand-set order. */
+export function sortCeoTasks(tasks: CeoTask[], sort: CeoTaskSort): CeoTask[] {
+  if (sort === "manual") return tasks;
+  return tasks
+    .map((task, index) => ({ task, index }))
+    .sort((a, b) => a.task.priority - b.task.priority || a.index - b.index)
+    .map(({ task }) => task);
+}
+
 export function moveCeoTask(
   tasks: CeoTask[],
   from: number,

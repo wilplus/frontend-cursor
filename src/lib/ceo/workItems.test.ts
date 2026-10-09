@@ -5,6 +5,7 @@ import {
   deleteCeoTask,
   listCeoTasks,
   moveCeoTask,
+  sortCeoTasks,
   updateCeoTask,
   type CeoTask,
 } from "./workItems";
@@ -125,5 +126,15 @@ describe("CEO work item client", () => {
       "task-1",
     ]);
     expect(original.map((row) => row.id)).toEqual(["task-1", "task-2", "task-3"]);
+  });
+  it("sorts P1 first, then P2, then P3, keeping the hand order within each", () => {
+    const rows = [
+      { id: "a", priority: 3 },
+      { id: "b", priority: 1 },
+      { id: "c", priority: 2 },
+      { id: "d", priority: 1 },
+    ] as unknown as Parameters<typeof sortCeoTasks>[0];
+    expect(sortCeoTasks(rows, "priority").map((row) => row.id)).toEqual(["b", "d", "c", "a"]);
+    expect(sortCeoTasks(rows, "manual")).toBe(rows);
   });
 });

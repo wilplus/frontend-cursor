@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CeoFeature, CeoProjectKey } from "@/lib/ceo/domain";
 import {
@@ -24,8 +24,10 @@ import {
   moveCeoTask,
   reorderCeoTask,
   retryCeoBug,
+  sortCeoTasks,
   updateCeoTask,
   type CeoTask,
+  type CeoTaskSort,
   type CeoTaskStatus,
 } from "@/lib/ceo/workItems";
 import { useCeoTaskReorder } from "./useCeoTaskReorder";
@@ -86,6 +88,7 @@ export default function CeoTasks({
   const [tasks, setTasks] = useState<CeoTask[]>([]);
   const [view, setView] = useState<CeoTaskStatus>("active");
   const [featureId, setFeatureId] = useState("");
+  const [sort, setSort] = useState<CeoTaskSort>("priority");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -133,8 +136,11 @@ export default function CeoTasks({
     },
     [load, project]
   );
+  const shown = useMemo(() => sortCeoTasks(tasks, sort), [sort, tasks]);
+  // Dragging sets the hand order, so it only works while that order is shown.
+  const canDrag = view === "active" && sort === "manual";
   const reorder = useCeoTaskReorder(
-    view === "active" ? tasks.length : 0,
+    canDrag ? tasks.length : 0,
     commitMove
   );
 
@@ -153,7 +159,7 @@ export default function CeoTasks({
   async function copyAll() {
     if (!tasks.length) return;
     try {
-      await copyTasks(tasks);
+      await copyTasks(shown);
       setNote(`Copied ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}.`);
     } catch {
       setError("Clipboard access was refused.");
@@ -229,6 +235,15 @@ export default function CeoTasks({
               </option>
             ))}
           </select>
+          <select
+            aria-label="Sort tasks"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as CeoTaskSort)}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
+          >
+            <option value="priority">Highest priority first</option>
+            <option value="manual">My order</option>
+          </select>
           <div className="ml-auto flex gap-1">
             <button
               type="button"
@@ -275,7 +290,7 @@ export default function CeoTasks({
         </p>
       ) : (
         <div className="mt-5 space-y-3">
-          {tasks.map((task, index) => {
+          {shown.map((task, index) => {
             const row = reorder.rowProps(index);
             return (
               <article
@@ -302,7 +317,7 @@ export default function CeoTasks({
                 ) : (
                   <>
                     <div className="flex items-start gap-2">
-                      {view === "active" ? (
+                      {canDrag ? (
                         <button
                           type="button"
                           {...reorder.handleProps(index)}
