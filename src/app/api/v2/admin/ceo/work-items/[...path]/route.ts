@@ -10,7 +10,7 @@ const ALLOWED = [
   /^bugs\/[A-Za-z0-9-]{1,80}\/retry$/,
   /^tasks$/,
   /^tasks\/[A-Za-z0-9-]{1,80}$/,
-  /^tasks\/[A-Za-z0-9-]{1,80}\/(?:reorder|done|archive|restore)$/,
+  /^tasks\/[A-Za-z0-9-]{1,80}\/(?:reorder|start|done|archive|restore)$/,
 ];
 const QUERY_KEYS = ["project", "view", "feature_id", "confirmed"];
 

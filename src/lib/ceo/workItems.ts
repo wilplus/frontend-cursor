@@ -6,7 +6,7 @@ export interface CeoAttachment {
   name: string;
 }
 
-export type CeoTaskStatus = "active" | "done" | "archived";
+export type CeoTaskStatus = "active" | "in_progress" | "done" | "archived";
 export type CeoGenerationStatus = "pending" | "ready" | "failed" | "manual";
 
 export interface CeoTask {
@@ -114,7 +114,7 @@ export async function updateCeoTask(
 export async function actOnCeoTask(
   project: CeoProjectKey,
   taskId: string,
-  action: "done" | "archive" | "restore"
+  action: "start" | "done" | "archive" | "restore"
 ): Promise<void> {
   await json(
     await fetch(base(`tasks/${taskId}/${action}`, project), { method: "POST" })

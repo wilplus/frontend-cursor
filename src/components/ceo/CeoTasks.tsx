@@ -7,6 +7,7 @@ import {
   Download,
   GripVertical,
   Pencil,
+  Play,
   Plus,
   RotateCcw,
   Trash2,
@@ -34,6 +35,7 @@ import { useCeoTaskReorder } from "./useCeoTaskReorder";
 
 const VIEW_LABELS: Record<CeoTaskStatus, string> = {
   active: "Active",
+  in_progress: "In progress",
   done: "Done",
   archived: "Archive",
 };
@@ -89,6 +91,7 @@ export default function CeoTasks({
   const [view, setView] = useState<CeoTaskStatus>("active");
   const [featureId, setFeatureId] = useState("");
   const [sort, setSort] = useState<CeoTaskSort>("priority");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -116,6 +119,11 @@ export default function CeoTasks({
     void load();
   }, [load]);
 
+  // A selection belongs to the lane it was made in.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [featureId, project, view]);
+
   useEffect(() => {
     if (!tasks.some((task) => task.generation_status === "pending")) return;
     const timer = window.setTimeout(() => void load(), 3000);
@@ -138,7 +146,23 @@ export default function CeoTasks({
   );
   const shown = useMemo(() => sortCeoTasks(tasks, sort), [sort, tasks]);
   // Dragging sets the hand order, so it only works while that order is shown.
-  const canDrag = view === "active" && sort === "manual";
+  const canDrag =
+    (view === "active" || view === "in_progress") && sort === "manual";
+  const picked = shown.filter((task) => selected.has(task.id));
+  const allPicked = shown.length > 0 && picked.length === shown.length;
+
+  function toggle(taskId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected(allPicked ? new Set() : new Set(shown.map((task) => task.id)));
+  }
   const reorder = useCeoTaskReorder(
     canDrag ? tasks.length : 0,
     commitMove
@@ -157,10 +181,11 @@ export default function CeoTasks({
   }
 
   async function copyAll() {
-    if (!tasks.length) return;
+    const toCopy = picked.length ? picked : shown;
+    if (!toCopy.length) return;
     try {
-      await copyTasks(shown);
-      setNote(`Copied ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}.`);
+      await copyTasks(toCopy);
+      setNote(`Copied ${toCopy.length} ${toCopy.length === 1 ? "task" : "tasks"}.`);
     } catch {
       setError("Clipboard access was refused.");
     }
@@ -208,7 +233,7 @@ export default function CeoTasks({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-muted p-1">
-            {(["active", "done", "archived"] as CeoTaskStatus[]).map((item) => (
+            {(["active", "in_progress", "done", "archived"] as CeoTaskStatus[]).map((item) => (
               <button
                 key={item}
                 type="button"
@@ -244,15 +269,29 @@ export default function CeoTasks({
             <option value="priority">Highest priority first</option>
             <option value="manual">My order</option>
           </select>
+          <label className="inline-flex items-center gap-2 px-1 text-xs font-medium">
+            <input
+              type="checkbox"
+              aria-label="Select all tasks in this lane"
+              checked={allPicked}
+              ref={(box) => {
+                if (box) box.indeterminate = picked.length > 0 && !allPicked;
+              }}
+              onChange={toggleAll}
+              disabled={!shown.length}
+              className="h-4 w-4 accent-foreground"
+            />
+            Select all
+          </label>
           <div className="ml-auto flex gap-1">
             <button
               type="button"
               onClick={() => void copyAll()}
-              disabled={!tasks.length}
+              disabled={!shown.length}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium disabled:opacity-35"
             >
               <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-              Copy all
+              {picked.length ? `Copy selected (${picked.length})` : "Copy all"}
             </button>
             <button
               type="button"
@@ -317,6 +356,13 @@ export default function CeoTasks({
                 ) : (
                   <>
                     <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${task.title}`}
+                        checked={selected.has(task.id)}
+                        onChange={() => toggle(task.id)}
+                        className="mt-2 h-4 w-4 shrink-0 accent-foreground"
+                      />
                       {canDrag ? (
                         <button
                           type="button"
@@ -442,6 +488,18 @@ export default function CeoTasks({
                       />
                       {view === "active" ? (
                         <TaskButton
+                          label="Start"
+                          icon={Play}
+                          onClick={() =>
+                            void run(
+                              () => actOnCeoTask(project, task.id, "start"),
+                              "Moved to In progress."
+                            )
+                          }
+                        />
+                      ) : null}
+                      {view === "active" || view === "in_progress" ? (
+                        <TaskButton
                           label="Done"
                           icon={Check}
                           onClick={() =>
@@ -460,6 +518,15 @@ export default function CeoTasks({
                           }
                         />
                       )}
+                      {view === "in_progress" ? (
+                        <TaskButton
+                          label="Back to Active"
+                          icon={RotateCcw}
+                          onClick={() =>
+                            void run(() => actOnCeoTask(project, task.id, "restore"))
+                          }
+                        />
+                      ) : null}
                       {view !== "archived" ? (
                         <TaskButton
                           label="Archive"
