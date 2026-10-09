@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  actOnCeoTask,
   ceoTaskAgentText,
   createCeoBug,
   deleteCeoTask,
@@ -106,6 +107,27 @@ describe("CEO work item client", () => {
     );
     expect(fetchMock.mock.calls[1]?.[0]).toContain(
       "project=product&confirmed=1"
+    );
+  });
+
+  it("reads the In progress lane and starts a task into it", async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ tasks: [], ok: true }),
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listCeoTasks("product", "in_progress");
+    await actOnCeoTask("product", "task-1", "start");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v2/admin/ceo/work-items/tasks?project=product&view=in_progress"
+    );
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("tasks/task-1/start");
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST" })
     );
   });
 
