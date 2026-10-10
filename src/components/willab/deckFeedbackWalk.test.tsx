@@ -16,7 +16,15 @@ import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { coachWordKey, coachWordSeen } from "./coachWordSeen";
-import { exerciseOf, judgementBehind, praiseWordsOf, rewriteOf } from "./useDeckFeedbackWalk";
+import {
+  exerciseOf,
+  judgementBehind,
+  praiseWordsOf,
+  rewriteOf,
+  sameHelperWords,
+  withLiveHelperWords,
+} from "./useDeckFeedbackWalk";
+import type { WalkStep } from "@/lib/willab/walkPlan";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
@@ -276,6 +284,72 @@ describe("the switch on", () => {
     expect(word.getAttribute("aria-pressed")).toBe("false");
     expect(p.onSetRootPhrase).not.toHaveBeenCalled();
     expect(p.onLockPart).not.toHaveBeenCalled();
+  });
+});
+
+describe("one door to the feedback (founder 2026-10-10: the journey unified)", () => {
+  /** The same moment, answered, with helper words saved on paragraph 2. */
+  // Its own project per test: the helper words read is shared per project.
+  let n = 0;
+  const answered = () => props({
+    arcId: `arc-saved-${(n += 1)}`,
+    suggestions: [{ ...praise, status: "approved" }, { ...judgement, status: "approved" }],
+  });
+  const savedWords = () =>
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      String(url).includes("/recording-roots")
+        ? new Response(JSON.stringify({
+          roots: [{ part_id: "p2", text: "retention went up", type: "flagship", slide_index: 1 }],
+          document_snapshot_id: "snap-1",
+          document_snapshot_sha256: "sha-1",
+        }), { status: 200, headers: { "Content-Type": "application/json" } })
+        : new Response("{}", { status: 404 })));
+  const headline = () => paragraph("retention went up")?.querySelector<HTMLElement>("[data-paragraph-headline]");
+
+  it("a tap on an answered paragraph plays the walk again from it, not the paragraph sheet", async () => {
+    walkOn();
+    savedWords();
+    await render(answered());
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    await click(paragraph("retention went up"));
+    expect(screen()).toBe("walk-screen-praise");
+    expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
+  });
+
+  it("a tap on its helper words opens the same walk", async () => {
+    walkOn();
+    savedWords();
+    await render(answered());
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    expect(headline()).toBeTruthy();
+    await click(headline());
+    expect(screen()).toBe("walk-screen-praise");
+    expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
+  });
+
+  it("the switch off: the answered paragraph opens its own sheet as before", async () => {
+    savedWords();
+    await render(answered());
+    await act(async () => new Promise((r) => setTimeout(r, 0)));
+    await click(paragraph("retention went up"));
+    expect(walk()).toBeNull();
+    expect(document.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
+  });
+
+  it("the replay keeps the helper words live: a new pick is saved, the same pick writes nothing", () => {
+    const model = {
+      plan: [
+        { key: "praise", moment: 0, replay: undefined },
+        { key: "helpers", moment: 0, replay: true },
+        { key: "clearer", moment: 0, replay: true },
+      ],
+    } as unknown as { plan: WalkStep[] };
+    const live = withLiveHelperWords(model).plan;
+    expect(live[1].replay).toBe(false);
+    expect(live[2].replay).toBe(true);
+    expect(sameHelperWords("retention went", "Retention  went")).toBe(true);
+    expect(sameHelperWords("retention went", "churn went")).toBe(false);
+    expect(sameHelperWords("retention went", null)).toBe(false);
   });
 });
 
