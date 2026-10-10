@@ -62,7 +62,11 @@ import type { LockResult } from "./DeckChunkModal";
 /*                  when the switch is off or this phase has nothing to show, */
 /*                  and the deck goes on exactly as today.                    */
 /*    tapPart(id)   a paragraph with an open moment was tapped: open the walk */
-/*                  at that moment (Q-B3 A). False otherwise, and the deck    */
+/*                  at that moment (Q-B3 A). False otherwise.                 */
+/*    replayPart(id) a paragraph whose moments are answered was tapped, or   */
+/*                  its helper words: the walk played again from that         */
+/*                  paragraph (founder 2026-10-10, "the journey should be     */
+/*                  unified"). False when it has no moment, and the deck      */
 /*                  opens the paragraph's own sheet as today.                 */
 /*    element       the walk itself; null while the switch is off.           */
 /*                                                                            */
@@ -405,6 +409,9 @@ export function useDeckFeedbackWalk(args: {
 }): {
   review: () => boolean;
   tapPart: (partId: string, open: boolean) => boolean;
+  /** Plays the walk again from this paragraph's first moment. False when
+   *  the paragraph has none in the replay. */
+  replayPart: (partId: string) => boolean;
   /** Plays the finished walk again (Q-IT643b A). False when there is
    *  nothing to play. */
   replay: () => boolean;
@@ -444,10 +451,13 @@ export function useDeckFeedbackWalk(args: {
      Take's moments, answered or not, with the speaker's own answers (the
      sheets' read) and the helper words as saved. Read only while the switch
      is on and nothing waits. */
-  const replayable = on && finished && answeredOf !== undefined;
+  // A paragraph is played again from its own moment at any time (founder
+  // 2026-10-10); the whole walk, from "Review feedback", once it is finished.
+  const replayReady = on && answeredOf !== undefined;
+  const replayable = replayReady && finished;
   const [ownAnswers, setOwnAnswers] = useState<readonly OwnerAnswer[]>([]);
   useEffect(() => {
-    if (!replayable || !pageTake) return;
+    if (!replayReady || !pageTake) return;
     let live = true;
     void ownAnswersOf(pageTake).then((answers) => {
       if (live) setOwnAnswers(answers);
@@ -455,22 +465,25 @@ export function useDeckFeedbackWalk(args: {
     return () => {
       live = false;
     };
-  }, [replayable, pageTake]);
+  }, [replayReady, pageTake]);
   const buildReplay = useCallback(
     (answers: readonly OwnerAnswer[]) =>
       buildFeedbackReplay({
         items:
-          replayable && answeredOf
+          replayReady && answeredOf
             ? deckReplayItems(chunks, groups, (c) => [...pendingOf(c), ...answeredOf(c)], slideLabel)
             : [],
-        coachNote: replayable && coachMessage !== null,
+        coachNote: replayReady && coachMessage !== null,
         practiceOn,
         answerOf: (item) => latestAnswerOf(item.id, answers),
         helperWordsOf: (partId) => helperWordsOf?.(partId) ?? null,
       }),
-    [replayable, answeredOf, chunks, groups, pendingOf, slideLabel, coachMessage, practiceOn, helperWordsOf],
+    [replayReady, answeredOf, chunks, groups, pendingOf, slideLabel, coachMessage, practiceOn, helperWordsOf],
   );
-  const canReplay = useMemo(() => walkStart(buildReplay(ownAnswers)) !== null, [buildReplay, ownAnswers]);
+  const canReplay = useMemo(
+    () => replayable && walkStart(buildReplay(ownAnswers)) !== null,
+    [replayable, buildReplay, ownAnswers],
+  );
   // The model the walk is opened on: the replay's while it plays.
   const [replaying, setReplaying] = useState<typeof model | null>(null);
   const walkModel = replaying ?? model;
@@ -519,6 +532,19 @@ export function useDeckFeedbackWalk(args: {
     return true;
   }, [canReplay, pageTake, buildReplay, openAt]);
 
+  const replayPart = useCallback(
+    (partId: string): boolean => {
+      if (!replayReady) return false;
+      const now = withLiveHelperWords(buildReplay(ownAnswers));
+      const at = walkStepForPart(now, partId);
+      if (at === null) return false;
+      setReplaying(now);
+      openAt(at);
+      return true;
+    },
+    [replayReady, buildReplay, ownAnswers, openAt],
+  );
+
   const live = useRef(args);
   live.current = args;
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
@@ -526,6 +552,8 @@ export function useDeckFeedbackWalk(args: {
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
     const span = spanOnLiveText(save, chunk.part.text);
+    // The words already saved, pressed again: nothing to write.
+    if (span && sameHelperWords(span.text, live.current.helperWordsOf?.(save.partId))) return;
     saveBehind(
       async () => (span ? helperWordsBehind(setRootPhrase, lockPart, chunk, span) : "final"),
       CHUNK_SHEET_COPY.failWordsBehind,
@@ -626,9 +654,26 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, replay, canReplay, element }),
-    [review, tapPart, replay, canReplay, element],
+    () => ({ review, tapPart, replayPart, replay, canReplay, element }),
+    [review, tapPart, replayPart, replay, canReplay, element],
   );
+}
+
+/** The replay opened from a paragraph keeps its helper words live: the
+ *  speaker may pick new ones there (L1: they persist until the speaker picks
+ *  new ones), as the paragraph sheet allowed. Pure. */
+export function withLiveHelperWords<M extends { plan: readonly WalkStep[] }>(model: M): M {
+  return {
+    ...model,
+    plan: model.plan.map((step) => (step.key === "helpers" && step.replay ? { ...step, replay: false } : step)),
+  };
+}
+
+/** Two helper word sets read the same, markers and case aside. Pure. */
+export function sameHelperWords(a: string, b: string | null | undefined): boolean {
+  if (!b) return false;
+  const norm = (t: string) => stripRichMarkers(t).replace(/\s+/g, " ").trim().toLowerCase();
+  return norm(a) === norm(b);
 }
 
 /** Nothing of the Take waits on the speaker: no open moment and no unseen

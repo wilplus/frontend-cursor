@@ -1351,8 +1351,10 @@ export default function TranscriptReviewDeck({
                       data-chunk
                       {...paragraphTap(opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)), () => {
                         // An open moment opens the walk there, when it is on
-                        // (Q-B3 A); an answered or saved paragraph its sheet.
+                        // (Q-B3 A); an answered one plays the walk again from
+                        // it (founder 2026-10-10); one with no moment its sheet.
                         if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
+                        if (feedbackWalk.replayPart(c.part.id)) return;
                         if (!walk.openPart(c.part.id)) openParagraph(c);
                       })}
                       data-settled={unsettled ? undefined : "true"}
@@ -1369,7 +1371,12 @@ export default function TranscriptReviewDeck({
                           read in the paragraph's own colour. */}
                       <ParagraphHeadline
                         text={headlineFor(headlines, c.part.id, c.sliceIndex)}
-                        onOpen={() => openHelperWords(c)}
+                        onOpen={() => {
+                          // The same door as the paragraph (founder 2026-10-10).
+                          if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
+                          if (feedbackWalk.replayPart(c.part.id)) return;
+                          openHelperWords(c);
+                        }}
                       />
                       <RichText
                         text={c.displayText ?? c.part.text}
