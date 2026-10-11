@@ -18,11 +18,6 @@ const modal = read("src/components/willab/DeckChunkModal.tsx");
 const exercise = read("src/components/willab/useConfidenceExercise.ts");
 const lounge = read("src/components/willab/Lounge.tsx");
 const api = read("src/services/api/confidentVoicePractice.ts");
-/* The speaker sheet's MLC-3 service lane (Mlc3FirstClientPractice.tsx and
-   usePracticeFlow.ts) was removed with the retired loop (founder 2026-09-30,
-   L8; contract 66; audit ML-15). What remains of its client serves the
-   Confident Moment bundle's exercise panel; its request-shape fences stay. */
-const firstClientApi = read("src/services/api/mlc3FirstClient.ts");
 const steps = read("src/lib/willab/chunkSteps.ts");
 
 describe("Confident Voice micro-practice journey fences", () => {
@@ -79,18 +74,5 @@ describe("Confident Voice micro-practice journey fences", () => {
     expect(lounge).toContain('message.metadata?.note === "confidence_practice_shared"');
     expect(lounge).toContain("Open exercise");
     expect(lounge).toContain("<ConfidencePracticeOverlay");
-  });
-
-  it("never invents an attempt index and keeps the real capture times", () => {
-    expect(firstClientApi).not.toContain('form.append("attempt_index"');
-    expect(firstClientApi).toContain('form.append("capture_completed_at", captureCompletedAt)');
-    expect(firstClientApi).not.toContain(
-      'form.append("capture_completed_at", new Date().toISOString())',
-    );
-  });
-
-  it("asserts only the affirmative self-voice action", () => {
-    expect(firstClientApi).toContain('assertion: "this_is_my_voice"');
-    expect(firstClientApi).not.toContain('assertion: "not_my_voice"');
   });
 });

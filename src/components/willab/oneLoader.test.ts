@@ -6,9 +6,7 @@ const ROOT = process.cwd();
 const WILLAB = join(ROOT, "src/components/willab");
 
 const NINE = [
-  "ConfidentMomentExercisePanel.tsx",
   "DeckChunkModal.tsx",
-  "DeckCoachFeedback.tsx",
   "HelperWordsSheet.tsx",
   "IdealTextMenu.tsx",
   "ParagraphSheet.tsx",

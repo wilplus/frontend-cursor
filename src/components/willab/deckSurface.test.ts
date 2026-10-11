@@ -499,8 +499,6 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     // price for every chunk on screen.
     const DECK_SRC = code("src/components/willab/TranscriptReviewDeck.tsx");
     expect(DECK_SRC).not.toMatch(/fetchArcFeedback/);
-    const COACH = code("src/components/willab/DeckCoachFeedback.tsx");
-    expect(COACH).toMatch(/onClick=\{\(\) => void open\(\)\}/);
   });
 
   it("a slide screen does NOT restate the title that is printed on the slide", () => {

@@ -76,7 +76,6 @@ import type {
   ConfidentMomentOwnerEdit,
   ConfidentMomentSummary,
 } from "@/services/api/confidentMomentBundles";
-import { confidentMomentBundleEnabled } from "@/services/api/confidentMomentBundles";
 import { feedbackStillComing } from "@/lib/willab/enrichmentSettle";
 
 /* -------------------------------------------------------------------------- */
@@ -345,9 +344,7 @@ export default function IdealTextReadout({
     if (analysisPending) return;
     let active = true;
     const gen = ++sdGenRef.current;
-    const read = confidentMomentBundleEnabled()
-      ? fetchIdealTextCore
-      : sdNonce === 0 ? fetchIdealTextForDisplay : fetchIdealTextCore;
+    const read = sdNonce === 0 ? fetchIdealTextForDisplay : fetchIdealTextCore;
     const applySingle = (
       r: Extract<IdealTextResult, { kind: "single" }>,
       refreshDocumentVariants: boolean,
@@ -1136,7 +1133,6 @@ export default function IdealTextReadout({
             takeSessionId={sd.latestTakeSessionId}
             feedbackPending={feedbackPending}
             confidentMomentSummary={sd.confidentMomentSummary}
-            confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
             onConfidentMomentChanged={() => setSdNonce((value) => value + 1)}
             styleChanges={dirty ? [] : sd.styleChanges}
             decisionHistory={sd.decisionHistory}

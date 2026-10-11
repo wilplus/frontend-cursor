@@ -1,6 +1,8 @@
 import { getAuthToken } from "@/lib/api/auth-client";
-import type { FiveAnswers } from "./afterPractice";
 import type { Outcome } from "./practiceCheck";
+
+/** The five judgement answers, by their backend names. */
+type FiveAnswers = "yes" | "in_between" | "no" | "not_sure" | "audio_unclear";
 
 export interface Community {
   id: string;
