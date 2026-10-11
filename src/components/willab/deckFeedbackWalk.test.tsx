@@ -40,10 +40,6 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
   practiseOfferedNow: () => practice.on,
   readPractiseOffered: async () => practice.on,
 }));
-vi.mock("./useConfidentMomentBundle", () => ({
-  useConfidentMomentBundle: () => ({ projection: null, status: "off", refresh: () => undefined }),
-}));
-vi.mock("./ConfidentMomentCoachingBundle", () => ({ default: () => null }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,

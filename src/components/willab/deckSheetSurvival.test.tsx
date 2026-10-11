@@ -22,14 +22,6 @@ import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { buildDeckChunks, resolveOpenChunk } from "@/lib/willab/deckChunks";
 import type { Part } from "@/lib/willab/documentParts";
 
-vi.mock("./useConfidentMomentBundle", () => ({
-  useConfidentMomentBundle: () => ({
-    projection: null,
-    status: "off",
-    refresh: () => undefined,
-  }),
-}));
-vi.mock("./ConfidentMomentCoachingBundle", () => ({ default: () => null }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 
 const SLIDES = [

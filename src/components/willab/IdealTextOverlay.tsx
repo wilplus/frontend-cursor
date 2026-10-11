@@ -1028,7 +1028,6 @@ export default function IdealTextOverlay({
             takeSessionId={sd.latestTakeSessionId}
             takeCount={sd.takeCount}
             confidentMomentSummary={sd.confidentMomentSummary}
-            confidentMomentOwnerEdit={sd.confidentMomentOwnerEdit}
             feedbackPending={feedbackPending}
             onConfidentMomentChanged={() => setRefetchNonce((value) => value + 1)}
             styleChanges={sd.styleChanges}
