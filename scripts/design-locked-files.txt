@@ -25,7 +25,6 @@ src/components/willab/DeckSlidePreview.tsx
 src/components/willab/DeckChunkModal.tsx
 src/components/willab/ParagraphSheet.tsx
 src/components/willab/HelperWordsSheet.tsx
-src/components/willab/ConfidentMomentExercisePanel.tsx
 src/components/willab/ExportFormatDialog.tsx
 src/components/willab/idealEditCopy.ts
 

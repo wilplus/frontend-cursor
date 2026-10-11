@@ -204,14 +204,6 @@ describe("Article 50(2) — every surface that shows generated text is marked", 
     }
   });
 
-  it("Manager Feedback marks the machine's text and NOT the coach's", () => {
-    const code = src("components", "willab", "ConfidentMomentCoachingBundle.tsx");
-    expect(code).toContain('aiGeneratedAttrs("manager-feedback")');
-    expect(code).toContain('<AiGeneratedNote kind="manager-feedback" />');
-    // L3: the mark is gated on the provenance field, never applied blanket.
-    expect(code).toContain('item.output.origin === "machine"');
-  });
-
   it("the docx export carries the mark in its core properties", () => {
     const code = src("lib", "willab", "presentationDocx.ts");
     expect(code).toContain("IPTC_TRAINED_ALGORITHMIC_MEDIA");

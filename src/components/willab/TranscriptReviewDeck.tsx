@@ -77,12 +77,7 @@ import type {
   DecisionHistoryEntry,
   DocumentSuggestion,
 } from "@/services/api/idealText";
-import type {
-  ConfidentMomentOwnerEdit,
-  ConfidentMomentSummary,
-} from "@/services/api/confidentMomentBundles";
-import ConfidentMomentCoachingBundle from "./ConfidentMomentCoachingBundle";
-import { useConfidentMomentBundle } from "./useConfidentMomentBundle";
+import type { ConfidentMomentSummary } from "@/services/api/confidentMomentBundles";
 import {
   deleteHelperWordsBehind,
   helperWordsBehind,
@@ -243,7 +238,6 @@ export default function TranscriptReviewDeck({
   arcId = null,
   takeSessionId = null,
   confidentMomentSummary = null,
-  confidentMomentOwnerEdit = null,
   onConfidentMomentChanged,
   openFeedback = false,
   coachMessage = null,
@@ -325,7 +319,6 @@ export default function TranscriptReviewDeck({
   /** The project's official-take count; 1 marks the first take. */
   takeCount?: number | null;
   confidentMomentSummary?: ConfidentMomentSummary | null;
-  confidentMomentOwnerEdit?: ConfidentMomentOwnerEdit | null;
   /** The feedback request has not answered yet, so no paragraph can be said
    *  to have nothing waiting. Reserves each mark's footprint rather than
    *  letting the marks arrive late and move the words. */
@@ -354,12 +347,6 @@ export default function TranscriptReviewDeck({
    *  the way back to the text. */
   renderNextStep?: () => React.ReactNode;
 }) {
-  const confidentMoments = useConfidentMomentBundle({
-    projectId: arcId,
-    takeId: takeSessionId,
-    summary: confidentMomentSummary,
-  });
-  const [openBundleId, setOpenBundleId] = useState<string | null>(null);
   const summaryByParagraph = useMemo(() => {
     const grouped = new Map<string, ConfidentMomentSummary["items"]>();
     for (const item of confidentMomentSummary?.items ?? []) {
@@ -367,9 +354,6 @@ export default function TranscriptReviewDeck({
     }
     return grouped;
   }, [confidentMomentSummary]);
-  const openBundle = openBundleId
-    ? confidentMoments.projection?.bundles.find((item) => item.bundleId === openBundleId) ?? null
-    : null;
   /* §11.7.1 — INSTANT LOCK FEEDBACK (founder 2026-08-14). The modal
    * already closes on a successful lock; what lagged was the PAGE — the
    * lock icon waited for the host's refetch. A confirmed lock is marked
@@ -621,19 +605,19 @@ export default function TranscriptReviewDeck({
   const bookmarkIds = useMemo(() => bookmarkPartIds(bookmarks), [bookmarks]);
   const openBookmark = useCallback(
     (bookmark: Bookmark) => {
+      // A Confident Moment bundle's bookmark opened the bundle's own sheet;
+      // that client is deleted (founder 2026-10-11) and was off by default,
+      // so such a tap opens nothing, exactly as it did with the flag off.
       if (bookmark.bundleId) {
         setOpenPart(null);
-        setOpenBundleId(bookmark.bundleId);
         return;
       }
-      setOpenBundleId(null);
       openParagraph(bookmark.chunk);
     },
     [openParagraph],
   );
   const closeSheets = useCallback(() => {
     setOpenPart(null);
-    setOpenBundleId(null);
   }, []);
   /* AFTER THE LAST MOMENT (founder 2026-09-26): the end card, and a short
      "saved" line each time a sheet finishes on its own. */
@@ -1662,21 +1646,6 @@ export default function TranscriptReviewDeck({
           }}
         />
       ) : null}
-      {openBundle ? (
-        <ConfidentMomentCoachingBundle
-          key={openBundle.bundleId}
-          bundle={openBundle}
-          pager={walk.pager}
-          history={bundleHistory(openBundle.paragraphId, chunks, arcId, headlines)}
-          documentSnapshotId={confidentMoments.projection!.documentSnapshotId}
-          ownerEdit={confidentMomentOwnerEdit}
-          onChanged={() => {
-            confidentMoments.refresh();
-            onConfidentMomentChanged?.();
-          }}
-          onClose={closeWalk}
-        />
-      ) : null}
       {feedbackWalk.element}
       <CoachStepLayer
         step={coachStep}
@@ -1924,22 +1893,4 @@ function headlineOfChunk(
   partId: string,
 ): string | null {
   return headlines.get(partId) ?? null;
-}
-
-/** What the coaching sheet shows under the coach's work once the moment is
- *  answered (founder 2026-09-25): the paragraph's own history. */
-function bundleHistory(
-  paragraphId: string,
-  chunks: readonly DeckChunk[],
-  arcId: string | null,
-  headlines: Map<string, string>,
-): { arcId: string | null; partId: string; text: string; headline: string | null } | null {
-  const chunk = chunks.find((c) => c.part.id === paragraphId);
-  if (!chunk) return null;
-  return {
-    arcId,
-    partId: chunk.part.id,
-    text: chunk.part.text,
-    headline: headlineOfChunk(headlines, chunk.part.id),
-  };
 }

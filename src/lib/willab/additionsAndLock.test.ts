@@ -173,10 +173,10 @@ describe("the founder copy is exactly what was signed off", () => {
 
   it("no new user-facing string is inlined in the components", () => {
     // The whole point of the one-file rule: a string cannot quietly ship from
-    // a JSX edit. Both new surfaces must render from IDEAL_EDIT_COPY.
+    // a JSX edit. The surface must render from IDEAL_EDIT_COPY (DocumentArranger, the
+    // other one, was deleted unused, founder 2026-10-11).
     for (const rel of [
       join("components", "willab", "AdditionsPanel.tsx"),
-      join("components", "willab", "DocumentArranger.tsx"),
     ]) {
       const src = read(rel)
         .replace(/\/\*[\s\S]*?\*\//g, "")
