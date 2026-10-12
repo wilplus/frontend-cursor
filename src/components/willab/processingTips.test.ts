@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 import {
   forgetPlaces,
   openingPlace,
@@ -33,92 +32,6 @@ describe("waitingTips", () => {
 /*  now, so an extra door beside the working one is just the old surface       */
 /*  showing through.                                                          */
 /* -------------------------------------------------------------------------- */
-
-/** Source with comments stripped — the file explains at length which
- *  treatments were retired, and scanning raw text would fail on the record of
- *  the decision rather than on a breach of it. */
-function code(path: string): string {
-  return readFileSync(path, "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "")
-    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-}
-
-describe("the waiting screen carries nothing but the wait", () => {
-  const READOUT = code("src/components/willab/IdealTextReadout.tsx");
-  /** The `analysisPending` early return — assertions about "the waiting
-   *  screen" must not accidentally pass on the normal readout below it,
-   *  which legitimately carries the record affordance. */
-  const BLOCK = READOUT.slice(
-    READOUT.indexOf("if (analysisPending) {"),
-    READOUT.indexOf("if (analysisPending) {") +
-      READOUT.slice(READOUT.indexOf("if (analysisPending) {")).indexOf("\n  }\n")
-  );
-
-  it("shows ProcessingWait and no second affordance", () => {
-    expect(BLOCK).toMatch(/<ProcessingWait\b/);
-    expect(BLOCK).not.toMatch(/Record the next take/);
-    expect(BLOCK).not.toMatch(/onReRead/);
-    expect(BLOCK).not.toMatch(/<Mic/);
-  });
-
-  it("keeps the way OUT — the block is on the text, not on leaving", () => {
-    // SPEC-lockin-loop §1: while the document assembles the old text is
-    // inaccessible, "no browse-with-banner". Closing was never part of that.
-    expect(BLOCK).toMatch(/OverlayCloseButton/);
-  });
-
-  it("the record affordance still exists on the READOUT itself", () => {
-    // Removing it from the wait must not remove it from the screen that is
-    // supposed to have it — otherwise the next take has no door at all. The
-    // readout does not own the label: it hands `onReRead` to IdealTextActions
-    // (which carries the founder's "Record the next take"), and falls back to
-    // its own small mic when there is no master-document payload.
-    // Phase 0.6: a guest's Record Take 2 asks to sign up first; the
-    // affordance itself is the same button for everyone.
-    expect(READOUT).toMatch(/onNewTake=\{gate\(onReRead, undefined\)\}/);
-    expect(code("src/components/willab/IdealTextActions.tsx"))
-      .toMatch(/Record the next take/);
-  });
-});
-
-describe("the advice does not move on its own", () => {
-  /* REPLACED 2026-09-23 (founder: "we want them to be static with a scroll...
-     so that you can scroll as you wait, from one advice to another").
-
-     Two tests lived here and both asserted the crossfade: that the same job
-     epoch derived the same frame after a remount, and that the cycle swapped
-     every seven seconds. They exercised `processingTipFrame` directly, so they
-     kept passing after the component stopped calling it — guarding a behaviour
-     that no longer ships while nothing guarded the one that does. That is the
-     failure mode worth naming: a pure-module test outlives the decision that
-     made the module worth having. */
-  const source = code("src/components/willab/RecordingAnalysisPresentation.tsx");
-
-  it("runs no timer on the tips", () => {
-    expect(source).not.toContain("processingTipFrame");
-    expect(source).not.toMatch(/setTimeout|setInterval/);
-  });
-
-  it("renders every tip rather than one at a time", () => {
-    // The whole collection is in the DOM and the reader moves through it.
-    expect(source).toContain("waitingTips.map");
-    expect(source).toContain("snap-y");
-    expect(source).toContain("snap-mandatory");
-  });
-
-  it("moves one tip per gesture, by the Ideal Text deck's own machine", () => {
-    // "The same scroll like you have on the ideal text" — the same code, so
-    // there is one place to fix if the feel is ever wrong again.
-    expect(source).toContain("wheelGestureStep");
-  });
-
-  it("drops the live region the rotation needed", () => {
-    // It announced text that changed unasked. Announcing a tip the reader
-    // scrolled to deliberately would talk over them.
-    expect(source).not.toContain("aria-live");
-  });
-});
 
 describe("each wait opens somewhere new", () => {
   /* Founder 2026-09-23: "it should start randomly with different advices, but

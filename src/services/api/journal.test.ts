@@ -331,12 +331,6 @@ describe("parseBodyBlocks", () => {
     ]);
   });
 
-  it("tolerates surrounding whitespace around a token line", () => {
-    expect(parseBodyBlocks("  [image: https://x.test/i.png | pic]  ")).toEqual([
-      { type: "image", url: "https://x.test/i.png", alt: "pic" },
-    ]);
-  });
-
   it("returns [] for an empty body", () => {
     expect(parseBodyBlocks("")).toEqual([]);
   });

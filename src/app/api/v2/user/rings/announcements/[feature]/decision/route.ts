@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 /* -------------------------------------------------------------------------- */
 // Auth is demanded by callBackend's default; the failure envelopes are the
 // helper's own defaults, so no new user-facing string is minted here (copy is
-// founder-held). The envelope is pinned in bffEnvelopes.golden.json.
+// founder-held).
 const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
 export async function POST(req: NextRequest, { params }: { params: { feature: string } }): Promise<NextResponse> {

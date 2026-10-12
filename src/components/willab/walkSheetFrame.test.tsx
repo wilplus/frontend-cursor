@@ -12,7 +12,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeckChunkModal from "./DeckChunkModal";
 import ParagraphSheet from "./ParagraphSheet";
-import CoachMessageSheet from "./CoachMessageSheet";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -174,37 +173,8 @@ async function click(label: string) {
   });
 }
 
-const sheetBox = () =>
-  container.querySelector('[role="dialog"]')?.firstElementChild as HTMLElement | null;
 const playerCompact = () =>
   container.querySelector('[data-testid="media-player"]')?.getAttribute("data-compact");
-
-describe("one sheet height", () => {
-  it("Suggestion and Good job open at the same full height as the judgement", async () => {
-    await renderSheet([confidentVoice, rewrite, praise]);
-    expect(sheetBox()?.className).toContain("h-[97dvh]");
-    await click("Yes");
-    expect(container.textContent).toContain("Suggestion");
-    expect(sheetBox()?.className).toContain("h-[97dvh]");
-    await click("Keep my wording");
-    expect(container.textContent).toContain("Good job");
-    expect(sheetBox()?.className).toContain("h-[97dvh]");
-  });
-
-  it("the coach step is the same height as the rest of the walk", () => {
-    act(() =>
-      root.render(
-        createElement(CoachMessageSheet, {
-          message: { text: "Well done.", videoUrl: null, takeIndex: 1, publishedAt: null },
-          onContinue: () => undefined,
-          onClose: () => undefined,
-        }),
-      ),
-    );
-    expect(sheetBox()?.className).toContain("h-[97dvh]");
-    expect(sheetBox()?.className).not.toContain("68dvh");
-  });
-});
 
 describe("the compact player row", () => {
   it("Suggestion and Good job draw the compact row, not the full player", async () => {

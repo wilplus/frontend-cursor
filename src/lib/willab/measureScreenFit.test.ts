@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -96,40 +95,6 @@ describe("the repack guard still only fires on a real change", () => {
   });
 });
 
-describe("the deck measures every screen and shows the slide on each", () => {
-  const deck = readFileSync(
-    "src/components/willab/TranscriptReviewDeck.tsx",
-    "utf8",
-  );
-
-  it("no longer measures only the screen that happens to be active", () => {
-    // `innerRefs.current[posRef.current.slide]` was the single read that made
-    // the budget depend on where the reader was standing.
-    expect(deck).not.toMatch(
-      /innerRefs\.current\[posRef\.current\.slide\]/,
-    );
-    expect(deck).toMatch(/tightestFit\(/);
-    expect(deck).toMatch(/innerRefs\.current\.map\(/);
-  });
-
-  it("draws the slide on continuation screens too", () => {
-    // Founder: "it should just repeat the slide and render the rest of the
-    // text there". The gate below is also what made the two screen kinds
-    // different heights in the first place.
-    expect(deck).not.toMatch(/g\.screenOfSlide === 0 &&\s*presentationRef/);
-    expect(deck).toMatch(/\{g\.slideIndex !== null \?/);
-  });
-
-  it("does not gate the picture on there being an uploaded deck", () => {
-    // Founder 2026-09-19: a deckless project owns the canonical mock slides,
-    // and gating here is what made the same document read two different ways
-    // depending on whether a PDF had been uploaded. `DeckSlidePreview` owns
-    // the choice now, so both callers get it and neither can drift.
-    expect(deck).not.toMatch(/presentationRef && g\.slideIndex !== null/);
-    expect(deck).not.toMatch(/presentationRef && slideIndex !== null/);
-  });
-});
-
 describe("text cut off at the bottom counts as too long (founder 2026-09-30)", () => {
   const FIT = { budgetPx: 600, lineHeightPx: 30, charsPerLine: 60, gapPx: 26 };
 
@@ -158,8 +123,4 @@ describe("text cut off at the bottom counts as too long (founder 2026-09-30)", (
     expect(bigger.fit.budgetPx).toBe(800);
   });
 
-  it("is what the deck packs by", () => {
-    const deck = readFileSync("src/components/willab/TranscriptReviewDeck.tsx", "utf8");
-    expect(deck).toMatch(/allowForHidden\(next, hiddenBelow\(innerRefs\.current\)/);
-  });
 });

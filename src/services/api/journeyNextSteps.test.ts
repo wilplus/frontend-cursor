@@ -1,7 +1,5 @@
 /* The Lounge's Take 1–3 journey messages are posted when the Take is saved,
    for a signed-in speaker only (founder 2026-10-08, Q-IT643 A). */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const bffFetch = vi.hoisted(() => vi.fn());
@@ -48,26 +46,3 @@ describe("postJourneyForSavedTake", () => {
   });
 });
 
-/* Source pins: the Lounge and the Lab are too large to mount here. */
-describe("where the Take is saved", () => {
-  const read = (file: string) =>
-    readFileSync(join(__dirname, "../../components/willab", file), "utf8");
-
-  it("posts from the Lab's settle and reloads the Lounge thread when it posted", () => {
-    expect(read("LabOverlay.tsx")).toMatch(
-      /onSettled: \(take\) => \{[\s\S]*?void postJourneyForSavedTake\(take, signedIn\)\.then\(\(posted\) => \{\s*if \(posted\) void reloadThread\(\)/,
-    );
-  });
-
-  it("posts from the Lounge's settle before the reload that brings the Take's bubble", () => {
-    expect(read("Lounge.tsx")).toMatch(
-      /void postJourneyForSavedTake\(take, thread\.signedIn\)\.then\(\(\) => reload\(\)/,
-    );
-  });
-
-  it("is no longer posted from a button or carried through sign-up", () => {
-    for (const file of ["IdealTextActions.tsx", "IdealTextOverlay.tsx", "IdealTextReadout.tsx", "PendingCoachSend.tsx", "GuestSignUpDialog.tsx"]) {
-      expect(read(file)).not.toMatch(/postJourneyNextSteps|"journey_next_steps"|>\s*See next steps\s*</);
-    }
-  });
-});

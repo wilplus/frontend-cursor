@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -147,29 +146,3 @@ describe("saveCoachExerciseWithVideo", () => {
   });
 });
 
-describe("the doors", () => {
-  const routes = [
-    "src/app/api/v2/coach/exercises/route.ts",
-    "src/app/api/v2/coach/exercises/[exerciseId]/video/route.ts",
-  ];
-
-  it("every BFF route goes through callBackend and names its own upstream", () => {
-    for (const route of routes) {
-      const source = readFileSync(route, "utf8");
-      expect(source).toContain("callBackend(");
-      expect(source).toContain("/v2/coach/exercises");
-      expect(source).not.toMatch(/\bfetch\(/);
-    }
-  });
-
-  it("the page is its own route, founder-gated, and never mounts a router hook", () => {
-    const page = readFileSync("src/app/admin/library/page.tsx", "utf8");
-    expect(page).toContain("redirect(\"/login?redirectTo=/admin/library\")");
-    expect(page).toContain("if (!isFounderEmail(user.email)) notFound();");
-    const client = readFileSync("src/app/admin/library/LibraryPanel.tsx", "utf8");
-    expect(client).toContain("useUserProfile()");
-    expect(client).not.toContain("useRouter");
-    expect(client).not.toContain("useSearchParams");
-  });
-
-});

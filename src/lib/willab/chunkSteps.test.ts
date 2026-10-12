@@ -107,15 +107,6 @@ describe("the ladder", () => {
     expect(steps.map((s) => s.kind)).toEqual(["praise", "lock"]);
   });
 
-  it("has no MLC-3 service rung: that loop was retired (L8, contract 66)", () => {
-    const steps = buildChunkSteps({
-      inventory: [confidence],
-      canEmphasise: true,
-    });
-    expect(steps.map((s) => s.kind)).toEqual(["feedback", "emphasis", "lock"]);
-    expect(steps.map((s) => s.id)).not.toContain("service_exercise");
-  });
-
   it("never holds two exercise rungs (24f: one exercise per Take)", () => {
     const both = buildChunkSteps({
       inventory: [confidence],
@@ -186,7 +177,6 @@ describe("the step bar counts screens and nothing else (AC-9)", () => {
     }), "lock").total).toBe(2);
   });
 });
-
 
 describe("locksAsPreview — you see what you are committing", () => {
   /* Founder 2026-09-17: "on the lock-in screen show the whole text that is

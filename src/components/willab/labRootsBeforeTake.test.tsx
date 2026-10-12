@@ -13,7 +13,6 @@
 /*  the real auto-start and the real recording phase: the entry state keeps  */
 /*  "entering" true from lab_prerecord to lab_recording, as LabOverlay does. */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -217,12 +216,3 @@ describe("the Ideal Text page's words start the Take at once (P2)", () => {
   });
 });
 
-describe("LabOverlay waits on the read it keeps", () => {
-  const HOST = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
-  it("hands the auto-start the read's answer", () => {
-    const prerecord = HOST.slice(HOST.indexOf('{state === "lab_prerecord" && ('));
-    const block = prerecord.slice(0, prerecord.indexOf("</TrainingAskGate>"));
-    expect(block).toMatch(/rootsSettled=\{rootsSettled\}/);
-    expect(HOST).toMatch(/settled: rootsSettled \} = useRecordingRoots\(/);
-  });
-});

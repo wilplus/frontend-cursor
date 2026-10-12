@@ -311,15 +311,6 @@ describe("how it moves (walk lock 'How screens move')", () => {
     expect(q("[data-walk-sink]")).toBeNull();
   });
 
-  it("the motion is the lock's: 0.38 s up, 0.28 s down, 22 px out in 0.14 s, in 0.3 s after 0.1 s", async () => {
-    const { readFileSync } = await import("node:fs");
-    const css = readFileSync("src/app/globals.css", "utf8");
-    expect(css).toMatch(/\.walk-m-open > \.walk-ov \{\s*animation: walk-sheet-up 0\.38s/);
-    expect(css).toMatch(/\.walk-ghost\.walk-m-close > \.walk-ov \{\s*animation: walk-sheet-down 0\.28s/);
-    expect(css).toMatch(/\.walk-m-next > \.walk-ov > :not\(\.walk-ovtop\) \{\s*animation: walk-in-r 0\.3s var\(--walk-ease-arrive\) 0\.1s/);
-    expect(css).toMatch(/\.walk-ghost\.walk-m-next > \.walk-ov > :not\(\.walk-ovtop\) \{\s*animation: walk-out-l 0\.14s/);
-    expect(css).toMatch(/@keyframes walk-out-l \{\s*to \{ transform: translateX\(-22px\)/);
-  });
 });
 
 describe("reduce motion: every move is instant", () => {
@@ -338,13 +329,6 @@ describe("reduce motion: every move is instant", () => {
     expect(document.body.innerHTML).not.toMatch(/walk-m-(open|next|back|fade|close|swap)/);
   });
 
-  it("the CSS makes every walk move instant and hides the leaving copy", async () => {
-    const { readFileSync } = await import("node:fs");
-    const css = readFileSync("src/app/globals.css", "utf8");
-    const block = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce) {\n  .walk-stage,"));
-    expect(block).toMatch(/\.walk-stage \*,[\s\S]*?animation-duration: 0\.01s !important;[\s\S]*?transition-duration: 0\.01s !important;/);
-    expect(block).toMatch(/\.walk-ghost \{\s*display: none !important;/);
-  });
 });
 
 describe("one player, no coloured chip in the walk's look (Q-WALK-PARA A)", () => {

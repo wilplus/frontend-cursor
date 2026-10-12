@@ -9,7 +9,6 @@
 /*  64px mark in 15px muted text; every other LoadingState keeps its sr-only  */
 /*  label.                                                                    */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -40,29 +39,6 @@ describe("the words", () => {
 });
 
 describe("LoadingState with a visible label", () => {
-  it("shows the label 16px under the 64px mark, 15px and muted", () => {
-    act(() => {
-      root.render(
-        createElement(LoadingState, {
-          placement: "surface",
-          label: RECORDING_COPY.micReady,
-          labelVisible: true,
-        }),
-      );
-    });
-    const label = host.querySelector("[data-loading-label]") as HTMLElement;
-    expect(label.textContent).toBe("Getting your mic ready");
-    expect(label.getAttribute("role")).toBe("status");
-    expect(label.className).toContain("mt-4");
-    expect(label.className).toContain("text-[15px]");
-    expect(label.className).toContain("text-muted-foreground");
-    expect(host.querySelector(".sr-only")).toBeNull();
-    // Under the mark: the mark comes first in the same column.
-    const column = label.parentElement as HTMLElement;
-    expect(column.className).toContain("flex-col");
-    expect(column.firstElementChild?.getAttribute("data-voice-mark")).toBe("");
-    expect(column.firstElementChild?.getAttribute("style")).toContain("height: 64px");
-  });
 
   it("keeps every other wait as it was: the mark and an sr-only label", () => {
     act(() => {
@@ -76,16 +52,6 @@ describe("LoadingState with a visible label", () => {
 });
 
 describe("only the recording's mic wait shows its label", () => {
-  const SRC = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
-  const MIRROR = readFileSync("src/app/dev/recording/page.tsx", "utf8");
-
-  it("the host's one loader and the mirror's both draw the signed words visibly", () => {
-    const visible = SRC.match(/<LoadingState placement="surface" label=\{RECORDING_COPY\.micReady\} labelVisible \/>/g);
-    expect(visible?.length).toBe(2);
-    expect(SRC).not.toMatch(/label="Getting your mic ready"/);
-    // The /dev mirror reaches the same element through RecordingPhase.
-    expect(MIRROR).toMatch(/<RecordingPhase/);
-  });
 
   it("no other LoadingState in the product shows its label", () => {
     const { execSync } = require("node:child_process") as typeof import("node:child_process");

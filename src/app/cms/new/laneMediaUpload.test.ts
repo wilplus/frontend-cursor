@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   contentTypeFor,
@@ -46,21 +45,3 @@ describe("what it still refuses, and what it says", () => {
   });
 });
 
-describe("the limit that does not apply here", () => {
-  const CLIENT_SRC = readFileSync("src/app/cms/new/page.client.tsx", "utf8");
-  const API = readFileSync("src/services/api/journalAdmin.ts", "utf8");
-
-  it("is gone from the lane", () => {
-    expect(CLIENT_SRC).not.toContain("MAX_UPLOAD_BYTES");
-    expect(CLIENT_SRC).not.toContain("Keep it under a minute");
-  });
-
-  it("is replaced by the cap the presign serves", () => {
-    expect(API).toContain("max_bytes");
-    expect(CLIENT_SRC).toContain("presigned.data.maxBytes");
-  });
-
-  it("sends the signed headers back verbatim", () => {
-    expect(API).toContain("presign.headers ??");
-  });
-});

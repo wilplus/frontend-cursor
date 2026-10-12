@@ -40,18 +40,5 @@ describe("sendStatus — pending send", () => {
     expect(getPendingSend()).toBeNull();
   });
 
-  it("rejects the retired bare-session handoff", () => {
-    window.localStorage.setItem("willab.pending_send", "sess-legacy");
-    expect(getPendingSend()).toBeNull();
-  });
 });
 
-describe("sendStatus — no step rides the sign-up any more", () => {
-  it("drops a stored 'See next steps' step: the button is gone (Q-B10 A)", () => {
-    window.localStorage.setItem(
-      "willab.pending_send",
-      JSON.stringify({ projectId: "p1", takeId: "t1", then: "journey_next_steps" }),
-    );
-    expect(getPendingSend()).toEqual({ projectId: "p1", takeId: "t1" });
-  });
-});

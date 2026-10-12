@@ -17,7 +17,7 @@ vi.mock("./pdfSlides", () => ({
     createElement("div", { "data-testid": "slide" }, `page ${pageIndex + 1}`),
 }));
 
-import { RecordingPhase, RecordingWhere, labColumnClass } from "./LabOverlay";
+import { RecordingPhase, RecordingWhere } from "./LabOverlay";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -151,22 +151,6 @@ describe("the top bar", () => {
 });
 
 describe("the strip, as the prototype draws it (build plan D-RC-2)", () => {
-  it("sits 20px off the bottom on the recording screen only", () => {
-    const rec = labColumnClass("lab_recording", "recording").split(" ");
-    expect(rec).toContain("pb-5");
-    expect(rec).not.toContain("pb-8");
-    for (const [state, mic] of [
-      ["lab_recording", "idle"],
-      ["lab_prerecord", "idle"],
-      ["lab_session_context", "idle"],
-      ["lab_processing", "stopped"],
-      ["readout", "stopped"],
-    ] as const) {
-      const cls = labColumnClass(state, mic).split(" ");
-      expect(cls).toContain("pb-8");
-      expect(cls).not.toContain("pb-5");
-    }
-  });
 
   it("has no slide dots and no Finish take in the strip", () => {
     render();

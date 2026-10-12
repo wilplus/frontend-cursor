@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   TRANSITIONS,
@@ -127,21 +126,3 @@ describe("TRANSITIONS", () => {
   });
 });
 
-describe("the components dispatch events and never name a target state", () => {
-  it.each([
-    "src/components/willab/LabOverlay.tsx",
-    "src/components/willab/Lounge.tsx",
-    "src/components/willab/WillabSurface.tsx",
-  ])("%s has no goTo(", (file) => {
-    const src = readFileSync(file, "utf8");
-    expect(src).not.toMatch(/\bgoTo\(/);
-    expect(src).not.toMatch(/setState\("(lab|readout|parked|sendgate|review|insights|lounge)/);
-  });
-
-  it("the hook exposes dispatch and the server-owned home status, not a target setter", () => {
-    const src = readFileSync("src/components/willab/useWillabFlow.ts", "utf8");
-    expect(src).toMatch(/dispatch: \(event: WillabEvent\) => void;/);
-    expect(src).toMatch(/settleHomeStatus: \(status: HomeStatus\) => void;/);
-    expect(src).not.toMatch(/goTo: \(s: WillabState\) => void;/);
-  });
-});

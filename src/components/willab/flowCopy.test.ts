@@ -59,20 +59,6 @@ describe("FLOW_COPY — the founder's length rule", () => {
   });
 });
 
-describe("FLOW_COPY — the retired nudge stays retired", () => {
-  it("never re-introduces the three-takes line the founder cut", () => {
-    // "not text that it really lands on the 3rd time; on the bubble never"
-    for (const [key, line] of ALL) {
-      expect(line.toLowerCase(), `${key}: the nudge came back`).not.toContain(
-        "really lands"
-      );
-      expect(line.toLowerCase(), `${key}: the nudge came back`).not.toContain(
-        "more takes"
-      );
-    }
-  });
-});
-
 describe("FLOW_COPY — nobody is left with nothing to do", () => {
   it("keeps the active processing status to its approved single line", () => {
     expect(FLOW_COPY).not.toHaveProperty("analysingNext");

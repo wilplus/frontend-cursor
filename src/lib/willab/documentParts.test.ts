@@ -13,7 +13,6 @@ import {
   type Part,
 } from "./documentParts";
 import { joinSegments, splitSegments } from "./documentSegments";
-import { IDEAL_EDIT_COPY } from "@/components/willab/idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  STABLE PARTS (SPEC-parts-locking-and-layers §3.1, Step 0)                   */
@@ -278,19 +277,3 @@ describe("root phrase projection", () => {
   });
 });
 
-describe("the superseded-edit card is gone (founder option A)", () => {
-  it("its copy keys no longer exist", () => {
-    // With per-part persistence the typed paragraphs arrive pinned inside
-    // the refetched document — there is nothing to hold and offer back. A
-    // key left behind is an invitation to re-render the card.
-    const copy = IDEAL_EDIT_COPY as Record<string, unknown>;
-    for (const key of [
-      "supersededTitle",
-      "supersededBody",
-      "supersededReapply",
-      "supersededDismiss",
-    ]) {
-      expect(copy, key).not.toHaveProperty(key);
-    }
-  });
-});

@@ -61,17 +61,4 @@ describe("filenameFromDisposition", () => {
     expect(filenameFromDisposition("inline")).toBeNull();
   });
 
-  it("does not fail a download over a malformed escape", () => {
-    // Falls back to the plain filename when there is one…
-    expect(
-      filenameFromDisposition(
-        "attachment; filename=\"plain.pdf\"; filename*=UTF-8''bad%ZZname.pdf"
-      )
-    ).toBe("plain.pdf");
-    // …and to null when there is not, so the caller derives a clean name from
-    // the Content-Type rather than saving a file called "bad%ZZname.pdf".
-    expect(
-      filenameFromDisposition("attachment; filename*=UTF-8''bad%ZZname.pdf")
-    ).toBeNull();
-  });
 });

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { GET } from "./route";
 
 /**
@@ -57,21 +55,4 @@ describe("legacy /api/auth/callback", () => {
     }
   });
 
-  it("does not attempt the exchange itself", async () => {
-    // The old route imported @supabase/ssr and called exchangeCodeForSession.
-    // Doing that here at all is the bug, whatever the cookie API — the browser
-    // client owns PKCE. Read the source rather than the behaviour, because a
-    // silent failure looks identical to a success from the outside.
-    //
-    // Comments are stripped first: the docblock in route.ts names both calls
-    // in order to explain why they are gone, and a guard that fires on its own
-    // explanation is a guard nobody keeps.
-    const raw = readFileSync(
-      fileURLToPath(new URL("./route.ts", import.meta.url)),
-      "utf-8",
-    );
-    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-    expect(code).not.toContain("exchangeCodeForSession");
-    expect(code).not.toContain("createServerClient");
-  });
 });

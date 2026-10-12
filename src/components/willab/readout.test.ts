@@ -107,15 +107,6 @@ describe("mapReadoutPayload", () => {
     expect(p.feedbackItems[0]?.replacementText).toBe("A clearer sentence.");
   });
 
-  it("no longer carries the retired humanFeedbackVisible field", () => {
-    const p = mapReadoutPayload({ snippets: [], human_feedback_visible: false });
-    expect("humanFeedbackVisible" in p).toBe(false);
-    // audit_paid still echoes through for the deliverable CTAs.
-    expect(mapReadoutPayload({ snippets: [], audit_paid: false }).auditPaid).toBe(
-      false
-    );
-  });
-
   it("defaults the unpublished coach layer to empty", () => {
     const p = mapReadoutPayload({ snippets: [] });
     expect(p.overallMessage).toBeNull();

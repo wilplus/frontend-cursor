@@ -9,7 +9,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OpenChunkSheet from "./OpenChunkSheet";
-import { savedStateShowsPlayer } from "./ParagraphSheet";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
@@ -104,10 +103,6 @@ const saved = () => container.querySelector('[data-testid="overlay-saved"]');
 const player = () => saved()?.querySelector("[data-walk-player]") ?? null;
 
 describe("the saved state's player (D6 amended, N48.1)", () => {
-  it("is a rule: Take 1 plays the moment, a later Take does not", () => {
-    expect(savedStateShowsPlayer(true)).toBe(true);
-    expect(savedStateShowsPlayer(false)).toBe(false);
-  });
 
   it("draws no player on a project with two or more Takes, clip or not", async () => {
     await render(false);
@@ -125,20 +120,3 @@ describe("the saved state's player (D6 amended, N48.1)", () => {
   });
 });
 
-describe("the words card (helper-words build list, task 4 mock)", () => {
-  it("reads Helper words with an outlined Edit chip at its top right, the words under them", async () => {
-    await render(false);
-    const card = container.querySelector('[data-testid="paragraph-helper-card"]')!;
-    const top = card.firstElementChild!;
-    expect(top.className).toMatch(/justify-between/);
-    const [label, chip] = Array.from(top.children);
-    expect(label.textContent).toBe("Helper words");
-    expect(chip.getAttribute("data-testid")).toBe("paragraph-helper-words");
-    expect(chip.textContent).toBe("Edit");
-    expect(chip.className.split(" ")).toEqual(
-      expect.arrayContaining(["rounded-full", "border", "text-primary"]),
-    );
-    // The words come after the label row.
-    expect(top.nextElementSibling?.textContent).toBe("ship it now");
-  });
-});

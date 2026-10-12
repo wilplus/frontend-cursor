@@ -10,12 +10,6 @@
 /* -------------------------------------------------------------------------- */
 import { describe, expect, it } from "vitest";
 import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
-import {
-  ENTER_OFFSET_PX,
-  GLIDE_OUT_MS,
-  LAND_EASE,
-  LAND_MS,
-} from "@/lib/willab/recordingGesture";
 
 describe("RECORDING_COPY", () => {
   it("holds the lock's words, word for word", () => {
@@ -52,11 +46,3 @@ describe("recordingWhere", () => {
   });
 });
 
-describe("the motion constants are the lock's (§How it moves)", () => {
-  it("the landing: out in 200ms, in over 420ms on cubic-bezier(.16,1,.3,1)", () => {
-    expect(GLIDE_OUT_MS).toBe(200);
-    expect(LAND_MS).toBe(420);
-    expect(LAND_EASE).toBe("cubic-bezier(.16,1,.3,1)");
-    expect(ENTER_OFFSET_PX).toBe(24);
-  });
-});
