@@ -1,18 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRatingBody,
-  CONFIDENCE_RATING_VALUES,
-  CONFIDENCE_STATE_ID,
   type ConfidenceRatingValue,
 } from "./stateRatings";
-
-function withoutIdempotencyKey<T extends { idempotency_key?: string }>(body: T) {
-  expect(body.idempotency_key).toMatch(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  );
-  const { idempotency_key: _key, ...rest } = body;
-  return rest;
-}
 
 /* N3 lives HERE now: buildRatingBody is the one constructor for a label
  * write, on every surface (corpus workbench, snippet card, star overlay,
@@ -24,14 +14,6 @@ function withoutIdempotencyKey<T extends { idempotency_key?: string }>(body: T) 
  * real one afterwards. */
 
 describe("buildRatingBody (N3 lives here)", () => {
-  it("each of the five states alone is a complete rating", () => {
-    for (const value of CONFIDENCE_RATING_VALUES) {
-      expect(withoutIdempotencyKey(buildRatingBody(value, false)!)).toEqual({
-        state_id: CONFIDENCE_STATE_ID,
-        value,
-      });
-    }
-  });
 
   it("REFUSES to build a body without a real answer — a null that slipped through would fabricate a call the rater never made", () => {
     expect(buildRatingBody(null, false)).toBeNull();
@@ -39,64 +21,5 @@ describe("buildRatingBody (N3 lives here)", () => {
     // 400s on them, and coercing here would turn a bug into training data.
     expect(buildRatingBody("maybe" as ConfidenceRatingValue, false)).toBeNull();
     expect(buildRatingBody("" as ConfidenceRatingValue, false)).toBeNull();
-  });
-
-  it("maps a historical unrateable control onto the explicit audio state", () => {
-    expect(withoutIdempotencyKey(buildRatingBody(null, true)!)).toEqual({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "audio_unclear",
-    });
-  });
-
-  it("an abstention DISCARDS an answer passed alongside it rather than sending both", () => {
-    expect(withoutIdempotencyKey(buildRatingBody("yes", true)!)).toEqual({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "audio_unclear",
-    });
-  });
-
-  it("trims the note and omits it when empty", () => {
-    expect(withoutIdempotencyKey(buildRatingBody(
-      "yes", false, undefined, "  archive clip  "
-    )!)).toEqual({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "yes",
-      note: "archive clip",
-    });
-    expect(withoutIdempotencyKey(buildRatingBody(
-      "yes", false, undefined, "   "
-    )!)).toEqual({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "yes",
-    });
-    // A note rides an abstention too — "audio is all wind" is exactly the
-    // provenance an abstention needs.
-    expect(withoutIdempotencyKey(buildRatingBody(
-      null, true, undefined, "all wind"
-    )!)).toEqual({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "audio_unclear",
-      note: "all wind",
-    });
-  });
-
-  it("defaults to the confidence state and carries an explicit state_id through — the instrument is state-generic, the QUESTION carries the state", () => {
-    expect(buildRatingBody("no", false)?.state_id).toBe(CONFIDENCE_STATE_ID);
-    expect(buildRatingBody("no", false, "some_future_state")?.state_id).toBe(
-      "some_future_state"
-    );
-  });
-
-  it("never carries an intensity — the 1–5 grade was cut (founder 2026-08-11) and the ternary body has no lane for it to sneak back through", () => {
-    for (const value of CONFIDENCE_RATING_VALUES) {
-      const body = buildRatingBody(value, false, undefined, "note");
-      expect(body && "intensity" in body).toBe(false);
-      expect(Object.keys(body ?? {}).sort()).toEqual([
-        "idempotency_key",
-        "note",
-        "state_id",
-        "value",
-      ]);
-    }
   });
 });

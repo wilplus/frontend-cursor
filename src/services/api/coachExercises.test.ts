@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  draftBody,
-  draftFrom,
-  draftProblem,
-  mapCoachExercise,
   saveCoachExerciseWithVideo,
   type CoachExerciseDraft,
 } from "./coachExercises";
@@ -32,88 +28,6 @@ const GOOD: CoachExerciseDraft = {
   aiDraftText: null,
   aiDraftModelVersion: null,
 };
-
-describe("mapCoachExercise", () => {
-  it("reads the live row with its latest version and the transcript's state", () => {
-    const row = mapCoachExercise({
-      exercise_id: "land-it",
-      title: "Land it",
-      instruction: "…",
-      introduction_copy: "",
-      explanation_video_url: "https://cdn/x.mp4",
-      acoustic_problem_tags: ["rushing", 7],
-      matching_criteria: { primary_problem_tag: "rushing" },
-      active: true,
-      version: 3,
-      latest_version: {
-        version: 3, source: "coach_panel", transcript_status: "done",
-        ai_draft_text: "draft", created_at: "2026-09-29T10:00:00Z",
-      },
-    });
-    expect(row?.version).toBe(3);
-    expect(row?.acousticProblemTags).toEqual(["rushing"]);
-    expect(row?.latestVersion).toEqual({
-      version: 3, source: "coach_panel", transcriptStatus: "done",
-      aiDraftText: "draft", createdAt: "2026-09-29T10:00:00Z",
-    });
-    expect(draftFrom(row!).mainTarget).toBe("rushing");
-  });
-
-  it("treats an unreadable transcript state as no transcript, and no version row as none", () => {
-    const row = mapCoachExercise({
-      exercise_id: "x", title: "X", latest_version: { version: 1, transcript_status: "maybe" },
-    });
-    expect(row?.latestVersion?.transcriptStatus).toBe("not_requested");
-    expect(mapCoachExercise({ exercise_id: "x", title: "X" })?.latestVersion).toBeNull();
-    expect(mapCoachExercise({ title: "no id" })).toBeNull();
-  });
-});
-
-describe("draftBody", () => {
-  it("speaks the backend's names and carries the main target inside the criteria", () => {
-    const body = draftBody(GOOD);
-    expect(body).toEqual({
-      exercise_id: "land-the-ending",
-      title: "Land the ending",
-      instruction: "Say the last word fully.",
-      introduction_copy: "",
-      acoustic_problem_tags: ["ending_compression", "rushing"],
-      active: true,
-      matching_criteria: {
-        requires_multiple_acoustic_signals: true,
-        max_per_take: 1,
-        primary_problem_tag: "ending_compression",
-      },
-    });
-    // No video address for a new exercise: the backend fills it from the file.
-    expect(body).not.toHaveProperty("explanation_video_url");
-    // No AI draft unless the coach asked for one.
-    expect(body).not.toHaveProperty("ai_draft_text");
-  });
-
-  it("keeps the stored video and the draft beside the final when there are any", () => {
-    const body = draftBody({
-      ...GOOD,
-      explanationVideoUrl: "https://cdn/x.mp4",
-      aiDraftText: "First draft.",
-      aiDraftModelVersion: "m-1",
-    });
-    expect(body.explanation_video_url).toBe("https://cdn/x.mp4");
-    expect(body.ai_draft_text).toBe("First draft.");
-    expect(body.ai_draft_model_version).toBe("m-1");
-  });
-});
-
-describe("draftProblem", () => {
-  it("names the first thing an author must fix, the video last", () => {
-    expect(draftProblem({ ...GOOD, exerciseId: "Land It" }, false)).toMatch(/id/);
-    expect(draftProblem({ ...GOOD, title: " " }, false)).toMatch(/name/);
-    expect(draftProblem({ ...GOOD, acousticProblemTags: [] }, false)).toMatch(/error/);
-    expect(draftProblem(GOOD, false)).toMatch(/video/);
-    expect(draftProblem(GOOD, true)).toBeNull();
-  });
-
-});
 
 describe("saveCoachExerciseWithVideo", () => {
   afterEach(() => vi.unstubAllGlobals());

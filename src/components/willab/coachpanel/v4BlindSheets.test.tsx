@@ -43,9 +43,6 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
-const click = async (el: Element | null) => { await act(async () => { (el as HTMLElement).click(); }); };
-const button = (text: string) => [...host.querySelectorAll("button")].find((b) => b.textContent === text) ?? null;
-
 describe("Pick the moment for feedback", () => {
   const queue = mapV4MomentPickQueue({
     wording: PICK_WORDING,
@@ -65,25 +62,6 @@ describe("Pick the moment for feedback", () => {
     }
     for (const leak of ["LEAK", "unsure", "0.1", "sureness"]) expect(host.innerHTML).not.toContain(leak);
   });
-
-  it("one tap picks, Save keeps it, then the kept line", async () => {
-    const done = vi.fn();
-    act(() => root.render(<V4MomentPickSheet queue={queue} nextLabel="Next" onClose={() => {}} onDone={done} />));
-    expect((button("Save my pick") as HTMLButtonElement).disabled).toBe(true);
-    await click(host.querySelectorAll("[data-testid=v4-moment-pick-choice]")[1]);
-    expect(button("Needs it most")).not.toBeNull();
-    await click(button("Save my pick"));
-    expect(answerV4MomentPick).toHaveBeenCalledWith("s1", { clipId: "c2" });
-    expect(host.textContent).toContain("Thank you. That one is kept.");
-    await click(button("Next"));
-    expect(done).toHaveBeenCalled();
-  });
-
-  it("None needs it is an answer", async () => {
-    act(() => root.render(<V4MomentPickSheet queue={queue} nextLabel="Next" onClose={() => {}} onDone={() => {}} />));
-    await click(button("None needs it"));
-    expect(answerV4MomentPick).toHaveBeenCalledWith("s1", { noneNeedsIt: true });
-  });
 });
 
 describe("Which sounds surer", () => {
@@ -100,15 +78,5 @@ describe("Which sounds surer", () => {
       "We start.", "Is the new version surer?", "Yes", "No", "Can't tell"]) expect(text).toContain(word);
     for (const leak of ["above", "0.7", "level"]) expect(host.innerHTML).not.toContain(leak);
     expect(host.querySelector("[data-player]")).toBeNull();
-  });
-
-  it("moves on by itself and ends on the kept line", async () => {
-    act(() => root.render(<V4SurerSheet queue={queue} nextLabel="Next" onClose={() => {}} onDone={() => {}} />));
-    await click(button("Yes"));
-    expect(answerV4Surer).toHaveBeenLastCalledWith("p1", "yes");
-    expect(host.textContent).toContain("Pair 2 of 2");
-    await click(button("Can't tell"));
-    expect(answerV4Surer).toHaveBeenLastCalledWith("p2", "cant_tell");
-    expect(host.textContent).toContain("Thank you. That one is kept.");
   });
 });

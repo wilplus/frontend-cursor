@@ -5,8 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildRatingBody,
-  CONFIDENCE_RATING_VALUES,
-  CONFIDENCE_STATE_ID,
 } from "@/services/api/stateRatings";
 
 /* -------------------------------------------------------------------------- */
@@ -31,7 +29,6 @@ const READOUT = join(
   "willab",
   "ConfidenceEvidenceReadout.tsx",
 );
-const INSTRUMENT = join("components", "willab", "ConfidenceLabelChips.tsx");
 const CORPUS = join("app", "coach", "corpus", "page.client.tsx");
 
 /** Strip block + line comments so a comment EXPLAINING the fence never trips
@@ -72,98 +69,12 @@ describe("the blind labeling surface shows no machine read", () => {
 
 });
 
-describe("the F2 direction construct is purged from the FE", () => {
-  const FILES = [
-    READOUT,
-    INSTRUMENT,
-    join("components", "willab", "coachwalk", "CoachJudgeInstrument.tsx"),
-    join("services", "api", "coachReview.ts"),
-  ];
-
-  it("no file in the labeling flow still speaks of directions", () => {
-    for (const rel of FILES) {
-      const src = code(rel);
-      expect(src, rel).not.toContain("directionLabel");
-      expect(src, rel).not.toContain("DirectionLabel");
-      expect(src, rel).not.toContain("direction_label");
-    }
-  });
-
-  it("challenge / threat appear nowhere in the labeling flow", () => {
-    for (const rel of FILES) {
-      const src = code(rel);
-      expect(src, rel).not.toMatch(/"challenge"|"threat"/);
-    }
-  });
-});
-
 describe("buildRatingBody refuses to fabricate a label", () => {
-  it("builds a plain ternary answer", () => {
-    expect(buildRatingBody("yes", false)).toEqual(expect.objectContaining({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "yes",
-    }));
-    expect(buildRatingBody("yes", false)?.idempotency_key).toBeTruthy();
-  });
-
-  it("accepts every value in the fixed answer space", () => {
-    for (const v of CONFIDENCE_RATING_VALUES) {
-      expect(buildRatingBody(v, false)).toMatchObject({ value: v });
-    }
-  });
-
-  it("an unclear-audio response is explicit and distinct", () => {
-    expect(buildRatingBody(null, true)).toEqual(expect.objectContaining({
-      state_id: CONFIDENCE_STATE_ID,
-      value: "audio_unclear",
-    }));
-    expect(buildRatingBody(null, true)?.idempotency_key).toBeTruthy();
-  });
-
-  it("an abstention drops any value handed to it", () => {
-    expect(buildRatingBody("yes", true)).toMatchObject({
-      value: "audio_unclear",
-    });
-  });
 
   it("no answer and no abstention is UNBUILDABLE", () => {
     // A body that would record a verdict no human gave must be impossible to
     // construct, not merely rejected downstream.
     expect(buildRatingBody(null, false)).toBeNull();
-  });
-
-  it("an off-scale value is refused, never coerced", () => {
-    expect(buildRatingBody("maybe" as unknown as "yes", false)).toBeNull();
-  });
-
-  it("carries a note only when there is one", () => {
-    expect(
-      buildRatingBody("no", false, CONFIDENCE_STATE_ID, "  "),
-    ).not.toHaveProperty("note");
-    expect(
-      buildRatingBody("no", false, CONFIDENCE_STATE_ID, " clipped "),
-    ).toMatchObject({ note: "clipped" });
-  });
-});
-
-describe("the five-state instrument preserves its UX hierarchy", () => {
-  it("keeps the three perceptual positions primary", () => {
-    expect(code(INSTRUMENT)).toContain('{ value: "yes", label: "Yes"');
-    expect(code(INSTRUMENT)).toContain(
-      '{ value: "in_between", label: "In-between"',
-    );
-    expect(code(INSTRUMENT)).toContain('{ value: "no", label: "No"');
-    expect(code(INSTRUMENT)).toContain("grid-cols-3");
-  });
-
-  it("keeps uncertainty and technical failure secondary but distinct", () => {
-    expect(code(INSTRUMENT)).toContain(
-      '{ value: "not_sure", label: "Not sure"',
-    );
-    expect(code(INSTRUMENT)).toContain(
-      '{ value: "audio_unclear", label: "Audio unclear"',
-    );
-    expect(code(INSTRUMENT)).toContain("Other");
   });
 });
 

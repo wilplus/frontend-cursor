@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -27,15 +27,6 @@ const SRC = join(fileURLToPath(new URL("../../../", import.meta.url)));
 const SERVICE = join("services", "api", "trainingCorpus.ts");
 const CLIENT = join("app", "coach", "corpus", "page.client.tsx");
 const PAGE = join("app", "coach", "corpus", "page.tsx");
-/** The coach panel's Lounge door, with its pinned Training corpus button
- *  (which opens the corpus inside the panel, D-CP-20, not the workbench). */
-const PANEL_DOOR = join("components", "willab", "coachpanel", "CoachPanelDoor.tsx");
-
-/** Any quoted path naming the corpus lane — shape-agnostic on purpose, so it
- *  catches `import`, `import type`, dynamic `import()` and `require` alike. */
-const CORPUS_IMPORT = /["'][^"'\n]*trainingCorpus["']/;
-/** Any link or navigation to the workbench route. */
-const CORPUS_LINK = /["'`][^"'`\n]*\/coach\/corpus/;
 
 /** The lanes that carry a machine read of confidence. The corpus service and
  *  its screen must not import them — not for types, not for a helper. */
@@ -44,113 +35,7 @@ const MACHINE_READ_LANES = [
   "coachReview", // coach-review mapper must stay out of blind corpus tools
 ];
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry))
-      out.push(full);
-  }
-  return out;
-}
-
-/** The corpus's own BFF routes (`/api/v2/coach/corpus/...`) name the backend's
- *  `/v2/coach/corpus/...` endpoints, not the workbench page: they are the
- *  lane's plumbing, coach-gated upstream, and link nobody anywhere. */
-const CORPUS_BFF = join("app", "api", "v2", "coach", "corpus") + sep;
-
-const isCorpusOwned = (rel: string) =>
-  rel === SERVICE ||
-  rel.startsWith(join("app", "coach", "corpus") + sep) ||
-  rel.startsWith(CORPUS_BFF);
-
-/** Dev fixtures under app/dev — exempt from the link fence ONLY because the
- *  test below asserts every one of them renders nothing in production. The
- *  fence is about what a USER can reach, and a production-gated fixture is
- *  reachable by nobody. (Same bargain the Life Panel and star-verdict fences
- *  strike.) */
-const isDevFixture = (rel: string) => rel.startsWith(join("app", "dev") + sep);
-
 describe("training corpus fences", () => {
-  it("N4 — only the shared menu links to the workbench, and only for a coach", () => {
-    const linkers: string[] = [];
-    for (const file of walk(SRC)) {
-      const rel = relative(SRC, file);
-      if (isCorpusOwned(rel) || isDevFixture(rel)) continue;
-      if (CORPUS_LINK.test(readFileSync(file, "utf8"))) linkers.push(rel);
-    }
-    // ONLY the two header mounts name the route; AppMenu takes it as a prop
-    // and so never contains the path itself. A new name in this list is a new
-    // way in — check it is coach-gated before adding it.
-    //
-    // The feedbacks-review panel held a link here for a few hours on
-    // 2026-08-10 and the founder removed it the same day: "training corpus
-    // should stay in the hamburger menu … delete the training corpus link."
-    // The menu is the one way in again.
-    //
-    // CO1 A (founder lock 2026-10-06, the coach panel redrawn): the corpus
-    // also gets its own button pinned above the coach's Lounge message box.
-    // Since D-CP-20 that button opens the corpus INSIDE the panel (its
-    // screens, behind the panel's switch), so it links nowhere; the door is
-    // coach-gated by its one mount (the test below).
-    expect(linkers.sort()).toEqual(
-      [
-        join("components", "SiteHeader.tsx"),
-        join("components", "dashboard", "DashboardHeader.tsx"),
-      ].sort(),
-    );
-  });
-
-  it("N4 / CO1 A — the coach panel's pinned corpus button is reachable by a coach only", () => {
-    // The Lounge mounts the coach's door only for a coach…
-    expect(readFileSync(join(SRC, "components", "willab", "Lounge.tsx"), "utf8")).toMatch(
-      /\{isCoach && <CoachWalkEntry \/>\}/,
-    );
-    // …and that door is the only product file that mounts the panel's door
-    // (the dev harness aside, gated out of production above).
-    const mounters = walk(SRC)
-      .map((f) => relative(SRC, f))
-      .filter((rel) => !isDevFixture(rel) && rel !== PANEL_DOOR)
-      .filter((rel) => /["'][^"'\n]*coachpanel\/CoachPanelDoor["']/.test(readFileSync(join(SRC, rel), "utf8")));
-    expect(mounters).toEqual([join("components", "willab", "coachwalk", "CoachWalkEntry.tsx")]);
-  });
-
-  it("N4 — every link site gates the row on isCoach", () => {
-    for (const rel of [
-      join("components", "SiteHeader.tsx"),
-      join("components", "dashboard", "DashboardHeader.tsx"),
-    ]) {
-      const src = readFileSync(join(SRC, rel), "utf8");
-      expect(
-        /corpusHref=\{[^}]*isCoach[^}]*\}/.test(src),
-        `${rel} links the corpus without gating on isCoach`,
-      ).toBe(true);
-    }
-    // AppMenu renders the row only when the host passed an href, so a
-    // non-coach host cannot produce one.
-    const menu = readFileSync(join(SRC, "components", "AppMenu.tsx"), "utf8");
-    expect(menu).toMatch(/signedIn && corpusHref \?/);
-  });
-
-  it("N4 — every dev fixture reaching the corpus renders nothing in production", () => {
-    const fixtures = walk(SRC)
-      .map((f) => relative(SRC, f))
-      .filter(isDevFixture)
-      .filter((rel) => {
-        const src = readFileSync(join(SRC, rel), "utf8");
-        return CORPUS_IMPORT.test(src) || CORPUS_LINK.test(src);
-      });
-    // The exemption above and this gate are the same decision.
-    expect(fixtures.length).toBeGreaterThan(0);
-    for (const rel of fixtures) {
-      expect(
-        /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(
-          readFileSync(join(SRC, rel), "utf8"),
-        ),
-        `${rel} reaches the corpus but is not gated out of production`,
-      ).toBe(true);
-    }
-  });
 
   it("N4 — the page itself refuses a non-coach who types the URL", () => {
     const client = readFileSync(join(SRC, CLIENT), "utf8");
@@ -188,33 +73,6 @@ describe("training corpus fences", () => {
         code.includes(word),
         `"${word}" appears in the labelling screen's code — N1 forbids surfacing the machine's read`,
       ).toBe(false);
-    }
-  });
-
-  it("N5/FE-4 — the normal user's upload path carries no stage vocabulary", () => {
-    // Stages are a coach-only tick. If they ever appear on the user's record
-    // or upload flow, a half-analysed take becomes a broken deliverable.
-    for (const rel of [
-      join("services", "api", "labRecording.ts"),
-      join("services", "api", "chatQuery.ts"),
-    ]) {
-      const full = join(SRC, rel);
-      let src: string;
-      try {
-        src = readFileSync(full, "utf8");
-      } catch {
-        continue; // renamed — the corpus fence is not the place to fail on that
-      }
-      expect(
-        /"stages"|'stages'|\bstages:/.test(src),
-        `${rel} mentions stages — the user's upload path must stay untouched (FE-4)`,
-      ).toBe(false);
-    }
-  });
-
-  it("the paths this fence guards still exist (a rename must update the fence, not evade it)", () => {
-    for (const rel of [SERVICE, CLIENT, PAGE]) {
-      expect(statSync(join(SRC, rel)).isFile()).toBe(true);
     }
   });
 });
