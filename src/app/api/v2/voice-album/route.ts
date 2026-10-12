@@ -1,7 +1,5 @@
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  return callBackend("/v2/voice-album", { method: "GET" });
-}
+export const GET = proxyRoute("GET", "/v2/voice-album");

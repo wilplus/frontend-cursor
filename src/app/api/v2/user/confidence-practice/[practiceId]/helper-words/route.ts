@@ -1,19 +1,6 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { practiceId: string } },
-): Promise<NextResponse> {
-  return callBackend(
-    `/v2/user/confidence-practice/${encodeURIComponent(params.practiceId)}/helper-words`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: (await req.text()) || "{}",
-    },
-  );
-}
+export const PUT = proxyRoute("PUT", "/v2/user/confidence-practice/:practiceId/helper-words", { body: "json" });

@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
@@ -11,10 +10,4 @@ export const runtime = "nodejs";
  * — but POST-PUBLISH it also carries canonical `feedback_items` plus the
  * separate `coach_review` summary/video layer. @require_auth.
  */
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { sessionId: string } }
-) {
-  const id = encodeURIComponent(params.sessionId);
-  return callBackend(`/v2/user/sessions/${id}/readout`, { method: "GET" });
-}
+export const GET = proxyRoute("GET", "/v2/user/sessions/:sessionId/readout");
