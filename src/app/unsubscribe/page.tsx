@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
  * /unsubscribe?token=<signed_token>
  *
  * Landing page for the unsubscribe link in transactional emails
- * (currently PostSessionResultsEmail). Reads the token from the
+ * (the backend builds them). Reads the token from the
  * query string, POSTs it to /api/public/unsubscribe on mount, and
  * shows one of three states:
  *

@@ -3,13 +3,13 @@
 /* -------------------------------------------------------------------------- */
 /*  The research screen (founder 2026-09-30, L4 to L9; ML-7): datasets per    */
 /*  surface, the label quorum, exclusions, exports, evaluations, promotions,  */
-/*  training runs, drift, monitors and the golden set (pair surfaces judged  */
+/*  training runs, drift and the golden set (pair surfaces judged             */
 /*  on their own instrument, ML-10). Every panel whose door is closed        */
 /*  says so in words rather than showing a zero that reads as a measurement. */
 /*  Read-only for the research role; the golden judging is the founder's.    */
 /*  Datasets carry the drafts shown, the consent-authorised share and the    */
 /*  splits the releases assigned; Drift is the weekly PSI 2x2 the weekly job */
-/*  stored; Monitors is the confidence readiness check read now (ML-DONE-2). */
+/*  stored.                                                                   */
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useState } from "react";
@@ -37,10 +37,6 @@ function n(value: unknown): string {
 
 function share(value: unknown): string | null {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : null;
-}
-
-function codes(value: unknown): string[] {
-  return Array.isArray(value) ? value.map(String) : [];
 }
 
 function Datasets({ datasets }: { datasets: Raw }) {
@@ -145,24 +141,6 @@ function Drift({ drift }: { drift: Raw }) {
   );
 }
 
-function Monitors({ monitors }: { monitors: Raw }) {
-  const canary = obj(monitors.confidence_canary);
-  if (Object.keys(canary).length === 0) return null;
-  const blockers = codes(canary.blocker_codes);
-  const warnings = codes(canary.warning_codes);
-  return (
-    <div className="grid gap-1 text-sm">
-      <div className="flex flex-wrap justify-between gap-2">
-        <span>Confidence readiness · {str(canary.cutover_mode) ?? "—"}</span>
-        <span className={canary.ready === true ? "font-medium" : "text-muted-foreground"}>{canary.ready === true ? "ready" : "blocked"}</span>
-      </div>
-      {blockers.length > 0 ? <p className="text-xs text-muted-foreground">blockers: {blockers.join(", ")}</p> : null}
-      {warnings.length > 0 ? <p className="text-xs text-muted-foreground">warnings: {warnings.join(", ")}</p> : null}
-      <p className="text-xs text-muted-foreground">read {str(canary.read_at)?.slice(0, 16).replace("T", " ") ?? "—"} UTC</p>
-    </div>
-  );
-}
-
 function TrainingRuns({ rows }: { rows: Raw[] }) {
   if (rows.length === 0) return null;
   return (
@@ -251,7 +229,6 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
   const releases = arr(exports.pair_exports);
   const weekly = arr(view.weekly);
   const drift = obj(view.drift);
-  const monitors = obj(view.monitors);
   const unavailable = Array.isArray(view.unavailable) ? view.unavailable.map(String) : [];
   return (
     <FounderFrame title="Research" line="read-only · the research role and the founder · pseudonyms only">
@@ -310,9 +287,6 @@ export default function ResearchPanel({ founder }: { founder: boolean }) {
         </Panel>
         <Panel title="Drift" note={str(drift.note)}>
           {arr(drift.dimensions).length > 0 ? <Drift drift={drift} /> : null}
-        </Panel>
-        <Panel title="Monitors" note={str(monitors.note)}>
-          {Object.keys(obj(monitors.confidence_canary)).length > 0 ? <Monitors monitors={monitors} /> : null}
         </Panel>
         <Panel title="Golden set" note={founder ? "Fifty moments per surface, judged by the founder on the coach's instrument, then sealed with a hash." : "The founder's judgements; sealed sets are read by the evaluation."}>
           <ul className="grid gap-2">

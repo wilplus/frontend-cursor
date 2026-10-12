@@ -14,8 +14,6 @@ import {
 import { latestIdealBubbleIds } from "./unreadFeedback";
 import { isRetiredLoungeMessage } from "./willabHelpers";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
-import { momentsLine } from "../../../emails/PostSessionResultsEmail";
-import { buildPostSessionResultsText } from "../../../emails/postSessionResultsText";
 
 const chunk = (id: string): DeckChunk =>
   ({ part: { id, text: `words ${id}` }, paragraphIndex: 0 }) as unknown as DeckChunk;
@@ -224,28 +222,7 @@ describe("the unread-feedback dot (Q39 B, Q40 B, Q42 A)", () => {
   });
 });
 
-describe("the email's words (signed off 2026-09-25)", () => {
-  it("counts moments, never scores", () => {
-    expect(momentsLine(1)).toBe(
-      "Your coach listened to your latest take and left feedback on 1 moment.");
-    expect(momentsLine(4)).toContain("on 4 moments.");
-    expect(momentsLine(0)).toBe(
-      "Your coach listened to your latest take and left feedback.");
-  });
-
-  it("the plain-text part says the same thing, with one link", () => {
-    const text = buildPostSessionResultsText({
-      snippetCount: 2,
-      topTheme: "Series A pitch",
-      journeyUrl: "https://www.willpowerlab.com/chat?idealArc=a&feedback=1",
-      unsubscribeUrl: "https://www.willpowerlab.com/unsubscribe?token=t",
-      subscribedEmail: "a@b.c",
-    });
-    expect(text).toContain("SERIES A PITCH");
-    expect(text).toContain("Your coach's feedback is in.");
-    expect(text).toContain("Open the feedback:");
-    expect(text).not.toMatch(/Published snippets|contextual chat|Hi there/);
-  });
+describe("the walk across a re-read", () => {
 
   it("keeps the list it started on while a sheet is open, whatever the host re-reads (audit 2026-09-29)", async () => {
     // After Apply the host re-reads the document and rebuilds its bookmarks;

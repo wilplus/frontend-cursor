@@ -7,8 +7,7 @@ import ResearchPanel from "./ResearchPanel";
 /* The research screen's panels carry the backend's data (ML-7, ML DONE
  * "the research screen shows ... drift"): a dataset shows its drafts shown,
  * its consent-authorised share and the splits its releases assigned; Drift
- * draws the weekly PSI 2x2 most urgent first; Monitors draws the readiness
- * check read now. A panel with nothing to show keeps its note in words.
+ * draws the weekly PSI 2x2 most urgent first. A panel with nothing to show keeps its note in words.
  * Research role and founder only; numbers about the machine, no person. */
 
 const OVERVIEW = {
@@ -38,13 +37,6 @@ const OVERVIEW = {
       { dimension: "wpm", triage: "PIPELINE_CHANGED", psi: 0.04, psi_band: "STABLE", chart_signal: "OUT_OF_CONTROL_HIGH", n_sessions: 60 },
       { dimension: "fillers", triage: "HEALTHY", psi: 0.02, psi_band: "STABLE", chart_signal: "IN_CONTROL", n_sessions: 58 },
     ],
-  },
-  monitors: {
-    confidence_canary: {
-      ready: false, blocker_codes: ["confidence_ring_row_killed"], warning_codes: ["no_runtime_canary_receipt_yet"],
-      cutover_mode: "founder_canary", read_at: "2026-10-12T06:00:00+00:00",
-    },
-    note: "read now from the database",
   },
   golden: {},
   weekly: [],
@@ -91,7 +83,7 @@ describe("ResearchPanel", () => {
     return host.textContent ?? "";
   }
 
-  it("draws the share, the splits, the drift 2x2 and the monitor", async () => {
+  it("draws the share, the splits and the drift 2x2", async () => {
     const text = await draw(OVERVIEW);
     expect(text).toContain("8 pairs · 11 drafts shown · 2 unexported · 1 releases");
     expect(text).toContain("consent-authorised: 75%");
@@ -100,25 +92,18 @@ describe("ResearchPanel", () => {
     expect(text).toContain("week of 2026-10-05 · most urgent: PIPELINE_CHANGED");
     expect(text).toContain("OUT_OF_CONTROL_HIGH");
     expect(text).toContain("STABLE · 0.040");
-    expect(text).toContain("Confidence readiness · founder_canary");
-    expect(text).toContain("blocked");
-    expect(text).toContain("blockers: confidence_ring_row_killed");
-    expect(text).toContain("read 2026-10-12 06:00 UTC");
     const rows = Array.from(host.querySelectorAll("tbody tr")).map((tr) => tr.textContent ?? "");
     expect(rows[0]).toContain("wpm");
     expect(rows[1]).toContain("fillers");
   });
 
-  it("keeps the words when no week carries a drift reading and the monitor was unreadable", async () => {
+  it("keeps the words when no week carries a drift reading", async () => {
     const text = await draw({
       ...OVERVIEW,
       drift: { week_start: null, worst: null, dimensions: [], note: "no stored week carries a drift reading yet" },
-      monitors: { confidence_canary: null, note: "the readiness monitor could not be read now" },
-      unavailable: ["monitors"],
+      unavailable: ["drift"],
     });
     expect(text).toContain("no stored week carries a drift reading yet");
-    expect(text).toContain("the readiness monitor could not be read now");
-    expect(text).not.toContain("Confidence readiness ·");
-    expect(text).toContain("unavailable this read: monitors");
+    expect(text).toContain("unavailable this read: drift");
   });
 });
