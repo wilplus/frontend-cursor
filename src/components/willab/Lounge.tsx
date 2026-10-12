@@ -206,6 +206,9 @@ export default function Lounge({
   // (a) could pan the whole page / iOS viewport, and (b) yanked the user back
   // down whenever they'd scrolled up to read history — the non-native feel.
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // THE WHOLE PAGE SCROLLS THE CHAT (founder 2026-10-12): a wheel on the
+  // white margins either side of the column scrolls the thread too.
+  useEffect(() => forwardMarginWheel(() => scrollRef.current), []);
   const atBottomRef = useRef(true);
   const didInitScrollRef = useRef(false);
   // U3 — baseline of message ids present on first load (historical). A bot
@@ -1431,7 +1434,7 @@ export default function Lounge({
           Continue review
         </button>
       ) : null}
-      <form onSubmit={handleSend} className="flex items-end gap-0.5">
+      <form onSubmit={handleSend} className="flex items-end gap-1">
         {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
             projects, where "Start a new project" starts one. It replaced the
             Record button. Held while a Take is still landing, for the same
@@ -1442,7 +1445,7 @@ export default function Lounge({
           disabled={takeInFlight}
           aria-label="Your projects"
           title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
-          className="-ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
         >
           <Plus className="h-5 w-5" aria-hidden />
         </button>
@@ -2090,4 +2093,19 @@ function SummaryBubble({ message }: { message: LoungeMessage }) {
       </div>
     </div>
   );
+}
+
+/** A wheel anywhere on the page outside the thread scrolls the thread,
+ *  unless it lands in an overlay, a dialog or a field that scrolls itself.
+ *  Returns the cleanup. */
+export function forwardMarginWheel(scroller: () => HTMLElement | null): () => void {
+  const onWheel = (event: WheelEvent) => {
+    const el = scroller();
+    const target = event.target as Element | null;
+    if (!el || !target || el.contains(target)) return;
+    if (target.closest(".fixed, [role='dialog'], textarea, input, select")) return;
+    el.scrollTop += event.deltaY;
+  };
+  window.addEventListener("wheel", onWheel, { passive: true });
+  return () => window.removeEventListener("wheel", onWheel);
 }
