@@ -40,7 +40,11 @@ export type LoungeKind =
   | "feedback"
   /** Delivery layer — the PURPLE ideal-text card (one per arc, after the 3
    *  feedback bubbles). Metadata carries { arc_id }. Opens the notebook. */
-  | "ideal_text";
+  | "ideal_text"
+  /** One step of a Take's review, posted by the walk (founder lock
+   *  2026-10-12, section 1). Metadata: take_session_id, arc_id, step,
+   *  moment, attempt, author. Tapping it turns the lens back on. */
+  | "walk_step";
 
 /** Server-shared limits (keep in lockstep with the BE contract). */
 export const LOUNGE_BODY_MAX = 16_000;

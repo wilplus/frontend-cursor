@@ -7,6 +7,8 @@ export type OtherClip = {
   src: string;
   startOffsetMs: number | null;
   durationMs: number | null;
+  /** The listener's own community it comes from, by name; null: general. */
+  community: string | null;
 };
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -16,7 +18,13 @@ function mapClips(data: Record<string, unknown>): OtherClip[] {
   return data.clips.flatMap((raw) => {
     const c = (raw ?? {}) as Record<string, unknown>;
     if (typeof c.clip_id !== "string" || typeof c.audio_ref !== "string" || !c.audio_ref) return [];
-    return [{ id: c.clip_id, src: c.audio_ref, startOffsetMs: num(c.start_offset_ms), durationMs: num(c.duration_ms) }];
+    return [{
+      id: c.clip_id,
+      src: c.audio_ref,
+      startOffsetMs: num(c.start_offset_ms),
+      durationMs: num(c.duration_ms),
+      community: typeof c.community === "string" && c.community.trim() ? c.community.trim() : null,
+    }];
   });
 }
 

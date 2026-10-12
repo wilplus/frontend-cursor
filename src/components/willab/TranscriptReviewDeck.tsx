@@ -724,6 +724,7 @@ export default function TranscriptReviewDeck({
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,
     takeSessionId,
+    arcId,
     setRootPhrase,
     onAccept,
     onKeepMine,

@@ -105,7 +105,11 @@ export type IdealTextLaunchMode =
   | "notebook"
   | "presentation"
   | "export"
-  | "feedback";
+  | "feedback"
+  /** The lens back on (founder lock 2026-10-12, moment and feedback chat,
+   *  section 1): a walk step tapped in the Lounge, or "Continue review",
+   *  opens the walk, or plays the finished one again. */
+  | "review";
 
 export default function IdealTextOverlay({
   arcId,
@@ -280,6 +284,17 @@ export default function IdealTextOverlay({
      the request that plays it. */
   const [replayReady, setReplayReady] = useState(false);
   const [replayRequest, setReplayRequest] = useState(0);
+  const reviewOpenedRef = useRef(false);
+  useEffect(() => {
+    reviewOpenedRef.current = false;
+  }, [arcId, initialMode]);
+  useEffect(() => {
+    if (initialMode !== "review" || reviewOpenedRef.current) return;
+    if (reviewWaiting) setReviewRequest((n) => n + 1);
+    else if (replayReady) setReplayRequest((n) => n + 1);
+    else return;
+    reviewOpenedRef.current = true;
+  }, [initialMode, reviewWaiting, replayReady]);
 
   useEffect(() => {
     let active = true;

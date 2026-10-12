@@ -250,6 +250,9 @@ export default function Lounge({
   // Each project's latest Ideal Text bubble wears the unread-feedback dot
   // (founder 2026-09-25, Q39 B).
   const latestIdealIds = useMemo(() => latestIdealBubbleIds(threadItems), [threadItems]);
+  // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
+  // step names its project and is not the review's end.
+  const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
   // that the top banner is gone: open the overlay, and if we were in the unread
@@ -1236,7 +1239,11 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStart} />
         ) : (
-          threadItems.map((item, i) => (
+          threadItems.map((item, i) => item.message.kind === "walk_step" ? (
+            <WalkStepBubble key={item.reactKey} message={item.message} onOpenIdealText={openIdealText} />
+          ) : item.message.metadata?.summary === true ? (
+            <SummaryBubble key={item.reactKey} message={item.message} />
+          ) : (
             <Bubble
               key={item.reactKey}
               message={item.message}
@@ -1414,6 +1421,16 @@ export default function Lounge({
           pays nothing for a button that could not be pressed anyway, which is
           the "measurably wider input" the original story wanted and could not
           get by removing a "+" this composer never had. */}
+      {reviewToContinue ? (
+        <button
+          type="button"
+          data-testid="continue-review"
+          onClick={() => openIdealText(reviewToContinue, "review")}
+          className="mb-2 w-full rounded-full border-[1.5px] border-primary px-4 py-2 text-[15px] font-semibold text-foreground"
+        >
+          Continue review
+        </button>
+      ) : null}
       <form onSubmit={handleSend} className="flex items-end gap-2">
         <div className="relative flex-1">
           <textarea
@@ -2004,6 +2021,108 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
           />
           Start your first recording
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** The project whose review waits in the thread: the newest walk step's,
+ *  unless it is the review's end. Null: nothing to continue. */
+export function continueReviewArc(items: readonly ThreadItem[]): string | null {
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const item = items[i];
+    if (item.kind !== "message" || item.message.kind !== "walk_step") continue;
+    const meta = item.message.metadata ?? {};
+    if (meta.step === "end") return null;
+    return typeof meta.arc_id === "string" ? meta.arc_id : null;
+  }
+  return null;
+}
+
+/** One step of a review, lens off (founder lock 2026-10-12, section 1): the
+ *  speaker's orange on the right, the app's and the coach's light grey on
+ *  the left with a small avatar (the coach's grey-blue); 15px text, 16px
+ *  corners, 20px avatar. A tap turns the lens back on. */
+function WalkStepBubble({
+  message,
+  onOpenIdealText,
+}: {
+  message: LoungeMessage;
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+}) {
+  if (!message.body.trim()) return null;
+  const arc = typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+  const mine = message.role === "user";
+  const coach = message.metadata?.author === "coach";
+  const open = arc ? () => onOpenIdealText?.(arc, "review") : undefined;
+  if (mine) {
+    return (
+      <button
+        type="button"
+        data-walk-step-bubble
+        onClick={open}
+        className="ml-auto block max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] text-primary-foreground"
+      >
+        {message.body}
+      </button>
+    );
+  }
+  return (
+    <div className="flex max-w-[85%] items-start gap-2">
+      <span
+        aria-hidden="true"
+        className={`mt-1 h-5 w-5 shrink-0 rounded-full ${coach ? "bg-slate-400/60" : "bg-foreground/15"}`}
+      />
+      <button
+        type="button"
+        data-walk-step-bubble
+        onClick={open}
+        className="flex items-start gap-1.5 whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] text-foreground"
+      >
+        <span className="min-w-0">{message.body}</span>
+        {arc ? <span aria-hidden="true" className="text-muted-foreground">›</span> : null}
+      </button>
+    </div>
+  );
+}
+
+/** The closing summary after a review (founder lock 2026-10-12, section 3):
+ *  one plain bubble that is not tapped. After a coach update it reads
+ *  "Later · from your coach", is outlined in orange, and keeps the earlier
+ *  words one tap away. */
+function SummaryBubble({ message }: { message: LoungeMessage }) {
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const meta = message.metadata ?? {};
+  const updated = meta.coach_update === true;
+  const earlier = typeof meta.earlier === "string" ? meta.earlier : null;
+  return (
+    <div data-summary-bubble className="flex max-w-[85%] items-start gap-2">
+      <span aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 rounded-full bg-foreground/15" />
+      <div className="flex min-w-0 flex-col gap-1">
+        {updated ? <span className="text-[12.5px] text-muted-foreground">Later · from your coach</span> : null}
+        <div
+          className={`whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] text-foreground ${updated ? "ring-[1.5px] ring-primary" : ""}`}
+        >
+          {message.body}
+        </div>
+        {updated && earlier ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setEarlierOpen((open) => !open)}
+              className="text-left text-[12.5px] text-muted-foreground"
+            >
+              {earlierOpen
+                ? "Updated with your coach's note · hide the earlier version"
+                : "Updated with your coach's note · see the earlier version"}
+            </button>
+            {earlierOpen ? (
+              <div className="whitespace-pre-wrap break-words rounded-[16px] bg-muted/60 px-3 py-2 text-[15px] text-muted-foreground">
+                {earlier}
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </div>
   );

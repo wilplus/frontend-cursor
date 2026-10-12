@@ -394,6 +394,9 @@ export const WALK_COPY = {
   othersTitle: "Other speakers",
   othersOne: "Now one moment from another speaker.",
   othersMany: (n: number) => `Now ${n} moments from other speakers.`,
+  /* "Only my community" (section 9): the community named. */
+  othersOneFrom: (name: string) => `Now one moment from ${name}.`,
+  othersManyFrom: (n: number, name: string) => `Now ${n} moments from ${name}.`,
   /* Sharing, asked before the next recording from Take 2 on (founder lock
      2026-10-12, moment and feedback chat, sections 5, 8 and 9). */
   nextShareAsk: "Do you agree to share your next take with others?",
