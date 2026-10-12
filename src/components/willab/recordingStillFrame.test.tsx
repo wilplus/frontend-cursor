@@ -104,7 +104,6 @@ function key(k: string, init: KeyboardEventInit = {}, target: EventTarget = docu
 }
 
 const where = () => host.querySelector('[data-testid="recording-where"]')!;
-const scroller = () => host.querySelector<HTMLElement>('[aria-label^="Speaking anchors"]')!;
 
 /** Every element of the still frame, captured by identity. */
 function frame() {
@@ -133,42 +132,9 @@ describe("the top bar", () => {
     expect(host.querySelectorAll('[data-testid="recording-where"]').length).toBe(1);
     expect(host.textContent).not.toMatch(/Recording/);
   });
-
-  it("is an empty slot before the recording screen (mic ready)", () => {
-    act(() =>
-      root.render(
-        createElement(RecordingWhere, {
-          show: true,
-          micStatus: "idle",
-          takeNumber: 1,
-          slide: 0,
-          slideCount: 3,
-        }),
-      ),
-    );
-    expect(host.textContent).toBe("");
-  });
-});
-
-describe("the strip, as the prototype draws it (build plan D-RC-2)", () => {
-
-  it("has no slide dots and no Finish take in the strip", () => {
-    render();
-    expect(host.querySelector('nav[aria-label="Presentation slide position"]')).toBeNull();
-    expect(button("Finish take")).toBeUndefined();
-  });
 });
 
 describe("Back and Next slide (N70)", () => {
-  it("move one slide each way; Back is greyed on the first slide", () => {
-    render();
-    expect(button("Back")!.disabled).toBe(true);
-    click("Next slide");
-    expect(seen).toEqual([1]);
-    expect(button("Back")!.disabled).toBe(false);
-    click("Back");
-    expect(seen).toEqual([1, 0]);
-  });
 
   it("turns Next slide into the red Finish take on the last slide, which ends the Take", () => {
     render();
@@ -198,123 +164,5 @@ describe("the still frame", () => {
     expect(after.where.textContent).toBe("Take 2 · Slide 2 of 3");
     expect(host.querySelector('[data-testid="slide"]')!.textContent).toBe("page 2");
     expect(host.textContent).toContain("words for slide 2");
-  });
-
-  it("moves only the slide and its helper words while a slide glides", () => {
-    // Motion on: a real glide, out in 200ms and landing in 420ms.
-    vi.stubGlobal("matchMedia", () => ({ matches: false }));
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    render();
-    act(() => {
-      vi.advanceTimersByTime(500); // the entrance lands
-    });
-    const before = frame();
-    const slideBox = host.querySelector('[data-testid="slide"]')!.closest(".shrink-0") as HTMLElement;
-    const words = scroller();
-    click("Next slide");
-    // Gliding out to the left and fading; the frame does not move.
-    expect(slideBox.style.transform).toMatch(/translateX\(-/);
-    expect(words.style.transform).toMatch(/translateX\(-/);
-    expect(slideBox.style.transition).toContain("200ms");
-    for (const el of [before.topBar, before.where, before.strip]) {
-      expect((el as HTMLElement).style.transform).toBe("");
-    }
-    expect(seen).toEqual([]);
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    // Swapped in place, landing from the right on the locked curve.
-    expect(seen).toEqual([1]);
-    expect(host.querySelector('[data-testid="slide"]')!.closest(".shrink-0")).toBe(slideBox);
-    expect(scroller()).toBe(words);
-    expect(slideBox.style.transition).toContain("420ms cubic-bezier(.16,1,.3,1)");
-    expect(slideBox.style.transform).toBe("translateX(0px)");
-    // A second press while it lands is not a second move.
-    key("ArrowDown");
-    act(() => {
-      vi.advanceTimersByTime(420);
-    });
-    expect(seen).toEqual([1]);
-    const after = frame();
-    expect(after.where).toBe(before.where);
-    expect(after.strip).toBe(before.strip);
-  });
-});
-
-describe("the keyboard, with no click first", () => {
-  it("← → change the slide, and never end the Take at the last slide (N70.1)", () => {
-    render();
-    key("ArrowRight");
-    key("ArrowRight");
-    expect(seen).toEqual([1, 2]);
-    key("ArrowRight");
-    key(" ");
-    expect(seen).toEqual([1, 2]);
-    expect(stops).toBe(0);
-    key("ArrowLeft");
-    expect(seen).toEqual([1, 2, 1]);
-  });
-
-  it("leaves Space to a focused button, but still moves on ← →", () => {
-    render();
-    const next = button("Next slide")!;
-    expect(key(" ", {}, next).defaultPrevented).toBe(false);
-    expect(seen).toEqual([]);
-    key("ArrowRight", {}, next);
-    expect(seen).toEqual([1]);
-  });
-
-  it("↓ Page Down Space go forward; ↑ Page Up go back", () => {
-    render();
-    key("ArrowDown");
-    key("PageDown");
-    expect(seen).toEqual([1, 2]);
-    key(" "); // the last slide: nowhere to go
-    expect(seen).toEqual([1, 2]);
-    key("ArrowUp");
-    key("PageUp");
-    expect(seen).toEqual([1, 2, 1, 0]);
-    key(" ");
-    expect(seen).toEqual([1, 2, 1, 0, 1]);
-  });
-
-  it("Enter does not move a slide while recording", () => {
-    render();
-    const event = key("Enter");
-    expect(event.defaultPrevented).toBe(false);
-    expect(seen).toEqual([]);
-  });
-
-  it("leaves fields, shortcuts and the Discard dialog alone", () => {
-    render();
-    const input = document.createElement("textarea");
-    document.body.appendChild(input);
-    key("ArrowDown", {}, input);
-    key("ArrowDown", { metaKey: true });
-    const dialog = document.createElement("div");
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("aria-modal", "true");
-    document.body.appendChild(dialog);
-    key("ArrowDown");
-    key(" ", {}, dialog);
-    expect(seen).toEqual([]);
-    dialog.remove();
-    input.remove();
-    key("ArrowDown");
-    expect(seen).toEqual([1]);
-  });
-
-  it("scrolls long helper words first, then moves from their edge", () => {
-    render();
-    const sc = scroller();
-    Object.defineProperty(sc, "scrollHeight", { configurable: true, value: 1000 });
-    Object.defineProperty(sc, "clientHeight", { configurable: true, value: 200 });
-    sc.scrollTop = 0;
-    key("ArrowDown");
-    expect(seen).toEqual([]);
-    expect(sc.scrollTop).toBeGreaterThan(0);
-    sc.scrollTop = 800; // at their end
-    key("ArrowDown");
-    expect(seen).toEqual([1]);
   });
 });

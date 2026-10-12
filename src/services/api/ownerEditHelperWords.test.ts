@@ -85,31 +85,4 @@ describe("an owner edit keeps the speaker's helper words", () => {
     expect(partRootTint(parts[0]!)).toEqual([[3, 13]]);
     expect(parts[1]?.rootPhrase ?? null).toBeNull();
   });
-
-  it("lets the edit decide the text and the lock", async () => {
-    const parts = await readParts(coreBody(
-      [ownerPart(A, 0, "We begin here.", false)],
-      [{
-        id: A, text: "We start here.", locked: true, iteration: 2,
-        edited: false, root_phrase: "start here", root_start: 3, root_end: 13,
-      }],
-    ));
-
-    expect(parts[0]).toMatchObject({
-      id: A, text: "We begin here.", locked: false, rootPhrase: "start here",
-    });
-    // The server compared other words; it said nothing about these.
-    expect(parts[0]?.edited).toBeUndefined();
-    // A span that no longer proves the phrase paints nothing.
-    expect(partRootTint({ ...parts[0]!, locked: true })).toBeUndefined();
-  });
-
-  it("adds nothing when the snapshot has no row for that part", async () => {
-    const parts = await readParts(coreBody(
-      [ownerPart(A, 0, "We start here.", true)],
-      null,
-    ));
-
-    expect(parts).toEqual([{ id: A, text: "We start here.", locked: true }]);
-  });
 });

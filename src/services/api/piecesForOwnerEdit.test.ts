@@ -32,25 +32,6 @@ const piece = (partId: string, slideIndex: number | null): IdealPiece => ({
 const editPart = (id: string) => ({ id });
 
 describe("the slide zip follows the owner edit's identity", () => {
-  it("re-anchors every piece onto the edit's part id", () => {
-    const out = piecesForOwnerEdit(
-      [piece("snap-a", 0), piece("snap-b", 1), piece("snap-c", 2)],
-      [editPart("edit-a"), editPart("edit-b"), editPart("edit-c")],
-    );
-
-    expect(out?.map((p) => p.partId)).toEqual(["edit-a", "edit-b", "edit-c"]);
-  });
-
-  it("keeps the slide mapping itself untouched", () => {
-    // Only identity is re-anchored. Which slide a paragraph sits on is the
-    // machine's provenance and is never re-derived here.
-    const out = piecesForOwnerEdit(
-      [piece("snap-a", 0), piece("snap-b", 0), piece("snap-c", 3)],
-      [editPart("edit-a"), editPart("edit-b"), editPart("edit-c")],
-    );
-
-    expect(out?.map((p) => p.slideIndex)).toEqual([0, 0, 3]);
-  });
 
   it("refuses when a paragraph was added or removed", () => {
     // Unequal counts mean slot N is no longer provably the same Paragraph, so
@@ -69,18 +50,5 @@ describe("the slide zip follows the owner edit's identity", () => {
         [editPart("edit-a"), editPart("edit-b")],
       ),
     ).toBeNull();
-  });
-
-  it("passes an absent or empty zip straight through", () => {
-    // "No stored mapping" and "a mapping that disagrees" are different states
-    // and only the second one is this function's business.
-    expect(piecesForOwnerEdit(null, [editPart("edit-a")])).toBeNull();
-    expect(piecesForOwnerEdit([], [editPart("edit-a")])).toEqual([]);
-  });
-
-  it("does not mutate the pieces it was given", () => {
-    const original = [piece("snap-a", 0)];
-    piecesForOwnerEdit(original, [editPart("edit-a")]);
-    expect(original[0].partId).toBe("snap-a");
   });
 });

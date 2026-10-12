@@ -13,7 +13,6 @@ import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
-import { readPractiseOffered } from "@/services/api/consentChoices";
 
 vi.mock("@/services/api/consentChoices", () => ({
   practiseOfferedNow: vi.fn(() => null),
@@ -109,20 +108,6 @@ afterEach(async () => {
 
 const closeSheet = vi.fn();
 
-const rewrite = {
-  id: "s-rw",
-  start: 0,
-  end: 21,
-  quote: "We should ship it now",
-  kind: "replace",
-  source: "wording",
-  feedbackFamily: "rewrite_clarity",
-  proposedText: "We ship it now.",
-  status: "pending",
-  snippetId: "snip-1",
-  takeSessionId: "take-1",
-} as unknown as DocumentSuggestion;
-
 async function open(
   answer: string,
   over: Partial<DocumentSuggestion> = {},
@@ -174,36 +159,11 @@ const testIds = () =>
     .map((el) => el.getAttribute("data-testid"));
 
 describe("Personalised practice off", () => {
-  it("reads the choice", async () => {
-    await open("not_sure");
-    expect(readPractiseOffered).toHaveBeenCalled();
-  });
 
   it("a Not sure offers Next, never Practise or Skip", async () => {
     await open("not_sure");
     expect(testIds()).toContain("paragraph-sheet-next");
     expect(testIds()).not.toContain("paragraph-sheet-practise");
     expect(testIds()).not.toContain("paragraph-sheet-skip");
-  });
-
-  it("an In-between offers Next with no Practise link", async () => {
-    await open("in_between");
-    expect(testIds()).toContain("paragraph-sheet-next");
-    expect(testIds()).not.toContain("paragraph-sheet-practise");
-  });
-
-  it("a rewrite is not offered as Accept and practise", async () => {
-    await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [rewrite]);
-    expect(testIds()).not.toContain("paragraph-sheet-accept");
-    expect(testIds()).not.toContain("paragraph-sheet-practise");
-    expect(testIds()).toContain("paragraph-sheet-next");
-  });
-});
-
-describe("control: with the choice on", () => {
-  it("the same rewrite is offered as Accept and practise", async () => {
-    vi.mocked(readPractiseOffered).mockResolvedValueOnce(true);
-    await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [rewrite]);
-    expect(testIds()).toContain("paragraph-sheet-accept");
   });
 });

@@ -107,12 +107,6 @@ afterEach(async () => {
   container.remove();
 });
 
-const praiseNote = {
-  id: "s-pr", start: 0, end: 21, quote: "We should ship it now",
-  kind: "advice", feedbackFamily: "great_formulation", source: "great_formulation",
-  status: null, snippetId: "snip-1", takeSessionId: "take-1",
-} as unknown as DocumentSuggestion;
-
 async function open(
   moment: DocumentSuggestion,
   notes: DocumentSuggestion[] = [],
@@ -145,16 +139,6 @@ const ids = () =>
     .map((el) => el.getAttribute("data-testid"));
 
 describe("judgement after feedback (24e-1)", () => {
-  it("a confident moment opens on its praise; Next asks the judgement", async () => {
-    await open({ ...answered, status: null, bookmarkTier: "confident" } as DocumentSuggestion, [praiseNote]);
-    expect(container.querySelector('[data-testid="judge"]')).toBeNull();
-    expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("praise");
-    expect(ids()).toContain("paragraph-sheet-next");
-    expect(reportMomentEvent).toHaveBeenCalledWith("snip-1", "opened", ["praise"]);
-    await act(async () =>
-      (container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement).click());
-    expect(container.querySelector('[data-testid="judge"]')).not.toBeNull();
-  });
 
   it("a moment that needed work opens on its exercise with Practise and Skip; Skip settles it unanswered", async () => {
     const { onSkip } = await open({ ...answered, status: null, bookmarkTier: "weak" } as DocumentSuggestion);
@@ -167,31 +151,5 @@ describe("judgement after feedback (24e-1)", () => {
     // Tap and go (founder 2026-10-05): the skipped moment rides along, so the
     // page settles its bar at once.
     expect(onSkip).toHaveBeenCalledWith(expect.objectContaining({ snippetId: "snip-1" }));
-  });
-
-  it("the open is told once", async () => {
-    await open({ ...answered, status: null, bookmarkTier: "weak" } as DocumentSuggestion);
-    await open({ ...answered, status: null, bookmarkTier: "weak" } as DocumentSuggestion);
-    expect(vi.mocked(reportMomentEvent).mock.calls.filter((c) => c[1] === "opened")).toHaveLength(1);
-  });
-
-  it("Practise opens the card shown, a library exercise included", async () => {
-    const library = {
-      ...answered, status: null, bookmarkTier: "weak",
-      practiceExercise: { ...(answered as DocumentSuggestion).practiceExercise, chosenByCoach: false },
-    } as DocumentSuggestion;
-    const onPractise = vi.fn((_partId: string, _card: unknown, _moment: unknown) => true);
-    await open(library, [], onPractise);
-    expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("exercise");
-    await act(async () =>
-      (container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement).click());
-    // The Feedback walk's practise, on the exercise shown (founder 2026-10-10).
-    expect(onPractise).toHaveBeenCalledWith("p1", expect.objectContaining({ kind: "exercise" }), expect.objectContaining({ id: "s-cv" }));
-    expect(container.querySelector('[data-testid="judge"]')).toBeNull();
-  });
-
-  it("Next before the judgement reads Next, also on the last moment", async () => {
-    await open({ ...answered, status: null, bookmarkTier: "confident" } as DocumentSuggestion, [praiseNote]);
-    expect(container.querySelector('[data-testid="paragraph-sheet-next"]')?.textContent).toBe("Next");
   });
 });

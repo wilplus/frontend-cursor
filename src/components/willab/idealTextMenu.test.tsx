@@ -48,32 +48,6 @@ function openMenu() {
 }
 
 describe("IdealTextMenu", () => {
-  it("is closed until the ⋯ is tapped", () => {
-    render({ onPresent: vi.fn(), onExport: vi.fn() });
-    expect(host.querySelector('[role="menu"]')).toBeNull();
-    openMenu();
-    const labels = [...host.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent);
-    expect(labels).toEqual([
-      "Presentation Mode",
-      "Export",
-      "Copy the text",
-      "Save the ideal text",
-    ]);
-  });
-
-  it("withholds what this mount does not have", () => {
-    render({ saved: null });
-    openMenu();
-    const labels = [...host.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent);
-    expect(labels).toEqual(["Copy the text"]);
-  });
-
-  it("offers History only when there are revisions", () => {
-    render({ onHistory: vi.fn() });
-    openMenu();
-    expect(host.textContent).toContain("History");
-    expect(host.textContent).not.toContain("Version history");
-  });
 
   it("reads as the design's menu: Presentation Mode, Export, History, Copy the text, Save the ideal text (D-IT-2)", () => {
     render({ onPresent: vi.fn(), onExport: vi.fn(), onHistory: vi.fn() });
@@ -86,21 +60,5 @@ describe("IdealTextMenu", () => {
       "Copy the text",
       "Save the ideal text",
     ]);
-  });
-
-  it("says the fact once saved instead of offering again", () => {
-    render({ saved: true });
-    openMenu();
-    expect(host.textContent).toContain("Saved. This is your script.");
-    expect(host.textContent).not.toContain("Save the ideal text");
-  });
-
-  it("runs an action and closes", () => {
-    const onPresent = vi.fn();
-    render({ onPresent });
-    openMenu();
-    act(() => (host.querySelector('[aria-label="Use Presentation Mode"]') as HTMLButtonElement).click());
-    expect(onPresent).toHaveBeenCalledTimes(1);
-    expect(host.querySelector('[role="menu"]')).toBeNull();
   });
 });

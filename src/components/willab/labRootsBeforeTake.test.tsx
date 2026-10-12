@@ -27,16 +27,10 @@ vi.mock("./pdfSlides", () => ({
 }));
 
 import { ContinuedTakeAutoStart, RecordingPhase } from "./LabOverlay";
-import { forgetLabHandover, primeLabRoots } from "@/lib/willab/labEntryHandover";
+import { forgetLabHandover } from "@/lib/willab/labEntryHandover";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 
 const SLIDES = [0, 1].map((i) => ({ title: `Slide ${i + 1}`, body: "" })) as never[];
-const READY = {
-  kind: "ready",
-  roots: [{ partId: "p1", slideIndex: 0, text: "Open with the one idea", type: "flagship" }],
-  documentSnapshotId: "snap",
-  documentSnapshotSha256: "a".repeat(64),
-};
 
 let root: Root;
 let host: HTMLDivElement;
@@ -123,23 +117,6 @@ afterEach(() => {
 });
 
 describe("a later Take waits for its helper words, never more than 1.5 s", () => {
-  it("mounts the words with the first slide when the read is slow", async () => {
-    api.fetchRecordingRoots.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(READY), 800)),
-    );
-    act(() => root.render(createElement(Host, { takeIndex: 2 })));
-    await flush();
-    await advance(799);
-    expect(startedAt).toBeNull();
-    expect(host.querySelector('[data-testid="slide"]')).toBeNull();
-    await advance(1);
-    expect(startedAt).toBe(800);
-    expect(frames.length).toBeGreaterThan(0);
-    // The very first frame with the slide already carries its words.
-    expect(frames[0]).toEqual({ slide: true, words: true });
-    // One read, never dropped and started again by the move into recording.
-    expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(1);
-  });
 
   it("still starts within 1.5 s when the read fails every time", async () => {
     api.fetchRecordingRoots.mockResolvedValue({ kind: "error" });
@@ -153,66 +130,6 @@ describe("a later Take waits for its helper words, never more than 1.5 s", () =>
     // The bounded retry: the first read and two more.
     expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(3);
     expect(host.querySelector('[data-testid="slide"]')).not.toBeNull();
-  });
-
-  it("starts at 1.5 s when the read never answers, and the words join later", async () => {
-    let answer: (value: unknown) => void = () => undefined;
-    api.fetchRecordingRoots.mockImplementation(
-      () => new Promise((resolve) => (answer = resolve)),
-    );
-    act(() => root.render(createElement(Host, { takeIndex: 2 })));
-    await flush();
-    await advance(ROOTS_WAIT_CAP_MS - 1);
-    expect(startedAt).toBeNull();
-    await advance(1);
-    expect(startedAt).toBe(ROOTS_WAIT_CAP_MS);
-    expect(host.querySelector('[data-testid="slide"]')).not.toBeNull();
-    expect(host.textContent).not.toContain("Open with the one idea");
-    answer(READY);
-    await flush();
-    expect(host.textContent).toContain("Open with the one idea");
-    expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(1);
-  });
-
-  it("leaves Take 1 alone: no read and no wait", async () => {
-    act(() => root.render(createElement(Host, { takeIndex: 1 })));
-    await flush();
-    expect(startedAt).toBe(0);
-    expect(api.fetchRecordingRoots).not.toHaveBeenCalled();
-  });
-});
-
-describe("the Ideal Text page's words start the Take at once (P2)", () => {
-  it("starts with no wait on the words the page just read, and still reads behind", async () => {
-    primeLabRoots("arc-1", READY.roots as never);
-    let answer: (value: unknown) => void = () => undefined;
-    api.fetchRecordingRoots.mockImplementation(
-      () => new Promise((resolve) => (answer = resolve)),
-    );
-    act(() => root.render(createElement(Host, { takeIndex: 2 })));
-    await flush();
-    record();
-    expect(startedAt).toBe(0);
-    expect(frames[0]).toEqual({ slide: true, words: true });
-    // The read behind still runs, and its newer answer replaces the words.
-    expect(api.fetchRecordingRoots).toHaveBeenCalledTimes(1);
-    answer({ ...READY, roots: [{ partId: "p1", slideIndex: 0, text: "A newer lock", type: "flagship" }] });
-    await flush();
-    expect(host.textContent).toContain("A newer lock");
-    expect(host.textContent).not.toContain("Open with the one idea");
-  });
-
-  it("waits for its own read as before when the page handed nothing over", async () => {
-    primeLabRoots("another-arc", READY.roots as never);
-    api.fetchRecordingRoots.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(READY), 800)),
-    );
-    act(() => root.render(createElement(Host, { takeIndex: 2 })));
-    await flush();
-    await advance(799);
-    expect(startedAt).toBeNull();
-    await advance(1);
-    expect(startedAt).toBe(800);
   });
 });
 

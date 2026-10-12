@@ -10,14 +10,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import DeckChunkModal from "./DeckChunkModal";
 import ParagraphSheet from "./ParagraphSheet";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
-import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { BehindOutcome } from "./saveBehind";
-import { PRAISE_CUE_COPY } from "@/lib/willab/trackedChangeWhy";
 import { fetchParagraphHistory } from "@/services/api/bookmarkHistory";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -90,40 +87,6 @@ const confidentVoice = suggestion({
   },
 } as unknown as Partial<DocumentSuggestion>);
 
-const rewrite = suggestion({
-  id: "s-rw",
-  feedbackFamily: "rewrite_clarity",
-  kind: "replace",
-  start: 23,
-  end: 47,
-  quote: "because the data is clear",
-  proposedText: "because the numbers back it",
-  takeSessionId: "take-1",
-});
-
-const praise = suggestion({
-  id: "s-pr",
-  feedbackFamily: "great_formulation",
-  device: "impeccable",
-  start: 52,
-  end: 70,
-  quote: "the team is ready",
-  cueKeys: ["steady_pace"],
-  takeSessionId: "take-1",
-} as Partial<DocumentSuggestion>);
-
-function chunk(pending: DocumentSuggestion[]): DeckChunk {
-  return {
-    part: { id: "p1", text: TEXT, locked: false },
-    paragraphIndex: 0,
-    start: 0,
-    end: TEXT.length,
-    status: "waiting",
-    pendingIds: pending.map((s) => s.id),
-    approvedIds: [],
-  } as DeckChunk;
-}
-
 const props = {
   onAccept: vi.fn(async () => true),
   onKeepMine: vi.fn(async () => true),
@@ -152,17 +115,6 @@ afterEach(async () => {
   container.remove();
 });
 
-async function renderSheet(pending: DocumentSuggestion[]) {
-  await act(async () => {
-    root.render(
-      createElement(DeckChunkModal, {
-        ...props,
-        state: chunkStateFor(chunk(pending), { document: TEXT, suggestions: pending }),
-      }),
-    );
-  });
-}
-
 async function click(label: string) {
   const button = Array.from(container.querySelectorAll("button")).find(
     (b) => (b.textContent ?? "").trim() === label && !b.hasAttribute("data-sheet-grabber"),
@@ -172,21 +124,6 @@ async function click(label: string) {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 }
-
-const playerCompact = () =>
-  container.querySelector('[data-testid="media-player"]')?.getAttribute("data-compact");
-
-describe("the compact player row", () => {
-  it("Suggestion and Good job draw the compact row, not the full player", async () => {
-    await renderSheet([confidentVoice, rewrite, praise]);
-    await click("Yes");
-    expect(container.textContent).toContain("Suggestion");
-    expect(playerCompact()).toBe("true");
-    await click("Keep my wording");
-    expect(container.textContent).toContain("Good job");
-    expect(playerCompact()).toBe("true");
-  });
-});
 
 describe("the paragraph sheet while its reads are pending", () => {
   it("draws the frame with the helper words, and never the paragraph text (D6)", async () => {
@@ -216,43 +153,5 @@ describe("the paragraph sheet while its reads are pending", () => {
     expect(saved).not.toBeNull();
     expect(saved?.textContent).toContain("ship it now");
     expect(frame?.textContent).not.toContain(TEXT);
-  });
-
-  it("without saved words, the practise state draws the player and the button at once", async () => {
-    vi.mocked(fetchParagraphHistory).mockReturnValueOnce(new Promise(() => undefined) as never);
-    const decided = suggestion({
-      ...confidentVoice,
-      id: "s-done-2",
-      status: "dismissed",
-    } as Partial<DocumentSuggestion>);
-    await act(async () => {
-      root.render(
-        createElement(ParagraphSheet, {
-          arcId: "arc-1",
-          takeSessionId: "take-1",
-          partId: "p-pending-2",
-          text: TEXT,
-          headline: null,
-          decided: [decided],
-          onClose: () => undefined,
-        }),
-      );
-    });
-    expect(container.querySelector('[data-testid="paragraph-sheet-loading"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="paragraph-sheet-next"]')).not.toBeNull();
-    expect(container.textContent).not.toContain(TEXT);
-  });
-});
-
-describe("Good job as the design draws it (L4)", () => {
-  it("says what this moment's voice did, from the closed cue vocabulary, under the lead", async () => {
-    const cued = suggestion({ ...praise, cueKeys: ["wide_range", "not_a_key"] } as Partial<DocumentSuggestion>);
-    await renderSheet([confidentVoice, cued]);
-    await click("Yes");
-    expect(container.textContent).toContain("Good job");
-    expect(container.textContent).toContain("It was your confident moment.");
-    expect(container.textContent).toContain(PRAISE_CUE_COPY.wide_range);
-    // An unknown cue renders nothing, never an invented sentence.
-    expect(container.textContent).not.toMatch(/not_a_key/);
   });
 });

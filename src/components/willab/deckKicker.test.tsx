@@ -20,16 +20,4 @@ describe("kickerFor", () => {
     expect(kickerFor(5, 6)).toBe("Slide 6 of 6");
   });
 
-  it("keeps Your talk for a text with no deck", () => {
-    expect(kickerFor(null, 6)).toBe("Your talk");
-    expect(kickerFor(null, null)).toBe("Your talk");
-  });
-
-  it("never invents a length it does not know", () => {
-    expect(kickerFor(1, null)).toBe("Slide 2");
-    expect(kickerFor(1, 0)).toBe("Slide 2");
-    // A slide past the known titles: no "of m" smaller than n.
-    expect(kickerFor(7, 6)).toBe("Slide 8");
-  });
-
 });

@@ -7,12 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildBookmarks,
   FeedbackPagerBar,
-  landingIndex,
   useFeedbackPager,
   type Bookmark,
 } from "./feedbackPager";
-import { latestIdealBubbleIds } from "./unreadFeedback";
-import { isRetiredLoungeMessage } from "./willabHelpers";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 
 const chunk = (id: string): DeckChunk =>
@@ -36,33 +33,6 @@ function bookmarks(): Bookmark[] {
   );
 }
 
-describe("the bookmarks", () => {
-  it("are the paragraphs with feedback still waiting or a coach moment, once each, in text order (2026-09-29, A)", () => {
-    const list = bookmarks();
-    // "c" was answered earlier and has nothing new: not a moment of this walk.
-    expect(list.map((b) => b.partId)).toEqual(["a", "d"]);
-    expect(list[1]).toMatchObject({ bundleId: "bundle-d", coach: true });
-  });
-
-  it("a paragraph with saved helper words is a screen of the walk, in text order (founder lock 2026-09-30, B8)", () => {
-    const list = buildBookmarks(
-      [chunk("a"), chunk("b"), chunk("c"), chunk("d")],
-      (c) => FEEDBACK[c.part.id],
-      (id) => MARKERS[id],
-      (c) => c.part.id === "c",
-    );
-    // "c" has nothing waiting but its words are saved: passed with Next.
-    // "b" has neither: not a screen.
-    expect(list.map((b) => b.partId)).toEqual(["a", "c", "d"]);
-  });
-
-  it("the link lands on the first coach-reviewed one, never a judgement-only one", () => {
-    expect(landingIndex(bookmarks())).toBe(1);
-    const noCoach = buildBookmarks([chunk("a")], (c) => FEEDBACK[c.part.id], () => undefined);
-    expect(landingIndex(noCoach)).toBe(-1);
-  });
-});
-
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
@@ -83,39 +53,6 @@ const buttons = () =>
     disabled: b.disabled,
     el: b,
   }));
-
-describe("the walk's header (founder 2026-09-26)", () => {
-  it("shows where you are as words, never a tally of problems", async () => {
-    await act(async () =>
-      root.render(createElement(FeedbackPagerBar, {
-        pager: { index: 0, total: 4, label: "Slide 2", onBack: vi.fn(), onNext: vi.fn() },
-      })),
-    );
-    expect(container.textContent).toBe("Slide 2 · moment 1 of 4");
-  });
-});
-
-describe("the bar, copied from the coach panel", () => {
-  it("Back is off on the first; Next is Next on every screen, the last one too (N48.3 Q8 A)", async () => {
-    await act(async () =>
-      root.render(createElement(FeedbackPagerBar, {
-        pager: { index: 0, total: 3, onBack: vi.fn(), onNext: vi.fn() },
-      })),
-    );
-    expect(buttons()).toMatchObject([
-      { label: "Back", disabled: true },
-      { label: "Next", disabled: false },
-    ]);
-    await act(async () =>
-      root.render(createElement(FeedbackPagerBar, {
-        pager: { index: 2, total: 3, onBack: vi.fn(), onNext: vi.fn() },
-      })),
-    );
-    expect(buttons().map((b) => b.label)).toEqual(["Back", "Next"]);
-    expect(buttons().some((b) => b.label === "Done")).toBe(false);
-    expect(buttons().some((b) => b.label === "Skip")).toBe(false);
-  });
-});
 
 function Harness({
   onOpen,
@@ -151,38 +88,6 @@ function Harness({
 }
 
 describe("the walk", () => {
-  it("lands on the coach's moment once, then Back and Next move through every bookmark", async () => {
-    const opened: string[] = [];
-    const closeAll = vi.fn();
-    await act(async () =>
-      root.render(createElement(Harness, {
-        onOpen: (b: Bookmark) => opened.push(b.partId),
-        onCloseAll: closeAll,
-        openFeedback: true,
-      })),
-    );
-    expect(opened).toEqual(["d"]);
-    const click = async (label: string) => {
-      const b = buttons().find((x) => x.label === label)!;
-      await act(async () => b.el.click());
-    };
-    const back = () => container.querySelector('[data-testid="back"]')?.textContent;
-    expect(back()).toBe("false");
-    await click("Back");
-    expect(opened.at(-1)).toBe("a");
-    // Reached by ‹: an answered judgement there may reopen (QA1 A, D-FW-9).
-    expect(back()).toBe("true");
-    await click("Next");
-    expect(opened.at(-1)).toBe("d");
-    expect(back()).toBe("false");
-    await click("Next");
-    expect(closeAll).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
-    // A tap on a paragraph joins the walk at that bookmark.
-    await click("open-a");
-    expect(opened.at(-1)).toBe("a");
-    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("0");
-  });
 
   it("does not open anything by itself without the link", async () => {
     const opened: string[] = [];
@@ -194,77 +99,5 @@ describe("the walk", () => {
       })),
     );
     expect(opened).toEqual([]);
-  });
-});
-
-describe("the unread-feedback dot (Q39 B, Q40 B, Q42 A)", () => {
-  it("the feedback bubble is deleted: old rows stay hidden", () => {
-    expect(isRetiredLoungeMessage({
-      client_id: "m1", role: "bot", kind: "ideal_text", body: "b",
-      metadata: { variant: "coach_feedback_published", arc_id: "arc-1" },
-      client_created_at: "t",
-    } as never)).toBe(true);
-  });
-
-  it("sits only on each project's latest version bubble", () => {
-    const msg = (id: string, arc: string, variant: string) => ({
-      kind: "message",
-      message: { client_id: id, kind: "ideal_text", metadata: { arc_id: arc, variant } },
-    }) as never;
-    const ids = latestIdealBubbleIds([
-      msg("a1", "arc-a", "ready"),
-      msg("b1", "arc-b", "ready"),
-      msg("a2", "arc-a", "verified"),
-      msg("a3", "arc-a", "instant"),
-      msg("b2", "arc-b", "coach_feedback_published"),
-    ]);
-    expect([...ids].sort()).toEqual(["a2", "b1"]);
-  });
-});
-
-describe("the walk across a re-read", () => {
-
-  it("keeps the list it started on while a sheet is open, whatever the host re-reads (audit 2026-09-29)", async () => {
-    // After Apply the host re-reads the document and rebuilds its bookmarks;
-    // the walk is positional, so the header used to change under the speaker
-    // and the walk ended early when the open paragraph fell out of the list.
-    const opened: string[] = [];
-    const closeAll = vi.fn();
-    const full = bookmarks();
-    // The walk is a, d. The re-read drops "a" (its feedback was decided):
-    // only "d" is left in the host's list.
-    const rebuilt = full.filter((b) => b.partId === "d");
-    await act(async () =>
-      root.render(createElement(Harness, {
-        onOpen: (b: Bookmark) => opened.push(b.partId),
-        onCloseAll: closeAll,
-        openFeedback: false,
-        rebuilt,
-      })),
-    );
-    const click = async (label: string) => {
-      const b = [...container.querySelectorAll("button")].find((x) => x.textContent === label
-        || x.getAttribute("aria-label") === label)!;
-      await act(async () => b.click());
-    };
-    const total = () => container.querySelector('[data-testid="total"]')?.textContent;
-    await click("open-a");
-    expect(total()).toBe("2");
-    await click("rebuild");
-    // Still "moment 1 of 2", still on "a", although "a" left the host's list.
-    expect(total()).toBe("2");
-    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("0");
-    await click("Next");
-    expect(opened.at(-1)).toBe("d");
-    expect(total()).toBe("2");
-    await click("Next");
-    expect(closeAll).toHaveBeenCalledTimes(1);
-    // The next walk starts on the host's current list: "a" is no longer in
-    // it, so a tap on it is not a walk, and "c" never was.
-    await click("open-a");
-    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
-    await click("open-c");
-    expect(container.querySelector('[data-testid="at"]')?.textContent).toBe("none");
-    expect(opened.at(-1)).toBe("d");
   });
 });

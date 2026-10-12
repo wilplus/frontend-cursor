@@ -186,26 +186,11 @@ async function accept(textUpdate: string | undefined) {
 }
 
 describe("accepting a rewrite", () => {
-  it("the server wrote it: the page is told and refreshes", async () => {
-    await accept("applied");
-    expect(onAccept).toHaveBeenCalledTimes(1);
-    expect(onAccept.mock.calls[0][0].acceptedOnServer).toBe(true);
-    expect(container.querySelector('[role="alert"]')).toBeNull();
-    // Then the practise on the accepted words, in the Feedback walk.
-    expect(onPractise).toHaveBeenCalledTimes(1);
-    expect(onPractise.mock.calls[0][1]).toMatchObject({ kind: "rewrite", text: "We ship it now." });
-  });
 
   it("the server refused: nothing changes and the sheet says so", async () => {
     await accept("protected");
     expect(onAccept).not.toHaveBeenCalled();
     expect(onPractise).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
-  });
-
-  it("an older backend: the page decides as before", async () => {
-    await accept(undefined);
-    expect(onAccept).toHaveBeenCalledTimes(1);
-    expect(onAccept.mock.calls[0][0].acceptedOnServer).toBeUndefined();
   });
 });

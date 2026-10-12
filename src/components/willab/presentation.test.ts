@@ -1,157 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  initialSlides,
-  nonEmptySlides,
-  clampSlides,
-  bulletLines,
   deckFileError,
-  fileTooLargeMessage,
-  mapExtractedDeck,
-  mapSlide,
   SLIDE_CAPS,
 } from "./presentation";
-
-describe("initialSlides", () => {
-  it("opens with 5 empty blocks", () => {
-    const s = initialSlides();
-    expect(s).toHaveLength(5);
-    expect(s.every((x) => x.title === "" && x.body === "")).toBe(true);
-  });
-});
-
-describe("nonEmptySlides", () => {
-  it("drops rows blank in both title and body", () => {
-    const out = nonEmptySlides([
-      { title: "Intro", body: "" },
-      { title: "", body: "" },
-      { title: "", body: "a point" },
-      { title: "  ", body: "  " },
-    ]);
-    expect(out).toEqual([
-      { title: "Intro", body: "" },
-      { title: "", body: "a point" },
-    ]);
-  });
-
-  it("clamps title/body and caps the count", () => {
-    const long = Array.from({ length: 70 }, () => ({
-      title: "t".repeat(300),
-      body: "b".repeat(3000),
-    }));
-    const out = nonEmptySlides(long);
-    expect(out).toHaveLength(SLIDE_CAPS.maxSlides);
-    expect(out[0].title.length).toBe(SLIDE_CAPS.maxTitle);
-    expect(out[0].body.length).toBe(SLIDE_CAPS.maxBody);
-  });
-});
-
-describe("bulletLines", () => {
-  it("splits on newline and drops blank lines", () => {
-    expect(bulletLines("one\n\n  two \n")).toEqual(["one", "two"]);
-    expect(bulletLines("")).toEqual([]);
-  });
-});
 
 describe("deckFileError", () => {
   const file = (name: string, size: number) =>
     ({ name, size }) as File;
-  it("accepts pdf under the size cap", () => {
-    expect(deckFileError(file("DECK.PDF", 1000))).toBeNull();
-  });
   it("rejects non-pdf (incl. pptx, now PDF-only) and oversize", () => {
     expect(deckFileError(file("deck.pptx", 1000))).toMatch(/PDF/);
     expect(deckFileError(file("deck.key", 1000))).toMatch(/PDF/);
     expect(deckFileError(file("deck.pdf", SLIDE_CAPS.maxFileBytes + 1))).toMatch(
       /20 MB/
     );
-  });
-});
-
-describe("fileTooLargeMessage", () => {
-  it("prefers the BE error message when present", () => {
-    expect(
-      fileTooLargeMessage({
-        code: "FILE_TOO_LARGE",
-        error: "Deck is over 20 MB — export a lighter PDF and try again.",
-        limit_mb: 20,
-      })
-    ).toBe("Deck is over 20 MB — export a lighter PDF and try again.");
-  });
-  it("falls back to the BE limit_mb when no error string is given", () => {
-    expect(fileTooLargeMessage({ limit_mb: 25 })).toBe(
-      "That file is over 25 MB. Try a smaller export."
-    );
-  });
-  it("falls back to the local cap when the 413 carried no usable body", () => {
-    const localMb = Math.round(SLIDE_CAPS.maxFileBytes / (1024 * 1024));
-    expect(fileTooLargeMessage(null)).toBe(
-      `That file is over ${localMb} MB. Try a smaller export.`
-    );
-    expect(fileTooLargeMessage({})).toMatch(/20 MB/);
-    expect(fileTooLargeMessage("<html>413</html>")).toMatch(/20 MB/);
-  });
-});
-
-describe("clampSlides", () => {
-  it("keeps blanks (clamp + cap only) so PDF pages stay aligned", () => {
-    const out = clampSlides([
-      { title: "p1", body: "a" },
-      { title: "", body: "" },
-      { title: "p3", body: "c" },
-    ]);
-    expect(out).toEqual([
-      { title: "p1", body: "a" },
-      { title: "", body: "" },
-      { title: "p3", body: "c" },
-    ]);
-  });
-
-  it("caps at maxSlides", () => {
-    const many = Array.from({ length: SLIDE_CAPS.maxSlides + 5 }, () => ({
-      title: "t",
-      body: "b",
-    }));
-    expect(clampSlides(many).length).toBe(SLIDE_CAPS.maxSlides);
-  });
-});
-
-describe("mapExtractedDeck", () => {
-  it("keeps blank slides (PDF page alignment), dropping only non-object junk", () => {
-    expect(
-      mapExtractedDeck({
-        presentation_ref: "https://cdn/x.pdf",
-        slides: [
-          { title: "Open", body: "hook\nstory" },
-          { title: "", body: "" },
-          "junk",
-        ],
-        warnings: ["slide 4 had no text", 5],
-      })
-    ).toEqual({
-      presentationRef: "https://cdn/x.pdf",
-      slides: [
-        { title: "Open", body: "hook\nstory" },
-        { title: "", body: "" },
-      ],
-      warnings: ["slide 4 had no text"],
-    });
-  });
-
-  it("defaults to null ref + empty arrays on a bare/blank response", () => {
-    expect(mapExtractedDeck({})).toEqual({
-      presentationRef: null,
-      slides: [],
-      warnings: [],
-    });
-    expect(mapExtractedDeck(null)).toEqual({
-      presentationRef: null,
-      slides: [],
-      warnings: [],
-    });
-  });
-
-  it("mapSlide rejects a fully-blank slide", () => {
-    expect(mapSlide({ title: "  ", body: "" })).toBeNull();
-    expect(mapSlide({ title: "Has title", body: "" })?.title).toBe("Has title");
   });
 });

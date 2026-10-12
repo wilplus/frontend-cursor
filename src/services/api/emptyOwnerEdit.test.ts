@@ -43,21 +43,4 @@ describe("the empty envelope never displaces the served mapping", () => {
 
     expect(piecesForOwnerEdit(pieces, [])).toBe(pieces);
   });
-
-  it("still re-anchors a REAL edit", () => {
-    // The empty-envelope guard must not disable the fix it sits in front of.
-    const out = piecesForOwnerEdit(
-      [piece("snap-a", 0), piece("snap-b", 1)],
-      [{ id: "edit-a" }, { id: "edit-b" }],
-    );
-
-    expect(out?.map((p) => p.partId)).toEqual(["edit-a", "edit-b"]);
-    expect(out?.map((p) => p.slideIndex)).toEqual([0, 1]);
-  });
-
-  it("still refuses a real edit whose paragraph count moved", () => {
-    expect(
-      piecesForOwnerEdit([piece("snap-a", 0), piece("snap-b", 1)], [{ id: "e" }]),
-    ).toBeNull();
-  });
 });

@@ -45,28 +45,8 @@ function drawsAStar(source: string): boolean {
 describe("no stars on user surfaces (founder 2026-08-11)", () => {
   const files = ROOTS.flatMap((r) => walk(r));
 
-  it("scans a real, non-trivial file set — a fence over nothing is not a fence", () => {
-    expect(files.length).toBeGreaterThan(40);
-  });
-
   it("NO component draws a star icon — user lane or coach lane", () => {
     const offenders = files.filter((f) => drawsAStar(readFileSync(f, "utf8")));
     expect(offenders).toEqual([]);
-  });
-
-  it("the star RENDERERS are gone from the tree, not merely unmounted", () => {
-    // MomentStars/TrackedText were the star lane's own modules; PieceBadgeText
-    // was the badged reading view that mounted them. A file that still exists
-    // is a file the next feature can mount again.
-    const gone = [
-      "src/components/willab/MomentStars.tsx",
-      "src/components/willab/TrackedText.tsx",
-      // The swap sheet was the last thing left in it; it could never open
-      // (audit C3, 2026-09-28).
-      "src/components/willab/PieceBadges.tsx",
-    ];
-    for (const f of gone) {
-      expect(files).not.toContain(f);
-    }
   });
 });

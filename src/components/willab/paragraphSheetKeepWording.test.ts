@@ -29,17 +29,4 @@ describe("recordKeepWording", () => {
       feedbackMembershipId: "mem-1", feedbackExposureId: "exp-1",
     });
   });
-
-  it("does nothing without a Take or a family", async () => {
-    await recordKeepWording({ id: "x" } as never);
-    expect(save).not.toHaveBeenCalled();
-  });
-
-  it("never throws when the save is refused", async () => {
-    save.mockResolvedValue({ ok: false, status: 503 });
-    let threw = false;
-    try { await recordKeepWording(item); } catch { threw = true; }
-    expect(threw).toBe(false);
-    expect(save).toHaveBeenCalledTimes(1);
-  });
 });

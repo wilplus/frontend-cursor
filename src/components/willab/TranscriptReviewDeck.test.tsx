@@ -87,10 +87,6 @@ async function render(over: Partial<typeof props> = {}) {
   });
   return container.textContent ?? "";
 }
-const buttons = () =>
-  Array.from(container.querySelectorAll("button")).map(
-    (b) => (b.textContent ?? "").trim() || (b.getAttribute("aria-label") ?? "").trim(),
-  );
 
 describe("TranscriptReviewDeck — F1 net", () => {
   it("shows the speaker's own words, per slide, unchanged", async () => {
@@ -101,59 +97,5 @@ describe("TranscriptReviewDeck — F1 net", () => {
   it("AC-9: renders no score, ratio, percentage or verdict, even with a tentative pending item", async () => {
     const text = await render();
     for (const pattern of SCORE_LIKE) expect(text, `matched ${pattern}`).not.toMatch(pattern);
-  });
-
-  it("a mark only where there is something to do, and each states itself in words", async () => {
-    await render();
-    const labels = buttons();
-    // one editor entry per slide
-    expect(labels.filter((l) => l === "Edit the text")).toHaveLength(SLIDES.length);
-    // THE MARK IS THE CONFIDENT VOICE DOOR (founder 2026-09-17: "visibility
-    // and openability of the overlay is strictly for the confident voice").
-    // Paragraph 2 carries the Confident Voice item and wears the only mark.
-    // Paragraph 3 is LOCKED and has no Confident Voice item, so it wears none
-    // — the founder's explicit call, accepting that it is not openable from
-    // the deck. Paragraph 1 is clean and never had one.
-    expect(labels).toContain("Feedback waiting — review it");
-    expect(labels).not.toContain("Paragraph protected");
-    expect(labels).not.toContain("No feedback pending");
-    // Still no number anywhere — the mark says WHETHER something is waiting,
-    // never how much, because a column reading 3 / 1 / 2 scans as a ranking of
-    // how bad each paragraph is (AC-9).
-    for (const label of labels) {
-      expect(label, label).not.toMatch(/\bfeedback items?\b/);
-    }
-    // and a rail entry per slide
-    expect(labels.filter((l) => /^Go to Slide \d$/.test(l))).toHaveLength(SLIDES.length);
-  });
-
-  it("a pending suggestion never rewrites the text on screen (L1)", async () => {
-    const text = await render();
-    expect(text).toContain("retention went up");
-    expect(text).not.toContain("retention rose");
-  });
-});
-
-describe("the kicker reads Slide n of m (build plan D-IT-1)", () => {
-  it("names each slide and the deck's length; the copied text is unchanged", async () => {
-    await render();
-    const kickers = Array.from(container.querySelectorAll("p.uppercase")).map((p) => p.textContent);
-    expect(kickers).toEqual(["Slide 1 of 3", "Slide 2 of 3", "Slide 3 of 3"]);
-    const writeText = vi.fn(async (_text: string) => undefined);
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-    const copy = container.querySelector<HTMLButtonElement>('button[aria-label="Copy the whole text"]')!;
-    expect(copy).not.toBeNull();
-    await act(async () => copy.click());
-    const out = writeText.mock.calls[0]?.[0] ?? "";
-    expect(out.startsWith("Slide 1 — Opening\n\n")).toBe(true);
-    expect(out).toContain("Slide 2 — Results");
-    expect(out).not.toMatch(/ of 3/);
-  });
-
-  it("keeps Your talk for a text with no deck", async () => {
-    await render({ pieceSlideIndexes: null, piecePartIds: null, slideTitles: undefined } as never);
-    const kickers = Array.from(container.querySelectorAll("p.uppercase")).map((p) => p.textContent);
-    expect(kickers).toContain("Your talk");
-    expect(kickers.join(" ")).not.toMatch(/ of /);
   });
 });

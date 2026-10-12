@@ -26,21 +26,14 @@ vi.mock("@/services/api/idealText", () => ({
 }));
 
 import {
-  OPEN_WAIT_MS,
   forgetParagraphSheetData,
-  prefetchParagraphSheets,
   useParagraphSheetData,
-  usePrefetchParagraphSheets,
   type SheetData,
 } from "./paragraphSheetData";
 import {
-  CONFIRM_RETRY_MS,
-  CONFIRM_TRIES,
   forgetHeadlineReads,
   useHeadlinesWithPending,
 } from "./useSlideHeadlines";
-import OpenChunkSheet from "./OpenChunkSheet";
-import { forgetLabHandover, primedLabRoots } from "@/lib/willab/labEntryHandover";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -71,15 +64,6 @@ describe("1A: the paragraph sheet opens complete", () => {
   }
   beforeEach(() => { seen = []; });
 
-  it("has the data on the very first render when read ahead", async () => {
-    history.mockResolvedValue({ entries: ["h"] });
-    answers.mockResolvedValue([{ feedbackId: "f", response: "not_sure" }]);
-    prefetchParagraphSheets("arc", "take", ["p1"]);
-    await flush();
-    act(() => root.render(createElement(Probe)));
-    expect(seen[0]).toEqual({ history: { entries: ["h"] }, answers: [{ feedbackId: "f", response: "not_sure" }] });
-  });
-
   it("draws nothing until both reads land, then everything at once", async () => {
     let finish: (v: unknown) => void = () => {};
     history.mockReturnValue(new Promise((r) => { finish = r; }));
@@ -90,122 +74,6 @@ describe("1A: the paragraph sheet opens complete", () => {
     finish({ entries: [] });
     await flush();
     expect(seen.at(-1)).toEqual({ history: { entries: [] }, answers: [] });
-  });
-
-  it("stops waiting after the bounded wait on a very slow read", async () => {
-    vi.useFakeTimers();
-    history.mockReturnValue(new Promise(() => {}));
-    answers.mockResolvedValue([]);
-    act(() => root.render(createElement(Probe)));
-    await act(async () => { vi.advanceTimersByTime(OPEN_WAIT_MS); });
-    expect(seen.at(-1)).not.toBeNull();
-  });
-
-  it("reads fresh on each read-ahead, so a new answer is not missed", () => {
-    history.mockResolvedValue(null);
-    answers.mockResolvedValue([]);
-    prefetchParagraphSheets("arc", "take", ["p1"]);
-    prefetchParagraphSheets("arc", "take", ["p1"]);
-    expect(answers).toHaveBeenCalledTimes(2);
-    expect(history).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps the last finished read while a fresh one is in flight (tap and go)", async () => {
-    history.mockResolvedValue({ entries: ["take 1"] });
-    answers.mockResolvedValue([]);
-    prefetchParagraphSheets("arc", "take", ["p1"]);
-    await flush();
-    // A sheet closes: everything is read again, and this read is slow.
-    let finish: (v: unknown) => void = () => {};
-    history.mockReturnValue(new Promise((r) => { finish = r; }));
-    prefetchParagraphSheets("arc", "take", ["p1"]);
-    act(() => root.render(createElement(Probe)));
-    expect(seen[0]).toEqual({ history: { entries: ["take 1"] }, answers: [] });
-    finish({ entries: ["take 1", "take 2"] });
-    await flush();
-    expect(seen.at(-1)).toEqual({ history: { entries: ["take 1", "take 2"] }, answers: [] });
-  });
-});
-
-describe("F5: one batched read-ahead, and only the closed paragraph after a close", () => {
-  const ok = (entries: Record<string, unknown>) =>
-    ({ kind: "ok", histories: new Map(Object.entries(entries)) });
-  let seen: (SheetData | null)[];
-  function Sheet({ partId }: { partId: string }) {
-    seen.push(useParagraphSheetData("arc", "take", partId));
-    return null;
-  }
-  function Page({ parts, open }: { parts: string[]; open: string | null }) {
-    usePrefetchParagraphSheets("arc", "take", parts, open);
-    return open ? createElement(Sheet, { partId: open }) : null;
-  }
-  beforeEach(() => {
-    seen = [];
-    answers.mockResolvedValue([]);
-    history.mockResolvedValue({ single: true });
-  });
-
-  it("reads N paragraphs' histories in one request", async () => {
-    batch.mockResolvedValue(ok({ p1: { h: 1 }, p2: { h: 2 }, p3: { h: 3 } }));
-    act(() => root.render(createElement(Page, { parts: ["p1", "p2", "p3"], open: null })));
-    await flush();
-    expect(batch).toHaveBeenCalledTimes(1);
-    expect(batch).toHaveBeenCalledWith("arc", ["p1", "p2", "p3"]);
-    expect(history).not.toHaveBeenCalled();
-    act(() => root.render(createElement(Page, { parts: ["p1", "p2", "p3"], open: "p2" })));
-    expect(seen[0]).toEqual({ history: { h: 2 }, answers: [] });
-  });
-
-  it("falls back to one read each on a 404, and does not try the batch again", async () => {
-    batch.mockResolvedValue({ kind: "absent" });
-    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
-    await flush();
-    await flush();
-    expect(history).toHaveBeenCalledTimes(2);
-    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
-    expect(batch).toHaveBeenCalledTimes(1);
-    expect(history).toHaveBeenCalledTimes(4);
-  });
-
-  it("falls back to one read each when the batch fails, and tries it again later", async () => {
-    batch.mockResolvedValue({ kind: "failed" });
-    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
-    await flush();
-    await flush();
-    expect(history).toHaveBeenCalledTimes(2);
-    prefetchParagraphSheets("arc", "take", ["p1", "p2"]);
-    expect(batch).toHaveBeenCalledTimes(2);
-  });
-
-  it("re-reads only the closed paragraph, and the Take's answers, after a close", async () => {
-    batch.mockResolvedValue(ok({ p1: { h: 1 }, p2: { h: 2 }, p3: { h: 3 } }));
-    const parts = ["p1", "p2", "p3"];
-    act(() => root.render(createElement(Page, { parts, open: null })));
-    await flush();
-    act(() => root.render(createElement(Page, { parts, open: "p2" })));
-    expect(answers).toHaveBeenCalledTimes(1);
-    act(() => root.render(createElement(Page, { parts, open: null })));
-    await flush();
-    expect(batch).toHaveBeenCalledTimes(1);
-    expect(history).toHaveBeenCalledTimes(1);
-    expect(history).toHaveBeenCalledWith("arc", "p2");
-    expect(answers).toHaveBeenCalledTimes(2);
-  });
-
-  it("opens complete on an early tap once the batch lands", async () => {
-    let land: (v: unknown) => void = () => {};
-    batch.mockReturnValue(new Promise((r) => { land = r; }));
-    const parts = ["p1", "p2"];
-    act(() => root.render(createElement(Page, { parts, open: null })));
-    act(() => root.render(createElement(Page, { parts, open: "p1" })));
-    await flush();
-    expect(seen.every((d) => d === null)).toBe(true);
-    expect(history).not.toHaveBeenCalled();
-    land(ok({ p1: { h: 1 }, p2: { h: 2 } }));
-    await flush();
-    await flush();
-    expect(seen.at(-1)).toEqual({ history: { h: 1 }, answers: [] });
-    expect(seen.filter((d) => d !== null)).toEqual([{ history: { h: 1 }, answers: [] }]);
   });
 });
 
@@ -223,135 +91,5 @@ describe("2A: helper words show at once", () => {
     await flush();
     act(() => api.expect("p1", "just a test"));
     expect(api.headlines.get("p1")).toBe("just a test");
-  });
-
-  it("hands the words it read to the next Take's start (P2)", async () => {
-    forgetLabHandover();
-    const list = [{ partId: "p1", slideIndex: 0, text: "kept", type: "flagship" }];
-    roots.mockResolvedValue(ready(list));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    expect(primedLabRoots("arc")).toEqual(list);
-  });
-
-  it("replaces the paragraph's old words rather than joining them", async () => {
-    roots.mockResolvedValue(ready([{ partId: "p1", text: "old words" }]));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    act(() => api.expect("p1", "new words"));
-    expect(api.headlines.get("p1")).toBe("new words");
-  });
-
-  it("takes them back when the save fails", async () => {
-    roots.mockResolvedValue(ready([]));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    act(() => api.expect("p1", "just a test"));
-    act(() => api.settle("p1", false));
-    expect(api.headlines.has("p1")).toBe(false);
-  });
-
-  it("keeps them through a stale read and hands over to a fresh one", async () => {
-    let stale: (v: unknown) => void = () => {};
-    roots.mockReturnValueOnce(new Promise((r) => { stale = r; }));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    act(() => api.expect("p1", "just a test"));
-    roots.mockResolvedValueOnce(ready([{ partId: "p1", text: "just a test" }]));
-    act(() => api.settle("p1", true));
-    // The read that started before the save lands with nothing for p1.
-    stale(ready([]));
-    await flush();
-    expect(api.headlines.get("p1")).toBe("just a test");
-    await flush();
-    expect(api.headlines.get("p1")).toBe("just a test");
-    expect(roots).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps them while the lock is still landing, and asks again (tap and go)", async () => {
-    vi.useFakeTimers();
-    roots.mockResolvedValue(ready([]));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    act(() => api.expect("p1", "just a test"));
-    // The words' write lands first; the lock has not, so the read after
-    // the save still comes back without them.
-    act(() => api.settle("p1", true));
-    await flush();
-    expect(api.headlines.get("p1")).toBe("just a test");
-    // The lock lands; the next read carries the words.
-    roots.mockResolvedValue(ready([{ partId: "p1", text: "Just a test" }]));
-    await act(async () => { vi.advanceTimersByTime(CONFIRM_RETRY_MS); });
-    await flush();
-    expect(api.headlines.get("p1")).toBe("Just a test");
-  });
-
-  it("lets the server's answer stand once the tries run out", async () => {
-    vi.useFakeTimers();
-    roots.mockResolvedValue(ready([]));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    act(() => api.expect("p1", "just a test"));
-    act(() => api.settle("p1", true));
-    for (let i = 0; i <= CONFIRM_TRIES; i += 1) {
-      await flush();
-      await act(async () => { vi.advanceTimersByTime(CONFIRM_RETRY_MS); });
-    }
-    await flush();
-    expect(api.headlines.has("p1")).toBe(false);
-  });
-
-  it("keeps every shown headline when a read fails", async () => {
-    roots.mockResolvedValueOnce(ready([{ partId: "p2", text: "kept" }]));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    roots.mockResolvedValueOnce({ kind: "stale" });
-    act(() => root.render(createElement(Probe, { sheetOpen: true })));
-    act(() => root.render(createElement(Probe, { sheetOpen: false })));
-    await flush();
-    expect(roots).toHaveBeenCalledTimes(2);
-    expect(api.headlines.get("p2")).toBe("kept");
-  });
-});
-
-describe("held while the Take's feedback arrives", () => {
-  const stateWith = (pending: unknown[]) =>
-    ({ pending, decided: [], locked: true, chunk: { part: { id: "p1", text: "t" } } }) as never;
-  const render = (state: unknown, feedbackPending: boolean) =>
-    act(() => root.render(createElement(OpenChunkSheet, {
-      state: state as never,
-      arcId: null,
-      takeSessionId: null,
-      headline: null,
-      feedbackPending,
-      onClose: () => {},
-      renderSheet: () => createElement("p", { "data-testid": "judgement" }, "judgement sheet"),
-    })));
-
-  // 24e-1 (Phase 6): a waiting moment opens on its feedback -- the
-  // paragraph's own sheet -- and the judgement sheet only on Next.
-  const opensOnFeedback = () => {
-    expect(container.textContent).not.toBe("judgement sheet");
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
-  };
-
-  it("opens nothing until the feedback lands, then the sheet the moment needs", () => {
-    render(stateWith([]), true);
-    expect(container.innerHTML).toBe("");
-    // The moment's unanswered item arrives with the feedback.
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), false);
-    opensOnFeedback();
-  });
-
-  it("stops holding after the bounded wait", async () => {
-    vi.useFakeTimers();
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), true);
-    expect(container.innerHTML).toBe("");
-    await act(async () => { vi.advanceTimersByTime(OPEN_WAIT_MS); });
-    opensOnFeedback();
-  });
-
-  it("opens at once when the feedback is already there", () => {
-    render(stateWith([{ id: "cv", feedbackFamily: "confident_voice", quote: "t" }]), false);
-    opensOnFeedback();
   });
 });

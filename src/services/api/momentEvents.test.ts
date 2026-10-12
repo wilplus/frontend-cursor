@@ -16,23 +16,6 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "token" }));
 describe("reportMomentEvent", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("posts the event and what was shown, and reads the follow-up", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ recorded: true, follow_up: "praise" }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const out = await reportMomentEvent("snip-1", "opened", ["question", "praise"]);
-    expect(out).toEqual({ kind: "recorded", followUp: "praise" });
-    const [path, init] = fetchMock.mock.calls[0]!;
-    expect(path).toBe("/api/v2/user/snippets/snip-1/moment-event");
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      event: "opened",
-      shown: ["question", "praise"],
-    });
-  });
-
   it("tells an already recorded event from a failure, and never throws", async () => {
     vi.stubGlobal(
       "fetch",

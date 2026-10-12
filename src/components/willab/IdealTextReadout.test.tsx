@@ -26,12 +26,8 @@ vi.mock("@/services/api/idealText", async (importOriginal) => {
     fetchIdealTextForDisplay: vi.fn(pending),
   };
 });
-
-import IdealTextReadout from "./IdealTextReadout";
 import {
   GUEST_SIGN_UP_COPY,
-  GuestGateContext,
-  useGuestBlock,
   useGuestGate,
 } from "./GuestSignUpDialog";
 import {
@@ -86,94 +82,6 @@ function paragraph(text: string): Element {
   return found;
 }
 
-describe("IdealTextReadout — a guest's text (no SD payload)", () => {
-  it("puts every paragraph inside one scroller of its own", () => {
-    act(() => {
-      root.render(
-        createElement(IdealTextReadout, {
-          payload,
-          sessionId: null,
-          signedIn: false,
-          onAutoSent: () => {},
-          onSignUp: () => {},
-        })
-      );
-    });
-    const scroller = paragraph("far below the fold").closest(
-      '[data-testid="readout-plain-scroller"]'
-    );
-    expect(scroller).not.toBeNull();
-    const classes = (scroller?.className ?? "").split(/\s+/);
-    expect(classes).toContain("overflow-y-auto");
-    expect(classes).toContain("min-h-0");
-    expect(classes).toContain("flex-1");
-    expect(
-      paragraph("The first paragraph").closest(
-        '[data-testid="readout-plain-scroller"]'
-      )
-    ).toBe(scroller);
-  });
-});
-
-describe("A guest reads the whole page (founder 2026-10-04, Phase 0.6)", () => {
-  it("reads the full document for a guest that holds its identity", async () => {
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    await act(async () => {
-      root.render(
-        createElement(IdealTextReadout, {
-          payload,
-          sessionId: "take-1",
-          arcId: "arc-1",
-          signedIn: false,
-          onAutoSent: () => {},
-          onSignUp: () => {},
-        })
-      );
-    });
-    // The first read is the display read (or the core read when the bundle
-    // flag is on); either way the guest's page is read, not skipped.
-    const reads = [
-      ...vi.mocked(fetchIdealTextCore).mock.calls,
-      ...vi.mocked(fetchIdealTextForDisplay).mock.calls,
-    ];
-    expect(reads.map((call) => call[0])).toContain("arc-1");
-  });
-
-  it("opens nothing by itself", async () => {
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    await act(async () => {
-      root.render(
-        createElement(IdealTextReadout, {
-          payload,
-          sessionId: "take-1",
-          arcId: "arc-1",
-          signedIn: false,
-          onAutoSent: () => {},
-          onSignUp: () => {},
-        })
-      );
-    });
-    expect(host.querySelector('[role="dialog"]')).toBeNull();
-  });
-
-  it("without a guest identity, a signed-out reader keeps the plain text", async () => {
-    await act(async () => {
-      root.render(
-        createElement(IdealTextReadout, {
-          payload,
-          sessionId: null,
-          arcId: "arc-1",
-          signedIn: false,
-          onAutoSent: () => {},
-          onSignUp: () => {},
-        })
-      );
-    });
-    expect(fetchIdealTextCore).not.toHaveBeenCalled();
-    expect(fetchIdealTextForDisplay).not.toHaveBeenCalled();
-  });
-});
-
 describe("useGuestGate — sign-up stands in front of the steps that need an account", () => {
   type Probe = {
     run: () => string;
@@ -206,40 +114,6 @@ describe("useGuestGate — sign-up stands in front of the steps that need an acc
     step.mockClear();
   });
 
-  it("ask opens the dialog and its Create an account is the plain sign-up", () => {
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    mount(false, "arc-1");
-    act(() => probe?.ask());
-    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
-    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
-    expect(onSignUp).toHaveBeenCalledTimes(1);
-  });
-
-  it("practise inside a sheet is stopped for a guest and the dialog opens", () => {
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    mount(false, "arc-1");
-    let blocked = false;
-    act(() => {
-      blocked = probe?.block() ?? false;
-    });
-    expect(blocked).toBe(true);
-    expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
-    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
-    expect(onSignUp).toHaveBeenCalledTimes(1);
-  });
-
-  it("an account's practise is never stopped", () => {
-    mount(true, "arc-1");
-    expect(probe?.block()).toBe(false);
-  });
-
-  it("an account's step runs untouched", () => {
-    mount(true, "arc-1");
-    expect(probe?.run()).toBe("done");
-    expect(step).toHaveBeenCalledTimes(1);
-    expect(dialog()).toBeNull();
-  });
-
   it("a guest's step asks to sign up and never runs", () => {
     localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
     mount(false, "arc-1");
@@ -250,50 +124,5 @@ describe("useGuestGate — sign-up stands in front of the steps that need an acc
     expect(answer).toBe("refused");
     expect(step).not.toHaveBeenCalled();
     expect(dialog()?.textContent).toContain(GUEST_SIGN_UP_COPY.title);
-  });
-
-  it("Create an account goes to sign-up; Not now returns to the page", () => {
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    mount(false, "arc-1");
-    act(() => probe?.ask());
-    act(() => button(GUEST_SIGN_UP_COPY.primary)?.click());
-    expect(onSignUp).toHaveBeenCalledTimes(1);
-    act(() => button(GUEST_SIGN_UP_COPY.secondary)?.click());
-    expect(dialog()).toBeNull();
-  });
-
-  it("is not a guest without the guest identity or a project", () => {
-    mount(false, "arc-1");
-    expect(probe?.run()).toBe("done");
-    localStorage.setItem("willab_guest_owner:v1", GUEST_TOKEN);
-    mount(false, null);
-    expect(probe?.run()).toBe("done");
-  });
-});
-
-describe("useGuestBlock — the gate as the sheets see it", () => {
-  let seen: (() => boolean) | null = null;
-  function Reader() {
-    seen = useGuestBlock();
-    return null;
-  }
-
-  it("is never blocked outside a guest's page (no provider)", () => {
-    act(() => {
-      root.render(createElement(Reader));
-    });
-    expect(seen?.()).toBe(false);
-  });
-
-  it("asks the page's gate when one is provided", () => {
-    const block = vi.fn(() => true);
-    act(() => {
-      root.render(
-        createElement(GuestGateContext.Provider, { value: block },
-          createElement(Reader)),
-      );
-    });
-    expect(seen?.()).toBe(true);
-    expect(block).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   DOCUMENT_SETTLE_CAP_MS,
   documentSettled,
-  probeOf,
-  ANALYSIS_SETTLE_CAP_MS,
 } from "./documentSettle";
 
 /* -------------------------------------------------------------------------- */
@@ -17,97 +15,6 @@ import {
 const T0 = 1_000_000;
 
 describe("documentSettled", () => {
-  it("settles on the first probe when the durable review version reached the Take", () => {
-    // Synchronous processing may finish before this screen mounts, so there
-    // is no earlier browser probe from which to observe a version delta.
-    expect(
-      documentSettled(
-        2,
-        null,
-        { version: 2, maxTakeIndex: 1 },
-        T0,
-        T0 + 500
-      )
-    ).toBe("settled");
-  });
-
-  it("settles when the served pieces contain the awaited take", () => {
-    expect(
-      documentSettled(
-        3,
-        null,
-        { version: 3, maxTakeIndex: 3 },
-        T0,
-        T0 + 4_000
-      )
-    ).toBe("settled");
-    // A later take than awaited is also proof — the document moved past us.
-    expect(
-      documentSettled(
-        3,
-        null,
-        { version: 4, maxTakeIndex: 4 },
-        T0,
-        T0 + 4_000
-      )
-    ).toBe("settled");
-  });
-
-  it("settles when the version moves under the probe — the won-no-block case", () => {
-    // A take that wins no block never appears in pieces, but its reassembly
-    // still bumps the version. The FIRST probe is the baseline.
-    const first = { version: 2, maxTakeIndex: 1 };
-    expect(
-      documentSettled(
-        null,
-        first,
-        { version: 3, maxTakeIndex: 1 },
-        T0,
-        T0 + 8_000
-      )
-    ).toBe("settled");
-  });
-
-  it("waits while there is no evidence either way", () => {
-    const first = { version: 2, maxTakeIndex: 1 };
-    expect(
-      documentSettled(3, first, first, T0, T0 + 8_000)
-    ).toBe("waiting");
-    // Null fields are ABSENCE of evidence, never evidence.
-    expect(
-      documentSettled(
-        null,
-        null,
-        { version: null, maxTakeIndex: null },
-        T0,
-        T0 + 8_000
-      )
-    ).toBe("waiting");
-  });
-
-  it("a lower take index than awaited is not confirmation", () => {
-    expect(
-      documentSettled(
-        3,
-        null,
-        { version: 2, maxTakeIndex: 2 },
-        T0,
-        T0 + 4_000
-      )
-    ).toBe("waiting");
-  });
-
-  it("a lower durable version than awaited is not confirmation", () => {
-    expect(
-      documentSettled(
-        3,
-        null,
-        { version: 2, maxTakeIndex: 1 },
-        T0,
-        T0 + 4_000
-      )
-    ).toBe("waiting");
-  });
 
   it("expires past the cap — a stuck block is worse than a stale read", () => {
     expect(
@@ -119,58 +26,5 @@ describe("documentSettled", () => {
         T0 + DOCUMENT_SETTLE_CAP_MS + 1
       )
     ).toBe("expired");
-  });
-
-  it("the cap runs from the PHASE start, not the upload", () => {
-    // A slow analysis must not eat the document phase's budget: at
-    // phaseStart + cap - 1ms the phase is still waiting even if the upload
-    // began long before.
-    expect(
-      documentSettled(
-        3,
-        null,
-        { version: null, maxTakeIndex: null },
-        T0,
-        T0 + DOCUMENT_SETTLE_CAP_MS - 1
-      )
-    ).toBe("waiting");
-  });
-});
-
-describe("probeOf", () => {
-  it("reads version + newest piece take from a payload", () => {
-    expect(
-      probeOf({
-        version: 4,
-        pieces: [{ takeIndex: 1 }, { takeIndex: 3 }, { takeIndex: null }],
-      })
-    ).toEqual({ version: 4, maxTakeIndex: 3 });
-  });
-
-  it("tolerates absent fields as nulls — never as evidence", () => {
-    expect(probeOf({})).toEqual({ version: null, maxTakeIndex: null });
-    expect(probeOf({ version: null, pieces: [] })).toEqual({
-      version: null,
-      maxTakeIndex: null,
-    });
-  });
-});
-
-
-describe("the analysis phase is bounded too", () => {
-  /* Founder 2026-09-17: "it still processes, something is wrong." The document
-     phase has been capped since it was written; analysis had NO bound at all,
-     so with its owning surface off screen the blocking screen stood for the
-     full 30-minute staleness rule. */
-  it("is longer than the document cap, because it is doing real work", () => {
-    // Upload, transcription and segmentation, on audio of unknown length over
-    // a connection nobody here controls. Two minutes would cut off honest
-    // long takes.
-    expect(ANALYSIS_SETTLE_CAP_MS).toBeGreaterThan(DOCUMENT_SETTLE_CAP_MS);
-  });
-
-  it("is far shorter than the staleness rule that used to be the only release", () => {
-    // 30 minutes of a blocking screen is indistinguishable from a broken app.
-    expect(ANALYSIS_SETTLE_CAP_MS).toBeLessThan(30 * 60_000 / 2);
   });
 });

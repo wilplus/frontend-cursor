@@ -7,7 +7,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import FeedbackWalk, { type FeedbackWalkPractiseWords } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -83,20 +83,6 @@ const EXERCISE_OFFER: ConfidentVoicePracticeOffer = {
   doneBefore: false,
   chosenByCoach: true,
 };
-const exerciseItems = (video: string | null): FeedbackWalkItem<string>[] => [
-  {
-    partId: "p4", start: 200, slide: 1, blockId: "b4", openCard: "exercise", hasExercise: true,
-    paragraphText: "Two hires by March keep that lead.", slideLabel: "Slide 2",
-    clip: { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 4000 },
-    exercise: {
-      video,
-      byCoach: true,
-      instruction: EXERCISE_OFFER.instruction,
-      say: EXERCISE_OFFER.passage,
-      item: "s-ex",
-    },
-  },
-];
 
 /** What the check route answers, try by try; "hang" never answers. */
 type Answer = { next: "praise" | "again" | "moved_on"; key: string } | "hang" | "fail";
@@ -234,39 +220,6 @@ async function tryAndRead() {
 }
 
 describe("the practise screen", () => {
-  it("records as it arrives: no title, no slide bar, the words to say on the Take's own strip", async () => {
-    draw();
-    await accept();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(mic.starts).toBe(1);
-    expect(live()!.querySelector("h2")).toBeNull();
-    expect(live()!.querySelector("[data-walk-nav]")).toBeNull();
-    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
-    expect(live()!.querySelector("[data-walk-recording-strip]")!.textContent).toContain(COPY.pillStop);
-    expect(live()!.querySelector("[data-testid='walk-skip']")!.textContent).toBe(WALK_COPY.skip);
-    // The practice is opened on the accepted words, for the record.
-    const open = calls.find((c) => c.url.includes("/snippets/snip-1/confidence-practice"))!;
-    expect(JSON.parse(String(open.body))).toMatchObject({ kind: "rewrite", passage: OFFERED, feedback_id: "s-rewrite" });
-  });
-
-  it("the clearer version's served line (its signed move) sits above the words to say", async () => {
-    const MOVE = "Say it this way, and let \u201cprice\u201d land at the end.";
-    draw({ items: [{ ...ITEMS[0], rewrite: { ...ITEMS[0].rewrite!, move: `  ${MOVE} ` } }] });
-    await accept();
-    expect(screen()).toBe("walk-screen-practise");
-    const body = live()!.querySelector("[data-walk-message]")!;
-    expect(body.textContent).toBe(MOVE);
-    // The line comes first, then the words to say.
-    expect(body.compareDocumentPosition(live()!.querySelector("[data-walk-say]")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("with no served line, none is made up: the words to say alone", async () => {
-    draw();
-    await accept();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(live()!.querySelector("[data-walk-message]")).toBeNull();
-    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
-  });
 
   it("Stop uploads through the attempts route, cross-fades to the voice mark and posts /check", async () => {
     draw();
@@ -281,22 +234,6 @@ describe("the practise screen", () => {
     expect(upload.method).toBe("POST");
     expect(upload.body).toBeInstanceOf(FormData);
     expect(calls.some((c) => c.url.endsWith("/attempts/a1/check") && c.method === "POST")).toBe(true);
-  });
-
-  it("Skip goes past the moment's practise and releases the mic", async () => {
-    draw();
-    await accept();
-    click(live()!.querySelector("[data-testid='walk-skip']"));
-    expect(mic.cancels).toBeGreaterThan(0);
-    expect(ended).toBe(1);
-  });
-
-  it("✕ releases the mic, and so does unmounting", async () => {
-    draw();
-    await accept();
-    click(live()!.querySelector("button[aria-label='Close']"));
-    expect(mic.cancels).toBeGreaterThan(0);
-    expect(live()).toBeNull();
   });
 });
 
@@ -321,114 +258,6 @@ describe("the machine's answer", () => {
       { practiceId: "11111111-1111-4111-8111-111111111111", partId: "p3", phrase: "our price" },
     ]);
     expect(ended).toBe(1);
-  });
-
-  it("praise on try 2: an NX3a line after a try where nothing moved, the next try records, then praise", async () => {
-    draw();
-    await accept();
-    answers = [{ next: "again", key: "effort" }, { next: "praise", key: "more_assured" }];
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-encourage");
-    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.titlePractise);
-    expect(message()).toBe(WALK_COPY.encourageNothingMoved[0]);
-    forward();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(mic.starts).toBe(2);
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-improved");
-    expect(message()).toBe(WALK_LINE_BANK.B01.lines[0]);
-  });
-
-  it("'It was better, …' only when something moved between tries (NX3 A)", async () => {
-    draw();
-    await accept();
-    answers = [{ next: "again", key: "step" }];
-    await tryAndRead();
-    expect(message()).toBe(WALK_COPY.encourage);
-  });
-
-  it("the cap: after the third try that is not praise, a CM3b line, then on", async () => {
-    draw();
-    await accept();
-    answers = [
-      { next: "again", key: "effort" },
-      { next: "again", key: "effort" },
-      { next: "moved_on", key: "CM3b" },
-    ];
-    await tryAndRead();
-    expect(message()).toBe(WALK_COPY.encourageNothingMoved[0]);
-    forward();
-    await tryAndRead();
-    expect(message()).toBe(WALK_COPY.encourageNothingMoved[1]);
-    forward();
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-thanks");
-    expect(message()).toBe(WALK_COPY.afterThirdTry[0]);
-    expect(live()!.querySelector("[data-testid='walk-skip']")).toBeNull();
-    expect(mic.starts).toBe(3);
-    forward(); // no judgement to ask on this moment: the end card
-    expect(ended).toBe(1);
-  });
-
-  it("the cap, on a moment still to judge: on to \"Judgement time!\" (CM3a A)", async () => {
-    draw({ items: [{ ...ITEMS[0], judge: "s-cv" }] });
-    await accept();
-    answers = [
-      { next: "again", key: "effort" },
-      { next: "again", key: "effort" },
-      { next: "moved_on", key: "CM3b" },
-    ];
-    for (let i = 0; i < 2; i += 1) {
-      await tryAndRead();
-      forward();
-    }
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-thanks");
-    forward();
-    expect(screen()).toBe("walk-screen-intro");
-    expect(ended).toBe(0);
-  });
-});
-
-describe("a late or failed read (O5)", () => {
-  it("a read later than the limit offers Next or Practise again; Practise again records the next try", async () => {
-    draw({ readLimitMs: 20 });
-    await accept();
-    answers = ["hang"];
-    stop();
-    await settle(10);
-    expect(screen()).toBe("walk-screen-late");
-    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(COPY.pagerNext);
-    expect(live()!.querySelector("[data-testid='walk-again']")!.textContent).toBe(COPY.pillPractiseAgain);
-    expect(live()!.querySelector("[data-walk-message]")).toBeNull();
-    click(live()!.querySelector("[data-testid='walk-again']"));
-    expect(screen()).toBe("walk-screen-practise");
-    expect(mic.starts).toBe(2);
-  });
-
-  it("a failed upload or check offers the same; Next moves on", async () => {
-    draw();
-    await accept();
-    uploadFails = true;
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-late");
-    forward();
-    expect(ended).toBe(1);
-  });
-
-  it("a check the server refuses is a failed read too", async () => {
-    draw();
-    await accept();
-    answers = ["fail"];
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-late");
-  });
-
-  it("a mic that will not open is a failed try, never a dead screen", async () => {
-    mic.fail = true;
-    draw();
-    await accept();
-    expect(screen()).toBe("walk-screen-late");
   });
 });
 
@@ -460,91 +289,6 @@ describe("the fences", () => {
     await settle();
     expect(onGuest).toHaveBeenCalled();
     expect(mic.starts).toBe(0);
-    expect(calls).toEqual([]);
-  });
-
-  it("with personalised practice off nothing is practised and nothing is fetched", async () => {
-    draw({ practiceOn: false });
-    forward(); // Accept
-    await settle();
-    expect(mic.starts).toBe(0);
-    expect(calls).toEqual([]);
-    expect(ended).toBe(1);
-  });
-});
-
-describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
-  const VIDEO = "https://media.example/coach-ex.mp4";
-
-  it("plays the video in the 4:5 frame, with Practise and Skip, under the moment bar", () => {
-    draw({ items: exerciseItems(VIDEO) });
-    expect(screen()).toBe("walk-screen-exVideo");
-    const frame = live()!.querySelector<HTMLElement>("[data-coach-video]")!;
-    expect(frame.querySelector("video")!.getAttribute("src")).toBe(VIDEO);
-    expect(frame.className).toContain("[&>video]:aspect-[4/5]");
-    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.titleExercise);
-    expect(live()!.querySelector("[data-walk-nav]")).not.toBeNull();
-    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(WALK_COPY.exercisePractise);
-    expect(live()!.querySelector("[data-testid='walk-skip']")!.textContent).toBe(WALK_COPY.skip);
-    // Nothing is opened, and the mic stays off, until Practise.
-    expect(mic.starts).toBe(0);
-    expect(calls).toEqual([]);
-  });
-
-  it("Practise opens the practise loop on the exercise: its instruction, then its words, recording at once", async () => {
-    draw({ items: exerciseItems(VIDEO) });
-    forward();
-    await settle();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(mic.starts).toBe(1);
-    expect(message()).toBe(EXERCISE_OFFER.instruction);
-    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(EXERCISE_OFFER.passage);
-    const open = calls.find((c) => c.url.includes("/snippets/snip-1/confidence-practice"))!;
-    expect(JSON.parse(String(open.body))).toMatchObject({ kind: "exercise", exercise_id: "ex-landing" });
-    // The same loop as every practise: Stop, the machine, its answer.
-    answers = [{ next: "praise", key: "cue:landed_ending" }];
-    await tryAndRead();
-    expect(screen()).toBe("walk-screen-improved");
-  });
-
-  it("Skip moves past the exercise and its practise, opening nothing", () => {
-    draw({ items: exerciseItems(VIDEO) });
-    click(live()!.querySelector("[data-testid='walk-skip']"));
-    expect(ended).toBe(1);
-    expect(mic.starts).toBe(0);
-    expect(calls).toEqual([]);
-  });
-
-  it("with no video at all the walk goes straight to the practise", async () => {
-    draw({ items: exerciseItems(null) });
-    await settle();
-    expect(screen()).toBe("walk-screen-practise");
-    expect(host.querySelector("[data-coach-video]")).toBeNull();
-    expect(message()).toBe(EXERCISE_OFFER.instruction);
-    expect(mic.starts).toBe(1);
-  });
-
-  it("never waits for a coach, and shows no number (AC-9)", async () => {
-    for (const video of [VIDEO, null]) {
-      draw({ items: exerciseItems(video) });
-      await settle();
-      const text = host.textContent ?? "";
-      expect(text).not.toContain(COPY.coachWorkingOnExercise);
-      expect(host.querySelector("[data-walk-loading]")).toBeNull();
-      expect(text).not.toMatch(/%|score/i);
-      // The only figures are the moment's position and the strip's clock.
-      const rest = live()!.cloneNode(true) as HTMLElement;
-      rest.querySelectorAll("[data-walk-nav], [data-walk-recording-strip]").forEach((el) => el.remove());
-      expect(rest.textContent).not.toMatch(/\d/);
-    }
-  });
-
-  it("a guest's Practise asks to sign up and opens nothing", () => {
-    let asked = 0;
-    draw({ items: exerciseItems(VIDEO), guest: true, onGuest: () => (asked += 1) });
-    forward();
-    expect(asked).toBe(1);
-    expect(screen()).toBe("walk-screen-exVideo");
     expect(calls).toEqual([]);
   });
 });

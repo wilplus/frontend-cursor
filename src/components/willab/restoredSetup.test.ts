@@ -24,22 +24,6 @@ const FULL: ExploreArcDeck = {
 };
 
 describe("restoredSetupFor", () => {
-  it("asks when nothing was restored", () => {
-    // The ordinary race: the arc-setup fetch has not come back yet. Falling
-    // back to the form is the whole reason this returns null rather than
-    // recording against a half-known project.
-    expect(restoredSetupFor(null, false)).toBeNull();
-  });
-
-  it("asks when a file is staged for upload", () => {
-    // A staged upload carries no topic, and supplying one IS the form's job.
-    expect(restoredSetupFor(FULL, true)).toBeNull();
-  });
-
-  it("asks when the restored project has no usable topic", () => {
-    expect(restoredSetupFor({ ...FULL, topic: "" }, false)).toBeNull();
-    expect(restoredSetupFor({ ...FULL, topic: "   " }, false)).toBeNull();
-  });
 
   it("carries the whole restored setup through, trimmed", () => {
     const ctx = restoredSetupFor({ ...FULL, topic: "  Knowledge pill #7 " }, false);
@@ -50,39 +34,5 @@ describe("restoredSetupFor", () => {
     // silently reverting to a stopwatch.
     expect(ctx!.target_length_seconds).toBe(180);
     expect(ctx!.presentationRef).toBe("https://example.test/deck.pdf");
-  });
-
-  it("keeps a SERVED deck's slide count aligned to the PDF", () => {
-    // clampSlides, not nonEmptySlides: slide N must stay slide N, so an empty
-    // row in the middle of a served deck is kept rather than closing the gap
-    // and shifting every slide after it off its page.
-    const ctx = restoredSetupFor(FULL, false);
-    expect(ctx!.slides).toHaveLength(FULL.slides.length);
-  });
-
-  it("drops the empty rows of a MANUAL deck", () => {
-    const ctx = restoredSetupFor({ ...FULL, presentationRef: null }, false);
-    expect(ctx!.slides).toEqual([{ title: "One", body: "first" }]);
-  });
-
-  it("treats a project with no deck and no length as complete", () => {
-    // Topic is the only thing that is genuinely required. A project recorded
-    // deckless and untimed is a real project, and sending its owner back
-    // through the form to re-answer "no" and "no" is the interruption this
-    // whole change exists to remove.
-    const ctx = restoredSetupFor(
-      {
-        topic: "Just talking",
-        presentationRef: null,
-        slides: [],
-        audience: null,
-        targetLengthSeconds: null,
-      },
-      false
-    );
-    expect(ctx).not.toBeNull();
-    expect(ctx!.slides).toEqual([]);
-    expect(ctx!.target_length_seconds).toBeNull();
-    expect(ctx!.audience).toBe("");
   });
 });

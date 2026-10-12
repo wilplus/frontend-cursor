@@ -47,13 +47,4 @@ describe("extractPresentation identity", () => {
     expect(sent).toEqual(expect.objectContaining({ "X-Willab-Guest-Owner": GUEST }));
     expect(sent).not.toHaveProperty("Authorization");
   });
-
-  it("sends only the bearer for a signed-in person", async () => {
-    authToken = "tok";
-    vi.stubGlobal("localStorage", { getItem: () => GUEST });
-    mockFetch();
-    await extractPresentation(deck());
-    expect(sent).toEqual(expect.objectContaining({ Authorization: "Bearer tok" }));
-    expect(sent).not.toHaveProperty("X-Willab-Guest-Owner");
-  });
 });

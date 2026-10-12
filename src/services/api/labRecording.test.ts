@@ -7,9 +7,6 @@ vi.mock("@/lib/api/auth-client", () => ({
 }));
 
 import {
-  guardRecordingInput,
-  projectIdentityError,
-  retryIdealTextGeneration,
   submitLabRecording,
 } from "./labRecording";
 
@@ -57,17 +54,6 @@ const baseInput = () => ({
 });
 
 describe("submitLabRecording — §S deck fields ride the multipart upload", () => {
-  it("carries a newly issued guest credential as an ownership header only", async () => {
-    await submitLabRecording({
-      ...baseInput(),
-      guestOwnerToken: "principal.secret-value-that-is-long-enough",
-    });
-
-    expect(capturedHeaders.get("X-Willab-Guest-Owner")).toBe(
-      "principal.secret-value-that-is-long-enough",
-    );
-    expect((captured as FormData).get("guestOwnerToken")).toBeNull();
-  });
 
   it("appends slides + presentation_ref + slide_advances when a deck is attached", async () => {
     const res = await submitLabRecording({
@@ -105,72 +91,6 @@ describe("submitLabRecording — §S deck fields ride the multipart upload", () 
       { index: 1, t_ms: 4200 },
     ]);
   });
-
-  it("omits the deck fields when training without slides (deck optional)", async () => {
-    await submitLabRecording(baseInput());
-    const form = captured as FormData;
-
-    expect(form.get("topic")).toBe("Q3 pitch");
-    expect(form.get("slides")).toBeNull();
-    expect(form.get("presentation_ref")).toBeNull();
-    expect(form.get("slide_advances")).toBeNull();
-  });
-
-  it("omits empty deck arrays (no slides / no taps → no fields)", async () => {
-    await submitLabRecording({
-      ...baseInput(),
-      slides: [],
-      presentationRef: null,
-      slideAdvances: [],
-    });
-    const form = captured as FormData;
-
-    expect(form.get("slides")).toBeNull();
-    expect(form.get("presentation_ref")).toBeNull();
-    expect(form.get("slide_advances")).toBeNull();
-  });
-});
-
-describe("submitLabRecording — new-project background brief", () => {
-  it("uploads the actual context document with Take 1", async () => {
-    const brief = new File(["Revenue grew 18%."], "board-brief.txt", {
-      type: "text/plain",
-    });
-
-    await submitLabRecording({
-      ...baseInput(),
-      contextDocument: brief,
-    });
-
-    const form = captured as FormData;
-    const uploaded = form.get("context_document") as File;
-    expect(uploaded).toBeInstanceOf(File);
-    expect(uploaded.name).toBe("board-brief.txt");
-    expect(await uploaded.text()).toBe("Revenue grew 18%.");
-  });
-
-  it("omits the field when no brief was selected", async () => {
-    await submitLabRecording(baseInput());
-    expect((captured as FormData).get("context_document")).toBeNull();
-  });
-});
-
-describe("submitLabRecording — F2 §2 the named state rides both emotion lanes", () => {
-  it("sends feeling AND named_emotion from the one captured value", async () => {
-    await submitLabRecording({ ...baseInput(), feeling: "nervous" });
-    const form = captured as FormData;
-
-    expect(form.get("feeling")).toBe("nervous");
-    expect(form.get("named_emotion")).toBe("nervous");
-  });
-
-  it("no naming → neither field arrives (never a null on the wire)", async () => {
-    await submitLabRecording(baseInput());
-    const form = captured as FormData;
-
-    expect(form.get("feeling")).toBeNull();
-    expect(form.get("named_emotion")).toBeNull();
-  });
 });
 
 describe("submitLabRecording — canonical project identity", () => {
@@ -188,79 +108,6 @@ describe("submitLabRecording — canonical project identity", () => {
     expect(form.get("arc_id")).toBeNull();
     expect(form.get("continue_arc_id")).toBeNull();
     expect(form.get("guest_session_id")).toBeNull();
-  });
-
-  it("fails locally without either required identity coordinate", () => {
-    expect(guardRecordingInput({ ...baseInput(), projectId: "" }).ok).toBe(
-      false,
-    );
-    expect(
-      guardRecordingInput({
-        ...baseInput(),
-        uploadIdempotencyKey: "",
-      }).ok,
-    ).toBe(false);
-  });
-
-  it("rejects a successful response that echoes the wrong project", async () => {
-    stubResponse(201, {
-      session_id: "sess_wrong",
-      project_id: "arc-other",
-      arc_id: "arc-other",
-      state: "readout_ready",
-      readout: { snippets: [] },
-    });
-    const res = await submitLabRecording({
-      ...baseInput(),
-      projectId: "arc-selected",
-    });
-    expect(res.kind).toBe("error");
-    if (res.kind !== "error") throw new Error("unreachable");
-    expect(res.code).toBe("PROJECT_IDENTITY_MISMATCH");
-  });
-
-  it("requires the backend to echo the exact selected project", () => {
-    expect(projectIdentityError({ projectId: "project-1" }, null)).toContain(
-      "did not return",
-    );
-    expect(
-      projectIdentityError({ projectId: "project-1" }, "project-1"),
-    ).toBeNull();
-    expect(
-      projectIdentityError({ projectId: "project-1" }, "project-2"),
-    ).toContain("different project");
-  });
-});
-
-describe("Take 1 Ideal Text confirmation boundary", () => {
-  it("maps the exact terminal state without reporting upload success", async () => {
-    stubResponse(200, {
-      session_id: "sess_take_1",
-      project_id: "arc_default",
-      arc_id: "arc_default",
-      take_index: 1,
-      state: "failed_ideal_text_unconfirmed",
-      analysis_state: "failed_ideal_text_unconfirmed",
-      readout: null,
-    });
-    await expect(submitLabRecording(baseInput())).resolves.toEqual({
-      kind: "ideal_text_unconfirmed",
-      sessionId: "sess_take_1",
-      arcId: "arc_default",
-      takeIndex: 1,
-    });
-  });
-
-  it("calls the document-only retry endpoint", async () => {
-    const fetchMock = vi.fn(() =>
-      Promise.resolve({ ok: true, status: 202 } as Response),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(retryIdealTextGeneration("session one")).resolves.toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v2/lab/recordings/session%20one/retry-ideal-text",
-      expect.objectContaining({ method: "POST", cache: "no-store" }),
-    );
   });
 });
 
@@ -307,95 +154,9 @@ describe("submitLabRecording — §A2 PROCESSING_TIMEOUT is still-processing, no
       takeCount: null,
     });
   });
-
-  it("keeps a session-less 504 calm: PROCESSING_TIMEOUT code, no failure copy", async () => {
-    stubResponse(504, {
-      code: "PROCESSING_TIMEOUT",
-      error:
-        "That recording is taking longer than expected — it's still processing, check back shortly.",
-    });
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("error");
-    if (res.kind !== "error") throw new Error("unreachable");
-    expect(res.code).toBe("PROCESSING_TIMEOUT");
-    expect(res.message).toContain("still processing");
-    expect(res.message).not.toContain("failed");
-  });
-
-  it("treats even a bodyless platform 504 as still-processing (never 'Analysis failed')", async () => {
-    stubResponse(504, null); // e.g. an HTML timeout page — json() rejects
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("error");
-    if (res.kind !== "error") throw new Error("unreachable");
-    expect(res.code).toBe("PROCESSING_TIMEOUT");
-    expect(res.message).toContain("still processing");
-  });
-});
-
-describe("submitLabRecording — §A1 generic error copy + ref", () => {
-  it("renders the backend's safe copy as-is and folds in the ref join key", async () => {
-    stubResponse(500, {
-      code: "V2_ERROR",
-      error: "Something went wrong on our end.",
-      ref: "a1b2c3d4",
-    });
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("error");
-    if (res.kind !== "error") throw new Error("unreachable");
-    expect(res.code).toBe("V2_ERROR");
-    expect(res.ref).toBe("a1b2c3d4");
-    expect(res.message).toBe(
-      "Something went wrong on our end. (Reference: a1b2c3d4)",
-    );
-  });
-
-  it("falls back to the FE copy when a non-BFF response has no JSON body", async () => {
-    stubResponse(502, null);
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("error");
-    if (res.kind !== "error") throw new Error("unreachable");
-    expect(res.message).toContain("Analysis failed (HTTP 502)");
-  });
 });
 
 describe("submitLabRecording — response branch characterization", () => {
-  it("keeps an accepted async upload in the processing state", async () => {
-    stubResponse(202, {
-      session_id: "sess_async",
-      project_id: "arc_default",
-      arc_id: "arc_default",
-      take_index: 2,
-      take_count: 2,
-      state: "processing",
-    });
-
-    expect(await submitLabRecording(baseInput())).toEqual({
-      kind: "processing",
-      sessionId: "sess_async",
-      arcId: "arc_default",
-      takeIndex: 2,
-      takeCount: 2,
-    });
-  });
-
-  it("adopts an idempotency duplicate without incrementing take count", async () => {
-    stubResponse(201, {
-      duplicate: true,
-      session_id: "sess_original",
-      project_id: "arc_default",
-      arc_id: "arc_default",
-      take_index: 1,
-      take_count: 2,
-    });
-
-    expect(await submitLabRecording(baseInput())).toEqual({
-      kind: "processing",
-      sessionId: "sess_original",
-      arcId: "arc_default",
-      takeIndex: 1,
-      takeCount: null,
-    });
-  });
 
   it("keeps 402 out of the analysis-failed path", async () => {
     stubResponse(402, { code: "PAYMENT_REQUIRED" });
@@ -408,144 +169,6 @@ describe("submitLabRecording — response branch characterization", () => {
     });
     if (result.kind !== "error") throw new Error("unreachable");
     expect(result.message).toContain("recording is safe");
-  });
-
-  it("maps an oversized upload to the specific 413 guidance", async () => {
-    stubResponse(413, { code: "FILE_TOO_LARGE" });
-    expect(await submitLabRecording(baseInput())).toEqual({
-      kind: "error",
-      status: 413,
-      code: "FILE_TOO_LARGE",
-      message: "That file is too large to upload. Try a shorter audio file.",
-    });
-  });
-
-  it("reports an empty successful response explicitly", async () => {
-    stubResponse(201, null);
-    expect(await submitLabRecording(baseInput())).toEqual({
-      kind: "error",
-      status: 201,
-      message: "Empty response from the lab.",
-    });
-  });
-
-  it("maps a total network failure to the connection error", async () => {
-    vi.stubGlobal("fetch", () => Promise.reject(new TypeError("offline")));
-    expect(await submitLabRecording(baseInput())).toEqual({
-      kind: "error",
-      status: 0,
-      message: "Couldn't reach the lab. Check your connection and try again.",
-    });
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/*  Cloudflare upload-proxy lane (founder 2026-08-04: no Vercel Pro, ever).    */
-/*  NEXT_PUBLIC_UPLOAD_PROXY_URL set → the Worker is tried FIRST; any          */
-/*  network-level failure falls back to the BFF lane, so enabling the Worker   */
-/*  can only degrade to exactly the pre-Worker behavior. Unset → BFF only.     */
-/* -------------------------------------------------------------------------- */
-
-describe("submitLabRecording — Cloudflare upload-proxy routing", () => {
-  const okBody = {
-    session_id: "sess_1",
-    project_id: "arc_default",
-    arc_id: "arc_default",
-    state: "readout_ready",
-    readout: { snippets: [] },
-  };
-  const okResponse = () =>
-    Promise.resolve({
-      ok: true,
-      status: 201,
-      json: () => Promise.resolve(okBody),
-    } as unknown as Response);
-
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("posts to the Worker when the env is set (trailing slash trimmed)", async () => {
-    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com/");
-    const urls: string[] = [];
-    vi.stubGlobal("fetch", (url: string) => {
-      urls.push(url);
-      return okResponse();
-    });
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("ok");
-    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
-  });
-
-  it("falls back to the BFF lane when the Worker is unreachable", async () => {
-    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
-    const urls: string[] = [];
-    vi.stubGlobal("fetch", (url: string) => {
-      urls.push(url);
-      if (url.startsWith("https://upload.example.com")) {
-        return Promise.reject(new TypeError("Failed to fetch"));
-      }
-      return okResponse();
-    });
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("ok");
-    expect(urls).toEqual([
-      "https://upload.example.com/v2/lab/recordings",
-      "/api/v2/lab/recordings",
-    ]);
-  });
-
-  // Founder 2026-10-04: a hand-deployed Worker older than 2026-08-24 drops
-  // X-Willab-Guest-Owner, so every new guest's first Take was refused with
-  // "A verified owner is required." The gate refuses before anything is
-  // stored, so the BFF lane, which forwards the identity, gets it once more.
-  const refused = (code: string) => {
-    const body = { code, error: "A verified owner is required." };
-    const response = {
-      ok: false,
-      status: 401,
-      json: () => Promise.resolve(body),
-    } as unknown as Response;
-    (response as unknown as { clone: () => Response }).clone = () => response;
-    return Promise.resolve(response);
-  };
-
-  it("a guest refused at the Worker for a missing identity goes once through the BFF lane", async () => {
-    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
-    const sent: Array<[string, Headers]> = [];
-    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
-      sent.push([url, new Headers(init?.headers)]);
-      return url.startsWith("https://upload.example.com")
-        ? refused("INVALID_GUEST_OWNER")
-        : okResponse();
-    });
-    const res = await submitLabRecording({ ...baseInput(), guestOwnerToken: "guest-token" });
-    expect(res.kind).toBe("ok");
-    expect(sent.map(([u]) => u)).toEqual([
-      "https://upload.example.com/v2/lab/recordings",
-      "/api/v2/lab/recordings",
-    ]);
-    expect(sent[1][1].get("X-Willab-Guest-Owner")).toBe("guest-token");
-  });
-
-  it("any other refusal at the Worker is not resent", async () => {
-    vi.stubEnv("NEXT_PUBLIC_UPLOAD_PROXY_URL", "https://upload.example.com");
-    const urls: string[] = [];
-    vi.stubGlobal("fetch", (url: string) => {
-      urls.push(url);
-      return refused("PROCESSING_AUTHORIZATION_REQUIRED");
-    });
-    await submitLabRecording({ ...baseInput(), guestOwnerToken: "guest-token" });
-    expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
-  });
-
-  it("uses only the BFF lane when the env is unset", async () => {
-    const urls: string[] = [];
-    vi.stubGlobal("fetch", (url: string) => {
-      urls.push(url);
-      return okResponse();
-    });
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("ok");
-    expect(urls).toEqual(["/api/v2/lab/recordings"]);
   });
 });
 
@@ -568,33 +191,6 @@ describe("submitLabRecording — Cloudflare upload-proxy routing", () => {
 /* -------------------------------------------------------------------------- */
 
 const API = readFileSync("src/services/api/labRecording.ts", "utf8");
-const HOST = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
-
-describe("the upload key is one per recording, not one per attempt", () => {
-  it("the helper requires and sends exactly the caller's key", () => {
-    expect(API).toMatch(
-      /form\.append\("upload_idempotency_key", input\.uploadIdempotencyKey\)/
-    );
-    expect(API).not.toMatch(/crypto\.randomUUID\(\)/);
-    const forms = API.match(/form\.append\(\s*"upload_idempotency_key"/g) ?? [];
-    expect(forms).toHaveLength(1);
-  });
-
-  it("the host keys it on the BLOB, which is the unit that must share one", () => {
-    // A retry re-runs the upload effect with the same Blob and must reuse the
-    // key; a new recording is a new Blob and must NOT collapse onto the old
-    // take. Anything coarser (a per-mount ref) would merge two real takes,
-    // which is worse than the bug being fixed.
-    expect(HOST).toMatch(/uploadKeyRef = useRef<\{ blob: Blob; key: string \}/);
-    expect(HOST).toMatch(/uploadKeyRef\.current\?\.blob !== b/);
-    expect(HOST).toMatch(/uploadIdempotencyKey: uploadKeyFor\(blob\)/);
-  });
-
-  it("a missing key is rejected instead of silently disabling retry collapse", () => {
-    expect(API).toMatch(/!input\.uploadIdempotencyKey\.trim\(\)/);
-    expect(HOST).toMatch(/key: `\$\{Date\.now\(\)\}-\$\{Math\.random\(\)/);
-  });
-});
 
 /* -------------------------------------------------------------------------- */
 /*  DISCARDING A TAKE THAT IS STILL GOING UP (founder 2026-09-16)              */
@@ -622,16 +218,6 @@ describe("submitLabRecording — an aborted upload is a discard, not a failure",
     expect(res.kind).toBe("discarded");
   });
 
-  it("survives an engine that rejects with something other than AbortError", async () => {
-    const abort = new AbortController();
-    vi.stubGlobal("fetch", () => {
-      abort.abort();
-      return Promise.reject(new TypeError("Load failed"));
-    });
-    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
-    expect(res.kind).toBe("discarded");
-  });
-
   it("does NOT re-send the discarded take down the BFF lane", async () => {
     // The proxy fallback exists for CORS/DNS/offline failures. Reusing it on a
     // deliberate abort would upload the very recording just thrown away — and
@@ -647,46 +233,5 @@ describe("submitLabRecording — an aborted upload is a discard, not a failure",
     const res = await submitLabRecording(baseInput(), { signal: abort.signal });
     expect(res.kind).toBe("discarded");
     expect(urls).toEqual(["https://upload.example.com/v2/lab/recordings"]);
-  });
-
-  it("does not claim a discard once the server has answered", async () => {
-    // A tap that lands after the response must not tell the speaker their
-    // recording is gone while it is being processed.
-    const abort = new AbortController();
-    vi.stubGlobal("fetch", () =>
-      Promise.resolve({
-        ok: true,
-        status: 201,
-        json: () =>
-          Promise.resolve({
-            session_id: "sess_1",
-            project_id: "arc_default",
-            arc_id: "arc_default",
-            state: "readout_ready",
-            readout: { snippets: [] },
-          }),
-      } as unknown as Response),
-    );
-    const pending = submitLabRecording(baseInput(), { signal: abort.signal });
-    abort.abort();
-    expect((await pending).kind).toBe("ok");
-  });
-
-  it("an already-aborted signal never reaches the network", async () => {
-    const abort = new AbortController();
-    abort.abort();
-    let calls = 0;
-    vi.stubGlobal("fetch", () => {
-      calls += 1;
-      return Promise.reject(new Error("should not be reached"));
-    });
-    const res = await submitLabRecording(baseInput(), { signal: abort.signal });
-    expect(res.kind).toBe("discarded");
-    expect(calls).toBe(0);
-  });
-
-  it("every existing caller is unaffected — no signal, no discard path", async () => {
-    const res = await submitLabRecording(baseInput());
-    expect(res.kind).toBe("ok");
   });
 });

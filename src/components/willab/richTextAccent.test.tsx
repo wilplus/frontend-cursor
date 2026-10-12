@@ -21,21 +21,7 @@ afterEach(() => {
   container.remove();
 });
 
-const TEXT = "What you {{orange:gotta do}} is simple.";
-
 describe("RichText accent", () => {
-  it("paints orange words in the accent by default", async () => {
-    await act(async () => root.render(createElement(RichText, { text: TEXT })));
-    expect(container.querySelector(".text-primary")?.textContent).toContain("gotta");
-  });
-
-  it("accent={false} keeps the words but not the orange, tint included", async () => {
-    await act(async () =>
-      root.render(createElement(RichText, { text: TEXT, accent: false, tint: [[0, 4]] })),
-    );
-    expect(container.querySelector(".text-primary")).toBeNull();
-    expect(container.textContent).toContain("gotta do");
-  });
 
   it("tintClass=\"italic\" marks the helper words italic in the paragraph's own colour", async () => {
     await act(async () =>

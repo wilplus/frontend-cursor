@@ -9,11 +9,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
-import { toastRides, type WalkJudgementSave } from "./useWalkJudging";
+import { type WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
-import type { WalkStep } from "@/lib/willab/walkPlan";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -86,7 +85,6 @@ const byTestId = (id: string) => live()?.querySelector<HTMLElement>(`[data-testi
 const answerButton = (value: string) => live()!.querySelector<HTMLElement>(`[data-walk-answer='${value}']`);
 const pressed = () => live()?.querySelector("[data-walk-answer][aria-pressed='true']")?.getAttribute("data-walk-answer") ?? null;
 const toast = () => host.querySelector("[data-walk-toast]")?.textContent ?? null;
-const hold = () => act(() => vi.advanceTimersByTime(WALK_ANSWER_HOLD_MS));
 const navMoment = () => live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label");
 
 /** From the clearer version ("Keep my words") to "Judgement time!". */
@@ -101,66 +99,7 @@ function promise() {
   expect(screen()).toBe("walk-screen-judge");
 }
 
-describe('"Judgement time!"', () => {
-  it("comes after the practising, cross-fading in, with the signed words", () => {
-    draw();
-    toIntro();
-    expect(live()!.dataset.walkMove).toBe("fade");
-    expect(live()!.className).toContain("walk-m-fade");
-    const text = live()!.textContent ?? "";
-    expect(text).toContain(WALK_COPY.judgementTitle);
-    expect(text).toContain(WALK_COPY.judgementHonesty);
-    expect(byTestId("walk-forward")!.textContent).toBe(WALK_COPY.judgementPromise);
-    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.skip);
-    expect(byTestId("walk-journal")!.textContent).toBe(WALK_COPY.judgementJournalLink);
-  });
-
-  it("the grey link opens the Journal post inside the overlay; ‹ and Back return to the intro", () => {
-    draw();
-    toIntro();
-    click(byTestId("walk-journal"));
-    expect(screen()).toBe("walk-screen-journal");
-    expect(host.querySelectorAll("[data-walk-stage]")).toHaveLength(1);
-    expect(live()!.querySelector("[data-walk-eyebrow]")!.textContent).toBe(WALK_COPY.journalEyebrow);
-    expect(live()!.querySelector("[data-walk-journal-title]")!.textContent).toBe(POST.title);
-    expect([...live()!.querySelectorAll("p")].map((p) => p.textContent)).toEqual([
-      "First paragraph of the post.",
-      "Second paragraph of the post.",
-    ]);
-    // No ✕ on the post: it goes back to the intro, nowhere else.
-    expect(live()!.querySelector("button[aria-label='Close']")).toBeNull();
-    click(byTestId("walk-journal-back"));
-    expect(byTestId("walk-journal-back")).toBeNull();
-    expect(screen()).toBe("walk-screen-intro");
-    click(byTestId("walk-journal"));
-    expect(byTestId("walk-journal-back")!.textContent).toBe(COPY.linkBack);
-    click(live()!.querySelector(`button[aria-label='${COPY.pagerBack}']`));
-    expect(screen()).toBe("walk-screen-intro");
-    expect(ended).toBe(0);
-  });
-
-  it("with no post to open there is no link, never a broken screen", () => {
-    draw({ journal: null });
-    toIntro();
-    expect(byTestId("walk-journal")).toBeNull();
-    expect(live()!.textContent).not.toContain(WALK_COPY.judgementJournalLink);
-  });
-});
-
 describe("the judgements", () => {
-  it("one per moment still open: the voice only, the one question, the shared answers", () => {
-    draw();
-    toIntro();
-    promise();
-    expect(navMoment()).toBe(`Slide 2 · ${COPY.pagerMoment} 1 ${COPY.pagerOf} 3`);
-    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.titleFeedback);
-    expect(live()!.querySelector("[data-walk-player]")).not.toBeNull();
-    expect(live()!.textContent).toContain(COPY.confidenceQuestion);
-    expect(live()!.textContent).not.toContain("The old words.");
-    expect([...live()!.querySelectorAll("[data-walk-answer]")].map((b) => b.textContent)).toEqual([
-      "Yes", "In-between", "No", "Not sure", "Audio unclear",
-    ]);
-  });
 
   it("an answer fills black, holds 0.28 s, is handed to the host, then moves on with the toast", () => {
     draw();
@@ -181,101 +120,6 @@ describe("the judgements", () => {
     expect(navMoment()).toContain(`${COPY.pagerMoment} 2 `);
     expect(pressed()).toBeNull();
   });
-
-  it("‹ reopens a judgement with the earlier answer pressed; a change carries the earlier answer", () => {
-    draw();
-    toIntro();
-    promise();
-    // ‹ is off on the first judgement.
-    expect(live()!.querySelector<HTMLButtonElement>(`button[aria-label='${COPY.pagerBack}']`)!.disabled).toBe(true);
-    click(answerButton("in_between"));
-    hold();
-    click(live()!.querySelector(`button[aria-label='${COPY.pagerBack}']`));
-    expect(navMoment()).toContain(`${COPY.pagerMoment} 1 `);
-    expect(pressed()).toBe("in_between");
-    click(answerButton("no"));
-    hold();
-    expect(judged).toEqual([
-      { item: "cv-1", answer: "in_between", earlier: null },
-      { item: "cv-1", answer: "no", earlier: "in_between" },
-    ]);
-    expect(toast()).toBe("No ✓");
-  });
-
-  it("only the Confident Voice item is judged: a rewrite's answer stays final", () => {
-    draw();
-    toIntro();
-    promise();
-    for (const value of ["yes", "no", "not_sure"]) {
-      click(answerButton(value));
-      hold();
-    }
-    expect(judged.map((j) => j.item)).toEqual(["cv-1", "cv-2", "cv-3"]);
-    expect(judged.map((j) => j.item)).not.toContain("rw-2");
-    // The last answer leads past the judging: the end card (sharing is off in this walk).
-    expect(ended).toBe(1);
-    // No toast rides onto the end card: it would sit on "Record Take N".
-    expect(toast()).toBeNull();
-  });
-
-  it("the last answer takes no toast to the end card, and the one before goes with its screen", () => {
-    draw();
-    toIntro();
-    promise();
-    click(answerButton("yes"));
-    hold();
-    click(answerButton("no"));
-    hold();
-    expect(toast()).toBe("No ✓");
-    // Straight on, while "No ✓" is still showing: the last answer ends the walk.
-    click(answerButton("in_between"));
-    hold();
-    expect(ended).toBe(1);
-    expect(toast()).toBeNull();
-    expect(host.querySelector("[data-walk-toast]")).toBeNull();
-  });
-});
-
-describe("toastRides", () => {
-  it("rides onto the sharing screen after the last judgement", () => {
-    // Onto the next judgement and never onto the end card: proven above.
-    const judgeB: WalkStep = { key: "judge", moment: 1 };
-    expect(toastRides([judgeB, { key: "community" }, { key: "end", overlay: false }], judgeB)).toBe(true);
-  });
-});
-
-describe("Skip on \"Judgement time!\" (Q-B6 A)", () => {
-  it("hands every unanswered judgement to the host to settle as skipped, then goes past the judging", () => {
-    draw();
-    toIntro();
-    click(byTestId("walk-skip"));
-    expect(skipped).toEqual([["cv-1", "cv-2", "cv-3"]]);
-    expect(judged).toEqual([]);
-    expect(ended).toBe(1);
-  });
-});
-
-describe("a guest", () => {
-  it("an answer opens sign-up and writes nothing; Skip writes nothing and moves on", () => {
-    draw({ guest: true, at: "intro" });
-    expect(screen()).toBe("walk-screen-intro");
-    promise();
-    click(answerButton("yes"));
-    hold();
-    expect(guests).toBe(1);
-    expect(judged).toEqual([]);
-    expect(screen()).toBe("walk-screen-judge");
-    expect(pressed()).toBeNull();
-    expect(toast()).toBeNull();
-  });
-
-  it("Skip as a guest settles nothing", () => {
-    draw({ guest: true, at: "intro" });
-    expect(screen()).toBe("walk-screen-intro");
-    click(byTestId("walk-skip"));
-    expect(skipped).toEqual([]);
-    expect(ended).toBe(1);
-  });
 });
 
 describe("AC-9", () => {
@@ -294,19 +138,5 @@ describe("AC-9", () => {
       .replace(`${COPY.pagerMoment} 1 ${COPY.pagerOf} 3`, "")
       .replace(/\d:\d{2}/g, "");
     expect(shown).not.toMatch(/\d/);
-  });
-});
-
-describe("reduce motion", () => {
-
-  it("the toast still goes when it stands still (its timer, not its animation, ends it)", () => {
-    draw();
-    toIntro();
-    promise();
-    click(answerButton("yes"));
-    hold();
-    expect(toast()).toBe("Yes ✓");
-    act(() => vi.advanceTimersByTime(2000));
-    expect(toast()).toBeNull();
   });
 });

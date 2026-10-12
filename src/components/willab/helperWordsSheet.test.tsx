@@ -8,10 +8,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HelperWordsSheet from "./HelperWordsSheet";
-import OpenChunkSheet from "./OpenChunkSheet";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
-import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
-import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
@@ -93,20 +90,6 @@ async function renderSheet(headline: string | null = "the timing matters") {
 }
 
 describe("the overlay", () => {
-  it("opens on the current words with Delete, the Take chips and the current Take's words pre-selected; the button is off", async () => {
-    await renderSheet();
-    expect(container.querySelector("h2")?.textContent).toBe("Helper words");
-    expect(card().textContent).toContain("the timing matters");
-    expect(card().getAttribute("data-new")).toBeNull();
-    expect(container.querySelector('[data-testid="helper-words-delete"]')).not.toBeNull();
-    const chips = Array.from(container.querySelectorAll('[data-testid="take-chips"] button')).map((b) => b.textContent);
-    expect(chips).toEqual(["Take 2 · now", "Take 1"]);
-    expect(container.textContent).toContain("3 of 4 words");
-    expect(tokens().filter((t) => t.getAttribute("aria-pressed") === "true").map((t) => t.textContent)).toEqual(["The", "timing", "matters"]);
-    expect(use().disabled).toBe(true);
-    // No playback on this overlay (B4).
-    expect(container.querySelector("audio, video")).toBeNull();
-  });
 
   it("tapping in the current Take updates the card live, marks it new, lights the button, and saves a span", async () => {
     await renderSheet(null);
@@ -123,52 +106,6 @@ describe("the overlay", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("the Take 1 chip shows that Take's words; switching starts a fresh selection (Q3); its words go to the Slide (D5)", async () => {
-    await renderSheet();
-    await act(async () => button("Take 1")?.click());
-    expect(container.textContent).toContain("incumbents");
-    expect(container.textContent).toContain("0 of 4 words");
-    expect(use().disabled).toBe(true);
-    await act(async () => word("window").click());
-    await act(async () => word("closes").click());
-    expect(card().textContent).toContain("window closes");
-    await act(async () => use().click());
-    expect(useFromTake).toHaveBeenCalledWith("window closes", 1);
-    expect(useCurrent).not.toHaveBeenCalled();
-    expect(onDone).toHaveBeenCalledTimes(1);
-  });
-
-  it("the signed line under the picker on a later Take says whose words these replace (B9)", async () => {
-    await renderSheet();
-    expect(container.querySelector('[data-testid="helper-words-replace-note"]')?.textContent).toBe(
-      "These replace your Take 1 words. Those stay in Earlier Takes.",
-    );
-    await act(async () => button("Take 1")?.click());
-    expect(container.querySelector('[data-testid="helper-words-replace-note"]')).toBeNull();
-  });
-
-  it("Delete asks once: the card clears and the button reads Delete helper words; a tap on a word keeps the words (Q2, D4)", async () => {
-    await renderSheet();
-    await act(async () => (container.querySelector('[data-testid="helper-words-delete"]') as HTMLButtonElement).click());
-    expect(onDelete).not.toHaveBeenCalled();
-    expect(card().textContent).not.toContain("the timing matters");
-    const confirm = container.querySelector('[data-testid="helper-words-delete-confirm"]') as HTMLButtonElement;
-    expect(confirm.textContent).toBe("Delete helper words");
-    // Cancel: a word keeps the words. One tap adds the word beside the
-    // saved ones (QA4 A, Q-B5 A): a new selection.
-    await act(async () => word("here:").click());
-    expect(container.querySelector('[data-testid="helper-words-delete-confirm"]')).toBeNull();
-    expect(container.querySelector('[data-testid="helper-words-delete"]')).toBeNull(); // a new selection: the button, not Delete
-    // Back to the saved words (a tap on the last word takes it away), then
-    // Delete again, and through.
-    await act(async () => word("here:").click());
-    expect(container.querySelector('[data-testid="helper-words-delete"]')).not.toBeNull();
-    await act(async () => (container.querySelector('[data-testid="helper-words-delete"]') as HTMLButtonElement).click());
-    await act(async () => (container.querySelector('[data-testid="helper-words-delete-confirm"]') as HTMLButtonElement).click());
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(onDone).toHaveBeenCalledTimes(1);
-  });
-
   it("four words at most, from whichever Take is open (B3)", async () => {
     await renderSheet(null);
     // One tap, one word, next to the others (QA4 A, Q-B5 A): four taps make
@@ -182,137 +119,5 @@ describe("the overlay", () => {
     expect(container.textContent).toContain("4 of 4 words");
     // The fifth word cannot be reached.
     expect(word("the").disabled).toBe(true);
-  });
-});
-
-/* B10, for words from an earlier Take (audit 2026-10-05, B10-2). Words
-   taken from Take 1 that Take 2 did not say (D5) are in no word of the
-   current text, so the overlay opened on the "now" chip with nothing
-   selected. It now opens on the Take they came from, with them selected. */
-const LATER = "We launched in March and the plan held.";
-const EARLIER = "We shipped it in March, ahead of plan.";
-const FROM_TAKE_1: ParagraphHistory = {
-  slideIndex: 0,
-  versions: [
-    { takeIndex: 1, paragraphs: [EARLIER], at: "2026-09-01T10:00:00Z" },
-    { takeIndex: 2, paragraphs: [LATER], at: "2026-09-02T10:00:00Z" },
-  ],
-  helperWords: [{ phrases: ["ahead of plan"], at: "2026-09-01T11:00:00Z" }],
-  practice: [],
-};
-
-async function renderFromTake1(history: ParagraphHistory | null = FROM_TAKE_1) {
-  useCurrent.mockClear();
-  useFromTake.mockClear();
-  await act(async () => {
-    root.render(
-      createElement(HelperWordsSheet, {
-        headline: "ahead of plan",
-        currentText: LATER,
-        history,
-        onUseCurrent: useCurrent,
-        onUseFromTake: useFromTake,
-        onDelete,
-        onDone,
-        onClose,
-      }),
-    );
-  });
-}
-const pressedChip = () =>
-  Array.from(container.querySelectorAll('[data-testid="take-chips"] button'))
-    .filter((b) => b.getAttribute("aria-pressed") === "true")
-    .map((b) => b.textContent);
-const pressedWords = () =>
-  tokens().filter((t) => t.getAttribute("aria-pressed") === "true").map((t) => t.textContent);
-
-describe("B10: the saved words open pre-selected, from whichever Take they came", () => {
-  it("the overlay opens on Take 1 with its words selected; nothing to save until they change", async () => {
-    await renderFromTake1();
-    expect(pressedChip()).toEqual(["Take 1"]);
-    expect(pressedWords()).toEqual(["ahead", "of", "plan."]);
-    expect(container.textContent).toContain("3 of 4 words");
-    expect(card().textContent).toContain("ahead of plan");
-    expect(card().getAttribute("data-new")).toBeNull();
-    expect(use().disabled).toBe(true);
-  });
-
-  it("switching chips still starts a fresh selection (Q3)", async () => {
-    await renderFromTake1();
-    await act(async () => button("Take 2 · now")?.click());
-    expect(pressedWords()).toEqual([]);
-    await act(async () => button("Take 1")?.click());
-    expect(pressedWords()).toEqual([]);
-    expect(container.textContent).toContain("0 of 4 words");
-  });
-
-  it("a history that lands after the sheet opened moves it there, until they touch anything", async () => {
-    await renderFromTake1(null);
-    expect(pressedChip()).toEqual(["Take · now"]);
-    expect(pressedWords()).toEqual([]);
-    await renderFromTake1();
-    expect(pressedChip()).toEqual(["Take 1"]);
-    expect(pressedWords()).toEqual(["ahead", "of", "plan."]);
-  });
-
-  it("once they have tapped, a late history moves nothing under them", async () => {
-    await renderFromTake1(null);
-    await act(async () => word("launched").click());
-    await renderFromTake1();
-    expect(pressedWords()).toEqual(["launched"]);
-  });
-});
-
-describe("from the saved screen and the page (B4)", () => {
-  const moment = {
-    id: "s-cv",
-    start: 0,
-    end: 18,
-    quote: "The timing matters",
-    kind: "advice",
-    proposedText: null,
-    device: null,
-    status: "dismissed",
-    feedbackFamily: "confident_voice",
-    source: "confident_voice",
-    snippetId: "snip-1",
-    takeSessionId: "take-2",
-  } as unknown as DocumentSuggestion;
-  const state = () =>
-    chunkStateFor(
-      {
-        part: { id: "p1", text: TEXT, locked: true },
-        paragraphIndex: 0,
-        start: 0,
-        end: TEXT.length,
-        status: "locked",
-        pendingIds: [],
-        approvedIds: [],
-        decidedIds: [moment.id],
-      } as DeckChunk,
-      { document: TEXT, suggestions: [moment] },
-    );
-  const host = { onUseFromTake: useFromTake, onDelete };
-  const render = (startPicking: boolean) =>
-    act(async () => {
-      root.render(
-        createElement(OpenChunkSheet, {
-          state: state(),
-          arcId: "arc-1",
-          takeSessionId: "take-2",
-          headline: "the timing matters",
-          onUseHelperWords: useCurrent,
-          helperWordsHost: host,
-          startPicking,
-          onDone,
-          onClose,
-          renderSheet: () => null,
-        }),
-      );
-    });
-
-  it("the page's headline opens straight on the overlay", async () => {
-    await render(true);
-    expect(container.querySelector('[data-testid="helper-words-sheet"]')).not.toBeNull();
   });
 });

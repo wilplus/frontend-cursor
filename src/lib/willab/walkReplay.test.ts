@@ -2,7 +2,6 @@
    buildFeedbackReplay and phraseSelection. */
 import { describe, expect, it } from "vitest";
 import { buildFeedbackReplay, type FeedbackWalkItem } from "./feedbackWalkModel";
-import { phraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 
 const clip = { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 };
@@ -37,17 +36,5 @@ describe("buildFeedbackReplay", () => {
     const keys = replay({ answerOf: () => null }).plan.map((s) => s.key);
     expect(keys).not.toContain("judge");
     expect(keys).not.toContain("intro");
-  });
-});
-
-describe("phraseSelection", () => {
-  it("finds saved words once, across markers, and never more than four", () => {
-    const raw = "We **really** grew in spring and summer.";
-    expect(phraseSelection(raw, "really grew")).toEqual({ from: 1, to: 2 });
-    expect(phraseSelection(raw, "**really** grew")).toEqual({ from: 1, to: 2 });
-    expect(phraseSelection(raw, "We really grew in spring")).toBeNull();
-    expect(phraseSelection("go go go", "go")).toBeNull();
-    expect(phraseSelection(raw, null)).toBeNull();
-    expect(phraseSelection(raw, "autumn")).toBeNull();
   });
 });

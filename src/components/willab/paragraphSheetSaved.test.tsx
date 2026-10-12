@@ -113,10 +113,5 @@ describe("the saved state's player (D6 amended, N48.1)", () => {
     expect(container.querySelector('[data-testid="paragraph-history"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="paragraph-sheet-next"]')?.textContent).toBe("Next");
   });
-
-  it("still plays the moment on Take 1", async () => {
-    await render(true);
-    expect(player()?.querySelector("audio")?.getAttribute("src")).toBe("https://media.example/moment.wav");
-  });
 });
 

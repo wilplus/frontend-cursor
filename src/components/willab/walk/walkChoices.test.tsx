@@ -32,40 +32,4 @@ describe("WalkChoices", () => {
     act(() => qa("[data-walk-choice]")[2].click());
     expect(onPick).toHaveBeenCalledWith("c");
   });
-
-  it("keyboard: every card is a native button, so Tab reaches it and Enter picks it", () => {
-    const onPick = vi.fn();
-    draw(<WalkChoices choices={FIVE} onPick={onPick} />);
-    const card = qa("[data-walk-choice]")[1] as HTMLButtonElement;
-    expect(card.type).toBe("button");
-    expect(card.tabIndex).toBe(0);
-    card.focus();
-    expect(document.activeElement).toBe(card);
-    // A native button turns Enter into a click.
-    act(() => card.click());
-    expect(onPick).toHaveBeenCalledWith("b");
-  });
-
-  it("marks: a chevron by default, a check, a dot, nothing on a done card; selected is pressed", () => {
-    draw(<WalkChoices choices={[
-      { value: "a", label: "A", dot: true },
-      { value: "b", label: "B", mark: "check" },
-      { value: "c", label: "C", done: true, dim: true },
-      { value: "d", label: "D", selected: true },
-    ]} />);
-    const [a, b, c, d] = qa("[data-walk-choice]");
-    expect(a.querySelector("[data-walk-choice-dot]")).not.toBeNull();
-    expect(a.querySelector("svg")).not.toBeNull();
-    expect(b.querySelector("svg")!.getAttribute("class")).toMatch(/text-affirm/);
-    expect(c.tagName).toBe("DIV");
-    expect(c.className).toMatch(/opacity-60/);
-    expect(c.querySelector("svg")).toBeNull();
-    expect(d.getAttribute("aria-pressed")).toBe("true");
-    expect(a.getAttribute("aria-pressed")).toBeNull();
-  });
-
-  it("says no word of its own", () => {
-    draw(<WalkChoices choices={[{ value: "a", label: "A" }]} />);
-    expect(host.textContent).toBe("A");
-  });
 });

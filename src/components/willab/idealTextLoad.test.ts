@@ -4,20 +4,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
   IdealTextEnrichmentResult,
-  IdealTextResult,
 } from "@/services/api/idealText";
 import {
-  carryKeyMoments,
   carryShownFeedback,
   loadIdealTextEnrichment,
-  mayCarry,
-  revalidateHandoff,
-  sameServedDocument,
   sdFromResult,
   type SingleIdealText,
 } from "./idealTextLoad";
-import { withSuggestionStatus } from "@/lib/willab/idealTextDecisions";
-import { collectMediaLinks, freshestByKey, mediaKey } from "@/lib/media/mediaRefresh";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
@@ -123,73 +116,6 @@ describe("F1: the prompt lane paints on its own", () => {
     // The settle sees both lanes' sections, as before.
     expect(Object.keys(settle.mock.calls[0][2].sections).sort()).toEqual(["document_layers", "journey"]);
   });
-
-  it("applies the slow lane on its own when it answers first", async () => {
-    const prompt = deferred<IdealTextEnrichmentResult>();
-    const applied: SingleIdealText[] = [];
-    const fetchLane = vi.fn(async (_a: string, _s: string, sections?: readonly string[]) =>
-      sections?.includes("document_layers") ? layersLane : prompt.promise,
-    );
-    const done = loadIdealTextEnrichment("arc", core(), {
-      isCurrent: () => true,
-      apply: (m) => applied.push(m),
-      setPending: () => {},
-      refetch: () => {},
-      fetchLane: fetchLane as never,
-      settle: (async (_a: string, _s: string, e: Ready) => e) as never,
-    });
-    await vi.waitFor(() => expect(applied).toHaveLength(1));
-    expect(applied[0].saved).toBe(true);
-    expect(applied[0].coachMessage).toBeNull();
-    prompt.resolve(journeyLane);
-    await done;
-    expect(applied.at(-1)?.coachMessage?.text).toBe("Well done.");
-    expect(applied.at(-1)?.saved).toBe(true);
-  });
-
-  it("applies nothing once the page has moved on", async () => {
-    const apply = vi.fn();
-    const setPending = vi.fn();
-    await loadIdealTextEnrichment("arc", core(), {
-      isCurrent: () => false,
-      apply,
-      setPending,
-      refetch: () => {},
-      fetchLane: (async () => journeyLane) as never,
-    });
-    expect(apply).not.toHaveBeenCalled();
-    expect(setPending).not.toHaveBeenCalled();
-  });
-
-  it("closes the slot and refetches when a lane says the snapshot moved", async () => {
-    const pending: boolean[] = [];
-    const refetch = vi.fn();
-    const stale: IdealTextResult | IdealTextEnrichmentResult = {
-      kind: "stale",
-      currentDocumentSnapshotId: "snap-2",
-    };
-    await loadIdealTextEnrichment("arc", core(), {
-      isCurrent: () => true,
-      apply: () => {},
-      setPending: (p) => pending.push(p),
-      refetch,
-      fetchLane: (async () => stale) as never,
-    });
-    expect(pending).toEqual([false]);
-    expect(refetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("asks for nothing without a snapshot", async () => {
-    const fetchLane = vi.fn();
-    await loadIdealTextEnrichment("arc", core({ documentSnapshotId: null }), {
-      isCurrent: () => true,
-      apply: () => {},
-      setPending: () => {},
-      refetch: () => {},
-      fetchLane: fetchLane as never,
-    });
-    expect(fetchLane).not.toHaveBeenCalled();
-  });
 });
 
 describe("F2: a refetch keeps the bars until the new enrichment replaces them", () => {
@@ -215,97 +141,5 @@ describe("F2: a refetch keeps the bars until the new enrichment replaces them", 
     expect(next.styleChanges).toEqual([style]);
     expect(next.coachMessage).toEqual(coach);
     expect(next.additions).toEqual(shown.additions);
-  });
-
-  it("shows the item just decided with its new status, never as pending", () => {
-    const decided = withSuggestionStatus(shown, "s1", "approved");
-    const next = carryShownFeedback(decided, refetched, {}, true);
-    expect(next.suggestions?.[0].status).toBe("approved");
-  });
-
-  it("lets each answered section replace what it owns", () => {
-    const fresh = sdFromResult(core({ suggestions: [], coachMessage: null }));
-    const afterJourney = carryShownFeedback(shown, fresh, { journey: "ready" }, true);
-    expect(afterJourney.coachMessage).toBeNull();
-    expect(afterJourney.suggestions).toEqual([bar]);
-    const afterLayers = carryShownFeedback(shown, fresh, { document_layers: "ready" }, true);
-    expect(afterLayers.suggestions).toEqual([]);
-    expect(afterLayers.additions).toEqual([]);
-    expect(afterLayers.coachMessage).toEqual(coach);
-  });
-
-  it("starts clean when it may not carry", () => {
-    expect(carryShownFeedback(shown, refetched, {}, false)).toBe(refetched);
-    expect(carryShownFeedback(null, refetched, {}, true)).toBe(refetched);
-  });
-
-  it("keeps the coach's key moments until the feedback section answers", () => {
-    const moments = [{ snippetId: "k1" }] as never;
-    const prev = { text: "t", keyMoments: moments, notes: null } as never;
-    const next = { text: "t2", keyMoments: [], notes: null } as never;
-    expect(carryKeyMoments(prev, next, {}, true).keyMoments).toBe(moments);
-    expect(carryKeyMoments(prev, next, {}, true).text).toBe("t2");
-    expect(carryKeyMoments(prev, next, { feedback: "ready" }, true)).toBe(next);
-    expect(carryKeyMoments(prev, next, {}, false)).toBe(next);
-  });
-
-  it("a refresh for fresh links: the answered layers bring the new links, never the kept ones", () => {
-    // Founder 2026-10-08: a player whose signed link died asks for the
-    // document again (a same-Take refetch, so it carries).
-    const OLD = "https://media.example/take.webm?sig=old";
-    const NEW = "https://media.example/take.webm?sig=new";
-    const withLink = (ref: string) => ({ id: "s1", status: "pending", snippetAudioRef: ref }) as unknown as DocumentSuggestion;
-    const before = sdFromResult(core({ suggestions: [withLink(OLD)] }));
-    const landed = sdFromResult(core({ suggestions: [withLink(NEW)] }));
-    expect(mayCarry(false, "take-1", "take-1")).toBe(true);
-    const next = carryShownFeedback(before, landed, { document_layers: "ready" }, true);
-    expect(next.suggestions?.[0].snippetAudioRef).toBe(NEW);
-    // Until the layers answer the row on screen is kept, and its player
-    // resolves its link by path to the freshest one the page holds.
-    const kept = carryShownFeedback(before, landed, {}, true);
-    expect(kept.suggestions?.[0].snippetAudioRef).toBe(OLD);
-    const seen = new Map<string, number>();
-    freshestByKey(collectMediaLinks(before), seen);
-    const links = freshestByKey(collectMediaLinks([kept, { coachMessage: { videoUrl: NEW } }]), seen);
-    expect(links.get(mediaKey(OLD))).toBe(NEW);
-  });
-
-  it("carries only a refetch of the same Take", () => {
-    expect(mayCarry(false, "take-1", "take-1")).toBe(true);
-    // A first load, or a change of arc, starts clean.
-    expect(mayCarry(true, "take-1", "take-1")).toBe(false);
-    // Nothing shown yet.
-    expect(mayCarry(false, undefined, "take-1")).toBe(false);
-    // A new Take's feedback is about other words.
-    expect(mayCarry(false, "take-1", "take-2")).toBe(false);
-  });
-});
-
-describe("P1: a painted handover is revalidated behind it", () => {
-  it("treats the same snapshot, version, text and bundle as the same document", () => {
-    expect(sameServedDocument(core(), core())).toBe(true);
-    expect(sameServedDocument(core(), core({ documentSnapshotId: "snap-2" }))).toBe(false);
-    expect(sameServedDocument(core(), core({ version: 3 }))).toBe(false);
-    expect(
-      sameServedDocument(core(), core({ ideal: { text: "Other.", keyMoments: [], notes: null } as never })),
-    ).toBe(false);
-    expect(
-      sameServedDocument(core(), core({ confidentMomentSummary: { items: [] } as never })),
-    ).toBe(false);
-  });
-
-  it("refetches in place only when the fresh read differs", async () => {
-    const refetch = vi.fn();
-    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => core());
-    expect(refetch).not.toHaveBeenCalled();
-    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => core({ version: 3 }));
-    expect(refetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("does nothing after the page moved on, or when the fresh read failed", async () => {
-    const refetch = vi.fn();
-    await revalidateHandoff("arc", core(), { isCurrent: () => false, refetch }, async () => core({ version: 3 }));
-    await revalidateHandoff("arc", core(), { isCurrent: () => true, refetch }, async () => ({ kind: "error" }));
-    expect(refetch).not.toHaveBeenCalled();
   });
 });

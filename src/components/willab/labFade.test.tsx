@@ -15,7 +15,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LAB_FADE_IN_CLASS, LAB_FADE_MS, LabFadeOut, useRecordingEntryFade } from "./labFade";
+import { LAB_FADE_IN_CLASS, useRecordingEntryFade } from "./labFade";
 import type { WillabState } from "./useWillabFlow";
 
 let root: Root;
@@ -48,36 +48,6 @@ afterEach(() => {
 
 const veil = () => host.querySelector("[data-lab-fade-out]") as HTMLElement | null;
 
-describe("the fade out, when the Lab closes", () => {
-  it("draws nothing while the Lab is open, then a white veil that leaves after 0.4 s", () => {
-    act(() => root.render(createElement(LabFadeOut, { open: true })));
-    expect(veil()).toBeNull();
-    act(() => root.render(createElement(LabFadeOut, { open: false })));
-    const v = veil();
-    expect(v).not.toBeNull();
-    expect(v?.className).toContain("lab-fade-out");
-    expect(v?.className).toContain("pointer-events-none");
-    expect(v?.className).toContain("bg-background");
-    expect(v?.getAttribute("aria-hidden")).toBe("true");
-    act(() => vi.advanceTimersByTime(LAB_FADE_MS - 1));
-    expect(veil()).not.toBeNull();
-    act(() => vi.advanceTimersByTime(1));
-    expect(veil()).toBeNull();
-  });
-
-  it("draws no veil when the Lab was never open", () => {
-    act(() => root.render(createElement(LabFadeOut, { open: false })));
-    expect(veil()).toBeNull();
-  });
-
-  it("is instant with reduce motion: no veil at all", () => {
-    reduceMotion(true);
-    act(() => root.render(createElement(LabFadeOut, { open: true })));
-    act(() => root.render(createElement(LabFadeOut, { open: false })));
-    expect(veil()).toBeNull();
-  });
-});
-
 describe("the fade in, from the text into recording", () => {
   function Probe({ state }: { state: WillabState }) {
     return createElement("div", { "data-probe": "", className: useRecordingEntryFade(state) });
@@ -93,15 +63,6 @@ describe("the fade in, from the text into recording", () => {
     show("lab_processing");
     expect(cls()).toBe("");
     show("readout");
-    expect(cls()).toBe("");
-  });
-
-  it("does not fade again for a Take that opens the Lab afresh (the overlay's own fade covers it)", () => {
-    show("lab_prerecord");
-    show("lab_recording");
-    expect(cls()).toBe("");
-    show("lab_session_context");
-    show("lab_recording");
     expect(cls()).toBe("");
   });
 

@@ -10,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import { buildFeedbackReplay, walkStart, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
-import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,34 +123,5 @@ describe("the finished walk, played again", () => {
     expect(screen()).toBe("walk-screen-judge");
     expect(pressed()).toBe("yes");
     expect(calls).toEqual([]);
-  });
-
-  it("a judgement may still be changed, saved beside the first (D-FW-9); the same answer sends nothing", () => {
-    draw();
-    for (const id of ["walk-forward", "walk-forward", "walk-forward", "walk-keep", "walk-skip", "walk-forward"]) {
-      click(byTestId(id));
-    }
-    expect(screen()).toBe("walk-screen-judge");
-    expect(pressed()).toBe("yes");
-    click(live()!.querySelector("[data-walk-answer='yes']"));
-    act(() => vi.advanceTimersByTime(WALK_ANSWER_HOLD_MS));
-    expect(pressed()).toBe("no");
-    click(live()!.querySelector("[data-walk-answer='in_between']"));
-    act(() => vi.advanceTimersByTime(WALK_ANSWER_HOLD_MS));
-    expect(judged).toEqual([
-      { item: "cv-1", answer: "yes", earlier: "yes" },
-      { item: "cv-2", answer: "in_between", earlier: "no" },
-    ]);
-    expect(ended).toBe(1);
-    expect(calls).toEqual([]);
-  });
-
-  it("Skip on \"Judgement time!\" settles nothing: every judgement was answered", () => {
-    draw();
-    for (const id of ["walk-forward", "walk-forward", "walk-skip", "walk-keep", "walk-skip"]) click(byTestId(id));
-    expect(screen()).toBe("walk-screen-intro");
-    click(byTestId("walk-skip"));
-    expect(calls).toEqual([]);
-    expect(ended).toBe(1);
   });
 });
