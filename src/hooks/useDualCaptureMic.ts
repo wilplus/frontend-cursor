@@ -22,13 +22,6 @@ function deniedMessage(): string {
   return "Microphone permission denied.";
 }
 
-/** A held stream can still be recorded from: it exists and none of its
- *  tracks has ended. */
-function streamIsLive(stream: MediaStream | null): boolean {
-  if (!stream) return false;
-  return stream.getTracks().every((t) => t.readyState !== "ended");
-}
-
 /**
  * getUserMedia is genuinely absent on this device. Feature-detected (NOT
  * version-sniffed) so only truly-incapable clients are diverted: the classic
@@ -81,15 +74,8 @@ export type DualCaptureState =
 
 export interface DualCaptureMic {
   state: DualCaptureState;
-  /** Open the mic and record. With `{ arm: true }` it opens the mic (the
-   *  permission prompt rides the caller's tap) and builds the recorder, but
-   *  does NOT record: state stays "idle" and `armed` turns true. The next
-   *  plain `start()` then begins capture on that held stream at once — the
-   *  first recording's learning screen (founder lock 2026-10-07), where the
-   *  speaker's own scroll is the start. */
-  start: (opts?: { arm?: boolean }) => Promise<void>;
-  /** The mic is open and the recorder built, waiting for `start()`. */
-  armed: boolean;
+  /** Open the mic and record. */
+  start: () => Promise<void>;
   stop: () => Promise<void>;
   cancel: () => void;
   /** F1 — monotonic timestamp of the recorder's `start` event, or null if it
@@ -166,11 +152,6 @@ export function useDualCaptureMic(opts?: {
   const lang = opts?.lang ?? "en-US";
   const wantTranscript = opts?.transcript ?? true;
   const [state, setState] = useState<DualCaptureState>({ status: "idle" });
-  /** Armed (see `start({ arm: true })`): the stream and recorder exist but
-   *  capture has not begun. The ref is the truth; the state re-renders. */
-  const [armed, setArmed] = useState(false);
-  const armedRef = useRef(false);
-
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -210,9 +191,6 @@ export function useDualCaptureMic(opts?: {
     // Invalidate any in-flight start() (see startGenRef): a teardown during the
     // getUserMedia gap must abort the pending start so it can't leave a hot mic.
     startGenRef.current += 1;
-    // A held (armed) mic is released with everything else.
-    armedRef.current = false;
-    setArmed(false);
     const recognition = recognitionRef.current;
     if (recognition) {
       try {
@@ -253,8 +231,6 @@ export function useDualCaptureMic(opts?: {
    *  moment the recording starts: the recorder runs, the duration clock
    *  starts, and state turns "recording". */
   const begin = useCallback(() => {
-    armedRef.current = false;
-    setArmed(false);
     const recorder = recorderRef.current;
     if (!recorder) return;
     startedAtRef.current =
@@ -287,16 +263,9 @@ export function useDualCaptureMic(opts?: {
     setState({ status: "recording", partialText: "" });
   }, [teardown]);
 
-  const start = useCallback(async (opts?: { arm?: boolean }) => {
+  const start = useCallback(async () => {
     // One in-flight start at a time (T2). See `startingRef` above.
     if (startingRef.current) return;
-    // THE HELD MIC (armed): begin on it now, in this same call, so the
-    // speaker's gesture is the first moment of the recording. A stream
-    // whose track has ended falls through and is opened afresh.
-    if (!opts?.arm && armedRef.current && streamIsLive(streamRef.current)) {
-      begin();
-      return;
-    }
     startingRef.current = true;
     try {
       // No getUserMedia at all on this device (the iOS < 14.3 standalone-PWA
@@ -430,12 +399,6 @@ export function useDualCaptureMic(opts?: {
         recognitionRef.current = recognition;
       }
 
-      if (opts?.arm) {
-        // Held, not recording: the next plain start() begins on it.
-        armedRef.current = true;
-        setArmed(true);
-        return;
-      }
       begin();
     } finally {
       // Cleared on every exit — success, early-return, or an unexpected
@@ -446,11 +409,8 @@ export function useDualCaptureMic(opts?: {
 
   const stop = useCallback(async () => {
     // No-op if not actively recording — callers may invoke stop()
-    // defensively (route change, blur) and we shouldn't change state. A held
-    // (armed) mic has recorded nothing: stopping it must not hand an empty
-    // take to the caller.
+    // defensively (route change, blur) and we shouldn't change state.
     if (!recorderRef.current && !recognitionRef.current) return;
-    if (armedRef.current) return;
 
     // Stop recognition first to flush any pending final result. We
     // race against a 400ms safety bound so a stuck recognition end
@@ -532,5 +492,5 @@ export function useDualCaptureMic(opts?: {
    *  fired. A getter, not state: reading it must not re-render the recorder. */
   const getAudioStartedAt = useCallback(() => audioStartedAtRef.current, []);
 
-  return { state, start, stop, cancel, getAudioStartedAt, armed };
+  return { state, start, stop, cancel, getAudioStartedAt };
 }

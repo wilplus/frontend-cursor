@@ -58,7 +58,6 @@ vi.mock("@/hooks/useDualCaptureMic", () => ({
       mic.cancels += 1;
     },
     getAudioStartedAt: () => null,
-    armed: false,
   }),
 }));
 vi.mock("@/components/results/MediaPlayer", () => ({ default: () => createElement("div") }));

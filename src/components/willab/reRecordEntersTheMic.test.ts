@@ -53,12 +53,10 @@ describe("re-record enters the MICROPHONE, never the waiting screen", () => {
     // mic has to cancel it first — cancel() puts the mic back to "idle", which
     // is the state RecordingPhase's "Getting your mic ready…" covers while
     // getUserMedia resolves.
-    // Take 1 opens the mic held (`{ arm: … }`) for the learning screen
-    // (founder lock 2026-10-07); a later Take records at once. Either way the
-    // entry resets the mic first.
+    // Every Take records at once (N70); the entry resets the mic first.
     const entries = [
       ...LAB.matchAll(
-        /dispatch\("take_started"\);\n\s*void mic\.start\((\{ arm: arcTakeIndex <= 1 \})?\);/g,
+        /dispatch\("take_started"\);\n\s*void mic\.start\(\);/g,
       ),
     ];
     expect(entries.length).toBeGreaterThanOrEqual(2);
