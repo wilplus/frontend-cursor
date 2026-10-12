@@ -13,12 +13,19 @@ export default function SymmetricPair({
   onClose,
   actionLabel,
   onAction,
+  tone = "primary",
 }: {
   closeLabel: string;
   onClose: () => void;
   actionLabel: string;
   onAction: () => void;
+  /** "dark": the black pill of the record button (the WhatsApp offer's Save). */
+  tone?: "primary" | "dark";
 }) {
+  const actionColors =
+    tone === "dark"
+      ? "bg-foreground text-background hover:bg-foreground/90"
+      : "bg-primary text-primary-foreground hover:bg-primary/90";
   return (
     <div className="flex items-stretch gap-3">
       <button
@@ -31,7 +38,7 @@ export default function SymmetricPair({
       <button
         type="button"
         onClick={onAction}
-        className="flex h-11 flex-1 items-center justify-center rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        className={`flex h-11 flex-1 items-center justify-center rounded-full text-[15px] font-medium transition-colors ${actionColors}`}
       >
         {actionLabel}
       </button>
