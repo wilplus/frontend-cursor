@@ -11,13 +11,11 @@
 /*                                       speakers, speaker, judge, reveal,    */
 /*                                       corpushome, corpusimport,            */
 /*                                       corpusanalyse, corpus                */
-/*    /dev/coach-panel?flow=1&coach2=1   the Lounge door through the real     */
-/*                                       switch (CoachWalkEntry); its own     */
+/*    /dev/coach-panel?flow=1            the Lounge door through its real     */
+/*                                       mount (CoachWalkEntry); its own      */
 /*                                       buttons move it, ‹ goes back, ✕      */
 /*                                       closes, and What happened's Next     */
 /*                                       hands over to today's answer flow    */
-/*    /dev/coach-panel?flow=1            the same door with the switch off:   */
-/*                                       today's door, unchanged              */
 /*                                                                            */
 /*  DEV ONLY. Production renders nothing — this is a test fixture, not a       */
 /*  surface, and it must not become one.                                       */
@@ -43,7 +41,7 @@ function IndexList() {
   return (
     <main className="mx-auto flex max-w-md flex-col gap-2 p-5 text-[15px]">
       <h1 className="text-[18px] font-bold">Coach panel harness</h1>
-      <a className="underline" href="?flow=1&coach2=1">flow</a>
+      <a className="underline" href="?flow=1">flow</a>
       {SCREEN_NAMES.map((name) => (
         <a key={name} className="underline" href={`?screen=${name}`}>{name}</a>
       ))}

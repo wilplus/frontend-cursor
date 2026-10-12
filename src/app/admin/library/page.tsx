@@ -1,9 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isFounderEmail } from "@/lib/founder";
-import CoachExerciseAuthoringClient from "./page.client";
 import LibraryPanel from "./LibraryPanel";
-import { coachPanelOnForPage } from "@/lib/willab/coachPanelSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +20,7 @@ export const dynamic = "force-dynamic";
 /*  header only.                                                              */
 /* -------------------------------------------------------------------------- */
 
-type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
-
-export default async function AdminLibraryPage({ searchParams }: PageProps) {
+export default async function AdminLibraryPage() {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -33,7 +29,7 @@ export default async function AdminLibraryPage({ searchParams }: PageProps) {
     redirect("/login?redirectTo=/admin/library");
   }
   if (!isFounderEmail(user.email)) notFound();
-  // The rebuilt screens wait behind the coach panel's switch until the
-  // founder approves them from the Done list (Q-CP645 A, 2026-10-08).
-  return coachPanelOnForPage(searchParams) ? <LibraryPanel /> : <CoachExerciseAuthoringClient />;
+  // The rebuilt screen (Q-CP645 A), permanent since the founder's
+  // "keep the new designs, make them permanent" (2026-10-11).
+  return <LibraryPanel />;
 }

@@ -53,7 +53,7 @@ rendered HTML were all green.
 npm ci                            # playwright is a devDependency
 npx playwright install chromium   # once per machine
 
-# The env shape is part of the harness contract: the coach-walk fixture
+# The env shape is part of the harness contract: the coach-panel fixture
 # seeds an sb-dummy-* auth cookie, so the Supabase URL's project ref MUST
 # be "dummy". These are placeholders — nothing ever connects to them.
 NEXT_PUBLIC_SUPABASE_URL=https://dummy.supabase.co \
@@ -67,7 +67,7 @@ MARKED_URL=http://localhost:3111/dev/marked-editor node e2e/marked-editor.spec.m
 ```
 
 Point a spec at a different port with its URL env var
-(e.g. `WALK_URL=http://localhost:3000/dev/coach-walk`). Load the page
+(e.g. `PANEL_URL=http://localhost:3000/dev/coach-panel`). Load the page
 once in a browser (or curl it) before the first spec run — `next dev`
 compiles on demand, and a spec navigating mid-compile races its own
 selectors.

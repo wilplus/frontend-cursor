@@ -8,7 +8,7 @@
 /*  What this proves: each screen (door, queue, Your speakers, speaker,       */
 /*  judge, What happened) draws at phone size (402 x 860) with no page error, nothing on  */
 /*  it is a percentage (AC-9), and the overlays cover the screen. Then the    */
-/*  real door is driven through the switch (?coach2=1): the bubble opens the  */
+/*  real door is driven through the Lounge's mount: the bubble opens the      */
 /*  queue; Speakers opens every speaker with the orange dot on those waiting  */
 /*  (D-CP-12); the speaker's goal and Takes; Judge shows the player, the      */
 /*  question and the                                                          */
@@ -18,8 +18,7 @@
 /*  after the rating PUT; the counter counts moments only; › onto an unrated  */
 /*  moment lands on Judge; ‹ goes back through the history and never reopens */
 /*  a rated moment's Judge; Next hands the moment to today's answer flow,    */
-/*  which hands back to the panel's next open moment. Off (no ?coach2=1), the */
-/*  door is today's, unchanged.                                               */
+/*  which hands back to the panel's next open moment.                         */
 /*                                                                            */
 /*  Screenshots of the flow: <SHOTS_DIR>/flow-*.png. SHOTS_DIR defaults to      */
 /*  e2e/artifacts/coach-panel (gitignored). The still screens are drawn by    */
@@ -153,12 +152,12 @@ for (const [screen, selector] of Object.entries(KEY)) {
   await page.close();
 }
 
-/* ----------------------- the flow, through the switch ----------------------- */
+/* ------------------- the flow, through the Lounge's mount ------------------- */
 {
   const page = await browser.newPage({ viewport: VIEWPORT });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto(`${BASE}?flow=1&coach2=1`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}?flow=1`, { waitUntil: "networkidle" });
   await page.waitForSelector('[data-testid="coach-panel-pinned"]', { timeout: 20000 });
 
   // The door.
@@ -376,19 +375,6 @@ for (const [screen, selector] of Object.entries(KEY)) {
   check("✕ closes to the Lounge", (await page.locator(LIVE).count()) === 0);
   await page.screenshot({ path: join(SHOTS, "flow-closed.png") });
   check("flow: no page errors", errors.length === 0, errors.join(" | "));
-  await page.close();
-}
-
-/* ----------------------------- the switch off ------------------------------- */
-{
-  const page = await browser.newPage({ viewport: VIEWPORT });
-  await page.goto(`${BASE}?flow=1`, { waitUntil: "networkidle" });
-  await page.waitForSelector('[data-testid="coach-walk-bubble"]', { timeout: 20000 });
-  await page.waitForTimeout(300);
-  check("switch off: today's door (its queue button), no pinned buttons",
-    (await page.getByRole("button", { name: "Your queue", exact: true }).count()) === 1 &&
-    (await page.locator('[data-testid="coach-panel-pinned"]').count()) === 0);
-  await page.screenshot({ path: join(SHOTS, "door-switch-off.png") });
   await page.close();
 }
 

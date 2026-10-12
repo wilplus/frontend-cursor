@@ -123,7 +123,7 @@ jobs:
           done
           # First-compile warmup: a spec that navigates mid-compile races
           # its own selectors. Compile each harness page before any spec.
-          for p in dev/life-bets dev/corpus dev/marked-editor dev/deck dev/speaking-errors dev/coach-walk dev/feedback-walk dev/coach-panel dev/recording; do
+          for p in dev/life-bets dev/corpus dev/marked-editor dev/deck dev/feedback-walk dev/coach-panel dev/recording; do
             curl -sf -o /dev/null "http://localhost:3111/$p" || true
           done
 
@@ -132,8 +132,6 @@ jobs:
           node e2e/bets-reorder.spec.mjs
           node e2e/corpus.spec.mjs
           node e2e/ideal-text-canonical.spec.mjs
-          LIBRARY_URL=http://localhost:3111/dev/speaking-errors node e2e/speaking-errors.spec.mjs
-          WALK_URL=http://localhost:3111/dev/coach-walk node e2e/coach-walk.spec.mjs
           WALK_P1_URL=http://localhost:3111/dev/feedback-walk node e2e/feedback-walk.spec.mjs
           PANEL_URL=http://localhost:3111/dev/coach-panel node e2e/coach-panel.spec.mjs
           # The recording screens' lock in a real browser (build plan D-RC-8):

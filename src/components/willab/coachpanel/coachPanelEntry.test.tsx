@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-/* The Lounge's coach door and the coach panel's switch (build plan P1): off,
-   today's door exactly; on, the redrawn door with its two pinned buttons. */
+/* The Lounge's coach door is the redrawn panel's, with its two pinned buttons,
+   and no switch decides it (founder 2026-10-11, "keep the new designs, make
+   them permanent"). */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,23 +30,16 @@ const draw = async () => {
 };
 
 describe("CoachWalkEntry", () => {
-  it("switch off: today's door, unchanged (the bubble and the queue button)", async () => {
-    await draw();
-    expect(host.querySelector("[data-testid='coach-walk-bubble']")).not.toBeNull();
-    expect(host.querySelector("[data-testid='coach-panel-pinned']")).toBeNull();
-    expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toContain("Your queue");
-  });
-
-  it("switch on (?coach2=1 outside production): the redrawn door", async () => {
-    window.history.replaceState(null, "", "/?coach2=1");
+  it("draws the redrawn door: the bubble and the pinned buttons, not today's queue button", async () => {
     await draw();
     expect(host.querySelector("[data-testid='coach-walk-bubble']")).not.toBeNull();
     expect(host.querySelector("[data-testid='coach-panel-pinned']")).not.toBeNull();
     expect([...host.querySelectorAll("button")].map((b) => b.textContent)).not.toContain("Your queue");
   });
 
-  it("switch on by the deploy's flag", async () => {
-    vi.stubEnv("NEXT_PUBLIC_COACH_PANEL_V2", "on");
+  it("draws the redrawn door in production too, whatever the address says", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    window.history.replaceState(null, "", "/?coach2=0");
     await draw();
     expect(host.querySelector("[data-testid='coach-panel-pinned']")).not.toBeNull();
   });

@@ -2,8 +2,8 @@
 
 /* -------------------------------------------------------------------------- */
 /*  The coach's Lounge door, redrawn (founder lock 2026-10-06, flow step 1;    */
-/*  build plan P1). Mounted by CoachWalkEntry only while the coach panel's     */
-/*  switch is on; off, today's door stands exactly as it was.                  */
+/*  build plan P1). Mounted by CoachWalkEntry, the Lounge's one door for a     */
+/*  coach; permanent since 2026-10-11 (founder, "make them permanent").       */
 /*                                                                            */
 /*    the bubble        "N speakers waiting · Open your queue" opens the new   */
 /*                      queue (CoachPanel)                                    */

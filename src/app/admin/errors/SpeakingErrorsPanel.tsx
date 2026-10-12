@@ -22,7 +22,7 @@
 /*  look: the words with the pencil, saved when the pencil is tapped again;  */
 /*  a refusal shows the backend's own sentence. A detected or tested error   */
 /*  is read only: saving over one would demote it and stop it routing.       */
-/*  The page waits behind NEXT_PUBLIC_COACH_PANEL_V2 (page.tsx).             */
+/*  Permanent since 2026-10-11 (founder, "make them permanent").             */
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
