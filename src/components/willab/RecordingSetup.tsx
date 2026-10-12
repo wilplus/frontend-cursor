@@ -410,7 +410,7 @@ export default function RecordingSetup({
             <StepHead
               icon={Mic}
               question="Have slides to go with it?"
-              helper="Adding slides makes the ideal text dramatically better. It grounds the coach in exactly what your audience sees."
+              helper="Adding slides makes the ideal text dramatically better."
             />
             <PresentationInput
               slides={slides}

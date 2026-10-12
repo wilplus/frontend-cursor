@@ -155,8 +155,6 @@ export const TOKENS_COPY = {
 
   /* ------------------------------ recording ------------------------------ */
 
-  recordPrice: (price: string, maxMinutes: number) =>
-    `${price} tokens for up to ${maxMinutes} min`,
   /** Out of tokens. No reset is promised: recording remains available and the
    *  purchase route is presented separately. */
   recordEmpty: (_renewsOn: string | null) => "You're out of tokens.",
