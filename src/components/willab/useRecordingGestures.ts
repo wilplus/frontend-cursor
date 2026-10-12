@@ -309,7 +309,8 @@ export function useRecordingGestures(target: GestureTarget): {
       const intent = keyIntent(event.key);
       if (!intent || !keyIsForTheScreen(event, document, t.root())) return;
       if (t.startKeys) {
-        if (intent === "back") return;
+        // Only ↓, Page Down, Space and Enter start; → is not "down".
+        if (intent === "back" || event.key === "ArrowRight") return;
         event.preventDefault();
         if (!event.repeat && !busyRef.current) commit(1);
         return;

@@ -142,11 +142,13 @@ export type KeyIntent = "forward" | "back" | "start" | null;
 export function keyIntent(key: string): KeyIntent {
   switch (key) {
     case "ArrowDown":
+    case "ArrowRight":
     case "PageDown":
     case " ":
     case "Spacebar":
       return "forward";
     case "ArrowUp":
+    case "ArrowLeft":
     case "PageUp":
       return "back";
     case "Enter":
@@ -158,9 +160,13 @@ export function keyIntent(key: string): KeyIntent {
 
 const TYPING =
   'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
+/** Controls own their own Space / Enter (a focused Finish take, rail dot, link). */
+const CONTROL =
+  'button, a[href], summary, [role="button"], [role="link"], [role="menuitem"], [role="tab"]';
 
 /** May the recording screen take this key? Never from a field the speaker
- *  types in, never with a modifier (browser and OS shortcuts), and never
+ *  types in or a focused control, never with a modifier (browser and OS
+ *  shortcuts), never mid IME composition, and never
  *  while a modal dialog other than the screen itself is open (the Discard
  *  dialog owns the keys then). `root` is the screen's own element. */
 export function keyIsForTheScreen(
@@ -169,15 +175,24 @@ export function keyIsForTheScreen(
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
+    shiftKey: boolean;
+    isComposing?: boolean;
+    keyCode?: number;
     target: EventTarget | null;
   },
   doc: Document,
   root: Element | null,
 ): boolean {
   if (event.defaultPrevented) return false;
-  if (event.altKey || event.ctrlKey || event.metaKey) return false;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+  if (event.isComposing || event.keyCode === 229) return false;
   const target = event.target;
-  if (target instanceof Element && target.closest(TYPING)) return false;
+  if (target instanceof Element) {
+    if (target.closest(TYPING)) return false;
+    // The screen itself may be a button (the learning screen): still ours.
+    const control = target.closest(CONTROL);
+    if (control && control !== root) return false;
+  }
   return !modalOpenOver(doc, root);
 }
 

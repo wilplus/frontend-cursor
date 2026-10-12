@@ -161,7 +161,7 @@ describe("wheel: 140 at once, or 90 that then rests 220ms", () => {
   });
 });
 
-describe("keys: ↓ Page Down Space forward, ↑ Page Up back, Enter starts", () => {
+describe("keys: ↓ → Page Down Space forward, ↑ ← Page Up back, Enter starts", () => {
   it("maps each key", () => {
     expect(keyIntent("ArrowDown")).toBe("forward");
     expect(keyIntent("PageDown")).toBe("forward");
@@ -169,11 +169,12 @@ describe("keys: ↓ Page Down Space forward, ↑ Page Up back, Enter starts", ()
     expect(keyIntent("ArrowUp")).toBe("back");
     expect(keyIntent("PageUp")).toBe("back");
     expect(keyIntent("Enter")).toBe("start");
-    expect(keyIntent("ArrowLeft")).toBeNull();
+    expect(keyIntent("ArrowRight")).toBe("forward");
+    expect(keyIntent("ArrowLeft")).toBe("back");
     expect(keyIntent("a")).toBeNull();
   });
 
-  it("never takes a key from a field, a shortcut or an open dialog", () => {
+  it("never takes a key from a field, a control, a shortcut, IME or an open dialog", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
     const key = (over: Partial<Parameters<typeof keyIsForTheScreen>[0]>) => ({
@@ -181,6 +182,7 @@ describe("keys: ↓ Page Down Space forward, ↑ Page Up back, Enter starts", ()
       altKey: false,
       ctrlKey: false,
       metaKey: false,
+      shiftKey: false,
       target: document.body as EventTarget,
       ...over,
     });
@@ -188,7 +190,15 @@ describe("keys: ↓ Page Down Space forward, ↑ Page Up back, Enter starts", ()
     const input = document.createElement("input");
     root.appendChild(input);
     expect(keyIsForTheScreen(key({ target: input }), document, root)).toBe(false);
+    // A focused button keeps its own Space / Enter (Finish take, a rail dot).
+    const button = document.createElement("button");
+    root.appendChild(button);
+    expect(keyIsForTheScreen(key({ target: button }), document, root)).toBe(false);
+    // ...unless the screen itself is the button (the learning screen).
+    expect(keyIsForTheScreen(key({ target: button }), document, button)).toBe(true);
     expect(keyIsForTheScreen(key({ metaKey: true }), document, root)).toBe(false);
+    expect(keyIsForTheScreen(key({ shiftKey: true }), document, root)).toBe(false);
+    expect(keyIsForTheScreen(key({ isComposing: true }), document, root)).toBe(false);
     expect(keyIsForTheScreen(key({ defaultPrevented: true }), document, root)).toBe(false);
     const dialog = document.createElement("div");
     dialog.setAttribute("aria-modal", "true");
