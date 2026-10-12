@@ -51,6 +51,7 @@ import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
+import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import LibraryOverlay from "./LibraryOverlay";
 import {
   clearExploreArc,
@@ -304,7 +305,9 @@ export default function Lounge({
   function openIdealText(
     arcId: string,
     mode: IdealTextLaunchMode = "notebook",
+    at: WalkStepTarget | null = null,
   ): void {
+    setIdealTextReviewAt(at);
     if (state === "insights_ready") {
       clearInsightsReady();
       dispatch("insights_opened");
@@ -413,6 +416,7 @@ export default function Lounge({
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
+  const [idealTextReviewAt, setIdealTextReviewAt] = useState<WalkStepTarget | null>(null);
   const [idealTextLaunchMode, setIdealTextLaunchMode] =
     useState<IdealTextLaunchMode>("notebook");
   const [confidencePracticeId, setConfidencePracticeId] = useState<
@@ -1517,6 +1521,7 @@ export default function Lounge({
         <IdealTextOverlay
           arcId={idealTextArcId}
           initialMode={idealTextLaunchMode}
+          reviewAt={idealTextReviewAt}
           // W4/W5 — while a take is in flight (EITHER phase: analysing, or
           // the document still assembling) the overlay shows its blocking
           // state instead of last take's words; when this flips false (the
@@ -2023,7 +2028,7 @@ function WalkStepBubble({
   message: LoungeMessage;
   /** The review's end: its Ideal Text card's words; null otherwise. */
   card: { title: string; take: number | null } | null;
-  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
+  onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
   const arc = typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
   if (message.metadata?.step === "end") {
@@ -2032,7 +2037,10 @@ function WalkStepBubble({
   if (!message.body.trim()) return null;
   const mine = message.role === "user";
   const coach = message.metadata?.author === "coach";
-  const open = arc ? () => onOpenIdealText?.(arc, "review") : undefined;
+  const step = typeof message.metadata?.step === "string" ? message.metadata.step : null;
+  const moment = typeof message.metadata?.moment === "number" ? message.metadata.moment : null;
+  const at = step ? { step, moment } : null;
+  const open = arc ? () => onOpenIdealText?.(arc, "review", at) : undefined;
   if (mine) {
     return (
       <div className="flex justify-end">

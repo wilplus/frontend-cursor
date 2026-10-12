@@ -7,6 +7,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WALK_COPY } from "../idealEditCopy";
 import FeedbackWalk from "./FeedbackWalk";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import { buildFeedbackReplay, walkStart, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
@@ -20,7 +21,7 @@ const ITEMS: FeedbackWalkItem<string>[] = [
   { partId: "p1", start: 1, slide: 1, blockId: "b1", feedbackFamily: "confident_voice", paragraphText: "Last quarter our growth doubled.", slideLabel: "Slide 2", clip, judge: "cv-1" },
   {
     partId: "p2", start: 50, slide: 1, blockId: "b2", feedbackFamily: "rewrite_clarity", paragraphText: "The old words.", slideLabel: "Slide 2", clip,
-    rewrite: { quote: "The old words.", proposedText: "The new words.", item: "rw-2" }, item: "rw-2",
+    rewrite: { quote: "The old words.", proposedText: "The new words.", item: "rw-2", decided: "keep" }, item: "rw-2",
   },
   { partId: "p2", start: 51, slide: 1, blockId: "b2", feedbackFamily: "confident_voice", paragraphText: "The old words.", slideLabel: "Slide 2", clip, judge: "cv-2" },
   {
@@ -102,7 +103,7 @@ const picked = () =>
   );
 
 describe("the finished walk, played again", () => {
-  it("opens on the coach's note and plays every screen with the answers as given, writing nothing", () => {
+  it("opens on the coach's note and plays the same screens answered; helper words stay editable, nothing else writes", () => {
     draw();
     expect(screen()).toBe("walk-screen-coachnote");
     click(byTestId("walk-forward"));
@@ -110,14 +111,22 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward"));
     expect(screen()).toBe("walk-screen-helpers");
     expect(picked()).toEqual(["growth", "doubled."]);
-    // A tap on a word changes nothing; "Use these helper words" moves on.
-    click(live()!.querySelector("[data-walk-word-picker] button"));
-    expect(picked()).toEqual(["growth", "doubled."]);
+    // The words saved are drawn chosen and still editable (lock 2026-10-12,
+    // section 2.3): "Keep these" moves on; a new pick hands the host the words.
+    expect(byTestId("walk-skip")!.textContent).toBe(WALK_COPY.keepThese);
+    click(live()!.querySelectorAll("[data-walk-word-picker] button")[2]); // "our", next to the phrase
+    expect(picked()).toEqual(["our", "growth", "doubled."]);
     click(byTestId("walk-forward"));
+    expect(calls).toEqual(["helpers"]);
+    // The clearer version answered: "✓ You kept your words" over Next, no
+    // write and no recording.
     expect(screen()).toBe("walk-screen-clearer");
-    click(byTestId("walk-forward")); // "Accept and practise": no write, no recording
+    expect(live()!.textContent).toContain(WALK_COPY.answeredKept);
+    expect(byTestId("walk-keep")).toBeNull();
+    click(byTestId("walk-forward"));
     expect(screen()).toBe("walk-screen-exVideo");
-    click(byTestId("walk-forward")); // "Practise": no recording
-    expect(calls).toEqual([]);
+    expect(live()!.textContent).toContain(WALK_COPY.answered);
+    click(byTestId("walk-forward"));
+    expect(calls).toEqual(["helpers"]);
   });
 });

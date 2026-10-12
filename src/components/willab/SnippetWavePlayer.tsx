@@ -73,8 +73,11 @@ export default function SnippetWavePlayer({
   size?: "default" | "compact";
   /** "ink" draws the Feedback walk's one player (founder lock 2026-10-06:
    *  orange marks only new words), so the played part fills black rather
-   *  than orange. Every other caller keeps the default. */
-  tone?: "accent" | "ink";
+   *  than orange. "me" is the speaker's orange bubble in the lens (founder
+   *  lock 2026-10-12, prototype v31 `.lb.me .play`): a white round play
+   *  button with an orange triangle, white bars at .45 and 1, the time in
+   *  white. Every other caller keeps the default. */
+  tone?: "accent" | "ink" | "me";
   /** Accessible name; the visual has no text of its own. */
   label: string;
   /** Told when the <audio> errors (an expired signed link, a 404), as
@@ -148,8 +151,9 @@ export default function SnippetWavePlayer({
   const litBars = Math.round(fraction * bars.length);
   const Icon = playing ? Pause : Play;
   const compact = size === "compact";
+  const me = tone === "me";
   const [litClass, restClass] =
-    tone === "ink" ? ["bg-foreground/90", "bg-foreground/20"] : ["bg-primary", "bg-border"];
+    me ? ["bg-white", "bg-white/45"] : tone === "ink" ? ["bg-foreground/90", "bg-foreground/20"] : ["bg-primary", "bg-border"];
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -160,7 +164,8 @@ export default function SnippetWavePlayer({
         aria-label={playing ? `Pause ${label}` : `Play ${label}`}
         aria-pressed={playing}
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform",
+          "flex shrink-0 items-center justify-center rounded-full transition-transform",
+          me ? "bg-white text-primary" : "bg-foreground text-background",
           compact ? "h-8 w-8" : "h-[42px] w-[42px]",
           disabled ? "cursor-not-allowed opacity-50" : "hover:scale-105"
         )}
@@ -169,7 +174,10 @@ export default function SnippetWavePlayer({
       </button>
 
       <span
-        className={cn("flex min-w-0 flex-1 items-center gap-[2px]", compact ? "h-[22px]" : "h-[34px]")}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-[2px]",
+          compact ? "h-[22px]" : me ? "h-[30px]" : "h-[34px]",
+        )}
         aria-hidden
       >
         {bars.map((height, index) => (
@@ -186,8 +194,9 @@ export default function SnippetWavePlayer({
 
       <span
         className={cn(
-          "shrink-0 tabular-nums text-muted-foreground",
-          compact ? "text-[10.5px]" : "text-[11px]"
+          "shrink-0 tabular-nums",
+          me ? "text-[12.5px] text-white/85" : "text-muted-foreground",
+          !me && (compact ? "text-[10.5px]" : "text-[11px]")
         )}
       >
         {errored ? "unavailable" : disabled ? "—" : clock(clipDuration - elapsed)}

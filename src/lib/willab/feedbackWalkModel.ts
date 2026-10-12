@@ -59,7 +59,15 @@ export type FeedbackWalkItem<R = unknown> = WalkFeedbackItem & {
    *  the decision. Only from the served item; never made up. `move` is the
    *  served item's signed sentence for the rewrite (`rewriteMove`, 35f), the
    *  coach's line above the words to say on the practise; absent, none. */
-  rewrite?: { quote: string; proposedText: string; move?: string | null; item: R } | null;
+  rewrite?: {
+    quote: string;
+    proposedText: string;
+    move?: string | null;
+    item: R;
+    /** The speaker's decision, once given (the replay shows it): accepted,
+     *  or kept their words. Null while it waits. */
+    decided?: "accept" | "keep" | null;
+  } | null;
   /** The served item itself, set only where a practise can be opened on it
    *  (its clearer version's words, or the moment said again). Only handed
    *  back. */
@@ -92,6 +100,8 @@ export type FeedbackWalkItemExercise<R = unknown> = {
  *  instruction, the words to say and the item the practise is opened on. */
 export type FeedbackWalkExercise<R = unknown> = {
   video: string | null;
+  /** The coach chose it: the bubble is the coach's. */
+  byCoach: boolean;
   instruction: string | null;
   say: string;
   item: R;
@@ -102,7 +112,10 @@ export type FeedbackWalkExercise<R = unknown> = {
  *  and the item the decision is written on. */
 export type FeedbackWalkClearer<R = unknown> = ClearerPieces & {
   say: string;
+  /** The speaker's own sentence, practised on "Keep my words" (Line A). */
+  said: string;
   coachLine: string | null;
+  decided: "accept" | "keep" | null;
   item: R;
 };
 
@@ -156,6 +169,7 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "exVideo",
   "practise",
   "others",
+  "summary",
   "intro",
   "judge",
   "end",
@@ -170,14 +184,6 @@ function drawnPractise<R>(step: WalkStep, moment: FeedbackWalkMoment<R> | undefi
   if (moment?.practiseItem == null) return false;
   if (step.kind === "words") return moment.clearer != null;
   return step.kind === "moment";
-}
-
-/** The exercise video's screen is drawn only where there is a video to
- *  play: the coach's, else the library's. With none the walk goes straight
- *  to the practise (Q-B15 A). Never a screen that waits for a coach
- *  (WQ2 B). */
-function drawnVideo<R>(step: WalkStep, moment: FeedbackWalkMoment<R> | undefined): boolean {
-  return step.key !== "exVideo" || moment?.exercise?.video != null;
 }
 
 /** The moment's exercise from the ones its items carry: the coach's video
@@ -195,6 +201,7 @@ export function pickExercise<R>(
   if (!pick) return null;
   return {
     video: withVideo(pick) ? (pick.video as string).trim() : null,
+    byCoach: pick.byCoach,
     instruction: pick.instruction?.trim() || null,
     say: pick.say,
     item: pick.item,
@@ -210,7 +217,14 @@ function clearerOf<R>(group: readonly FeedbackWalkItem<R>[]): FeedbackWalkCleare
     const pieces = clearerPieces(i.rewrite.quote, i.rewrite.proposedText);
     if (pieces) {
       const coachLine = i.rewrite.move?.trim() || null;
-      return { ...pieces, say: i.rewrite.proposedText.trim(), coachLine, item: i.rewrite.item };
+      return {
+        ...pieces,
+        say: i.rewrite.proposedText.trim(),
+        said: i.rewrite.quote.trim(),
+        coachLine,
+        decided: i.rewrite.decided ?? null,
+        item: i.rewrite.item,
+      };
     }
   }
   return null;
@@ -242,11 +256,13 @@ function withoutLoneIntro(plan: WalkStep[]): WalkStep[] {
   return plan.filter((step) => step.key !== "intro");
 }
 
-/** Other speakers' moments follow a review: they never stand as the walk's
- *  only screen, so "Review feedback" with nothing to review opens nothing. */
+/** Other speakers' moments and the closing summary follow a review: they
+ *  never stand as the walk's only screens, so "Review feedback" with nothing
+ *  to review opens nothing. */
+const TAIL: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["others", "summary"]);
 function withoutLoneOthers(plan: WalkStep[]): WalkStep[] {
-  if (plan.some((step) => step.overlay !== false && step.key !== "others")) return plan;
-  return plan.filter((step) => step.key !== "others");
+  if (plan.some((step) => step.overlay !== false && !TAIL.has(step.key))) return plan;
+  return plan.filter((step) => !TAIL.has(step.key));
 }
 
 /** The walk for one Take, as this phase draws it. A clearer version is drawn
@@ -269,7 +285,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     return (
       WALK_PHASE_SCREENS.has(step.key) &&
       drawnPractise(step, moment) &&
-      drawnVideo(step, moment) &&
+      (step.key !== "exVideo" || moment?.exercise != null) &&
       (step.key !== "clearer" || moment?.clearer != null) &&
       (step.key !== "judge" || moment?.judgeItem != null)
     );
@@ -296,6 +312,17 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
   return at >= 0 ? at : null;
 }
 
+/** A step tapped in the Lounge (lock 2026-10-12, section 1): where that
+ *  step sits in the walk. Null when this walk has no such step. */
+export type WalkStepTarget = { step: string; moment: number | null };
+export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
+  if (!target) return null;
+  const at = model.plan.findIndex(
+    (s) => s.overlay !== false && s.key === target.step && (s.moment ?? null) === target.moment,
+  );
+  return at >= 0 ? at : null;
+}
+
 /** Where a tap on a paragraph opens the walk (Q-B3 A): its moment's first
  *  screen. Null when no moment of the walk is on it, or when this phase
  *  draws none of its screens. */
@@ -304,6 +331,18 @@ export function walkStepForPart(model: FeedbackWalkModel<unknown>, partId: strin
     if (!model.partsOf[moment].includes(partId)) continue;
     const at = stepForMoment(model.plan, moment);
     if (at !== null) return at;
+  }
+  return null;
+}
+
+/** Where a tap on a paragraph's helper words opens the walk (lock
+ *  2026-10-12, section 4): that paragraph's helper-words step. Null when
+ *  the paragraph has none. */
+export function walkHelpersForPart(model: FeedbackWalkModel<unknown>, partId: string): number | null {
+  for (let moment = 0; moment < model.partsOf.length; moment += 1) {
+    if (!model.partsOf[moment].includes(partId)) continue;
+    const at = model.plan.findIndex((s) => s.moment === moment && s.key === "helpers");
+    if (at >= 0) return at;
   }
   return null;
 }
@@ -339,10 +378,11 @@ export function firstJudgement(plan: readonly WalkStep[], at: number): boolean {
   return plan[at]?.key === "judge" && plan[at - 1]?.key !== "judge";
 }
 
-/** The screens of the replayed walk whose taps would write: drawn with the
- *  answer as given, and a tap moves on instead (helper words, a clearer
- *  version's decision, an exercise's practise). */
-const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["helpers", "clearer", "exVideo"]);
+/** The screens of the replayed walk whose taps would write: drawn answered,
+ *  and "Next" moves on (a clearer version's decision, an exercise's
+ *  practise, the judging of other speakers). Helper words stay editable
+ *  (lock 2026-10-12, section 2.3). */
+const REPLAY_AS_GIVEN: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["clearer", "exVideo", "others"]);
 
 /** THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A; the walk
  *  prototype's "Review feedback" under "Record Take N"). Built from every

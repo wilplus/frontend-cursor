@@ -14,7 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
-import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { PRAISE_CUE_COPY, PRAISE_LEAD } from "@/lib/willab/trackedChangeWhy";
 import type { Part } from "@/lib/willab/documentParts";
@@ -160,8 +160,9 @@ describe("the walk on the deck", () => {
     expect(screen()).toBe("walk-screen-praise");
     expect(live()!.className).toContain("walk-m-open");
     expect(pager()).toBeNull();
+    // "Good job" is the bubble's first line, then the praise (lock 2026-10-12).
     expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(
-      [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(""),
+      [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(
       `Slide 2 · ${COPY.pagerMoment} 1 ${COPY.pagerOf} 1`,
@@ -196,6 +197,18 @@ describe("the walk on the deck", () => {
     const [lockCall] = p.onLockPart.mock.calls as unknown[][];
     expect(chunkOf(lockCall)).toBe("p2");
     expect(lockCall[1]).toBe(SLIDES[1]);
+    // Nobody to judge and no summary to read: the walk lands on the page.
+    // The chosen words are orange in the text at once, and a tap on them
+    // opens that slide's helper-words step in the same walk (lock
+    // 2026-10-12, section 4), never the old helper-words sheet.
+    await act(async () => undefined);
+    expect(live()).toBeNull();
+    const orange = paragraph("retention went up")!.querySelector<HTMLElement>(".walk-helper-word");
+    expect(orange?.textContent).toBe("retention went");
+    await click(orange);
+    expect(screen()).toBe("walk-screen-helpers");
+    expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(`Slide 2 · ${WALK_COPY.navHelperWords}`);
+    expect(document.querySelector("[data-testid='helper-words-card']")).toBeNull();
   });
 });
 

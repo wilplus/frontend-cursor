@@ -7,7 +7,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHUNK_SHEET_COPY as COPY, WALK_LINE_BANK } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import FeedbackWalk, { type FeedbackWalkPractiseWords } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
@@ -222,13 +222,17 @@ async function tryAndRead() {
 
 describe("the practise screen", () => {
 
-  it("Stop uploads through the attempts route, cross-fades to the voice mark and posts /check", async () => {
+  it("Stop uploads through the attempts route, returns to the walk at once with the voice mark under the try, and posts /check", async () => {
     draw();
     await accept();
+    expect(live()!.querySelector("[data-walk-where]")!.textContent).toBe(WALK_COPY.practiseWhere("Slide 2"));
+    expect(live()!.querySelector("[data-walk-say]")!.textContent).toBe(OFFERED);
     answers = ["hang"];
     stop();
     expect(screen()).toBe("walk-screen-processing");
-    expect(live()!.className).toContain("walk-m-fade");
+    // Instant: no rise, no fade (lock 2026-10-12, section 2.5).
+    expect(live()!.className).not.toMatch(/walk-m-/);
+    expect(live()!.querySelector("[data-walk-player][data-walk-me]")!.textContent).toContain(WALK_COPY.practiseN(1));
     expect(live()!.querySelector("[data-walk-loading]")).not.toBeNull();
     await settle();
     const upload = calls.find((c) => c.url.endsWith("/attempts"))!;
@@ -245,9 +249,8 @@ describe("the machine's answer", () => {
     answers = [{ next: "praise", key: "cue:landed_ending" }];
     await tryAndRead();
     expect(screen()).toBe("walk-screen-improved");
-    expect(live()!.querySelector("h2")!.textContent).toBe(COPY.titlePraise);
-    expect(message()).toBe(WALK_LINE_BANK.B07.lines[0]);
-    expect(live()!.querySelector("[data-walk-player]")).not.toBeNull();
+    expect(message()).toBe(`${COPY.titlePraise}${WALK_LINE_BANK.B07.lines[0]}`);
+    expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     forward();
     expect(screen()).toBe("walk-screen-helpers");
     const words = [...live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")];
@@ -280,7 +283,9 @@ describe("the fences", () => {
       expect(html).not.toMatch(/\blane\b|cue:|"z"|score|practice-check|rule_version|B0\d|NX3a|CM3b/i);
       const text = new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
       // The strip's clock and the moment's position are the only figures.
-      expect(text.replace(/\d+:\d{2}/g, "").replace(/moment \d+ of \d+/gi, "").replace("Slide 2", "")).not.toMatch(/\d/);
+      expect(
+        text.replace(/\d+:\d{2}/g, "").replace(/moment \d+ of \d+/gi, "").replace(/Slide 2/g, "").replace(/Practise \d/g, ""),
+      ).not.toMatch(/\d/);
     }
   });
 

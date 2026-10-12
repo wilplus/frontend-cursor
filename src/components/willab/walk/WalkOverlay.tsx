@@ -29,6 +29,9 @@ export type WalkNav = {
   onNext: () => void;
   /** Back is off on the first screen. */
   backDisabled?: boolean;
+  /** › is off until the step is answered and a next step exists (lock
+   *  2026-10-12). */
+  nextDisabled?: boolean;
 };
 
 export function walkNavText(nav: WalkNav): string {
@@ -54,8 +57,9 @@ function NavBar({ nav }: { nav: WalkNav }) {
       <button
         type="button"
         onClick={nav.onNext}
+        disabled={nav.nextDisabled}
         aria-label={COPY.pagerNext}
-        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+        className="walk-press-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground disabled:cursor-default disabled:opacity-25"
       >
         <ChevronRight className="h-5 w-5" aria-hidden />
       </button>
@@ -85,6 +89,7 @@ function BackOnly({ onBack, label }: { onBack: () => void; label?: string | null
 export default function WalkOverlay({
   nav,
   caption = null,
+  where = null,
   onBack,
   backLabel,
   onClose,
@@ -100,6 +105,9 @@ export default function WalkOverlay({
    *  bar's text alone, without ‹ ›. Ignored when `nav` or `onBack` is given
    *  (a paragraph opened outside the walk, build plan D-IT-6). */
   caption?: string | null;
+  /** The practise recorder's bar ("Practise · Slide 3"): 13px, 600, muted,
+   *  as the recording screen's own (lock 2026-10-12, section 2.5). */
+  where?: string | null;
   /** ‹ without the moment bar; ignored when `nav` is given. */
   onBack?: () => void;
   /** The words beside that ‹: where it goes. */
@@ -134,6 +142,10 @@ export default function WalkOverlay({
           <span data-walk-caption className="min-w-0 truncate px-2 text-[13.5px] font-semibold">
             {caption}
           </span>
+        ) : where ? (
+          <p data-walk-where className="m-0 min-w-0 truncate px-1.5 text-[13px] font-semibold tabular-nums text-muted-foreground">
+            {where}
+          </p>
         ) : (
           <span />
         )}
@@ -153,7 +165,7 @@ export default function WalkOverlay({
       {bare ? (
         children
       ) : (
-        <div className={cn("flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-5 py-3")}>{children}</div>
+        <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-3.5")}>{children}</div>
       )}
       {footer}
     </div>
