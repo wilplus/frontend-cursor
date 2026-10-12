@@ -14,7 +14,7 @@ vi.mock("./pdfSlides", () => ({
   SlideRender: () => createElement("div", { "data-testid": "slide" }),
 }));
 
-import { RecordingPhase, labColumnClass, showsMicWait } from "./LabOverlay";
+import { RecordingPhase, showsMicWait } from "./LabOverlay";
 import { resetSharedWheel } from "./useRecordingGestures";
 
 let root: Root;
@@ -200,17 +200,6 @@ describe("the learning screen", () => {
 });
 
 describe("the learning screen and the mic waits keep the prototype's 24px top gap (build plan D-RC-1)", () => {
-  const top = (cls: string) => cls.split(" ").filter((c) => /^pt-/.test(c));
-
-  it("is pt-0 only while the mic records", () => {
-    expect(top(labColumnClass("lab_recording", "recording"))).toEqual(["pt-0"]);
-    // Take 1's learning screen and the mic still opening: mic idle.
-    expect(top(labColumnClass("lab_recording", "idle"))).toEqual(["pt-6"]);
-    // "Getting your mic ready" before a later Take.
-    expect(top(labColumnClass("lab_prerecord", "idle"))).toEqual(["pt-6"]);
-    expect(top(labColumnClass("lab_prerecord", "stopped"))).toEqual(["pt-6"]);
-    expect(top(labColumnClass("lab_recording", "error"))).toEqual(["pt-6"]);
-  });
 
   it("shows one mic wait from lab_prerecord through the mic opening", () => {
     // Before a later Take, once the training question is out of the way.

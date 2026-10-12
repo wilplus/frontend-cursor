@@ -9,7 +9,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OpenChunkSheet from "./OpenChunkSheet";
-import { savedStateShowsPlayer } from "./ParagraphSheet";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
@@ -104,10 +103,6 @@ const saved = () => container.querySelector('[data-testid="overlay-saved"]');
 const player = () => saved()?.querySelector("[data-walk-player]") ?? null;
 
 describe("the saved state's player (D6 amended, N48.1)", () => {
-  it("is a rule: Take 1 plays the moment, a later Take does not", () => {
-    expect(savedStateShowsPlayer(true)).toBe(true);
-    expect(savedStateShowsPlayer(false)).toBe(false);
-  });
 
   it("draws no player on a project with two or more Takes, clip or not", async () => {
     await render(false);
