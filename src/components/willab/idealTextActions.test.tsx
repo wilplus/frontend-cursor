@@ -5,10 +5,8 @@
 /*                                                                            */
 /*  The pills are the walk's: 54px, 16px semibold; the Record pill carries   */
 /*  the 10px red dot, not a mic; the link is 40px / 16px muted with no icon;  */
-/*  there is no top border. While a moment waits: "Review feedback" is the   */
-/*  pill and "Record Take N" the link (J1). After the walk: "● Record Take   */
-/*  N" with a "Review feedback" link where the page has the data. The end    */
-/*  card: the next Take only (J4). "See next steps" is gone (Q-B10 A).        */
+/*  there is no top border. "● Record Take N" and the grey "Close" (lock      */
+/*  2026-10-12, sections 4 and 9). The end card: the next Take only (J4).    */
 /* -------------------------------------------------------------------------- */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -46,20 +44,13 @@ afterEach(() => {
   host.remove();
 });
 
-describe("the next step (J1, J4, Q-B10 A)", () => {
-  it("while a moment waits: Review feedback is the pill, Record Take N the link", () => {
-    const onReview = vi.fn();
-    render({ takeCount: 1, reviewWaiting: true, onReview });
-    expect(labels()).toEqual(["Review feedback", "Record Take 2"]);
-    expect(pill()!.textContent).toBe("Review feedback");
-    expect(link()!.textContent).toBe("Record Take 2");
-    act(() => pill()!.click());
-    expect(onReview).toHaveBeenCalledTimes(1);
-  });
-
-  it("once nothing waits: ● Record Take N alone", () => {
-    render({ takeCount: 1, reviewWaiting: false, onReview: vi.fn() });
-    expect(labels()).toEqual(["Record Take 2"]);
-    expect(link()).toBeNull();
+describe("the next step (founder lock 2026-10-12, sections 4 and 9)", () => {
+  it("is ● Record Take N and a grey Close, the one way out", () => {
+    const onClose = vi.fn();
+    render({ takeCount: 1, reviewWaiting: true, onReview: vi.fn(), onClose });
+    expect(labels()).toEqual(["Record Take 2", "Close"]);
+    expect(pill()!.textContent).toContain("Record Take 2");
+    act(() => link()!.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,7 +4,6 @@ import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
-import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import LoadingState from "./LoadingState";
@@ -922,6 +921,7 @@ export default function IdealTextOverlay({
         onReview={() => setReviewRequest((n) => n + 1)}
         onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={() => onReadAloud(sd.version)}
+        onClose={onClose}
       />
     );
   }
@@ -966,7 +966,6 @@ export default function IdealTextOverlay({
               copied={copied}
             />
           ) : null}
-          <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
       <FeedbackLoadingLine active={shownStatus === "ready" && feedbackPending} />
