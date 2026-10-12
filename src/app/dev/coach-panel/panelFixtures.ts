@@ -213,7 +213,6 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.includes("/api/v2/coach/v4-surer-pairs") && c.method === "GET",
       reply: () => (v4SheetsOn() ? json(V4_SURER) : json({ error: "off" }, 404)) },
     { when: (c) => c.url.includes("/api/v2/coach/v4-") && c.method === "POST", reply: () => json({ recorded: true }) },
-    { when: (c) => c.url.includes("/api/v2/coach/take-bubbles"), reply: () => json({ error: "off" }, 404) },
     { when: (c) => c.url.includes("/api/v2/coach/speaking-errors"), reply: () => json({ errors: [] }) },
     { when: (c) => c.url.includes("/api/v2/coach/queue/moments"), reply: () => json(queueJson(new Set(rated.keys()), resolved)) },
     { when: (c) => c.url.includes("/api/v2/coach/speakers"), reply: () => json(speakersJson(new Set(rated.keys()), resolved)) },

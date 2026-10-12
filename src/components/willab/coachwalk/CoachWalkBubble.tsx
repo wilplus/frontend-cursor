@@ -2,9 +2,8 @@
 
 /* -------------------------------------------------------------------------- */
 /*  The Lounge's one bubble for a coach, "N speakers waiting · Open your       */
-/*  queue" (founder 2026-09-30, A7). Today's door (CoachWalkEntry) and the     */
-/*  redrawn panel's door (CoachPanelDoor) both draw it, so it lives on its    */
-/*  own. A count of people to see, never of quality (AC-9).                   */
+/*  queue" (founder 2026-09-30, A7), drawn by the coach panel's door         */
+/*  (CoachPanelDoor). A count of people to see, never of quality (AC-9).      */
 /* -------------------------------------------------------------------------- */
 
 import { COACH_WALK_COPY as COPY } from "@/lib/willab/coachWalkCopy";

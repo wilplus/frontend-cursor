@@ -15,28 +15,12 @@ export const COACH_WALK_COPY = {
   queueTake: (takeIndex: number | null, moments: number) =>
     `${takeIndex ? `Take ${takeIndex}` : "Take"} · ${moments} ${moments === 1 ? "moment" : "moments"}`,
   queueMoment: (index: number) => `Moment ${index}`,
-  queueNextSpeaker: "Next speaker",
   /* a Take whose bookmarks are not frozen yet (founder 2026-10-01, A1) */
   queueWaitingForText: "Waiting for the text",
-  /* the one bubble in the Lounge, and the button under the thread */
+  /* the one bubble in the Lounge */
   bubbleWaiting: (n: number) =>
     n === 0 ? "Nobody waiting" : `${n} ${n === 1 ? "speaker" : "speakers"} waiting`,
   bubbleOpen: "Open your queue",
-  buttonQueue: "Your queue",
-
-  /* Students (founder 2026-10-01, Phase 0b) · proposed, held for sign-off */
-  buttonStudents: "Students",
-  studentsTitle: "Your students",
-  studentsEmpty: "No students yet.",
-  studentsNotACoach: "This account isn’t set up as a coach yet.",
-  studentsProfileFail: "Couldn’t load this student just now.",
-  studentsGoal: "Goal",
-  studentsTakes: "Takes",
-  studentsTake: (takeIndex: number | null) => (takeIndex ? `Take ${takeIndex}` : "Take"),
-  studentsNoTakes: "No Takes yet.",
-  studentsOpenWalk: "Open the walk",
-  studentsOpening: "Opening…",
-  studentsOpenFail: "Couldn’t open this Take just now.",
 
   /* the state words (P2-6): where the coach is with a moment */
   state: {
@@ -169,22 +153,11 @@ export const COACH_WALK_COPY = {
 
   /* the library (L1 to L5) */
   libraryTitle: "Your library",
-  libraryEyebrowVideos: "Exercises · by main target",
-  libraryEyebrowLines: "Praise lines · rewrite moves",
-  libraryEmpty: "Nothing in the library yet.",
   libraryTranscribed: "transcribed",
   libraryTranscribing: "transcribing…",
   libraryRetired: "retired",
   libraryLine: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
-  libraryMove: (n: number) => `${n} ${n === 1 ? "move" : "moves"}`,
   pillNew: "New",
-  patternTitle: "What is it for",
-  patternEyebrow: "One pattern · detected ones only can route",
-  patternErrors: "Errors · detected",
-  patternPraise: "Praise · a read or a cue",
-  patternRewrite: "Rewrite · a move",
-  patternNamedOnly: "Named only · cannot route yet",
-  patternNeeded: "Pick one pattern.",
   lanePassage: "From the library’s own exercises for this pattern",
   laneEyebrowDrafted: "Drafted from the library · edit every word",
 
@@ -204,10 +177,4 @@ export const COACH_WALK_COPY = {
   /* The blind lines in the queue (6a, 8): the titles and "Also waiting · blind"
      come from the backend's wording; this count is PROPOSED, for sign-off. */
   queueBlindWaiting: (n: number) => `${n} waiting`,
-
-  /* Phase 0c · a student's new Take as a bubble (A2). PROPOSED, for sign-off. */
-  bubbleTake: (who: string, takeIndex: number | null) =>
-    takeIndex ? `${who} · Take ${takeIndex}` : who,
-  bubbleTakeOpen: "Open the walk",
-  bubbleTakeWaiting: "Waiting for the text",
 } as const;

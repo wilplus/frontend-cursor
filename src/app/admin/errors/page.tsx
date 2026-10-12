@@ -1,9 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isFounderEmail } from "@/lib/founder";
-import SpeakingErrorLibraryClient from "./page.client";
 import SpeakingErrorsPanel from "./SpeakingErrorsPanel";
-import { coachPanelOnForPage } from "@/lib/willab/coachPanelSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +23,7 @@ export const dynamic = "force-dynamic";
 /*  read again by email.                                                      */
 /* -------------------------------------------------------------------------- */
 
-type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
-
-export default async function AdminErrorsPage({ searchParams }: PageProps) {
+export default async function AdminErrorsPage() {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -36,7 +32,7 @@ export default async function AdminErrorsPage({ searchParams }: PageProps) {
     redirect("/login?redirectTo=/admin/errors");
   }
   if (!isFounderEmail(user.email)) notFound();
-  // The rebuilt screens wait behind the coach panel's switch until the
-  // founder approves them from the Done list (Q-CP645 A, 2026-10-08).
-  return coachPanelOnForPage(searchParams) ? <SpeakingErrorsPanel founder /> : <SpeakingErrorLibraryClient founder />;
+  // The rebuilt screen (Q-CP645 A), permanent since the founder's
+  // "keep the new designs, make them permanent" (2026-10-11).
+  return <SpeakingErrorsPanel founder />;
 }
