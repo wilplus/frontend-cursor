@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { PresentationSlide } from "@/components/willab/presentation";
 
 /* -------------------------------------------------------------------------- */
@@ -23,23 +23,13 @@ export interface ArcSetup {
 /** Fetch the arc's setup. null on any non-200 (not owner / no takes / error)
  *  so the caller degrades to a blank setup rather than blocking the record. */
 export async function fetchArcSetup(arcId: string): Promise<ArcSetup | null> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/setup`,
-      { headers, credentials: "include", cache: "no-store" }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const res = await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/setup`, {
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (res.kind !== "response" || !res.ok) return null;
+  const body = res.body as Record<string, unknown> | null;
   if (!body || typeof body.topic !== "string" || !body.topic.trim()) {
     // `topic` is load-bearing (the record POST rejects a take without one);
     // without it there is nothing usable to inherit.

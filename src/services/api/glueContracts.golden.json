@@ -1,0 +1,2062 @@
+{
+  "checkPracticeAttempt": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/confidence-practice/p1/attempts/a1/check",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": {
+          "check": {
+            "next": "praise",
+            "key": "B02"
+          },
+          "attemptWords": "hi"
+        }
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "ok": false,
+        "status": 401,
+        "code": "NO_SESSION"
+      }
+    }
+  },
+  "fetchCommunities": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/communities",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": [
+          {
+            "id": "c1",
+            "kind": "general",
+            "name": "N",
+            "role": "owner"
+          }
+        ]
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "ok": false,
+        "status": 401,
+        "code": "NO_SESSION"
+      }
+    }
+  },
+  "shareTake refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/takes/t1/share",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"general\":true,\"community_ids\":[\"c1\"],\"none\":false,\"share_words_version\":\"v1\"}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 409,
+        "code": "X"
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "ok": false,
+        "status": 401,
+        "code": "NO_SESSION"
+      }
+    }
+  },
+  "adminRings.setFeature": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/admin/rings/features/f1",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"feature\":\"f1\"}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "value": {
+          "feature": "f1"
+        }
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/admin/rings/features/f1",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"feature\":\"f1\"}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "value": {
+          "feature": "f1"
+        }
+      }
+    }
+  },
+  "adminRings.features refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/admin/rings/features",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "FORBIDDEN",
+        "status": 403
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/admin/rings/features",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "FORBIDDEN",
+        "status": 403
+      }
+    }
+  },
+  "founderLearning.judge": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/research/golden/cv/judgements",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"snippet_id\":\"s1\",\"take_session_id\":null,\"value\":\"yes\"}",
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "HTTP_500",
+        "status": 500
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/research/golden/cv/judgements",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"snippet_id\":\"s1\",\"take_session_id\":null,\"value\":\"yes\"}",
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "HTTP_500",
+        "status": 500
+      }
+    }
+  },
+  "adminGetPost wrong password": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/internal/journal/posts/get",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"password\":\"pw\",\"id\":\"id1\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 401,
+        "message": "Wrong password."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/internal/journal/posts/get",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"password\":\"pw\",\"id\":\"id1\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 401,
+        "message": "Wrong password."
+      }
+    }
+  },
+  "adminListPosts": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/internal/journal/posts/list",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"password\":\"pw\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": []
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/internal/journal/posts/list",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"password\":\"pw\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": []
+      }
+    }
+  },
+  "listCoachExercises refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/exercises",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 403,
+        "message": "Coach access required."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/exercises",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 403,
+        "message": "Coach access required."
+      }
+    }
+  },
+  "listSpeakingErrors": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/speaking-errors",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": []
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/speaking-errors",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "data": []
+      }
+    }
+  },
+  "fetchArcSetup": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/setup",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "topic": "T",
+        "audience": null,
+        "targetLengthSeconds": null,
+        "slides": [
+          {
+            "title": "s",
+            "body": "b"
+          }
+        ],
+        "presentationRef": null
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/setup",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "topic": "T",
+        "audience": null,
+        "targetLengthSeconds": null,
+        "slides": [
+          {
+            "title": "s",
+            "body": "b"
+          }
+        ],
+        "presentationRef": null
+      }
+    }
+  },
+  "markCoachFeedbackSeen": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/coach-feedback/seen",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"take_session_id\":\"t1\",\"snippet_id\":\"s1\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [],
+      "result": false
+    }
+  },
+  "reportExerciseRendered stale": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/snippets/s1/exercise-rendered",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"exercise_id\":\"e1\"}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": "stale"
+    },
+    "signedOut": {
+      "requests": [],
+      "result": "failed"
+    }
+  },
+  "reportExerciseRendered": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/snippets/s1/exercise-rendered",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"exercise_id\":\"e1\"}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": "recorded"
+    },
+    "signedOut": {
+      "requests": [],
+      "result": "failed"
+    }
+  },
+  "fetchSessionReadout": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/sessions/s1/readout",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "state": "done",
+        "readout": {
+          "snippets": [],
+          "feedbackItems": [],
+          "fullTranscriptChunks": [],
+          "instantChunks": [],
+          "overallMessage": null,
+          "presentationRef": null,
+          "slides": [],
+          "slideTranscripts": [],
+          "voiceMetricsAvailable": true,
+          "parentAudioRef": null,
+          "audience": null,
+          "auditPaid": true
+        },
+        "setup": null
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": null
+    }
+  },
+  "fetchTrainings": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/trainings?include_archived=1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": [
+        {
+          "arcId": "a1",
+          "topic": "T",
+          "createdAt": null,
+          "takeCount": 0,
+          "takes": [],
+          "batchVerified": false,
+          "idealReady": false,
+          "bestPresentationArcId": "a1",
+          "coverRef": null,
+          "deletion": null,
+          "archived": false
+        }
+      ]
+    },
+    "signedOut": {
+      "requests": [],
+      "result": null
+    }
+  },
+  "saveIdealText nothing": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/ideal-text/save",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "nothing"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/ideal-text/save",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "nothing"
+      }
+    }
+  },
+  "archiveProject": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/projects/p1/archive",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [],
+      "result": false
+    }
+  },
+  "fetchContextDocument": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/context-document",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "hasDocument": true,
+        "pages": 2,
+        "chars": null,
+        "truncated": false,
+        "filename": null
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/context-document",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "hasDocument": true,
+        "pages": 2,
+        "chars": null,
+        "truncated": false,
+        "filename": null
+      }
+    }
+  },
+  "uploadContextDocument too large": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/context-document",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": "FormData(file)",
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "reason": "too_large",
+        "message": "That file is too large. Try a smaller file, or keep it under 20 pages."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/context-document",
+          "method": "POST",
+          "headers": {},
+          "body": "FormData(file)",
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "reason": "too_large",
+        "message": "That file is too large. Try a smaller file, or keep it under 20 pages."
+      }
+    }
+  },
+  "decideBlock stale": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/3/decide",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"action\":\"accept\",\"take_session_id\":\"t1\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "stale"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/3/decide",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"action\":\"accept\",\"take_session_id\":\"t1\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "stale"
+      }
+    }
+  },
+  "fetchLineBankNext": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/line-bank",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "a": 1
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": null
+    }
+  },
+  "recordLineShown": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/line-bank/shown",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"bank\":\"a\"}",
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [],
+      "result": null
+    }
+  },
+  "fetchBlockVariants off": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/variants",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "kind": "off"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/variants",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "kind": "off"
+      }
+    }
+  },
+  "selectBlockVariant stale": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/2/select",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"variant_id\":\"v1\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "stale"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/blocks/2/select",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"variant_id\":\"v1\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "stale"
+      }
+    }
+  },
+  "fetchIdealTextRevisions": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/ideal-text/revisions",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "kind": "ready",
+        "headRevision": 1,
+        "revisions": [
+          {
+            "revision": 1,
+            "reason": "seed",
+            "createdAt": null,
+            "isHead": false
+          }
+        ]
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/ideal-text/revisions",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "kind": "ready",
+        "headRevision": 1,
+        "revisions": [
+          {
+            "revision": 1,
+            "reason": "seed",
+            "createdAt": null,
+            "isHead": false
+          }
+        ]
+      }
+    }
+  },
+  "setPartLock undecided": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/lock",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"locked\":true,\"text_echo\":\"words\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "undecided"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/lock",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"locked\":true,\"text_echo\":\"words\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "kind": "undecided"
+      }
+    }
+  },
+  "setPartRootPhrase": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/root",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"text_echo\":\"words\",\"phrase\":null,\"start\":null,\"end\":null}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/root",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text_echo\":\"words\",\"phrase\":null,\"start\":null,\"end\":null}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    }
+  },
+  "setPartHelperWordsFromTake": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/helper-words",
+          "method": "PUT",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"phrase\":\"go\",\"take_index\":2}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/helper-words",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"phrase\":\"go\",\"take_index\":2}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    }
+  },
+  "fetchArcFeedback": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/feedback",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "arcId": "",
+        "takes": [],
+        "idealReady": false
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/feedback",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "arcId": "",
+        "takes": [],
+        "idealReady": false
+      }
+    }
+  },
+  "fetchStrengths": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/strengths",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "general": [],
+        "presentations": []
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "general": [],
+        "presentations": []
+      }
+    }
+  },
+  "fetchVoiceAlbum": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": []
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": []
+    }
+  },
+  "saveMomentNote": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/note",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"arc_id\":\"a1\",\"moment_key\":\"s1\",\"body\":\"note\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/note",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"arc_id\":\"a1\",\"moment_key\":\"s1\",\"body\":\"note\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": null
+    }
+  },
+  "fetchPracticeQueue": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/practice-queue",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "mine": [],
+        "general": [],
+        "generalAvailable": false
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/practice-queue",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "mine": [],
+        "general": [],
+        "generalAvailable": false
+      }
+    }
+  },
+  "savePracticeAnswer": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/practice-answer",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"arc_id\":\"a1\",\"take_session_id\":\"t1\",\"snippet_id\":\"s1\",\"response\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/voice-album/practice-answer",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"arc_id\":\"a1\",\"take_session_id\":\"t1\",\"snippet_id\":\"s1\",\"response\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    }
+  },
+  "fetchParagraphHistory": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/history",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/explore/arc/a1/parts/p1/history",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    }
+  },
+  "fetchLoungeHistory": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/lounge/messages?limit=50&before=c1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "messages": [],
+        "has_more": true,
+        "oldest_cursor": null
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "messages": [],
+        "has_more": false,
+        "oldest_cursor": null
+      }
+    }
+  },
+  "clearLoungeThread": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/lounge/messages",
+          "method": "DELETE",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": null,
+          "cache": null
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [],
+      "result": null
+    }
+  },
+  "reportMomentEvent": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/snippets/s1/moment-event",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"event\":\"opened\",\"shown\":[\"praise\"]}",
+          "credentials": null,
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "kind": "recorded",
+        "followUp": "x"
+      }
+    },
+    "signedOut": {
+      "requests": [],
+      "result": {
+        "kind": "failed"
+      }
+    }
+  },
+  "sendSuggestionFeedback": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/user/snippets/s1/suggestion-feedback",
+          "method": "POST",
+          "headers": {
+            "authorization": "Bearer tok",
+            "content-type": "application/json"
+          },
+          "body": "{\"session_id\":\"t1\",\"target\":\"upgrade\",\"action\":\"applied\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "saved": true
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/user/snippets/s1/suggestion-feedback",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"session_id\":\"t1\",\"target\":\"upgrade\",\"action\":\"applied\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "saved": true
+      }
+    }
+  },
+  "fetchMomentsQueue languages": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/queue/moments",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "RATER_LANGUAGES_REQUIRED"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/queue/moments",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": false,
+        "code": "RATER_LANGUAGES_REQUIRED"
+      }
+    }
+  },
+  "fetchMomentsQueue": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/queue/moments",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "speakers": []
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/queue/moments",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "ok": true,
+        "speakers": []
+      }
+    }
+  },
+  "fetchMomentRead": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/moment",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "passage": "p",
+        "speakerAnswer": "yes",
+        "coachAnswer": null,
+        "speakerGoal": null,
+        "heard": [
+          {
+            "kind": "cue",
+            "key": "B02",
+            "label": null
+          }
+        ],
+        "request": null,
+        "practice": null
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/moment",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "passage": "p",
+        "speakerAnswer": "yes",
+        "coachAnswer": null,
+        "speakerGoal": null,
+        "heard": [
+          {
+            "kind": "cue",
+            "key": "B02",
+            "label": null
+          }
+        ],
+        "request": null,
+        "practice": null
+      }
+    }
+  },
+  "judgePractice": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/practice-judgement",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"answer\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/practice-judgement",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"answer\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": true
+    }
+  },
+  "draftForRequest": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request/draft",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"notes\":\"n\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "surface": "praise_line",
+        "text": "Good",
+        "modelVersion": null
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request/draft",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"notes\":\"n\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "surface": "praise_line",
+        "text": "Good",
+        "modelVersion": null
+      }
+    }
+  },
+  "uploadAnswerVideo refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request/video",
+          "method": "POST",
+          "headers": {},
+          "body": "FormData(video_file)",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Too big."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request/video",
+          "method": "POST",
+          "headers": {},
+          "body": "FormData(video_file)",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Too big."
+      }
+    }
+  },
+  "answerInWords refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"resolution\":\"line_written\",\"answer_text\":\"a\",\"share_with_user\":true,\"file_in_catalogue\":false}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Couldn’t save your answer."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"resolution\":\"line_written\",\"answer_text\":\"a\",\"share_with_user\":true,\"file_in_catalogue\":false}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Couldn’t save your answer."
+      }
+    }
+  },
+  "fetchTakeWord": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "text": "w",
+        "videoUrl": null,
+        "videoRef": null,
+        "sharedAt": "x"
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "text": "w",
+        "videoUrl": null,
+        "videoRef": null,
+        "sharedAt": "x"
+      }
+    }
+  },
+  "saveTakeWord": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"w\",\"video_ref\":\"r\",\"share\":true}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "word": {
+          "text": "w",
+          "videoUrl": null,
+          "videoRef": null,
+          "sharedAt": null
+        }
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"text\":\"w\",\"video_ref\":\"r\",\"share\":true}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": true,
+        "word": {
+          "text": "w",
+          "videoUrl": null,
+          "videoRef": null,
+          "sharedAt": null
+        }
+      }
+    }
+  },
+  "listCatalogue": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/catalogue",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": [
+        {
+          "id": "1",
+          "lane": "praise",
+          "patternKind": "cue",
+          "patternKey": "B02",
+          "text": "t",
+          "version": 1,
+          "signedBy": null,
+          "active": true
+        }
+      ]
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/catalogue",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": [
+        {
+          "id": "1",
+          "lane": "praise",
+          "patternKind": "cue",
+          "patternKey": "B02",
+          "text": "t",
+          "version": 1,
+          "signedBy": null,
+          "active": true
+        }
+      ]
+    }
+  },
+  "addCatalogueLine refused": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/catalogue",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"lane\":\"rewrite\",\"pattern_kind\":\"move\",\"pattern_key\":\"k\",\"text\":\"t\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Taken."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/catalogue",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"lane\":\"rewrite\",\"pattern_kind\":\"move\",\"pattern_key\":\"k\",\"text\":\"t\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "Taken."
+      }
+    }
+  },
+  "fetchExercisePreference": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-preference",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-preference",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    }
+  },
+  "draftTakeWord": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word/draft",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/word/draft",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": null
+    }
+  },
+  "fetchErrorAudit": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/error-audit",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "items": [],
+        "wording": {}
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/error-audit",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": {
+        "items": [],
+        "wording": {}
+      }
+    }
+  },
+  "answerErrorAudit": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/error-audit/x1/answer",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"answer\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 500
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/error-audit/x1/answer",
+          "method": "POST",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"answer\":\"yes\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "status": 500
+      }
+    }
+  },
+  "fetchCoachSpeakers": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/speakers",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": []
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/speakers",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": []
+    }
+  },
+  "fetchCoachReviewSession": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1",
+          "method": "GET",
+          "headers": {
+            "authorization": "Bearer tok"
+          },
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1",
+          "method": "GET",
+          "headers": {},
+          "body": null,
+          "credentials": "include",
+          "cache": "no-store"
+        }
+      ],
+      "result": null
+    }
+  },
+  "uploadCoachVideo": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/video",
+          "method": "POST",
+          "headers": {},
+          "body": "FormData(video_file,upload_idempotency_key,duration)",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": "r1"
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/video",
+          "method": "POST",
+          "headers": {},
+          "body": "FormData(video_file,upload_idempotency_key,duration)",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": "r1"
+    }
+  },
+  "answerCoachExerciseRequest": {
+    "signedIn": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"resolution\":\"no_safe_match\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "No."
+      }
+    },
+    "signedOut": {
+      "requests": [
+        {
+          "url": "/api/v2/coach/sessions/t1/snippets/s1/exercise-request",
+          "method": "PUT",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": "{\"resolution\":\"no_safe_match\"}",
+          "credentials": "include",
+          "cache": null
+        }
+      ],
+      "result": {
+        "ok": false,
+        "message": "No."
+      }
+    }
+  }
+}

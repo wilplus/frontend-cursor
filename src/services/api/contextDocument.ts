@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  contextDocument (X-1) — attach a background context document to an arc.     */
@@ -44,23 +44,14 @@ export async function fetchContextDocument(
     truncated: false,
     filename: null,
   };
-  const token = await getAuthToken();
-  let res: Response;
-  try {
-    res = await fetch(endpoint(arcId), {
-      method: "GET",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-      cache: "no-store",
-    });
-  } catch {
-    return none;
-  }
-  if (!res.ok) return none;
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const res = await bffFetch(endpoint(arcId), {
+    method: "GET",
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (res.kind !== "response" || !res.ok) return none;
+  const body = res.body as Record<string, unknown> | null;
   if (!body) return none;
   return {
     hasDocument: body.has_document === true,
@@ -79,25 +70,19 @@ export async function uploadContextDocument(
   arcId: string,
   file: File
 ): Promise<UploadContextResult> {
-  const token = await getAuthToken();
   const form = new FormData();
   form.append("file", file);
-  let res: Response;
-  try {
-    res = await fetch(endpoint(arcId), {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-      cache: "no-store",
-      body: form,
-    });
-  } catch {
+  const res = await bffFetch(endpoint(arcId), {
+    method: "POST",
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+    body: form,
+  });
+  if (res.kind !== "response") {
     return { ok: false, reason: "error", message: "Network error. Try again." };
   }
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = res.body as Record<string, unknown> | null;
   if (res.ok) {
     return {
       ok: true,

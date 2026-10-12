@@ -6,7 +6,6 @@ import {
   nextSettleDelayMs,
   retryableMarkSections,
 } from "@/lib/willab/enrichmentSettle";
-import { markerTokenSpans } from "@/lib/willab/richMarkers";
 import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import { mapLearningExposureHandles } from "@/services/api/learningExposures";
 import {
@@ -2470,7 +2469,7 @@ export async function saveIdealUserEdit(
   // and the student's words must survive either way.
   if (text.length > MAX_DOCUMENT_CHARS) return { ok: false, reason: "invalid" };
   // Header when available; otherwise the BFF's cookie-session fallback
-  // authenticates (same pattern as fetchIdealText / saveIdealNotes).
+  // authenticates (same pattern as fetchIdealText).
   const token = await getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -2536,111 +2535,4 @@ export async function saveIdealUserEdit(
     ok: true,
     version: typeof body?.version === "number" ? body.version : null,
   };
-}
-
-/** Save the user's PERSONAL notebook copy (A6 — never the canonical). */
-export async function saveIdealNotes(
-  arcId: string,
-  text: string,
-): Promise<boolean> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/notes`,
-      {
-        method: "PUT",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ text }),
-      },
-    );
-  } catch {
-    return false;
-  }
-  return res.ok;
-}
-
-/* ------------------------- notebook text segments ------------------------- */
-
-/** One render segment of the notebook text: plain, bold (key phrase), or an
- *  underlined key-moment link. */
-export interface IdealSegment {
-  text: string;
-  bold?: boolean;
-  moment?: IdealKeyMomentLink;
-}
-
-/** Split the ideal text into render segments: the FIRST case-insensitive
- *  occurrence of each key-moment anchor becomes an underlined link segment,
- *  the first occurrence of each key phrase becomes bold. Overlaps resolve
- *  first-come (earlier start wins; moments matched before phrases). A range
- *  that would slice a rich-marker token in half is dropped (FE-9): the text
- *  may carry coach markers, and cutting one mid-token would leak raw marker
- *  syntax into the flanking segments. A token FULLY inside a range is fine —
- *  the segment's own marker rendering handles it. Pure. */
-export function segmentIdealText(
-  text: string,
-  keyPhrases: string[],
-  keyMoments: IdealKeyMomentLink[],
-): IdealSegment[] {
-  if (!text) return [];
-  const lower = text.toLowerCase();
-  const tokenSpans = markerTokenSpans(text);
-  // True when [start, end) partially overlaps a marker token (either boundary
-  // inside the token, or the range strictly inside it).
-  const slicesToken = (start: number, end: number): boolean =>
-    tokenSpans.some(
-      ([ts, te]) => start < te && end > ts && !(ts >= start && te <= end),
-    );
-  type Range = {
-    start: number;
-    end: number;
-    bold?: boolean;
-    moment?: IdealKeyMomentLink;
-  };
-  const candidates: Range[] = [];
-  for (const m of keyMoments) {
-    const a = m.anchor.trim().toLowerCase();
-    if (!a) continue;
-    const i = lower.indexOf(a);
-    if (i >= 0 && !slicesToken(i, i + a.length)) {
-      candidates.push({ start: i, end: i + a.length, moment: m });
-    }
-  }
-  for (const p of keyPhrases) {
-    const q = p.trim().toLowerCase();
-    if (!q) continue;
-    const i = lower.indexOf(q);
-    if (i >= 0 && !slicesToken(i, i + q.length)) {
-      candidates.push({ start: i, end: i + q.length, bold: true });
-    }
-  }
-  // Earlier start wins; a moment beats a phrase at the same start (it carries
-  // the deep-link). Drop anything overlapping an accepted range.
-  candidates.sort(
-    (a, b) => a.start - b.start || (a.moment ? -1 : 1) - (b.moment ? -1 : 1),
-  );
-  const accepted: Range[] = [];
-  for (const c of candidates) {
-    if (accepted.some((r) => c.start < r.end && c.end > r.start)) continue;
-    accepted.push(c);
-  }
-  const segments: IdealSegment[] = [];
-  let cursor = 0;
-  for (const r of accepted) {
-    if (r.start > cursor) segments.push({ text: text.slice(cursor, r.start) });
-    segments.push({
-      text: text.slice(r.start, r.end),
-      bold: r.bold,
-      moment: r.moment,
-    });
-    cursor = r.end;
-  }
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) });
-  return segments;
 }

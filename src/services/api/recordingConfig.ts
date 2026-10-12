@@ -46,8 +46,3 @@ export function fetchRecordingConfig(): Promise<RecordingConfig> {
   })();
   return cached;
 }
-
-/** Tests only — drop the memoised read. */
-export function resetRecordingConfigCache(): void {
-  cached = null;
-}

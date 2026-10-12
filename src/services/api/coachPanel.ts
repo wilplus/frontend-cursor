@@ -12,7 +12,7 @@
 /*    GET /coach/block-picks, POST …/:id/answer       → 8 blind pick          */
 /* -------------------------------------------------------------------------- */
 
-import { coachReadInit } from "./coachAuth";
+import { coachRead, coachWrite } from "./coachAuth";
 
 type Raw = Record<string, unknown>;
 
@@ -20,32 +20,8 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
 }
 
-async function readJson(res: Response): Promise<Raw | null> {
-  return (await res.json().catch(() => null)) as Raw | null;
-}
-
-async function post(path: string, body: unknown): Promise<{ status: number; data: Raw | null }> {
-  try {
-    const res = await fetch(path, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body ?? {}),
-    });
-    return { status: res.status, data: await readJson(res) };
-  } catch {
-    return { status: 0, data: null };
-  }
-}
-
-async function get(path: string): Promise<{ status: number; data: Raw | null }> {
-  try {
-    const res = await fetch(path, await coachReadInit());
-    return { status: res.status, data: await readJson(res) };
-  } catch {
-    return { status: 0, data: null };
-  }
-}
+const post = (path: string, body: unknown) => coachWrite(path, "POST", body ?? {});
+const get = coachRead;
 
 /* ── 1b · the coach's exercise preference ────────────────────────────── */
 

@@ -1,5 +1,6 @@
 import { criteriaForMainTarget, mainTargetOf } from "./journalAdmin";
 import { mapSpeakingError, type SpeakingError } from "./speakingErrors";
+import { coachReadError, messageCall, type MessageResult } from "@/lib/api/bffCall";
 
 /* -------------------------------------------------------------------------- */
 /*  EXERCISE AUTHORING IN THE COACH PANEL — the coach's client                 */
@@ -74,9 +75,7 @@ export interface CoachExerciseDraft {
   aiDraftModelVersion: string | null;
 }
 
-export type CoachExerciseResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; status: number; message: string; code?: string };
+export type CoachExerciseResult<T> = MessageResult<T>;
 
 export interface AuthoringLibrary {
   exercises: CoachExercise[];
@@ -168,40 +167,8 @@ export function draftBody(draft: CoachExerciseDraft): Record<string, unknown> {
   };
 }
 
-function readError(data: unknown, status: number): string {
-  const d = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
-  if (typeof d.error === "string" && d.error.trim()) return d.error;
-  if (status === 401 || status === 403) return "Coach access required.";
-  return `Request failed (HTTP ${status}).`;
-}
-
-async function call<T>(
-  path: string,
-  init: RequestInit,
-  pick: (data: unknown) => T | null,
-): Promise<CoachExerciseResult<T>> {
-  let res: Response;
-  let data: unknown;
-  try {
-    res = await fetch(path, init);
-    data = await res.json().catch(() => ({}));
-  } catch {
-    return { ok: false, status: 0, message: "Network error. Try again." };
-  }
-  if (!res.ok) {
-    const code = (data as Record<string, unknown> | null)?.code;
-    return {
-      ok: false,
-      status: res.status,
-      message: readError(data, res.status),
-      ...(typeof code === "string" && code ? { code } : {}),
-    };
-  }
-  const picked = pick(data);
-  if (picked === null) {
-    return { ok: false, status: res.status, message: "Unreadable answer from the server." };
-  }
-  return { ok: true, data: picked };
+function call<T>(path: string, init: RequestInit, pick: (data: unknown) => T | null) {
+  return messageCall(path, init, coachReadError, pick, "Unreadable answer from the server.") as Promise<CoachExerciseResult<T>>;
 }
 
 function asRecord(data: unknown): Record<string, unknown> {
@@ -268,31 +235,6 @@ export function saveCoachExerciseWithVideo(draft: CoachExerciseDraft, file: File
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Client-side validation                                                     */
-/*                                                                            */
-/*  Mirrors EXERCISE_ID_SHAPE in services/diagnostic_exercise_catalogue.py.   */
-/*  The backend is the real guard; this exists so an author is told why       */
-/*  before they submit, and before a video leaves their machine.              */
-/* -------------------------------------------------------------------------- */
-
-export const EXERCISE_ID_SHAPE = /^[a-z][a-z0-9_-]{1,62}$/;
-
-/** A sentence explaining the first problem with a draft, or null. Coach-facing
- *  wording; founder sign-off pending (accepted design, 2026-09-29). */
-export function draftProblem(
-  draft: CoachExerciseDraft,
-  hasVideo: boolean,
-): string | null {
-  if (!EXERCISE_ID_SHAPE.test(draft.exerciseId.trim())) {
-    return "The id needs lower-case letters, digits, hyphens and underscores only, starting with a letter.";
-  }
-  if (!draft.title.trim()) return "Give the exercise a name.";
-  if (draft.acousticProblemTags.length === 0) return "Pick at least one speaking error it treats.";
-  if (!hasVideo) return "An exercise needs its video before it can be saved.";
-  return null;
-}
-
 /* ── the founder's Library page: retire, bring back (CP3 A; D-CP-21) ──── */
 
 export type ExerciseActiveResult =
@@ -320,7 +262,7 @@ export async function setExerciseActive(exerciseId: string, active: boolean): Pr
       ok: false,
       status: res.status,
       code: typeof data?.code === "string" ? data.code : null,
-      message: readError(data, res.status),
+      message: coachReadError(data, res.status),
     };
   }
   return { ok: true, active: data?.active === true, changed: data?.changed === true };

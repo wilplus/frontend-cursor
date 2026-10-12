@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  partLock — lock or unlock one section of the ideal text.                    */
@@ -55,45 +55,30 @@ export async function setPartLock(
     reason?: "keep_evolving";
   }
 ): Promise<PartLockResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(
-        partId
-      )}/lock`,
-      {
-        method: "PUT",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({
-          locked,
-          text_echo: textEcho,
-          ...(opts?.seedParts && opts.seedParts.length > 0
-            ? {
-                parts: opts.seedParts.map((p) => ({ id: p.id, text: p.text })),
-              }
-            : {}),
-          ...(opts?.reason ? { reason: opts.reason } : {}),
-        }),
-      }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(partId)}/lock`,
+    {
+      method: "PUT",
+      auth: "optional",
+      credentials: "include",
+      json: {
+        locked,
+        text_echo: textEcho,
+        ...(opts?.seedParts && opts.seedParts.length > 0
+          ? { parts: opts.seedParts.map((p) => ({ id: p.id, text: p.text })) }
+          : {}),
+        ...(opts?.reason ? { reason: opts.reason } : {}),
+      },
+    }
+  );
+  if (res.kind !== "response") return { kind: "error" };
+  const body = res.body as Record<string, unknown> | null;
   if (res.status === 409) {
     // Two different 409s share the status; the code discriminates them, and
     // they need different handling — one is a message, the other a refetch.
-    const body = (await res.json().catch(() => null)) as Record<
-      string,
-      unknown
-    > | null;
     return body?.code === "UNDECIDED" ? { kind: "undecided" } : { kind: "stale" };
   }
   if (!res.ok) return { kind: "error" };
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   return {
     kind: "ok",
     locked,
@@ -129,30 +114,21 @@ export async function setPartRootPhrase(
   textEcho: string,
   phrase: RootPhraseSpan | null,
 ): Promise<boolean> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(
-        partId
-      )}/root`,
-      {
-        method: "PUT",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({
-          text_echo: textEcho,
-          phrase: phrase?.text ?? null,
-          start: phrase?.start ?? null,
-          end: phrase?.end ?? null,
-        }),
-      }
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(partId)}/root`,
+    {
+      method: "PUT",
+      auth: "optional",
+      credentials: "include",
+      json: {
+        text_echo: textEcho,
+        phrase: phrase?.text ?? null,
+        start: phrase?.start ?? null,
+        end: phrase?.end ?? null,
+      },
+    }
+  );
+  return res.kind === "response" && res.ok;
 }
 
 /** Helper words taken from an earlier Take (founder lock 2026-09-30, B4,
@@ -166,23 +142,9 @@ export async function setPartHelperWordsFromTake(
   phrase: string,
   takeIndex: number,
 ): Promise<boolean> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  try {
-    const res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(
-        partId
-      )}/helper-words`,
-      {
-        method: "PUT",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ phrase, take_index: takeIndex }),
-      }
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/parts/${encodeURIComponent(partId)}/helper-words`,
+    { method: "PUT", auth: "optional", credentials: "include", json: { phrase, take_index: takeIndex } }
+  );
+  return res.kind === "response" && res.ok;
 }

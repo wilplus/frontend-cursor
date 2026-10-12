@@ -26,7 +26,7 @@ function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
 }
 
 import type { ConfidenceRatingValue } from "./stateRatings";
-import { coachReadInit } from "./coachAuth";
+import { coachRead, coachWrite } from "./coachAuth";
 
 export type CoachTag = "strong" | "to_work_on";
 
@@ -277,18 +277,8 @@ export function mapCoachReviewSession(raw: unknown): CoachReviewSession | null {
 export async function fetchCoachReviewSession(
   sessionId: string,
 ): Promise<CoachReviewSession | null> {
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}`,
-      await coachReadInit(),
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  return mapCoachReviewSession(data);
+  const res = await coachRead(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}`);
+  return res.ok ? mapCoachReviewSession(res.data) : null;
 }
 
 /** Upload a coach video for the session (§B.5 / §F.6): the Take word's video
@@ -303,23 +293,9 @@ export async function uploadCoachVideo(
   const form = new FormData();
   form.append("video_file", file, file.name || "video.webm");
   appendVideoMeta(form, meta);
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/video`,
-      {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      },
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  if (!data || typeof data !== "object") return null;
-  const ref = (data as Record<string, unknown>).video_ref;
+  const res = await coachWrite(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/video`, "POST", form);
+  if (!res.ok || !res.data || typeof res.data !== "object") return null;
+  const ref = res.data.video_ref;
   return typeof ref === "string" ? ref : null;
 }
 

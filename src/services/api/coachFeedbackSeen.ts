@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  The Lounge bubble's "new" (build plan D-FW-19; walk lock 2026-10-06, flow  */
@@ -35,18 +35,8 @@ export function markCoachFeedbackSeen(shown: CoachFeedbackShown): Promise<boolea
 }
 
 async function sendSeen(shown: CoachFeedbackShown): Promise<boolean> {
-  const token = await getAuthToken().catch(() => null);
-  if (!token) return false;
   const body: Record<string, string> = { take_session_id: shown.takeSessionId };
   if (shown.snippetId) body.snippet_id = shown.snippetId;
-  try {
-    const res = await fetch(SEEN, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await bffFetch(SEEN, { method: "POST", json: body });
+  return res.kind === "response" && res.ok;
 }
