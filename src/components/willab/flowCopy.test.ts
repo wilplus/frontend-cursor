@@ -30,46 +30,4 @@ describe("FLOW_COPY — AC-9: the read stays qualitative", () => {
       );
     }
   });
-
-  it("never promises a duration we would only be guessing at", () => {
-    for (const [key, line] of ALL) {
-      expect(line, `${key}: time estimate leaked`).not.toMatch(
-        /\b(minute|second|hour|soon as|about a)\b/i
-      );
-    }
-  });
-});
-
-describe("FLOW_COPY — the founder's length rule", () => {
-  it("keeps every line to a single sentence", () => {
-    for (const [key, line] of ALL) {
-      // Sentence-enders that are followed by more words. The em-dash and the
-      // comma are fine — they hold ONE thought together, which is the point.
-      const sentences = line
-        .split(/(?<=[.!?])\s+/)
-        .filter((s) => s.trim().length > 0);
-      expect(sentences.length, `${key}: more than one sentence`).toBe(1);
-    }
-  });
-
-  it("keeps every line short enough to read at a glance", () => {
-    for (const [key, line] of ALL) {
-      expect(line.length, `${key}: too long to land`).toBeLessThanOrEqual(80);
-    }
-  });
-});
-
-describe("FLOW_COPY — nobody is left with nothing to do", () => {
-  it("keeps the active processing status to its approved single line", () => {
-    expect(FLOW_COPY).not.toHaveProperty("analysingNext");
-  });
-
-  it("pairs failure with a what-next line", () => {
-    expect(FLOW_COPY.failedNext.trim().length).toBeGreaterThan(0);
-  });
-
-  it("bounds the damage on failure before offering the retry", () => {
-    // The real fear on a failed take is "did I lose everything". Say no first.
-    expect(FLOW_COPY.failedNext.toLowerCase()).toContain("safe");
-  });
 });

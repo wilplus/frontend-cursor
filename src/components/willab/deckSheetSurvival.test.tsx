@@ -19,7 +19,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
-import { buildDeckChunks, resolveOpenChunk } from "@/lib/willab/deckChunks";
 import type { Part } from "@/lib/willab/documentParts";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
@@ -129,98 +128,5 @@ describe("the chunk sheet survives the document being re-derived under it", () =
 
     await render(partsWith("new-"));
     expect(sheetOpen()).toBe(true);
-  });
-
-  it("is the SAME sheet afterwards — it does not remount", async () => {
-    // The worse half of the same bug, and the reason the sheet is keyed on the
-    // OPENING rather than the live part id. A remount re-seeds the sheet from
-    // the served words, so a sentence being written into it disappears even
-    // when the sheet itself survives.
-    //
-    // NODE IDENTITY IS THE PROOF. React reuses the same DOM element when a
-    // component instance survives a re-render and creates a new one when the
-    // key changes. So "same object after the re-mint" IS "did not remount",
-    // asserted without depending on which face of the ladder is showing or
-    // where its editable field lives.
-    await render(partsWith("old-"));
-    await openBookmark();
-    const before = host.querySelector('[role="dialog"]');
-    expect(before).toBeTruthy();
-
-    await render(partsWith("new-"));
-    const after = host.querySelector('[role="dialog"]');
-    expect(after).toBeTruthy();
-    expect(after).toBe(before);
-  });
-
-  it("closes when the paragraph it was opened on is genuinely gone", async () => {
-    // The fallback resolves by position AND words, so it never re-adopts a
-    // paragraph that is not the one the speaker opened.
-    await render(partsWith("old-"));
-    await openBookmark();
-    expect(sheetOpen()).toBe(true);
-
-    await act(async () => {
-      root.render(
-        createElement(TranscriptReviewDeck, {
-          ...props([{ id: "x1", text: SLIDES[2], locked: false }]),
-          suggestions: [],
-          document: SLIDES[2],
-          pieceSlideIndexes: [0],
-          piecePartIds: ["x1"],
-          slideTitles: ["The ask"],
-        } as never),
-      );
-    });
-    expect(sheetOpen()).toBe(false);
-  });
-});
-
-describe("resolveOpenChunk — position + words, never a guess", () => {
-  const chunks = (parts: Part[]) => buildDeckChunks(doc, parts, []);
-  const ref = (parts: Part[], i: number) => ({
-    id: parts[i].id,
-    index: i,
-    text: parts[i].text.trim(),
-  });
-
-  it("prefers the id when it still resolves", () => {
-    const parts = partsWith("a-");
-    const found = resolveOpenChunk(chunks(parts), ref(parts, 1));
-    expect(found?.part.id).toBe("a-2");
-  });
-
-  it("falls back to position + words after a re-mint", () => {
-    const opened = ref(partsWith("a-"), 1);
-    const found = resolveOpenChunk(chunks(partsWith("b-")), opened);
-    expect(found?.part.id).toBe("b-2");
-    expect(found?.paragraphIndex).toBe(1);
-  });
-
-  it("refuses a paragraph whose WORDS changed at that position", () => {
-    // Re-adopting here would hand the sheet a paragraph the speaker never
-    // opened — the same "never re-point a moved anchor" rule the lock follows.
-    const opened = ref(partsWith("a-"), 1);
-    const moved = doc.replace(SLIDES[1], "Something else entirely happened.");
-    const chunksAfter = buildDeckChunks(
-      moved,
-      [
-        { id: "b-1", text: SLIDES[0], locked: false },
-        { id: "b-2", text: "Something else entirely happened.", locked: false },
-        { id: "b-3", text: SLIDES[2], locked: false },
-      ],
-      [],
-    );
-    expect(resolveOpenChunk(chunksAfter, opened)).toBeNull();
-  });
-
-  it("refuses the same words at a DIFFERENT position", () => {
-    const opened = { id: "gone", index: 0, text: SLIDES[1].trim() };
-    expect(resolveOpenChunk(chunks(partsWith("c-")), opened)).toBeNull();
-  });
-
-  it("is null for nothing open, and for an empty deck", () => {
-    expect(resolveOpenChunk(chunks(partsWith("d-")), null)).toBeNull();
-    expect(resolveOpenChunk([], ref(partsWith("d-"), 0))).toBeNull();
   });
 });

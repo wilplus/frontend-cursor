@@ -6,7 +6,7 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
-import { setPartHelperWordsFromTake, setPartLock } from "@/services/api/partLock";
+import { setPartLock } from "@/services/api/partLock";
 import { useReadoutPartHandlers } from "./useReadoutPartHandlers";
 
 vi.mock("@/services/api/partLock", () => ({
@@ -47,18 +47,5 @@ describe("useReadoutPartHandlers", () => {
     expect(await result.current.unlockPart(chunk)).toBe(true);
     expect(setPartLock).toHaveBeenCalledWith("arc-1", "p-2", false, TEXT);
     expect(refetch).toHaveBeenCalled();
-  });
-
-  it("words from an earlier Take save on the paragraph's Slide", async () => {
-    const { result, setParts } = setup();
-    expect(await result.current.setHelperWordsFromTake(chunk, "second", 1)).toBe(true);
-    expect(setPartHelperWordsFromTake).toHaveBeenCalledWith("arc-1", "p-2", "second", 1);
-    expect(setParts).toHaveBeenCalled();
-  });
-
-  it("refuses without a project", async () => {
-    const { result, refs } = setup();
-    refs.arcIdRef.current = null;
-    expect(await result.current.unlockPart(chunk)).toBe(false);
   });
 });

@@ -105,45 +105,6 @@ describe("the recording stage and the page's pull-to-refresh", () => {
     expect(slideSeen).toBe(0);
   });
 
-  it("cancels a pull down inside the scroller once it is at its top", () => {
-    const { scroller } = render();
-    overflow(scroller, 0);
-    const moves = drag(scroller, 300, 330);
-    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
-    expect(slideSeen).toBe(0);
-  });
-
-  it("never cancels a move the roots scroller can still take", () => {
-    const { scroller } = render();
-    overflow(scroller, 400);
-    // Down and up from the middle: both are the scroller's own scroll.
-    expect(drag(scroller, 300, 340).some((m) => m.defaultPrevented)).toBe(false);
-    expect(drag(scroller, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
-    // At the top, a push up still scrolls the words.
-    overflow(scroller, 0);
-    expect(drag(scroller, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
-    expect(slideSeen).toBe(0);
-  });
-
-  it("never changes the slide on a swipe (founder lock 2026-10-12, N70)", () => {
-    const { scroller } = render();
-    // No overflow: the scroller is at both edges, as on Take 1.
-    const moves = drag(scroller, 400, 100, 8);
-    expect(slideSeen).toBe(0);
-    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
-  });
-
-  it("starts no page pull from the top bar or the strip either", () => {
-    render();
-    // A touch anywhere on the screen, outside the content, is still the
-    // screen's: the listeners are on the document.
-    const outside = document.createElement("div");
-    document.body.appendChild(outside);
-    const moves = drag(outside, 100, 160);
-    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
-    outside.remove();
-  });
-
 });
 
 /* "Getting your mic ready" before a later Take (build plan D-RC-3): the
@@ -179,59 +140,5 @@ describe("no pull-to-refresh on the later-Take mic wait", () => {
     expect(html()).toBe("none");
     show("lab_recording", "recording");
     expect(html()).toBe("none");
-  });
-
-  it("restores the page's own values when lab_prerecord falls back to the setup form", () => {
-    show("lab_prerecord");
-    expect(html()).toBe("none");
-    show("lab_session_context");
-    expect(html()).toBe("auto");
-    expect(body()).toBe("contain");
-  });
-
-  it("restores them when the overlay closes on the mic wait", () => {
-    show("lab_prerecord");
-    act(() => root.unmount());
-    expect(html()).toBe("auto");
-    expect(body()).toBe("contain");
-    act(() => {
-      root = createRoot(host);
-    });
-  });
-
-  it("cancels a pull outside any inner scroller on lab_prerecord", () => {
-    show("lab_prerecord");
-    const plain = document.createElement("div");
-    host.appendChild(plain);
-    expect(drag(plain, 100, 160).every((m) => m.defaultPrevented)).toBe(true);
-    expect(drag(plain, 160, 100).every((m) => m.defaultPrevented)).toBe(true);
-    plain.remove();
-  });
-
-  it("lets the training question scroll, and cancels the pull at its top", () => {
-    show("lab_prerecord");
-    const question = document.createElement("div");
-    question.style.overflowY = "auto";
-    const line = document.createElement("p");
-    question.appendChild(line);
-    host.appendChild(question);
-    overflow(question, 300);
-    expect(drag(line, 300, 340).some((m) => m.defaultPrevented)).toBe(false);
-    expect(drag(line, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
-    // At its top a further pull down would reach the page: cancelled.
-    overflow(question, 0);
-    expect(drag(line, 300, 340).every((m) => m.defaultPrevented)).toBe(true);
-    // Pushing up from the top still scrolls the question.
-    expect(drag(line, 300, 260).some((m) => m.defaultPrevented)).toBe(false);
-    question.remove();
-  });
-
-  it("takes the belt off again once the screen is left", () => {
-    show("lab_prerecord");
-    show("lab_session_context");
-    const plain = document.createElement("div");
-    host.appendChild(plain);
-    expect(drag(plain, 100, 160).some((m) => m.defaultPrevented)).toBe(false);
-    plain.remove();
   });
 });

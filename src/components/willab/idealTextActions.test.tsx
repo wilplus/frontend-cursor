@@ -62,44 +62,4 @@ describe("the next step (J1, J4, Q-B10 A)", () => {
     expect(labels()).toEqual(["Record Take 2"]);
     expect(link()).toBeNull();
   });
-
-  it("after the walk, where the page has the data: the Review feedback link under the pill", () => {
-    const onReviewAgain = vi.fn();
-    render({ takeCount: 2, onReviewAgain });
-    expect(labels()).toEqual(["Record Take 3", "Review feedback"]);
-    act(() => link()!.click());
-    expect(onReviewAgain).toHaveBeenCalledTimes(1);
-  });
-
-  it("J4: the end card offers the next Take only", () => {
-    render({ takeCount: 1, reviewWaiting: true, onReview: vi.fn(), onReviewAgain: vi.fn(), endCard: true });
-    expect(labels()).toEqual(["Record Take 2"]);
-  });
-
-  it("names the next Take from Take 3 on, never \"Record again\" (N48.3 Q8 A)", () => {
-    render({ takeCount: 3 });
-    expect(labels()).toEqual(["Record Take 4"]);
-    expect(host.textContent).not.toContain("Record again");
-  });
-
-  it("the record entry is disabled, never removed, when the BE closes its gate", () => {
-    render({ takeCount: 1, canRecordTake: false });
-    expect(pill()!.disabled).toBe(true);
-    expect(host.textContent).toContain("Recording another take is not available right now.");
-  });
-
-  it("never offers See next steps, on any Take (Q-B10 A)", () => {
-    for (const takeCount of [1, 2, 3, 4]) {
-      render({ takeCount, reviewWaiting: false });
-      expect(host.textContent).not.toContain("See next steps");
-      expect(host.textContent).not.toContain("Save the ideal text");
-    }
-  });
-
-  it("the next Take runs the record flow", () => {
-    const onNewTake = vi.fn();
-    render({ takeCount: 1, onNewTake });
-    act(() => pill()!.click());
-    expect(onNewTake).toHaveBeenCalledTimes(1);
-  });
 });

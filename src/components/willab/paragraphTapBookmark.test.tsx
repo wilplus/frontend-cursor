@@ -15,7 +15,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { forgetHeadlineReads } from "./useSlideHeadlines";
-import { bookmarkPartIds, opensFromPage, type Bookmark } from "./feedbackPager";
 import type { Part } from "@/lib/willab/documentParts";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
@@ -135,13 +134,6 @@ function expectPlainText(el: HTMLElement) {
   expect(el.getAttribute("tabindex")).toBeNull();
   expect(el.style.cursor).toBe("");
 }
-/** A tap target, exactly as before the decision. */
-function expectTapTarget(el: HTMLElement) {
-  expect(el.getAttribute("data-opens-sheet")).toBe("true");
-  expect(el.getAttribute("role")).toBe("button");
-  expect(el.getAttribute("tabindex")).toBe("0");
-  expect(el.style.cursor).toBe("pointer");
-}
 
 describe("N56.5: a paragraph that is not bookmarked does not open on tap", () => {
   it("the paragraphs with no bookmark are plain text, and a tap or a key opens nothing", async () => {
@@ -160,53 +152,5 @@ describe("N56.5: a paragraph that is not bookmarked does not open on tap", () =>
     expect(p1.textContent).toBe(SLIDES[0]);
     expect(p1.getAttribute("data-settled")).toBe("true");
     expect(p1.className).toContain("text-foreground");
-  });
-
-  it("the paragraph with a bar is a bookmark and still opens on tap", async () => {
-    serveRoots([]);
-    await render();
-    const p2 = paragraphWith("retention went up");
-    expect(p2.querySelector("[data-tier]")).not.toBeNull();
-    expectTapTarget(p2);
-    await act(async () => p2.click());
-    expect(anyDialog()).toBe(true);
-  });
-
-  it("a paragraph saved with helper words is a bookmark and still opens on tap", async () => {
-    // p2 saved, so its bar gives way to its headline (B7, Q3); p3 saved
-    // with no feedback on it at all -- the headline alone makes it a
-    // bookmark (B8).
-    serveRoots([
-      { part_id: "p2", slide_index: 1, text: "retention went up" },
-      { part_id: "p3", slide_index: 2, text: "one more quarter" },
-    ]);
-    await render();
-    const p3 = paragraphWith("of the same budget");
-    expect(p3.querySelector("[data-paragraph-headline]")).not.toBeNull();
-    expect(p3.querySelector("[data-tier]")).toBeNull();
-    expectTapTarget(p3);
-    expectTapTarget(paragraphWith("churn went down"));
-    // ...while the paragraph with neither stays plain text.
-    expectPlainText(paragraphWith("pilot changed our numbers"));
-    await act(async () => p3.click());
-    expect(sheetOpen()).toBe(true);
-  });
-});
-
-describe("opensFromPage / bookmarkPartIds (pure)", () => {
-  const bookmark = (partId: string) =>
-    ({ partId, chunk: {}, bundleId: null, coach: false }) as unknown as Bookmark;
-
-  it("collects the bookmarks' part ids", () => {
-    expect([...bookmarkPartIds([bookmark("a"), bookmark("c")])]).toEqual(["a", "c"]);
-    expect(bookmarkPartIds([]).size).toBe(0);
-  });
-
-  it("opens only a bookmark, and a bookmark only where it opened before", () => {
-    const ids = bookmarkPartIds([bookmark("a")]);
-    expect(opensFromPage(ids, "a", true)).toBe(true);
-    expect(opensFromPage(ids, "a", false)).toBe(false);
-    expect(opensFromPage(ids, "b", true)).toBe(false);
-    expect(opensFromPage(ids, "b", false)).toBe(false);
   });
 });

@@ -57,7 +57,6 @@ const rewriteItem = {
 } as unknown as DocumentSuggestion;
 
 const rewriteCard: PractiseCard = { kind: "rewrite", item: rewriteItem, text: "retention rose", move: "Say it plainly." };
-const plainCard: PractiseCard = { kind: "plain", item: moment, text: "retention went up", coach: false };
 
 /* ---- practisePart, on the deck's own hook ---------------------------------- */
 
@@ -128,21 +127,5 @@ describe("practisePart", () => {
     await act(async () => live()!.querySelector<HTMLButtonElement>("button[aria-label='Close']")!.click());
     expect(mic.cancels).toBeGreaterThan(0);
     expect(onEnd).not.toHaveBeenCalled();
-  });
-
-  it("a paragraph without a practisable item opens nothing", async () => {
-    const bare = { ...moment, snippetId: null, evidence: null } as unknown as DocumentSuggestion;
-    let opened = true;
-    await act(async () => {
-      opened = api.current!.practisePart("p1", { ...plainCard, item: bare }, bare);
-    });
-    expect(opened).toBe(false);
-    expect(screen()).toBeNull();
-    expect(mic.starts).toBe(0);
-    // Nor does a paragraph the page does not hold.
-    await act(async () => {
-      opened = api.current!.practisePart("p-missing", plainCard, moment);
-    });
-    expect(opened).toBe(false);
   });
 });

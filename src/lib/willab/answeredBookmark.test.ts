@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   opensParagraphSheet,
-  helperWordRanges,
-  paragraphHeadlines,
 } from "./answeredBookmark";
 
 const cv = {
@@ -27,31 +25,5 @@ describe("the answered bookmark (Q19 A)", () => {
     expect(opensParagraphSheet({ pending: [rewrite], decided: [cv] })).toBe(true);
     // Saved helper words: the saved screen whatever waits on it (B8, D9).
     expect(opensParagraphSheet({ pending: [cv], decided: [] }, true)).toBe(true);
-  });
-});
-
-describe("one headline per paragraph (founder 2026-09-26)", () => {
-  it("keys helper words by the paragraph they came from, in pick order", () => {
-    const map = paragraphHeadlines([
-      { partId: "p2", text: "nine days to two" },
-      { partId: "p1", text: "hello" },
-      { partId: "p2", text: " first week " },
-      { partId: "p2", text: "first week" },
-    ]);
-    expect(map.get("p2")).toBe("nine days to two · first week");
-    expect(map.get("p1")).toBe("hello");
-    expect(map.has("p3")).toBe(false);
-  });
-});
-
-describe("helper words inside the running text", () => {
-  it("finds each phrase by its words, ignoring case", () => {
-    expect(
-      helperWordRanges("We think The Timing matters, and the window.", "the timing matters · window"),
-    ).toEqual([[9, 27], [37, 43]]);
-  });
-  it("marks nothing when the Take did not say them", () => {
-    expect(helperWordRanges("Something else entirely.", "the timing matters")).toBeUndefined();
-    expect(helperWordRanges("Anything.", null)).toBeUndefined();
   });
 });

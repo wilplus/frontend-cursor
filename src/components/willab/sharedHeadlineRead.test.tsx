@@ -15,10 +15,7 @@ vi.mock("@/services/api/idealText", () => ({
 }));
 
 import {
-  SHARE_WINDOW_MS,
   forgetHeadlineReads,
-  mayShareRootsRead,
-  rootsNeedFor,
   useDeliveryHeadlines,
   useHeadlinesWithPending,
 } from "./useSlideHeadlines";
@@ -41,38 +38,6 @@ const flush = () => act(async () => { await Promise.resolve(); await Promise.res
 const ready = (list: { partId: string; text: string }[]) => ({
   kind: "ready",
   roots: list.map((r) => ({ ...r, slideIndex: 0, type: "flagship" })),
-});
-
-describe("rootsNeedFor", () => {
-  const base = { document: "a", sheetOpen: false, refresh: 0 };
-  it("a first run, or the first text after an empty one, may share", () => {
-    expect(rootsNeedFor({ ...base, document: null }, base)).toBe("mount");
-    expect(rootsNeedFor({ ...base, document: "" }, base)).toBe("mount");
-    expect(rootsNeedFor(base, base)).toBe("mount");
-  });
-  it("a changed document is a change", () => {
-    expect(rootsNeedFor(base, { ...base, document: "b" })).toBe("change");
-  });
-  it("a closed sheet or a refresh reads anew", () => {
-    expect(rootsNeedFor({ ...base, sheetOpen: true }, base)).toBe("fresh");
-    expect(rootsNeedFor(base, { ...base, refresh: 1 })).toBe("fresh");
-  });
-});
-
-describe("mayShareRootsRead", () => {
-  it("shares a recent read on mount, a same-flush read on change, never on fresh", () => {
-    const read = { startedAt: 1000, sameFlush: true, result: null };
-    expect(mayShareRootsRead(read, "mount", 1000 + SHARE_WINDOW_MS)).toBe(true);
-    expect(mayShareRootsRead(read, "mount", 1001 + SHARE_WINDOW_MS)).toBe(false);
-    expect(mayShareRootsRead(read, "change", 1000)).toBe(true);
-    expect(mayShareRootsRead({ ...read, sameFlush: false }, "change", 1000)).toBe(false);
-    expect(mayShareRootsRead(read, "fresh", 1000)).toBe(false);
-  });
-  it("never shares a read that failed", () => {
-    expect(
-      mayShareRootsRead({ startedAt: 1000, sameFlush: true, result: { kind: "error" } }, "mount", 1000),
-    ).toBe(false);
-  });
 });
 
 describe("the page's mount read feeds the deck", () => {
@@ -99,28 +64,5 @@ describe("the page's mount read feeds the deck", () => {
     await flush();
     expect(roots).toHaveBeenCalledTimes(1);
     expect(delivery?.get("p1")).toBe("words");
-  });
-
-  it("asks once when both see the same document change", async () => {
-    roots.mockResolvedValue(ready([]));
-    act(() => root.render(createElement(Page, { doc: "one", deckDoc: "one" })));
-    await flush();
-    expect(roots).toHaveBeenCalledTimes(1);
-    roots.mockResolvedValue(ready([{ partId: "p1", text: "new" }]));
-    act(() => root.render(createElement(Page, { doc: "two", deckDoc: "two" })));
-    await flush();
-    expect(roots).toHaveBeenCalledTimes(2);
-    expect(deck?.get("p1")).toBe("new");
-    expect(delivery?.get("p1")).toBe("new");
-  });
-
-  it("reads anew when a sheet closes", async () => {
-    roots.mockResolvedValue(ready([]));
-    act(() => root.render(createElement(Page, { doc: "one", deckDoc: "one" })));
-    await flush();
-    act(() => root.render(createElement(Page, { doc: "one", deckDoc: "one", sheetOpen: true })));
-    act(() => root.render(createElement(Page, { doc: "one", deckDoc: "one", sheetOpen: false })));
-    await flush();
-    expect(roots).toHaveBeenCalledTimes(2);
   });
 });

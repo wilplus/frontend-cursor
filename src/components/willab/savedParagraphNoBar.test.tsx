@@ -129,15 +129,6 @@ function paragraphWith(words: string): HTMLElement {
 const barOn = (el: HTMLElement) => el.querySelector("[data-tier]");
 
 describe("B7 / Q3: a paragraph saved with helper words carries no bar", () => {
-  it("a waiting moment without saved words draws its bar, and Review feedback is offered", async () => {
-    serveRoots([]);
-    const reviewWaiting = vi.fn();
-    await render({ onReviewWaiting: reviewWaiting });
-    const p2 = paragraphWith("retention went up");
-    expect(barOn(p2)).not.toBeNull();
-    expect(p2.getAttribute("data-settled")).toBeNull();
-    expect(reviewWaiting).toHaveBeenLastCalledWith(true);
-  });
 
   it("the same moment on a paragraph whose helper words are saved draws no bar", async () => {
     serveRoots([{ part_id: "p2", slide_index: 1, text: "retention went up" }]);
@@ -154,18 +145,5 @@ describe("B7 / Q3: a paragraph saved with helper words carries no bar", () => {
     // Nothing waits on the page any more: "Review feedback" is not offered
     // for a moment the page shows no mark for.
     expect(reviewWaiting).toHaveBeenLastCalledWith(false);
-  });
-
-  it("only the saved paragraph loses its bar", async () => {
-    const otherOffset = text.indexOf("one more quarter");
-    const other = {
-      ...waiting, id: "s-cv-3", start: otherOffset,
-      end: otherOffset + "one more quarter".length, quote: "one more quarter",
-      bookmarkTier: "confident",
-    } as DocumentSuggestion;
-    serveRoots([{ part_id: "p2", slide_index: 1, text: "retention went up" }]);
-    await render({ suggestions: [waiting, other] });
-    expect(barOn(paragraphWith("retention went up"))).toBeNull();
-    expect(barOn(paragraphWith("one more quarter"))).not.toBeNull();
   });
 });

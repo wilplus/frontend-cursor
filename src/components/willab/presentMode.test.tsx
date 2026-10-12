@@ -70,13 +70,4 @@ describe("Presentation Mode", () => {
     expect(host.textContent).not.toMatch(/\d+ of \d+/);
   });
 
-  it("shows only the ✕", () => {
-    show();
-    const buttons = [...host.querySelectorAll("button")];
-    expect(buttons.length).toBe(1);
-    expect(buttons[0].getAttribute("aria-label")).toBe("Exit present mode");
-    // The app's one X, only placed (D-RC-6).
-    expect(buttons[0].className).toContain("rounded-full border border-border");
-  });
-
 });

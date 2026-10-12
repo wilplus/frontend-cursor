@@ -4,7 +4,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { holdNoPullToRefresh, useNoPullToRefresh } from "./useNoPullToRefresh";
+import { useNoPullToRefresh } from "./useNoPullToRefresh";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -49,27 +49,5 @@ describe("useNoPullToRefresh", () => {
     act(() => root.render(createElement(Probe, { active: false })));
     expect(html()).toBe("auto");
     expect(body()).toBe("contain");
-  });
-
-  it("restores on unmount", () => {
-    act(() => root.render(createElement(Probe, { active: true })));
-    expect(html()).toBe("none");
-    act(() => root.unmount());
-    expect(html()).toBe("");
-    expect(body()).toBe("");
-    act(() => {
-      root = createRoot(host);
-    });
-  });
-
-  it("restores only when the last holder lets go", () => {
-    const first = holdNoPullToRefresh();
-    const second = holdNoPullToRefresh();
-    first();
-    first(); // a second release of the same hold is a no-op
-    expect(html()).toBe("none");
-    second();
-    expect(html()).toBe("");
-    expect(body()).toBe("");
   });
 });

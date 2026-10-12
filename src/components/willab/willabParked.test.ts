@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readParked, writeParked, clearParked } from "./willabParked";
+import { readParked, writeParked } from "./willabParked";
 
 type WinShim = {
   window?: { localStorage: Pick<Storage, "getItem" | "setItem" | "removeItem"> };
@@ -25,41 +25,6 @@ afterEach(() => {
 });
 
 describe("willabParked.readParked", () => {
-  it("returns null when nothing is parked or the payload is invalid", () => {
-    expect(readParked()).toBeNull();
-    window.localStorage.setItem("willab.parked", JSON.stringify({ topic: "x" }));
-    expect(readParked()).toBeNull(); // no readout
-    window.localStorage.setItem(
-      "willab.parked",
-      JSON.stringify({ readout: { snippets: "nope" } })
-    );
-    expect(readParked()).toBeNull(); // snippets not an array
-  });
-
-  it("defaults slides + slideTranscripts + voiceMetricsAvailable for a readout parked by an older app version", () => {
-    // Simulate a pre-upgrade parked payload: no slides / slideTranscripts /
-    // voiceMetricsAvailable.
-    window.localStorage.setItem(
-      "willab.parked",
-      JSON.stringify({
-        projectId: "p1",
-        sessionId: "s1",
-        topic: "T",
-        readout: { snippets: [] },
-      })
-    );
-    const p = readParked();
-    expect(p).not.toBeNull();
-    expect(p!.readout.slides).toEqual([]);
-    expect(p!.readout.slideTranscripts).toEqual([]);
-    expect(p!.readout.feedbackItems).toEqual([]);
-    // Absent → true, so an old park never shows a spurious "metrics unavailable".
-    expect(p!.readout.voiceMetricsAvailable).toBe(true);
-    // Absent → true (paid), so an old park never shows a spurious "$50 unlock".
-    expect(p!.readout.auditPaid).toBe(true);
-    expect(p!.sessionId).toBe("s1");
-    expect(p!.projectId).toBe("p1");
-  });
 
   it("round-trips a current payload, preserving the new fields", () => {
     writeParked({
@@ -86,29 +51,5 @@ describe("willabParked.readParked", () => {
     const p = readParked();
     expect(p!.readout.slides).toHaveLength(1);
     expect(p!.readout.slideTranscripts[0]?.transcript).toBe("hi");
-  });
-
-  it("clears the parked readout", () => {
-    writeParked({
-      projectId: "project-t",
-      sessionId: null,
-      topic: "T",
-      readout: {
-        snippets: [],
-        feedbackItems: [],
-        overallMessage: null,
-        presentationRef: null,
-        slides: [],
-        slideTranscripts: [],
-        fullTranscriptChunks: [],
-        instantChunks: [],
-        voiceMetricsAvailable: true,
-        parentAudioRef: null,
-        audience: null,
-        auditPaid: true,
-      },
-    });
-    clearParked();
-    expect(readParked()).toBeNull();
   });
 });

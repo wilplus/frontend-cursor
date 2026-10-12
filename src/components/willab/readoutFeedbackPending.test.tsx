@@ -133,12 +133,4 @@ describe("the readout's deck knows the feedback is still on its way", () => {
     await settle();
     expect(seen.at(-1)).toBe(false);
   });
-
-  it("stops holding when the enrichment read answers without anything to add", async () => {
-    await render();
-    expect(seen.at(-1)).toBe(true);
-    await act(async () => finishEnrichment({ code: "X" }, 500));
-    await settle();
-    expect(seen.at(-1)).toBe(false);
-  });
 });

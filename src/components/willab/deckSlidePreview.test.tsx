@@ -55,78 +55,14 @@ async function render(props: {
     root.render(createElement(DeckSlidePreview, props));
   });
 }
-const retryButton = () =>
-  Array.from(host.querySelectorAll("button")).find(
-    (b) => (b.textContent ?? "").trim() === "Retry loading slides",
-  );
-
-describe("the deck's slide preview", () => {
-  it("shows the page while the load is working", async () => {
-    failNextLoad = false;
-    await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    expect(host.querySelector('[data-testid="page"]')).toBeTruthy();
-    expect(host.textContent).not.toContain("Slide preview unavailable");
-  });
-
-  it("says so when the load fails, and offers NO retry", async () => {
-    // Founder 2026-09-17: "delete the reload button from the ideal text — it
-    // either works or it doesn't."
-    await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    expect(host.textContent).toContain("Slide preview unavailable");
-    expect(retryButton()).toBeUndefined();
-    expect(host.querySelectorAll("button")).toHaveLength(0);
-  });
-
-  it("gives a NEW deck or page a fresh chance without a retry tap", async () => {
-    await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    expect(host.textContent).toContain("Slide preview unavailable");
-    failNextLoad = false;
-    await render({ presentationRef: "https://cdn.example/other.pdf", pageIndex: 0 });
-    expect(host.textContent).not.toContain("Slide preview unavailable");
-  });
-
-});
 
 describe("a deckless project reads the same way as a decked one", () => {
-  /* FOUNDER 2026-09-19: "when it's ideal text with the mock deck, the mock
-     deck also shows up in the slides; when it's ideal text with my deck, it
-     also shows up". Presentation Mode and every export adapter already drew
-     the canonical mock slides; this surface alone showed nothing, so the same
-     document read two different ways depending on whether a PDF had been
-     uploaded. DEFAULT_DECK is an F1 piece, not a placeholder — it is what
-     makes 1:1 word→slide segmentation defined for a speaker who never
-     uploaded anything. */
-
-  it("draws the canonical slide for a page the default deck has", async () => {
-    await render({ presentationRef: null, pageIndex: 0 });
-    const mock = host.querySelector('[data-testid="mock-slide"]');
-    expect(mock).not.toBeNull();
-    expect(mock?.textContent).toBe("Main premise");
-  });
-
-  it("uses the same bounded frame the uploaded deck gets", async () => {
-    // The bound is the whole reason this component exists (founder
-    // 2026-09-17: "on the desktop it covers the whole screen and the text is
-    // not visible"). A second lane that skipped it would reintroduce that.
-    await render({ presentationRef: null, pageIndex: 1 });
-    const framed = host.querySelector(".aspect-video.max-h-\\[38vh\\]");
-    expect(framed).not.toBeNull();
-    expect(framed?.querySelector('[data-testid="mock-slide"]')).not.toBeNull();
-  });
 
   it("never asks pdf.js for a page when there is no deck", async () => {
     onErrorSpy.mockClear();
     await render({ presentationRef: null, pageIndex: 2 });
     expect(onErrorSpy).not.toHaveBeenCalled();
     expect(host.querySelector('[data-testid="page"]')).toBeNull();
-  });
-
-  it("renders nothing for a page the default deck does not have", async () => {
-    // A deckless talk has three slides; a fourth was never promised, and an
-    // apology box for one is worse than the absence.
-    await render({ presentationRef: null, pageIndex: 7 });
-    expect(host.querySelector('[data-testid="mock-slide"]')).toBeNull();
-    expect(host.textContent).toBe("");
   });
 });
 

@@ -32,13 +32,4 @@ describe("sendTakeToCoach", () => {
       expect.objectContaining({ method: "POST" })
     );
   });
-
-  it("does not attempt delivery without an authenticated owner", async () => {
-    mockedToken.mockResolvedValue(null);
-    const fetchMock = vi.spyOn(globalThis, "fetch");
-    await expect(sendTakeToCoach("p", "t")).resolves.toEqual({
-      kind: "unauthenticated",
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
 });

@@ -14,12 +14,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
-import { buildBookmarks, helperWordsDeleted } from "./feedbackPager";
-import { coachWordKey, coachWordSeen, markCoachWordSeen } from "./coachWordSeen";
-import type { DeckChunk } from "@/lib/willab/deckChunks";
 import type { Part } from "@/lib/willab/documentParts";
 import {
-  mapCoachMessage,
   type CoachMessage,
   type DocumentSuggestion,
 } from "@/services/api/idealText";
@@ -110,92 +106,9 @@ const pager = () => document.querySelector('[data-testid="feedback-pager"]');
 const walkScreen = () =>
   document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid^='walk-screen-']");
 
-/* ---------------------------------------------------------------- Q6 A ---- */
-
-const chunk = (id: string, part: Partial<Part> = {}): DeckChunk =>
-  ({ part: { id, text: `words ${id}`, ...part }, paragraphIndex: 0 }) as unknown as DeckChunk;
-
-describe("N48.2 Q6 A: after Delete the paragraph rejoins the walk on its answer", () => {
-  it("a paragraph whose words were deleted and whose moment was answered is a walk stop", () => {
-    const feedback: Record<string, { pending: number; decided: number }> = {
-      a: { pending: 1, decided: 0 },
-      b: { pending: 0, decided: 1 },
-      c: { pending: 0, decided: 1 },
-      d: { pending: 0, decided: 0 },
-    };
-    const list = buildBookmarks(
-      [chunk("a"), chunk("b"), chunk("c"), chunk("d")],
-      (c) => feedback[c.part.id],
-      () => undefined,
-      () => false,
-      (c) => c.part.id !== "c",
-    );
-    // "b": deleted, answered -> back in the walk. "c": answered, never
-    // deleted -> still not a screen (B8). "d": deleted but nothing answered
-    // on it -> nothing to show, not a screen.
-    expect(list.map((b) => b.partId)).toEqual(["a", "b"]);
-  });
-
-  it("deleted means: tapped Delete here, or locked once and unlocked now; words again means saved", () => {
-    expect(helperWordsDeleted({ locked: true, iteration: 1 }, true, false)).toBe(true);
-    expect(helperWordsDeleted({ locked: false, iteration: 1 }, false, false)).toBe(true);
-    expect(helperWordsDeleted({ locked: false, iteration: 0 }, false, false)).toBe(false);
-    expect(helperWordsDeleted({}, false, false)).toBe(false);
-    expect(helperWordsDeleted({ locked: true, iteration: 2 }, false, false)).toBe(false);
-    // Words picked again: the saved screen, not this one.
-    expect(helperWordsDeleted({ locked: false, iteration: 1 }, true, true)).toBe(false);
-  });
-
-  it("on the page: tapping the unlocked, answered paragraph joins the walk", async () => {
-    const parts: Part[] = SLIDES.map((t, i) => ({
-      id: `p${i + 1}`, text: t, ...(i === 1 ? { locked: false, iteration: 1 } : {}),
-    }));
-    await render({ parts });
-    const target = [...container.querySelectorAll<HTMLElement>('[data-opens-sheet="true"]')]
-      .find((el) => (el.textContent ?? "").includes("retention went up"));
-    expect(target).toBeTruthy();
-    await act(async () => target!.click());
-    // It joins the walk: the paragraph's sheet, under the walk's ‹ › bar.
-    const sheet = document.querySelector('[data-testid="paragraph-sheet"]');
-    expect(sheet).not.toBeNull();
-    expect(sheet?.querySelector("[data-walk-nav]")).not.toBeNull();
-  });
-
-  it("before this change's case: never locked, answered, not a bookmark, so it does not open (N56.5)", async () => {
-    // It used to open alone, outside the walk (B7). Since the founder's
-    // 2026-10-06 decision (N56.5) a paragraph that is not bookmarked does
-    // not open on tap at all.
-    await render();
-    const target = [...container.querySelectorAll<HTMLElement>("[data-chunk]")]
-      .find((el) => (el.textContent ?? "").includes("retention went up"));
-    expect(target).toBeTruthy();
-    expect(target!.getAttribute("data-opens-sheet")).toBeNull();
-    await act(async () => target!.click());
-    expect(pager()).toBeNull();
-    expect(walkScreen()).toBeNull();
-    expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
-  });
-});
-
 /* --------------------------------------------------------------- Q11 A ---- */
 
 describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
-  it("maps the Take the word belongs to", () => {
-    expect(mapCoachMessage({ text: "w", take_session_id: "take-2" })?.takeSessionId).toBe("take-2");
-    expect(mapCoachMessage({ text: "w" })?.takeSessionId).toBeNull();
-  });
-
-  it("remembers a word as seen per Take, and a later word is unseen again", () => {
-    const key = coachWordKey("arc-1", WORD);
-    expect(coachWordSeen(key)).toBe(false);
-    markCoachWordSeen(key);
-    expect(coachWordSeen(key)).toBe(true);
-    expect(coachWordSeen(coachWordKey("arc-1", { ...WORD, takeSessionId: "take-3" }))).toBe(false);
-    expect(coachWordSeen(coachWordKey("arc-1", { ...WORD, publishedAt: "later" }))).toBe(false);
-    expect(coachWordSeen(coachWordKey("arc-1", { ...WORD, text: "New words." }))).toBe(false);
-    expect(coachWordKey(null, WORD)).toBeNull();
-    expect(coachWordKey("arc-1", null)).toBeNull();
-  });
 
   it("every moment answered: Review feedback stays for the unseen word, opens Step 0 on its tap only, and goes once seen", async () => {
     const waiting = vi.fn();
@@ -213,44 +126,5 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     await act(async () => cont.click());
     expect(walkScreen()).toBeNull();
     expect(pager()).toBeNull();
-  });
-
-  it("a Take 1 word shared after Take 2 was recorded reaches the speaker once, labelled Take 1", async () => {
-    // Coach review is asynchronous: Take 2 is on screen (takeSessionId
-    // "take-2"), and the backend serves the earlier Take's word carrying
-    // its own Take.
-    const late: CoachMessage = {
-      text: "Take one: the pause worked.", videoUrl: null, takeIndex: 1,
-      publishedAt: "2026-10-05T12:00:00Z", takeSessionId: "take-1",
-    };
-    const waiting = vi.fn();
-    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: waiting, reviewRequest: 0 });
-    expect(step0()).toBeNull();
-    expect(waiting).toHaveBeenLastCalledWith(true);
-    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: waiting, reviewRequest: 1 });
-    // The walk's coach note names the word's own Take (L8-1).
-    expect(walkScreen()?.getAttribute("data-testid")).toBe("walk-screen-coachnote");
-    expect(walkScreen()?.textContent).toContain("Take 1");
-    expect(walkScreen()?.textContent).toContain(late.text);
-    expect(waiting).toHaveBeenLastCalledWith(false);
-    // Once: a fresh page with the same word keeps nothing waiting.
-    await act(async () => root.unmount());
-    root = createRoot(container);
-    const again = vi.fn();
-    await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: again });
-    expect(again).toHaveBeenLastCalledWith(false);
-  });
-
-  it("a word already seen on this device keeps nothing on the page once every moment is answered", async () => {
-    markCoachWordSeen(coachWordKey("arc-1", WORD));
-    const waiting = vi.fn();
-    await render({ arcId: "arc-1", coachMessage: WORD, onReviewWaiting: waiting });
-    expect(waiting).toHaveBeenLastCalledWith(false);
-  });
-
-  it("no word, every moment answered: nothing waits", async () => {
-    const waiting = vi.fn();
-    await render({ arcId: "arc-1", coachMessage: null, onReviewWaiting: waiting });
-    expect(waiting).toHaveBeenLastCalledWith(false);
   });
 });

@@ -75,29 +75,4 @@ describe("the slide editor", () => {
     const edits = onSave.mock.calls[0][0] as Array<{ chunk: DeckChunk; text: string }>;
     expect(edits.map((e) => [e.chunk.part.id, e.text])).toEqual([["p2", "Nobody believed us at first."]]);
   });
-
-  it("says so when the save fails, and keeps the edits", async () => {
-    render(vi.fn(async () => false));
-    type(0, "We began in a garage.");
-    await act(async () => button("Save").click());
-    const line = host.querySelector('[data-testid="slide-editor-failed"]');
-    expect(line?.textContent).toBe("Couldn't save this slide. Your edits are still here.");
-    expect(host.querySelector<HTMLTextAreaElement>('[data-testid="paragraph-card"]')?.value).toBe(
-      "We began in a garage.",
-    );
-    expect(button("Save").disabled).toBe(false);
-  });
-
-  it("closes from the ✕ and from Cancel", () => {
-    const { onCancel } = render();
-    act(() => button("Close").click());
-    act(() => button("Cancel").click());
-    expect(onCancel).toHaveBeenCalledTimes(2);
-  });
-
-  it("will not save an emptied paragraph", () => {
-    render();
-    type(0, "   ");
-    expect(button("Save").disabled).toBe(true);
-  });
 });

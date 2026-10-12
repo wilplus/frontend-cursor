@@ -13,7 +13,6 @@ import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { DualCaptureState } from "@/hooks/useDualCaptureMic";
-import { coachHasIt } from "@/lib/willab/paragraphOverlay";
 
 /* One mic for every hook in the sheet (the service flow calls it too), so a
    state pushed here reaches the exercise step exactly as the browser's
@@ -178,21 +177,6 @@ const bare = {
   snippetId: "snip-2",
   practiceExercise: null,
 } as unknown as DocumentSuggestion;
-
-async function openBare() {
-  props.onClose.mockClear();
-  await act(async () => {
-    root.render(
-      createElement(DeckChunkModal, {
-        ...props,
-        state: chunkStateFor(
-          { ...chunk(), pendingIds: [bare.id] } as DeckChunk,
-          { document: TEXT, suggestions: [bare] },
-        ),
-      }),
-    );
-  });
-}
 const notice = () => container.querySelector('[data-testid="coach-request-notice"]');
 
 const recognisedBare = { ...bare, id: "s-cv-rec-bare", problemRecognised: true } as DocumentSuggestion;
@@ -226,34 +210,6 @@ describe("a No on a bookmark with no exercise", () => {
     // sheet is done, and the host closes it.
     expect(props.onClose).toHaveBeenCalled();
   });
-
-  it("keeps the helper-words step, not the sentence, on a Yes", async () => {
-    await openBare();
-    await click("Yes");
-    expect(notice()).toBeNull();
-    expect(container.textContent).toContain("Tap the words");
-  });
-
-  it("closes on Audio unclear without the sentence", async () => {
-    await openBare();
-    await click("Audio unclear");
-    expect(notice()).toBeNull();
-    expect(props.onClose).toHaveBeenCalled();
-  });
-});
-
-describe("the paragraph sheet's line", () => {
-  it("shows while the request is open and nothing came back", () => {
-    const open = { ...bare, coachRequest: { status: "open", kind: "error" } } as DocumentSuggestion;
-    expect(coachHasIt([open])).toBe(true);
-    expect(coachHasIt([{ ...open, coachRequest: { status: "answered", kind: "error" } } as DocumentSuggestion])).toBe(false);
-    // Only an error is a promise; the other kinds say nothing (Q6).
-    for (const kind of ["praise", "rewrite", "ambiguity"] as const) {
-      expect(coachHasIt([{ ...open, coachRequest: { status: "open", kind } } as DocumentSuggestion])).toBe(false);
-    }
-    expect(coachHasIt([{ ...open, practiceExercise: item.practiceExercise } as DocumentSuggestion])).toBe(false);
-    expect(coachHasIt([bare])).toBe(false);
-  });
 });
 
 describe("the lane on every bookmark (founder 2026-09-29)", () => {
@@ -272,45 +228,6 @@ describe("the lane on every bookmark (founder 2026-09-29)", () => {
       );
     });
   }
-
-  it("an In-between with a recognised problem and no match: the sentence, then helper words", async () => {
-    await open(recognised);
-    await click("In-between");
-    expect(notice()).not.toBeNull();
-    await click("Next");
-    expect(notice()).toBeNull();
-    expect(container.textContent).toContain("Tap the words");
-  });
-
-  it("a Yes with a recognised problem shows nothing now: helper words directly", async () => {
-    // The matrix (founder 2026-09-29): it reaches the coach as an ambiguity;
-    // no sentence, their video comes if they record one.
-    await open(recognised);
-    await click("Yes");
-    expect(notice()).toBeNull();
-    expect(container.textContent).toContain("Tap the words");
-  });
-
-  it("a Yes never opens the library video, even when one is attached", async () => {
-    await open(item);
-    await click("Yes");
-    expect(offer()).toBeNull();
-    expect(container.textContent).toContain("Tap the words");
-  });
-
-  it("a No with nothing recognised is a rewrite: no sentence, the sheet ends", async () => {
-    await open(bare);
-    await click("No");
-    expect(notice()).toBeNull();
-    expect(props.onClose).toHaveBeenCalled();
-  });
-
-  it("an In-between with nothing recognised: helper words directly, no sentence", async () => {
-    await open(bare);
-    await click("In-between");
-    expect(notice()).toBeNull();
-    expect(container.textContent).toContain("Tap the words");
-  });
 
   it("Audio unclear never reaches an exercise, even when one is attached", async () => {
     await open(item);

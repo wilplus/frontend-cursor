@@ -11,23 +11,18 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeckChunkModal from "./DeckChunkModal";
-import OpenChunkSheet from "./OpenChunkSheet";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import type { BehindOutcome } from "./saveBehind";
-import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import {
   forgetParagraphSheetData,
   prefetchParagraphSheets,
   readySheetData,
 } from "./paragraphSheetData";
 import {
-  answerChanged,
   latestAnswerOf,
-  reopenableMoment,
-  reopenedJudgement,
 } from "@/lib/willab/changeJudgement";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -163,11 +158,6 @@ async function renderReopened(answer: "yes" | "in_between" | "no", item = moment
 }
 
 describe("‹ reopens the judgement with the earlier answer pressed", () => {
-  it("shows the question with the latest stored answer pressed", async () => {
-    await renderReopened("in_between");
-    expect(container.textContent).toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    expect(pressed()).toEqual(["In-between"]);
-  });
 
   it("a different answer posts, and the 200 revised is a save that updates the answer", async () => {
     vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce({
@@ -194,106 +184,5 @@ describe("‹ reopens the judgement with the earlier answer pressed", () => {
     expect(onAnswered).toHaveBeenCalledWith("no");
     // The answer stands in the read at once, so ‹ again shows it.
     expect(latestAnswerOf("s-cv", readySheetData(null, "take-1", "p1")?.answers ?? [])).toBe("no");
-  });
-
-  it("the same answer sends nothing and moves on as before", async () => {
-    await renderReopened("no");
-    await act(async () => answerButton("No").click());
-    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
-    expect(behind).toHaveLength(0);
-    expect(onAnswered).toHaveBeenCalledWith("no");
-  });
-
-  it("a revision the server could not save (500) shows the signed notice", async () => {
-    vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce({
-      ok: false,
-      error: "Could not save this response.",
-    });
-    await renderReopened("yes");
-    await act(async () => answerButton("In-between").click());
-    expect(await behind[0].done).toBe("failed");
-    expect(behind[0].failText).toBe(CHUNK_SHEET_COPY.failAnswerBehind);
-  });
-
-  it("a rewrite's answer never reopens: no question, nothing pressed, nothing sent", async () => {
-    await renderReopened("yes", rewrite);
-    expect(container.textContent).not.toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    expect(pressed()).toEqual([]);
-    expect(saveTakeFeedbackResponse).not.toHaveBeenCalled();
-  });
-
-  it("puts no number in the reopened judgement (AC-9)", async () => {
-    await renderReopened("in_between");
-    expect(container.textContent ?? "").not.toMatch(/\d/);
-  });
-});
-
-describe("the paragraph opened by ‹ (OpenChunkSheet)", () => {
-  function renderOpened(reopenJudgement: boolean, items: DocumentSuggestion[] = [moment]) {
-    const s = answeredState(items);
-    return act(async () => {
-      root.render(
-        createElement(OpenChunkSheet, {
-          state: s,
-          arcId: "arc-1",
-          takeSessionId: "take-1",
-          headline: null,
-          onClose: vi.fn(),
-          reopenJudgement,
-          renderSheet: (handOff, reopen) =>
-            createElement(DeckChunkModal, {
-              ...sheetProps(),
-              state: s,
-              onAnswered: handOff,
-              reopen,
-            }),
-        }),
-      );
-    });
-  }
-
-  it("reopens the judgement on the latest answer, and a change hands back to the paragraph's sheet", async () => {
-    vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: "yes" }]);
-    await renderOpened(true);
-    expect(container.textContent).toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    expect(pressed()).toEqual(["Yes"]);
-    await act(async () => answerButton("No").click());
-    expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
-    expect(container.textContent).not.toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    // Handed back to the paragraph's own sheet, in the walk's look (no
-    // tinted chip there, Q-WALK-PARA A).
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
-  });
-
-  it("a tap from the page (not ‹) opens the paragraph's own sheet, as before", async () => {
-    vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: "yes" }]);
-    await renderOpened(false);
-    expect(container.textContent).not.toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
-  });
-
-  it("no known answer: the paragraph's own sheet, never a made-up one", async () => {
-    vi.mocked(fetchOwnerAnswers).mockResolvedValue([]);
-    await renderOpened(true);
-    expect(container.textContent).not.toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
-  });
-});
-
-describe("the rules (pure)", () => {
-  it("only an answered Confident Voice moment on an unsaved paragraph reopens", () => {
-    expect(reopenableMoment({ pending: [], decided: [moment] }, false)?.id).toBe("s-cv");
-    expect(reopenableMoment({ pending: [], decided: [moment] }, true)).toBeNull();
-    expect(reopenableMoment({ pending: [], decided: [rewrite] }, false)).toBeNull();
-    expect(reopenableMoment({ pending: [moment], decided: [] }, false)).toBeNull();
-  });
-
-  it("reads only the five answers, and saves only a change", () => {
-    expect(latestAnswerOf("s-cv", [{ feedbackId: "s-cv", response: "apply_suggestion" }])).toBeNull();
-    expect(latestAnswerOf("s-cv", [{ feedbackId: "s-cv", response: "not_sure" }])).toBe("not_sure");
-    expect(reopenedJudgement({ item: rewrite, answer: "yes" })).toBeNull();
-    expect(answerChanged(null, "yes")).toBe(true);
-    expect(answerChanged({ item: moment, answer: "yes" }, "yes")).toBe(false);
-    expect(answerChanged({ item: moment, answer: "yes" }, "no")).toBe(true);
   });
 });

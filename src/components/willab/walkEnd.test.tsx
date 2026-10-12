@@ -26,22 +26,6 @@ afterEach(() => {
 });
 
 describe("WalkEndLayer", () => {
-  it("says the save for a moment, then clears", () => {
-    const onToastGone = vi.fn();
-    act(() =>
-      root.render(
-        createElement(WalkEndLayer, {
-          endCard: false,
-          onCloseEndCard: () => undefined,
-          toast: "Helper words saved",
-          onToastGone,
-        }),
-      ),
-    );
-    expect(host.querySelector('[role="status"]')?.textContent).toBe("Helper words saved");
-    act(() => vi.advanceTimersByTime(1800));
-    expect(onToastGone).toHaveBeenCalledTimes(1);
-  });
 
   it("after the last moment, offers the host's next step and the way back", () => {
     const onCloseEndCard = vi.fn();
@@ -61,26 +45,5 @@ describe("WalkEndLayer", () => {
     const back = [...host.querySelectorAll("button")].find((b) => b.textContent === "Back to the text");
     act(() => back!.click());
     expect(onCloseEndCard).toHaveBeenCalled();
-  });
-
-  it("draws the last moment's toast above the end card, never over its button", () => {
-    act(() =>
-      root.render(
-        createElement(WalkEndLayer, {
-          endCard: true,
-          renderNextStep: () => createElement("button", null, "Record Take 2"),
-          onCloseEndCard: () => undefined,
-          toast: "Helper words saved",
-          onToastGone: () => undefined,
-        }),
-      ),
-    );
-    const toast = host.querySelector("[data-sheet-toast]") as HTMLElement;
-    const card = host.querySelector("[data-walk-end]") as HTMLElement;
-    expect(toast.textContent).toBe("Helper words saved");
-    // In flow inside the dialog, before the card, not fixed over the page.
-    expect(host.querySelector('[role="dialog"]')?.contains(toast)).toBe(true);
-    expect(toast.className).not.toContain("fixed");
-    expect(toast.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

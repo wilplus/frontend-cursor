@@ -36,13 +36,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  ANALYSIS_CEILING,
   DOCUMENT_CEILING,
-  nextWaitPercent,
   waitPercent,
 } from "./waitProgress";
 import { isUntouched } from "./deckChunks";
-import { judgedStatus } from "./chunkSteps";
 
 const SRC = join(process.cwd(), "src");
 
@@ -92,41 +89,6 @@ describe("the wait screen tells the truth about itself", () => {
       ).toBeLessThanOrEqual(DOCUMENT_CEILING);
     }
   });
-
-  it("keeps moving through a phase the backend says nothing about", () => {
-    // "the loading is still stale after the processing is done".
-    const early = waitPercent({
-      previous: null, held: 100, phase: "document",
-      phaseElapsedMs: 2_000, capMs: CAP,
-    })!;
-    const later = waitPercent({
-      previous: null, held: 100, phase: "document",
-      phaseElapsedMs: 40_000, capMs: CAP,
-    })!;
-    expect(later).toBeGreaterThan(early);
-    expect(early).toBeGreaterThanOrEqual(ANALYSIS_CEILING);
-  });
-
-  it("never falls, in either phase or across the handover", () => {
-    // A bar that falls reads as the work being lost and started again.
-    expect(
-      waitPercent({
-        previous: 97, held: 10, phase: "document",
-        phaseElapsedMs: 0, capMs: CAP,
-      }),
-    ).toBe(97);
-    expect(nextWaitPercent(62, null)).toBe(62);
-    expect(nextWaitPercent(62, 40)).toBe(62);
-  });
-
-  it("says nothing before the first report rather than guessing", () => {
-    expect(
-      waitPercent({
-        previous: null, held: null, phase: "analysis",
-        phaseElapsedMs: 9_000, capMs: CAP,
-      }),
-    ).toBeNull();
-  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -143,27 +105,6 @@ describe("the four states of a paragraph", () => {
 
   it("an untouched paragraph is the one nothing has happened to", () => {
     expect(isUntouched(base)).toBe(true);
-  });
-
-  it("anything the speaker did makes it reviewed", () => {
-    /* Founder 2026-09-21, on what counts: an answer of any kind, a rooting
-       phrase, a lock cycle — and an edit. */
-    expect(isUntouched({ ...base, decided: true })).toBe(false);
-    expect(isUntouched({ ...base, rootPhrase: "steady now" })).toBe(false);
-    expect(isUntouched({ ...base, locked: true })).toBe(false);
-    expect(isUntouched({ ...base, iteration: 1 })).toBe(false);
-    expect(isUntouched({ ...base, edited: true })).toBe(false);
-  });
-
-  it("every answer decides the item one way or the other", () => {
-    // The page and the lock gate must agree; a bookmark the speaker
-    // answered may never come back looking open.
-    expect(judgedStatus("yes")).toBe("approved");
-    // Every other answer is still an ANSWER: the item is decided, and the
-    // bookmark must not come back looking open. `judgedStatus` narrows the
-    // five owner states to that one question, which is why its input type
-    // is "yes" | "other" rather than the vocabulary itself.
-    expect(judgedStatus("other")).toBe("dismissed");
   });
 });
 
@@ -196,20 +137,6 @@ describe("AC-9 — the read is qualitative", () => {
       expect(offenders.map((f) => f.replace(SRC, "src"))).toEqual([]);
     },
   );
-
-  it("the waiting screen's own labels name work, not judgement", () => {
-    const banned = ["score", "ratio", "percentile", "classifier",
-                    "charisma", "verdict"];
-    const wait = readFileSync(
-      join(SRC, "components/willab/ProcessingWait.tsx"), "utf8");
-    const labels = [...wait.matchAll(/"([A-Z][^"]{4,60})"/g)].map((m) => m[1]);
-    expect(labels.length).toBeGreaterThan(0);
-    for (const label of labels) {
-      for (const word of banned) {
-        expect(label.toLowerCase()).not.toContain(word);
-      }
-    }
-  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════

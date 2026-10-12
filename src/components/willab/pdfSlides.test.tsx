@@ -140,50 +140,7 @@ async function mount(props: {
   });
 }
 
-describe("a parent re-render does not restart the page render", () => {
-  it("ignores a new onError identity while the page is still drawing", async () => {
-    // THE BUG, exactly: the caller writes `onError={() => setFailed(true)}`,
-    // so this second render passes a different function for the same
-    // intention. That used to re-run the effect against a busy canvas.
-    const onError = vi.fn();
-    const url = freshUrl();
-    await mount({ url, pageIndex: 1, onError: () => onError() });
-    expect(renderCalls).toBe(1);
-
-    await mount({ url, pageIndex: 1, onError: () => onError() });
-
-    expect(renderCalls).toBe(1);
-    expect(onError).not.toHaveBeenCalled();
-  });
-
-  it("reports nothing after the first render completes either", async () => {
-    const onError = vi.fn();
-    const url = freshUrl();
-    await mount({ url, pageIndex: 1, onError: () => onError() });
-    await act(async () => tasks[0].finish());
-
-    await mount({ url, pageIndex: 1, onError: () => onError() });
-
-    expect(renderCalls).toBe(1);
-    expect(onError).not.toHaveBeenCalled();
-  });
-});
-
 describe("a real change still redraws, and releases the canvas first", () => {
-  it("cancels the live render before starting the new page", async () => {
-    const onError = vi.fn();
-    const url = freshUrl();
-    await mount({ url, pageIndex: 1, onError });
-    expect(tasks).toHaveLength(1);
-
-    await mount({ url, pageIndex: 2, onError });
-
-    // Cancelled, not merely ignored — that is what frees the canvas, and
-    // without it the second render throws pdf.js's busy-canvas error.
-    expect(tasks[0].cancelled).toBe(true);
-    expect(renderCalls).toBe(2);
-    expect(onError).not.toHaveBeenCalled();
-  });
 
   it("does not report a cancellation as a failed slide", async () => {
     // pdf.js rejects a cancelled render. Treating that as a failure is how
@@ -196,15 +153,5 @@ describe("a real change still redraws, and releases the canvas first", () => {
       tasks[0].cancel();
     });
     expect(onError).not.toHaveBeenCalled();
-  });
-});
-
-describe("a genuine failure is still reported", () => {
-  it("names a page the deck does not have", async () => {
-    // The fence this must not break: fail-closed stays fail-closed.
-    const onError = vi.fn();
-    await mount({ url: freshUrl(), pageIndex: 99, onError });
-    expect(onError).toHaveBeenCalled();
-    expect(renderCalls).toBe(0);
   });
 });

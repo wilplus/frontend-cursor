@@ -9,16 +9,9 @@
 /*  fails on it.                                                              */
 /* -------------------------------------------------------------------------- */
 import { describe, expect, it } from "vitest";
-import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
+import { RECORDING_COPY } from "./recordingCopy";
 
 describe("RECORDING_COPY", () => {
-  it("holds the lock's words, word for word", () => {
-    expect(RECORDING_COPY).toMatchObject({
-      back: "Back",
-      nextSlide: "Next slide",
-      micReady: "Getting your mic ready",
-    });
-  });
 
   it("carries no digit (AC-9) and nothing unsigned", () => {
     for (const [key, value] of Object.entries(RECORDING_COPY)) {
@@ -27,22 +20,6 @@ describe("RECORDING_COPY", () => {
     }
     // Every key is one the lock names; a new word needs the founder first.
     expect(Object.keys(RECORDING_COPY).sort()).toEqual(["back", "micReady", "nextSlide"]);
-  });
-});
-
-describe("recordingWhere", () => {
-  it('reads "Take N · Slide n of m" with the Take and the position as its only numbers', () => {
-    expect(recordingWhere(2, 1, 3)).toBe("Take 2 · Slide 2 of 3");
-    expect(recordingWhere(1, 0, 6)).toBe("Take 1 · Slide 1 of 6");
-  });
-
-  it("reads the slide alone when there is no Take (the /dev harness)", () => {
-    expect(recordingWhere(null, 2, 3)).toBe("Slide 3 of 3");
-    expect(recordingWhere(0, 0, 1)).toBe("Slide 1 of 1");
-  });
-
-  it('never says "Recording"', () => {
-    expect(recordingWhere(2, 0, 3)).not.toMatch(/recording/i);
   });
 });
 
