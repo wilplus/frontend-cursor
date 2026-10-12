@@ -25,8 +25,8 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
 /*                                                                            */
-/*  Replaces the single SessionContextForm. Five steps: topic (required),      */
-/*  audience, length, slides, and a strategic-context note. Only topic gates    */
+/*  Replaces the single SessionContextForm. Three visible steps: topic          */
+/*  (required), length and slides. Only topic gates                             */
 /*  advancing; everything else is optional. The final "Start recording" tap IS  */
 /*  the user gesture getUserMedia needs, so it must call onSubmit synchronously  */
 /*  (the parent starts the mic in the same click) — no async work sits between   */
@@ -55,7 +55,7 @@ const LENGTH_PRESETS = [
  *
  *  It sits under the LAST step's CTA only: said once, immediately before the
  *  take, where "record another after this one" is a thing the user can act on.
- *  Repeating it on all five steps would make it wallpaper. */
+ *  Repeating it on every step would make it wallpaper. */
 export const THREE_TAKE_NUDGE =
   "Your ideal text gets sharper with more takes. Three is where it really lands.";
 
@@ -100,16 +100,12 @@ export default function RecordingSetup({
    *  out and a second one would just be two crosses on one screen). */
   onCancel?: () => void;
 }) {
+  // "audience", "call_to_action" and "context" are hidden, not deleted
+  // (founder 2026-10-12): their state, draft fields and submit wiring stay, so
+  // a continued take still carries the project's audience from preloadDeck.
   const steps: StepKey[] = hideDeck
-    ? ["topic", "audience", "call_to_action", "length", "context"]
-    : [
-        "topic",
-        "audience",
-        "call_to_action",
-        "length",
-        "slides",
-        "context",
-      ];
+    ? ["topic", "length"]
+    : ["topic", "length", "slides"];
   // Read once, at mount: the draft being resumed (or the fresh slot "Start a
   // new project" opened). Later renders never re-read it — this form owns it.
   const [active] = useState(() =>
