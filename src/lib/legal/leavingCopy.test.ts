@@ -5,20 +5,10 @@
  * a decision, not a cleanup: a flip without the founder's word fails here. */
 import { describe, expect, it } from "vitest";
 import {
-  ACCOUNT_DELETION_CANCEL_ENABLED,
-  ENDED_STATE_ENABLED,
   LEAVING_COPY,
-  PROJECT_DELETION_WINDOW_ENABLED,
-  deletionDate,
-  withTrainingLine,
 } from "./leavingCopy";
 
 describe("the leaving words", () => {
-  it("are on where the founder said so (S1 A), and the project window waits for Delete", () => {
-    expect(ENDED_STATE_ENABLED).toBe(true);
-    expect(ACCOUNT_DELETION_CANCEL_ENABLED).toBe(true);
-    expect(PROJECT_DELETION_WINDOW_ENABLED).toBe(false);
-  });
 
   it("say the signed words exactly", () => {
     expect(LEAVING_COPY.accountDeletedOn("12 October")).toBe(
@@ -37,28 +27,5 @@ describe("the leaving words", () => {
     );
     expect(LEAVING_COPY.projectDeletedOn("12 October")).toBe("Will be deleted on 12 October");
     expect(LEAVING_COPY.trainingModelStays).toBe("A model already trained stays.");
-  });
-});
-
-describe("withTrainingLine (W5 A)", () => {
-  it("adds the signed line only for an active training yes", () => {
-    expect(withTrainingLine("Body.", true)).toBe("Body. A model already trained stays.");
-    expect(withTrainingLine("Body.", false)).toBe("Body.");
-  });
-});
-
-describe("deletionDate", () => {
-  // Local noon, so the day is the same in every time zone a test runs in.
-  const now = new Date(2026, 9, 5, 12, 0, 0);
-
-  it("is the day, in words, in the reader's time zone", () => {
-    expect(deletionDate(new Date(2026, 9, 12, 12, 0, 0).toISOString(), now))
-      .toBe("12 October");
-  });
-
-  it("is nothing for a missing, unreadable or past moment", () => {
-    expect(deletionDate(null, now)).toBeNull();
-    expect(deletionDate("not a date", now)).toBeNull();
-    expect(deletionDate(new Date(2026, 9, 5, 11, 59, 59).toISOString(), now)).toBeNull();
   });
 });

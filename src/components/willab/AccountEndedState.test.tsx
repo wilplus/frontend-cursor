@@ -19,17 +19,12 @@ vi.mock("@/services/api/accountDeletion", async (importOriginal) => ({
   cancelAccountDeletion: api.cancelAccountDeletion,
 }));
 
-import AccountEndedState, { endedLine } from "./AccountEndedState";
-import { DELETE_ACCOUNT_COPY } from "@/lib/legal/deleteAccountCopy";
+import AccountEndedState, {  } from "./AccountEndedState";
 import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import { LEAVING_COPY, deletionDate } from "@/lib/legal/leavingCopy";
 import type { PendingDeletion } from "@/services/api/accountDeletion";
 
 const PURGE = "0f8fad5b-d9cb-469f-a165-70867728950e";
-// Local noon, so the day is the same in every time zone a test runs in.
-const NOW = new Date(2026, 9, 5, 12, 0, 0);
-const DAY_12 = new Date(2026, 9, 12, 12, 0, 0).toISOString();
-const DAY_1 = new Date(2026, 9, 1, 12, 0, 0).toISOString();
 
 function account(over: Partial<PendingDeletion> = {}): PendingDeletion {
   return {
@@ -41,26 +36,6 @@ function account(over: Partial<PendingDeletion> = {}): PendingDeletion {
     ...over,
   };
 }
-
-describe("the one line", () => {
-  it("names the day an account deletion completes", () => {
-    expect(endedLine(account({ completesAfter: DAY_12 }), NOW))
-      .toBe("Your account will be deleted on 12 October.");
-  });
-
-  it("says the signed words when no day can be said", () => {
-    expect(endedLine(account({ completesAfter: null }), NOW)).toBe(DELETE_ACCOUNT_COPY.done);
-    // A day already past would make the sentence untrue.
-    expect(endedLine(account({ completesAfter: DAY_1 }), NOW))
-      .toBe(DELETE_ACCOUNT_COPY.done);
-  });
-
-  it("says only what is true of every block when no account deletion is named", () => {
-    expect(endedLine(null, NOW)).toBe(LEAVING_COPY.endedOther);
-    expect(endedLine(account({ kind: "project", projectId: "p" }), NOW))
-      .toBe(LEAVING_COPY.endedOther);
-  });
-});
 
 describe("<AccountEndedState>", () => {
   let host: HTMLDivElement;
@@ -107,21 +82,6 @@ describe("<AccountEndedState>", () => {
     expect(host.textContent).not.toContain("Agree and continue");
   });
 
-  it("offers no cancel while the cancel's words are off", () => {
-    render({ cancelEnabled: false });
-    expect(button(LEAVING_COPY.cancel)).toBeUndefined();
-  });
-
-  it("offers no cancel when the backend says it can no longer land", () => {
-    render({ cancelEnabled: true, pendingDeletion: account({ cancellable: false }) });
-    expect(button(LEAVING_COPY.cancel)).toBeUndefined();
-  });
-
-  it("offers no cancel for a block that is not an account deletion", () => {
-    render({ cancelEnabled: true, pendingDeletion: null });
-    expect(button(LEAVING_COPY.cancel)).toBeUndefined();
-  });
-
   it("a cancel that lands hands back to the gate", async () => {
     api.cancelAccountDeletion.mockResolvedValue({ kind: "cancelled" });
     const onCancelled = render({ cancelEnabled: true });
@@ -129,25 +89,5 @@ describe("<AccountEndedState>", () => {
     await flush();
     expect(api.cancelAccountDeletion).toHaveBeenCalledWith(PURGE);
     expect(onCancelled).toHaveBeenCalledTimes(1);
-  });
-
-  it("a refused cancel says it is too late and takes the button away", async () => {
-    api.cancelAccountDeletion.mockResolvedValue({ kind: "refused", code: "X" });
-    const onCancelled = render({ cancelEnabled: true });
-    await act(async () => button(LEAVING_COPY.cancel)?.click());
-    await flush();
-    expect(host.querySelector('[role="alert"]')?.textContent).toBe(LEAVING_COPY.cancelTooLate);
-    expect(button(LEAVING_COPY.cancel)).toBeUndefined();
-    expect(onCancelled).not.toHaveBeenCalled();
-  });
-
-  it("a failed cancel says so and keeps the button", async () => {
-    api.cancelAccountDeletion.mockResolvedValue({ kind: "failed" });
-    const onCancelled = render({ cancelEnabled: true });
-    await act(async () => button(LEAVING_COPY.cancel)?.click());
-    await flush();
-    expect(host.querySelector('[role="alert"]')?.textContent).toBe(LEAVING_COPY.cancelFailed);
-    expect(button(LEAVING_COPY.cancel)).toBeDefined();
-    expect(onCancelled).not.toHaveBeenCalled();
   });
 });

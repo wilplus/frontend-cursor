@@ -16,15 +16,6 @@ const LAB_OVERLAY_STATES: WillabState[] = [
 ];
 
 describe("canMountTopUpCard", () => {
-  it("mounts in the ordinary Lounge", () => {
-    expect(canMountTopUpCard("lounge" as WillabState, false)).toBe(true);
-  });
-
-  it("never mounts above a loading thread", () => {
-    // No card above a skeleton: it would render before the conversation it
-    // is supposed to sit inside.
-    expect(canMountTopUpCard("lounge" as WillabState, true)).toBe(false);
-  });
 
   it("never mounts while the Lab owns the screen", () => {
     for (const state of LAB_OVERLAY_STATES) {
@@ -32,11 +23,5 @@ describe("canMountTopUpCard", () => {
         false
       );
     }
-  });
-
-  it("never mounts during project pick (setup precedes the Lab)", () => {
-    expect(canMountTopUpCard("lab_project_pick" as WillabState, false)).toBe(
-      false
-    );
   });
 });

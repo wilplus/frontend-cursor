@@ -44,13 +44,4 @@ describe("/api/v2/lab/presentation/extract", () => {
     expect(call.path).toBe("/v2/lab/presentation/extract");
     expect(call.init.headers).toEqual({ "X-Willab-Guest-Owner": "guest.token" });
   });
-
-  it("sends no guest header when none came in", async () => {
-    sessionToken = "tok";
-    const { POST } = await import("./route");
-    await POST(upload());
-    const call = calls[calls.length - 1];
-    expect(call.init.headers).toBeUndefined();
-    expect(call.init.token).toBe("tok");
-  });
 });

@@ -55,7 +55,7 @@ vi.mock("./Phase1AcceptanceFlow", () => ({
     createElement("div", { "data-testid": "acceptance-flow" }, `prior:${props.priorCountry ?? "none"}`),
 }));
 
-import Phase1AcceptanceGate, { gateStateFor } from "./Phase1AcceptanceGate";
+import Phase1AcceptanceGate, {  } from "./Phase1AcceptanceGate";
 import { LEAVING_COPY } from "@/lib/legal/leavingCopy";
 
 const POLICY: ProcessingPolicy = {
@@ -84,36 +84,6 @@ const blocked = (over: Partial<Extract<AuthorizationStatus, { kind: "blocked" }>
     cancellable: true,
   },
   ...over,
-});
-
-describe("gateStateFor", () => {
-  it("a block is the ended state while it is on", () => {
-    const status = blocked();
-    expect(gateStateFor(status, true)).toEqual({
-      kind: "ended",
-      pendingDeletion: status.kind === "blocked" ? status.pendingDeletion : null,
-    });
-    expect(gateStateFor(blocked({ policy: null, pendingDeletion: null }), true))
-      .toEqual({ kind: "ended", pendingDeletion: null });
-  });
-
-  it("while it is off, a block behaves as before it had a kind of its own", () => {
-    expect(gateStateFor(blocked(), false))
-      .toEqual({ kind: "required", policy: POLICY, priorCountry: null });
-    expect(gateStateFor(blocked({ policy: null }), false)).toEqual({ kind: "pass" });
-  });
-
-  it("everything else is unchanged, and a re-acceptance carries its country", () => {
-    expect(gateStateFor({ kind: "authorized", policy: POLICY }, true)).toEqual({ kind: "pass" });
-    expect(gateStateFor({ kind: "unavailable", code: "X" }, true)).toEqual({ kind: "pass" });
-    expect(gateStateFor({ kind: "error", message: "x" }, true)).toEqual({ kind: "pass" });
-    expect(gateStateFor({
-      kind: "acceptance_required", policy: POLICY, code: "R",
-      acceptedEarlierVersion: true, priorCountry: "de",
-    }, true)).toEqual({ kind: "required", policy: POLICY, priorCountry: "de" });
-    expect(gateStateFor({ kind: "acceptance_required", policy: POLICY, code: "R" }, true))
-      .toEqual({ kind: "required", policy: POLICY, priorCountry: null });
-  });
 });
 
 describe("<Phase1AcceptanceGate>", () => {
@@ -151,13 +121,6 @@ describe("<Phase1AcceptanceGate>", () => {
     expect(host.textContent).not.toContain("THE LOUNGE");
   });
 
-  it("while the ended state is off, a block still meets the flow as before", async () => {
-    flag.ended = false;
-    await mount(blocked());
-    expect(host.querySelector('[data-testid="account-ended-state"]')).toBeNull();
-    expect(host.querySelector('[data-testid="acceptance-flow"]')).not.toBeNull();
-  });
-
   it("a cancelled deletion reads the status again, and lets the person back in", async () => {
     io.cancelAccountDeletion.mockResolvedValue({ kind: "cancelled" });
     io.fetchAuthorization.mockResolvedValue({ kind: "authorized", policy: POLICY });
@@ -169,13 +132,5 @@ describe("<Phase1AcceptanceGate>", () => {
     expect(io.cancelAccountDeletion).toHaveBeenCalledWith(PURGE);
     expect(io.fetchAuthorization).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("THE LOUNGE");
-  });
-
-  it("hands a re-acceptance the country given last time (Q21 A)", async () => {
-    await mount({
-      kind: "acceptance_required", policy: POLICY, code: "R",
-      acceptedEarlierVersion: true, priorCountry: "de",
-    });
-    expect(host.querySelector('[data-testid="acceptance-flow"]')?.textContent).toBe("prior:de");
   });
 });

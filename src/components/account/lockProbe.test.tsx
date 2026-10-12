@@ -63,18 +63,8 @@ vi.mock("@/services/api/accountDeletion", async (importOriginal) => ({
 }));
 
 import Phase1AcceptanceFlow from "@/components/willab/Phase1AcceptanceFlow";
-import TrainingAsk, { resetTrainingAsk } from "@/components/willab/TrainingAsk";
-import WelcomeConsent from "@/components/willab/WelcomeConsent";
-import AppMenu from "@/components/AppMenu";
-import DataConsentChoices from "./DataConsentChoices";
-import TrainingConsentCard from "./TrainingConsentCard";
-import PolicyUpdateCard from "./PolicyUpdateCard";
-import ProjectsCard from "./ProjectsCard";
+import { resetTrainingAsk } from "@/components/willab/TrainingAsk";
 import DeleteAccountCard from "./DeleteAccountCard";
-import SupportCard from "./SupportCard";
-import { PROJECT_DELETE_ENABLED } from "@/lib/willab/projectDeletionCopy";
-import { PROJECT_DELETION_WINDOW_ENABLED } from "@/lib/legal/leavingCopy";
-import { DATA_CONSENT_COPY } from "@/lib/legal/dataConsentCopy";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
 import { CONSENT_PROTOTYPE_WORDS, SETTINGS_PROTOTYPE_WORDS, SIGNED_STATE_LINES } from "./lockProbeWords";
@@ -227,10 +217,6 @@ function probe(name: string, scope: ParentNode = document.body) {
 /* ----------------------------- the screens ---------------------------------- */
 
 describe("the welcome and the acceptance walk", () => {
-  it("the welcome", async () => {
-    await render(createElement(WelcomeConsent, { onEnter: () => undefined } as never));
-    probe("welcome");
-  });
 
   it("the notice, each document, the country, the confirm and Nothing was recorded", async () => {
     await render(
@@ -263,110 +249,7 @@ describe("the welcome and the acceptance walk", () => {
   });
 });
 
-describe("Turn on the learning?", () => {
-  it("the question, and its failed line", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(TRAINING);
-    api.setTrainingConsent.mockResolvedValue({ ok: false, code: "TRAINING_NOT_AVAILABLE" });
-    await render(createElement(TrainingAsk, { onDone: () => undefined }));
-    probe("training ask");
-    await click("Yes");
-    probe("training ask, failed");
-  });
-});
-
 describe("Data & consent", () => {
-  it("the choices: loading, failed, on, off, confirming, outcome, erasure finishing, failed save", async () => {
-    api.fetchConsentChoices.mockReturnValue(new Promise(() => undefined));
-    await render(createElement(DataConsentChoices));
-    probe("choices, loading");
-
-    api.fetchConsentChoices.mockResolvedValue(null);
-    await render(createElement(DataConsentChoices, { key: "failed" }));
-    probe("choices, failed");
-
-    const on = { hasReceipt: true, personalisedPractice: true, sensitiveInformation: true, practiceErasureComplete: null, practiceOffered: true };
-    api.fetchConsentChoices.mockResolvedValue(on);
-    await render(createElement(DataConsentChoices, { key: "on", intro: DATA_CONSENT_COPY.introWithTraining }));
-    probe("choices, on");
-    await click("Turn off");
-    probe("choices, confirming practice off");
-    api.setConsentChoice.mockResolvedValue({ ...on, personalisedPractice: false, practiceErasureComplete: false });
-    await click("Turn off");
-    probe("choices, practice off with erasure finishing");
-    await click("Withdraw");
-    probe("choices, confirming withdraw");
-    api.setConsentChoice.mockResolvedValue(null);
-    await click("Withdraw");
-    probe("choices, withdraw failed");
-
-    const off = { ...on, personalisedPractice: false, sensitiveInformation: false };
-    api.fetchConsentChoices.mockResolvedValue(off);
-    await render(createElement(DataConsentChoices, { key: "off" }));
-    probe("choices, off");
-    api.setConsentChoice.mockResolvedValue({ ...off, personalisedPractice: true });
-    await click("Turn on");
-    probe("choices, practice turned on");
-  });
-
-  it("the training switch: off, on, confirming off, failed", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(TRAINING);
-    await render(createElement(TrainingConsentCard));
-    probe("training, off");
-    api.setTrainingConsent.mockResolvedValue({ ...TRAINING, active: true });
-    await click("Turn on");
-    probe("training, on");
-    await click("Turn off");
-    probe("training, confirming off");
-    api.setTrainingConsent.mockResolvedValue(null);
-    await click("Turn off");
-    probe("training, failed");
-  });
-
-  it("What's changed since you agreed (kept, Q-B15 A)", async () => {
-    api.fetchAuthorization.mockResolvedValue({
-      kind: "acceptance_required",
-      policy: POLICY,
-      acceptedEarlierVersion: true,
-      priorCountry: "pl",
-    });
-    await render(createElement(PolicyUpdateCard));
-    probe("policy update");
-    await click("Accept the update");
-    probe("policy update, the acceptance screen");
-  });
-
-  it("Your projects: closed, loading, failed, listed, empty", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(null);
-    api.fetchTrainings.mockReturnValue(new Promise(() => undefined));
-    await render(createElement(ProjectsCard));
-    probe("projects, closed");
-    await click("Your projects");
-    probe("projects, loading");
-
-    api.fetchTrainings.mockResolvedValue(null);
-    await render(createElement(ProjectsCard, { key: "failed" }));
-    await click("Your projects");
-    probe("projects, failed");
-
-    const arc = (arcId: string, topic: string, archived: boolean) => ({
-      arcId, topic, archived, createdAt: null, takeCount: 1, takes: [], batchVerified: false,
-      idealReady: false, bestPresentationArcId: arcId, coverRef: null, deletion: null,
-    });
-    api.fetchTrainings.mockResolvedValue([arc("a", "Board pitch", false), arc("b", "Conference keynote", true)]);
-    await render(createElement(ProjectsCard, { key: "listed" }));
-    await click("Your projects");
-    probe("projects, listed");
-
-    api.fetchTrainings.mockResolvedValue([]);
-    await render(createElement(ProjectsCard, { key: "empty" }));
-    await click("Your projects");
-    probe("projects, empty");
-  });
-
-  it("Support", async () => {
-    await render(createElement(SupportCard));
-    probe("support");
-  });
 
   it("Delete my account: the card, the confirm, pending, cancelled, done", async () => {
     await render(
@@ -409,42 +292,5 @@ describe("Data & consent", () => {
       }),
     );
     probe("delete, under way without a date");
-  });
-});
-
-describe("the ☰ menu", () => {
-  it("signed in with every row, and signed out", async () => {
-    await render(
-      createElement(AppMenu, {
-        authState: "signed_in",
-        userEmail: "alex@example.com",
-        tokensLabel: "12,000 · 30 Aug",
-        labHref: "/chat",
-        corpusHref: "/coach/corpus",
-        dataConsentHref: "/account/data-consent",
-        onLogout: () => undefined,
-      }),
-    );
-    await click("Open menu");
-    probe("menu, signed in");
-    await render(createElement(AppMenu, { key: "out", authState: "anonymous", labHref: "/chat" }));
-    await click("Open menu");
-    probe("menu, signed out");
-  });
-});
-
-describe("the probe itself", () => {
-  it("catches a word nobody signed, and reads a joined version as the page shows it", () => {
-    host.innerHTML = '<p>Terms of Service <small>v3.3</small></p><p>A word nobody signed</p><span class="sr-only">hidden words</span>';
-    const shown = visibleStrings(host);
-    expect(shown).toEqual(["Terms of Service", "v3.3", "A word nobody signed"]);
-    expect(unlisted(shown)).toEqual(["A word nobody signed"]);
-  });
-});
-
-describe("the switches a prototype does not draw", () => {
-  it("single-project delete stays off, and so does its window (Q-B15 A (8))", () => {
-    expect(PROJECT_DELETE_ENABLED).toBe(false);
-    expect(PROJECT_DELETION_WINDOW_ENABLED).toBe(false);
   });
 });

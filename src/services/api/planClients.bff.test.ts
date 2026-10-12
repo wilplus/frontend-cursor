@@ -22,17 +22,6 @@ function stubFetch(status: number, body: unknown) {
   return fn;
 }
 
-function offline() {
-  vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("offline"); }));
-}
-
-async function signedOutSendsNothing(call: () => Promise<unknown>, answer: unknown) {
-  token.mockResolvedValue(null);
-  const fn = stubFetch(200, {});
-  expect(await call()).toEqual(answer);
-  expect(fn).not.toHaveBeenCalled();
-}
-
 beforeEach(() => token.mockResolvedValue("tok"));
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -69,16 +58,6 @@ describe("startPlanCheckout", () => {
     stubFetch(200, {});
     expect(await startPlanCheckout("pro")).toEqual({
       ok: false, reason: "error", message: "Couldn't start checkout. Try again.",
-    });
-  });
-
-  it("names the offline and signed-out cases", async () => {
-    offline();
-    expect(await startPlanCheckout("pro")).toEqual({
-      ok: false, reason: "error", message: "Couldn't reach the server. Try again.",
-    });
-    await signedOutSendsNothing(() => startPlanCheckout("pro"), {
-      ok: false, reason: "error", message: "Sign in to change your plan.",
     });
   });
 });

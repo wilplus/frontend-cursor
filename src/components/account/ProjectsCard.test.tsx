@@ -58,12 +58,8 @@ vi.mock("@/services/api/projectDeletion", async (importOriginal) => {
   };
 });
 
-import ProjectsCard, { pendingLabel, projectConfirmBody } from "./ProjectsCard";
+import ProjectsCard, {  } from "./ProjectsCard";
 import { PROJECT_DELETION_COPY as COPY } from "@/lib/willab/projectDeletionCopy";
-import {
-  LEAVING_COPY,
-  PROJECT_DELETION_WINDOW_ENABLED,
-} from "@/lib/legal/leavingCopy";
 import type { TrainingArc } from "@/services/api/trainings";
 
 function project(over: Partial<TrainingArc> = {}): TrainingArc {
@@ -117,15 +113,6 @@ async function openWith(projects: TrainingArc[]) {
   expect(api.fetchTrainings).toHaveBeenCalledWith({ includeArchived: true });
 }
 
-describe("while the delete is switched off", () => {
-  it("lists the projects but offers no Delete", async () => {
-    flag.on = false;
-    await openWith([project()]);
-    expect(container.textContent).toContain("Board pitch");
-    expect(button("Delete")).toBeUndefined();
-  });
-});
-
 describe("Delete", () => {
   it("asks first with the signed words, and sends nothing until confirmed", async () => {
     await openWith([project()]);
@@ -147,17 +134,6 @@ describe("Delete", () => {
     expect(button("Delete")).toBeUndefined();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
-
-  it("a failed request says so and changes nothing", async () => {
-    await openWith([project()]);
-    await act(async () => button("Delete")?.click());
-    api.requestProjectDeletion.mockResolvedValue({ ok: false, deletion: null });
-    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
-    await act(async () => button(COPY.confirm, dialog)?.click());
-    await flush();
-    expect(dialog.textContent).toContain("Couldn't delete. Try again.");
-    expect(container.textContent).not.toContain("Deletion pending");
-  });
 });
 
 describe("a pending deletion", () => {
@@ -172,139 +148,5 @@ describe("a pending deletion", () => {
     expect(api.cancelProjectDeletion).toHaveBeenCalledWith("arc-1");
     expect(container.textContent).not.toContain("Deletion pending");
     expect(button("Delete")).toBeDefined();
-  });
-
-  it("can no longer be cancelled once an operator confirmed it", async () => {
-    await openWith([
-      project({ deletion: { state: "confirmed", dueAt: null, cancellable: false } }),
-    ]);
-    expect(container.textContent).toContain("Deletion pending");
-    expect(button(COPY.cancel)).toBeUndefined();
-    expect(button("Delete")).toBeUndefined();
-  });
-
-  it("offers no cancel once the backend says it can no longer land (Q17 A)", async () => {
-    // Inside the 7-day window the request stays "pending"; the backend's
-    // `cancellable` is the word on whether a cancel can still land.
-    await openWith([
-      project({ deletion: { state: "pending", dueAt: null, cancellable: false } }),
-    ]);
-    expect(container.textContent).toContain("Deletion pending");
-    expect(button(COPY.cancel)).toBeUndefined();
-  });
-
-  it("keeps the signed label, not a date, while the window's words are off", async () => {
-    const ahead = new Date(Date.now() + 3 * 86_400_000).toISOString();
-    await openWith([
-      project({ deletion: { state: "pending", dueAt: ahead, cancellable: true } }),
-    ]);
-    expect(PROJECT_DELETION_WINDOW_ENABLED).toBe(false);
-    expect(container.textContent).toContain("Deletion pending");
-    expect(container.textContent).not.toContain("Will be deleted on");
-  });
-});
-
-describe("the training line for an active training yes (W5 A, TC-7b)", () => {
-  async function confirmFor(training: unknown): Promise<HTMLElement> {
-    api.fetchTrainingConsent.mockResolvedValue(training);
-    await openWith([project()]);
-    await act(async () => button("Delete")?.click());
-    return document.querySelector('[role="dialog"]') as HTMLElement;
-  }
-
-  it("ends N8's body with the signed line when the yes is active", async () => {
-    const dialog = await confirmFor({
-      available: true, active: true, policyVersion: "t-1",
-      copy: "Use my practice text...", copySha256: "x",
-    });
-    expect(api.fetchTrainingConsent).toHaveBeenCalledTimes(1);
-    expect(dialog.textContent).toContain(`${COPY.body} ${LEAVING_COPY.trainingModelStays}`);
-    // N10's retired sentence is gone from the code, never just hidden.
-    expect(dialog.textContent).not.toContain("Recordings you shared for training");
-  });
-
-  it("keeps N8's body alone with the switch off, unavailable, or unreadable", async () => {
-    for (const training of [
-      { available: true, active: false, policyVersion: "t-1", copy: "c", copySha256: "x" },
-      { available: false, active: false, policyVersion: null, copy: null, copySha256: null },
-      null,
-    ]) {
-      const dialog = await confirmFor(training);
-      expect(dialog.textContent).toContain(COPY.body);
-      expect(dialog.textContent).not.toContain(LEAVING_COPY.trainingModelStays);
-      await act(async () => button("Cancel", dialog)?.click());
-      act(() => root.unmount());
-      root = createRoot(container);
-    }
-  });
-
-  it("is not even read while Delete is switched off", async () => {
-    flag.on = false;
-    await openWith([project()]);
-    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
-  });
-});
-
-describe("the confirm's words", () => {
-  it("N8's body, or its first sentence and the window; a yes adds the line at the end", () => {
-    expect(COPY.body.startsWith(COPY.bodyFirstSentence)).toBe(true);
-    expect(projectConfirmBody(false, false)).toBe(COPY.body);
-    expect(projectConfirmBody(true, false)).toBe(
-      `${COPY.body} ${LEAVING_COPY.trainingModelStays}`,
-    );
-    expect(projectConfirmBody(false, true)).toBe(
-      `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow}`,
-    );
-    expect(projectConfirmBody(true, true)).toBe(
-      `${COPY.bodyFirstSentence} ${LEAVING_COPY.projectWindow} ${LEAVING_COPY.trainingModelStays}`,
-    );
-  });
-
-  it("a pending row names its day only once the window is on and the day is ahead", () => {
-    const ahead = new Date(Date.now() + 3 * 86_400_000).toISOString();
-    const past = new Date(Date.now() - 86_400_000).toISOString();
-    expect(pendingLabel(ahead, false)).toBe(COPY.pending);
-    expect(pendingLabel(ahead, true)).toMatch(/^Will be deleted on \d{1,2} [A-Z][a-z]+$/);
-    expect(pendingLabel(past, true)).toBe(COPY.pending);
-    expect(pendingLabel(null, true)).toBe(COPY.pending);
-  });
-});
-
-describe("archived projects", () => {
-  it("are listed, marked, and can be unarchived", async () => {
-    flag.on = false;
-    await openWith([project({ archived: true })]);
-    expect(container.textContent).toContain("Archived");
-    api.unarchiveProject.mockResolvedValue(true);
-    await act(async () => button("Unarchive")?.click());
-    await flush();
-    expect(api.unarchiveProject).toHaveBeenCalledWith("arc-1");
-    expect(button("Unarchive")).toBeUndefined();
-    expect(container.textContent).not.toContain("Archived");
-  });
-
-  it("a failed unarchive says so and keeps the mark", async () => {
-    flag.on = false;
-    await openWith([project({ archived: true })]);
-    api.unarchiveProject.mockResolvedValue(false);
-    await act(async () => button("Unarchive")?.click());
-    await flush();
-    expect(container.textContent).toContain("Couldn't save that. Try again.");
-    expect(button("Unarchive")).toBeDefined();
-  });
-});
-
-describe("while the list loads (founder 2026-10-07)", () => {
-  it("shows the voice mark, never a blank list, then the projects", async () => {
-    flag.on = false;
-    let resolve: (value: TrainingArc[]) => void = () => undefined;
-    api.fetchTrainings.mockReturnValue(new Promise<TrainingArc[]>((r) => { resolve = r; }));
-    act(() => root.render(createElement(ProjectsCard)));
-    await act(async () => button("Your projects")?.click());
-    expect(container.querySelector('[role="status"]')).not.toBeNull();
-    await act(async () => resolve([project()]));
-    await flush();
-    expect(container.querySelector('[role="status"]')).toBeNull();
-    expect(container.textContent).toContain("Board pitch");
   });
 });

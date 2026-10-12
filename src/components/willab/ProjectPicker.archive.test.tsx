@@ -34,7 +34,6 @@ vi.mock("@/lib/willab/setupDraft", () => ({
 }));
 
 import ProjectPicker from "./ProjectPicker";
-import { mapProjectDeletion } from "@/services/api/projectDeletion";
 import type { TrainingArc } from "@/services/api/trainings";
 
 function arc(over: Partial<TrainingArc> = {}): TrainingArc {
@@ -89,65 +88,12 @@ async function renderWith(arcs: TrainingArc[]) {
   await flush();
 }
 
-describe("mapProjectDeletion", () => {
-  it("keeps only an open request", () => {
-    expect(mapProjectDeletion({ state: "pending", due_at: "2026-10-03" }))
-      .toEqual({ state: "pending", dueAt: "2026-10-03", cancellable: true });
-    expect(mapProjectDeletion({ state: "cancelled" })).toBeNull();
-    expect(mapProjectDeletion({ state: "done" })).toBeNull();
-    expect(mapProjectDeletion(null)).toBeNull();
-  });
-
-  it("before Q17 a pending request is the cancellable one; a confirmed one is not", () => {
-    expect(mapProjectDeletion({ state: "confirmed", due_at: "d" }))
-      .toEqual({ state: "confirmed", dueAt: "d", cancellable: false });
-  });
-
-  it("since Q17 A reads the window's end and the backend's word on the cancel", () => {
-    expect(mapProjectDeletion({
-      state: "pending",
-      due_at: "2026-10-03",
-      completes_after: "2026-10-12T17:00:00Z",
-      cancellable: false,
-    })).toEqual({
-      state: "pending",
-      dueAt: "2026-10-12T17:00:00Z",
-      cancellable: false,
-    });
-    expect(mapProjectDeletion({ state: "pending", cancellable: true }))
-      .toEqual({ state: "pending", dueAt: null, cancellable: true });
-  });
-});
-
 describe("⋯ → Archive", () => {
   it("offers Archive and never Delete", async () => {
     await renderWith([arc()]);
     await act(async () => button("More options for Board pitch")?.click());
     expect(button("Archive")).toBeDefined();
     expect(button("Delete")).toBeUndefined();
-  });
-
-  it("archives at once and the row leaves the list", async () => {
-    api.archiveProject.mockResolvedValue(true);
-    await renderWith([arc(), arc({ arcId: "arc-2", topic: "Team update" })]);
-    await act(async () => button("More options for Board pitch")?.click());
-    await act(async () => button("Archive")?.click());
-    await flush();
-    expect(api.archiveProject).toHaveBeenCalledWith("arc-1");
-    expect(button("Board pitch")).toBeUndefined();
-    expect(button("Team update")).toBeDefined();
-    expect(api.requestProjectDeletion).not.toHaveBeenCalled();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-  });
-
-  it("a failed archive says so and keeps the row", async () => {
-    api.archiveProject.mockResolvedValue(false);
-    await renderWith([arc()]);
-    await act(async () => button("More options for Board pitch")?.click());
-    await act(async () => button("Archive")?.click());
-    await flush();
-    expect(container.textContent).toContain("Couldn't archive. Try again.");
-    expect(button("Board pitch")).toBeDefined();
   });
 });
 

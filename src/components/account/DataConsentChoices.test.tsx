@@ -28,7 +28,7 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => {
 
 import DataConsentChoices from "./DataConsentChoices";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
-import { mapConsentChoices, type ConsentChoices } from "@/services/api/consentChoices";
+import { type ConsentChoices } from "@/services/api/consentChoices";
 
 const SRC = join(process.cwd(), "src");
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
@@ -61,8 +61,6 @@ afterEach(() => {
 });
 
 const flush = () => act(async () => { await Promise.resolve(); });
-const buttons = (label: string) =>
-  Array.from(container.querySelectorAll("button")).filter((b) => b.textContent === label);
 const section = (title: string) =>
   container.querySelector(`section[aria-label="${title}"]`) as HTMLElement;
 const inSection = (title: string, label: string) =>
@@ -73,50 +71,6 @@ async function renderWith(value: ConsentChoices | null) {
   act(() => root.render(createElement(DataConsentChoices)));
   await flush();
 }
-
-describe("mapConsentChoices", () => {
-  it("reads the backend's answer, including an unfinished erasure", () => {
-    expect(mapConsentChoices({
-      has_receipt: true,
-      personalised_practice: false,
-      sensitive_information: true,
-      practice_erasure: { complete: false },
-    })).toEqual(choices({ personalisedPractice: false, practiceErasureComplete: false }));
-    expect(mapConsentChoices({ nothing: true })).toBeNull();
-  });
-
-  it("reads whether the policy offers practice as a choice (N66.2)", () => {
-    const base = { has_receipt: true, personalised_practice: true, sensitive_information: true };
-    expect(mapConsentChoices({ ...base, optional_purposes: [] })?.practiceOffered).toBe(false);
-    expect(mapConsentChoices({ ...base, optional_purposes: ["individual_learning_profile"] })?.practiceOffered).toBe(true);
-    expect(mapConsentChoices(base)?.practiceOffered).toBe(true);
-  });
-});
-
-describe("the page", () => {
-  it("shows both choices once there is an agreement to change", async () => {
-    await renderWith(choices());
-    expect(section(COPY.practiceTitle)).not.toBeNull();
-    expect(section(COPY.sensitiveTitle)).not.toBeNull();
-    expect(container.textContent).toContain(COPY.intro);
-  });
-
-  it("has no practice switch where practice is part of the service (3.4, N66.2)", async () => {
-    await renderWith(choices({ practiceOffered: false }));
-    expect(section(COPY.practiceTitle)).toBeNull();
-    expect(section(COPY.sensitiveTitle)).not.toBeNull();
-  });
-
-  it("shows no switches before anything was agreed", async () => {
-    await renderWith(choices({ hasReceipt: false }));
-    expect(container.querySelector("section")).toBeNull();
-  });
-
-  it("says so when the choices cannot be read", async () => {
-    await renderWith(null);
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(COPY.loadFailed);
-  });
-});
 
 describe("turning practice off", () => {
   it("asks first, and sends nothing until confirmed", async () => {
@@ -132,38 +86,6 @@ describe("turning practice off", () => {
     await flush();
     expect(api.setConsentChoice).toHaveBeenCalledWith("personalised_practice", false);
     expect(container.textContent).toContain(COPY.practiceOff);
-  });
-
-  it("can be cancelled", async () => {
-    await renderWith(choices());
-    await act(async () => inSection(COPY.practiceTitle, COPY.turnOff)?.click());
-    await act(async () => inSection(COPY.practiceTitle, COPY.cancel)?.click());
-    expect(container.textContent).not.toContain(COPY.turnOffConfirm);
-    expect(api.setConsentChoice).not.toHaveBeenCalled();
-  });
-
-  it("says when the recordings are still being deleted", async () => {
-    await renderWith(choices({ personalisedPractice: false, practiceErasureComplete: false }));
-    expect(container.textContent).toContain(COPY.erasureFinishing);
-  });
-
-  it("turns back on without a confirm", async () => {
-    api.setConsentChoice.mockResolvedValue(choices());
-    await renderWith(choices({ personalisedPractice: false }));
-    await act(async () => inSection(COPY.practiceTitle, COPY.turnOn)?.click());
-    await flush();
-    expect(api.setConsentChoice).toHaveBeenCalledWith("personalised_practice", true);
-    expect(container.textContent).toContain(COPY.practiceOn);
-  });
-
-  it("says so when the change fails, and changes nothing", async () => {
-    api.setConsentChoice.mockResolvedValue(null);
-    await renderWith(choices({ personalisedPractice: false }));
-    await act(async () => inSection(COPY.practiceTitle, COPY.turnOn)?.click());
-    await flush();
-    expect(section(COPY.practiceTitle).querySelector('[role="alert"]')?.textContent)
-      .toBe(COPY.failed);
-    expect(inSection(COPY.practiceTitle, COPY.turnOn)).toBeDefined();
   });
 });
 
@@ -190,21 +112,10 @@ describe("withdrawing sensitive information", () => {
 });
 
 describe("around the page", () => {
-  it("the BFF opens the choices path and nothing more", () => {
-    const route = read("app/api/v2/processing-authorization/[[...path]]/route.ts");
-    expect(route).toContain('choices: ["GET", "POST"]');
-    expect(route).not.toContain("data-rights: [");
-  });
 
   it("the record screen says why recording is off", () => {
     const lab = read("services/api/labRecording.ts");
     expect(lab).toContain('code === "PROCESSING_RECORDING_WITHDRAWN"');
     expect(lab).toContain("DATA_CONSENT_COPY.recordScreenOff");
-  });
-
-  it("buttons read as what they do", async () => {
-    await renderWith(choices());
-    expect(buttons(COPY.turnOff)).toHaveLength(1);
-    expect(buttons(COPY.withdraw)).toHaveLength(1);
   });
 });

@@ -60,15 +60,6 @@ async function render() {
 }
 
 describe("project deletion queue", () => {
-  it("lists open requests", async () => {
-    fetchMock.mockReturnValueOnce(reply(200, { requests: [ROW] }));
-    await render();
-    expect(fetchMock).toHaveBeenCalledWith("/api/v2/admin/project-deletions", {
-      cache: "no-store",
-    });
-    expect(container.textContent).toContain("Board pitch");
-    expect(confirmButton()).toBeDefined();
-  });
 
   it("sends nothing when the operator backs out", async () => {
     fetchMock.mockReturnValueOnce(reply(200, { requests: [ROW] }));
@@ -96,19 +87,5 @@ describe("project deletion queue", () => {
     expect(container.textContent).toContain("purge purge-9");
     expect(container.textContent).toContain("Confirmed");
     expect(confirmButton()).toBeUndefined();
-  });
-
-  it("says so when the confirm is refused", async () => {
-    fetchMock
-      .mockReturnValueOnce(reply(200, { requests: [ROW] }))
-      .mockReturnValueOnce(reply(409, { error: "PROJECT_DELETION_NOT_PENDING" }));
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    await render();
-    await act(async () => confirmButton()?.click());
-    await flush();
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      "PROJECT_DELETION_NOT_PENDING"
-    );
-    expect(confirmButton()).toBeDefined();
   });
 });

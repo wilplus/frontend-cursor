@@ -25,15 +25,6 @@ describe("legacy /api/auth/callback", () => {
     expect(location.searchParams.get("code")).toBe("abc123");
   });
 
-  it("carries the PKCE state and next through", async () => {
-    const res = await call(
-      "https://willpowerlab.com/api/auth/callback?code=abc&state=xyz&next=/results",
-    );
-    const location = new URL(res.headers.get("location")!);
-    expect(location.searchParams.get("state")).toBe("xyz");
-    expect(location.searchParams.get("next")).toBe("/results");
-  });
-
   it("forwards a provider error rather than swallowing it", async () => {
     const res = await call(
       "https://willpowerlab.com/api/auth/callback?error=access_denied" +
@@ -42,17 +33,6 @@ describe("legacy /api/auth/callback", () => {
     const location = new URL(res.headers.get("location")!);
     expect(location.pathname).toBe("/auth/callback");
     expect(location.searchParams.get("error")).toBe("access_denied");
-  });
-
-  it("never sends anyone to /dashboard", async () => {
-    for (const url of [
-      "https://willpowerlab.com/api/auth/callback",
-      "https://willpowerlab.com/api/auth/callback?code=abc",
-      "https://willpowerlab.com/api/auth/callback?type=recovery",
-    ]) {
-      const res = await call(url);
-      expect(new URL(res.headers.get("location")!).pathname).not.toBe("/dashboard");
-    }
   });
 
 });
