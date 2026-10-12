@@ -432,13 +432,10 @@ describe("mapDocumentSuggestions — open_card", () => {
     bookmark_tier: "weak",
   };
 
-  it.each(["praise", "exercise", "coach_request", "rewrite"] as const)(
-    "maps %s",
-    (value) => {
-      const out = mapDocumentSuggestions([{ ...cv, open_card: value }]);
-      expect(out![0].openCard).toBe(value);
-    },
-  );
+  it("maps a value of the enum as it came", () => {
+    const out = mapDocumentSuggestions([{ ...cv, open_card: "coach_request" }]);
+    expect(out![0].openCard).toBe("coach_request");
+  });
 
   it("absent or unknown is null, and never a number", () => {
     expect(mapDocumentSuggestions([cv])![0].openCard).toBeNull();

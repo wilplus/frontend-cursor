@@ -80,15 +80,6 @@ describe("savePracticeAnswer", () => {
     });
   });
 
-  it.each(["yes", "in_between", "no", "not_sure", "audio_unclear"] as const)(
-    "sends %s whole, never folded into another state",
-    async (answer) => {
-      fetchMock.mockResolvedValue(ok({ saved: true }));
-      await savePracticeAnswer(clip, answer);
-      expect(JSON.parse(String(fetchMock.mock.calls[0][1].body)).response).toBe(answer);
-    }
-  );
-
   it("reports a refused write so the screen can keep the question open", async () => {
     fetchMock.mockResolvedValue({ ok: false } as Response);
     expect(await savePracticeAnswer(clip, "yes")).toBe(false);

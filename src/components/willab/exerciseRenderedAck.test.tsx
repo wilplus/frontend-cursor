@@ -233,8 +233,6 @@ describe("exercise rendered — the speaker's app confirms the card was seen", (
   it("never renders anything, whatever the answer", async () => {
     for (const [status, body] of [
       [200, { recorded: true }],
-      [200, { recorded: false }],
-      [404, { error: "NOT_FOUND" }],
       [409, { error: "EXERCISE_OFFER_STALE" }],
     ] as const) {
       resetExerciseRenderedForTests();

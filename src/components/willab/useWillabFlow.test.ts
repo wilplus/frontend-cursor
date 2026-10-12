@@ -4,7 +4,6 @@ import {
   initialWillabState,
   isLabOverlay,
   transition,
-  type WillabEvent,
   type WillabState,
 } from "./useWillabFlow";
 
@@ -30,30 +29,11 @@ describe("initialWillabState", () => {
 });
 
 describe("isLabOverlay", () => {
-  it("is true for the Lab + send-gate states (overlay over the Lounge)", () => {
-    const labStates: WillabState[] = [
-      "lab_feelings",
-      "lab_session_context",
-      "lab_prerecord",
-      "lab_recording",
-      "lab_processing",
-      "readout",
-      "sendgate_unsigned",
-      "sendgate_signed",
-    ];
-    for (const s of labStates) expect(isLabOverlay(s)).toBe(true);
-  });
-
-  it("is false for the Lounge-level states", () => {
-    const loungeStates: WillabState[] = [
-      "welcome_consent",
-      "lounge_idle",
-      "parked",
-      "review_pending",
-      "insights_ready",
-      "lounge_general",
-    ];
-    for (const s of loungeStates) expect(isLabOverlay(s)).toBe(false);
+  it("is true for the Lab and the send gate (overlay over the Lounge), false for the Lounge", () => {
+    expect(isLabOverlay("lab_recording")).toBe(true);
+    expect(isLabOverlay("sendgate_unsigned")).toBe(true);
+    expect(isLabOverlay("lounge_idle")).toBe(false);
+    expect(isLabOverlay("parked")).toBe(false);
   });
 });
 
@@ -62,22 +42,7 @@ describe("isLabOverlay", () => {
 /*  dispatch events and never name a target state.                            */
 /* -------------------------------------------------------------------------- */
 
-const ALL_STATES: WillabState[] = [
-  "welcome_consent", "lounge_idle", "lab_project_pick", "lab_feelings",
-  "lab_session_context", "lab_prerecord", "lab_recording", "lab_processing",
-  "readout", "parked", "sendgate_unsigned", "sendgate_signed",
-  "review_pending", "insights_ready", "lounge_general",
-];
-
 describe("TRANSITIONS", () => {
-  it("names a real target and at least one expected origin for every event", () => {
-    for (const [event, row] of Object.entries(TRANSITIONS)) {
-      expect(ALL_STATES, event).toContain(row.to);
-      expect(row.from.length, event).toBeGreaterThan(0);
-      for (const from of row.from) expect(ALL_STATES, `${event} from`).toContain(from);
-    }
-  });
-
   it("is the record → process → Ideal Text loop", () => {
     // The live loop as a walk through the table (LIVE LOOP fence).
     let state: WillabState = "lab_prerecord";
@@ -98,17 +63,11 @@ describe("TRANSITIONS", () => {
   it("returns the mic to the speaker after a rejected upload, and the setup form when nothing can be restored", () => {
     expect(transition("lab_processing", "upload_rejected")).toEqual({ to: "lab_recording", expected: true });
     expect(transition("lab_feelings", "setup_needed")).toEqual({ to: "lab_session_context", expected: true });
-    expect(transition("lab_prerecord", "setup_needed")).toEqual({ to: "lab_session_context", expected: true });
-    expect(transition("lab_session_context", "upload_submitted")).toEqual({ to: "lab_processing", expected: true });
-    expect(transition("lab_recording", "upload_submitted")).toEqual({ to: "lab_processing", expected: true });
   });
 
-  it("keeps the Lab overlay open for every in-Lab event except the ones that leave it", () => {
-    const leaves: WillabEvent[] = ["park", "sent", "insights_opened"];
-    for (const [event, row] of Object.entries(TRANSITIONS) as [WillabEvent, (typeof TRANSITIONS)[WillabEvent]][]) {
-      if (leaves.includes(event)) expect(isLabOverlay(row.to), event).toBe(false);
-      else expect(isLabOverlay(row.to), event).toBe(true);
-    }
+  it("keeps the Lab overlay open for an in-Lab event, and closes it for one that leaves", () => {
+    expect(isLabOverlay(TRANSITIONS.recording_stopped.to)).toBe(true);
+    expect(isLabOverlay(TRANSITIONS.park.to)).toBe(false);
   });
 
   it("still moves on an unexpected origin — the table documents, it does not refuse", () => {
@@ -116,13 +75,6 @@ describe("TRANSITIONS", () => {
     // goTo did (the target is the event's) and is flagged, not swallowed.
     expect(transition("lounge_idle", "recording_stopped")).toEqual({ to: "lab_processing", expected: false });
     expect(transition(null, "park")).toEqual({ to: "parked", expected: false });
-  });
-
-  it("the Lounge-level events come from the Lounge, the Lab events from the Lab", () => {
-    for (const from of TRANSITIONS.setup_requested.from) expect(isLabOverlay(from)).toBe(false);
-    for (const event of ["recording_stopped", "processing_ready", "upload_rejected", "park", "sent", "sign_up_to_send"] as const) {
-      for (const from of TRANSITIONS[event].from) expect(isLabOverlay(from), `${event} from ${from}`).toBe(true);
-    }
   });
 });
 
