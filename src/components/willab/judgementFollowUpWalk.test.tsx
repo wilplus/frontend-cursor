@@ -53,7 +53,6 @@ vi.mock("@/lib/api/auth-client", () => ({
 vi.mock("@/services/api/confidentVoicePractice", () => ({
   startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
-  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
 }));
 vi.mock("@/services/api/bookmarkHistory", () => ({

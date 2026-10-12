@@ -1,5 +1,5 @@
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
-import type { IdealPiece, IdealSegment } from "@/services/api/idealText";
+import type { IdealPiece } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
 /*  pieceBadges — the discernment layer's PURE logic (founder 2026-07-20).     */
@@ -42,41 +42,6 @@ export function splitBadgeParagraphs(text: string): string[] {
   return splitBadgeParagraphSpans(text).map((p) => p.text);
 }
 
-/** Distribute ONE document-level segmentation across the paragraphs, so an
- *  anchor keeps its single first-occurrence-in-document match instead of
- *  re-matching in every paragraph it textually appears in (which would
- *  duplicate stars and paint approved folds in the wrong paragraph).
- *
- *  Segments are contiguous over the full text; plain segments are sliced at
- *  paragraph boundaries (the "\n\n" separators fall away with the slicing).
- *  A STYLED segment (bold / moment) straddling a boundary cannot be sliced
- *  faithfully → null, and the caller falls back to the un-badged single-pass
- *  view. Pure. */
-export function sliceSegmentsByParagraphs(
-  segments: IdealSegment[],
-  spans: ParagraphSpan[]
-): IdealSegment[][] | null {
-  const out: IdealSegment[][] = spans.map(() => []);
-  let cursor = 0;
-  for (const seg of segments) {
-    const s = cursor;
-    const e = cursor + seg.text.length;
-    cursor = e;
-    for (let i = 0; i < spans.length; i++) {
-      const os = Math.max(s, spans[i].start);
-      const oe = Math.min(e, spans[i].end);
-      if (oe <= os) continue;
-      if (seg.bold || seg.moment) {
-        if (s < spans[i].start || e > spans[i].end) return null;
-        out[i].push(seg);
-      } else {
-        out[i].push({ text: seg.text.slice(os - s, oe - s) });
-      }
-    }
-  }
-  return out;
-}
-
 /** Which deck PDF page sits above each paragraph of the reading view, or null
  *  for no slides at all. Two provable mappings, nothing else (founder
  *  2026-08-03 — "we don't know to which slide this text is" must never be
@@ -110,16 +75,4 @@ export function slidePagesForParagraphs(
   return pageCount === paragraphCount
     ? Array.from({ length: paragraphCount }, (_, i) => i)
     : null;
-}
-
-/** The arc's newest take across every piece (incumbents AND challengers) —
- *  a piece from this take wears the tinted "fresh" pill. Pure. */
-export function latestTakeIndex(pieces: IdealPiece[]): number | null {
-  let max: number | null = null;
-  for (const p of pieces) {
-    for (const t of [p.takeIndex, p.challenger?.takeIndex ?? null]) {
-      if (t !== null && (max === null || t > max)) max = t;
-    }
-  }
-  return max;
 }

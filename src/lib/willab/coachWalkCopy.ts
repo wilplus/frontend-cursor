@@ -99,7 +99,6 @@ export const COACH_WALK_COPY = {
   videoEyebrowError: "A video is the default for an error · under a minute",
   videoEyebrowOptional: "Optional · under a minute",
   videoHint: "Say the instruction in your own words. It is transcribed when you stop.",
-  videoTranscript: "Transcript · just now",
   videoUnsupported: "This browser cannot record; upload a clip filmed elsewhere.",
   pillRecord: "Record",
   pillKeep: "Keep",
@@ -118,7 +117,6 @@ export const COACH_WALK_COPY = {
   homeNamePlaceholder: "Land the last word",
   homeMainTarget: "Main target · one",
   homeAlsoTreats: "Also treats",
-  homePattern: "Pattern",
   homePatternPraise: "A read or a cue",
   homePatternRewrite: "The move",
   homeConfidentRead: "confident read",
@@ -158,7 +156,6 @@ export const COACH_WALK_COPY = {
   libraryRetired: "retired",
   libraryLine: (n: number) => `${n} ${n === 1 ? "line" : "lines"}`,
   pillNew: "New",
-  lanePassage: "From the library’s own exercises for this pattern",
   laneEyebrowDrafted: "Drafted from the library · edit every word",
 
   /* Phase 1b · the coach's exercise preference (founder 2026-10-01, B1 approved exactly) */

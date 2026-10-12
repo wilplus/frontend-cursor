@@ -58,11 +58,6 @@ const SUGGESTIONS = [
 ];
 const partsWith = (prefix: string): Part[] =>
   SLIDES.map((text, i) => ({ id: `${prefix}${i + 1}`, text, locked: false }));
-/** Paragraph 0 LOCKED and un-suggested: it carries a bookmark (something was
- *  decided) and its sheet opens on the EDITOR face, which is the one with a
- *  field to type into. */
-const partsLockedFirst = (prefix: string): Part[] =>
-  SLIDES.map((text, i) => ({ id: `${prefix}${i + 1}`, text, locked: i === 0 }));
 
 Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => undefined);
 Element.prototype.scrollIntoView =

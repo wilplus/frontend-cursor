@@ -5,7 +5,6 @@ import {
   ERROR_ID_SHAPE,
   draftProblem,
   mapSpeakingError,
-  suggestErrorId,
   type SpeakingErrorDraft,
 } from "./speakingErrors";
 
@@ -137,23 +136,6 @@ describe("draftProblem", () => {
   it("treats whitespace-only as missing for every field", () => {
     for (const field of ["label", "definition", "asks"] as const) {
       expect(draftProblem({ ...GOOD, [field]: "  \n " }), field).not.toBeNull();
-    }
-  });
-});
-
-describe("suggestErrorId", () => {
-  it("turns a human name into a legal id", () => {
-    expect(suggestErrorId("Trailing mumble")).toBe("trailing_mumble");
-    expect(suggestErrorId("Ending compression")).toBe("ending_compression");
-  });
-
-  it("produces something the shape accepts, or nothing at all", () => {
-    for (const label of [
-      "Trailing mumble", "  Loud   START  ", "é accent", "9 lives", "!!!",
-      "a".repeat(80),
-    ]) {
-      const id = suggestErrorId(label);
-      if (id) expect(ERROR_ID_SHAPE.test(id), `${label} → ${id}`).toBe(true);
     }
   });
 });

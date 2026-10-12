@@ -27,12 +27,6 @@ const PLACE_BY_CYCLE = new Map<number, number>();
  *  could still be looking at. */
 const MAX_REMEMBERED = 8;
 
-export function rememberedPlace(cycleEpoch: number, count: number): number {
-  const at = PLACE_BY_CYCLE.get(cycleEpoch);
-  if (typeof at !== "number") return 0;
-  return clampPlace(at, count);
-}
-
 export function rememberPlace(cycleEpoch: number, at: number): void {
   if (PLACE_BY_CYCLE.size >= MAX_REMEMBERED && !PLACE_BY_CYCLE.has(cycleEpoch)) {
     const oldest = PLACE_BY_CYCLE.keys().next();

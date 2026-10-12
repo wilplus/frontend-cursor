@@ -118,15 +118,6 @@ export interface CoachReviewSession {
   };
 }
 
-/** What the FE sends per per-snippet save. Any subset of fields. The BE
- *  validates: note requires tag; tag standalone is OK; direction is
- *  independent. Echoes back the persisted state for confirmation. */
-export interface CoachSnippetSavePatch {
-  note?: string;
-  tag?: CoachTag | null;
-  surfaced?: boolean;
-}
-
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
 
 function pickRating(raw: unknown): ConfidenceRatingValue | null {

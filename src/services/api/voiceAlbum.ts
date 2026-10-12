@@ -258,37 +258,6 @@ function mapHistory(
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/*  THE STORY BEHIND ANY MOMENT (founder 2026-09-25).                          */
-/*                                                                            */
-/*  "the album shows your confident moments, not any moments." The Album is a  */
-/*  trophy case — three separate yeses to get in — so the history above it can */
-/*  only ever be told about a moment that went well. The moments worth         */
-/*  learning from are the others, and this serves those.                       */
-/*                                                                            */
-/*  Same payload, same renderer, same signed words. The one difference is made */
-/*  on the SERVER: a snippet history never carries the `coach_agreed` lane,    */
-/*  because that row appears only on a coach's yes and its absence everywhere  */
-/*  else would announce the verdict on the rest. Nothing here has to know      */
-/*  that — the lane simply never arrives.                                      */
-/* -------------------------------------------------------------------------- */
-export async function fetchSnippetHistory(
-  projectId: string,
-  sessionId: string,
-  snippetId: string
-): Promise<MomentHistory | null> {
-  if (!projectId || !sessionId || !snippetId) return null;
-  const query = new URLSearchParams({
-    arc: projectId,
-    session: sessionId,
-    snippet: snippetId,
-  });
-  return mapHistory(
-    rec(await getJson(`/api/v2/moment-history?${query.toString()}`)),
-    snippetId
-  );
-}
-
 export async function saveMomentNote(
   projectId: string,
   momentKey: string,

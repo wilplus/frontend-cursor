@@ -223,45 +223,6 @@ export async function prepareConfidenceChainPacket(
   }
 }
 
-/** THE CONFIDENT VOICE CARD'S "do you agree?" (founder 2026-08-15).
- *
- *  This is an ANCHORED owner response on a card that has already told the
- *  speaker what the machine thinks. The endpoint carries one narrow purpose:
- *  answer routes the displayed moment into (or out of) the Voice Album. The
- *  backend stores it in a dedicated routing table. It is never a training,
- *  calibration, quorum, evaluation, SFT or DPO signal. */
-export async function saveConfidenceAgreement(
-  snippetId: string,
-  body: StateRatingBody
-): Promise<SaveRatingResult> {
-  const token = await getAuthToken();
-  if (!token) return { ok: false, error: null };
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/confidence-agree`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        cache: "no-store",
-      }
-    );
-  } catch {
-    return { ok: false, error: null };
-  }
-  if (res.ok) return { ok: true };
-  const data = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  const err = data?.error;
-  return { ok: false, error: typeof err === "string" && err ? err : null };
-}
-
 /** Persist one rating. The compatibility read keeps this rater's latest row;
  *  the canonical write appends reconsiderations as immutable revisions.
  *  Other raters remain separate, so multi-rater agreement stays possible.

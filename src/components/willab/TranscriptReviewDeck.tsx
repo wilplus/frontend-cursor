@@ -61,7 +61,6 @@ import {
   stepPosition,
   wheelGestureStep,
   type DeckPosition,
-  type DeckScreenModel,
   type WheelGestureState,
 } from "@/lib/willab/deckScroll";
 import {

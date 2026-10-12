@@ -13,7 +13,6 @@ import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
-import { readPractiseOffered } from "@/services/api/consentChoices";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 
 vi.mock("@/services/api/consentChoices", () => ({
@@ -37,7 +36,6 @@ vi.mock("@/lib/api/auth-client", () => ({
 vi.mock("@/services/api/confidentVoicePractice", () => ({
   startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
-  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
 }));
 vi.mock("@/services/api/bookmarkHistory", () => ({

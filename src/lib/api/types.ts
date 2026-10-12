@@ -74,28 +74,3 @@ export interface GetRecordingResponse {
 export interface GetSignedAudioUrlResponse {
   audio_url: string;
 }
-
-export interface RecordingListItemLite {
-  id: UUID;
-  created_at: ISODateString;
-  duration: number;
-}
-
-export interface ListRecordingsResponse {
-  items: RecordingListItemLite[];
-  limit: number;
-  offset: number;
-  total?: number;
-}
-
-/**
- * Snippet-sharing consent surface. One-time global question asked after
- * the user rates their very first snippet (see ChatInterview consent
- * splice). `has_answered` flips true once the user picks Yes/No — the
- * frontend uses it to suppress the prompt on subsequent chats. `opt_in`
- * carries the actual choice (null until answered).
- */
-export interface SharingConsentResponse {
-  has_answered: boolean;
-  opt_in: boolean | null;
-}

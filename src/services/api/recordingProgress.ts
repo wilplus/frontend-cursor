@@ -1,8 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*  recordingProgress — progress toward the first audit (C-2 / S2)            */
 /*                                                                            */
-/*  GET /api/v2/user/recording-progress → { recorded_seconds, threshold_seconds,*/
-/*  unlocked }. The cumulative seconds the user has recorded across all their    */
+/*  { recorded_seconds, threshold_seconds, unlocked }, read from the upload      */
+/*  response. The cumulative seconds the user has recorded across all their     */
 /*  sessions vs the 600s (10 min) threshold that unlocks their first audit.      */
 /*                                                                            */
 /*  The FE NEVER sums snippet durations for this — snippet windows are selected   */
@@ -40,42 +40,4 @@ export function mapRecordingProgress(raw: unknown): RecordingProgress | null {
     unlocked:
       typeof r.unlocked === "boolean" ? r.unlocked : recorded >= threshold,
   };
-}
-
-/** C-2 — the "M:SS of recording left to unlock your first audit" figure, from
- *  the remaining seconds. Returns null once unlocked / nothing remains (the
- *  caller renders the unlocked state instead). */
-export function audioRemainingLabel(p: RecordingProgress): string | null {
-  if (p.unlocked) return null;
-  const remaining = Math.max(
-    0,
-    Math.ceil(p.thresholdSeconds - p.recordedSeconds)
-  );
-  if (remaining <= 0) return null;
-  const m = Math.floor(remaining / 60);
-  const s = remaining % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-/** Progress fraction (0..1) for the bar width. */
-export function progressFraction(p: RecordingProgress): number {
-  if (p.thresholdSeconds <= 0) return 1;
-  return Math.min(1, Math.max(0, p.recordedSeconds / p.thresholdSeconds));
-}
-
-/** Fetch the cumulative recording progress. Soft-fails to null (no endpoint,
- *  non-2xx, network error, or unparseable body) → caller hides the bubble. */
-export async function fetchRecordingProgress(): Promise<RecordingProgress | null> {
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/user/recording-progress", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  return mapRecordingProgress(await res.json().catch(() => null));
 }

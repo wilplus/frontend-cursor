@@ -64,23 +64,6 @@ const WARMABLE: readonly WarmableView[] = [
   { view: "strategy", href: "/panel/strategy", cacheKey: "strategy", load: fetchStrategy },
 ];
 
-/** Menu keys with deliberately no loader, and the reason. The test reads this,
- *  so an exemption has to be written down rather than assumed. */
-export const NOT_WARMED: Readonly<Record<string, string>> = {
-  // Not a list and not a pill: the export, the hard delete and the reminders,
-  // behind the settings control. Warming a screen reached deliberately once in
-  // a while buys nothing and costs a read on every panel open.
-  data: "chrome, not a view",
-};
-
-/** For the tests that hold this registry against the menu and against the
- *  views' own keys. */
-export const WARMABLE_VIEWS: ReadonlyArray<{
-  view: string;
-  href: string;
-  cacheKey: string;
-}> = WARMABLE.map(({ view, href, cacheKey }) => ({ view, href, cacheKey }));
-
 /** Start the read behind `href`, if there is one. Safe on every pointer event:
  *  a key already warm or already in flight is dropped on the floor, so
  *  hovering a pill ten times makes at most one request. */

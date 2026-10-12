@@ -1,5 +1,4 @@
 import type {
-  LoungeMessage,
   LoungeMessageDraft,
 } from "@/services/api/loungeMessages";
 
@@ -13,14 +12,8 @@ import type {
 /*  fields — the hero pair (§5) is optional until seam ③ populates real metrics.*/
 /* -------------------------------------------------------------------------- */
 
-export const REPORT_KINDS = ["recording_summary", "insight"] as const;
-
 export const IDEAL_TEXT_UNCONFIRMED_BODY =
   "We processed your take, but couldn’t create your Ideal Text.";
-
-export function isReportMessage(m: Pick<LoungeMessage, "kind">): boolean {
-  return m.kind === "recording_summary" || m.kind === "insight";
-}
 
 /** Build the Readout-summary draft appended to the thread on completion. */
 export function readoutSummaryDraft(input: {

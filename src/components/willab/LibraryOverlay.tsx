@@ -7,14 +7,12 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import type { ExploreArc } from "@/lib/willab/exploreArc";
 import {
-  deletePresentation,
   deleteRefusalLine,
   deleteTake,
   fetchStrengths,
   type PresentationGroup,
   type PresentationTake,
   type StrengthMoment,
-  type StrengthsView,
 } from "@/services/api/strengths";
 import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
 import FeedbackOverlay from "./FeedbackOverlay";
@@ -22,7 +20,6 @@ import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { MediaRefreshProvider } from "@/lib/media/mediaRefresh";
 import { SlideRender } from "./pdfSlides";
-import { SlidePlaceholder } from "./SlideTake";
 import SnippetScreenShell from "./SnippetScreenShell";
 import type { ReadoutFeatures } from "./readout";
 
@@ -36,7 +33,6 @@ import type { ReadoutFeatures } from "./readout";
 /*  L4  SlideTake                                                              */
 /* -------------------------------------------------------------------------- */
 
-const EMPTY: StrengthsView = { general: [], presentations: [] };
 
 type DeckSlide = {
   index: number;
@@ -132,7 +128,6 @@ export default function LibraryOverlay({
   } | null>(null);
   const [idealArcId, setIdealArcId] = useState<string | null>(null);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   // A take the backend refused to delete (409 TAKE_HAS_LINEAGE): it comes
   // back, with the approved line under it. Nothing was deleted, so the take
   // keeps its number.
@@ -200,7 +195,6 @@ export default function LibraryOverlay({
 
   /* ── breadcrumbs ── */
   const goL1 = () => setNav({ level: "L1" });
-  const goL2 = (p: PresentationGroup) => setNav({ level: "L2", presentation: p });
 
   const crumbs: { label: string; onClick?: () => void }[] = (() => {
     if (nav.level === "L1") return [{ label: "Your presentations" }];
@@ -268,23 +262,6 @@ export default function LibraryOverlay({
   })();
 
   /* ── delete handlers ── */
-  const handleDeletePresentation = (p: PresentationGroup) => {
-    if (!window.confirm("Delete this presentation and all its takes?")) return;
-    const prev = presentations;
-    setPresentations((ps) => ps.filter((x) => x.presentationId !== p.presentationId));
-    if (nav.level === "L2" && nav.presentation.presentationId === p.presentationId) {
-      goL1();
-    }
-    deletePresentation(p.presentationId).catch((err: unknown) => {
-      setPresentations(prev);
-      setDeleteError(
-        deleteRefusalLine(err, "presentation") ??
-          "Could not delete presentation. Please try again."
-      );
-      setTimeout(() => setDeleteError(null), 3000);
-    });
-  };
-
   const handleDeleteTake = (presentationId: string, takeNumber: number) => {
     setTakeRefusal(null);
     setPresentations((ps) =>
@@ -579,63 +556,6 @@ function TrainingDetail({
           Record another take
         </button>
       </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────── L1 presentations ─────────────────────── */
-
-function PresentationsList({
-  presentations,
-  general,
-  onOpenPresentation,
-  onOpenGeneral,
-  onDeletePresentation,
-  deleteError,
-}: {
-  presentations: PresentationGroup[];
-  general: StrengthMoment[];
-  onOpenPresentation: (p: PresentationGroup) => void;
-  onOpenGeneral: () => void;
-  onDeletePresentation: (p: PresentationGroup) => void;
-  deleteError: string | null;
-}) {
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10">
-      {presentations.map((p) => (
-        <Card
-          key={p.presentationId}
-          height={84}
-          onClick={() => onOpenPresentation(p)}
-          presentationRef={p.presentationRef}
-          slideIndex={p.slides[0]?.index ?? 0}
-          slideTitle={p.slides[0]?.title}
-          slideBody={p.slides[0]?.body}
-          title={p.topic || "Presentation"}
-          sub={`${p.takes.length} take${p.takes.length === 1 ? "" : "s"}`}
-          menuItems={[
-            {
-              label: "Delete presentation",
-              danger: true,
-              onClick: () => onDeletePresentation(p),
-            },
-          ]}
-        />
-      ))}
-
-      {general.length > 0 ? (
-        <Card
-          height={84}
-          onClick={onOpenGeneral}
-          presentationRef={null}
-          slideIndex={0}
-          title="Other moments"
-        />
-      ) : null}
-
-      {deleteError ? (
-        <p className="text-[13px] text-destructive">{deleteError}</p>
-      ) : null}
     </div>
   );
 }

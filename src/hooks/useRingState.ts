@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import {
   currentRingState,
-  featureIsOn,
   loadRingState,
   subscribeRingState,
-  type RingFeature,
   type RingState,
 } from "@/services/api/rings";
 
@@ -31,19 +29,4 @@ export function useRingState(): RingState | null {
     };
   }, []);
   return state;
-}
-
-/** Whether a ringed feature is on for THIS person (false while loading). */
-export function useFeatureOn(feature: RingFeature): boolean {
-  const state = useRingState();
-  return featureIsOn(state, feature);
-}
-
-/**
- * The two switches together: the build carries the code (a `NEXT_PUBLIC_*`
- * building switch) AND the ring reaches this person. Both, or off.
- */
-export function useBuiltAndOn(built: boolean, feature: RingFeature): boolean {
-  const on = useFeatureOn(feature);
-  return built && on;
 }

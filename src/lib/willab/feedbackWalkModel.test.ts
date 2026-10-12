@@ -2,11 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
   afterJudging,
-  bankLine,
   firstJudgement,
   unansweredJudgements,
   buildFeedbackWalk,
-  clearerTurn,
   pickExercise,
   walkStart,
   walkStepForPart,
@@ -134,13 +132,6 @@ describe("the clearer version (D-FW-15)", () => {
     expect(only.plan[walkStepForPart(only, "p4")!].key).toBe("clearer");
   });
 
-  it("rotates the signed lines by the clearer versions before it", () => {
-    const lines = ["a", "b", "c"];
-    expect([0, 1, 2, 3, 4].map((t) => bankLine(lines, t))).toEqual(["a", "b", "c", "a", "b"]);
-    const plan = [{ key: "page" }, { key: "clearer" }, { key: "clearer" }, { key: "end" }] as const;
-    expect(clearerTurn([...plan], 1)).toBe(0);
-    expect(clearerTurn([...plan], 2)).toBe(1);
-  });
 });
 
 describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {

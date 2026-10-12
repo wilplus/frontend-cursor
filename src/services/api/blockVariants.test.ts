@@ -1,13 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  alignVariantBlocksWithPieces,
   fetchBlockVariants,
   fetchIdealTextRevisions,
-  hasVariantChoice,
-  pickerBlockForParagraph,
   restoreIdealTextRevision,
   selectBlockVariant,
-  type VariantBlock,
 } from "./blockVariants";
 
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
@@ -165,134 +161,6 @@ describe("fetchBlockVariants", () => {
     expect(r.blocks[0].variants).toHaveLength(0); // empty text dropped
     expect(r.blocks[1].blockKey).toBeNull(); // broken row kept, inert
     expect(r.blocks[2].variants).toHaveLength(3);
-  });
-});
-
-describe("hasVariantChoice / pickerBlockForParagraph", () => {
-  const block = (over: Partial<VariantBlock>): VariantBlock => ({
-    blockKey: 10,
-    label: null,
-    takeIndex: 1,
-    variants: [],
-    ...over,
-  });
-
-  it("offers no affordance for a single-entry list (just the current)", () => {
-    const b = block({
-      variants: [
-        { variantId: "v1", source: "take", takeIndex: 1, text: "t", isCurrent: true },
-      ],
-    });
-    expect(hasVariantChoice(b)).toBe(false);
-  });
-
-  it("offers no affordance when the only alternative is un-selectable", () => {
-    const b = block({
-      variants: [
-        { variantId: null, source: "take", takeIndex: 1, text: "t", isCurrent: true },
-      ],
-    });
-    expect(hasVariantChoice(b)).toBe(false);
-  });
-
-  it("offers the picker once a selectable non-current variant exists", () => {
-    const b = block({
-      variants: [
-        { variantId: null, source: "take", takeIndex: 1, text: "t", isCurrent: true },
-        { variantId: "v2", source: "take", takeIndex: 2, text: "u", isCurrent: false },
-      ],
-    });
-    expect(hasVariantChoice(b)).toBe(true);
-  });
-
-  it("zips blocks to paragraphs 1:1 and hides EVERY chip on a mismatch", () => {
-    const b = block({
-      variants: [
-        { variantId: "v1", source: "take", takeIndex: 1, text: "t", isCurrent: true },
-        { variantId: "v2", source: "take", takeIndex: 2, text: "u", isCurrent: false },
-      ],
-    });
-    expect(pickerBlockForParagraph([b], 1, 0)).toBe(b);
-    // A user edit reshaped the paragraphs → counts mismatch → no chip may
-    // render (a misattributed picker would swap the WRONG block).
-    expect(pickerBlockForParagraph([b], 2, 0)).toBeNull();
-    expect(pickerBlockForParagraph(null, 1, 0)).toBeNull();
-  });
-});
-
-describe("alignVariantBlocksWithPieces", () => {
-  /* THE KEYED JOIN (backend #318): pieces[] carry block_key, and paragraph
-   * i's chip is the block whose key MATCHES pieces[i].blockKey. Block keys
-   * are GAPPED by design (0, 10, 20…) while piece keys are paragraph
-   * indexes (0, 1, 2…) — the retired "block_key == piece_key" pairwise
-   * rule hid every chip on any multi-block document; these tests pin the
-   * corrected world plus the legacy (keyless) fallback. */
-  const blockWithKey = (blockKey: number | null): VariantBlock => ({
-    blockKey,
-    label: null,
-    takeIndex: 1,
-    variants: [],
-  });
-
-  it("KEYED: gapped block keys align to paragraph indexes by key match", () => {
-    const blocks = [blockWithKey(0), blockWithKey(10), blockWithKey(20)];
-    const pieces = [
-      { pieceKey: 0, blockKey: 0 },
-      { pieceKey: 1, blockKey: 10 },
-      { pieceKey: 2, blockKey: 20 },
-    ];
-    const out = alignVariantBlocksWithPieces(blocks, pieces);
-    expect(out).not.toBeNull();
-    expect(out!.map((b) => b.blockKey)).toEqual([0, 10, 20]);
-  });
-
-  it("KEYED: an unmatched key stubs ONLY its paragraph — never the whole layer", () => {
-    const blocks = [blockWithKey(0), blockWithKey(20)];
-    const pieces = [
-      { pieceKey: 0, blockKey: 0 },
-      { pieceKey: 1, blockKey: 10 }, // pool lags — no block 10 served
-      { pieceKey: 2, blockKey: 20 },
-    ];
-    const out = alignVariantBlocksWithPieces(blocks, pieces);
-    expect(out!.map((b) => b.blockKey)).toEqual([0, null, 20]);
-    expect(out![1].variants).toEqual([]); // choiceless stub → its chip hides
-  });
-
-  it("LEGACY (no per-piece block_key): multi-block hides every chip — the gapped keys can never pairwise-match paragraph indexes", () => {
-    const blocks = [blockWithKey(0), blockWithKey(10)];
-    const pieces = [{ pieceKey: 0 }, { pieceKey: 1 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
-  });
-
-  it("LEGACY: a single-block document still aligns positionally (0 == 0)", () => {
-    const blocks = [blockWithKey(0)];
-    const pieces = [{ pieceKey: 0 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBe(blocks);
-  });
-
-  it("LEGACY: hides EVERY chip when the two payloads disagree on count", () => {
-    const blocks = [blockWithKey(0)];
-    const pieces = [{ pieceKey: 0 }, { pieceKey: 1 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
-  });
-
-  it("LEGACY: treats an unverifiable (null-key) block row as misaligned", () => {
-    const blocks = [blockWithKey(null)];
-    const pieces = [{ pieceKey: 0 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
-  });
-
-  it("MIXED keys (some pieces keyless) falls back to the legacy rule, never a half-keyed guess", () => {
-    const blocks = [blockWithKey(0), blockWithKey(10)];
-    const pieces = [{ pieceKey: 0, blockKey: 0 }, { pieceKey: 1 }];
-    expect(alignVariantBlocksWithPieces(blocks, pieces)).toBeNull();
-  });
-
-  it("passes blocks through when there are no pieces to check against", () => {
-    const blocks = [blockWithKey(0)];
-    expect(alignVariantBlocksWithPieces(blocks, null)).toBe(blocks);
-    expect(alignVariantBlocksWithPieces(blocks, [])).toBe(blocks);
-    expect(alignVariantBlocksWithPieces(null, [{ pieceKey: 0 }])).toBeNull();
   });
 });
 

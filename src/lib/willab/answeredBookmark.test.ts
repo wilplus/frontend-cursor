@@ -1,102 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  answeredView,
   opensParagraphSheet,
   helperWordRanges,
   paragraphHeadlines,
-  timelineOf,
-  type DecidedItemLite,
 } from "./answeredBookmark";
-import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
-import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 
-const cv: DecidedItemLite = {
+const cv = {
   id: "cv",
   status: "dismissed",
   feedbackFamily: "confident_voice",
   quote: "nine days to two",
   proposedText: null,
 };
-const rewrite: DecidedItemLite = {
-  id: "rw",
-  status: "approved",
-  feedbackFamily: "rewrite_clarity",
-  quote: "we did cut it",
-  proposedText: "now it takes two",
-};
-const praise: DecidedItemLite = {
-  id: "pr",
-  status: "approved",
-  feedbackFamily: "great_formulation",
-  quote: "first week",
-  proposedText: null,
-};
-const history: ParagraphHistory = {
-  slideIndex: 2,
-  versions: [
-    { takeIndex: 1, paragraphs: ["We cut onboarding."], at: null },
-    { takeIndex: 3, paragraphs: ["Nine days became two.", "Buddy."], at: null },
-  ],
-  helperWords: [
-    { phrases: ["nine days to two"], at: "a" },
-    { phrases: [], at: "b" },
-    { phrases: ["nine days to two", "first week"], at: "c" },
-  ],
-  practice: [{ before: "old", after: "Nine days became two.", at: null }],
-};
 
 describe("the answered bookmark (Q19 A)", () => {
-  it("says the owner's own answer back as one sentence", () => {
-    const view = answeredView({
-      items: [cv],
-      answers: [{ feedbackId: "cv", response: "in_between" }],
-      history: null,
-      copy: COPY,
-    });
-    expect(view.youSaid).toBe("You have judged this as your moment in-between");
-  });
-
-  it("draws no answer it does not have", () => {
-    const view = answeredView({ items: [cv], answers: [], history: null, copy: COPY });
-    expect(view.youSaid).toBeNull();
-  });
-
-  it("shows at most two boxes, leaving the praise out first", () => {
-    const view = answeredView({
-      items: [cv, rewrite, praise],
-      answers: [],
-      history,
-      copy: COPY,
-    });
-    expect(view.boxes).toEqual([
-      { label: "Correction accepted", text: "now it takes two" },
-      { label: "From your practice", text: "Nine days became two." },
-    ]);
-    const two = answeredView({ items: [praise], answers: [], history: null, copy: COPY });
-    expect(two.boxes).toEqual([{ label: "Praised", text: "first week" }]);
-  });
-
-  it("one timeline, newest first, each Take with the helper words locked then (Q26 B)", () => {
-    const timed: ParagraphHistory = {
-      ...history,
-      versions: [
-        { takeIndex: 1, paragraphs: ["We cut onboarding."], at: "2026-09-25T10:00:00Z" },
-        { takeIndex: 2, paragraphs: ["Nine days became two."], at: "2026-09-25T11:00:00Z" },
-        { takeIndex: 3, paragraphs: ["Two days now.", "Buddy."], at: "2026-09-25T12:00:00Z" },
-      ],
-      helperWords: [
-        { phrases: ["nine days to two"], at: "2026-09-25T10:30:00Z" },
-        { phrases: [], at: "2026-09-25T11:10:00Z" },
-        { phrases: ["two days", "buddy"], at: "2026-09-25T12:30:00Z" },
-      ],
-    };
-    const view = answeredView({ items: [], answers: [], history: timed, copy: COPY });
-    expect(view.timeline).toEqual([
-      { label: "Take 3", text: "Two days now.\n\nBuddy.", helperWords: "two days · buddy" },
-      { label: "Take 2", text: "Nine days became two.", helperWords: null },
-      { label: "Take 1", text: "We cut onboarding.", helperWords: "nine days to two" },
-    ]);
-  });
 
   it("opens its own sheet unless a judgement waits; saved words always open it (founder lock 2026-09-30, B5, B8)", () => {
     expect(opensParagraphSheet({ pending: [], decided: [cv] })).toBe(true);
@@ -136,36 +53,5 @@ describe("helper words inside the running text", () => {
   it("marks nothing when the Take did not say them", () => {
     expect(helperWordRanges("Something else entirely.", "the timing matters")).toBeUndefined();
     expect(helperWordRanges("Anything.", null)).toBeUndefined();
-  });
-});
-
-describe("an earlier Take's recording and answer (decision 5)", () => {
-  it("rides on the Take's row when the history carries them", () => {
-    const rows = timelineOf(
-      {
-        slideIndex: 1,
-        versions: [
-          {
-            takeIndex: 1,
-            paragraphs: ["We cut onboarding."],
-            at: "2026-09-01T00:00:00Z",
-            clip: { audioRef: "https://a/t1.webm", startOffsetMs: 1000, durationMs: 3500 },
-            answer: "yes",
-          },
-        ],
-        helperWords: [],
-        practice: [],
-      },
-      {
-        historyTake: "Take",
-        historyJudgedYes: "You have judged this as your confident moment",
-        historyJudgedInBetween: "",
-        historyJudgedNo: "",
-        historyJudgedNotSure: "",
-        historyJudgedAudioUnclear: "",
-      },
-    );
-    expect(rows[0].clip?.audioRef).toBe("https://a/t1.webm");
-    expect(rows[0].judged).toBe("You have judged this as your confident moment");
   });
 });

@@ -26,4 +26,3 @@ export const MODEL_IMPROVEMENT_COPY = {
 } as const;
 
 export const DATA_CHOICES_PATH = "/account/data-consent";
-export const MODEL_IMPROVEMENT_PATH = "/account/model-improvement";

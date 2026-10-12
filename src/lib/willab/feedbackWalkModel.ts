@@ -292,12 +292,6 @@ export function bankLine(lines: readonly string[], turn: number): string {
   return lines[((turn % lines.length) + lines.length) % lines.length];
 }
 
-/** How many clearer versions come before step `at` in the plan: the turn
- *  its bank lines rotate by. */
-export function clearerTurn(plan: readonly WalkStep[], at: number): number {
-  return plan.slice(0, Math.max(0, at)).filter((s) => s.key === "clearer").length;
-}
-
 /** Where "Review feedback" opens the walk: its first screen. Null when this
  *  phase has nothing to show (no coach's note, no praise, no practise, no
  *  judgement). */

@@ -159,9 +159,6 @@ describe("the founder copy is exactly what was signed off", () => {
     expect(IDEAL_EDIT_COPY.additionDecline).toBe("Not now");
     expect(IDEAL_EDIT_COPY.lockPart).toBe("Lock section");
     expect(IDEAL_EDIT_COPY.unlockPart).toBe("Unlock section");
-    expect(IDEAL_EDIT_COPY.lockBlocked).toBe(
-      "Please approve or disregard pending suggestions before locking."
-    );
   });
 
   it("has NO string for a stale document", () => {

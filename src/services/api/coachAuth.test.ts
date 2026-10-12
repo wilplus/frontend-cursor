@@ -11,7 +11,6 @@ import { fetchMomentRead, fetchMomentsQueue, fetchTakeWord, listCatalogue } from
 import { fetchCoachReviewSession } from "./coachReview";
 import { fetchBlockPicks, fetchErrorAudit, fetchExercisePreference, fetchV4MomentPicks, fetchV4SurerPairs } from "./coachPanel";
 import { fetchCoachSpeakers } from "./coachSpeakers";
-import { fetchCoachExerciseRequest } from "./coachExerciseRequest";
 
 const READS: Array<[string, () => Promise<unknown>]> = [
   ["the moments queue", () => fetchMomentsQueue()],
@@ -25,7 +24,6 @@ const READS: Array<[string, () => Promise<unknown>]> = [
   ["the V4 pairs", () => fetchV4SurerPairs()],
   ["the exercise preference", () => fetchExercisePreference("t1", "s1")],
   ["the speakers", () => fetchCoachSpeakers()],
-  ["the exercise request", () => fetchCoachExerciseRequest("t1", "s1")],
 ];
 
 let fetchMock: ReturnType<typeof vi.fn>;

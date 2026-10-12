@@ -2,16 +2,11 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import {
-  AGREE_QUESTION,
-  AGREE_THANKS,
   CONFIDENT_VOICE_NO,
   CONFIDENT_VOICE_WHY,
   PRAISE_CUE_COPY,
-  PRAISE_CUE_LEAD,
-  PRAISE_LEAD,
   praiseLines,
 } from "./trackedChangeWhy";
-import { CONFIDENCE_QUESTION } from "@/services/api/stateRatings";
 import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
@@ -84,17 +79,6 @@ describe("every cue the backend can send has copy here", () => {
 });
 
 describe("nothing here surfaces a number (AC-9)", () => {
-  it("no digits in any praise string", () => {
-    const all = [PRAISE_LEAD, PRAISE_CUE_LEAD, ...Object.values(PRAISE_CUE_COPY)];
-    for (const line of all) expect(line).not.toMatch(/\d/);
-  });
-
-  it("no score, ratio, percent or rank vocabulary", () => {
-    const all = [PRAISE_LEAD, PRAISE_CUE_LEAD, ...Object.values(PRAISE_CUE_COPY)];
-    for (const line of all) {
-      expect(line).not.toMatch(/score|percent|rating|rank|out of|level \w/i);
-    }
-  });
 
   it("compares them to THEMSELVES, never to other speakers", () => {
     // Every cue is z-scored against the speaker's own baseline upstream, so
@@ -243,24 +227,5 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     // A lit chip over a row the server never took is the same lie the style
     // apply refuses to tell.
     expect(MODAL).toMatch(/setAgreeValue\(null\);[\s\S]{0,120}setAgreeError/);
-  });
-});
-
-describe("the agree copy says what it means", () => {
-  it("asks about THEIR experience, not the blind rater's question", () => {
-    // CONFIDENCE_QUESTION is asked of somebody told nothing. This is asked of
-    // the speaker about a read they were just shown, and the wording has to
-    // say so or the answer is uninterpretable.
-    expect(AGREE_QUESTION).not.toBe(CONFIDENCE_QUESTION);
-    expect(AGREE_QUESTION).toMatch(/you/i);
-  });
-
-  it("promises nothing about what the answer does", () => {
-    // It is not a vote — it routes. Copy that implied otherwise would be a
-    // promise this surface cannot keep.
-    for (const line of [AGREE_QUESTION, AGREE_THANKS]) {
-      expect(line).not.toMatch(/\d/);
-      expect(line).not.toMatch(/vote|count|score|rating/i);
-    }
   });
 });

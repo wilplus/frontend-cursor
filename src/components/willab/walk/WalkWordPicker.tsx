@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import {
   canTap,
-  HELPER_WORDS_MAX,
   nextSelection,
   selectionLength,
   type PhraseSelection,
@@ -21,8 +20,6 @@ import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 /*  so the pick is always one connected phrase. A word a tap cannot reach is  */
 /*  greyed and does nothing.                                                  */
 /* -------------------------------------------------------------------------- */
-
-export const WALK_MAX_HELPER_WORDS = HELPER_WORDS_MAX;
 
 export default function WalkWordPicker({
   words,

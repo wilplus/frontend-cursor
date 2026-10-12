@@ -76,16 +76,6 @@ export const LIFE_TAGS: readonly LifeTagSpec[] = [
   },
 ];
 
-/** alias → spec, including hidden aliases. Built once. */
-const ALIAS_INDEX: ReadonlyMap<string, LifeTagSpec> = (() => {
-  const m = new Map<string, LifeTagSpec>();
-  for (const spec of LIFE_TAGS) {
-    for (const a of spec.aliases) m.set(a, spec);
-    for (const a of spec.hiddenAliases ?? []) m.set(a, spec);
-  }
-  return m;
-})();
-
 /** What the picker offers: canonical tags only, hidden aliases excluded. */
 export function pickerEntries(
   override?: LifeTagDescriptor[] | null
@@ -96,44 +86,6 @@ export function pickerEntries(
       .map((t) => ({ tag: t.tag.replace(/^#/, ""), label: t.label ?? "" }));
   }
   return LIFE_TAGS.map((s) => ({ tag: s.tag, label: s.label }));
-}
-
-export interface ParsedTag {
-  /** The alias the user actually typed, lowercased, without "#". */
-  alias: string;
-  /** Canonical tag for that alias. */
-  tag: string;
-  route: LifeTagRoute;
-  /** The message with the tag token removed. May be empty. */
-  rest: string;
-}
-
-/**
- * Parse the FIRST token of a message.
- *
- * Returns null when there is no leading hashtag at all — that is the ordinary
- * chat path and the caller must leave it completely alone.
- *
- * Returns a `capture` route when there IS a leading hashtag but it matches no
- * alias. That is still a life note (it captures), not an error, so the caller
- * must not surface a "no such tag" message.
- */
-export function parseLeadingTag(message: string): ParsedTag | null {
-  // Match a leading "#word". Unicode letters so "#wygrane" and any future
-  // Polish alias behave the same as ASCII ones.
-  const m = /^\s*#([\p{L}\p{N}_]+)/u.exec(message);
-  if (!m) return null;
-  const alias = m[1].toLowerCase();
-  const rest = message.slice(m[0].length).trim();
-  const spec = ALIAS_INDEX.get(alias);
-  if (!spec) return { alias, tag: alias, route: "capture", rest };
-  return { alias, tag: spec.tag, route: spec.route, rest };
-}
-
-/** True when the message routes somewhere other than plain capture. */
-export function isLifeTagged(message: string): boolean {
-  const parsed = parseLeadingTag(message);
-  return parsed !== null && parsed.route !== "capture";
 }
 
 /**

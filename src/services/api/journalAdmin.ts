@@ -197,10 +197,6 @@ export function mainTargetOf(criteria: Record<string, unknown> | null | undefine
  *  a secondary one. Undefined means send nothing — no main target is named
  *  and none was stored, so the backend keeps today's behaviour. Clearing a
  *  stored one sends the criteria without it. */
-/** The one main target among `tags`, or null when the pick is not among them. */
-export function keptMainTarget(tags: readonly string[], primary: string | null): string | null {
-  return primary && tags.includes(primary) ? primary : null;
-}
 
 export function criteriaForMainTarget(
   existing: Record<string, unknown> | null,

@@ -41,12 +41,6 @@ export function docxHeadline(row: {
   return row.rootPhrase ? { text: row.rootPhrase, color: ORANGE, bold: true } : null;
 }
 
-/** The paragraph's runs: its helper words italic inside it (clause 20),
- *  for every row that has them. */
-export function docxTextSegments(row: { idealText: string; rootPhrase: string }) {
-  return idealTextSegments(row.idealText, row.rootPhrase || null);
-}
-
 function idealTextRuns(text: string, headline: string | null): TextRun[] {
   return idealTextSegments(text, headline).map(
     (segment) =>

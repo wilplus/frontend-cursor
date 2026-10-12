@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   mapStrengths,
-  deletePresentation,
   deleteRefusalLine,
   deleteTake,
   DeleteFailedError,
@@ -339,30 +338,6 @@ describe("mapPresentation", () => {
   });
 });
 
-describe("deletePresentation", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("calls DELETE on the correct URL and resolves on 200", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
-    vi.stubGlobal("fetch", mockFetch);
-
-    await expect(deletePresentation("pid-123")).resolves.toBeUndefined();
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/v2/user/presentations/pid-123",
-      expect.objectContaining({ method: "DELETE" })
-    );
-  });
-
-  it("throws on non-ok response", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
-    vi.stubGlobal("fetch", mockFetch);
-
-    await expect(deletePresentation("pid-404")).rejects.toThrow("404");
-  });
-});
-
 describe("deleteTake", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -425,14 +400,6 @@ describe("a delete the backend refuses (409 TAKE_HAS_LINEAGE)", () => {
     );
   });
 
-  it("maps a refused presentation to the approved presentation line", async () => {
-    vi.stubGlobal("fetch", refuse(409, { code: "TAKE_HAS_LINEAGE" }));
-    const err = await failureOf(deletePresentation("pid-1"));
-    expect(deleteRefusalLine(err, "presentation")).toBe(
-      "This presentation can't be deleted on its own. Its takes are part of your project's history."
-    );
-  });
-
   it("keeps the approved lines word for word", () => {
     expect(TAKE_LINEAGE_REFUSAL).toEqual({
       take: "This take can't be deleted on its own. It's part of your project's history.",
@@ -454,20 +421,6 @@ describe("a delete the backend refuses (409 TAKE_HAS_LINEAGE)", () => {
       expect(deleteRefusalLine(err, "take")).toBeNull();
       expect(deleteRefusalLine(err, "presentation")).toBeNull();
     }
-  });
-
-  it("survives a body that is not JSON", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 409,
-        json: () => Promise.reject(new SyntaxError("Unexpected token <")),
-      })
-    );
-    const err = await failureOf(deletePresentation("pid-1"));
-    expect((err as DeleteFailedError).code).toBeNull();
-    expect(deleteRefusalLine(err, "presentation")).toBeNull();
   });
 
   it("ignores errors that did not come from a delete", () => {

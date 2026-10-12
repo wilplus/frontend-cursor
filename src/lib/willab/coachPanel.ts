@@ -237,12 +237,6 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
   }
 }
 
-/** The moment bar's numbers: which moment of how many. Moments only. */
-export function momentCounter(screen: PanelScreen): { index: number; total: number } | null {
-  if (screen.key !== "judge" && screen.key !== "reveal") return null;
-  return { index: screen.index, total: screen.take.moments.length };
-}
-
 /** The screen as the walk's motion sees it. */
 export function walkScreenOf(screen: PanelScreen): WalkScreen {
   if (screen.key === "lounge") return { key: "lounge", overlay: false };

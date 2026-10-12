@@ -1,15 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   clearPendingSend,
-  clearInsightsReady,
-  clearReviewPending,
-  getInsightsReady,
   getPendingSend,
-  getReviewPending,
-  hasReviewPending,
-  setInsightsReady,
   setPendingSend,
-  setReviewPending,
 } from "./sendStatus";
 
 type WinShim = {
@@ -60,39 +53,5 @@ describe("sendStatus — no step rides the sign-up any more", () => {
       JSON.stringify({ projectId: "p1", takeId: "t1", then: "journey_next_steps" }),
     );
     expect(getPendingSend()).toEqual({ projectId: "p1", takeId: "t1" });
-  });
-});
-
-describe("sendStatus — review pending flag", () => {
-  it("sets, reads, clears", () => {
-    expect(hasReviewPending()).toBe(false);
-    setReviewPending();
-    expect(hasReviewPending()).toBe(true);
-    clearReviewPending();
-    expect(hasReviewPending()).toBe(false);
-  });
-
-  it("stores the in-review session id and reads it back", () => {
-    setReviewPending("sess-9");
-    expect(hasReviewPending()).toBe(true);
-    expect(getReviewPending()).toBe("sess-9");
-    clearReviewPending();
-    expect(getReviewPending()).toBeNull();
-  });
-
-  it("pending without an id (legacy) is flagged but has no session id", () => {
-    setReviewPending();
-    expect(hasReviewPending()).toBe(true);
-    expect(getReviewPending()).toBeNull();
-  });
-});
-
-describe("sendStatus — insights ready", () => {
-  it("round-trips the published session id and clears", () => {
-    expect(getInsightsReady()).toBeNull();
-    setInsightsReady("sess-pub");
-    expect(getInsightsReady()).toBe("sess-pub");
-    clearInsightsReady();
-    expect(getInsightsReady()).toBeNull();
   });
 });

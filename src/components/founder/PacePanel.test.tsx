@@ -4,14 +4,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PacePanel from "./PacePanel";
 
-/* The pace panel reads one route and draws a jar per row, the doors as the
- * constants say them, and the stored weeks with a READY cue's draft; a 403
+/* The pace panel reads one route and draws a jar per row and the stored weeks with a READY cue's draft; a 403
  * draws "Not available" and no number. Founder-only page (AC-9 for
  * everyone else); the numbers are about the machine. */
 
 const LEDGER = {
   ledger: {
-    doors: { consent: { open: false }, dataset_release: { open: false }, training: { open: false }, promotion: { open: false } },
     unavailable: [],
   },
   weeks: [
@@ -19,7 +17,7 @@ const LEDGER = {
       week_start: "2026-09-28",
       ready_cues: ["hedging"],
       migration_drafts: { hedging: { file: "migrations/hedging_is_detected.sql", manifest_line: "hedging_is_detected.sql", sql: "UPDATE public.speaking_error …" } },
-      exported: [{ surface: "praise_line", exported: 0, why: "door 2 closed" }],
+      exported: [{ surface: "praise_line", exported: 0, why: "nothing to export" }],
       updated_at: "2026-09-28T06:00:00Z",
     },
   ],
@@ -50,7 +48,7 @@ describe("PacePanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("draws the jars, the doors and the stored week with its draft", async () => {
+  it("draws the jars and the stored week with its draft", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => reply(200, LEDGER)));
     await act(async () => {
       root.render(<PacePanel />);
@@ -65,10 +63,10 @@ describe("PacePanel", () => {
     expect(text).toContain("Cue “hedging” named by a coach");
     expect(text).toContain("READY");
     expect(text).toContain("at the bar");
-    expect(text).toContain("Door 1 · the training yes (consent)");
+    expect(text).not.toContain("Door");
     expect(text).toContain("week of 2026-09-28");
     expect(text).toContain("migration drafted: migrations/hedging_is_detected.sql");
-    expect(text).toContain("door 2 closed");
+    expect(text).toContain("nothing to export");
     expect(host.querySelectorAll('[role="meter"]').length).toBe(2);
     expect(host.querySelectorAll('input[type="range"]').length).toBe(1);
   });

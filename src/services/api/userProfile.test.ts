@@ -4,7 +4,6 @@ import {
   fetchUserProfileShared,
   forgetSharedUserProfile,
   saveUserProfile,
-  shouldAskRaterLanguages,
 } from "./userProfile";
 
 vi.mock("@/lib/api/auth-client", () => ({
@@ -30,31 +29,6 @@ describe("rater language profile contract", () => {
     expect(profile?.proficient_languages).toEqual(["en", "pl"]);
   });
 
-  it("asks a coach once when the supported field is empty", () => {
-    const profile = {
-      domain: null,
-      goal: "",
-      domain_vocabulary_default: [],
-      is_coach: true,
-      proficient_languages: null,
-    };
-    expect(shouldAskRaterLanguages(profile)).toBe(true);
-    expect(shouldAskRaterLanguages({
-      ...profile,
-      proficient_languages: ["en"],
-    })).toBe(false);
-  });
-
-  it("does not ask against a backend that predates the field", () => {
-    const profile = {
-      domain: null,
-      goal: "",
-      domain_vocabulary_default: [],
-      is_coach: true,
-      proficient_languages: undefined,
-    };
-    expect(shouldAskRaterLanguages(profile)).toBe(false);
-  });
 });
 
 describe("the shared profile read (founder 2026-09-26)", () => {

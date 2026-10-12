@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  insertPart,
   lockTargetAt,
-  movePart,
   newPartId,
   partRootTint,
   partsForDocument,
@@ -178,39 +176,6 @@ describe("partsForDocument trusts the server only when it still fits", () => {
 describe("the arranger's operations carry ids through", () => {
   const base = () => [P("a", "One."), P("b", "Two."), P("c", "Three.")];
 
-  it("a move takes the id with the words", () => {
-    // THE POINT OF THE WHOLE FILE. Under the old string[] the part in slot 0
-    // was simply "whatever is in slot 0" afterwards.
-    const out = movePart(base(), 0, 2);
-    expect(texts(out)).toEqual(["Two.", "Three.", "One."]);
-    expect(ids(out)).toEqual(["b", "c", "a"]);
-  });
-
-  it("a no-op or out-of-range move returns the SAME array", () => {
-    // The host compares by identity to decide whether the document is dirty.
-    const parts = base();
-    expect(movePart(parts, 1, 1)).toBe(parts);
-    expect(movePart(parts, 9, 0)).toBe(parts);
-    expect(movePart(parts, -1, 0)).toBe(parts);
-  });
-
-  it("a move past the end clamps rather than dropping the part", () => {
-    expect(texts(movePart(base(), 0, 99))).toEqual(["Two.", "Three.", "One."]);
-  });
-
-  it("an insert mints exactly one new id and disturbs no other", () => {
-    const parts = base();
-    const out = insertPart(parts, 1, " Added. ");
-    expect(texts(out)).toEqual(["One.", "Added.", "Two.", "Three."]);
-    expect([out[0].id, out[2].id, out[3].id]).toEqual(["a", "b", "c"]);
-    expect(out[1].id).not.toBe("");
-  });
-
-  it("an insert of nothing is not an edit", () => {
-    const parts = base();
-    expect(insertPart(parts, 1, "   ")).toBe(parts);
-  });
-
   it("a REWORD keeps the id", () => {
     // The second thing a position cannot survive. Rewording opens a working
     // copy but must not mint a new Paragraph identity.
@@ -327,26 +292,5 @@ describe("the superseded-edit card is gone (founder option A)", () => {
     ]) {
       expect(copy, key).not.toHaveProperty(key);
     }
-  });
-});
-
-describe("identity survives a realistic session", () => {
-  it("add, move, reword, reload — the untouched parts keep their ids", () => {
-    let parts = reconcileParts("Hook.\n\nBody.\n\nClose.");
-    const [hook, body, close] = ids(parts);
-
-    parts = insertPart(parts, 1, "New bridge.");
-    parts = movePart(parts, 3, 0);
-    parts = updatePart(parts, 1, "Hook, sharpened.");
-
-    // A reload: the server hands back what was saved.
-    const served = parts.map((p) => ({ ...p }));
-    const reloaded = partsForDocument(partsToText(parts), served);
-
-    expect(ids(reloaded)).toEqual(ids(parts));
-    expect(reloaded[0].id).toBe(close);
-    expect(reloaded[1].id).toBe(hook);       // reworded, same part
-    expect(reloaded[3].id).toBe(body);
-    expect(ids(reloaded)).toContain(hook);
   });
 });

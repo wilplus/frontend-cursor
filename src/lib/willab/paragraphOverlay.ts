@@ -43,25 +43,6 @@ export function asJudgementValue(answer: string | null | undefined): Judgement |
   return answer && FIVE.has(answer) ? (answer as Judgement) : null;
 }
 
-/** The label's colour (D7): green for Yes, blue for In-between, red for
- *  No, yellow for Not sure, grey for Audio unclear. */
-export type LabelTone = "green" | "blue" | "red" | "yellow" | "grey";
-
-export function judgementTone(judgement: Judgement): LabelTone {
-  switch (judgement) {
-    case "yes":
-      return "green";
-    case "in_between":
-      return "blue";
-    case "no":
-      return "red";
-    case "not_sure":
-      return "yellow";
-    default:
-      return "grey";
-  }
-}
-
 /** Below In-between: the answers whose default follow-up is Practise (D1). */
 export function belowInBetween(judgement: Judgement | null): boolean {
   return judgement === "no" || judgement === "not_sure";

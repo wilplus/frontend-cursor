@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/willab/presentationVisuals", () => ({}));
 
-import { docxHeadline, docxTextSegments, idealTextSegments } from "./presentationDocx";
+import { docxHeadline, idealTextSegments } from "./presentationDocx";
 
 /* Every headline is drawn orange and bold, a flagship row's and a neutral
    row's alike (founder 2026-10-07, Q-B9 A: the walk's orange rule applies
@@ -28,12 +28,6 @@ describe("the headline's colour, for both kinds of row", () => {
     expect(docxHeadline({ rootPhrase: "" })).toBeNull();
   });
 
-  it("the words are italic inside the paragraph for both kinds of row", () => {
-    for (const row of [flagship, neutral]) {
-      const italic = docxTextSegments(row).filter((s) => s.italics).map((s) => s.text);
-      expect(italic).toEqual([row.rootPhrase]);
-    }
-  });
 });
 
 describe("helper words in the exported paragraph", () => {

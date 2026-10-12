@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   mapRecordingProgress,
-  audioRemainingLabel,
-  progressFraction,
 } from "./recordingProgress";
 
 describe("mapRecordingProgress (C-2 / S2)", () => {
@@ -39,63 +37,5 @@ describe("mapRecordingProgress (C-2 / S2)", () => {
     ).toBeNull();
     expect(mapRecordingProgress({ threshold_seconds: 600 })).toBeNull();
     expect(mapRecordingProgress(null)).toBeNull();
-  });
-});
-
-describe("audioRemainingLabel (C-2)", () => {
-  it("formats remaining seconds as M:SS", () => {
-    expect(
-      audioRemainingLabel({
-        recordedSeconds: 73,
-        thresholdSeconds: 600,
-        unlocked: false,
-      })
-    ).toBe("8:47"); // 527s remaining
-  });
-
-  it("pads the seconds", () => {
-    expect(
-      audioRemainingLabel({
-        recordedSeconds: 595,
-        thresholdSeconds: 600,
-        unlocked: false,
-      })
-    ).toBe("0:05");
-  });
-
-  it("returns null once unlocked or nothing remains", () => {
-    expect(
-      audioRemainingLabel({
-        recordedSeconds: 600,
-        thresholdSeconds: 600,
-        unlocked: true,
-      })
-    ).toBeNull();
-    expect(
-      audioRemainingLabel({
-        recordedSeconds: 600,
-        thresholdSeconds: 600,
-        unlocked: false,
-      })
-    ).toBeNull();
-  });
-});
-
-describe("progressFraction (C-2)", () => {
-  it("clamps to [0,1]", () => {
-    expect(
-      progressFraction({
-        recordedSeconds: 300,
-        thresholdSeconds: 600,
-        unlocked: false,
-      })
-    ).toBe(0.5);
-    expect(
-      progressFraction({
-        recordedSeconds: 900,
-        thresholdSeconds: 600,
-        unlocked: true,
-      })
-    ).toBe(1);
   });
 });

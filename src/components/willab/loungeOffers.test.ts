@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   OFFER_PROMPT,
   hasOffer,
@@ -6,10 +6,6 @@ import {
   readOfferType,
   type OfferType,
 } from "./loungeOffers";
-
-type WinShim = {
-  window?: { localStorage: Pick<Storage, "getItem" | "setItem" | "removeItem"> };
-};
 
 const TYPES: OfferType[] = ["install", "joke"];
 

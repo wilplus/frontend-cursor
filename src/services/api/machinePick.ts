@@ -27,28 +27,10 @@ export interface MatchCandidate {
   doneBefore: boolean;
 }
 
-export interface PickHistory {
-  repeatedPatterns: string[];
-  doneBefore: string[];
-}
-
-export interface MachinePick {
-  exerciseId: string;
-  fit: "exact" | "trial" | null;
-  howChosen: "best_match" | "trying_another" | "only_match";
-  /** False: the pick is older than the saved reasons. */
-  traced: boolean;
-  spotted: { errorId: string; label: string }[];
-  candidates: MatchCandidate[];
-  /** The speaker's history as it stood at the draw; null when unavailable. */
-  history: PickHistory | null;
-}
-
 const REASONS: readonly string[] = [
   "nothing_spotted", "targets_nothing_that_fired",
   "confidence_level_unplaceable", "lower_fit_than_pool",
 ];
-const HOW: readonly string[] = ["best_match", "trying_another", "only_match"];
 
 function records(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value)
@@ -56,19 +38,8 @@ function records(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && !!v) : [];
-}
-
 function fitOf(value: unknown): "exact" | "trial" | null {
   return value === "exact" || value === "trial" ? value : null;
-}
-
-export function mapSpotted(value: unknown): { errorId: string; label: string }[] {
-  return records(value).flatMap((item) =>
-    typeof item.error_id === "string" && item.error_id
-      ? [{ errorId: item.error_id, label: typeof item.label === "string" && item.label ? item.label : item.error_id }]
-      : []);
 }
 
 /** Candidate rows: ranked ones first in their order, then the excluded. */
@@ -91,27 +62,4 @@ export function mapCandidates(value: unknown): MatchCandidate[] {
   return rows.map((c, i) => ({ c, i }))
     .sort((a, b) => order(a.c) - order(b.c) || a.i - b.i)
     .map(({ c }) => c);
-}
-
-function mapHistory(value: unknown): PickHistory | null {
-  if (!value || typeof value !== "object") return null;
-  const h = value as Record<string, unknown>;
-  if (h.available !== true) return null;
-  return { repeatedPatterns: strings(h.repeated_patterns), doneBefore: strings(h.done_before) };
-}
-
-export function mapMachinePick(raw: unknown): MachinePick | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (typeof r.exercise_id !== "string" || !r.exercise_id) return null;
-  return {
-    exerciseId: r.exercise_id,
-    fit: fitOf(r.fit),
-    howChosen: typeof r.how_chosen === "string" && HOW.includes(r.how_chosen)
-      ? r.how_chosen as MachinePick["howChosen"] : "best_match",
-    traced: r.traced !== false,
-    spotted: mapSpotted(r.spotted),
-    candidates: mapCandidates(r.candidates),
-    history: mapHistory(r.history),
-  };
 }

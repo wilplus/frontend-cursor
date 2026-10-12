@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
@@ -47,29 +46,6 @@ function SheetBackDismiss({
 }) {
   useBackDismiss(onClose, consume);
   return null;
-}
-
-/** The per-paragraph picker entry: a quiet chip beside the take badge. Drawn
- *  only when the block offers a real choice (§8.3 — a single-entry list gets
- *  no affordance); the host decides where it rides (PieceBadgeText trailing).
- *  Deliberately styled like the settled provenance pill, NOT like the glowing
- *  offer — the picker pulls, the offer pushes. */
-export function VariantChip({
-  block,
-  onOpen,
-}: {
-  block: VariantBlock;
-  onOpen: (block: VariantBlock) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(block)}
-      className="ml-1.5 inline-flex -translate-y-px items-center rounded-full border border-border bg-background px-1.5 py-0.5 align-middle text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      {BLOCK_VARIANT_COPY.entry}
-    </button>
-  );
 }
 
 /** One variant's provenance badge line. Provenance only — never judgment. */
@@ -187,22 +163,6 @@ export function BlockVariantSheet({
         </div>
       </div>
     </div>
-  );
-}
-
-/** The timeline entry button for an overlay header. The host renders it only
- *  when the timeline has rows (an empty list is a real state — pre-migration
- *  arc — and hides the timeline entirely, §4.3). */
-export function TimelineEntryButton({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={BLOCK_VARIANT_COPY.timelineEntry}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      <History className="h-4 w-4" aria-hidden />
-    </button>
   );
 }
 

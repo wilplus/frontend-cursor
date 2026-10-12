@@ -80,9 +80,6 @@ export function getReviewPending(): string | null {
   const v = get(REVIEW_KEY);
   return v && v !== "1" ? v : null;
 }
-export function hasReviewPending(): boolean {
-  return get(REVIEW_KEY) != null;
-}
 export function clearReviewPending(): void {
   del(REVIEW_KEY);
 }
@@ -93,9 +90,6 @@ export function clearReviewPending(): void {
    Cleared on read. */
 export function setInsightsReady(sessionId: string): void {
   set(INSIGHTS_KEY, sessionId);
-}
-export function getInsightsReady(): string | null {
-  return get(INSIGHTS_KEY);
 }
 export function clearInsightsReady(): void {
   del(INSIGHTS_KEY);

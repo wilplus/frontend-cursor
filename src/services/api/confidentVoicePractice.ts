@@ -271,23 +271,6 @@ export function reportPractiseTiming(
   })();
 }
 
-export async function finishConfidencePractice(
-  practiceId: string,
-  body: { action: "dismiss" } | { attempt_id: string; user_answer: "yes" | "no" },
-): Promise<PracticeResult> {
-  const headers = await tokenHeaders(true);
-  if (!headers) return { ok: false, error: null };
-  try {
-    const res = await fetch(
-      `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/complete`,
-      { method: "PUT", headers, body: JSON.stringify(body), cache: "no-store" },
-    );
-    return result(res);
-  } catch {
-    return { ok: false, error: null };
-  }
-}
-
 export async function fetchConfidencePractice(
   practiceId: string,
 ): Promise<PracticeResult> {
@@ -299,68 +282,6 @@ export async function fetchConfidencePractice(
       { headers, cache: "no-store" },
     );
     return result(res);
-  } catch {
-    return { ok: false, error: null };
-  }
-}
-
-/** What judging one attempt did (contract 29a, founder 2026-09-25).
- *
- *  `again`  — No or Audio unclear with attempts left: record another.
- *  `adopt`  — Yes, In-between or Not sure: the practice is done and its words
- *             replaced the practised passage when the server could find it
- *             (`adopted`); `paragraph` is then the paragraph's new words.
- *             `attemptWords` are what was said, for the helper-words step.
- *  `closed` — a No or Audio unclear on the last attempt. */
-export type JudgeResult =
-  | {
-      ok: true;
-      practice: ConfidencePractice;
-      /** "done": the attempt was judged Yes or In-between and the helper
-       *  words follow (founder lock 2026-09-30, B6). "adopt" is the name
-       *  the server used until then, read the same way. */
-      outcome: "again" | "done" | "closed";
-      adopted: boolean;
-      paragraph: string | null;
-      attemptWords: string | null;
-    }
-  | { ok: false; error: string | null };
-
-export async function judgeConfidencePracticeAttempt(
-  practiceId: string,
-  attemptId: string,
-  answer: PracticeAnswer,
-): Promise<JudgeResult> {
-  const headers = await tokenHeaders(true);
-  if (!headers) return { ok: false, error: null };
-  try {
-    const res = await fetch(
-      `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}` +
-        `/attempts/${encodeURIComponent(attemptId)}/answer`,
-      {
-        method: "PUT", headers, cache: "no-store",
-        body: JSON.stringify({ user_answer: answer }),
-      },
-    );
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    const practice = mapConfidencePractice(data?.practice);
-    const outcome = data?.outcome === "adopt" ? "done" : data?.outcome;
-    if (!res.ok || !practice ||
-        (outcome !== "again" && outcome !== "done" && outcome !== "closed")) {
-      return {
-        ok: false,
-        error: typeof data?.error === "string" ? data.error : null,
-      };
-    }
-    return {
-      ok: true,
-      practice,
-      outcome,
-      adopted: data?.adopted === true,
-      paragraph: typeof data?.paragraph === "string" ? data.paragraph : null,
-      attemptWords: typeof data?.attempt_transcript === "string"
-        ? data.attempt_transcript : null,
-    };
   } catch {
     return { ok: false, error: null };
   }

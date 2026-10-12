@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Mic } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
-import {
-  fetchParagraphHistory,
-  type ParagraphHistory,
-} from "@/services/api/bookmarkHistory";
 import { isConfidentVoiceFeedback } from "@/lib/willab/chunkSteps";
 import {
   asJudgementValue,
-  belowInBetween,
   canAcceptCard,
   historyRows,
   nextOpensPicker,
@@ -29,7 +24,6 @@ import {
   type MachineRead,
 } from "@/lib/willab/paragraphOverlay";
 import { acceptOutcome, saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
-export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
 
 /** How Practise was reached (29b): the card as shown; the rewrite just
  *  accepted (the heading says so); or the speaker's own words after "Keep
@@ -719,41 +713,6 @@ function walkPlaceOf(pager: Pager | null, slideLabel: string | null) {
     caption: pager ? null : slideLabel,
     moment: pager?.index ?? null,
   };
-}
-
-/** Whose history to show under the coach's work (the coaching sheet). */
-export interface HistoryTarget {
-  arcId: string | null;
-  partId: string;
-  text: string;
-  headline: string | null;
-}
-
-/** A done bookmark's history, for the coaching sheet (founder 2026-09-25):
- *  the helper words now, then the History row. */
-export function ParagraphHistoryBlock({ arcId, partId, headline }: HistoryTarget) {
-  const [history, setHistory] = useState<ParagraphHistory | null>(null);
-  useEffect(() => {
-    let alive = true;
-    if (arcId) {
-      void fetchParagraphHistory(arcId, partId).then((result) => {
-        if (alive) setHistory(result);
-      });
-    }
-    return () => {
-      alive = false;
-    };
-  }, [arcId, partId]);
-  const rows = useMemo(
-    () => historyRows(history, COPY.historyTake, COPY.historyCorrectionAccepted),
-    [history],
-  );
-  return (
-    <div className="flex flex-col gap-4" data-testid="bundle-history">
-      {headline ? <HelperWordsCard headline={headline} onChoose={null} /> : null}
-      <HistoryRowView rows={rows} />
-    </div>
-  );
 }
 
 /** The items on this paragraph, once each: the answered ones and the ones

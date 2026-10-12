@@ -84,8 +84,6 @@ export interface RichSpan extends RichSegment {
 
 export type RichMark = "bold" | "italic" | "underline" | "highlight";
 
-const PLAIN = { bold: false, italic: false, underline: false, highlight: false };
-
 /** The pinned wrappers (FE-9): italic is //…//, the accent is {{orange:…}}.
  *  Exported because the styled editor stamps them onto a DOM node as the
  *  node's identity — a span "is" its token pair, which is how an untouched

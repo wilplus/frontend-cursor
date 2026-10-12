@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import {
-  Check,
   Crown,
   FileText,
   MessageSquareQuote,

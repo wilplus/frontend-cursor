@@ -270,16 +270,6 @@ export function deleteRefusalLine(
   return null;
 }
 
-export async function deletePresentation(presentationId: string): Promise<void> {
-  const token = await getAuthToken();
-  if (!token) throw new Error("Not authenticated");
-  const res = await fetch(`/api/v2/user/presentations/${presentationId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw await deleteFailure(res, "Delete presentation failed");
-}
-
 export async function deleteTake(
   presentationId: string,
   takeNumber: number

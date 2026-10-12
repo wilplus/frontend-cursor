@@ -17,12 +17,3 @@ export async function relayJson(
     body: (await req.text()) || "{}",
   });
 }
-
-/** Multipart bodies (a coach's reading, a licensed clip) pass through whole. */
-export async function relayForm(
-  req: NextRequest,
-  path: string,
-): Promise<NextResponse> {
-  const form = await req.formData();
-  return callBackend(path, { method: "POST", body: form });
-}

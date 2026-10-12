@@ -18,7 +18,6 @@ import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { BehindOutcome } from "./saveBehind";
-import { startConfidencePractice } from "@/services/api/confidentVoicePractice";
 import { PRAISE_CUE_COPY } from "@/lib/willab/trackedChangeWhy";
 import { fetchParagraphHistory } from "@/services/api/bookmarkHistory";
 
@@ -43,7 +42,6 @@ vi.mock("@/lib/api/auth-client", () => ({
 vi.mock("@/services/api/confidentVoicePractice", () => ({
   startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
-  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
 }));
 vi.mock("@/services/api/bookmarkHistory", () => ({
