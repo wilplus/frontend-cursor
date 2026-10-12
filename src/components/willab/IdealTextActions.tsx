@@ -32,10 +32,8 @@ export default function IdealTextActions({
   canRecordTake = null,
   onNewTake,
   takeCount = null,
-  reviewWaiting = false,
-  onReview,
-  onReviewAgain = null,
   endCard = false,
+  onClose = null,
 }: {
   /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
    *  explicit false; null / absent leaves the button available. */
@@ -54,13 +52,15 @@ export default function IdealTextActions({
   onReviewAgain?: (() => void) | null;
   /** The walk's end card (J4): the next Take only. */
   endCard?: boolean;
+  /** The grey "Close" under "Record Take N", the page's one way out to the
+   *  chat (founder lock 2026-10-12, sections 4 and 9). */
+  onClose?: (() => void) | null;
 }) {
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
    * feedback", with the next Take one tap away underneath. J4: the walk's end
    * card offers the next Take as its one button ("Back to the text" is its
    * link, drawn by the card). */
-  const review = !endCard && reviewWaiting && Boolean(onReview);
   /* "Record Take N" on every Take, N the next one (founder 2026-10-05,
    * N48.3 Q8 A, replacing "Record again" from Take 3 on; lock D8). */
   const nextRecordingLabel =
@@ -83,19 +83,11 @@ export default function IdealTextActions({
 
   return (
     <div data-ideal-text-actions className="flex flex-col gap-1">
-      {review ? (
-        <>
-          <WalkPill action={{ label: "Review feedback", onClick: onReview as () => void }} />
-          <WalkLink action={record} />
-        </>
-      ) : (
-        <>
-          <WalkPill action={record} dot />
-          {!endCard && onReviewAgain ? (
-            <WalkLink action={{ label: "Review feedback", onClick: onReviewAgain }} />
-          ) : null}
-        </>
-      )}
+      {/* "Record Take N" and the grey "Close" (founder lock 2026-10-12,
+          sections 4 and 9): no ✕ at the top, no "Review feedback" here; a
+          moment's sentence opens its step, and the Lounge reopens the walk. */}
+      <WalkPill action={record} dot />
+      {!endCard && onClose ? <WalkLink action={{ label: "Close", onClick: onClose }} /> : null}
       {canRecordTake === false ? (
         <p className="text-center text-[12px] text-muted-foreground">
           {IDEAL_EDIT_COPY.recordUnavailable}

@@ -1024,6 +1024,7 @@ export default function IdealTextReadout({
         onReview={() => setReviewRequest((n) => n + 1)}
         onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={gate(onReRead, undefined)}
+        onClose={onClose ?? null}
       />
     );
   }
@@ -1071,9 +1072,6 @@ export default function IdealTextReadout({
               setSdNonce((n) => n + 1);
             }}
           />
-          {onClose ? (
-            <OverlayCloseButton onClick={onClose} className="ml-1" />
-          ) : null}
         </div>
       </div>
 

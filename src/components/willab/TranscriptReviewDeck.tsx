@@ -23,7 +23,6 @@ import {
   opensParagraphSheet,
 } from "@/lib/willab/answeredBookmark";
 import {
-  headlineFor,
   useDroppedHeadlines,
   useHeadlinesWithPending,
 } from "@/components/willab/useSlideHeadlines";
@@ -1323,14 +1322,19 @@ export default function TranscriptReviewDeck({
                     <p
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
-                      {...paragraphTap(opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)), () => {
-                        // An open moment opens the walk there, when it is on
-                        // (Q-B3 A); an answered one plays the walk again from
-                        // it (founder 2026-10-10); one with no moment its sheet.
-                        // Other text does nothing (lock 2026-10-12, section 4).
-                        if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                        feedbackWalk.replayPart(c.part.id);
-                      })}
+                      {...paragraphTap(
+                        opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)) ||
+                          Boolean(headlines.get(c.part.id)),
+                        () => {
+                          // A moment opens its step in the walk (an answered
+                          // one plays it again); helper words open their
+                          // step; other text does nothing (lock 2026-10-12,
+                          // section 4).
+                          if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
+                          if (feedbackWalk.replayPart(c.part.id)) return;
+                          if (headlines.get(c.part.id)) openHelperWords(c);
+                        },
+                      )}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
                       className="relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground active:bg-muted"
@@ -1340,18 +1344,8 @@ export default function TranscriptReviewDeck({
                           several. Only the words on THIS screen are drawn;
                           `c.part.text` — what every control acts on — is
                           untouched. */}
-                      {/* HELPER WORDS ARE ORANGE IN THE HEADLINE ONLY
-                          (founder 2026-09-26): inside the running text they
-                          read in the paragraph's own colour. */}
-                      <ParagraphHeadline
-                        text={headlineFor(headlines, c.part.id, c.sliceIndex)}
-                        onOpen={() => {
-                          // The same door as the paragraph (founder 2026-10-10).
-                          if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                          if (feedbackWalk.replayPart(c.part.id)) return;
-                          openHelperWords(c);
-                        }}
-                      />
+                      {/* HELPER WORDS ARE SIMPLY ORANGE IN THE TEXT (founder
+                          lock 2026-10-12, section 4): no headline above it. */}
                       <RichText
                         text={c.displayText ?? c.part.text}
                         accent={false}
@@ -1359,7 +1353,7 @@ export default function TranscriptReviewDeck({
                           c.displayText ?? c.part.text,
                           headlines.get(c.part.id),
                         )}
-                        tintClass="text-primary"
+                        tintClass="text-primary not-italic"
                       />
                     </p>
                     );
@@ -1762,44 +1756,6 @@ function firstWaitingBookmark(
    "a paragraph that is not bookmarked should not open on tap" (founder
    2026-10-06, N56.5, amending B7's "still opens its own sheet on tap";
    `opensFromPage`). */
-/** THE PARAGRAPH'S HEADLINE (founder 2026-09-26, superseding Q20 A's one
- *  line per Slide): its own helper words, bold orange, directly above it —
- *  like a newspaper headline over the article that repeats its words. Inside
- *  the running text the same words are italic, in the paragraph's own colour
- *  and font; the headline is the only orange. A block span inside the
- *  paragraph element, so the tap target and the screen packing still see one
- *  paragraph. Its own component so the deck gains no branch. */
-function ParagraphHeadline({
-  text,
-  onOpen,
-}: {
-  text: string | null;
-  /** A tap on the headline opens the helper words overlay (founder lock
-   *  2026-09-30, B4), not the paragraph's own sheet under it. */
-  onOpen: () => void;
-}) {
-  if (!text) return null;
-  return (
-    <span
-      data-paragraph-headline
-      role="button"
-      tabIndex={0}
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpen();
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        event.stopPropagation();
-        onOpen();
-      }}
-      className="mb-1 block cursor-pointer text-[clamp(1.45rem,1.1rem+1.3vw,2.15rem)] font-bold not-italic leading-snug text-primary"
-    >
-      {text}
-    </span>
-  );
-}
 
 /** A settled paragraph that was answered or locked opens its own sheet when
  *  tapped (founder 2026-09-25, Q26 B), if it is a bookmark (founder
