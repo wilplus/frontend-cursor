@@ -199,7 +199,7 @@ const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-scr
 const click = (el: Element | null | undefined) => act(() => (el as HTMLElement).click());
 const forward = () => click(live()?.querySelector("[data-testid='walk-forward']"));
 const message = () => live()?.querySelector("[data-walk-message]")?.textContent ?? null;
-const stop = () => click(live()?.querySelector("[data-walk-recording-strip] button"));
+const stop = () => click(live()?.querySelector("[data-testid='walk-stop']"));
 async function settle(ms = 0) {
   for (let i = 0; i < 8; i += 1) {
     await act(async () => {

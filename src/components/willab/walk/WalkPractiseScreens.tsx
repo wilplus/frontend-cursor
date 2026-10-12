@@ -27,7 +27,7 @@ import type { SayLine } from "@/lib/willab/walkLines";
 /*    processing  the breathing voice mark only                               */
 /*    improved    "Good job", the try's voice, a line of the signed bank      */
 /*    encourage   "Practise", the try's voice, "It was better, …" or an NX3a  */
-/*                line, Continue to the next try, Skip                        */
+/*                line, "Practise again" to the next try, Skip               */
 /*    thanks      after the third try that is not praise: a CM3b line, and    */
 /*                the walk moves on                                           */
 /*    late        a read that came late or not at all (O5): Next, and         */
@@ -58,7 +58,15 @@ export type PractiseScreenCtx = {
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
 /** The voice the screens after a try play: the try's own, else the moment's. */
-function TryPlayer({ ctx, moment }: { ctx: PractiseScreenCtx; moment: FeedbackWalkMoment<unknown> }) {
+function TryPlayer({
+  ctx,
+  moment,
+  attempt,
+}: {
+  ctx: PractiseScreenCtx;
+  moment: FeedbackWalkMoment<unknown>;
+  attempt?: number;
+}) {
   const tried = ctx.tryOf(moment.index)?.audio ?? null;
   const clip = tried
     ? { src: tried.url, startOffsetMs: 0, durationMs: tried.durationMs }
@@ -72,7 +80,11 @@ function TryPlayer({ ctx, moment }: { ctx: PractiseScreenCtx; moment: FeedbackWa
       src={clip.src}
       startOffsetMs={clip.startOffsetMs}
       durationMs={clip.durationMs}
-      label={`${COPY.pagerMoment} ${moment.index + 1} ${COPY.pagerOf} ${ctx.total}`}
+      label={
+        tried
+          ? WALK_COPY.practiseN(attempt ?? 1)
+          : `${COPY.pagerMoment} ${moment.index + 1} ${COPY.pagerOf} ${ctx.total}`
+      }
     />
   );
 }
@@ -91,7 +103,7 @@ function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string
 function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
   if (step.kind === "instruction") return moment.exercise?.instruction ?? null;
   if (step.kind === "words") return moment.clearer?.coachLine ?? null;
-  return null;
+  return WALK_COPY.lineA;
 }
 
 /** Practising: recording from the start; no title, no slide bar. After an
@@ -105,9 +117,31 @@ function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
       testId={testId(step)}
       onClose={ctx.close}
       footer={
-        <WalkFooter links={[{ label: WALK_COPY.skip, onClick: ctx.skip, testId: "walk-skip" }]}>
-          <RecordingStrip elapsed={ctx.elapsed} stopLabel={COPY.pillStop} onStop={ctx.stop} />
-        </WalkFooter>
+        <div data-walk-footer className="flex flex-col px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
+          <RecordingStrip elapsed={ctx.elapsed} />
+          {/* The recording screen's pair (N70): Skip as its Back, a red Stop
+              as its Finish take, because a practise is one sentence. */}
+          <div className="mt-2.5 flex gap-2.5">
+            <button
+              type="button"
+              data-testid="walk-skip"
+              onClick={ctx.skip}
+              className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground"
+            >
+              {WALK_COPY.skip}
+            </button>
+            <button
+              type="button"
+              data-testid="walk-stop"
+              onClick={ctx.stop}
+              aria-label={COPY.pillStop}
+              className="flex h-12 flex-1 shrink-0 items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground"
+            >
+              <span className="h-3 w-3 shrink-0 rounded-[2px] bg-current" aria-hidden />
+              {COPY.pillStop}
+            </button>
+          </div>
+        </div>
       }
     >
       {instruction ? <WalkMessage>{instruction}</WalkMessage> : null}
@@ -135,7 +169,7 @@ function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
       title={COPY.titlePraise}
       footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }} />}
     >
-      <TryPlayer ctx={ctx} moment={moment} />
+      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
       <WalkMessage>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
@@ -150,12 +184,12 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
       title={COPY.titlePractise}
       footer={
         <WalkFooter
-          pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }}
+          pill={{ label: COPY.pillPractiseAgain, onClick: ctx.forward, testId: "walk-forward" }}
           links={[{ label: WALK_COPY.skip, onClick: ctx.skip, testId: "walk-skip" }]}
         />
       }
     >
-      <TryPlayer ctx={ctx} moment={moment} />
+      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
       <WalkMessage>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
@@ -173,7 +207,7 @@ function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMome
       title={COPY.titlePractise}
       footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }} />}
     >
-      <TryPlayer ctx={ctx} moment={moment} />
+      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
       <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
@@ -198,7 +232,7 @@ function Late(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment
         />
       }
     >
-      <TryPlayer ctx={ctx} moment={moment} />
+      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
     </WalkOverlay>
   );
 }

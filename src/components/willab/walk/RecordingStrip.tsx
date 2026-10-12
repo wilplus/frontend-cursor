@@ -30,8 +30,10 @@ export default function RecordingStrip({
 }: {
   elapsed: number;
   targetSec?: number | string | null;
-  stopLabel: string;
-  onStop: () => void;
+  /** Absent: the strip holds only the dot, the clock and the bar (the
+   *  practise, founder lock 2026-10-12, section 2.5). */
+  stopLabel?: string;
+  onStop?: () => void;
 }) {
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec);
@@ -49,6 +51,7 @@ export default function RecordingStrip({
           style={{ width: target == null ? "100%" : `${Math.min(100, (elapsed / target) * 100)}%` }}
         />
       </div>
+      {onStop ? (
       <button
         type="button"
         onClick={onStop}
@@ -58,6 +61,7 @@ export default function RecordingStrip({
         <Square className="h-3.5 w-3.5 fill-current" />
         {stopLabel}
       </button>
+      ) : null}
     </div>
   );
 }
