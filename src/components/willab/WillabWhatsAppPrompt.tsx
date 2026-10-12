@@ -201,7 +201,6 @@ export function WhatsAppOfferActions({
         }}
         actionLabel={saving ? WHATSAPP_COPY.saving : WHATSAPP_COPY.save}
         onAction={() => void save()}
-        tone="dark"
       />
     </div>
   );
