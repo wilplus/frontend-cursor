@@ -178,6 +178,14 @@ export default function IdealTextReadout({
      still waits; the bottom button bumps the request that opens the walk. */
   const [reviewWaiting, setReviewWaiting] = useState(false);
   const [reviewRequest, setReviewRequest] = useState(0);
+  /* THE WALK OPENS BY ITSELF when a Take's feedback is ready (founder lock
+     2026-10-12, moment and feedback chat, section 1), once per Take. */
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!reviewWaiting || autoOpened.current) return;
+    autoOpened.current = true;
+    setReviewRequest((n) => n + 1);
+  }, [reviewWaiting]);
   /* AFTER THE WALK (founder 2026-10-08, Q-IT643b A): the deck says when the
      finished walk can be played again; the link under "Record Take N" bumps
      the request that plays it. */
