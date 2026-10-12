@@ -111,7 +111,6 @@ export const SCREEN_NAMES = [
   "intro",
   "journal",
   "judge",
-  "community",
   "end",
 ] as const;
 
@@ -144,13 +143,12 @@ export const SINGLE: Record<ScreenName, Step> = {
   intro: { key: "intro" },
   journal: { key: "journal" },
   judge: { key: "judge", moment: 0 },
-  community: { key: "community" },
   end: { key: "end", overlay: false },
 };
 
 /** ?flow=1: the locked order — the coach's note, all praise (each followed by
  *  its helper words), then the practising, "Judgement time!", the
- *  judgements, sharing, the end. */
+ *  judgements, the end. */
 export const FLOW: readonly Step[] = [
   { key: "lounge", overlay: false },
   PAGE,
@@ -173,7 +171,6 @@ export const FLOW: readonly Step[] = [
   { key: "judge", moment: 1 },
   { key: "judge", moment: 2 },
   { key: "judge", moment: 3 },
-  { key: "community" },
   { key: "end", overlay: false },
 ];
 

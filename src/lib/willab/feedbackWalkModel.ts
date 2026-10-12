@@ -13,8 +13,8 @@
 /*  walkPractise.ts), the exercise (D-FW-17: its video, then the practise on  */
 /*  its instruction), "Judgement time!" and one judgement per moment still    */
 /*  open (D-FW-18: only where the moment's Confident Voice item is there to   */
-/*  save the speaker's answer on), sharing (D-FW-20: after the review, only  */
-/*  where the host turns it on), then the end card.                           */
+/*  save the speaker's answer on), other speakers' moments, then the end     */
+/*  card. Sharing is asked before the next recording (lock 2026-10-12, §5).  */
 /*                                                                            */
 /*  No number, read or score is an input or an output (AC-9). The words are   */
 /*  the caller's, already signed: this file adds none.                        */
@@ -158,7 +158,6 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "others",
   "intro",
   "judge",
-  "community",
   "end",
 ]);
 
@@ -243,12 +242,11 @@ function withoutLoneIntro(plan: WalkStep[]): WalkStep[] {
   return plan.filter((step) => step.key !== "intro");
 }
 
-/** Sharing follows a review (flow 11): it never stands as the walk's only
- *  screen, so "Review feedback" with nothing to review opens nothing. */
-function withoutLoneSharing(plan: WalkStep[]): WalkStep[] {
-  const alone = (key: string) => key === "community" || key === "others";
-  if (plan.some((step) => step.overlay !== false && !alone(step.key))) return plan;
-  return plan.filter((step) => !alone(step.key));
+/** Other speakers' moments follow a review: they never stand as the walk's
+ *  only screen, so "Review feedback" with nothing to review opens nothing. */
+function withoutLoneOthers(plan: WalkStep[]): WalkStep[] {
+  if (plan.some((step) => step.overlay !== false && step.key !== "others")) return plan;
+  return plan.filter((step) => step.key !== "others");
 }
 
 /** The walk for one Take, as this phase draws it. A clearer version is drawn
@@ -258,9 +256,6 @@ export function buildFeedbackWalk<R = unknown>(input: {
   coachNote: boolean;
   practiceOn: boolean;
   guest: boolean;
-  /** Sharing is asked after the review (D-FW-20): only where the server's
-   *  communities are on and there is a Take to share. Absent: off. */
-  sharing?: boolean;
 }): FeedbackWalkModel<R> {
   const groups = walkMomentGroups(input.items);
   const moments = groups.map((group, index) => momentOf(group, index));
@@ -269,7 +264,6 @@ export function buildFeedbackWalk<R = unknown>(input: {
     coachNote: input.coachNote,
     practiceOn: input.practiceOn,
     guest: input.guest,
-    sharing: input.sharing === true,
   }).filter((step) => {
     const moment = step.moment == null ? undefined : moments[step.moment];
     return (
@@ -281,7 +275,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     );
   });
   return {
-    plan: withoutLoneSharing(withoutLoneIntro(plan)),
+    plan: withoutLoneOthers(withoutLoneIntro(plan)),
     moments,
     partsOf: groups.map((group) => [...new Set(group.map((i) => i.partId))]),
   };
@@ -316,7 +310,7 @@ export function walkStepForPart(model: FeedbackWalkModel<unknown>, partId: strin
 
 /** Where the walk goes once the judging is over, by the judgements or by
  *  Skip on "Judgement time!" (Q-B6 A): the step after the last judgement,
- *  which is sharing where it is on (D-FW-20), else the end card. */
+ *  else the end card. */
 export function afterJudging(plan: readonly WalkStep[]): number {
   let last = -1;
   plan.forEach((step, i) => {

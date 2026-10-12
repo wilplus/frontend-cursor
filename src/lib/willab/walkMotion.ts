@@ -37,8 +37,8 @@ export type WalkScreen = {
   overlay?: boolean;
 };
 
-/** Screens that stand apart from the moments: "Judgement time!" and sharing. */
-export const WALK_APART: ReadonlySet<string> = new Set(["intro", "community"]);
+/** Screens that stand apart from the moments: "Judgement time!". */
+export const WALK_APART: ReadonlySet<string> = new Set(["intro"]);
 
 /** One moment changing state after a try: checking, then praise or
  *  encouragement. A practise moving into any of them cross-fades too. */

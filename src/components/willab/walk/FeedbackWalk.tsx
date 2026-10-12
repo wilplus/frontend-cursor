@@ -15,10 +15,7 @@ import { JournalPostScreen, JudgeScreen, JudgementIntro, type WalkJournalPost } 
 import { useWalkJudging, type WalkJudgementSave, type WalkJudging } from "./useWalkJudging";
 import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
-import WalkShareScreen from "./WalkShareScreen";
 import WalkOthers from "./WalkOthers";
-import { useWalkShare, type WalkShare } from "./useWalkShare";
-import type { ShareIO } from "@/lib/willab/walkShare";
 import { useWalkLines } from "./useWalkLines";
 import type { SayLine, WalkLinesIO } from "@/lib/willab/walkLines";
 import type { WalkDir } from "@/lib/willab/walkMotion";
@@ -48,15 +45,12 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 /*  THIS PHASE draws the coach's note, the praise, the helper words, the      */
 /*  clearer version (D-FW-15), the practise loop (D-FW-16), the exercise      */
 /*  (D-FW-17), "Judgement time!" with the Journal post and the judgements     */
-/*  (D-FW-18) and sharing (D-FW-20); the plan it is given                     */
+/*  (D-FW-18) and other speakers' moments; the plan it is given              */
 /*  (feedbackWalkModel.ts) holds only those, then the end card, which is the  */
 /*  host's.                                                                   */
 /*                                                                            */
-/*  Sharing (flow 11; CM2 B, WQ5 A, WQ6 A, Q-B6 A, S-B6 A): after the        */
-/*  judgements, or after Skip on "Judgement time!", the sharing screen        */
-/*  cross-fades in. Continue sends the choice through the host's calls and    */
-/*  waits for them (useWalkShare): a refusal stays with its signed message in */
-/*  the toast; ✕ goes on to the end card without sharing.                    */
+/*  Sharing is no longer in the walk: it is asked before the next recording */
+/*  (founder lock 2026-10-12, section 5; NextTakeShareScreen).                */
 /*                                                                            */
 /*  The judging (flow 9-10; JP1 A, Q-B4 A, WQ4 A, Q-B6 A): "Judgement time!"  */
 /*  cross-fades in; its grey link opens the published Journal post inside the */
@@ -172,9 +166,6 @@ type Props<R> = {
   /** The Journal post "More about self-modeling theory" opens; none: no
    *  link. */
   journal?: WalkJournalPost | null;
-  /** The sharing screen's calls (join, set up, share this Take). Without
-   *  them Continue moves on and nothing is sent. */
-  share?: ShareIO | null;
   /** The walk ran out: the host's end card. */
   onEnd: () => void;
   /** ✕: the overlay sinks back to the page. */
@@ -207,7 +198,6 @@ export default function FeedbackWalk<R = unknown>({
   onJudge,
   onSkipJudging,
   journal = null,
-  share: shareIO = null,
   onEnd,
   onClose,
   lines: linesIO = null,
@@ -323,13 +313,11 @@ export default function FeedbackWalk<R = unknown>({
     onJudge,
     onSkipJudging,
   });
-  const share = useWalkShare({ io: shareIO, blocked, forward });
   const walkLines = useWalkLines(linesIO);
   resetRef.current = (answers) => {
     practise.reset();
     judging.reset(answers);
     walkLines.reopen();
-    share.reset();
   };
   // A line screen on screen is recorded as said (D-FW-3).
   const { onScreen } = walkLines;
@@ -404,7 +392,6 @@ export default function FeedbackWalk<R = unknown>({
     practise,
     judging,
     journal,
-    share,
     nav: (s, moment) => momentNav(ctx, s, moment),
     say: walkLines.say,
   };
@@ -418,9 +405,6 @@ export default function FeedbackWalk<R = unknown>({
           speaker onto the end card ("Record Take N"). */}
       {judging.toast && screen.overlay !== false ? (
         <WalkToast key={judging.toast.seq} message={judging.toast.text} onDone={judging.clearToast} />
-      ) : null}
-      {share.toast && screen.key === "community" ? (
-        <WalkToast key={`share-${share.toast.seq}`} message={share.toast.text} onDone={share.clearToast} />
       ) : null}
     </div>
   );
@@ -464,7 +448,6 @@ type ScreenCtx<R = unknown> = {
   practise: WalkPractise;
   judging: WalkJudging;
   journal: WalkJournalPost | null;
-  share: WalkShare;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
@@ -693,24 +676,6 @@ function Judge(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   );
 }
 
-/** Sharing (flow 11): the four choices; Continue shares, ✕ goes on. */
-function Share(ctx: ScreenCtx, step: WalkStep) {
-  const { share } = ctx;
-  return (
-    <WalkShareScreen
-      testId={testId(step)}
-      ticks={share.ticks}
-      onTicks={(next) => share.tick(step, next)}
-      fields={share.fields}
-      onField={(name, value) => share.field(step, name, value)}
-      ready={share.ready}
-      busy={share.busy}
-      onContinue={() => share.submit(step)}
-      onClose={ctx.forward}
-    />
-  );
-}
-
 /** Other speakers' moments, one per practise try before this step. */
 function Others(ctx: ScreenCtx, step: WalkStep) {
   const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "practise").length;
@@ -728,7 +693,6 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
 function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "coachnote") return CoachNote(ctx, step);
   if (step.key === "others") return Others(ctx, step);
-  if (step.key === "community") return Share(ctx, step);
   if (step.key === "intro") return Intro(ctx, step);
   if (step.key === "journal") return Journal(ctx, step);
   const moment = step.moment == null ? undefined : ctx.walk.moments[step.moment];

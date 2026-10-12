@@ -7,8 +7,7 @@ import WalkFooter from "./walk/WalkFooter";
 import WalkOptions, { WalkField, type WalkOption } from "./walk/WalkOptions";
 import WalkToast from "./walk/WalkToast";
 import { fetchCommunities, joinCommunity, type Community } from "@/services/api/communities";
-import { keepNextTakeShare } from "@/lib/willab/nextTakeShare";
-import { SHARE_PASS_CODE_MIN } from "@/lib/willab/walkShare";
+import { keepNextTakeShare, SHARE_PASS_CODE_MIN } from "@/lib/willab/nextTakeShare";
 
 /* -------------------------------------------------------------------------- */
 /*  NextTakeShareScreen — "Do you agree to share your next take with          */

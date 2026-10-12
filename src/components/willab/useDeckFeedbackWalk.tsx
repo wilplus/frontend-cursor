@@ -45,8 +45,6 @@ import { savePracticeHelperWords } from "@/services/api/confidentVoicePractice";
 import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
-import { createCommunity, fetchCommunities, joinCommunity, shareTake } from "@/services/api/communities";
-import type { ShareIO } from "@/lib/willab/walkShare";
 import { lineBankIO } from "@/services/api/lineBank";
 import {
   markCoachFeedbackSeen,
@@ -108,12 +106,6 @@ import type { LockResult } from "./DeckChunkModal";
 /*  sheet's Skip does: a `skipped` moment event (0408), and the bar leaves at */
 /*  once. The Journal post the intro links to is the published self-modeling */
 /*  post (JP1 A).                                                             */
-/*                                                                            */
-/*  Sharing (D-FW-20) is asked after the review only while the server's      */
-/*  communities answer (COMMUNITIES_ENABLED; off, every community route is   */
-/*  404 and the walk goes straight to the end card, as before) and there is */
-/*  a Take to share: the reviewed Take, the one its feedback items name,     */
-/*  else the page's. Its calls are the communities routes (shareIO).         */
 /* -------------------------------------------------------------------------- */
 
 type SlideGroup = { slideIndex: number | null; chunks: readonly DeckChunk[] };
@@ -293,22 +285,6 @@ export function skipJudgements(
   }
 }
 
-/** The sharing screen's calls on one Take: join or set up a community by
- *  its pass code, then the share, which carries the words version (0443). */
-export function shareIO(takeSessionId: string): ShareIO {
-  return {
-    join: async (passCode) => {
-      const res = await joinCommunity(passCode);
-      return res.ok ? { ok: true, data: { id: res.data.id } } : res;
-    },
-    create: async (name, passCode) => {
-      const res = await createCommunity(name, passCode);
-      return res.ok ? { ok: true, data: { id: res.data.id } } : res;
-    },
-    share: (choice) => shareTake(takeSessionId, choice),
-  };
-}
-
 /** The Take the walk reviews: the one its feedback items were served on,
  *  else the page's. Pure. */
 export function reviewedTake(
@@ -322,21 +298,6 @@ export function reviewedTake(
   return pageTake;
 }
 
-/** Sharing is on while the server's communities answer: read once. A 404
- *  (COMMUNITIES_ENABLED off) or a failure leaves it off. */
-function useSharingOn(): boolean {
-  const [sharing, setSharing] = useState(false);
-  useEffect(() => {
-    let live = true;
-    void fetchCommunities().then((res) => {
-      if (live) setSharing(res.ok);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  return sharing;
-}
 
 /** What a walk screen showed of the coach's work, for the Lounge's "new"
  *  (D-FW-19; backend 0439): the Take's coach note on its screen; on a
@@ -509,7 +470,6 @@ export function useDeckFeedbackWalk(args: {
   const { answeredOf, helperWordsOf, finished = false } = args;
   const practiceOn = usePracticeOn();
   const journal = useWalkJournalPost(true);
-  const sharingOn = useSharingOn();
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
@@ -543,11 +503,9 @@ export function useDeckFeedbackWalk(args: {
         coachNote: coachMessage !== null,
         practiceOn,
         guest: false,
-        sharing: sharingOn && take !== null,
       }),
-    [items, coachMessage, practiceOn, sharingOn, take],
+    [items, coachMessage, practiceOn],
   );
-  const share = useMemo(() => (take ? shareIO(take) : null), [take]);
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      Take's moments, answered or not, with the speaker's own answers (the
@@ -778,7 +736,6 @@ export function useDeckFeedbackWalk(args: {
           onJudge={judge}
           onSkipJudging={skipJudging}
           journal={journal}
-          share={share}
           onEnd={onEnd}
           lines={lineBankIO}
           onShown={onShown}
@@ -797,7 +754,6 @@ export function useDeckFeedbackWalk(args: {
       judge,
       skipJudging,
       journal,
-      share,
       onEnd,
       onShown,
     ],

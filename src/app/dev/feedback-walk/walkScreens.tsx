@@ -9,7 +9,6 @@ import WalkMessage, { WalkNewWords } from "@/components/willab/walk/WalkMessage"
 import WalkPlayer from "@/components/willab/walk/WalkPlayer";
 import { JournalPostScreen, JudgeScreen, JudgementIntro } from "@/components/willab/walk/WalkJudgementScreens";
 import WalkFooter from "@/components/willab/walk/WalkFooter";
-import WalkShareScreen from "@/components/willab/walk/WalkShareScreen";
 import WalkLoading from "@/components/willab/walk/WalkLoading";
 import WalkWordPicker from "@/components/willab/walk/WalkWordPicker";
 import type { PhraseSelection } from "@/lib/willab/phraseTokens";
@@ -58,8 +57,6 @@ export type WalkCtx = {
   answer: (moment: number, value: ConfidenceRatingValue) => void;
   helpers: Record<number, PhraseSelection | null>;
   pickHelpers: (moment: number, picked: PhraseSelection | null) => void;
-  community: string[];
-  setCommunity: (next: string[]) => void;
   elapsed: number;
 };
 
@@ -345,7 +342,7 @@ function Intro(ctx: WalkCtx) {
       testId={testId(ctx)}
       onClose={ctx.close}
       onPromise={ctx.forward}
-      // Skip clears the bars and still asks to share (Q-B6 A); the link
+      // Skip clears the bars and goes on to the end card; the link
       // opens the Journal post inside the flow, ‹ and Back return.
       onSkip={ctx.skipJudging}
       onJournal={ctx.openJournal}
@@ -369,20 +366,6 @@ function Judge(ctx: WalkCtx) {
       player={player(ctx)}
       value={ctx.answers[m.index] ?? null}
       onAnswer={(v) => ctx.answer(m.index, v)}
-    />
-  );
-}
-
-/** Sharing: a screen that stands apart; several ticks, the last alone. */
-function Community(ctx: WalkCtx) {
-  return (
-    <WalkShareScreen
-      testId={testId(ctx)}
-      ticks={ctx.community}
-      onTicks={ctx.setCommunity}
-      ready={ctx.community.length > 0}
-      onContinue={ctx.forward}
-      onClose={ctx.forward}
     />
   );
 }
@@ -447,7 +430,6 @@ const SCREENS: Record<Exclude<Step["key"], "page" | "end" | "lounge">, (ctx: Wal
   intro: Intro,
   journal: Journal,
   judge: Judge,
-  community: Community,
 };
 
 export function renderWalkScreen(ctx: WalkCtx): ReactNode {
