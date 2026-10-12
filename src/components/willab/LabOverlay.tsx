@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { applyNextTakeShare } from "@/lib/willab/nextTakeShare";
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
@@ -284,6 +285,8 @@ export default function LabOverlay({
     takeArcId: string | null | undefined = null,
     uploadArcId: string | null = null,
   ) => {
+    // The share chosen before this Take was recorded (lock 2026-10-12, §5).
+    applyNextTakeShare(sessionId);
     if (reportedRef.current || !context) return;
     reportedRef.current = true;
     summaryAppendRef.current = appendToThread(

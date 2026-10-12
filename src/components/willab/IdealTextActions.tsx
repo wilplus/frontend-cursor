@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import { WalkLink, WalkPill } from "./walk/WalkFooter";
+import NextTakeShareScreen from "./NextTakeShareScreen";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the bottom of the text page.                           */
@@ -69,7 +71,15 @@ export default function IdealTextActions({
      feedback; the quiet link while a moment waits, the main pill otherwise.
      Disabled rather than removed when the BE closes its gate, so the entry
      to the record loop never silently disappears. */
-  const record = { label: nextRecordingLabel, onClick: onNewTake, disabled: canRecordTake === false };
+  /* From Take 2 on, sharing is asked before the next recording (founder
+     lock 2026-10-12, moment and feedback chat, section 5). */
+  const [asking, setAsking] = useState(false);
+  const asksShare = typeof takeCount === "number" && takeCount >= 1;
+  const record = {
+    label: nextRecordingLabel,
+    onClick: asksShare ? () => setAsking(true) : onNewTake,
+    disabled: canRecordTake === false,
+  };
 
   return (
     <div data-ideal-text-actions className="flex flex-col gap-1">
@@ -90,6 +100,14 @@ export default function IdealTextActions({
         <p className="text-center text-[12px] text-muted-foreground">
           {IDEAL_EDIT_COPY.recordUnavailable}
         </p>
+      ) : null}
+      {asking ? (
+        <NextTakeShareScreen
+          onDone={() => {
+            setAsking(false);
+            onNewTake();
+          }}
+        />
       ) : null}
     </div>
   );
