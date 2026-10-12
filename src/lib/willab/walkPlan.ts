@@ -8,7 +8,7 @@
 /*    the page → the coach's note (only when there is one) → every praise,    */
 /*    each followed by its helper words → the practising (a clearer version,  */
 /*    an exercise, or the moment said again) → other speakers' moments →     */
-/*    sharing → the end card.                                                 */
+/*    the end card. Sharing is asked before the next recording instead.       */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
 /*    2026-10-12, moment and feedback chat, section 2).                       */
 /*                                                                            */
@@ -140,8 +140,8 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   for (const m of moments) {
     if (isPractiseMoment(m)) steps.push(...practiseOpening(m, input.practiceOn));
   }
+  // Sharing is asked before the next recording now (lock 2026-10-12, §5).
   steps.push({ key: "others" });
-  if (input.sharing !== false) steps.push({ key: "community" });
   steps.push({ key: "end", overlay: false });
   if (!input.guest) return steps;
   return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
