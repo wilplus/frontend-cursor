@@ -562,7 +562,7 @@ function HistoryRowView({ rows }: { rows: readonly HistoryRow[] }) {
 /* ---- the picker (Q27 B, B3) ---------------------------------------------- */
 
 /** A tapped word previews in the accent; a word a tap cannot reach under
- *  the four-word cap reads muted (founder lock 2026-09-30, B3). */
+ *  the six-word cap reads muted (founder lock 2026-09-30, B3). */
 function tokenTone(picked: boolean, reachable: boolean): string {
   if (picked) return "bg-primary/10 text-primary";
   return reachable ? "text-foreground" : "text-muted-foreground/60";
