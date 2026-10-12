@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { postReviewSummary } from "@/services/api/reviewSummary";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
@@ -522,7 +523,15 @@ export function useDeckFeedbackWalk(args: {
   const thread = useLoungeThreadMaybe();
   const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
   threadRef.current = { thread, take, arcId: args.arcId ?? null };
+  // What the closing summary hears (lock 2026-10-12, section 3).
+  const heardRef = useRef<{ practice: "better" | "not_yet" | null; words: string[] }>({ practice: null, words: [] });
   const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
+    const heard = heardRef.current;
+    if (entry.key === "improved") heard.practice = "better";
+    if ((entry.key === "thanks" || entry.key === "encourage") && heard.practice !== "better") heard.practice = "not_yet";
+    if (entry.author === "speaker" && (entry.key.startsWith("words:") || entry.key.startsWith("try-words:"))) {
+      heard.words = [...heard.words.filter((w) => w !== entry.body), entry.body].slice(-2);
+    }
     const { thread: to, take: on, arcId } = threadRef.current;
     if (!to || !on || (entry.key !== "end" && !entry.body.trim())) return;
     void to.append(walkStepDraft({ ...entry, take: on, arcId })).catch(() => undefined);
@@ -715,6 +724,20 @@ export function useDeckFeedbackWalk(args: {
     if (practisingRef.current) return;
     // The review's end: "Continue review" leaves the Lounge.
     post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
+    // The closing summary, written once per Take, then the thread reloads
+    // so it shows after the review.
+    const { thread: to, take: on, arcId } = threadRef.current;
+    if (on && arcId) {
+      const heard = heardRef.current;
+      void postReviewSummary(arcId, {
+        takeSessionId: on,
+        practice: heard.practice,
+        helperWords: heard.words,
+        coachNote: live.current.coachMessage?.text ?? null,
+      }).then((ok) => {
+        if (ok) void to?.reload();
+      });
+    }
     live.current.onEnd();
   }, [post]);
   /** The walk showed the coach's note or a moment: the server hears it once
