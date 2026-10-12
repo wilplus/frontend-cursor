@@ -7,7 +7,8 @@
 /*                                                                            */
 /*    the page → the coach's note (only when there is one) → every praise,    */
 /*    each followed by its helper words → the practising (a clearer version,  */
-/*    an exercise, or the moment said again) → sharing → the end card.        */
+/*    an exercise, or the moment said again) → other speakers' moments →     */
+/*    sharing → the end card.                                                 */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
 /*    2026-10-12, moment and feedback chat, section 2).                       */
 /*                                                                            */
@@ -85,6 +86,8 @@ export type WalkStepKey =
    *  over the intro, never planned. */
   | "journal"
   | "judge"
+  /** Judge other speakers, once, after the practising (lock 2026-10-12). */
+  | "others"
   | "community"
   | "end";
 
@@ -137,6 +140,7 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   for (const m of moments) {
     if (isPractiseMoment(m)) steps.push(...practiseOpening(m, input.practiceOn));
   }
+  steps.push({ key: "others" });
   if (input.sharing !== false) steps.push({ key: "community" });
   steps.push({ key: "end", overlay: false });
   if (!input.guest) return steps;

@@ -38,12 +38,12 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
     const waiting = item({ partId: "p6", start: 300, blockId: "b6", openCard: "coach_request", item: "s-wait" }) as FeedbackWalkItem<string>;
     const plan = buildFeedbackWalk({ items: [waiting], coachNote: false, practiceOn: true, guest: false }).plan;
     expect(plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
-      "page", "practise:moment", "end",
+      "page", "practise:moment", "others", "end",
     ]);
     // The coach's exercise, once shared, takes the moment's place: no other
     // state lies between them.
     const shared = { ...waiting, exercise: offer({ video: "https://media/coach.mp4", byCoach: true }), hasExercise: true };
-    expect(keysOf([shared])).toEqual(["page", "exVideo", "practise:instruction", "end"]);
+    expect(keysOf([shared])).toEqual(["page", "exVideo", "practise:instruction", "others", "end"]);
     for (const step of plan) expect(WALK_PHASE_SCREENS.has(step.key)).toBe(true);
   });
 });

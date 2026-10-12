@@ -16,6 +16,7 @@ import { useWalkJudging, type WalkJudgementSave, type WalkJudging } from "./useW
 import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkShareScreen from "./WalkShareScreen";
+import WalkOthers from "./WalkOthers";
 import { useWalkShare, type WalkShare } from "./useWalkShare";
 import type { ShareIO } from "@/lib/willab/walkShare";
 import { useWalkLines } from "./useWalkLines";
@@ -265,6 +266,14 @@ export default function FeedbackWalk<R = unknown>({
     [go, onEnd],
   );
   const forward = useCallback(() => land(plan, at + 1, "forward"), [at, plan, land]);
+  const atNow = useRef(at);
+  atNow.current = at;
+  /** Moves on from `step` only while the walk still stands on it: a screen
+   *  that finishes by itself may be drawn twice while the stage moves. */
+  const forwardFrom = (step: WalkStep) => {
+    const here = plan.indexOf(step);
+    if (here === atNow.current) land(plan, here + 1, "forward");
+  };
   const back = useCallback(() => {
     // The checking screen and a late read are passed over: a try is not
     // checked twice by going back.
@@ -343,6 +352,7 @@ export default function FeedbackWalk<R = unknown>({
     coachNote,
     firstTake,
     forward,
+    forwardFrom,
     back,
     close,
     picks,
@@ -439,6 +449,7 @@ type ScreenCtx<R = unknown> = {
   coachNote: FeedbackWalkCoachNote | null;
   firstTake: boolean;
   forward: () => void;
+  forwardFrom: (step: WalkStep) => void;
   back: () => void;
   close: () => void;
   picks: Record<string, PhraseSelection | null>;
@@ -700,8 +711,23 @@ function Share(ctx: ScreenCtx, step: WalkStep) {
   );
 }
 
+/** Other speakers' moments, one per practise try before this step. */
+function Others(ctx: ScreenCtx, step: WalkStep) {
+  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "practise").length;
+  return (
+    <WalkOthers
+      testId={testId(step)}
+      count={tries}
+      skip={Boolean(step.readOnly || step.replay)}
+      onDone={() => ctx.forwardFrom(step)}
+      onClose={ctx.close}
+    />
+  );
+}
+
 function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep): ReactNode {
   if (step.key === "coachnote") return CoachNote(ctx, step);
+  if (step.key === "others") return Others(ctx, step);
   if (step.key === "community") return Share(ctx, step);
   if (step.key === "intro") return Intro(ctx, step);
   if (step.key === "journal") return Journal(ctx, step);

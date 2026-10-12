@@ -155,6 +155,7 @@ export const WALK_PHASE_SCREENS: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>
   "clearer",
   "exVideo",
   "practise",
+  "others",
   "intro",
   "judge",
   "community",
@@ -245,8 +246,9 @@ function withoutLoneIntro(plan: WalkStep[]): WalkStep[] {
 /** Sharing follows a review (flow 11): it never stands as the walk's only
  *  screen, so "Review feedback" with nothing to review opens nothing. */
 function withoutLoneSharing(plan: WalkStep[]): WalkStep[] {
-  if (plan.some((step) => step.overlay !== false && step.key !== "community")) return plan;
-  return plan.filter((step) => step.key !== "community");
+  const alone = (key: string) => key === "community" || key === "others";
+  if (plan.some((step) => step.overlay !== false && !alone(step.key))) return plan;
+  return plan.filter((step) => !alone(step.key));
 }
 
 /** The walk for one Take, as this phase draws it. A clearer version is drawn
