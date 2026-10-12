@@ -1,16 +1,11 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { relayJson } from "@/app/api/_lib/afterPracticeRelay";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /** List the caller's communities. */
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  return relayJson(req, "/v2/user/communities", "GET");
-}
+export const GET = proxyRoute("GET", "/v2/user/communities");
 
 /** Open a community. */
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  return relayJson(req, "/v2/user/communities", "POST");
-}
+export const POST = proxyRoute("POST", "/v2/user/communities", { body: "json" });

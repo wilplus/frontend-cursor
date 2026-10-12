@@ -1,6 +1,6 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend, relayStrict } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
+import { relayStrict } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -9,6 +9,4 @@ export const runtime = "nodejs";
  * refuses under fifty (GOLDEN_SET_INCOMPLETE) or a second seal (SEALED). */
 const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-export async function POST(_req: NextRequest, { params }: { params: { surface: string } }): Promise<NextResponse> {
-  return callBackend(`/v2/research/golden/${encodeURIComponent(params.surface)}/seal`, { method: "POST", relay: RELAY });
-}
+export const POST = proxyRoute("POST", "/v2/research/golden/:surface/seal", { relay: RELAY });

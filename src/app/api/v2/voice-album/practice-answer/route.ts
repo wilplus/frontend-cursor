@@ -1,6 +1,5 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,13 +16,4 @@ export const dynamic = "force-dynamic";
  * label, never a coach judgment. Only a `yes` can help a moment into the
  * Voice Album, and only alongside the machine and coach legs.
  */
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  const body = await req.text();
-  const res = await callBackend("/v2/voice-album/practice-answer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const POST = proxyRoute("POST", "/v2/voice-album/practice-answer", { body: "text", noStore: true });

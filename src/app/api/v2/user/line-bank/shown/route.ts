@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
@@ -10,8 +9,4 @@ export const runtime = "nodejs";
  * recorded as said, so the next one differs (build plan D-FW-3; backend
  * 0438). 200 {"bank", "index"}; 400 INVALID_INPUT; 503 V2_ERROR.
  */
-export async function POST(request: NextRequest) {
-  return callBackend("/v2/user/line-bank/shown", {
-    method: "POST", body: await request.text(), headers: { "Content-Type": "application/json" },
-  });
-}
+export const POST = proxyRoute("POST", "/v2/user/line-bank/shown", { body: "text" });

@@ -1,6 +1,5 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,13 +15,4 @@ export const dynamic = "force-dynamic";
  * Album-admission path reads, and writing one never moves a moment into or
  * out of the Album.
  */
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  const body = await req.text();
-  const res = await callBackend("/v2/voice-album/note", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const POST = proxyRoute("POST", "/v2/voice-album/note", { body: "text", noStore: true });

@@ -1,17 +1,7 @@
 import "server-only";
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
 /** The owner's own answers on their Take (the answered bookmark, Q19 A). */
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { takeSessionId: string } }
-) {
-  const take = encodeURIComponent(params.takeSessionId);
-  return callBackend(`/v2/user/takes/${take}/feedback-responses`, {
-    method: "GET",
-    guestOwnerFrom: req,
-  });
-}
+export const GET = proxyRoute("GET", "/v2/user/takes/:takeSessionId/feedback-responses", { guest: true });

@@ -1,6 +1,6 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend, relayStrict } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
+import { relayStrict } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -10,8 +10,4 @@ export const maxDuration = 60;
  * only, ML-3). Forwards the JWT; the backend's @require_founder is the gate. */
 const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-export async function POST(_req: NextRequest): Promise<NextResponse> {
-  const res = await callBackend("/v2/admin/learning/weekly/run", { method: "POST", relay: RELAY });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const POST = proxyRoute("POST", "/v2/admin/learning/weekly/run", { relay: RELAY, noStore: true });

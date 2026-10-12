@@ -19,8 +19,6 @@ import { callBackend, relayStrict, type Failures } from "@/app/api/_lib/backend"
 /*  double mount.                                                              */
 /* -------------------------------------------------------------------------- */
 
-export const runtime = "nodejs";
-
 const FAILURES: Failures = {
   unauthenticated: { status: 401, body: { error: "Not authenticated" } },
   notConfigured: { status: 502, body: { error: "Backend URL not configured" } },

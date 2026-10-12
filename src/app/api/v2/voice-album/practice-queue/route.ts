@@ -1,6 +1,5 @@
 import "server-only";
-import { NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +15,4 @@ export const dynamic = "force-dynamic";
  * read. `general_available: false` means the coach-uploaded shared corpus is
  * a Phase-2 path that is not served yet — not that the queue is finished.
  */
-export async function GET(): Promise<NextResponse> {
-  const res = await callBackend("/v2/voice-album/practice-queue", {
-    method: "GET",
-  });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const GET = proxyRoute("GET", "/v2/voice-album/practice-queue", { noStore: true });

@@ -1,16 +1,6 @@
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { arcId: string } },
-) {
-  const arcId = encodeURIComponent(params.arcId);
-  return callBackend(`/v2/explore/arc/${arcId}/ideal-text/core`, {
-    method: "GET",
-    guestOwnerFrom: request,
-  });
-}
+export const GET = proxyRoute("GET", "/v2/explore/arc/:arcId/ideal-text/core", { guest: true });
 

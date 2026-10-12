@@ -1,14 +1,5 @@
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: { arcId: string } }
-) {
-  const arc = encodeURIComponent(params.arcId);
-  return callBackend(`/v2/explore/arc/${arc}/journey/next-steps`, {
-    method: "POST",
-  });
-}
+export const POST = proxyRoute("POST", "/v2/explore/arc/:arcId/journey/next-steps");
