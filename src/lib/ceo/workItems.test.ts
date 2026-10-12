@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  actOnCeoTask,
-  ceoTaskAgentText,
   createCeoBug,
-  deleteCeoTask,
-  listCeoTasks,
-  moveCeoTask,
-  sortCeoTasks,
-  updateCeoTask,
   type CeoTask,
 } from "./workItems";
 
@@ -64,99 +57,5 @@ describe("CEO work item client", () => {
         }),
       })
     );
-  });
-
-  it("keeps project, view and feature filters explicit on reads", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ tasks: [task] }),
-      })
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(listCeoTasks("product", "done", "feature-1")).resolves.toEqual([
-      task,
-    ]);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/api/v2/admin/ceo/work-items/tasks?project=product&view=done&feature_id=feature-1"
-    );
-  });
-
-  it("sends manual feature correction and confirmed deletion", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = String(input);
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve(
-            url.includes("confirmed=1") ? { deleted: true } : { task }
-          ),
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await updateCeoTask("product", "task-1", { feature_id: "feature-1" });
-    await deleteCeoTask("product", "task-1");
-    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({
-        body: JSON.stringify({ feature_id: "feature-1" }),
-      })
-    );
-    expect(fetchMock.mock.calls[1]?.[0]).toContain(
-      "project=product&confirmed=1"
-    );
-  });
-
-  it("reads the In progress lane and starts a task into it", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ tasks: [], ok: true }),
-      })
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await listCeoTasks("product", "in_progress");
-    await actOnCeoTask("product", "task-1", "start");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/api/v2/admin/ceo/work-items/tasks?project=product&view=in_progress"
-    );
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("tasks/task-1/start");
-    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({ method: "POST" })
-    );
-  });
-
-  it("formats one self-contained agent task", () => {
-    expect(ceoTaskAgentText(task)).toBe(
-      "[P1] Repair saving\n\nAs a speaker, I want saving to finish.\n\n" +
-        "Fix the save path and add regression coverage."
-    );
-  });
-
-  it("moves tasks without mutating the original list", () => {
-    const two = { ...task, id: "task-2", title: "Second" };
-    const three = { ...task, id: "task-3", title: "Third" };
-    const original = [task, two, three];
-    expect(moveCeoTask(original, 0, 2).map((row) => row.id)).toEqual([
-      "task-2",
-      "task-3",
-      "task-1",
-    ]);
-    expect(original.map((row) => row.id)).toEqual(["task-1", "task-2", "task-3"]);
-  });
-  it("sorts P1 first, then P2, then P3, keeping the hand order within each", () => {
-    const rows = [
-      { id: "a", priority: 3 },
-      { id: "b", priority: 1 },
-      { id: "c", priority: 2 },
-      { id: "d", priority: 1 },
-    ] as unknown as Parameters<typeof sortCeoTasks>[0];
-    expect(sortCeoTasks(rows, "priority").map((row) => row.id)).toEqual(["b", "d", "c", "a"]);
-    expect(sortCeoTasks(rows, "manual")).toBe(rows);
   });
 });

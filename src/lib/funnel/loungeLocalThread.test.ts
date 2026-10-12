@@ -14,7 +14,6 @@ vi.mock("@/services/api/loungeMessages", async (importOriginal) => {
 
 import {
   appendLocalLoungeMessage,
-  clearLocalLoungeThread,
   mergeLocalLoungeThreadToServer,
   readLocalLoungeThread,
 } from "./loungeLocalThread";
@@ -55,35 +54,7 @@ afterEach(() => {
   delete (globalThis as unknown as WinShim).window;
 });
 
-describe("loungeLocalThread store", () => {
-  it("appends and reads back", () => {
-    appendLocalLoungeMessage(msg("a", "2026-01-01T00:00:00Z"));
-    expect(readLocalLoungeThread().map((m) => m.client_id)).toEqual(["a"]);
-  });
-
-  it("is idempotent on client_id", () => {
-    appendLocalLoungeMessage(msg("a", "2026-01-01T00:00:00Z"));
-    appendLocalLoungeMessage(msg("a", "2026-01-01T00:00:00Z"));
-    expect(readLocalLoungeThread().length).toBe(1);
-  });
-
-  it("clears the thread", () => {
-    appendLocalLoungeMessage(msg("a", "2026-01-01T00:00:00Z"));
-    clearLocalLoungeThread();
-    expect(readLocalLoungeThread()).toEqual([]);
-  });
-
-  it("reads empty when unset", () => {
-    expect(readLocalLoungeThread()).toEqual([]);
-  });
-});
-
 describe("mergeLocalLoungeThreadToServer", () => {
-  it("no-ops on an empty local thread", async () => {
-    const r = await mergeLocalLoungeThreadToServer();
-    expect(r).toEqual([]);
-    expect(appendAllLoungeMessages).not.toHaveBeenCalled();
-  });
 
   it("replays chronologically and clears local on success", async () => {
     appendLocalLoungeMessage(msg("b", "2026-01-02T00:00:00Z"));

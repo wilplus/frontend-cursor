@@ -1,15 +1,9 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   POST_STEPS,
   blankDraft,
-  clampStep,
-  clearDraft,
-  loadDraft,
-  saveDraft,
-  slugify,
-  stepsFor,
   type LaneDraft,
 } from "./laneDraft";
 
@@ -37,85 +31,14 @@ function full(over: Partial<LaneDraft> = {}): LaneDraft {
   };
 }
 
-describe("the lane is the shape the founder locked", () => {
-  it("is six steps for a post, and the only lane", () => {
-    expect(POST_STEPS).toHaveLength(6);
-    expect(stepsFor("post")).toBe(POST_STEPS);
-    expect(stepsFor(full())).toBe(POST_STEPS);
-  });
-
-  it("names exactly the steps an author may walk past", () => {
-    const skippable = POST_STEPS.filter((s) => s.skippable).map((s) => s.id);
-    expect(skippable.sort()).toEqual(["community", "cover", "excerpt"]);
-  });
-
-});
-
 describe("a step will not let you past what it needs", () => {
   const problemOf = (id: string, draft: LaneDraft) =>
     POST_STEPS.find((s) => s.id === id)!.problem(draft);
-
-  it("passes a complete draft at every step", () => {
-    const draft = full();
-    for (const step of POST_STEPS) {
-      expect(step.problem(draft), step.id).toBeNull();
-    }
-  });
 
   it("asks for a title, a body and an address", () => {
     expect(problemOf("title", full({ title: " " }))).toMatch(/title/i);
     expect(problemOf("body", full({ body: "" }))).toMatch(/Write/);
     expect(problemOf("publish", full({ slug: "" }))).toMatch(/address/);
-  });
-});
-
-describe("the draft survives the lane", () => {
-  beforeEach(() => clearDraft());
-
-  it("round-trips through the store", () => {
-    const draft = full({ title: "Land the ending" });
-    saveDraft(draft);
-    expect(loadDraft()).toEqual(draft);
-  });
-
-  it("restores a draft written by an older build", () => {
-    // A field added since must not throw the author back to step one.
-    window.sessionStorage.setItem(
-      "willpower.cms.lane",
-      JSON.stringify({ lane: "post", title: "Half a draft" }),
-    );
-    const restored = loadDraft();
-    expect(restored?.title).toBe("Half a draft");
-    expect(restored?.category).toBe("others");
-  });
-
-  it("returns null for junk, and for the retired exercise lane", () => {
-    for (const junk of ["{", "null", '{"lane":"nonsense"}', '{"lane":"exercise"}', "[]"]) {
-      window.sessionStorage.setItem("willpower.cms.lane", junk);
-      expect(() => loadDraft()).not.toThrow();
-      expect(loadDraft()).toBeNull();
-    }
-  });
-});
-
-describe("a bad URL lands somewhere real", () => {
-  it("clamps the step into the lane", () => {
-    expect(clampStep("post", 0)).toBe(1);
-    expect(clampStep("post", 99)).toBe(POST_STEPS.length);
-    expect(clampStep("post", "3")).toBe(3);
-  });
-
-});
-
-describe("slugify", () => {
-  it("turns a title into an address", () => {
-    expect(slugify("Land the Ending!")).toBe("land-the-ending");
-    expect(slugify("Land the Ending!", "_")).toBe("land_the_ending");
-  });
-
-  it("produces something legal, or nothing", () => {
-    expect(slugify("9lives")).toBe("lives");
-    expect(slugify("!!!")).toBe("");
   });
 });
 

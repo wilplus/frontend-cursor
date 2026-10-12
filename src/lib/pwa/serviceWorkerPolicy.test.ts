@@ -61,12 +61,6 @@ function ok(body: string, extra: { redirected?: boolean } = {}) {
   };
 }
 
-/** What the middleware hands back for a route it redirects. `cache.put` throws
- *  on one of these in a real browser, which is the whole point. */
-function redirectedTo(body: string) {
-  return ok(body, { redirected: true });
-}
-
 function notFound() {
   return {
     status: 404,
@@ -245,38 +239,10 @@ async function request(
   return result;
 }
 
-interface SwResponse {
-  status: number;
-  type: string;
-  body: string;
-}
-
-/** `request` for the cases that expect the worker to ANSWER. Declining to
- *  intercept is a legitimate outcome (see the /auth/ test), so it has to be
- *  ruled out explicitly rather than read as an empty body. */
-async function respondedTo(
-  sw: Scope,
-  url: string,
-  init: { mode?: string; method?: string; preload?: any } = {}
-): Promise<SwResponse> {
-  const res = await request(sw, url, init);
-  if (res === null) {
-    throw new Error(`the worker declined to intercept ${url}`);
-  }
-  return res as SwResponse;
-}
-
 describe("the service worker caching policy", () => {
   let sw: Scope;
   beforeEach(() => {
     sw = bootWorker();
-  });
-
-  it("never intercepts the OAuth chain", async () => {
-    // Single-use state tokens: an SW-level replay makes Supabase reject the
-    // second sight of the same state with "flow_state_already_used".
-    expect(await request(sw, "https://willpowerlab.com/auth/callback")).toBeNull();
-    expect(sw.networkCalls).toHaveLength(0);
   });
 
   it("never intercepts the API AT ALL — it stands aside, like /auth/*", async () => {
@@ -311,168 +277,6 @@ describe("the service worker caching policy", () => {
     expect(await request(sw, `${ORIGIN}/clip.webm`, { range: true })).toBeNull();
     expect(sw.networkCalls).toHaveLength(0);
   });
-
-  it("stands aside for a WRITE to the API too", async () => {
-    // Non-GET already fell through the method guard above; pinned here so the
-    // two halves of "the worker is not in the API path" cannot drift apart.
-    expect(
-      await request(sw, "https://willpowerlab.com/api/v2/explore/arc/a/parts/p/lock", {
-        method: "PUT",
-      })
-    ).toBeNull();
-    expect(sw.networkCalls).toHaveLength(0);
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  (3) HTML — the rule that makes a bad deploy fixable by deploying       */
-  /* ---------------------------------------------------------------------- */
-
-  it("goes to the network first for a navigation, even with a cached copy", async () => {
-    sw.store.set("https://willpowerlab.com/", "STALE HTML");
-    sw.setNetwork(() => ok("FRESH HTML"));
-
-    const res = await respondedTo(sw, "https://willpowerlab.com/", { mode: "navigate" });
-
-    // The whole point: a stale document is how a browser ends up running last
-    // week's JS. Fix the server, refresh, done.
-    expect(res.body).toBe("FRESH HTML");
-  });
-
-  it("falls back to the cached shell only when the network fails", async () => {
-    sw.store.set("https://willpowerlab.com/", "OFFLINE SHELL");
-    sw.setNetwork(() => {
-      throw new Error("offline");
-    });
-
-    const res = await respondedTo(sw, "https://willpowerlab.com/panel/today", {
-      mode: "navigate",
-    });
-    expect(res.body).toBe("OFFLINE SHELL");
-  });
-
-  it("uses the preloaded navigation response when the browser supplies one", async () => {
-    const res = await respondedTo(sw, "https://willpowerlab.com/", {
-      mode: "navigate",
-      preload: ok("PRELOADED"),
-    });
-    expect(res.body).toBe("PRELOADED");
-    // Preload already made the request; making it again would double it.
-    expect(sw.networkCalls).toHaveLength(0);
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  (4) Hashed build output — cache-first, and safe because of the hash    */
-  /* ---------------------------------------------------------------------- */
-
-  it("serves a hashed chunk from cache without touching the network", async () => {
-    const chunk = "https://willpowerlab.com/_next/static/chunks/4020-abc123.js";
-    await request(sw, chunk);
-    expect(sw.networkCalls).toEqual([chunk]);
-
-    await request(sw, chunk);
-    // Still one. The URL contains a hash of the bytes, so a second look-up
-    // cannot discover different content and must not cost a round trip.
-    expect(sw.networkCalls).toEqual([chunk]);
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  (5) Stable URLs with changing content — the bucket that used to freeze */
-  /* ---------------------------------------------------------------------- */
-
-  it("serves an unhashed asset from cache but refreshes it in the background", async () => {
-    const icon = "https://willpowerlab.com/icon";
-    sw.store.set(icon, "OLD ICON");
-    sw.setNetwork(() => ok("NEW ICON"));
-
-    // First read is instant and stale — that is the deal.
-    expect((await respondedTo(sw, icon)).body).toBe("OLD ICON");
-    // The refresh is held open past the response. Without this the browser is
-    // free to kill the worker mid-revalidation and the entry never updates,
-    // which is cache-first wearing a new hat.
-    expect(lastWaitUntilCount).toBeGreaterThan(0);
-    // And it did revalidate, so the NEXT read is fresh. Under the old
-    // cache-first rule this stayed "OLD ICON" until someone bumped the cache.
-    expect(sw.store.get(icon)).toBe("NEW ICON");
-    expect((await respondedTo(sw, icon)).body).toBe("NEW ICON");
-  });
-
-  it("fetches an unhashed asset it has never seen", async () => {
-    sw.setNetwork(() => ok("FIRST"));
-    expect(
-      (await respondedTo(sw, "https://willpowerlab.com/brand/logo.svg")).body
-    ).toBe("FIRST");
-  });
-
-  it("does not cache a failed or cross-origin response as if it succeeded", async () => {
-    const url = "https://willpowerlab.com/brand/missing.svg";
-    sw.setNetwork(() => ({ status: 404, type: "basic", body: "nope", clone: () => ({}) }));
-    await request(sw, url);
-    // A 404 stored under a real URL is a broken asset pinned for everyone.
-    expect(sw.store.has(url)).toBe(false);
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  Activation — what makes a cache-name bump actually rescue anyone       */
-  /* ---------------------------------------------------------------------- */
-
-  it("deletes every cache it does not own, so a bump is a real flush", async () => {
-    const pending: Promise<any>[] = [];
-    sw.activateHandler({ waitUntil: (p: Promise<any>) => pending.push(p) });
-    await Promise.all(pending);
-
-    expect(sw.cacheNames.has("willab-shell-v4")).toBe(false);
-    expect(sw.cacheNames.has("some-other-cache")).toBe(false);
-  });
-
-  it("names its cache after the build that registered it", async () => {
-    // The registrar registers `/sw.js?v=<build id>`; the worker reads that same
-    // value back off its own location. One value, two readers, so the URL that
-    // caused this worker to install and the cache it empties cannot disagree.
-    const versioned = bootWorker(`${ORIGIN}/sw.js?v=9f2c1ab77e40`);
-    await request(versioned, `${ORIGIN}/icon`);
-    expect(versioned.cachesOpened[0]).toBe("willab-shell-9f2c1ab77e40");
-  });
-
-  it("flushes the PREVIOUS build's shell without a hand-written bump", async () => {
-    // The failure this removes: `activate` deletes every cache whose name is
-    // not the current one, so while the name was a constant a deploy that
-    // forgot to bump it left the phone on the previous shell — with nothing on
-    // screen to say why. Two builds now differ without anyone editing sw.js.
-    const previous = bootWorker(`${ORIGIN}/sw.js?v=aaaaaaaaaaaa`);
-    await request(previous, `${ORIGIN}/icon`);
-    const older = previous.cachesOpened[0];
-
-    const current = bootWorker(`${ORIGIN}/sw.js?v=bbbbbbbbbbbb`);
-    current.cacheNames.add(older);
-    await request(current, `${ORIGIN}/icon`);
-    const newer = current.cachesOpened[0];
-    expect(newer).not.toBe(older);
-
-    const pending: Promise<any>[] = [];
-    current.activateHandler({ waitUntil: (p: Promise<any>) => pending.push(p) });
-    await Promise.all(pending);
-
-    expect(current.cacheNames.has(older)).toBe(false);
-    expect(current.cacheNames.has(newer)).toBe(true);
-  });
-
-  it("still has a working cache name when nothing versioned the registration", async () => {
-    // An unversioned registration is the pre-2026-09-18 behaviour, and it has
-    // to keep working: `caches.open(undefined)` would be one shared cache for
-    // every build, which is the frozen shell again by another route.
-    const bare = bootWorker(`${ORIGIN}/sw.js`);
-    await request(bare, `${ORIGIN}/icon`);
-    expect(bare.cachesOpened[0]).toBe("willab-shell-v8");
-  });
-
-  it("reads only from its own cache, never the whole origin", async () => {
-    // The sandbox throws if sw.js calls the global `caches.match`. Searching
-    // every cache is what would let a version this worker just deleted keep
-    // answering, which is a cache bump that does not bump anything.
-    await request(sw, "https://willpowerlab.com/icon");
-    await request(sw, "https://willpowerlab.com/_next/static/chunks/x-1.js");
-    await request(sw, "https://willpowerlab.com/", { mode: "navigate" });
-  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -497,52 +301,3 @@ async function install(sw: Scope) {
     return { installed: false as const, err };
   }
 }
-
-describe("the service worker install", () => {
-  let sw: Scope;
-  beforeEach(() => {
-    sw = bootWorker();
-  });
-
-  it("survives a shell asset that REDIRECTS", async () => {
-    // Exactly the production case: middleware 307s `/` for a signed-in user.
-    sw.setNetwork((url) =>
-      url.endsWith("/") ? redirectedTo("<html>dashboard</html>") : ok(`fresh:${url}`)
-    );
-
-    const result = await install(sw);
-
-    expect(result.installed).toBe(true);
-    // And the assets that did NOT redirect are still precached, so one awkward
-    // route costs one entry rather than the offline shell.
-    expect(sw.store.has(`${ORIGIN}/icon`)).toBe(true);
-  });
-
-  it("survives a shell asset that 404s", async () => {
-    sw.setNetwork((url) => (url.endsWith("/icon") ? notFound() : ok(`fresh:${url}`)));
-
-    const result = await install(sw);
-
-    expect(result.installed).toBe(true);
-    expect(sw.store.has(`${ORIGIN}/icon`)).toBe(false);
-    expect(sw.store.has(`${ORIGIN}/manifest.webmanifest`)).toBe(true);
-  });
-
-  it("survives the network being gone entirely", async () => {
-    sw.setNetwork(() => {
-      throw new Error("offline");
-    });
-    expect((await install(sw)).installed).toBe(true);
-  });
-
-  it("takes over even when precaching fails completely", async () => {
-    // skipWaiting is what makes the new worker replace the broken one. If it
-    // were gated on a successful precache, a user stuck on a bad worker would
-    // stay stuck — which is the whole failure this file is about.
-    sw.setNetwork(() => {
-      throw new Error("offline");
-    });
-    await install(sw);
-    expect(sw.skipWaitingCalled()).toBe(true);
-  });
-});

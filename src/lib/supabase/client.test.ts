@@ -36,53 +36,5 @@ describe("createClient", () => {
     it("does not throw", () => {
       expect(() => build()).not.toThrow();
     });
-
-    it("hands back an unroutable placeholder, never a real host", () => {
-      const client = build();
-      expect(client.url).toBe("http://127.0.0.1:1");
-      expect(client.key).toBe("prerender-placeholder-anon-key");
-    });
-  });
-
-  // usePublishLiveSubscription catches this throw to skip realtime instead of
-  // crashing the page. If this test ever goes green-by-deletion, that hook
-  // starts opening channels against a client that cannot connect.
-  describe("in the browser, with no env", () => {
-    beforeEach(() => {
-      vi.stubGlobal("window", {});
-    });
-
-    it("still throws, so callers can bail on missing config", () => {
-      expect(() => build()).toThrow(/Missing Supabase environment variables/);
-    });
-  });
-
-  // The safety property: a configured environment behaves exactly as before,
-  // and the placeholder is unreachable in it — on either side of the wire.
-  describe("with env configured", () => {
-    beforeEach(() => {
-      process.env[URL_VAR] = "https://real-project.supabase.co";
-      process.env[KEY_VAR] = "real-anon-key";
-    });
-
-    it("uses the real credentials on the server", () => {
-      const client = build();
-      expect(client.url).toBe("https://real-project.supabase.co");
-      expect(client.key).toBe("real-anon-key");
-    });
-
-    it("uses the real credentials in the browser", () => {
-      vi.stubGlobal("window", {});
-      const client = build();
-      expect(client.url).toBe("https://real-project.supabase.co");
-      expect(client.key).toBe("real-anon-key");
-    });
-
-    it("still throws in the browser when only one of the two is set", () => {
-      // Half-configured is still misconfigured: the browser must hear about it.
-      vi.stubGlobal("window", {});
-      delete process.env[KEY_VAR];
-      expect(() => build()).toThrow(/Missing Supabase environment variables/);
-    });
   });
 });

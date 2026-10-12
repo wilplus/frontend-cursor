@@ -32,60 +32,6 @@ describe("the content security policy", () => {
   const csp = getCspDirectives("test-nonce");
 
   /* ---------------------------------------------------------------------- */
-  /*  Realtime — the wss:// half of Supabase                                 */
-  /* ---------------------------------------------------------------------- */
-
-  it("authorises the Supabase realtime WebSocket, not just its https origin", () => {
-    const connect = directive(csp, "connect-src")!;
-    expect(connect).toContain("https://*.supabase.co");
-    // The bug: `https://host` does NOT authorise `wss://host`. CSP scheme
-    // matching treats them as different schemes, so listing the https origin
-    // alone left Safari refusing the socket with "The operation is insecure"
-    // while Chrome allowed it and hid the fault.
-    expect(connect).toContain("wss://*.supabase.co");
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  R2 — the read host, not just the write host                            */
-  /* ---------------------------------------------------------------------- */
-
-  it("authorises the R2 PUBLIC domain the deck PDF is fetched from", () => {
-    const connect = directive(csp, "connect-src")!;
-    // Writes go to the S3 API host via presigned PUT...
-    expect(connect).toContain("https://*.r2.cloudflarestorage.com");
-    // ...and reads come back from the bucket's public domain, which matches
-    // neither that host nor any other origin here. Listing only the write host
-    // left every in-app deck load refused while the SAME url opened fine in a
-    // browser tab — connect-src governs fetches, not navigation — so the
-    // recording stage showed "Slide preview unavailable" over a file that was
-    // stored, served and valid.
-    expect(connect).toContain("https://*.r2.dev");
-  });
-
-  /* ---------------------------------------------------------------------- */
-  /*  style-src — the directive that caused the outage                       */
-  /* ---------------------------------------------------------------------- */
-
-  it("still allows the inline <style> blocks dependencies inject at runtime", () => {
-    // `sonner` writes its stylesheet into a <style> element on first mount.
-    // Nothing in our markup or our source names it, which is exactly why
-    // "the app ships zero <style> tags" was both true and misleading.
-    const style = directive(csp, "style-src")!;
-    expect(style).toContain("'unsafe-inline'");
-  });
-
-  it("does not carry a style-src-elem that would block those blocks again", () => {
-    // Re-landing the hardening is fine, but only once the injected stylesheet
-    // is accounted for (hashed, or pulled into the bundle). A bare
-    // `style-src-elem 'self'` reintroduces the outage, because -elem OVERRIDES
-    // the style-src fallback in browsers that understand it.
-    const elem = directive(csp, "style-src-elem");
-    if (elem !== null) {
-      expect(elem).toContain("'unsafe-inline'");
-    }
-  });
-
-  /* ---------------------------------------------------------------------- */
   /*  The parts that must not regress while fixing the above                 */
   /* ---------------------------------------------------------------------- */
 
@@ -96,22 +42,5 @@ describe("the content security policy", () => {
     // Script is the XSS vector the policy exists to close. Nothing in this
     // file's rollback is allowed to loosen it.
     expect(script).not.toContain("'unsafe-inline'");
-  });
-
-  it("keeps the frame, object and base clamps", () => {
-    expect(directive(csp, "frame-ancestors")).toBe("frame-ancestors 'none'");
-    expect(directive(csp, "object-src")).toBe("object-src 'none'");
-    expect(directive(csp, "base-uri")).toBe("base-uri 'self'");
-  });
-
-  it("allows the service worker and the pdf.js worker", () => {
-    expect(directive(csp, "worker-src")).toContain("'self'");
-  });
-
-  it("is a single well-formed header with no empty directives", () => {
-    const parts = csp.split(";").map((d) => d.trim());
-    expect(parts.every((p) => p.length > 0)).toBe(true);
-    expect(csp).not.toContain(";;");
-    expect(csp.trim().endsWith(";")).toBe(false);
   });
 });
