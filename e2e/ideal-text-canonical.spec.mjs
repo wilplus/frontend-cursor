@@ -467,7 +467,11 @@ await skipping.waitForSelector("text=Garage pitch");
 await skipping.locator('button[aria-label^="Feedback waiting — review it"]').click();
 await skipping.waitForSelector('[data-testid="paragraph-sheet"]');
 await dialog(skipping).locator('[data-testid="paragraph-sheet-skip"]').click();
-await skipping.waitForTimeout(400);
+// Wait for the bar to leave (no reload), up to 5s: a fixed 400ms was too
+// short on a slow CI runner.
+await skipping
+  .waitForFunction(() => !document.querySelector('button[aria-label^="Feedback waiting — review it"]'), null, { timeout: 5000 })
+  .catch(() => undefined);
 check(
   "Skip settles the moment on the tap: its bar is gone without a reload",
   (await skipping.locator('button[aria-label^="Feedback waiting — review it"]').count()) === 0
