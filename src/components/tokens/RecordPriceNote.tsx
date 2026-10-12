@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchRecordingBand, type RecordingBandState } from "@/services/api/tokens";
-import { TOKENS_COPY, formatShortDate, formatTokens } from "./copy";
+import { TOKENS_COPY, formatShortDate } from "./copy";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordPriceNote — what the next take costs, ON the trigger, BEFORE it runs */
@@ -43,18 +43,12 @@ export default function RecordPriceNote({ className }: { className?: string }) {
     };
   }, []);
 
-  // Off (no pricing) or unknown (unreadable) → say nothing. A price we are not
-  // sure of is worse than no price, and neither state changes what the button
-  // does.
-  if (band.kind === "off" || band.kind === "unknown") return null;
+  // Only the out-of-tokens state says anything; the price line is not shown
+  // (founder, 2026-10-12). Off, unknown or priced → say nothing. None of these
+  // changes what the button does.
+  if (band.kind !== "exhausted") return null;
 
-  const text =
-    band.kind === "priced"
-      ? TOKENS_COPY.recordPrice(
-          formatTokens(band.price),
-          Math.floor(band.maxSeconds / 60)
-        )
-      : TOKENS_COPY.recordEmpty(formatShortDate(band.periodEndsAt));
+  const text = TOKENS_COPY.recordEmpty(formatShortDate(band.periodEndsAt));
 
   return (
     <p className={className ?? "mt-3 text-center text-[12px] text-muted-foreground"}>
