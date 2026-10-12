@@ -10,7 +10,6 @@ const NINE = [
   "HelperWordsSheet.tsx",
   "IdealTextMenu.tsx",
   "ParagraphSheet.tsx",
-  "PractiseSheet.tsx",
   "RaterLanguageGate.tsx",
 ];
 

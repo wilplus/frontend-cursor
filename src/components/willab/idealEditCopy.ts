@@ -165,9 +165,6 @@ export const CHUNK_SHEET_COPY = {
      one already judged. A pill that still read "Practise" there would make a
      fresh recording look like a return to the last one. */
   pillPractise: "Practise",
-  /* The green label on an exercise already completed on an earlier Take
-     (founder 2026-09-26, Q44: "just add a little green label 'done'"). */
-  exerciseDone: "Done",
   pillPractiseAgain: "Practise again",
   /* NOT a new string. §3 says "Practise records in place" and the screen table
      has no stop state, but a recording still has to be endable — so this is
@@ -209,10 +206,6 @@ export const CHUNK_SHEET_COPY = {
      playback is gone from it, so this eyebrow is the only thing naming which
      recording is in the orange card. */
   cardCorrectedVersion: "Corrected version",
-  /** The practice judgement's player label (accepted screen L1, 2026-09-26). */
-  practiceAttemptLabel: (n: number) => `Your practice · attempt ${n}`,
-  /** The live practice recording (accepted coach journey, 2026-09-26). */
-  practiceAttemptRecording: (n: number) => `Attempt ${n}`,
   /* An INSTRUCTION for the interaction rather than a label for the content,
      which is why it does not read "With emphasis" like its sibling. Founder
      left it deliberately (handoff, "one note"). */
@@ -324,11 +317,10 @@ export const CHUNK_SHEET_COPY = {
      Signed with the lock, B9: the overlay's title, "Your judgement:", the
      History row and "Say it again" (D1). The saved state's title is the
      toast's own words; "Next" is `pagerNext` and "Practise" is `pillPractise`
-     above. The words after "Your judgement:" are the ones on the speaker's
-     own answer chips, never the machine's read (D7, L3). */
+     above. The judgement words in History are the ones on the speaker's own
+     answer chips, never the machine's read (D7, L3). */
   titleParagraph: "This paragraph",
   titleSaved: "Helper words saved",
-  judgementLabel: "Your judgement:",
   judgementWord: {
     yes: "Confident",
     in_between: "In-between",
@@ -338,19 +330,10 @@ export const CHUNK_SHEET_COPY = {
   },
   historyRow: "History",
   cardSayItAgain: "Say it again",
-  /* --- THE PRACTISE SCREEN (founder lock 2026-09-30, B6, B9, Q4, Q5) ------
-     Signed with the lock: "Say it this way" heads the rewrite's words, and
-     "From your attempt" heads the picker over the attempt's own words.
-     "Practise" is `pillPractise`; "Skip" is `linkSkip`; the exercise's
-     words are headed by its own instruction; the plain moment by
-     `cardSayItAgain`. */
+  /* --- THE PRACTISE SCREENS: the Feedback walk's, in all cases since the
+     founder's 2026-10-10 "the practise screens should be the same in all
+     cases"; their own titles. */
   titlePractise: "Practise",
-  cardSayItThisWay: "Say it this way",
-  /** The same heading once the words were accepted (29b), from the accepted
-   *  readiness design: the speaker is told the words on screen are now the
-   *  paragraph's. */
-  cardSayItThisWayAccepted: "Say it this way · accepted",
-  fromYourAttempt: "From your attempt",
   /* --- THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4, B9, D4, D5, Q2, Q3)
      Built from the mock as it stands (Q4 A). Its title is the eyebrow
      `historyHelperWords`; "Delete" and "Delete helper words" are the one

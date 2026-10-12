@@ -100,7 +100,8 @@ function render(firstTake: boolean) {
 }
 
 const saved = () => container.querySelector('[data-testid="overlay-saved"]');
-const player = () => saved()?.querySelector('[data-testid="media-player"]') ?? null;
+// The walk's one player (Q-WALK-PARA A).
+const player = () => saved()?.querySelector("[data-walk-player]") ?? null;
 
 describe("the saved state's player (D6 amended, N48.1)", () => {
   it("is a rule: Take 1 plays the moment, a later Take does not", () => {
@@ -120,7 +121,7 @@ describe("the saved state's player (D6 amended, N48.1)", () => {
 
   it("still plays the moment on Take 1", async () => {
     await render(true);
-    expect(player()?.getAttribute("data-src")).toBe("https://media.example/moment.wav");
+    expect(player()?.querySelector("audio")?.getAttribute("src")).toBe("https://media.example/moment.wav");
   });
 });
 

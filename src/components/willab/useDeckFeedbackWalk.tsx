@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
   type FeedbackWalkPractiseWords,
@@ -20,7 +20,6 @@ import {
   practiseWordsBehind,
   type SaveBehind,
 } from "./saveBehind";
-import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
 import { answerChanged, latestAnswerOf, reopensJudgement } from "@/lib/willab/changeJudgement";
 import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
@@ -32,6 +31,8 @@ import {
   type FeedbackWalkItemExercise,
 } from "@/lib/willab/feedbackWalkModel";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
+import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
+import { clearerPieces } from "@/lib/willab/clearerPieces";
 import { quoteSpan } from "@/lib/willab/phraseTokens";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
@@ -53,26 +54,31 @@ import type { RootPhraseSpan } from "@/services/api/partLock";
 import type { LockResult } from "./DeckChunkModal";
 
 /* -------------------------------------------------------------------------- */
-/*  The Feedback walk on the Ideal Text page, behind its one switch (build     */
-/*  plan D-FW-14; feedbackWalkOn).                                             */
+/*  The Feedback walk on the Ideal Text page (build plan D-FW-14; made        */
+/*  permanent by the founder 2026-10-11, "keep the new designs, make them     */
+/*  permanent").                                                              */
 /*                                                                            */
-/*  The deck asks two questions and draws one element:                        */
+/*  The deck asks these questions and draws one element:                      */
 /*    review()      "Review feedback" was tapped: open the walk on its first   */
 /*                  screen (the coach's note, else the first praise). False   */
-/*                  when the switch is off or this phase has nothing to show, */
-/*                  and the deck goes on exactly as today.                    */
+/*                  when this phase has nothing to show, and the deck goes on */
+/*                  with its own sheets.                                      */
 /*    tapPart(id)   a paragraph with an open moment was tapped: open the walk */
 /*                  at that moment (Q-B3 A). False otherwise.                 */
 /*    replayPart(id) a paragraph whose moments are answered was tapped, or   */
 /*                  its helper words: the walk played again from that         */
 /*                  paragraph (founder 2026-10-10, "the journey should be     */
 /*                  unified"). False when it has no moment, and the deck      */
-/*                  opens the paragraph's own sheet as today.                 */
-/*    element       the walk itself; null while the switch is off.           */
+/*                  opens the paragraph's own sheet.                          */
+/*    practisePart(id, card, moment) Practise on a paragraph's own sheet: the */
+/*                  walk's practise screens on that card (founder 2026-10-10, */
+/*                  "the practise screens should be the same in all cases").  */
+/*                  False when the card has no snippet and evidence to open a */
+/*                  practice on; the sheet then shows no Practise.            */
+/*    element       the walk itself.                                          */
 /*                                                                            */
-/*  With the switch off nothing is read, nothing is fetched and nothing is    */
-/*  drawn: the deck behaves exactly as it did. Its own hook so the deck gains */
-/*  a line, not a branch (the complexity ratchet).                            */
+/*  Its own hook so the deck gains a line, not a branch (the complexity       */
+/*  ratchet).                                                                 */
 /*                                                                            */
 /*  Helper words picked in the walk are saved through the very path the       */
 /*  paragraph sheet uses: the deck's setRootPhrase and lock, behind the       */
@@ -98,7 +104,7 @@ import type { LockResult } from "./DeckChunkModal";
 /*  on "Judgement time!" settles every unanswered moment as the paragraph     */
 /*  sheet's Skip does: a `skipped` moment event (0408), and the bar leaves at */
 /*  once. The Journal post the intro links to is the published self-modeling */
-/*  post (JP1 A), read only while the switch is on.                           */
+/*  post (JP1 A).                                                             */
 /*                                                                            */
 /*  Sharing (D-FW-20) is asked after the review only while the server's      */
 /*  communities answer (COMMUNITIES_ENABLED; off, every community route is   */
@@ -308,13 +314,11 @@ export function reviewedTake(
   return pageTake;
 }
 
-/** Sharing is on while the server's communities answer: read once, only
- *  while the walk is on. A 404 (COMMUNITIES_ENABLED off) or a failure
- *  leaves it off. */
-function useSharingOn(on: boolean): boolean {
+/** Sharing is on while the server's communities answer: read once. A 404
+ *  (COMMUNITIES_ENABLED off) or a failure leaves it off. */
+function useSharingOn(): boolean {
   const [sharing, setSharing] = useState(false);
   useEffect(() => {
-    if (!on) return;
     let live = true;
     void fetchCommunities().then((res) => {
       if (live) setSharing(res.ok);
@@ -322,7 +326,7 @@ function useSharingOn(on: boolean): boolean {
     return () => {
       live = false;
     };
-  }, [on]);
+  }, []);
   return sharing;
 }
 
@@ -356,12 +360,10 @@ export function coachShownOn(
   return [...out.values()];
 }
 
-/** Personalised practice, read only while the walk is on (the deck makes no
- *  new read with the switch off). */
-function usePracticeOn(on: boolean): boolean {
+/** Personalised practice, as the speaker set it. */
+function usePracticeOn(): boolean {
   const [offered, setOffered] = useState<boolean>(() => practiseOfferedNow() ?? true);
   useEffect(() => {
-    if (!on) return;
     let live = true;
     void readPractiseOffered().then((value) => {
       if (live) setOffered(value);
@@ -369,8 +371,78 @@ function usePracticeOn(on: boolean): boolean {
     return () => {
       live = false;
     };
-  }, [on]);
+  }, []);
   return offered;
+}
+
+/** The item a paragraph's practise is opened on: the card's own item when it
+ *  carries its snippet and evidence, else the card's item on the moment's
+ *  snippet and evidence (as the paragraph's practise always opened it: the
+ *  moment's clip, the card's feedback). Null when neither carries them. */
+function practiseSourceOf(
+  item: DocumentSuggestion | null,
+  moment: DocumentSuggestion | null,
+): DocumentSuggestion | null {
+  const own = item ?? moment;
+  if (!own) return null;
+  if (suggestionSource(own)) return own;
+  if (!moment?.snippetId || !moment.evidence) return null;
+  return { ...own, snippetId: moment.snippetId, evidence: moment.evidence };
+}
+
+/** A paragraph's practise as the walk draws it (founder 2026-10-10, "the
+ *  practise screens should be the same in all cases"): the card on the
+ *  paragraph's own sheet, as one moment of the walk, opened at its practise.
+ *  A clearer version practises its words, an exercise its passage under its
+ *  instruction, a praise or the plain moment the moment said again. Null
+ *  when there is nothing to open a practice on (no snippet and evidence), or
+ *  an exercise whose offer is gone. Pure. */
+export function paragraphPractise(args: {
+  card: PractiseCard;
+  /** The paragraph's Confident Voice item: its clip, its snippet. */
+  moment: DocumentSuggestion | null;
+  partId: string;
+  paragraphText: string;
+  slideLabel: string | null;
+}): FeedbackWalkModel<DocumentSuggestion> | null {
+  const { card, moment, partId, paragraphText, slideLabel } = args;
+  const source = practiseSourceOf(card.item, moment);
+  if (!source) return null;
+  const clip = moment?.snippetAudioRef
+    ? { src: moment.snippetAudioRef, startOffsetMs: moment.startOffsetMs, durationMs: moment.durationMs }
+    : null;
+  const base: FeedbackWalkMoment<DocumentSuggestion> = {
+    index: 0,
+    partId,
+    paragraphText,
+    slideLabel,
+    praiseWords: [],
+    clip,
+    clearer: null,
+    practiseItem: source,
+    exercise: null,
+    judgeItem: null,
+  };
+  let one: FeedbackWalkMoment<DocumentSuggestion> = base;
+  let kind: WalkStep["kind"] = "moment";
+  if (card.kind === "exercise") {
+    if (!source.practiceExercise || !card.passage.trim()) return null;
+    one = { ...base, exercise: { video: card.video, instruction: card.instruction, say: card.passage, item: source } };
+    kind = "instruction";
+  } else if (card.kind === "rewrite") {
+    const pieces = clearerPieces(card.item.quote, card.text) ?? { before: [], after: [] };
+    one = { ...base, clearer: { ...pieces, say: card.text, coachLine: card.move?.trim() || null, item: source } };
+    kind = "words";
+  }
+  return {
+    plan: [
+      { key: "page", overlay: false },
+      { key: "practise", moment: 0, slide: 0, kind, attempt: 1 },
+      { key: "end", overlay: false },
+    ],
+    moments: [one],
+    partsOf: [[partId]],
+  };
 }
 
 export function useDeckFeedbackWalk(args: {
@@ -415,45 +487,44 @@ export function useDeckFeedbackWalk(args: {
   /** Plays the finished walk again (Q-IT643b A). False when there is
    *  nothing to play. */
   replay: () => boolean;
+  /** Practise on a paragraph's own sheet: the walk's practise screens on the
+   *  card the sheet shows (paragraphPractise). False when it cannot open. */
+  practisePart: (partId: string, card: PractiseCard, moment: DocumentSuggestion | null) => boolean;
   /** The finished walk has a screen to play again. */
   canReplay: boolean;
   element: ReactNode;
 } {
   const { chunks, groups, waiting, pendingOf, slideLabel, coachMessage, coachSeen, firstTake } = args;
   const { answeredOf, helperWordsOf, finished = false } = args;
-  // Read after mount: the address is not there on the server render.
-  const [on, setOn] = useState(false);
-  useEffect(() => setOn(feedbackWalkOn()), []);
-  const practiceOn = usePracticeOn(on);
-  const journal = useWalkJournalPost(on);
-  const sharingOn = useSharingOn(on);
+  const practiceOn = usePracticeOn();
+  const journal = useWalkJournalPost(true);
+  const sharingOn = useSharingOn();
   const pageTake = args.takeSessionId ?? null;
 
   const items = useMemo(
-    () => (on ? deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel) : []),
-    [on, chunks, groups, waiting, pendingOf, slideLabel],
+    () => deckWalkItems(chunks, groups, waiting, pendingOf, slideLabel),
+    [chunks, groups, waiting, pendingOf, slideLabel],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
   const model = useMemo(
     () =>
       buildFeedbackWalk({
         items,
-        coachNote: on && coachMessage !== null,
+        coachNote: coachMessage !== null,
         practiceOn,
         guest: false,
         sharing: sharingOn && take !== null,
       }),
-    [items, on, coachMessage, practiceOn, sharingOn, take],
+    [items, coachMessage, practiceOn, sharingOn, take],
   );
   const share = useMemo(() => (take ? shareIO(take) : null), [take]);
 
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      Take's moments, answered or not, with the speaker's own answers (the
-     sheets' read) and the helper words as saved. Read only while the switch
-     is on and nothing waits. */
+     sheets' read) and the helper words as saved. */
   // A paragraph is played again from its own moment at any time (founder
   // 2026-10-10); the whole walk, from "Review feedback", once it is finished.
-  const replayReady = on && answeredOf !== undefined;
+  const replayReady = answeredOf !== undefined;
   const replayable = replayReady && finished;
   const [ownAnswers, setOwnAnswers] = useState<readonly OwnerAnswer[]>([]);
   useEffect(() => {
@@ -488,12 +559,18 @@ export function useDeckFeedbackWalk(args: {
   const [replaying, setReplaying] = useState<typeof model | null>(null);
   const walkModel = replaying ?? model;
 
+  const live = useRef(args);
+  live.current = args;
   const seqRef = useRef(0);
   const [request, setRequest] = useState<FeedbackWalkRequest | null>(null);
   // What this opening of the walk already told the server (D-FW-19).
   const toldRef = useRef(new Set<string>());
-  const openAt = useCallback((at: number | null): boolean => {
+  // This opening is a paragraph's practise: its end is the page, not the
+  // walk's end card.
+  const practisingRef = useRef(false);
+  const openAt = useCallback((at: number | null, practising = false): boolean => {
     if (at === null) return false;
+    practisingRef.current = practising;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
     setRequest({ seq: seqRef.current, at });
@@ -503,20 +580,19 @@ export function useDeckFeedbackWalk(args: {
   const coachSeenRef = useRef(coachSeen);
   coachSeenRef.current = coachSeen;
   const review = useCallback((): boolean => {
-    if (!on) return false;
     setReplaying(null);
     const opened = openAt(walkStart(model));
     if (opened && model.plan.some((step) => step.key === "coachnote")) coachSeenRef.current();
     return opened;
-  }, [on, model, openAt]);
+  }, [model, openAt]);
 
   const tapPart = useCallback(
     (partId: string, open: boolean): boolean => {
-      if (!on || !open) return false;
+      if (!open) return false;
       setReplaying(null);
       return openAt(walkStepForPart(model, partId));
     },
-    [on, model, openAt],
+    [model, openAt],
   );
 
   const replay = useCallback((): boolean => {
@@ -545,8 +621,24 @@ export function useDeckFeedbackWalk(args: {
     [replayReady, buildReplay, ownAnswers, openAt],
   );
 
-  const live = useRef(args);
-  live.current = args;
+  const practisePart = useCallback(
+    (partId: string, card: PractiseCard, moment: DocumentSuggestion | null): boolean => {
+      const chunk = live.current.chunks.find((c) => c.part.id === partId);
+      if (!chunk) return false;
+      const one = paragraphPractise({
+        card,
+        moment,
+        partId,
+        paragraphText: chunk.part.text,
+        slideLabel: live.current.slideLabel(partId),
+      });
+      if (!one) return false;
+      setReplaying(one);
+      return openAt(1, true);
+    },
+    [openAt],
+  );
+
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
@@ -593,7 +685,10 @@ export function useDeckFeedbackWalk(args: {
     skipJudgements(items, (item) => live.current.onJudged?.(item, "dismissed"));
   }, []);
   const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
-  const onEnd = useCallback(() => live.current.onEnd(), []);
+  // A paragraph's practise ends on the page; the walk's end card is the walk's.
+  const onEnd = useCallback(() => {
+    if (!practisingRef.current) live.current.onEnd();
+  }, []);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -612,8 +707,7 @@ export function useDeckFeedbackWalk(args: {
   );
 
   const element = useMemo(
-    () =>
-      on ? (
+    () => (
         <FeedbackWalk
           model={walkModel}
           request={request}
@@ -632,9 +726,8 @@ export function useDeckFeedbackWalk(args: {
           lines={lineBankIO}
           onShown={onShown}
         />
-      ) : null,
+    ),
     [
-      on,
       walkModel,
       request,
       coachMessage,
@@ -654,8 +747,8 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, replayPart, replay, canReplay, element }),
-    [review, tapPart, replayPart, replay, canReplay, element],
+    () => ({ review, tapPart, replayPart, replay, canReplay, practisePart, element }),
+    [review, tapPart, replayPart, replay, canReplay, practisePart, element],
   );
 }
 

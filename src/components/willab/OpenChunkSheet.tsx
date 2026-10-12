@@ -1,15 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import ParagraphSheet, { type PractiseMode } from "@/components/willab/ParagraphSheet";
-import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
-import PractiseSheet from "@/components/willab/PractiseSheet";
-import type { LockResult } from "@/components/willab/DeckChunkModal";
-import {
-  asJudgementValue,
-  ownWordsCard,
-  practiseCardOf,
-} from "@/lib/willab/paragraphOverlay";
+import ParagraphSheet from "@/components/willab/ParagraphSheet";
+import { ownWordsCard, type PractiseCard } from "@/lib/willab/paragraphOverlay";
+import { paragraphPractise } from "@/components/willab/useDeckFeedbackWalk";
 import type {
   ChunkHistoryLite,
   ChunkState,
@@ -18,7 +12,6 @@ import type {
 import { opensParagraphSheet } from "@/lib/willab/answeredBookmark";
 import { usePractiseOffered } from "@/components/willab/usePractiseOffered";
 import { useFeedbackFirst } from "@/components/willab/useFeedbackFirst";
-import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { RootPhraseSpan } from "@/services/api/partLock";
@@ -27,30 +20,13 @@ import { useBoundedWait } from "@/components/willab/paragraphSheetData";
 import { useReopenedJudgement } from "@/components/willab/useReopenedJudgement";
 import type { ReopenedJudgement } from "@/lib/willab/changeJudgement";
 
-export type PractiseAgain = {
-  item: DocumentSuggestion;
-  answer: RootGateAnswer;
-  /** How Practise was reached (29b). Absent: the card as shown. */
-  mode?: PractiseMode;
-  /** The card at the moment Practise was tapped, when the host must not
-   *  re-derive it (an accept reassembles the document under the sheet). */
-  card?: PractiseCard;
-} | null;
-
-const FIVE = new Set(["yes", "in_between", "no", "not_sure", "audio_unclear"]);
-
-/** The owner's stored answer as the sheet's judgement: one of the five, or
- *  null when it is not one of them (the ladder then asks again). */
-export function asJudgement(answer: string | null): RootGateAnswer {
-  return answer && FIVE.has(answer) ? (answer as RootGateAnswer) : null;
-}
-
 /** Which sheet a tapped paragraph opens (founder lock 2026-09-30, B5, B8):
  *  a paragraph with no judgement waiting, or with its helper words saved,
  *  opens its own sheet; a waiting judgement opens the judgement sheet,
  *  rendered by the host — and the answer hands the paragraph back to its
- *  own sheet (the practise state), where Practise reopens the judgement
- *  sheet on the exercise step. */
+ *  own sheet (the practise state), where Practise opens the Feedback walk's
+ *  practise screens on the card shown (founder 2026-10-10, "the practise
+ *  screens should be the same in all cases"). */
 export default function OpenChunkSheet({
   state,
   arcId,
@@ -66,7 +42,7 @@ export default function OpenChunkSheet({
   feedbackPending = false,
   onClose,
   renderSheet,
-  practiseHost = null,
+  onPractise = null,
   helperWordsHost = null,
   startPicking = false,
   firstTake = false,
@@ -96,21 +72,17 @@ export default function OpenChunkSheet({
   /** The judgement sheet. `onAnswered` is the hand-off: the answer just
    *  given, after which this component draws the paragraph's own sheet. */
   renderSheet: (
-    practiseAgain: PractiseAgain,
     onAnswered: (answer: ConfidenceRatingValue) => void,
     /** ‹ back to an answered moment: its judgement, the latest answer
      *  pressed (QA1 A, D-FW-9). Null on every other opening. */
     reopen?: ReopenedJudgement | null,
   ) => ReactNode;
-  /** THE PRACTISE SCREEN (founder lock 2026-09-30, B6): with a host,
-   *  Practise from the overlay opens the practise loop — say, record,
-   *  judge, the helper words from the attempt — and the lock after it.
-   *  Without one, Practise opens the judgement sheet on its exercise step,
-   *  as before. */
-  practiseHost?: {
-    onLockIn: (text: string) => Promise<LockResult>;
-    onHelperWordsSaved: () => void;
-  } | null;
+  /** THE PRACTISE (founder 2026-10-10, "the practise screens should be the
+   *  same in all cases"): the host opens the Feedback walk's practise on the
+   *  card, for the paragraph's moment. False when it could not. A card with
+   *  nothing to open a practice on (paragraphPractise) shows no Practise.
+   *  Absent: no Practise. */
+  onPractise?: ((partId: string, card: PractiseCard, moment: DocumentSuggestion | null) => boolean) | null;
   /** THE HELPER WORDS OVERLAY (founder lock 2026-09-30, B4): its two
    *  writes the sheet cannot make itself. */
   helperWordsHost?: {
@@ -125,7 +97,6 @@ export default function OpenChunkSheet({
    *  reopens its judgement with the latest answer pressed. */
   reopenJudgement?: boolean;
 }) {
-  const [practiseAgain, setPractiseAgain] = useState<PractiseAgain>(null);
   /** The answer given in the judgement sheet this opening, carried into the
    *  paragraph's own sheet before the server's read of it lands. */
   const [answered, setAnswered] = useState<ConfidenceRatingValue | null>(null);
@@ -149,7 +120,7 @@ export default function OpenChunkSheet({
   }, [held, ownSheet, state, saved]);
   // 24e-1 (Phase 6): a waiting moment opens on its feedback, not the question.
   const first = useFeedbackFirst({
-    waiting: ownSheet === false && practiseAgain === null,
+    waiting: ownSheet === false,
     items: [...state.decided, ...state.pending],
     text: state.chunk.part.text,
     onDone: onSkip ?? onDone ?? onClose,
@@ -163,36 +134,10 @@ export default function OpenChunkSheet({
     partId: state.chunk.part.id,
   });
   if (ownSheet === null || reopened.waiting) return null;
-  if (practiseAgain && practiseHost) {
-    const judgement = asJudgementValue(practiseAgain.answer);
-    const items = [...state.decided, ...state.pending];
-    const card = practiseAgain.card
-      ?? (practiseAgain.mode === "own"
-        ? ownWordsCard(items, state.chunk.part.text)
-        : practiseCardOf(items, judgement, state.chunk.part.text));
-    if (card) {
-      return (
-        <PractiseSheet
-          item={practiseAgain.item}
-          judgement={judgement}
-          card={card}
-          accepted={practiseAgain.mode === "accepted"}
-          partId={state.chunk.part.id}
-          paragraphText={state.chunk.part.text}
-          onLockIn={practiseHost.onLockIn}
-          onSaved={practiseHost.onHelperWordsSaved}
-          onDone={onDone}
-          pager={pager}
-          slideLabel={slideLabel}
-          onClose={onClose}
-        />
-      );
-    }
-  }
-  if (practiseAgain || reopened.reopen || (!ownSheet && !first.awaiting)) {
+  if (reopened.reopen || (!ownSheet && !first.awaiting)) {
     return (
       <>
-        {renderSheet(practiseAgain, (answer) => {
+        {renderSheet((answer) => {
           setAnswered(answer);
           setOwnSheet(true);
           reopened.done();
@@ -201,6 +146,10 @@ export default function OpenChunkSheet({
       </>
     );
   }
+  const partId = state.chunk.part.id;
+  const paragraphText = state.chunk.part.text;
+  const practiseOf = (card: PractiseCard, moment: DocumentSuggestion | null) =>
+    paragraphPractise({ card, moment, partId, paragraphText, slideLabel });
   return (
     <ParagraphSheet
       arcId={arcId}
@@ -211,11 +160,13 @@ export default function OpenChunkSheet({
       decided={state.decided}
       pending={state.pending}
       answer={answered}
-      onPractise={(item, answer, mode, card) =>
-        setPractiseAgain({ item, answer: asJudgement(answer), mode, card })
-      }
+      onPractise={onPractise ? (moment, _answer, _mode, card) => {
+        // "Keep my words" practises the speaker's own words (29b).
+        const shown = card ?? ownWordsCard([...state.decided, ...state.pending], paragraphText);
+        if (!onPractise(partId, shown, moment)) (onDone ?? onClose)();
+      } : null}
       onAccept={onAccept}
-      practiseEveryCard={practiseHost !== null}
+      practisable={(card, moment) => practiseOf(card, moment) !== null}
       // No Practise when Personalised practice is off (Phase 4, wiring
       // only); the accept stays.
       practiseOff={!practiseOffered}

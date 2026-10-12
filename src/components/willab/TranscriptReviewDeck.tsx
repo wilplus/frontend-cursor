@@ -705,10 +705,11 @@ export default function TranscriptReviewDeck({
       if (firstWaiting >= 0) walk.openAt(0);
     },
   });
-  /* THE FEEDBACK WALK (build plan D-FW-14), behind its one switch
-     (feedbackWalkOn). Off, it reads nothing and draws nothing, and every
-     path below runs exactly as before. On, "Review feedback" and a tap on a
-     paragraph with an open moment open the walk; helper words picked in it
+  /* THE FEEDBACK WALK (build plan D-FW-14; permanent since the founder's
+     2026-10-11 "keep the new designs, make them permanent"). "Review
+     feedback" and a tap on a paragraph with an open moment open the walk,
+     and Practise on a paragraph's own sheet opens its practise screens
+     (founder 2026-10-10); helper words picked in it
      are saved through `setRootPhrase` and the lock, behind the screen, as
      the paragraph sheet saves them. */
   const pendingOf = useCallback((c: DeckChunk) => stateOf(c).pending, [stateOf]);
@@ -747,7 +748,7 @@ export default function TranscriptReviewDeck({
   useEffect(() => {
     if (reviewRequest === reviewSeenRef.current) return;
     reviewSeenRef.current = reviewRequest;
-    // The Feedback walk, when its switch is on and it has a screen to show.
+    // The Feedback walk, when it has a screen to show.
     if (feedbackWalk.review()) return;
     // Step 0 first when the coach left a message; its Continue opens the walk.
     if (coachStep.show()) return;
@@ -1544,11 +1545,12 @@ export default function TranscriptReviewDeck({
           onDocumentChanged={onConfidentMomentChanged}
           pager={walk.pager}
           feedbackPending={feedbackPending}
-          practiseHost={{
-            onLockIn: (text) => onLockPart(openChunk, text),
-            onHelperWordsSaved: () => {
-              helperSavedRef.current = true;
-            },
+          // Practise opens the walk's practise screens on the card shown
+          // (founder 2026-10-10), over the page: the sheet steps aside.
+          onPractise={(partId, card, moment) => {
+            if (!feedbackWalk.practisePart(partId, card, moment)) return false;
+            closeWalk();
+            return true;
           }}
           startPicking={openWords}
           firstTake={takeCount === 1}
@@ -1582,10 +1584,9 @@ export default function TranscriptReviewDeck({
               return true;
             },
           }}
-          renderSheet={(practiseAgain, onAnswered, reopen) => (
+          renderSheet={(onAnswered, reopen) => (
         <DeckChunkModal
-          key={practiseAgain ? "again" : "judge"}
-          practiseAgain={practiseAgain}
+          key="judge"
           onAnswered={onAnswered}
           reopen={reopen}
           state={openState}

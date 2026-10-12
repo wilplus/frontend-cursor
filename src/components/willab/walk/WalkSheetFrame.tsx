@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
 import { WALK_LEAVE_MS, type WalkDir, type WalkMove, type WalkScreen } from "@/lib/willab/walkMotion";
 import { useWalkMotion } from "./useWalkMotion";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
@@ -232,15 +231,6 @@ export default function WalkSheetFrame({
       ) : null}
     </div>
   );
-}
-
-/** Is a sheet drawn in the walk's look? Only while the Feedback walk's one
- *  switch is on (feedbackWalkOn; Q-B3 A: "when the walk goes live"), read
- *  once when the sheet opens; `explicit` decides instead when given. With
- *  the switch off every sheet keeps today's look. */
-export function useWalkLook(explicit?: boolean): boolean {
-  const [on] = useState(feedbackWalkOn);
-  return explicit ?? on;
 }
 
 /** The walk's ‹ Slide n › bar from the deck's pager: the same text the

@@ -11,7 +11,6 @@ import {
   useFeedbackPager,
   type Bookmark,
 } from "./feedbackPager";
-import { UnreadDot, unreadCoachFeedback } from "./ReportCard";
 import { latestIdealBubbleIds } from "./unreadFeedback";
 import { isRetiredLoungeMessage } from "./willabHelpers";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
@@ -207,26 +206,6 @@ describe("the unread-feedback dot (Q39 B, Q40 B, Q42 A)", () => {
       metadata: { variant: "coach_feedback_published", arc_id: "arc-1" },
       client_created_at: "t",
     } as never)).toBe(true);
-  });
-
-  it("counts coach moments whose feedback is not opened yet", () => {
-    expect(unreadCoachFeedback(null)).toBe(0);
-    expect(unreadCoachFeedback({ items: [
-      { hasUnreadCoachUpdate: true },
-      { hasUnreadCoachUpdate: false },
-      { hasUnreadCoachUpdate: true },
-    ] })).toBe(2);
-  });
-
-  it("shows a white number on the dot, and nothing at zero", async () => {
-    await act(async () => root.render(createElement(UnreadDot, { count: 3 })));
-    const dot = container.querySelector('[data-testid="unread-feedback-dot"]');
-    expect(dot?.textContent).toBe("3");
-    expect(dot?.className).toContain("bg-primary");
-    expect(dot?.className).toContain("text-white");
-    expect(dot?.className).toContain("-right-2 -top-2");
-    await act(async () => root.render(createElement(UnreadDot, { count: 0 })));
-    expect(container.querySelector('[data-testid="unread-feedback-dot"]')).toBeNull();
   });
 
   it("sits only on each project's latest version bubble", () => {

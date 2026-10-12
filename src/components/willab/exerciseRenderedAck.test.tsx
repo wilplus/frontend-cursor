@@ -177,10 +177,9 @@ function render(key = "a") {
         headline: null,
         onDocumentChanged: refresh,
         onClose: vi.fn(),
-        renderSheet: (practiseAgain) =>
+        renderSheet: () =>
           createElement(DeckChunkModal, {
             state: s,
-            practiseAgain,
             onAccept: vi.fn(async () => true),
             onKeepMine: vi.fn(async () => true),
             onLockIn: vi.fn(async () => ({
@@ -229,18 +228,6 @@ describe("exercise rendered — the speaker's app confirms the card was seen", (
     await act(async () => root.render(createElement("div")));
     await render("b");
     await scrollTo("answered-exercise", 1);
-    expect(renderedCalls()).toHaveLength(1);
-  });
-
-  it("the Feedback sheet's exercise offer counts too, and shares the once", async () => {
-    await render();
-    const practise = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "Practise",
-    );
-    await act(async () => practise?.click());
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    expect(renderedCalls()).toHaveLength(0);
-    await scrollTo("practice-offer", 0.6);
     expect(renderedCalls()).toHaveLength(1);
   });
 

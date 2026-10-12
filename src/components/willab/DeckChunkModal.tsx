@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Lock,
-  Mic,
   Pencil,
   Sparkles,
-  Square,
   Undo2,
 } from "lucide-react";
 import { VoiceMark } from "./LoadingState";
@@ -16,9 +14,7 @@ import LockPreviewText from "@/components/willab/LockPreviewText";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { useGuestBlock } from "./GuestSignUpDialog";
 import { RichText } from "./RichText";
-import CoachVideo from "./CoachVideo";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import PracticeRecordingView from "./PracticeRecordingView";
 import MomentPlayer from "./MomentPlayer";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
@@ -48,14 +44,6 @@ import {
   type ChunkState,
   type CoachMomentLite,
 } from "@/lib/willab/deckChunks";
-import {
-  useConfidenceExercise,
-  type PracticeOutcome,
-} from "@/components/willab/useConfidenceExercise";
-import {
-  savePracticeHelperWords,
-  type PracticeAnswer,
-} from "@/services/api/confidentVoicePractice";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
 import RootingPhraseQualificationActions from "@/components/willab/RootingPhraseQualificationActions";
@@ -120,8 +108,6 @@ import {
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import { FeedbackPagerBar, type Pager } from "./feedbackPager";
 import type { SaveBehind } from "./saveBehind";
-import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
-import { usePractiseOffered } from "./usePractiseOffered";
 
 interface DeckChunkModalProps {
   /** ONE STATE PER CHUNK (audit Q-C5): identity and spans, the lock, the
@@ -173,19 +159,13 @@ interface DeckChunkModalProps {
    *  (contract 29a): the host re-reads the document so the page and the
    *  lock see the words the server now holds. */
   onDocumentChanged?: () => void;
-  /** PRACTISE AGAIN from an answered bookmark (founder 2026-09-25, Q19 A):
-   *  the sheet opens on this item's exercise step, carrying the answer the
-   *  owner already gave, and the ladder continues from there as usual. */
-  practiseAgain?: { item: DocumentSuggestion; answer: RootGateAnswer } | null;
   /** Back / Next across the Take's bookmarks (founder 2026-09-25). */
   pager?: Pager | null;
   /** THE HAND-OFF (founder lock 2026-09-30, B5, D1): on a sheet opened on
    *  the judgement, the answer is the whole of this sheet. The host draws
    *  the paragraph overlay next — the speaker's answer said back, the one
    *  practise card, Practise or Next — and the helper words are chosen
-   *  from there. Absent, the ladder continues here as before (the coach's
-   *  surfaces, and a practise opened from the overlay, which still ends on
-   *  the helper words). */
+   *  from there. Absent, the ladder continues here as before. */
   onAnswered?: (answer: ConfidenceRatingValue) => void;
   /** Tap and go (founder 2026-09-28): the host runs a write the sheet no
    *  longer waits for, and reports a failure after the sheet has moved on.
@@ -198,15 +178,13 @@ interface DeckChunkModalProps {
   reopen?: ReopenedJudgement | null;
 }
 
-/** The inventory the sheet opens with: the answered item being practised
- *  again, or the pending items. Pure, for the complexity ratchet. */
+/** The inventory the sheet opens with: the reopened judgement's item, or
+ *  the pending items. Pure, for the complexity ratchet. */
 function initialInventory(
   pending: readonly DocumentSuggestion[],
-  practiseAgain: DeckChunkModalProps["practiseAgain"],
   reopen: ReopenedJudgement | null = null,
 ): readonly DocumentSuggestion[] {
-  const again = practiseAgain ?? reopen;
-  const source = again ? [again.item] : pending;
+  const source = reopen ? [reopen.item] : pending;
   const seen = new Set<string>();
   return source
     .filter((item) => {
@@ -242,82 +220,10 @@ function sheetDismissed(
   return drag.moved && drag.height < minimum * 0.8;
 }
 
-/** The first screen: the exercise when practising again or when the coach's
- *  exercise has arrived, else the top of the ladder. Pure, for the
- *  complexity ratchet.
- *
- *  A COACH MOMENT OPENS ON THE EXERCISE (founder 2026-09-26, accepted coach
- *  journey; decided again 2026-09-28): every coach message is an exercise, so
- *  the moment opens on the coach's video with your recording attached, and
- *  the confidence question comes after practising, about the practice
- *  attempt (29a). Asking it first put a question on the coach's screen. */
-function firstStepId(
-  steps: readonly ChunkStep[],
-  practiseAgain: DeckChunkModalProps["practiseAgain"],
-  coachDelivered = false,
-): string {
-  const exercise =
-    practiseAgain || coachDelivered
-      ? steps.find((entry) => entry.kind === "exercise")
-      : undefined;
-  return (exercise ?? steps[0])?.id ?? "lock";
-}
-
-/** The words the helper-words step taps from (founder 2026-09-25, Q10 B /
- *  Q18 A): the practice's words when they could not be adopted into the
- *  paragraph, otherwise the paragraph. Pure, for the complexity ratchet. */
-function tapSource(draft: string, practice: PracticeOutcome | null): string {
-  return practice && !practice.adopted && practice.attemptWords
-    ? practice.attemptWords
-    : draft;
-}
-
 /** The tappable words. The paragraph narrows to the Confident Voice fragment
- *  (founder 2026-09-17); the practice's own words are the fragment already. */
-function tapTokens(
-  draft: string,
-  practice: PracticeOutcome | null,
-  fragment: string | null,
-) {
-  const source = tapSource(draft, practice);
-  return tokensWithinFragment(
-    phraseTokens(source),
-    source,
-    source === draft ? fragment : null,
-  );
-}
-
-/** Done on the practice judgement waits for an attempt and one of the five
- *  answers. Pure, for the complexity ratchet. */
-function judgementPillDisabled(
-  exercise: { busy: boolean; corrected: unknown },
-  judgement: ConfidenceRatingValue | null,
-): boolean {
-  return exercise.busy || exercise.corrected === null || judgement === null;
-}
-
-/** The id the judgement screen is about, or null before an attempt exists.
- *  Pure, for the complexity ratchet. */
-function attemptIdOf(attempt: { id: string } | null): string | null {
-  return attempt === null ? null : attempt.id;
-}
-
-/** Whether the exercise rung is on the ladder for this answer (the follow-up
- *  matrix, founder 2026-09-29). The library video opens on In-between, No
- *  and Not sure. Before any answer the rung is built after the question (a
- *  coach-reviewed moment opens straight on it); the answer then rebuilds the
- *  ladder. A video the coach shared is theirs to show on any answer but
- *  Audio unclear. Pure, for the complexity ratchet. */
-function libraryVideoOpens(
-  judgement: RootGateAnswer,
-  item: DocumentSuggestion | null,
-): boolean {
-  if (item === null) return false;
-  if (judgement === null || judgement === "other") return true;
-  if (judgement === "in_between" || judgement === "no" || judgement === "not_sure") {
-    return true;
-  }
-  return item.practiceExercise?.chosenByCoach === true && judgement !== "audio_unclear";
+ *  (founder 2026-09-17). */
+function tapTokens(draft: string, fragment: string | null) {
+  return tokensWithinFragment(phraseTokens(draft), draft, fragment);
 }
 
 /** Whether the "your coach is working on it" rung is on the ladder: no
@@ -352,12 +258,6 @@ function sendsToCoach(
     (judgement === "in_between" || judgement === "no" || judgement === "not_sure") &&
     item.problemRecognised === true
   );
-}
-
-/** Which answer the practice judgement chips show: the five real ones, never
- *  the coarse "other" the older paths report. */
-function practiceChipValue(judgement: RootGateAnswer): PracticeAnswer | null {
-  return judgement === null || judgement === "other" ? null : judgement;
 }
 
 /** A footer link is off while the sheet saves, or while its own awaited
@@ -413,14 +313,10 @@ function behindRunner(
   );
 }
 
-/** The paragraph's judgement as the sheet opens: the answer carried into a
- *  practise again, or the one a reopened judgement shows pressed (QA1 A).
- *  Pure, for the complexity ratchet. */
-function openingJudgement(
-  practiseAgain: DeckChunkModalProps["practiseAgain"],
-  reopen: ReopenedJudgement | null,
-): RootGateAnswer {
-  return practiseAgain?.answer ?? reopen?.answer ?? null;
+/** The paragraph's judgement as the sheet opens: the one a reopened
+ *  judgement shows pressed (QA1 A). Pure, for the complexity ratchet. */
+function openingJudgement(reopen: ReopenedJudgement | null): RootGateAnswer {
+  return reopen?.answer ?? null;
 }
 
 /** The answer the judgement shows pressed as it opens: none on a first
@@ -434,40 +330,11 @@ function finishSheet(done: (() => void) | undefined, close: () => void): void {
 }
 
 /** Does the answer hand the paragraph to the overlay (founder lock
- *  2026-09-30) rather than climb the ladder? On every sheet opened on the
- *  question, a coach-reviewed moment included: rewrite, exercise and plain
- *  moment all reach the same practise screens (lock B6), and where this
- *  ladder and the lock disagree the lock wins (design lock, frontend
- *  CLAUDE.md). Only a practise opened again from the overlay (any truthy
- *  `practiseAgain`) keeps the ladder to the helper words. Module-level, so the sheet
- *  (frozen at the ratchet) gains no branch. */
-function handsOffAfterAnswer(
-  onAnswered: DeckChunkModalProps["onAnswered"],
-  practiseAgain: DeckChunkModalProps["practiseAgain"],
-): boolean {
-  return onAnswered !== undefined && !practiseAgain;
-}
-
-/** Does a coach-reviewed moment open straight on its exercise (founder
- *  2026-09-28, 2A)? Only where this sheet is the whole review. Hosted as the
- *  judgement step of the paragraph's own sheet (`onAnswered`), the moment
- *  already opened on its feedback there (24e-1), the coach's exercise as its
- *  card, and Next asked for the judgement: the sheet asks it and hands the
- *  answer back (lock B5, B6). Pure, for the complexity ratchet. */
-function opensOnCoachExercise(
-  coachReviewStatus: string | null | undefined,
-  onAnswered: DeckChunkModalProps["onAnswered"],
-): boolean {
-  return coachReviewStatus === "coach_reviewed" && onAnswered === undefined;
-}
-
-/** PRACTICE OFF MEANS NO EXERCISE STEP HERE EITHER (founder 2026-10-05, on
- *  the close-out audit): with Personalised practice off the paragraph's
- *  sheet already hides Practise; this ladder's exercise rung -- a coach-
- *  reviewed moment opens on it -- did not ask. Module-level, so the sheet
- *  (frozen at the ratchet) gains no branch. */
-function whenPractiseOffered(offered: boolean, opens: boolean): boolean {
-  return offered && opens;
+ *  2026-09-30)? On every sheet opened on the question, a coach-reviewed
+ *  moment included: rewrite, exercise and plain moment all reach the same
+ *  practise screens (lock B6; since 2026-10-10 the Feedback walk's). Pure. */
+function handsOffAfterAnswer(onAnswered: DeckChunkModalProps["onAnswered"]): boolean {
+  return onAnswered !== undefined;
 }
 
 /** A tapped word previews in the accent; a word a tap cannot reach under
@@ -494,7 +361,6 @@ export default function DeckChunkModal({
   firstTake = false,
   onDocumentChanged,
   saveBehind,
-  practiseAgain = null,
   pager = null,
   onAnswered,
   reopen = null,
@@ -511,7 +377,7 @@ export default function DeckChunkModal({
   // Frozen for this opening, as the inventory is (QA1 A).
   const [reopened] = useState(() => reopenedJudgement(reopen));
   const [feedbackInventory] = useState<readonly DocumentSuggestion[]>(() =>
-    initialInventory(pendingSuggestions, practiseAgain, reopened),
+    initialInventory(pendingSuggestions, reopened),
   );
   /* THE LADDER (founder 2026-09-15). One ordered list built when the sheet
    * opens, walked one screen at a time, ending at the lock. It replaces the
@@ -530,23 +396,8 @@ export default function DeckChunkModal({
    *  supersedes step one's when it happens: it is a judgement of the same
    *  delivery, made later and better informed. */
   const [judgement, setJudgement] = useState<RootGateAnswer>(
-    () => openingJudgement(practiseAgain, reopened),
+    () => openingJudgement(reopened),
   );
-  /** What the finished practice did (contract 29a): adopted into the
-   *  paragraph, or only its words to tap helper words from. */
-  const [practiceWords, setPracticeWords] = useState<PracticeOutcome | null>(
-    null,
-  );
-  /** THE PRACTICE IS JUDGED ON ITS OWN (contract 29a, locked screen L1: the
-   *  chips start empty). This used to read and write `judgement`, the
-   *  paragraph's answer, so the judgement screen opened with the speaker's
-   *  answer about the ORIGINAL already selected and Done live — one tap
-   *  stored, against the practice attempt, a judgement nobody had made of
-   *  it. The paragraph's answer only changes once this one is saved
-   *  (`onExerciseFinished`). */
-  const [practiceJudgement, setPracticeJudgement] =
-    useState<ConfidenceRatingValue | null>(null);
-
   /** An exercise matched to this exact clip, from the confidence item that
    *  carries it. Read off the frozen inventory rather than the current step,
    *  because the exercise is now its own step and no longer rides inside the
@@ -562,9 +413,6 @@ export default function DeckChunkModal({
       ) ?? null,
     [feedbackInventory],
   );
-  /** MLC-3 §3.5: the offer below confirms it rendered once half visible; a
-   *  stale offer re-reads the document. Nothing is shown. */
-  const exerciseSeen = useExerciseRenderedAck(exerciseItem, onDocumentChanged);
   /** THE BOOKMARK WITH NO EXERCISE ON IT (founder 2026-09-29). A No on it
    *  sends it to the coach the moment the answer saves (the server does the
    *  sending), and the Exercise screen says so instead of leading nowhere.
@@ -588,21 +436,14 @@ export default function DeckChunkModal({
      at step one or step three — after the sheet opened. Recomputing on the
      speaker's own decision is what that freeze was protecting, not what it
      was preventing. */
-  const practiseOffered = usePractiseOffered();
   const buildSteps = useCallback(
     (judgementValue: RootGateAnswer): ChunkStep[] =>
       buildChunkSteps({
         inventory: feedbackInventory,
-        // THE LIBRARY VIDEO SHOWS ON In-between, No AND Not sure (the
-        // follow-up matrix, founder 2026-09-29). Audio unclear closes and
-        // moves on; a Yes the machine read weak shows nothing now and reaches
-        // the coach as an ambiguity, so its video, if any, comes from them.
-        // Before any answer the rung is built and sits after the question
-        // (a coach-reviewed moment opens straight on it); the answer then
-        // rebuilds the ladder. A video the coach shared is theirs to show on
-        // any answer but Audio unclear.
-        canPractise: whenPractiseOffered(
-          practiseOffered, libraryVideoOpens(judgementValue, exerciseItem)),
+        // NO PRACTISE IN THIS SHEET (founder 2026-10-10, "the practise
+        // screens should be the same in all cases"): the exercise is
+        // practised in the Feedback walk, opened from the paragraph's own
+        // sheet after the answer.
         // NOTHING TO PRACTISE, SO THE COACH HAS IT (founder 2026-09-29): a
         // No sends the bookmark to the coach whatever was recognised; a Yes,
         // In-between or Not sure sends it when a problem was recognised and
@@ -647,7 +488,6 @@ export default function DeckChunkModal({
     [
       feedbackInventory,
       exerciseItem,
-      practiseOffered,
       noticeItem,
       chunk.part.text,
       chunk.part.locked,
@@ -655,12 +495,8 @@ export default function DeckChunkModal({
     ],
   );
   const steps = useMemo(() => buildSteps(judgement), [buildSteps, judgement]);
-  const [stepId, setStepId] = useState<string>(() =>
-    firstStepId(
-      buildSteps(openingJudgement(practiseAgain, reopened)),
-      practiseAgain,
-      opensOnCoachExercise(coachReviewStatus, onAnswered),
-    ),
+  const [stepId, setStepId] = useState<string>(
+    () => buildSteps(openingJudgement(reopened))[0]?.id ?? "lock",
   );
   const step = steps.find((entry) => entry.id === stepId) ?? steps[steps.length - 1];
   const suggestion =
@@ -986,14 +822,6 @@ export default function DeckChunkModal({
        off by the founder. `failRoot` keeps "Try again", which is right for a
        refused write and wrong here. */
     if (!phrase) return true;
-    if (tapSource(draft, practiceWords) !== draft && practiceWords) {
-      // Words from a practice that could not be adopted (Q10 B): they are
-      // not in the paragraph, so they go to the Slide through the practice.
-      const saved = await savePracticeHelperWords(
-        practiceWords.practiceId, chunk.part.id, phrase);
-      if (!saved) setError(COPY.failRoot);
-      return saved;
-    }
     const anchor = quoteSpan(draft, phrase);
     if (!anchor) {
       setError(COPY.failRootStale);
@@ -1046,13 +874,13 @@ export default function DeckChunkModal({
      the invented document edit is gone. */
   async function emphasiseChosen() {
     if (busy) return;
-    const source = tapSource(draft, practiceWords);
+    const source = draft;
     // The SAME list the picker numbered. `phraseRun` indexes the fragment's
     // words, so reading it against every word of the paragraph saved other
     // words whenever the fragment did not open it (founder 2026-09-28).
     const chosen = selectionText(
       source,
-      tapTokens(draft, practiceWords, confidentFragmentOf(feedbackInventory)),
+      tapTokens(draft, confidentFragmentOf(feedbackInventory)),
       phraseRun,
     );
     /* BOTH SAVES AT ONCE (founder 2026-09-26, "improve the waiting time …
@@ -1073,8 +901,7 @@ export default function DeckChunkModal({
        If only the words fail, the sheet stays open on the same error as
        before and one more tap completes it; locking an already locked
        paragraph again is harmless. */
-    const parallel =
-      !dirtyRef.current && tapSource(draft, practiceWords) === draft;
+    const parallel = !dirtyRef.current;
     if (parallel) {
       /* AND NOW WITHOUT WAITING AT ALL (founder 2026-09-28, tap and go).
          Words that cannot be anchored are still refused here, on the sheet,
@@ -1283,7 +1110,7 @@ export default function DeckChunkModal({
     reportJudged(suggestion, answered);
     /* THE HAND-OFF (founder lock 2026-09-30, B5): the answer is this sheet's
        whole decision, and the paragraph overlay takes it from here. */
-    if (handsOffAfterAnswer(onAnswered, practiseAgain)) {
+    if (handsOffAfterAnswer(onAnswered)) {
       onAnswered?.(value);
       return;
     }
@@ -1314,77 +1141,8 @@ export default function DeckChunkModal({
     onJudged?.(item, judgedStatus(answered));
   }
 
-  /** Step three. The hook owns the practice row, the mic and the two screens'
-   *  state; the sheet owns what is drawn and the one footer, as every other
-   *  step does. A closed practice advances the ladder, and a final Yes is a
-   *  judgement of the same delivery — so it supersedes step one's answer for
-   *  the emphasis gate. */
   const onDocumentChangedRef = useRef(onDocumentChanged);
   onDocumentChangedRef.current = onDocumentChanged;
-  const onExerciseFinished = useCallback((
-    answer: PracticeAnswer | null,
-    outcome?: PracticeOutcome,
-  ) => {
-    /* NO ANSWER IS NOT THE SAME AS NO JUDGEMENT, and conflating the two was a
-     * live defect (founder, shown the case 2026-09-24).
-     *
-     * `null` here means the practice closed without judging the corrected
-     * take — "Not now", or a practice that was never opened server-side. It
-     * says nothing about the paragraph, whose Confident Voice answer was given
-     * two screens ago and still stands. Passing that null through built the
-     * ladder as though NOBODY had judged the paragraph, and `opensRootPhrase`
-     * reads an unjudged paragraph as one with no emphasis step — so declining
-     * a drill silently cost the speaker their rooting phrase. The step bar
-     * still counted it: four segments, the third never visited.
-     *
-     * Calling with no argument lets the default pick up the paragraph's
-     * current `judgement`. The ref is re-pointed every render, so the default
-     * it reads is this render's, which is the whole reason the ref exists.
-     *
-     * ON A "No" THE BUG LOOKED FIXED AND WAS NOT. There is no lock step on
-     * that answer any more, so the advance computed "go to Lock", found no
-     * such step, and fell back to the last one — which happened to be
-     * Emphasis. Right screen, wrong reason, and nothing to rely on. */
-    if (answer === null) {
-      advanceStepRef.current();
-      return;
-    }
-    // A real judgement of the practice supersedes step one's, and it is KEPT
-    // WHOLE (founder 2026-09-25): Yes, In-between and Not sure open the
-    // helper words and the Lock; a No or Audio unclear on the last attempt
-    // closes the sheet like the first answer would have.
-    //
-    // An ADOPTED attempt rewrote this paragraph on the server, so the draft
-    // takes the new words (the lock then commits exactly what the server
-    // holds) and the host re-reads the document behind the sheet.
-    if (outcome?.adopted && outcome.paragraph) {
-      setDraft(outcome.paragraph);
-      onDocumentChangedRef.current?.();
-    }
-    setPracticeWords(outcome ?? null);
-    setJudgement(answer);
-    advanceStepRef.current(answer);
-  }, []);
-  const exercise = useConfidenceExercise({
-    snippetId: exerciseItem?.snippetId ?? null,
-    offer: exerciseItem?.practiceExercise ?? null,
-    evidence: exerciseItem?.evidence ?? null,
-    // The speaker's answer about the original, as given (founder 2026-09-28).
-    // It used to be folded to yes/no, so an In-between or a Not sure reached
-    // the practice record, and the coach, as a No.
-    // None before any judgement (24e-1; Phase 6), never a made-up "no".
-    originalUserAnswer: practiceChipValue(judgement),
-    onFinished: onExerciseFinished,
-  });
-  // Each attempt is judged afresh: the chips empty whenever a new attempt
-  // reaches the judgement screen, and after Back or a No that sent the
-  // speaker to practise again.
-  const judgedAttemptId = attemptIdOf(exercise.corrected);
-  useEffect(() => {
-    setPracticeJudgement(null);
-  }, [exercise.screen, judgedAttemptId]);
-
-
   // Pointer Events give touch, pen and mouse one gesture contract. The sheet
   // follows the pointer continuously, then settles to one of two detents.
   // Starting inside the scroll body or on an interactive control is ignored,
@@ -1486,7 +1244,7 @@ export default function DeckChunkModal({
      fragment cannot be located, so the step never dead-ends. */
   const tokens =
     step?.kind === "emphasis"
-      ? tapTokens(draft, practiceWords, confidentFragmentOf(feedbackInventory))
+      ? tapTokens(draft, confidentFragmentOf(feedbackInventory))
       : [];
   const emphasisPreview =
     step?.kind === "emphasis" && styleSuggestion
@@ -1550,46 +1308,7 @@ export default function DeckChunkModal({
           links: [],
         };
       }
-      // THE JUDGEMENT SCREEN. Done answers it; Back leaves without answering
-      // and lands on the offer, where the pill will now read Practise again.
-      if (exercise.screen === "judgement") {
-        return {
-          pill: COPY.pillDone,
-          icon: <Check className="h-4 w-4" aria-hidden />,
-          pillDisabled: judgementPillDisabled(exercise, practiceJudgement),
-          onPill: () => {
-            if (practiceJudgement) void exercise.finish(practiceJudgement);
-          },
-          links: [{ label: COPY.linkBack, onClick: () => exercise.back() }],
-        };
-      }
-      // THE OFFER. While the mic is live the pill is the way to end the take;
-      // "Not now" would otherwise be the only way to stop it, and that closes
-      // the practice rather than keeping the recording.
-      if (exercise.recording) {
-        return {
-          pill: COPY.pillStop,
-          icon: <Square className="h-4 w-4" aria-hidden />,
-          onPill: () => exercise.stop(),
-          links: [],
-        };
-      }
-      return {
-        pill: exercise.returned ? COPY.pillPractiseAgain : COPY.pillPractise,
-        icon: <Mic className="h-4 w-4" aria-hidden />,
-        pillDisabled: exercise.busy,
-        saving: exercise.busy,
-        onPill: () => exercise.practise(),
-        links: [
-          {
-            label: COPY.linkSkip,
-            onClick: () => void exercise.notNow(),
-            // The dismiss is awaited (Final Screens L2, audit 2026-09-29): the
-            // link greys out and the pill spins until the server has it.
-            disabled: exercise.busy,
-          },
-        ],
-      };
+      return none;
     }
     if (step.kind === "emphasis") {
       const tapping = emphasisTap || !styleSuggestion;
@@ -1668,10 +1387,9 @@ export default function DeckChunkModal({
     );
   }
 
-  /* ---- EXERCISE · the offer, then the judgement ------------------
-      The one place the asynchronous side of the product reaches this
-      sheet. There is NO coach note anywhere here: what a review
-      produces is an exercise matched to this exact clip (§3). */
+  /* ---- EXERCISE · the coach has it ------------------------------
+      The exercise itself is practised in the Feedback walk (founder
+      2026-10-10); here only the sentence that the coach has it. */
   function renderExerciseStep(): React.ReactNode {
     if (step.id === "coach_request") {
       /* THE SAME SCREEN, WITH THE SENTENCE WHERE THE VIDEO AND INSTRUCTION
@@ -1697,121 +1415,7 @@ export default function DeckChunkModal({
         </div>
       ) : null;
     }
-    if (!exerciseItem?.practiceExercise) return null;
-    return exercise.screen === "judgement" ? (
-      <>
-        {/* The practice attempt ALONE — the original playback is gone on
-            purpose, so the question is about what they just did rather
-            than a comparison. The same screen as every judgement
-            (accepted screen L1, 29a): a compact player whose label says
-            which recording is being judged, then the tall answers. */}
-        <div data-practice-judgement className="flex flex-col gap-4">
-          {exercise.corrected?.audioRef ? (
-            <MediaPlayer
-              src={exercise.corrected.audioRef}
-              startOffsetMs={0}
-              durationMs={exercise.corrected.durationMs}
-              compact
-              label={COPY.practiceAttemptLabel(exercise.corrected.attemptIndex)}
-            />
-          ) : null}
-          <ConfidenceLabelChips
-            question={COPY.confidenceQuestion}
-            value={practiceJudgement}
-            disabled={exercise.busy}
-            saving={exercise.busy}
-            error={exercise.error}
-            speakerWording
-            onPick={(value) => setPracticeJudgement(value)}
-          />
-        </div>
-      </>
-    ) : (
-      exercise.recording ? (
-        <PracticeRecordingView
-          instruction={exerciseItem.practiceExercise.instruction ?? null}
-          // The next after those already saved, with no ceiling (founder lock
-          // 2026-09-30, D2: attempt 10 works like attempt 1). It was read
-          // back from a remaining count capped at three, so from the third
-          // attempt on every recording said "Attempt 3". A position, never a
-          // score (AC-9).
-          attempt={exercise.attemptNumber}
-        />
-      ) :
-      /* THE OFFER (Ideal Text Final Screens L2, founder 2026-09-29 "as
-         design"). The coach's video (play icon only) and their comment are
-         ONE orange card with the eyebrow "Your coach", and the speaker's own
-         recording — "What you said" and the compact Play this moment — is
-         attached under it. This supersedes the 2026-09-24 split of a bare
-         video over a plain instruction box: orange now marks the coach's
-         card, and the story row ("History") left the step. The file is
-         still the one the CMS exercise lane uploaded: videoUrl ->
-         explanation_video_ref -> explanationVideoRef; nothing new is
-         fetched. */
-      <div ref={exerciseSeen} data-testid="practice-offer" className="flex flex-col gap-3">
-        {/* A REFUSED ATTEMPT SAYS WHY, AT THE TOP (founder 2026-09-26: "the
-            recording was not registered"). The server's own sentence — too
-            short, not heard, not the passage — used to sit at the bottom of
-            the sheet, under the video and the recording, where nobody saw
-            it after tapping Stop. */}
-        {exercise.error ? (
-          <p
-            role="alert"
-            data-testid="exercise-error"
-            className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-[14px] font-medium text-destructive"
-          >
-            {exercise.error}
-          </p>
-        ) : null}
-        {/* ALREADY DONE (founder 2026-09-26, Q44 / Q45 A, contract 35d): a
-            little green label on the offer only, so a repeat is never a
-            surprise. A flag, never a count or a date. */}
-        {exerciseItem.practiceExercise.doneBefore ? (
-          <span
-            data-testid="exercise-done-label"
-            className="self-start rounded-full bg-success/10 px-2.5 py-0.5 text-[12px] font-semibold text-success"
-          >
-            {COPY.exerciseDone}
-          </span>
-        ) : null}
-        {exerciseItem.practiceExercise.explanationVideoRef ||
-        (exerciseItem.practiceExercise.instruction ?? "").trim() ? (
-          <div
-            data-testid="exercise-coach-card"
-            className="flex flex-col gap-3 rounded-2xl border border-pending/40 bg-pending/[0.08] p-4"
-          >
-            <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-              {COPY.titleCoach}
-            </p>
-            {exerciseItem.practiceExercise.explanationVideoRef ? (
-              <CoachVideo src={exerciseItem.practiceExercise.explanationVideoRef} />
-            ) : null}
-            {/* AN EXERCISE MAY CARRY NO WORDS AT ALL (founder 2026-09-24: the
-                CMS lane's words step "is not obligatory"). `?? ""` because the
-                field is typed string but arrives undefined on an offer
-                assembled before it existed. */}
-            {(exerciseItem.practiceExercise.instruction ?? "").trim() ? (
-              <p className="text-[15px] leading-relaxed text-foreground">
-                {exerciseItem.practiceExercise.instruction}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        {/* YOUR RECORDING, ATTACHED TO THE COACH'S (L2): what was said, and
-            Play this moment. The exact passage the practice is checked
-            against (the server refuses an attempt that does not say it), so
-            the words to say are on the screen — the moment's own words. */}
-        <div data-testid="exercise-your-recording" className="flex flex-col gap-3 rounded-2xl border border-border p-4">
-          <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">
-            {COPY.cardWhatYouSaid}
-          </p>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {exerciseItem.practiceExercise.passage || exerciseItem.quote || chunk.part.text}
-          </p>
-          <MomentPlayer item={exerciseItem} compact />
-        </div>
-      </div>
-    );
+    return null;
   }
 
   /* ---- GOOD JOB · read, not rated -------------------------------

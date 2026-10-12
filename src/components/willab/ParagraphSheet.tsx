@@ -16,13 +16,11 @@ import {
   belowInBetween,
   canAcceptCard,
   historyRows,
-  judgementTone,
   nextOpensPicker,
   overlayFooter,
   practiseCardOf,
   type HistoryRow,
   type Judgement,
-  type LabelTone,
   type PractiseCard,
   FEEDBACK_FIRST,
   feedbackFirstCard,
@@ -39,7 +37,6 @@ export { coachHasIt, exerciseOf } from "@/lib/willab/paragraphOverlay";
 export type PractiseMode = "card" | "accepted" | "own";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { useGuestBlock } from "./GuestSignUpDialog";
-import MomentPlayer from "./MomentPlayer";
 import WalkPlayer from "./walk/WalkPlayer";
 import CoachVideo from "./CoachVideo";
 import HelperWordsSheet from "./HelperWordsSheet";
@@ -53,11 +50,10 @@ import {
   type PhraseSelection,
 } from "@/lib/willab/phraseTokens";
 import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
-import { FeedbackPagerBar, type Pager } from "./feedbackPager";
+import type { Pager } from "./feedbackPager";
 import { useExerciseRenderedAck } from "@/hooks/useExerciseRenderedAck";
 import WalkSheetFrame, {
   WalkSheetFooter,
-  useWalkLook,
   walkNavOfPager,
 } from "./walk/WalkSheetFrame";
 
@@ -152,39 +148,6 @@ export function SheetFrame({
   );
 }
 
-/* ---- the judgement label (D7) ------------------------------------------- */
-
-/** Tint behind, full colour on the text. The five colours are the speaker's
- *  own five answers; the machine's read has no colour here. Written as
- *  arbitrary values so the palette needs no new token. */
-const TONE_CLASS: Record<LabelTone, string> = {
-  green: "bg-affirm/15 text-affirm",
-  blue: "bg-[hsl(214_80%_50%/0.14)] text-[hsl(214_70%_38%)]",
-  red: "bg-destructive/15 text-destructive",
-  yellow: "bg-[hsl(44_92%_50%/0.2)] text-[hsl(40_80%_30%)]",
-  grey: "bg-muted text-muted-foreground",
-};
-
-function JudgementLabel({ judgement, walkLook }: { judgement: Judgement | null; walkLook: boolean }) {
-  // The walk's look is black, white, grey and one orange (founder lock
-  // 2026-10-06; Q-WALK-PARA A): no tinted chip there. The answer still
-  // reaches the screen and decides its buttons.
-  if (!judgement || walkLook) return null;
-  const tone = judgementTone(judgement);
-  return (
-    <p
-      data-testid="judgement-label"
-      data-tone={tone}
-      className={`flex items-baseline gap-1.5 self-start rounded-lg px-2.5 py-1 text-[13px] font-semibold ${TONE_CLASS[tone]}`}
-    >
-      <span className="text-[10px] font-medium uppercase tracking-[0.1em] opacity-75">
-        {COPY.judgementLabel}
-      </span>
-      {COPY.judgementWord[judgement]}
-    </p>
-  );
-}
-
 /* ---- the walk's one player (Q-WALK-PARA A) ------------------------------- */
 
 /** Inside the walk's look the paragraph's screens use the walk's single
@@ -212,23 +175,6 @@ function WalkMomentPlayer({
       label={label}
     />
   );
-}
-
-/** The paragraph's player: the walk's one player in the walk's look, else
- *  today's "Play this moment". */
-function ParagraphPlayer({
-  walkLook,
-  item,
-  pager,
-  slideLabel,
-}: {
-  walkLook: boolean;
-  item: DocumentSuggestion | null;
-  pager: Pager | null;
-  slideLabel: string | null;
-}) {
-  if (walkLook) return <WalkMomentPlayer item={item} pager={pager} slideLabel={slideLabel} />;
-  return <MomentPlayer item={item} compact />;
 }
 
 /* ---- the practise card (B5) --------------------------------------------- */
@@ -632,7 +578,6 @@ function HelperWordsPicker({
   headline,
   text,
   firstTake,
-  walkLook,
   onUse,
   onClose,
 }: {
@@ -641,7 +586,6 @@ function HelperWordsPicker({
   /** Take 1: the note under the title says where the words will show
    *  (founder 2026-10-05, N48.3 Q8 A; the Feedback sheet's own line). */
   firstTake: boolean;
-  walkLook: boolean;
   onUse: (span: RootPhraseSpan) => Promise<boolean>;
   onClose: () => void;
 }) {
@@ -663,13 +607,11 @@ function HelperWordsPicker({
 
   return (
     <ParagraphFrame
-      walkLook={walkLook}
       screen="picker"
       title={COPY.titleEmphasis}
       note={firstTake ? COPY.emphasisFirstTakeNote : null}
       pager={null}
       slideLabel={null}
-      bar={false}
       onClose={onClose}
       footer={
         <button
@@ -727,73 +669,30 @@ function HelperWordsPicker({
 
 /* ---- the walk's chrome --------------------------------------------------- */
 
-/** ‹ Slide 2 › over the sheet. In the walk it is the walk's own bar with the
- *  slide as its whole text; outside the walk the slide alone, centred. */
-function OverlayNav({
-  pager,
-  slideLabel,
-}: {
-  pager: Pager | null;
-  slideLabel: string | null;
-}): ReactNode {
-  if (pager) {
-    return <FeedbackPagerBar pager={{ ...pager, position: pager.label ?? slideLabel ?? undefined }} />;
-  }
-  if (!slideLabel) return null;
-  return (
-    <p
-      data-testid="paragraph-sheet-slide"
-      className="px-3 pt-1 text-center text-[13px] font-semibold text-foreground"
-    >
-      {slideLabel}
-    </p>
-  );
-}
-
-/** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A, N63):
- *  with the Feedback walk's switch on, the paragraph's screens and the
- *  picker draw in the walk's full-screen overlay, the still ‹ Slide n › bar
- *  and ✕, and its motion; with it off, today's sheet. Only the container
- *  changes: the title, the content and the buttons are the same, word for
- *  word. */
+/** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A, N63;
+ *  made permanent 2026-10-11): the paragraph's screens and the picker draw
+ *  in the walk's full-screen overlay, the still ‹ Slide n › bar and ✕, and
+ *  its motion. */
 function ParagraphFrame({
-  walkLook,
   screen,
   title,
   note = null,
   pager,
   slideLabel,
-  bar = true,
   footer,
   onClose,
   children,
 }: {
-  walkLook: boolean;
   /** Which screen, for the walk's motion. */
   screen: string;
   title: string;
   note?: ReactNode;
   pager: Pager | null;
   slideLabel: string | null;
-  /** False: no ‹ Slide n › bar (the picker never had one). */
-  bar?: boolean;
   footer: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }) {
-  if (!walkLook) {
-    return (
-      <SheetFrame
-        title={title}
-        note={note}
-        onClose={onClose}
-        nav={bar ? <OverlayNav pager={pager} slideLabel={slideLabel} /> : null}
-        footer={footer}
-      >
-        {children}
-      </SheetFrame>
-    );
-  }
   const place = walkPlaceOf(pager, slideLabel);
   return (
     <WalkSheetFrame
@@ -883,7 +782,7 @@ export default function ParagraphSheet({
   answer = null,
   onPractise,
   onAccept = null,
-  practiseEveryCard = false,
+  practisable = null,
   practiseOff = false,
   awaiting = null,
   onUseHelperWords,
@@ -894,7 +793,6 @@ export default function ParagraphSheet({
   slideLabel = null,
   onDocumentChanged = null,
   firstTake = false,
-  walkLook,
   onClose,
 }: {
   arcId: string | null;
@@ -925,11 +823,10 @@ export default function ParagraphSheet({
    *  version). The sheet writes the owner's `apply_suggestion` response
    *  first. Absent → the rewrite is a passage to practise, never accepted. */
   onAccept?: ((item: DocumentSuggestion) => Promise<boolean>) | null;
-  /** The host runs the practise loop for every kind of card (founder lock
-   *  2026-09-30, B6: the exercise, the rewrite and the plain moment all
-   *  reach the same screens). Without it only an exercise can be
-   *  practised — the host then opens the judgement sheet's exercise step. */
-  practiseEveryCard?: boolean;
+  /** Can the host open the practise on this card (founder 2026-10-10: the
+   *  Feedback walk's practise screens, in all cases)? A card it cannot open
+   *  shows no Practise, and so no "Accept and practise". Absent: none. */
+  practisable?: ((card: PractiseCard, moment: DocumentSuggestion) => boolean) | null;
   /** Personalised practice is off (F1 Repair Plan Phase 4): no Practise on
    *  any card, and so no "Accept and practise" either -- its one button
    *  promises the practise. The footer is the no-practise one (Next). */
@@ -964,15 +861,14 @@ export default function ParagraphSheet({
   /** The project has exactly one Take: the picker says where the helper
    *  words will show up. */
   firstTake?: boolean;
-  /** Draw in the Feedback walk's look (D-IT-6). Absent: the walk's switch
-   *  decides (feedbackWalkOn). */
+  /** Ignored: the walk's look is the only look (founder 2026-10-11). Still
+   *  accepted because the dev harness passes it. */
   walkLook?: boolean;
   onClose: () => void;
 }) {
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
   // complete instead of drawing the player and then popping in the rest.
   const sheetData = useParagraphSheetData(arcId, takeSessionId, partId);
-  const look = useWalkLook(walkLook);
   const [picking, setPicking] = useState(startPicking);
   const items = useMemo(() => itemsOf(decided, pending), [decided, pending]);
   const moment = items.find(isConfidentVoiceFeedback) ?? null;
@@ -1009,8 +905,7 @@ export default function ParagraphSheet({
           setPicking(false);
           moveOn();
         }}
-        nav={<OverlayNav pager={pager} slideLabel={slideLabel} />}
-        walk={look ? walkPlaceOf(pager, slideLabel) : null}
+        walk={walkPlaceOf(pager, slideLabel)}
         onClose={onClose}
       />
     );
@@ -1021,7 +916,6 @@ export default function ParagraphSheet({
         headline={headline}
         text={text}
         firstTake={firstTake}
-        walkLook={look}
         onUse={onUseHelperWords}
         onClose={() => {
           setPicking(false);
@@ -1031,7 +925,7 @@ export default function ParagraphSheet({
     );
   }
 
-  const player = <ParagraphPlayer walkLook={look} item={moment} pager={pager} slideLabel={slideLabel} />;
+  const player = <WalkMomentPlayer item={moment} pager={pager} slideLabel={slideLabel} />;
   const history = <HistoryRowView rows={rows} />;
 
   /* STATE TWO — SAVED (B8, D6): the words, History, Next, and the player on
@@ -1041,7 +935,6 @@ export default function ParagraphSheet({
   if (headline) {
     return (
       <ParagraphFrame
-        walkLook={look}
         screen="saved"
         title={COPY.titleSaved}
         pager={pager}
@@ -1072,8 +965,8 @@ export default function ParagraphSheet({
      a tap always opens something), and the label, the card and History fill
      in when the reads land. */
   const canPractise =
-    Boolean(practiseHandler) && Boolean(moment) && card !== null &&
-    (practiseEveryCard || card.kind === "exercise");
+    Boolean(practiseHandler) && moment !== null && card !== null &&
+    practisable?.(card, moment) === true;
   const canAccept = canPractise && acceptableAt(opening, card, judgement, Boolean(onAccept));
   const footer = footerAt(opening, judgement, canPractise, canAccept);
   // The card shown is the card practised: before any judgement (24e-1) the
@@ -1112,7 +1005,6 @@ export default function ParagraphSheet({
 
   return (
     <ParagraphFrame
-      walkLook={look}
       screen="paragraph"
       title={COPY.titleParagraph}
       pager={pager}
@@ -1130,7 +1022,6 @@ export default function ParagraphSheet({
         className="flex flex-col gap-4"
       >
         {player}
-        <JudgementLabel judgement={judgement} walkLook={look} />
         <PractiseCardView card={card} onStale={onDocumentChanged} />
         {acceptFailed ? (
           <p role="alert" className="text-[14px] text-destructive">{COPY.failApply}</p>

@@ -442,12 +442,10 @@ describe("DeckChunkModal — F1 net", () => {
     expect(judged.mock.calls[0][1]).toBe("dismissed");
   });
 
-  it("answers into the exercise step, which is now its own screen", async () => {
-    // INVERTED on purpose (founder 2026-09-16, §3). The offer used to stop the
-    // advance, because a card nested under the answered confidence screen was
-    // the only place it could live. It has its own step now, so the answer
-    // advances INTO it — the journey is kept by giving it a screen rather than
-    // by refusing to leave the previous one.
+  it("answers into the remaining feedback, and no practise follows here", async () => {
+    // The exercise is practised in the Feedback walk (founder 2026-10-10,
+    // "the practise screens should be the same in all cases"): this sheet
+    // has no exercise screen of its own any more.
     const withPractice = suggestion({
       id: "s-cv-practice",
       feedbackFamily: "confident_voice",
@@ -477,20 +475,14 @@ describe("DeckChunkModal — F1 net", () => {
       );
     });
 
-    // The order is enforced: judgement, then the remaining feedback, THEN the
-    // exercise (§1). So the answer lands on the rewrite, and the exercise is
-    // the screen after it — not a card riding on the confidence screen.
+    // The order is enforced: judgement, then the remaining feedback (§1).
     await click("No");
     expect(container.textContent).toContain("Clearer version");
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
 
     await click("Keep my wording");
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    // The exercise step's own footer: one verb, one stacked link.
-    expect(buttonLabels()).toContain("Practise");
-    expect(buttonLabels()).toContain("Skip");
-    // Offered on a No, because the practice is matched to the clip rather than
-    // awarded for a verdict.
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+    expect(buttonLabels()).not.toContain("Practise");
   });
 
   it("never carries one clip's answer onto the next clip (L3)", async () => {
@@ -1091,48 +1083,7 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
  * separate work the speaker may decline; declining it says nothing about
  * which words the paragraph turns on.
  */
-describe("the green Done label on an exercise done before (Q44, Q45 A)", () => {
-  async function openOffer(doneBefore: boolean) {
-    const item = suggestion({
-      id: `s-cv-done-${doneBefore}`,
-      feedbackFamily: "confident_voice",
-      source: "confident_voice",
-      snippetId: "snip-done",
-      takeSessionId: "take-1",
-      practiceExercise: { id: "ex-1", instruction: "Say it again.", doneBefore },
-      evidence: {
-        projectId: "arc-1", takeSessionId: "take-1", slideIndex: 0,
-        paragraphIndex: 0, start: 0, end: 21,
-      },
-    } as unknown as Partial<DocumentSuggestion>);
-    await act(async () => {
-      root.render(
-        createElement(DeckChunkModal, {
-          ...props,
-          state: chunkStateFor(
-            { ...chunk(), pendingIds: [item.id] } as DeckChunk,
-            { document: TEXT, suggestions: [item] },
-          ),
-        }),
-      );
-    });
-    await click("In-between");
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    return container.querySelector('[data-testid="exercise-done-label"]');
-  }
-
-  it("shows Done, in green, when completed on an earlier Take", async () => {
-    const label = await openOffer(true);
-    expect(label?.textContent).toBe("Done");
-    expect(label?.className).toContain("text-success");
-  });
-
-  it("shows nothing on a new exercise", async () => {
-    expect(await openOffer(false)).toBeNull();
-  });
-});
-
-describe("declining the exercise keeps the emphasis step", () => {
+describe("an exercise on the moment never stops the ladder (practised in the walk since 2026-10-10)", () => {
   const withPractice = suggestion({
     id: "s-cv-drill",
     feedbackFamily: "confident_voice",
@@ -1163,8 +1114,7 @@ describe("declining the exercise keeps the emphasis step", () => {
       );
     });
     await click(answer);
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    await click("Skip");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
   }
 
   it("Yes lands on Emphasis with no drill (the follow-up matrix, 2026-09-29)", async () => {
@@ -1188,16 +1138,14 @@ describe("declining the exercise keeps the emphasis step", () => {
     expect(buttonLabels()).toContain("Use these helper words");
   });
 
-  it("In-between then Skip lands on Emphasis, not Lock", async () => {
-    // THE DEFECT, on an answer that keeps the drill.
+  it("In-between lands on Emphasis, not Lock", async () => {
     await openOnTheDrill("In-between");
     expect(container.textContent).toContain("Tap the words");
     expect(buttonLabels()).toContain("Use these helper words");
   });
 
-  it("No then Skip ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
-    // Declining the drill leaves the No standing, and a No has neither the
-    // helper-words step nor the Lock. Nothing is left on the ladder.
+  it("No ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
+    // A No has neither the helper-words step nor the Lock.
     vi.mocked(props.onClose).mockClear();
     await openOnTheDrill("No");
     expect(container.textContent).not.toContain("Tap the words");
@@ -1205,10 +1153,7 @@ describe("declining the exercise keeps the emphasis step", () => {
     expect(buttonLabels()).not.toContain("Keep evolving");
   });
 
-  it("the paragraph's answer survives the drill it declined", async () => {
-    // The root of both: `null` from a closed practice means "no new
-    // judgement", never "this paragraph was never judged". If it leaked back
-    // into the ladder the emphasis step would vanish, which is the bug.
+  it("the paragraph's answer opens its helper words and its lock", async () => {
     vi.mocked(props.onSetRootPhrase).mockClear();
     await openOnTheDrill("In-between");
     const word = Array.from(container.querySelectorAll("button")).find((b) =>
@@ -1264,10 +1209,10 @@ describe("an emphasis phrase that cannot be anchored", () => {
   });
 });
 
-/* ── A COACH MOMENT OPENS ON THE EXERCISE (founder 2026-09-28, 2A) ─────────
- * Every coach message is an exercise. When the coach's review has arrived,
- * the moment opens on the coach's video with your recording attached; the
- * confidence question comes after practising, about the practice attempt. */
+/* ── A COACH MOMENT ──────────────────────────────────────────────────────────
+ * Since 2026-10-10 the coach's exercise is practised in the Feedback walk
+ * ("the practise screens should be the same in all cases"): this sheet asks
+ * the question, and names the coach's state once confirmed. */
 describe("a coach-reviewed moment", () => {
   const drill = suggestion({
     id: "s-cv-coach",
@@ -1307,10 +1252,10 @@ describe("a coach-reviewed moment", () => {
     });
   }
 
-  it("opens on the exercise, with no confidence question on it", async () => {
+  it("opens on the question: the exercise is practised in the walk", async () => {
     await open("coach_reviewed");
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
-    expect(container.textContent).not.toContain("Does this sound confident to you?");
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+    expect(buttonLabels()).toContain("Yes");
   });
 
   // Founder 2026-10-05: with Personalised practice off, the coach's exercise

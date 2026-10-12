@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /* The paragraph overlay (founder lock 2026-09-30, B5, B8, D6, D7, Q1): two
    states, the practise state and the saved state, never the paragraph
-   text; Practise hands back to the judgement sheet on its exercise step,
-   and an answer in the judgement sheet hands the paragraph to its own
-   sheet. */
+   text, in the Feedback walk's look; Practise opens the walk's practise
+   screens on the card shown (founder 2026-10-10), and an answer in the
+   judgement sheet hands the paragraph to its own sheet. */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OpenChunkSheet, { asJudgement } from "./OpenChunkSheet";
+import OpenChunkSheet from "./OpenChunkSheet";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -103,6 +103,8 @@ afterEach(async () => {
 });
 
 const useWords = vi.fn(async (_span: { text: string }) => true);
+/** The deck's door to the Feedback walk's practise (practisePart). */
+const practise = vi.fn((_partId: string, _card: unknown, _moment: unknown) => true);
 const closeSheet = vi.fn();
 
 function render(s = state()) {
@@ -115,10 +117,9 @@ function render(s = state()) {
         headline: "ship it now",
         onUseHelperWords: useWords,
         onClose: closeSheet,
-        renderSheet: (practiseAgain) =>
+        renderSheet: () =>
           createElement(DeckChunkModal, {
             state: s,
-            practiseAgain,
             onAccept: vi.fn(async () => true),
             onKeepMine: vi.fn(async () => true),
             onLockIn: vi.fn(async () => ({
@@ -181,7 +182,7 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
       );
     });
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
-    const nav = sheet.querySelector('[data-testid="feedback-pager"]') as HTMLElement;
+    const nav = sheet.querySelector("[data-walk-nav]") as HTMLElement;
     expect(nav.textContent).toContain("Slide 2");
     expect(nav.textContent).not.toContain("moment");
     const next = sheet.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
@@ -206,15 +207,10 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
       );
     });
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
-    expect(sheet.querySelector('[data-testid="paragraph-sheet-slide"]')?.textContent).toBe("Slide 2");
-    expect(sheet.querySelector('[data-testid="feedback-pager"]')).toBeNull();
+    expect(sheet.querySelector("[data-walk-caption]")?.textContent).toBe("Slide 2");
+    expect(sheet.querySelector("[data-walk-nav]")).toBeNull();
   });
 
-  it("carries only the five answers into the sheet", () => {
-    expect(asJudgement("in_between")).toBe("in_between");
-    expect(asJudgement("apply_suggestion")).toBeNull();
-    expect(asJudgement(null)).toBeNull();
-  });
 });
 
 describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1, D7)", () => {
@@ -242,10 +238,10 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
           headline: null,
           onUseHelperWords: useWords,
           onClose: closeSheet,
-          renderSheet: (practiseAgain) =>
+          onPractise: practise,
+          renderSheet: () =>
             createElement(DeckChunkModal, {
               state: s,
-              practiseAgain,
               onAccept: vi.fn(async () => true),
               onKeepMine: vi.fn(async () => true),
               onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
@@ -260,10 +256,14 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     forgetParagraphSheetData();
     await renderOpen(answer, over);
   };
+  // The screen on show: the walk's frame keeps a copy of the screen it
+  // replaces while that one leaves (data-walk-ghost).
   const labels = () =>
-    Array.from(container.querySelectorAll("button")).map((b) => b.textContent?.trim());
+    Array.from(container.querySelectorAll("button"))
+      .filter((b) => !b.closest("[data-walk-ghost]"))
+      .map((b) => b.textContent?.trim());
 
-  it("Not sure: a yellow label, the exercise as the card with its video, Practise with Skip under it; no paragraph text", async () => {
+  it("Not sure: no tinted label, the exercise as the card with its video, Practise with Skip under it; no paragraph text", async () => {
     await withAnswer("not_sure", {
       practiceExercise: {
         id: "ex-1",
@@ -273,17 +273,14 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     } as unknown as Partial<DocumentSuggestion>);
     const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
     expect(sheet.querySelector("h2")?.textContent).toBe("This paragraph");
-    const label = container.querySelector('[data-testid="judgement-label"]');
-    expect(label?.getAttribute("data-tone")).toBe("yellow");
-    expect(label?.textContent).toContain("Your judgement:");
-    expect(label?.textContent).toContain("Not sure");
+    // The walk's look: no tinted chip (Q-WALK-PARA A).
+    expect(container.querySelector('[data-testid="judgement-label"]')).toBeNull();
     const card = container.querySelector('[data-testid="practise-card"]');
     expect(card?.getAttribute("data-kind")).toBe("exercise");
     expect(card?.querySelector("video")?.getAttribute("src")).toBe("https://media/coach-exercise.mp4");
     expect(card?.textContent).toContain("Say it again, slower.");
-    // Order: player, label, card, History (B5).
+    // Order: player, card, History (B5).
     const text = sheet.textContent ?? "";
-    expect(text.indexOf("Your judgement:")).toBeLessThan(text.indexOf("Say it again, slower."));
     expect(text.indexOf("Say it again, slower.")).toBeLessThan(text.indexOf("History"));
     expect(text).not.toContain(TEXT);
     expect(labels()).toContain("Practise");
@@ -292,12 +289,27 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     expect(labels()).not.toContain("Next");
   });
 
-  it("Practise opens the judgement sheet on its exercise step", async () => {
+  it("Practise opens the Feedback walk's practise on the card shown", async () => {
+    practise.mockClear();
     await withAnswer("no");
-    const practise = container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement;
-    await act(async () => practise.click());
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
-    expect(container.querySelector('[data-testid="practice-offer"]')).not.toBeNull();
+    const button = container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement;
+    await act(async () => button.click());
+    expect(practise).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({ kind: "exercise" }),
+      expect.objectContaining({ id: "s-cv" }),
+    );
+    // No judgement sheet and no old practise screen.
+    expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
+    expect(container.querySelector('[data-testid="practise-sheet"]')).toBeNull();
+  });
+
+  it("a moment with no snippet and no evidence shows no Practise", async () => {
+    await withAnswer("no", { snippetId: null, evidence: null } as unknown as Partial<DocumentSuggestion>);
+    // The card is still shown (the moment said again); only the door is shut.
+    expect(container.querySelector('[data-testid="practise-card"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="paragraph-sheet-practise"]')).toBeNull();
+    expect(labels()).toContain("Next");
   });
 
   it("Skip moves on without opening the helper words (B2)", async () => {
@@ -308,7 +320,7 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     expect(container.textContent ?? "").not.toContain("Choose your helper words");
   });
 
-  it("Yes: a green label, the praise as the card, Next and nothing under it; Next opens the helper words (24e)", async () => {
+  it("Yes: the praise as the card, Next and nothing under it; Next opens the helper words (24e)", async () => {
     const praise = {
       id: "s-pr",
       start: 22,
@@ -350,8 +362,7 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
         }),
       );
     });
-    expect(container.querySelector('[data-testid="judgement-label"]')?.getAttribute("data-tone")).toBe("green");
-    expect(container.querySelector('[data-testid="judgement-label"]')?.textContent).toContain("Confident");
+    expect(container.querySelector('[data-testid="judgement-label"]')).toBeNull();
     const card = container.querySelector('[data-testid="practise-card"]');
     expect(card?.getAttribute("data-kind")).toBe("praise");
     expect(card?.textContent).toContain("because the data is clear");
@@ -363,9 +374,8 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     expect(container.textContent).toContain("0 of 4 words");
   });
 
-  it("In-between: a blue label, Next with Practise as the plain link under it (Q1 B)", async () => {
+  it("In-between: Next with Practise as the plain link under it (Q1 B)", async () => {
     await withAnswer("in_between");
-    expect(container.querySelector('[data-testid="judgement-label"]')?.getAttribute("data-tone")).toBe("blue");
     const next = container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
     expect(next.textContent).toBe("Next");
     const link = container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement;
@@ -373,9 +383,8 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     expect(next.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("Audio unclear: a grey label, no practise card, Next", async () => {
+  it("Audio unclear: no practise card, Next", async () => {
     await withAnswer("audio_unclear");
-    expect(container.querySelector('[data-testid="judgement-label"]')?.getAttribute("data-tone")).toBe("grey");
     expect(container.querySelector('[data-testid="practise-card"]')).toBeNull();
     expect(labels()).toContain("Next");
     expect(labels()).not.toContain("Done");
@@ -398,7 +407,7 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
 });
 
 describe("the hand-off (founder lock 2026-09-30, B5)", () => {
-  it("answering in the judgement sheet opens the paragraph's own sheet with that answer said back", async () => {
+  it("answering in the judgement sheet opens the paragraph's own sheet on that answer", async () => {
     vi.mocked(fetchOwnerAnswers).mockResolvedValue([]);
     forgetParagraphSheetData();
     const pending = { ...answered, status: null } as DocumentSuggestion;
@@ -424,10 +433,9 @@ describe("the hand-off (founder lock 2026-09-30, B5)", () => {
           headline: null,
           onUseHelperWords: useWords,
           onClose: closeSheet,
-          renderSheet: (practiseAgain, onAnswered) =>
+          renderSheet: (onAnswered) =>
             createElement(DeckChunkModal, {
               state: s,
-              practiseAgain,
               onAnswered,
               onAccept: vi.fn(async () => true),
               onKeepMine: vi.fn(async () => true),
@@ -449,10 +457,8 @@ describe("the hand-off (founder lock 2026-09-30, B5)", () => {
       (b) => b.textContent?.trim() === "No",
     ) as HTMLButtonElement;
     await act(async () => no.click());
-    // The overlay, with the answer just given, before any server read.
-    const label = container.querySelector('[data-testid="judgement-label"]');
-    expect(label?.getAttribute("data-tone")).toBe("red");
-    expect(label?.textContent).toContain("Not confident");
+    // The overlay, following the answer just given, before any server read:
+    // a No shows the exercise to practise.
     expect(container.textContent).not.toContain("Does this sound confident to you?");
     expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("exercise");
   });
@@ -492,10 +498,9 @@ describe("a coach-reviewed moment hands off too (lock B6; audit 2026-10-05 B6-7,
           headline: null,
           onUseHelperWords: useWords,
           onClose: closeSheet,
-          renderSheet: (practiseAgain, onAnswered) =>
+          renderSheet: (onAnswered) =>
             createElement(DeckChunkModal, {
               state: s,
-              practiseAgain,
               onAnswered,
               onAccept: vi.fn(async () => true),
               onKeepMine: vi.fn(async () => true),
@@ -519,8 +524,6 @@ describe("a coach-reviewed moment hands off too (lock B6; audit 2026-10-05 B6-7,
     await act(async () => no.click());
     // Back on the paragraph's sheet with the answer said back, the coach's
     // exercise as the practise card (the same screens as every moment, B6).
-    const label = container.querySelector('[data-testid="judgement-label"]');
-    expect(label?.getAttribute("data-tone")).toBe("red");
     expect(container.textContent).not.toContain("Does this sound confident to you?");
     expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("exercise");
   });

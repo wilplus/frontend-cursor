@@ -140,7 +140,7 @@ export type StepKind =
 
 export type ChunkStep =
   | { kind: "feedback" | "suggestion" | "praise"; id: string }
-  /** `exercise` is the deterministic catalogue practice (useConfidenceExercise);
+  /** `exercise` is the deterministic catalogue practice (the Feedback walk's practise since 2026-10-10);
    *  `coach_request` is the same screen with no exercise on it, saying the
    *  bookmark went to the coach (founder 2026-09-29). A ladder holds at most
    *  one of the two. (A third, the MLC-3 service offer, was retired with its

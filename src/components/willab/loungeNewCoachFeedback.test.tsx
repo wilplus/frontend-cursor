@@ -159,8 +159,7 @@ describe("the flag, as served", () => {
 });
 
 describe("the bubble (walk lock flow 1)", () => {
-  it("walk on, latest bubble, new coach feedback: the orange outline and the \"new\" tag, no dot", async () => {
-    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "on");
+  it("latest bubble, new coach feedback: the orange outline and the \"new\" tag, no dot", async () => {
     setNewCoachFeedback({ "arc-1": true });
     await draw("arc-1", true);
     expect(card()!.className).toMatch(/outline-2/);
@@ -175,7 +174,6 @@ describe("the bubble (walk lock flow 1)", () => {
   });
 
   it("clears when the flag clears", async () => {
-    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "on");
     setNewCoachFeedback({ "arc-1": true });
     await draw("arc-1", true);
     expect(tag()).not.toBeNull();
@@ -185,22 +183,12 @@ describe("the bubble (walk lock flow 1)", () => {
   });
 
   it("an older bubble of the project, or another project, stays plain", async () => {
-    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "on");
     setNewCoachFeedback({ "arc-1": true });
     await draw("arc-1", false);
     expect(tag()).toBeNull();
     await draw("arc-2", true);
     expect(tag()).toBeNull();
     expect(dot()).toBeNull();
-  });
-
-  it("walk off: today's bubble and today's dot, no outline", async () => {
-    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "off");
-    setNewCoachFeedback({ "arc-1": true });
-    await draw("arc-1", true);
-    expect(tag()).toBeNull();
-    expect(card()).toBeNull();
-    expect(dot()?.textContent).toBe("1");
   });
 });
 

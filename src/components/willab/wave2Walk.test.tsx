@@ -107,6 +107,8 @@ async function render(over: Record<string, unknown> = {}) {
 }
 const step0 = () => document.querySelector("[data-coach-message-step]");
 const pager = () => document.querySelector('[data-testid="feedback-pager"]');
+const walkScreen = () =>
+  document.querySelector("[data-feedback-walk] .walk-layer:not(.walk-ghost) [data-testid^='walk-screen-']");
 
 /* ---------------------------------------------------------------- Q6 A ---- */
 
@@ -153,7 +155,10 @@ describe("N48.2 Q6 A: after Delete the paragraph rejoins the walk on its answer"
       .find((el) => (el.textContent ?? "").includes("retention went up"));
     expect(target).toBeTruthy();
     await act(async () => target!.click());
-    expect(pager()).not.toBeNull();
+    // It joins the walk: the paragraph's sheet, under the walk's ‹ › bar.
+    const sheet = document.querySelector('[data-testid="paragraph-sheet"]');
+    expect(sheet).not.toBeNull();
+    expect(sheet?.querySelector("[data-walk-nav]")).not.toBeNull();
   });
 
   it("before this change's case: never locked, answered, not a bookmark, so it does not open (N56.5)", async () => {
@@ -167,6 +172,7 @@ describe("N48.2 Q6 A: after Delete the paragraph rejoins the walk on its answer"
     expect(target!.getAttribute("data-opens-sheet")).toBeNull();
     await act(async () => target!.click());
     expect(pager()).toBeNull();
+    expect(walkScreen()).toBeNull();
     expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
   });
 });
@@ -197,15 +203,15 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     // J1: nothing opens by itself.
     expect(step0()).toBeNull();
     expect(waiting).toHaveBeenLastCalledWith(true);
-    // The speaker taps "Review feedback".
+    // The speaker taps "Review feedback": the walk opens on the coach's note.
     await render({ arcId: "arc-1", coachMessage: WORD, onReviewWaiting: waiting, reviewRequest: 1 });
-    expect(step0()).not.toBeNull();
-    expect(step0()?.textContent).toContain(WORD.text);
+    expect(walkScreen()?.getAttribute("data-testid")).toBe("walk-screen-coachnote");
+    expect(walkScreen()?.textContent).toContain(WORD.text);
     expect(waiting).toHaveBeenLastCalledWith(false);
-    // Continue: nothing waits, so the step simply closes.
+    // Continue: nothing waits, so the walk moves past its last screen.
     const cont = [...document.querySelectorAll("button")].find((b) => b.textContent === "Continue")!;
     await act(async () => cont.click());
-    expect(step0()).toBeNull();
+    expect(walkScreen()).toBeNull();
     expect(pager()).toBeNull();
   });
 
@@ -222,10 +228,10 @@ describe("N48.3 Q11 A: the coach's word for the Take on screen", () => {
     expect(step0()).toBeNull();
     expect(waiting).toHaveBeenLastCalledWith(true);
     await render({ arcId: "arc-1", coachMessage: late, onReviewWaiting: waiting, reviewRequest: 1 });
-    // The existing Step 0 header names the word's own Take (L8-1).
-    expect(step0()?.querySelector('[data-testid="feedback-pager"]')?.textContent)
-      .toContain("Your coach · Take 1");
-    expect(step0()?.textContent).toContain(late.text);
+    // The walk's coach note names the word's own Take (L8-1).
+    expect(walkScreen()?.getAttribute("data-testid")).toBe("walk-screen-coachnote");
+    expect(walkScreen()?.textContent).toContain("Take 1");
+    expect(walkScreen()?.textContent).toContain(late.text);
     expect(waiting).toHaveBeenLastCalledWith(false);
     // Once: a fresh page with the same word keeps nothing waiting.
     await act(async () => root.unmount());

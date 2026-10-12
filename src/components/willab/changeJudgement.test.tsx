@@ -241,11 +241,10 @@ describe("the paragraph opened by ‹ (OpenChunkSheet)", () => {
           headline: null,
           onClose: vi.fn(),
           reopenJudgement,
-          renderSheet: (practiseAgain, handOff, reopen) =>
+          renderSheet: (handOff, reopen) =>
             createElement(DeckChunkModal, {
               ...sheetProps(),
               state: s,
-              practiseAgain,
               onAnswered: handOff,
               reopen,
             }),
@@ -262,8 +261,9 @@ describe("the paragraph opened by ‹ (OpenChunkSheet)", () => {
     await act(async () => answerButton("No").click());
     expect(saveTakeFeedbackResponse).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain(CHUNK_SHEET_COPY.confidenceQuestion);
-    const label = container.querySelector('[data-testid="judgement-label"]');
-    expect(label?.textContent).toContain("Not confident");
+    // Handed back to the paragraph's own sheet, in the walk's look (no
+    // tinted chip there, Q-WALK-PARA A).
+    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
   });
 
   it("a tap from the page (not ‹) opens the paragraph's own sheet, as before", async () => {
