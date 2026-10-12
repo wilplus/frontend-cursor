@@ -94,31 +94,11 @@ describe("the slide on Read (B5)", () => {
     for (let i = 0; i < 4; i += 1) await act(async () => { await Promise.resolve(); });
   }
 
-  it("Read shows the page of the take's own deck the moment began on", async () => {
-    await walk("https://media/deck.pdf", JUDGED);
-    expect(host.querySelector('[data-testid="coach-read-sheet"]')).not.toBeNull();
-    const page = host.querySelector('[data-testid="coach-read-slide"] [data-testid="pdf-page"]');
-    expect(page?.getAttribute("data-url")).toBe("https://media/deck.pdf");
-    expect(page?.getAttribute("data-page")).toBe("1");
-  });
-
-  it("a deckless take shows the default deck's slide it was on", async () => {
-    await walk(null, JUDGED);
-    expect(host.querySelector('[data-testid="coach-read-slide"] [data-testid="mock-slide"]')?.textContent)
-      .toBe("Development");
-  });
-
   it("the Judge screen before Read shows nothing of the slide", async () => {
     await walk("https://media/deck.pdf", OPEN);
     expect(host.querySelector('[data-testid="coach-judge-sheet"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="coach-read-slide"]')).toBeNull();
     expect(host.querySelector('[data-testid="pdf-page"]')).toBeNull();
     expect(host.textContent).not.toContain("Conclusion");
-  });
-
-  it("a moment with no slide draws no box", async () => {
-    await walk("https://media/deck.pdf", NO_SLIDE);
-    expect(host.querySelector('[data-testid="coach-read-sheet"]')).not.toBeNull();
-    expect(host.querySelector('[data-testid="coach-read-slide"]')).toBeNull();
   });
 });

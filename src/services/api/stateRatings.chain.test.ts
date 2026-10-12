@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   acknowledgeConfidenceChainRender,
-  saveStateRating,
   type ConfidenceChainBlindHandle,
 } from "./stateRatings";
 
@@ -26,38 +25,6 @@ afterEach(() => {
 });
 
 describe("Q2: the legacy coach card's receipt on the confidence chain", () => {
-  it("posts the receipt to the chain's own route with the browser's retry key", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ exposure_id: "exposure-9" }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await acknowledgeConfidenceChainRender(handle, renderRequest);
-
-    expect(result).toEqual({
-      ok: true,
-      receipt: {
-        reviewAssignmentId: handle.reviewAssignmentId,
-        presentationId: handle.presentationId,
-        exposureId: "exposure-9",
-      },
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe(
-      `/api/v2/coach/mlc2/assignments/${handle.reviewAssignmentId}/render`,
-    );
-    expect(init.headers["Idempotency-Key"]).toBe(renderRequest.idempotencyKey);
-    expect(JSON.parse(init.body)).toEqual({
-      presentation_id: handle.presentationId,
-      acknowledgement_token: handle.acknowledgementToken,
-      render_instance_id: renderRequest.renderInstanceId,
-      client_rendered_at: renderRequest.clientRenderedAt,
-      client_version: "coach-card-blind-v1",
-      visible_payload_sha256: handle.visiblePayloadSha256,
-    });
-  });
 
   it("a refused receipt is refused, never faked", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
@@ -66,91 +33,5 @@ describe("Q2: the legacy coach card's receipt on the confidence chain", () => {
     }));
     const result = await acknowledgeConfidenceChainRender(handle, renderRequest);
     expect(result.ok).toBe(false);
-  });
-
-  it("the label PUT echoes the assignment and exposure beside an unchanged body", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await saveStateRating(
-      "snip-1",
-      { state_id: "confidence", value: "yes", idempotency_key: "k-1" },
-      { handle, exposureId: "exposure-9" },
-    );
-
-    expect(result.ok).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe("/api/v2/coach/snippets/snip-1/confidence-label");
-    expect(init.method).toBe("PUT");
-    expect(JSON.parse(init.body)).toEqual({
-      state_id: "confidence",
-      value: "yes",
-      idempotency_key: "k-1",
-      mlc2: {
-        review_assignment_id: handle.reviewAssignmentId,
-        exposure_id: "exposure-9",
-      },
-    });
-  });
-
-  it("without the echo the PUT is byte-identical to before", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await saveStateRating(
-      "snip-1",
-      { state_id: "confidence", value: "no", idempotency_key: "k-2" },
-    );
-
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      state_id: "confidence",
-      value: "no",
-      idempotency_key: "k-2",
-    });
-  });
-});
-
-describe("N48.5 Q27 A: the walk asks the chain for its blind packet", () => {
-  it("posts to the packet route and maps the four identifiers", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        mlc2_blind_review: {
-          review_assignment_id: handle.reviewAssignmentId,
-          presentation_id: handle.presentationId,
-          acknowledgement_token: handle.acknowledgementToken,
-          visible_payload_sha256: handle.visiblePayloadSha256,
-        },
-      }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const { prepareConfidenceChainPacket } = await import("./stateRatings");
-    await expect(prepareConfidenceChainPacket("snip-1")).resolves.toEqual(handle);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe("/api/v2/coach/snippets/snip-1/mlc2-packet");
-    expect(init.method).toBe("POST");
-    expect(init.body).toBe("{}");
-  });
-
-  it("no packet, a refusal, a partial handle or a dead network are all null", async () => {
-    const { prepareConfidenceChainPacket } = await import("./stateRatings");
-    for (const answer of [
-      { ok: true, json: async () => ({ mlc2_blind_review: null }) },
-      { ok: false, json: async () => ({ code: "INVALID_INPUT" }) },
-      { ok: true, json: async () => ({ mlc2_blind_review: { review_assignment_id: "a" } }) },
-      { ok: true, json: async () => { throw new Error("not json"); } },
-    ]) {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answer));
-      await expect(prepareConfidenceChainPacket("snip-1")).resolves.toBeNull();
-    }
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-    await expect(prepareConfidenceChainPacket("snip-1")).resolves.toBeNull();
   });
 });

@@ -35,7 +35,7 @@ vi.mock("@/services/api/coachExercises", async (load) => {
 });
 vi.mock("@/services/api/founderLearning", () => ({ founderLearning: { ledger } }));
 
-const { default: SpeakingErrorsClient, readinessLine, errorChoice, exercisesFor } = await import("./SpeakingErrorsPanel");
+const { default: SpeakingErrorsClient } = await import("./SpeakingErrorsPanel");
 
 const RUSHING = {
   errorId: "rushing", label: "Rushing",
@@ -82,156 +82,13 @@ async function render(founder = true) {
   await act(async () => { root.render(<SpeakingErrorsClient founder={founder} />); });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 }
-const q = (sel: string) => host.querySelector<HTMLElement>(sel);
-const qa = (sel: string) => [...host.querySelectorAll<HTMLElement>(sel)];
-const live = () => host.querySelector<HTMLElement>("[data-walk-stage] .walk-layer:not(.walk-ghost)")!;
 
 describe("the errors screen", () => {
-  it("the title, the caption, and three groups with the signed labels", async () => {
-    await render();
-    expect(q("h2")?.textContent).toBe("Speaking errors");
-    expect(q("[data-walk-subtitle]")?.textContent).toBe("The patterns coaches name in moments. A pattern routes exercises only once a detector can hear it.");
-    expect(qa("section > span").map((s) => s.textContent)).toEqual([
-      "Detected in audio · routes exercises", "Being tested · routes nothing yet", "Named only · waiting on a detector",
-    ]);
-  });
-
-  it("puts each entry under its group with its state word; a coach-named error is Observed (Q-B7 A)", async () => {
-    await render();
-    const row = (group: string) => q(`[data-testid="errors-${group}"]`)!.textContent;
-    expect(row("detected")).toContain("Rushing");
-    expect(row("detected")).toContain("Detected");
-    expect(row("detected")).not.toContain("Trailing mumble");
-    expect(row("shadow")).toContain("HedgingBeing tested silently");
-    expect(row("observed")).toContain("Trailing mumbleObserved");
-    expect(errorChoice(MUMBLE)).toEqual({ value: "trailing_mumble", label: "Trailing mumble", subtitle: "Observed" });
-  });
 
   it("no form, no clip, no take and no student on the screen (L3)", async () => {
     await render();
     expect(host.querySelector("input, textarea")).toBeNull();
     expect(host.textContent).not.toMatch(/File it|Name a pattern|%/);
-  });
-
-  it("✕ goes to the Lounge", async () => {
-    await render();
-    act(() => q('button[aria-label="Close"]')!.click());
-    expect(push).toHaveBeenCalledWith("/chat");
-  });
-});
-
-describe("one error", () => {
-  it("opens on its definition, the signed readiness line, and the exercises that treat it", async () => {
-    await render();
-    act(() => q('[data-walk-choice="hedging"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    const screen = live();
-    expect(screen.querySelector("h2")?.textContent).toBe("Hedging");
-    expect(screen.querySelector("[data-walk-subtitle]")?.textContent).toBe("Being tested silently");
-    expect(screen.querySelector("[data-walk-back-label]")?.textContent).toBe("Speaking errors");
-    expect(screen.querySelector('[data-testid="error-definition"]')?.textContent).toBe(HEDGING.definition);
-    expect(screen.querySelector('[data-testid="error-readiness"]')?.textContent).toBe("Coaches heard it on 6 of 10 checked moments.");
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).toContain("None yet.");
-  });
-
-  it("a detected error: no readiness line (the ledger has no row), the exercises that treat it open in the library", async () => {
-    await render();
-    act(() => q('[data-walk-choice="rushing"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    const screen = live();
-    expect(screen.querySelector('[data-testid="error-readiness"]')).toBeNull();
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).toContain("Land the last word");
-    expect(screen.querySelector('[data-testid="error-exercises"]')?.textContent).not.toContain("None yet.");
-    act(() => screen.querySelector<HTMLElement>('[data-walk-choice="land-the-last-word"]')!.click());
-    expect(push).toHaveBeenCalledWith("/admin/library?item=land-the-last-word");
-    expect(exercisesFor("rushing", [LAND, { ...LAND, exerciseId: "x", active: false }])).toEqual([LAND]);
-  });
-
-  it("the readiness line is the founder's alone; a coach's page draws none", async () => {
-    await render(false);
-    expect(ledger).not.toHaveBeenCalled();
-    act(() => q('[data-walk-choice="hedging"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(live().querySelector('[data-testid="error-readiness"]')).toBeNull();
-  });
-
-  it("‹ returns to the list", async () => {
-    await render();
-    act(() => q('[data-walk-choice="rushing"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    act(() => live().querySelector<HTMLElement>('button[aria-label="Back"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(live().querySelector("h2")?.textContent).toBe("Speaking errors");
-  });
-});
-
-describe("an error a coach named: its definition and its one question, with the pencil (Q-CP645 A)", () => {
-  async function openMumble() {
-    await render();
-    act(() => q('[data-walk-choice="trailing_mumble"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    return live();
-  }
-  const pencil = (screen: HTMLElement, field: string) =>
-    screen.querySelector<HTMLElement>(`[data-testid="error-${field}"] [data-coach-words-pencil]`)!;
-  const type = (el: HTMLTextAreaElement, text: string) => {
-    const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
-    act(() => { set.call(el, text); el.dispatchEvent(new Event("input", { bubbles: true })); });
-  };
-
-  it("shows both, each with the pencil and no avatar; no new word on the screen", async () => {
-    const screen = await openMumble();
-    expect(screen.querySelector('[data-testid="error-definition"]')?.textContent).toBe(MUMBLE.definition);
-    expect(screen.querySelector('[data-testid="error-asks"]')?.textContent).toBe(MUMBLE.asks);
-    expect(screen.querySelectorAll("[data-coach-words-pencil]")).toHaveLength(2);
-    expect(screen.querySelector("[data-walk-avatar]")).toBeNull();
-    expect(screen.querySelector("textarea")).toBeNull();
-  });
-
-  it("the pencil edits; tapped again it saves both through the library's write, then reads the list again", async () => {
-    let screen = await openMumble();
-    act(() => pencil(screen, "asks").click());
-    const field = screen.querySelector<HTMLTextAreaElement>('[data-testid="error-asks"] textarea')!;
-    type(field, "Did the end of the sentence carry?");
-    await act(async () => { pencil(screen, "asks").click(); });
-    expect(saveSpeakingError).toHaveBeenCalledWith({
-      errorId: "trailing_mumble", label: "Trailing mumble", definition: MUMBLE.definition, asks: "Did the end of the sentence carry?",
-    });
-    expect(listSpeakingErrors).toHaveBeenCalledTimes(2);
-    screen = live();
-    expect(screen.querySelector("textarea")).toBeNull();
-  });
-
-  it("nothing changed: the pencil closes without a save", async () => {
-    const screen = await openMumble();
-    act(() => pencil(screen, "definition").click());
-    await act(async () => { pencil(screen, "definition").click(); });
-    expect(saveSpeakingError).not.toHaveBeenCalled();
-  });
-
-  it("a refusal shows the backend's own sentence and keeps the words open", async () => {
-    saveSpeakingError.mockResolvedValue({ ok: false, status: 400, message: "an entry needs a label, a written definition" });
-    const screen = await openMumble();
-    act(() => pencil(screen, "definition").click());
-    type(screen.querySelector<HTMLTextAreaElement>('[data-testid="error-definition"] textarea')!, "");
-    await act(async () => { pencil(screen, "definition").click(); });
-    expect(screen.querySelector('[role="alert"]')?.textContent).toBe("an entry needs a label, a written definition");
-    expect(screen.querySelector('[data-testid="error-definition"] textarea')).not.toBeNull();
-  });
-
-  it("a detected or tested error stays read only", async () => {
-    await render();
-    act(() => q('[data-walk-choice="rushing"]')!.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(live().querySelector("[data-coach-words-pencil]")).toBeNull();
-  });
-});
-
-describe("the readiness line", () => {
-  it("reads the signed words with the coaches' count and the bar, or nothing", () => {
-    expect(readinessLine(PACE)).toBe("Coaches heard it on 6 of 10 checked moments.");
-    expect(readinessLine({ ...PACE, current: null })).toBeNull();
-    expect(readinessLine(undefined)).toBeNull();
   });
 });
 

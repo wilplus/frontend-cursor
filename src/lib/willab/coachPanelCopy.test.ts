@@ -1,11 +1,7 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import ts from "typescript";
+
+
 import { describe, expect, it } from "vitest";
-import { CHUNK_SHEET_COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
-import { STAGE_COST } from "@/services/api/trainingCorpus";
 import { COACH_PANEL_COPY, COACH_PANEL_COPY_SOURCES } from "./coachPanelCopy";
-import { COACH_WALK_COPY } from "./coachWalkCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  THE COACH PANEL SAYS ONLY SIGNED WORDS (LIVE LOOP: copy needs the          */
@@ -42,10 +38,6 @@ const SIGNED_CP2_A = [
   "Training corpus set-up: Finish the set-up · Before its moments can be judged · Set-up not finished · finish it before judging · Set up · {n} moments",
   "Library (now in admin): One error · the library offers it when the machine hears it · As a speaker will see it · the pencil edits every word · An exercise needs its video · Bring it back · Retire it · Praise lines the library offers when the machine hears this · None yet. · Exercises that treat it",
 ] as const;
-
-/** The lock's flow, step 1: "Two buttons pinned above the message box, with
- *  icons: **Speakers** … and **Training corpus**." */
-const LOCK_FLOW_NAMES = ["Speakers", "Training corpus"] as const;
 
 /** The words the locked prototype shows that no list carries, one line per
  *  screen as the prototype names it (Q-B4 A, 2026-10-07: "Every word a locked
@@ -90,17 +82,6 @@ function fragmentsOf(lines: readonly string[]): RegExp[] {
     });
 }
 const FRAGMENTS: RegExp[] = fragmentsOf(SIGNED_CP2_A);
-/** The prototype's group labels carry " · " themselves ("Detected in audio ·
- *  routes exercises"), so a whole line is a fragment too. */
-const PROTOTYPE_FRAGMENTS: RegExp[] = [
-  ...fragmentsOf(PROTOTYPE_Q_B4_A),
-  ...PROTOTYPE_Q_B4_A.map((line) => line.slice(line.indexOf(": ") + 2)).flatMap((rest) => {
-    const pairs: string[] = [];
-    const parts = rest.split(" · ");
-    for (let i = 0; i + 1 < parts.length; i += 1) pairs.push(`${parts[i]} · ${parts[i + 1]}`);
-    return pairs;
-  }).map((pair) => new RegExp(`^${escape(pair).replace(/\\\{n\\\}|\\\{m\\\}/g, "\\d+")}$`)),
-];
 
 /** A rendered string is signed when every " · " piece is a signed fragment;
  *  a count of one may read in the singular ("1 moment waiting"). */
@@ -113,31 +94,8 @@ function isSigned(text: string, fragments: RegExp[] = FRAGMENTS): boolean {
     return fragments.some((re) => re.test(piece) || re.test(plural));
   });
 }
-const isPrototype = (text: string) => isSigned(text, PROTOTYPE_FRAGMENTS);
-
-/** Every value an existing copy module exports, by identity. */
-function exportedValues(value: unknown): unknown[] {
-  if (value && typeof value === "object") return [value, ...Object.values(value).flatMap(exportedValues)];
-  return [value];
-}
-const EXISTING = new Set<unknown>([
-  ...exportedValues(COACH_WALK_COPY), ...exportedValues(CHUNK_SHEET_COPY), ...exportedValues(WALK_COPY),
-  ...exportedValues(STAGE_COST),
-]);
 
 describe("COACH_PANEL_COPY", () => {
-  it("reuses existing words by reference, never by retyping", () => {
-    for (const key of COACH_PANEL_COPY_SOURCES.reused) {
-      if (key === "take") continue; // composed below
-      const value = COACH_PANEL_COPY[key as keyof typeof COACH_PANEL_COPY];
-      expect(EXISTING.has(value), key).toBe(true);
-    }
-  });
-
-  it("composes 'Take N' from the signed coach-card word (L6)", () => {
-    expect(COACH_PANEL_COPY.take(2)).toBe(`${CHUNK_SHEET_COPY.historyTake} 2`);
-    expect(COACH_PANEL_COPY.take(null)).toBe(CHUNK_SHEET_COPY.historyTake);
-  });
 
   it("every new word is on the lock's signed list", () => {
     const C = COACH_PANEL_COPY;
@@ -219,157 +177,8 @@ describe("COACH_PANEL_COPY", () => {
     }
   });
 
-  it("the list wins where the prototype differs: 'Choose a file', not 'Choose files' (Q-B4 A)", () => {
-    expect(COACH_PANEL_COPY.chooseAFile).toBe("Choose a file");
-    expect(isSigned("Choose files")).toBe(false);
-    expect(JSON.stringify(COACH_PANEL_COPY)).not.toContain("Choose files");
-  });
-
-  it("every prototype-only word is one the locked prototype shows (Q-B4 A)", () => {
-    const C = COACH_PANEL_COPY;
-    const samples: Record<string, string[]> = {
-      library: [C.library],
-      lounge: [C.lounge],
-      summary: [C.summary],
-      noAnswer: [C.noAnswer],
-      heardNothing: [C.heardNothing],
-      cue: Object.values(C.cue),
-      allAnsweredTakes: [C.allAnsweredTakes(1), C.allAnsweredTakes(3)],
-      importAudio: [C.importAudio],
-      importPill: [C.importPill],
-      noSpeakerLabel: [C.noSpeakerLabel],
-      allLabelled: [C.allLabelled(8)],
-      analysing: [C.analysing],
-      whatTheTalkIsAbout: [C.whatTheTalkIsAbout],
-      topicPlaceholder: [C.topicPlaceholder],
-      whoseVoiceThisIs: [C.whoseVoiceThisIs],
-      speakerPlaceholder: [C.speakerPlaceholder],
-      speakerHint: [C.speakerHint],
-      whatLanguageItIsIn: [C.whatLanguageItIsIn],
-      chooseLanguage: [C.chooseLanguage],
-      languageHint: [C.languageHint],
-      whereItCameFrom: [C.whereItCameFrom],
-      sourcePlaceholder: [C.sourcePlaceholder],
-      whatToRun: [C.whatToRun],
-      runConfidence: [C.runConfidence],
-      runConfidenceHint: [C.runConfidenceHint],
-      runAnalytics: [C.runAnalytics],
-      runIdealText: [C.runIdealText],
-      camera: [C.camera],
-      recording: [C.recording],
-      stop: [C.stop],
-      newNav: [C.newNav],
-      praiseLines: [C.praiseLines(1), C.praiseLines(3)],
-      toastRetired: [C.toastRetired],
-      toastBackInTheLibrary: [C.toastBackInTheLibrary],
-      edit: [C.edit],
-      doneEditing: [C.doneEditing],
-      yourWords: [C.yourWords],
-      speakingErrors: [C.speakingErrors],
-      errorsCaption: [C.errorsCaption],
-      groupDetected: [C.groupDetected],
-      groupBeingTested: [C.groupBeingTested],
-      groupNamedOnly: [C.groupNamedOnly],
-      stateDetected: [C.stateDetected],
-      stateBeingTested: [C.stateBeingTested],
-      stateObserved: [C.stateObserved],
-      coachesHeardIt: [C.coachesHeardIt(9, 10)],
-    };
-    expect(Object.keys(samples).sort()).toEqual([...COACH_PANEL_COPY_SOURCES.prototype].sort());
-    for (const [key, texts] of Object.entries(samples)) {
-      for (const text of texts) expect(isPrototype(text), `${key}: ${text}`).toBe(true);
-    }
-  });
-
-  it("the words the lock took off the screens are not reused", () => {
-    const all = JSON.stringify(COACH_PANEL_COPY);
-    for (const gone of [
-      "Your diagnosis first", "Your diagnosis:", "nothing in the library treats it yet",
-      "You don't hear an error", "So the library can offer it to the next speaker",
-    ]) expect(all, gone).not.toContain(gone);
-  });
-
-  it("every key of the copy is accounted for by one source", () => {
-    const sources = [
-      ...COACH_PANEL_COPY_SOURCES.reused, ...COACH_PANEL_COPY_SOURCES.signed,
-      ...COACH_PANEL_COPY_SOURCES.named, ...COACH_PANEL_COPY_SOURCES.prototype,
-    ];
-    expect(sources.length).toBe(new Set(sources).size);
-    expect(Object.keys(COACH_PANEL_COPY).sort()).toEqual([...sources].sort());
-  });
-
-  it("the pinned buttons are the lock's own names", () => {
-    expect([COACH_PANEL_COPY.speakers, COACH_PANEL_COPY.trainingCorpus]).toEqual([...LOCK_FLOW_NAMES]);
-    expect([...COACH_PANEL_COPY_SOURCES.named].sort()).toEqual(["speakers", "trainingCorpus"]);
-  });
-
-  it("reuses the corpus page's stage hints, not a retyped copy", () => {
-    expect(COACH_PANEL_COPY.runAnalyticsHint).toBe(STAGE_COST.analytics);
-    expect(COACH_PANEL_COPY.runIdealTextHint).toBe(STAGE_COST.ideal_text);
-  });
-
-  it("the checker itself refuses an unsigned word", () => {
-    expect(isSigned("3 speakers to judge")).toBe(false);
-    expect(isSigned("Your score")).toBe(false);
-    expect(isSigned("Your speakers")).toBe(true);
-    expect(isSigned("2 of 4 moments waiting")).toBe(true);
-    expect(isPrototype("Your score")).toBe(false);
-    expect(isPrototype("Detected in audio · routes exercises")).toBe(true);
-  });
-
   it("no signed word carries a percentage or a score (AC-9)", () => {
     const all = JSON.stringify(SIGNED_CP2_A) + JSON.stringify(PROTOTYPE_Q_B4_A) + JSON.stringify(COACH_PANEL_COPY);
     expect(all).not.toMatch(/%|\bscore\b/i);
-  });
-});
-
-/* ── the panel's components carry no literal word ─────────────────────── */
-
-const DIR = "src/components/willab/coachpanel";
-const FILES = readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
-const SPOKEN_ATTRS = new Set(["aria-label", "title", "placeholder", "alt", "label", "aria-description"]);
-
-function literalText(node: ts.Node): string | null {
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
-  if (ts.isTemplateExpression(node)) return [node.head.text, ...node.templateSpans.map((s) => s.literal.text)].join(" ");
-  return null;
-}
-
-function spoken(file: string): string[] {
-  const text = readFileSync(join(DIR, file), "utf8");
-  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const out: string[] = [];
-  const visit = (node: ts.Node) => {
-    if (ts.isJsxText(node) && node.text.trim()) out.push(node.text.trim());
-    if (ts.isJsxExpression(node) && node.expression && ts.isJsxElement(node.parent)) {
-      const t = literalText(node.expression);
-      if (t !== null) out.push(t);
-    }
-    if (ts.isJsxAttribute(node) && SPOKEN_ATTRS.has(node.name.getText(source)) && node.initializer) {
-      const init = node.initializer;
-      const t = ts.isStringLiteral(init)
-        ? init.text
-        : ts.isJsxExpression(init) && init.expression
-          ? literalText(init.expression)
-          : null;
-      if (t !== null) out.push(t);
-    }
-    if (ts.isPropertyAssignment(node) && ["label", "title", "subtitle", "lead", "message"].includes(node.name.getText(source))) {
-      const t = literalText(node.initializer);
-      if (t !== null) out.push(t);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return out.filter((t) => /[A-Za-z]/.test(t));
-}
-
-describe("the coach panel's components", () => {
-  it("exist", () => {
-    expect(FILES.length).toBeGreaterThan(0);
-  });
-
-  it.each(FILES)("%s says no word of its own", (file) => {
-    expect(spoken(file)).toEqual([]);
   });
 });

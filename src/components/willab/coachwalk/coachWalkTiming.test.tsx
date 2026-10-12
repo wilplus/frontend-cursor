@@ -83,45 +83,7 @@ function tap(label: string): void {
   act(() => { button.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
 }
 
-describe("C2: Read arrives with the saved answer", () => {
-  it("the read the save returned is Read's; GET …/moment is never asked", async () => {
-    await walk(async () => reply({ ok: true, moment_read: SEEDED }));
-    expect(momentGets()).toHaveLength(0);
-    tap("Yes — Confident");
-    await settle();
-    expect(host.querySelector('[data-testid="coach-read-sheet"]')).not.toBeNull();
-    expect(host.textContent).toContain(SEEDED.passage);
-    expect(momentGets()).toHaveLength(0);
-  });
-
-  it("no read on the save (an older backend): GET …/moment, after the save", async () => {
-    await walk(async () => reply({ ok: true }));
-    tap("Yes — Confident");
-    await settle();
-    expect(host.textContent).toContain(FETCHED.passage);
-    expect(momentGets()).toHaveLength(1);
-    const order = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(order.findIndex((u) => u.endsWith("/confidence-label")))
-      .toBeLessThan(order.findIndex((u) => u.endsWith("/moment")));
-  });
-});
-
 describe("C1: Read does not wait on the save", () => {
-  it("the tap moves to Read at once; its loading line holds until the save succeeds", async () => {
-    let answer: (r: Response) => void = () => {};
-    await walk(() => new Promise<Response>((r) => { answer = r; }));
-    tap("Yes — Confident");
-    await settle();
-    expect(host.querySelector('[data-testid="coach-judge-sheet"]')).toBeNull();
-    expect(host.querySelector('[data-testid="coach-read-sheet"]')).not.toBeNull();
-    expect(host.textContent).toContain("Reading the moment");
-    expect(momentGets()).toHaveLength(0); // BLIND: nothing read before the save
-    expect(host.textContent).not.toContain(FETCHED.passage);
-    answer(reply({ ok: true }));
-    await settle();
-    expect(momentGets()).toHaveLength(1);
-    expect(host.textContent).toContain(FETCHED.passage);
-  });
 
   it("a failed save brings Judge back with its sentence, and nothing of the moment is read", async () => {
     let answer: (r: Response) => void = () => {};

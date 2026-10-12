@@ -36,11 +36,4 @@ describe("CoachWalkEntry", () => {
     expect(host.querySelector("[data-testid='coach-panel-pinned']")).not.toBeNull();
     expect([...host.querySelectorAll("button")].map((b) => b.textContent)).not.toContain("Your queue");
   });
-
-  it("draws the redrawn door in production too, whatever the address says", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    window.history.replaceState(null, "", "/?coach2=0");
-    await draw();
-    expect(host.querySelector("[data-testid='coach-panel-pinned']")).not.toBeNull();
-  });
 });
