@@ -30,6 +30,12 @@ export function useLoungeThreadCtx(): UseLoungeThreadReturn {
   return ctx;
 }
 
+/** The thread when there is one; null outside the provider (a page that
+ *  shows the walk without the Lounge). */
+export function useLoungeThreadMaybe(): UseLoungeThreadReturn | null {
+  return useContext(LoungeThreadCtx);
+}
+
 export function LoungeThreadProvider({ children }: { children: React.ReactNode }) {
   const signedIn = useSignedIn();
   if (signedIn === null) {

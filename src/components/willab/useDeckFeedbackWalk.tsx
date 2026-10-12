@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLoungeThreadMaybe } from "./LoungeThreadContext";
+import { shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
@@ -12,7 +14,7 @@ import type { WalkJudgementSave } from "./walk/useWalkJudging";
 import { useWalkJournalPost } from "./useWalkJournalPost";
 import { noteOwnAnswer, ownAnswersOf } from "./paragraphSheetData";
 import type { OwnerAnswer } from "@/services/api/bookmarkHistory";
-import { CHUNK_SHEET_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY, WALK_COPY } from "./idealEditCopy";
 import {
   acceptRewriteBehind,
   helperWordsBehind,
@@ -464,6 +466,9 @@ export function useDeckFeedbackWalk(args: {
   firstTake: boolean;
   /** The page's Take, when the feedback items name none. */
   takeSessionId?: string | null;
+  /** The Take's project: the Lounge's walk steps name it, so a tap turns
+   *  the lens back on there (lock 2026-10-12, section 1). */
+  arcId?: string | null;
   setRootPhrase: (chunk: DeckChunk, phrase: RootPhraseSpan | null) => Promise<boolean>;
   /** The deck's decision on a clearer version: the Feedback sheet's own. */
   onAccept: (s: DocumentSuggestion) => Promise<boolean>;
@@ -511,6 +516,17 @@ export function useDeckFeedbackWalk(args: {
     [chunks, groups, waiting, pendingOf, slideLabel],
   );
   const take = useMemo(() => reviewedTake(items, pageTake), [items, pageTake]);
+  /* EVERY STEP IS A LOUNGE MESSAGE (founder lock 2026-10-12, section 1):
+     what the walk shows and what the speaker answers, stored once, behind
+     the screen. A failed post never stops the walk. */
+  const thread = useLoungeThreadMaybe();
+  const threadRef = useRef({ thread, take, arcId: args.arcId ?? null });
+  threadRef.current = { thread, take, arcId: args.arcId ?? null };
+  const post = useCallback((entry: Omit<WalkThreadEntry, "take" | "arcId">) => {
+    const { thread: to, take: on, arcId } = threadRef.current;
+    if (!to || !on || (entry.key !== "end" && !entry.body.trim())) return;
+    void to.append(walkStepDraft({ ...entry, take: on, arcId })).catch(() => undefined);
+  }, []);
   const model = useMemo(
     () =>
       buildFeedbackWalk({
@@ -645,6 +661,7 @@ export function useDeckFeedbackWalk(args: {
   );
 
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
+    post({ key: `words:${save.partId}`, moment: null, attempt: null, author: "speaker", body: stripRichMarkers(save.span.text) });
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -655,16 +672,19 @@ export function useDeckFeedbackWalk(args: {
       async () => (span ? helperWordsBehind(setRootPhrase, lockPart, chunk, span) : "final"),
       CHUNK_SHEET_COPY.failWordsBehind,
     );
-  }, []);
+  }, [post]);
   const acceptClearer = useCallback((item: DocumentSuggestion) => {
+    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.pillAcceptPractise });
     const { onAccept, saveBehind } = live.current;
     saveBehind(() => acceptRewriteBehind(onAccept, item), CHUNK_SHEET_COPY.failApply);
-  }, []);
+  }, [post]);
   const keepWords = useCallback((item: DocumentSuggestion) => {
+    post({ key: `clearer:${item.id}`, moment: null, attempt: null, author: "speaker", body: CHUNK_SHEET_COPY.linkKeepMyWords });
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
-  }, []);
+  }, [post]);
   const savePractiseWords = useCallback((save: FeedbackWalkPractiseWords) => {
+    post({ key: `try-words:${save.practiceId}`, moment: null, attempt: null, author: "speaker", body: save.phrase });
     const { chunks: now, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -692,13 +712,22 @@ export function useDeckFeedbackWalk(args: {
   const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
   // A paragraph's practise ends on the page; the walk's end card is the walk's.
   const onEnd = useCallback(() => {
-    if (!practisingRef.current) live.current.onEnd();
-  }, []);
+    if (practisingRef.current) return;
+    // The review's end: "Continue review" leaves the Lounge.
+    post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
+    live.current.onEnd();
+  }, [post]);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
     (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
+      const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
+      const said = shownStep(step, moment, coach?.text ?? null);
+      if (said) post({ key: step.key, ...at, ...said });
+      if (step.key === "processing") {
+        post({ key: "try", ...at, author: "speaker", body: WALK_COPY.practiseN(step.attempt ?? 1) });
+      }
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
       for (const shown of coachShownOn(step, moment, coach, openOn)) {
@@ -708,7 +737,7 @@ export function useDeckFeedbackWalk(args: {
         void markCoachFeedbackSeen(shown);
       }
     },
-    [walkModel],
+    [walkModel, post],
   );
 
   const element = useMemo(
