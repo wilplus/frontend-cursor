@@ -72,7 +72,7 @@ describe("one loader for the whole later-Take wait (build plan D-RC-1)", () => {
     const column = overlay.slice(overlay.indexOf("<div className={`${labColumnClass(state, mic.state.status)}"));
     const slot = column.slice(0, column.indexOf('{state === "lab_feelings"'));
     expect(slot).toMatch(
-      /showsMicWait\(state, trainingAsked, mic\.state\.status, mic\.armed, rejectedMsg\) \? \(\s*<LoadingState placement="surface" label=\{RECORDING_COPY\.micReady\} labelVisible \/>/,
+      /showsMicWait\(state, trainingAsked, mic\.state\.status, rejectedMsg\) \? \(\s*<LoadingState placement="surface" label=\{RECORDING_COPY\.micReady\} labelVisible \/>/,
     );
   });
 

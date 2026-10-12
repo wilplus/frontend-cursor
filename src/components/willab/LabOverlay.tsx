@@ -602,10 +602,8 @@ export default function LabOverlay({
   // "recording vanished but the mic was still on." This is the airtight
   // backstop: an active recording while the screen is no longer the recorder is
   // an orphan, so cancel it. A normal stop never trips this (mic is "stopped",
-  // not "recording", before the state leaves lab_recording). A mic held open
-  // for Take 1's learning screen (armed) is just as much an orphan once the
-  // screen has gone.
-  const micHot = mic.state.status === "recording" || mic.armed;
+  // not "recording", before the state leaves lab_recording).
+  const micHot = mic.state.status === "recording";
   useEffect(() => {
     if (micHot && state !== "lab_recording") {
       cancelMic();
@@ -1426,7 +1424,7 @@ export default function LabOverlay({
             mic ready" before a later Take and the mic still opening on the
             recording screen are one wait: one element in one place, so the
             voice mark neither jumps nor restarts its breathing between them. */}
-        {showsMicWait(state, trainingAsked, mic.state.status, mic.armed, rejectedMsg) ? (
+        {showsMicWait(state, trainingAsked, mic.state.status, rejectedMsg) ? (
           <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />
         ) : null}
         {state === "lab_feelings" && (
@@ -2008,11 +2006,10 @@ export function showsMicWait(
   state: WillabState,
   trainingAsked: boolean,
   micStatus: ReturnType<typeof useDualCaptureMic>["state"]["status"],
-  armed: boolean,
   rejectedMsg: string | null,
 ): boolean {
   if (state === "lab_prerecord") return trainingAsked;
-  return state === "lab_recording" && micStatus === "idle" && !armed && !rejectedMsg;
+  return state === "lab_recording" && micStatus === "idle" && !rejectedMsg;
 }
 
 /** The content column. The recording screen sits close under its "Take ·
