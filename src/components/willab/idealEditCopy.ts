@@ -389,6 +389,11 @@ export const WALK_COPY = {
   sharePassCodeUnknown: "No community has that pass code.",
   shareAcceptTerms: "Please accept the updated Terms and Privacy first.",
   shareFailed: "Couldn't share this take. Try again.",
+  /* Judging other speakers, once, after practice (founder lock 2026-10-12,
+     moment and feedback chat, section 2.6 and Line B, section 8). */
+  othersTitle: "Other speakers",
+  othersOne: "Now one moment from another speaker.",
+  othersMany: (n: number) => `Now ${n} moments from other speakers.`,
 } as const;
 
 /* -------------------------------------------------------------------------- */

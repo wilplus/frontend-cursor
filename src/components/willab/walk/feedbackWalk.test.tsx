@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
 import { GuestGateContext } from "../GuestSignUpDialog";
+vi.mock("@/services/api/otherSpeakers", () => ({ fetchOtherClips: vi.fn(async () => []), answerOtherClip: vi.fn() }));
 import FeedbackWalk, { type FeedbackWalkHelperWords, type FeedbackWalkRequest } from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 
@@ -67,7 +68,7 @@ const words = () => [...(live()?.querySelectorAll<HTMLButtonElement>("[data-walk
 
 describe("FeedbackWalk", () => {
 
-  it("walks coach's note → praise → helper words → the next praise → the end card", () => {
+  it("walks coach's note → praise → helper words → the next praise → the end card", async () => {
     const props = draw(null);
     draw({ seq: 1, at: 1 });
     forward();
@@ -89,6 +90,8 @@ describe("FeedbackWalk", () => {
     forward(); // the helper words' pill is off until a word is picked
     expect(screen()).toBe("walk-screen-helpers");
     click(live()!.querySelector("[data-testid='walk-skip']"));
+    expect(screen()).toBe("walk-screen-others"); // nobody to judge: it moves on
+    await act(async () => {});
     expect(live()).toBeNull();
     expect(props.onEnd).toHaveBeenCalledTimes(1);
   });

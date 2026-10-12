@@ -54,6 +54,7 @@ function Answer({
 export default function WalkJudgement({
   question = COPY.confidenceQuestion,
   primary = PRIMARY_RATING_OPTIONS,
+  secondary = SECONDARY_RATING_OPTIONS,
   value = null,
   onAnswer,
   holdMs = WALK_ANSWER_HOLD_MS,
@@ -62,6 +63,8 @@ export default function WalkJudgement({
   /** The three main answers' words; the speaker's by default. The coach
    *  panel passes the coach's ("Yes — Confident"), same values, same order. */
   primary?: readonly Option[];
+  /** The small answers below; other speakers get "Audio unclear" only. */
+  secondary?: readonly Option[];
   /** An answer already given, drawn filled (a return to this screen). */
   value?: ConfidenceRatingValue | null;
   onAnswer: (value: ConfidenceRatingValue) => void;
@@ -85,13 +88,13 @@ export default function WalkJudgement({
 
   return (
     <div data-walk-judgement className="contents">
-      <p className="m-0 text-[16px] font-semibold">{question}</p>
+      {question ? <p className="m-0 text-[16px] font-semibold">{question}</p> : null}
       <div className="flex flex-col gap-2">
         {primary.map((option) => (
           <Answer key={option.value} option={option} small={false} chosen={shown === option.value} onPick={pick} />
         ))}
         <div className="mt-0.5 flex gap-2">
-          {SECONDARY_RATING_OPTIONS.map((option) => (
+          {secondary.map((option) => (
             <Answer key={option.value} option={option} small chosen={shown === option.value} onPick={pick} />
           ))}
         </div>

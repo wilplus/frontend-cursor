@@ -15,6 +15,7 @@ import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+vi.mock("@/services/api/otherSpeakers", () => ({ fetchOtherClips: vi.fn(async () => []), answerOtherClip: vi.fn() }));
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }));
 
 /** The microphone: a stand-in for the app's recorder, counting what the walk
@@ -257,6 +258,7 @@ describe("the machine's answer", () => {
     expect(saved).toEqual([
       { practiceId: "11111111-1111-4111-8111-111111111111", partId: "p3", phrase: "our price" },
     ]);
+    await act(async () => {}); // nobody to judge after practice: it moves on
     expect(ended).toBe(1);
   });
 });
