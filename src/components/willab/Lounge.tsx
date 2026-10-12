@@ -6,6 +6,8 @@ import { Plus, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
+import SnippetWavePlayer from "./SnippetWavePlayer";
+import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -257,6 +259,8 @@ export default function Lounge({
   // "Continue review" (founder lock 2026-10-12, section 1): the newest walk
   // step names its project and is not the review's end.
   const reviewToContinue = useMemo(() => continueReviewArc(threadItems), [threadItems]);
+  // Helper words a later pick replaced: struck in the chat (prototype v31).
+  const replacedWords = useMemo(() => replacedWordIds(threadItems), [threadItems]);
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
   // that the top banner is gone: open the overlay, and if we were in the unread
@@ -1251,6 +1255,7 @@ export default function Lounge({
               key={item.reactKey}
               message={item.message}
               card={reviewCardOf(item.message, threadItems)}
+              replaced={replacedWords.has(item.message.client_id)}
               onOpenIdealText={openIdealText}
             />
           ) : item.message.metadata?.summary === true ? (
@@ -2010,6 +2015,7 @@ export function continueReviewArc(items: readonly ThreadItem[]): string | null {
     const item = items[i];
     if (item.kind !== "message" || item.message.kind !== "walk_step") continue;
     const meta = item.message.metadata ?? {};
+    if (meta.step === "share") continue;
     if (meta.step === "end") return null;
     return typeof meta.arc_id === "string" ? meta.arc_id : null;
   }
@@ -2023,54 +2029,136 @@ export function continueReviewArc(items: readonly ThreadItem[]): string | null {
 function WalkStepBubble({
   message,
   card,
+  replaced = false,
   onOpenIdealText,
 }: {
   message: LoungeMessage;
   /** The review's end: its Ideal Text card's words; null otherwise. */
   card: { title: string; take: number | null } | null;
+  /** Helper words a later pick replaced: struck through. */
+  replaced?: boolean;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode, at?: WalkStepTarget | null) => void;
 }) {
-  const arc = typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
-  if (message.metadata?.step === "end") {
+  const meta = message.metadata ?? {};
+  const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
+  if (meta.step === "end") {
     return arc && card ? <IdealTextCardBubble title={card.title} take={card.take} onOpen={() => onOpenIdealText?.(arc)} /> : null;
   }
-  if (!message.body.trim()) return null;
+  const clip = walkClipOf(meta.clip);
+  if (!message.body.trim() && !clip) return null;
   const mine = message.role === "user";
-  const coach = message.metadata?.author === "coach";
-  const step = typeof message.metadata?.step === "string" ? message.metadata.step : null;
-  const moment = typeof message.metadata?.moment === "number" ? message.metadata.moment : null;
-  const at = step ? { step, moment } : null;
-  const open = arc ? () => onOpenIdealText?.(arc, "review", at) : undefined;
-  if (mine) {
-    return (
-      <div className="flex justify-end">
-        <button
-          type="button"
-          data-walk-step-bubble
-          onClick={open}
-          className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
-        >
-          {message.body}
-        </button>
-      </div>
-    );
-  }
+  const step = typeof meta.step === "string" ? meta.step : null;
+  const moment = typeof meta.moment === "number" ? meta.moment : null;
+  const open = arc ? () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null) : undefined;
+  const label = chatLabelOf(meta);
   return (
-    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-      <ChatAvatar coach={coach} />
-      <button
-        type="button"
-        data-walk-step-bubble
-        onClick={open}
-        className="relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 pr-[30px] text-left text-[15px] leading-[1.45] text-foreground"
-      >
-        {message.body}
-        <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
-          ›
-        </span>
-      </button>
+    <>
+      {label ? <div className="self-center pt-1.5 text-[11.5px] text-muted-foreground">{label}</div> : null}
+      {clip ? (
+        <ClipBubble clip={clip} seed={message.client_id} />
+      ) : mine ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-walk-step-bubble
+            onClick={open}
+            className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
+          >
+            <span className={replaced ? "line-through opacity-70" : undefined}>{message.body}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+          <ChatAvatar coach={meta.author === "coach"} />
+          <button
+            type="button"
+            data-walk-step-bubble
+            onClick={open}
+            className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
+          >
+            {message.body}
+            {open ? (
+              <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+                ›
+              </span>
+            ) : null}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+type WalkChatClip = {
+  src: string | null;
+  start_ms: number | null;
+  duration_ms: number | null;
+  words: { text: string; cut?: boolean }[] | null;
+};
+
+/** The speaker's clip a walk step carries; null when none. */
+function walkClipOf(value: unknown): WalkChatClip | null {
+  if (!value || typeof value !== "object") return null;
+  const c = value as Partial<WalkChatClip>;
+  return {
+    src: typeof c.src === "string" ? c.src : null,
+    start_ms: typeof c.start_ms === "number" ? c.start_ms : null,
+    duration_ms: typeof c.duration_ms === "number" ? c.duration_ms : null,
+    words: Array.isArray(c.words) ? c.words : null,
+  };
+}
+
+/** The line above a moment in the chat (prototype v31 `.meta-l`): "Slide 2 ·
+ *  moment 1 of 2", "Moment 1 of 2" with no slide, or "Slide 3". */
+export function chatLabelOf(meta: Record<string, unknown>): string | null {
+  const slide = typeof meta.slide_label === "string" ? meta.slide_label : null;
+  const n = meta.green_n;
+  const of = meta.green_of;
+  if (typeof n !== "number" || typeof of !== "number" || n < 1) return slide;
+  return slide ? `${slide} · moment ${n} of ${of}` : `Moment ${n} of ${of}`;
+}
+
+/** The speaker's own clip in the chat (prototype v31 `.lb.me.aud`): an
+ *  orange bubble on the right, 78% wide, their words above the player where
+ *  the feedback is about them, with what goes struck. */
+function ClipBubble({ clip, seed }: { clip: WalkChatClip; seed: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
+        {clip.words ? (
+          <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
+            {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : <span key={i}>{p.text}</span>))}
+          </span>
+        ) : null}
+        {clip.src ? (
+          <SnippetWavePlayer
+            seed={seed}
+            src={clip.src}
+            startOffsetMs={clip.start_ms}
+            durationMs={clip.duration_ms}
+            size="compact"
+            tone="me"
+            label={CHUNK_SHEET_COPY.pagerMoment}
+          />
+        ) : null}
+      </div>
     </div>
   );
+}
+
+/** The helper words a later pick for the same paragraph of the same Take
+ *  replaced (prototype v31: the old pick stays, struck through). */
+export function replacedWordIds(items: readonly ThreadItem[]): Set<string> {
+  const latest = new Map<string, string>();
+  const all: [string, string][] = [];
+  for (const item of items) {
+    const m = item.message.metadata ?? {};
+    if (item.message.kind !== "walk_step" || typeof m.words_of !== "string") continue;
+    const key = `${String(m.take_session_id)}|${m.words_of}`;
+    latest.set(key, item.message.client_id);
+    all.push([key, item.message.client_id]);
+  }
+  return new Set(all.filter(([key, id]) => latest.get(key) !== id).map(([, id]) => id));
 }
 
 /** The small grey silhouette beside the app's and the coach's bubbles (the

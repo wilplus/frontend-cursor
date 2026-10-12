@@ -11,6 +11,8 @@ import WalkOptions, { WalkField, type WalkOption } from "./walk/WalkOptions";
 import WalkToast from "./walk/WalkToast";
 import { fetchCommunities, joinCommunity, type Community } from "@/services/api/communities";
 import { keepNextTakeShare, SHARE_PASS_CODE_MIN } from "@/lib/willab/nextTakeShare";
+import { shareChat } from "@/lib/willab/walkThread";
+import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  NextTakeShareScreen — "Do you agree to share your next take with          */
@@ -43,6 +45,7 @@ export default function NextTakeShareScreen({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null);
+  const thread = useLoungeThreadMaybe();
 
   useEffect(() => {
     let live = true;
@@ -92,6 +95,12 @@ export default function NextTakeShareScreen({
 
   const submit = () => {
     if (!ready) return;
+    // The choice as the chat shows it; a failed post never stops recording.
+    const names = (saved ?? []).filter((c) => mine.includes(c.id)).map((c) => c.name ?? "").filter(Boolean);
+    const next = typeof takeCount === "number" ? takeCount + 1 : null;
+    void (async () => {
+      for (const draft of shareChat(next, ticks, names)) await thread?.append(draft);
+    })().catch(() => undefined);
     if (ticks.includes("none")) return close();
     keepNextTakeShare({ general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] });
     onDone();
