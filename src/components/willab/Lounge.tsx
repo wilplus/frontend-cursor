@@ -1241,6 +1241,8 @@ export default function Lounge({
         ) : (
           threadItems.map((item, i) => item.message.kind === "walk_step" ? (
             <WalkStepBubble key={item.reactKey} message={item.message} onOpenIdealText={openIdealText} />
+          ) : item.message.metadata?.summary === true ? (
+            <SummaryBubble key={item.reactKey} message={item.message} />
           ) : (
             <Bubble
               key={item.reactKey}
@@ -2080,6 +2082,48 @@ function WalkStepBubble({
         <span className="min-w-0">{message.body}</span>
         {arc ? <span aria-hidden="true" className="text-muted-foreground">›</span> : null}
       </button>
+    </div>
+  );
+}
+
+/** The closing summary after a review (founder lock 2026-10-12, section 3):
+ *  one plain bubble that is not tapped. After a coach update it reads
+ *  "Later · from your coach", is outlined in orange, and keeps the earlier
+ *  words one tap away. */
+function SummaryBubble({ message }: { message: LoungeMessage }) {
+  const [earlierOpen, setEarlierOpen] = useState(false);
+  const meta = message.metadata ?? {};
+  const updated = meta.coach_update === true;
+  const earlier = typeof meta.earlier === "string" ? meta.earlier : null;
+  return (
+    <div data-summary-bubble className="flex max-w-[85%] items-start gap-2">
+      <span aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 rounded-full bg-foreground/15" />
+      <div className="flex min-w-0 flex-col gap-1">
+        {updated ? <span className="text-[12.5px] text-muted-foreground">Later · from your coach</span> : null}
+        <div
+          className={`whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] text-foreground ${updated ? "ring-[1.5px] ring-primary" : ""}`}
+        >
+          {message.body}
+        </div>
+        {updated && earlier ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setEarlierOpen((open) => !open)}
+              className="text-left text-[12.5px] text-muted-foreground"
+            >
+              {earlierOpen
+                ? "Updated with your coach's note · hide the earlier version"
+                : "Updated with your coach's note · see the earlier version"}
+            </button>
+            {earlierOpen ? (
+              <div className="whitespace-pre-wrap break-words rounded-[16px] bg-muted/60 px-3 py-2 text-[15px] text-muted-foreground">
+                {earlier}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
