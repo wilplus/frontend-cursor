@@ -7,8 +7,9 @@
 /*                                                                            */
 /*    the page → the coach's note (only when there is one) → every praise,    */
 /*    each followed by its helper words → the practising (a clearer version,  */
-/*    an exercise, or the moment said again) → "Judgement time!" → one         */
-/*    judgement per moment still open → sharing → the end card.               */
+/*    an exercise, or the moment said again) → sharing → the end card.        */
+/*    "Judgement time!" and judging your own moments are gone (founder lock   */
+/*    2026-10-12, moment and feedback chat, section 2).                       */
 /*                                                                            */
 /*  With several slides the walk spans the whole Take (Q-B2 A): all praise    */
 /*  from every slide, then all the practising, then one "Judgement time!".   */
@@ -136,11 +137,6 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   for (const m of moments) {
     if (isPractiseMoment(m)) steps.push(...practiseOpening(m, input.practiceOn));
   }
-  const open = moments.filter((m) => !m.judged);
-  if (open.length > 0) {
-    steps.push({ key: "intro" });
-    for (const m of open) steps.push(momentStep(m, "judge"));
-  }
   if (input.sharing !== false) steps.push({ key: "community" });
   steps.push({ key: "end", overlay: false });
   if (!input.guest) return steps;
@@ -219,6 +215,15 @@ export type WalkFeedbackItem = {
   hasExercise?: boolean;
   /** The speaker already judged it. */
   judged?: boolean;
+  /** Green: one of the Take's best moments (`bookmarkTier` "confident";
+   *  founder lock 2026-10-12, section 6). */
+  green?: boolean;
+  /** The Take's one exercise moment (`practicePrompt`). */
+  practicePrompt?: boolean;
+  /** A rewrite of the speaker's words rides this item. */
+  hasRewrite?: boolean;
+  /** Served by a backend that names green moments (`bookmarkTier` set). */
+  tiered?: boolean;
 };
 
 /** The feedback items grouped into the Take's moments, in page order: one
@@ -239,6 +244,7 @@ export function walkMomentGroups<T extends WalkFeedbackItem>(items: readonly T[]
 /** The Take's moments from its feedback items, in page order: one moment
  *  per block, carrying every kind of feedback its items name. */
 export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
+  if (items.some((i) => i.tiered)) return lockedMoments(items);
   return walkMomentGroups(items).map((group, index) => {
     const has = (pred: (i: WalkFeedbackItem) => boolean) => group.some(pred);
     const praise = has((i) => i.openCard === "praise" || i.feedbackFamily === "great_formulation");
@@ -253,6 +259,29 @@ export function walkMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
       ...(exercise ? { exercise } : {}),
       ...(practise ? { practise } : {}),
       ...(has((i) => Boolean(i.judged)) ? { judged: true } : {}),
+    };
+  });
+}
+
+/** The moments under the 2026-10-12 lock: green moments are praised, and
+ *  the one exercise moment is practised, as a clearer version when a
+ *  rewrite rides it, else its exercise, else the moment said again. */
+function lockedMoments(items: readonly WalkFeedbackItem[]): WalkMoment[] {
+  return walkMomentGroups(items).map((group, index) => {
+    const has = (pred: (i: WalkFeedbackItem) => boolean) => group.some(pred);
+    const praise = has((i) => Boolean(i.green));
+    const target = !praise && has((i) => Boolean(i.practicePrompt));
+    const clearer = target && has((i) => Boolean(i.hasRewrite));
+    const exercise = target && !clearer && has((i) => Boolean(i.hasExercise));
+    const practise = target && !clearer && !exercise;
+    return {
+      index,
+      slide: group[0].slide,
+      ...(praise ? { praise } : {}),
+      ...(clearer ? { clearer } : {}),
+      ...(exercise ? { exercise } : {}),
+      ...(practise ? { practise } : {}),
+      judged: true,
     };
   });
 }

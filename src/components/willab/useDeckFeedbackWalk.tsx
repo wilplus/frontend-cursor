@@ -184,12 +184,17 @@ function walkItemOf(
   slide: number,
   label: string | null,
 ): FeedbackWalkItem<DocumentSuggestion> {
-  const praise = item.openCard === "praise" || item.feedbackFamily === "great_formulation";
+  const tiered = item.bookmarkTier != null;
+  const green = item.bookmarkTier === "confident";
+  const praise = tiered ? green : item.openCard === "praise" || item.feedbackFamily === "great_formulation";
   const exercise = exerciseOf(item);
+  const rewrite = rewriteOf(item);
   return {
     start: item.start,
     slide,
     blockId: item.blockId ?? null,
+    hasRewrite: rewrite !== null,
+    ...(tiered ? { tiered, green, practicePrompt: item.practicePrompt === true } : {}),
     openCard: item.openCard ?? null,
     feedbackFamily: item.feedbackFamily ?? null,
     hasExercise: exercise !== null,
@@ -200,7 +205,7 @@ function walkItemOf(
     clip: item.snippetAudioRef
       ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
       : null,
-    rewrite: rewriteOf(item),
+    rewrite,
     item: suggestionSource(item) ? item : null,
     exercise,
     judge: reopensJudgement(item) ? item : null,
@@ -226,7 +231,7 @@ export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSu
 export function exerciseOf(item: DocumentSuggestion): FeedbackWalkItemExercise<DocumentSuggestion> | null {
   const offer = item.practiceExercise;
   if (!offer || !suggestionSource(item)) return null;
-  if (item.openCard !== "exercise" && offer.chosenByCoach !== true) return null;
+  if (item.openCard !== "exercise" && offer.chosenByCoach !== true && item.practicePrompt !== true) return null;
   const say = (offer.passage || item.quote || "").trim();
   if (!say) return null;
   return {
