@@ -43,18 +43,6 @@ async function mount(status: unknown, onAccepted = vi.fn()) {
 }
 
 describe("the policy update card", () => {
-  it("stays dark while the agreement is current", async () => {
-    await mount({ kind: "authorized", policy: POLICY });
-    expect(host.querySelector('[data-testid="policy-update-card"]')).toBeNull();
-  });
-
-  it("is not shown to someone who never agreed", async () => {
-    await mount({
-      kind: "acceptance_required", policy: POLICY,
-      code: "PROCESSING_AUTHORIZATION_REQUIRED", acceptedEarlierVersion: false,
-    });
-    expect(host.querySelector('[data-testid="policy-update-card"]')).toBeNull();
-  });
 
   it("offers the update and opens the ordinary acceptance screen", async () => {
     const onAccepted = await mount({

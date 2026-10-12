@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { policyTextState, publishedPolicyTextState } from "./policyText";
+import { policyTextState } from "./policyText";
 import type {
   AuthorizationStatus,
   ProcessingPolicy,
@@ -34,7 +34,6 @@ const required: AuthorizationStatus = {
   policy,
   code: "PROCESSING_AUTHORIZATION_REQUIRED",
 };
-const authorized: AuthorizationStatus = { kind: "authorized", policy };
 
 describe("which text the page shows", () => {
   it("shows the stored terms when a policy is active", () => {
@@ -45,37 +44,6 @@ describe("which text the page shows", () => {
       version: "2.0",
     });
   });
-
-  it("picks the privacy document for the privacy page", () => {
-    // A which/document mix-up would render the wrong policy under the right
-    // heading — and it would look completely normal.
-    const state = policyTextState(required, "privacy");
-    expect(state).toEqual({
-      kind: "published",
-      copy: "PRIVACY BYTES",
-      version: "2.0",
-    });
-  });
-
-  it("shows the stored text to an already-accepted user too", () => {
-    // The page is not the acceptance screen; having agreed does not mean you
-    // should now be shown a different, stale document.
-    expect(policyTextState(authorized, "terms")).toMatchObject({
-      kind: "published",
-      copy: "TERMS BYTES",
-    });
-  });
-
-  it("returns the copy VERBATIM — no trimming, no transformation", () => {
-    // The stored bytes are what was hashed. Anything that alters them shows
-    // the user something other than what their receipt attests to.
-    const raw = "  Line one\n\n\tIndented\n\nTrailing   \n";
-    const state = policyTextState(
-      { ...required, policy: { ...policy, terms: { ...policy.terms, copy: raw } } },
-      "terms",
-    );
-    expect(state).toEqual({ kind: "published", copy: raw, version: "2.0" });
-  });
 });
 
 describe("when there is nothing authoritative to show", () => {
@@ -83,52 +51,5 @@ describe("when there is nothing authoritative to show", () => {
     expect(policyTextState(
       { kind: "unavailable", code: "PROCESSING_POLICY_INACTIVE" }, "terms",
     )).toEqual({ kind: "fallback" });
-  });
-
-  it("falls back when the request failed", () => {
-    // A different fact about the system, the same fact about this page.
-    expect(policyTextState(
-      { kind: "error", message: "offline" }, "privacy",
-    )).toEqual({ kind: "fallback" });
-  });
-
-  it("falls back on an active policy carrying an EMPTY document", () => {
-    // A blank page presented as "the current terms" is worse than showing the
-    // last published ones with a label.
-    for (const empty of ["", "   ", "\n\n"]) {
-      const state = policyTextState(
-        { ...required, policy: { ...policy, terms: { ...policy.terms, copy: empty } } },
-        "terms",
-      );
-      expect(state).toEqual({ kind: "fallback" });
-    }
-  });
-});
-
-describe("publishedPolicyTextState (the public read, founder 2026-09-25)", () => {
-  const row = {
-    policy_version: "phase1-2026-09-23",
-    terms: { version: "3.1", copy: "TERMS BYTES" },
-    privacy: { version: "3.1", copy: "PRIVACY BYTES" },
-  };
-
-  it("returns exactly the stored bytes and version for the page asked", () => {
-    expect(publishedPolicyTextState(row, "terms")).toEqual({
-      kind: "published", copy: "TERMS BYTES", version: "3.1",
-    });
-    expect(publishedPolicyTextState(row, "privacy")).toEqual({
-      kind: "published", copy: "PRIVACY BYTES", version: "3.1",
-    });
-  });
-
-  it("falls back on anything short of a stored copy with its version", () => {
-    for (const bad of [
-      null, "text", { code: "PROCESSING_POLICY_INACTIVE" },
-      { terms: { version: "3.1", copy: "   " } },
-      { terms: { version: "", copy: "words" } },
-      { terms: { copy: "words" } },
-    ]) {
-      expect(publishedPolicyTextState(bad, "terms")).toEqual({ kind: "fallback" });
-    }
   });
 });

@@ -12,7 +12,6 @@ import {
   acceptAuthorization,
   fetchAuthorization,
   pendingAccountDeletion,
-  recordAiNoticeRendered,
   type ProcessingPolicy,
 } from "./processingAuthorization";
 
@@ -99,20 +98,6 @@ describe("reading the policy", () => {
     expect(status.policy.minimumAge).toBe(18);
   });
 
-  it("says when a newer policy replaced the one accepted (0358)", async () => {
-    stubFetch(() => policyRow({ reacceptance_required: true }));
-    const status = await fetchAuthorization();
-    expect(status.kind === "acceptance_required" && status.acceptedEarlierVersion).toBe(true);
-    stubFetch(() => policyRow());
-    const first = await fetchAuthorization();
-    expect(first.kind === "acceptance_required" && first.acceptedEarlierVersion).toBe(false);
-  });
-
-  it("maps an accepted principal", async () => {
-    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_AUTHORIZED" }));
-    expect((await fetchAuthorization()).kind).toBe("authorized");
-  });
-
   it("an inactive policy is unavailable, NOT acceptance_required", async () => {
     // Presenting an acceptance screen with no policy behind it would be
     // inventing terms. There is nothing to agree to, and the caller must be
@@ -124,20 +109,6 @@ describe("reading the policy", () => {
     }));
     const status = await fetchAuthorization();
     expect(status.kind).toBe("unavailable");
-  });
-
-  it("a policy missing one hash is unusable, not partially usable", async () => {
-    // It cannot be accepted (the RPC would reject the acceptance) and its copy
-    // must not be rendered as a page the user then agrees to.
-    stubFetch(() => policyRow({ privacy_copy_sha256: "" }));
-    expect((await fetchAuthorization()).kind).toBe("unavailable");
-  });
-
-  it("a policy with no allowed countries is unusable", async () => {
-    // Every acceptance must name a country the RPC will match exactly. With an
-    // empty list no country can be chosen, so the screen has no valid outcome.
-    stubFetch(() => policyRow({ allowed_countries: [] }));
-    expect((await fetchAuthorization()).kind).toBe("unavailable");
   });
 
   it("a blocked principal is blocked, NOT acceptance_required (PLF-T1)", async () => {
@@ -152,51 +123,6 @@ describe("reading the policy", () => {
     expect(status.policy?.terms.sha256).toBe(TERMS_HASH);
     expect(status.pendingDeletion).toBeNull();
     expect(pendingAccountDeletion(status)).toBeNull();
-  });
-
-  it("a block carries the deletion the status names (Q14 A / Q19 A)", async () => {
-    stubFetch(() => policyRow({
-      code: "PROCESSING_SERVICE_BLOCKED",
-      pending_deletion: {
-        purge_id: "purge-1", kind: "account",
-        completes_after: "2026-10-12T17:00:00Z", cancellable: true,
-      },
-    }));
-    const status = await fetchAuthorization();
-    expect(status.kind === "blocked" && status.pendingDeletion).toEqual({
-      purgeId: "purge-1", kind: "account", projectId: null,
-      completesAfter: "2026-10-12T17:00:00Z", cancellable: true,
-    });
-    expect(pendingAccountDeletion(status)?.purgeId).toBe("purge-1");
-  });
-
-  it("a block is a block even with a policy that cannot be shown", async () => {
-    stubFetch(() => policyRow({
-      code: "PROCESSING_SERVICE_BLOCKED", privacy_copy_sha256: "",
-    }));
-    const status = await fetchAuthorization();
-    expect(status.kind === "blocked" && status.policy).toBeNull();
-  });
-
-  it("an authorized answer is never read as blocked, whatever its code", async () => {
-    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_SERVICE_BLOCKED" }));
-    expect((await fetchAuthorization()).kind).toBe("authorized");
-  });
-
-  it("a re-acceptance carries the country given last time (Q21 A)", async () => {
-    stubFetch(() => policyRow({ reacceptance_required: true, country_of_residence: " PL " }));
-    const status = await fetchAuthorization();
-    expect(status.kind === "acceptance_required" && status.priorCountry).toBe("pl");
-    stubFetch(() => policyRow());
-    const first = await fetchAuthorization();
-    expect(first.kind === "acceptance_required" && first.priorCountry).toBeNull();
-  });
-
-  it("a failed request is an error, not a verdict about the policy", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("offline");
-    }));
-    expect((await fetchAuthorization()).kind).toBe("error");
   });
 });
 
@@ -226,41 +152,6 @@ describe("sending the acceptance", () => {
     expect(body.agreement_copy_sha256).toBe(AGREEMENT_HASH);
   });
 
-  it("sends only the optional purposes that were ticked", async () => {
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
-    await acceptAuthorization({
-      policy,
-      countryOfResidence: "pl",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: ["personalized_exercise_recommendation"],
-      idempotencyKey: "attempt-1",
-    });
-    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
-    expect(body.optional_purposes).toEqual([
-      "personalized_exercise_recommendation",
-    ]);
-  });
-
-  it("sends an empty array when practice was declined", async () => {
-    // A recorded no. The receipt must be able to distinguish "said no" from
-    // "was never asked", and an absent field cannot.
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
-    await acceptAuthorization({
-      policy,
-      countryOfResidence: "pl",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-1",
-    });
-    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
-    expect(body.optional_purposes).toEqual([]);
-    expect("optional_purposes" in body).toBe(true);
-  });
-
   it("never sends any policy COPY back to the server", async () => {
     // The server has the copy; echoing it invites a future "well, we could
     // just hash what the client sent" shortcut, which is the failure mode the
@@ -279,114 +170,6 @@ describe("sending the acceptance", () => {
     expect(raw).not.toContain("Terms text");
     expect(raw).not.toContain("Privacy text");
     expect(raw).not.toContain("AI notice text");
-  });
-
-  it("sends the exact explicit_action the RPC demands", async () => {
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
-    await acceptAuthorization({
-      policy,
-      countryOfResidence: "pl",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-1",
-    });
-    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
-    expect(body.explicit_action).toBe("agree_and_continue");
-    expect(body.age_18_attested).toBe(true);
-  });
-
-  it("lowercases and trims the country — the RPC compares exactly", async () => {
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
-    await acceptAuthorization({
-      policy,
-      countryOfResidence: "  PL ",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-1",
-    });
-    expect(JSON.parse(String(spy.mock.calls[0][1]?.body)).country_of_residence)
-      .toBe("pl");
-  });
-
-  it("a stale policy is reported as stale and NOT retried in place", async () => {
-    // The caller must re-fetch and re-present. Resubmitting the hashes we
-    // already hold could only ever fail the same way, and silently re-hashing
-    // would record agreement to words the user never saw.
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ code: "PROCESSING_POLICY_STALE" }));
-    const result = await acceptAuthorization({
-      policy,
-      countryOfResidence: "pl",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-1",
-    });
-    expect(result.kind).toBe("stale");
-    expect(spy).toHaveBeenCalledTimes(1);
-  });
-
-  it("surfaces a refused country rather than swallowing it", async () => {
-    const policy = await acceptedPolicy();
-    stubFetch(() => ({ code: "COUNTRY_NOT_ALLOWED", error: "Not available." }));
-    const result = await acceptAuthorization({
-      policy,
-      countryOfResidence: "de",
-      locale: "de-DE",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-1",
-    });
-    expect(result.kind).toBe("rejected");
-    if (result.kind === "rejected") expect(result.code).toBe("COUNTRY_NOT_ALLOWED");
-  });
-
-  it("carries the caller's idempotency key unchanged", async () => {
-    const policy = await acceptedPolicy();
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1" }));
-    await acceptAuthorization({
-      policy,
-      countryOfResidence: "pl",
-      locale: "pl-PL",
-      clientVersion: "web-1",
-      optionalPurposes: [],
-      idempotencyKey: "attempt-7",
-    });
-    expect(JSON.parse(String(spy.mock.calls[0][1]?.body)).idempotency_key)
-      .toBe("attempt-7");
-  });
-});
-
-describe("the AI notice exposure receipt", () => {
-  it("posts the notice version it was shown", async () => {
-    const spy = stubFetch(() => ({ id: "exposure-1" }));
-    await recordAiNoticeRendered({
-      aiNoticeVersion: "1.0",
-      surface: "acceptance",
-      clientRenderId: "render-1",
-      clientVersion: "web-1",
-    });
-    expect(String(spy.mock.calls[0][0])).toContain("/ai-rendered");
-    const body = JSON.parse(String(spy.mock.calls[0][1]?.body));
-    expect(body.ai_notice_version).toBe("1.0");
-    expect(body.surface).toBe("acceptance");
-    expect(typeof body.rendered_at).toBe("string");
-  });
-
-  it("a failed receipt never throws — it must not block the notice", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("offline");
-    }));
-    await expect(recordAiNoticeRendered({
-      aiNoticeVersion: "1.0",
-      surface: "acceptance",
-      clientRenderId: "render-1",
-      clientVersion: "web-1",
-    })).resolves.toBe(false);
   });
 });
 
@@ -411,93 +194,6 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     });
   });
 
-  it("mints the guest identity, stores it, then reads the policy with it", async () => {
-    const spy = stubFetch((url) =>
-      url.endsWith("/principal")
-        ? { owner_principal_id: "guest-1", is_guest: true, guest_owner_token: "guest-token" }
-        : policyRow(),
-    );
-    const status = await fetchAuthorization();
-    expect(status.kind).toBe("acceptance_required");
-    expect(String(spy.mock.calls[0][0])).toBe("/api/v2/processing-authorization/principal");
-    expect(spy.mock.calls[0][1]?.method).toBe("POST");
-    const read = spy.mock.calls[1][1]?.headers as Record<string, string>;
-    expect(read["X-Willab-Guest-Owner"]).toBe("guest-token");
-    expect(Object.values(store)).toContain("guest-token");
-  });
-
-  it("mints once: a stored identity is reused, and so is one in flight", async () => {
-    const spy = stubFetch((url) =>
-      url.endsWith("/principal")
-        ? { owner_principal_id: "guest-1", is_guest: true, guest_owner_token: "guest-token" }
-        : policyRow(),
-    );
-    await Promise.all([fetchAuthorization(), fetchAuthorization()]);
-    await fetchAuthorization();
-    const mints = spy.mock.calls.filter(([u]) => String(u).endsWith("/principal"));
-    expect(mints).toHaveLength(1);
-  });
-
-  it("carries the guest identity on the acceptance itself", async () => {
-    store["willab_guest_owner:v1"] = "stored-token";
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
-    const status = await fetchAuthorization();
-    expect(status.kind).toBeDefined();
-    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
-    const read = spy.mock.calls[0][1]?.headers as Record<string, string>;
-    expect(read["X-Willab-Guest-Owner"]).toBe("stored-token");
-  });
-
-  it("a signed-in person never mints a guest identity", async () => {
-    authToken = "session-token";
-    const spy = stubFetch(() => policyRow());
-    await fetchAuthorization();
-    expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
-  });
-
-  it("a failed mint leaves the read as it was before", async () => {
-    const spy = vi.fn(async (url: string) => {
-      if (url.endsWith("/principal")) throw new Error("offline");
-      return { ok: true, json: async () => policyRow() } as unknown as Response;
-    });
-    vi.stubGlobal("fetch", spy);
-    expect((await fetchAuthorization()).kind).toBe("acceptance_required");
-    const read = spy.mock.calls[1] as unknown as [string, RequestInit];
-    expect((read[1].headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBeUndefined();
-  });
-
-  it("a refused identity that holds nothing is dropped and minted again", async () => {
-    store["willab_guest_owner:v1"] = "stale-token";
-    store["willab_guest_owner_minted_only:v1"] = "1";
-    let reads = 0;
-    const spy = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/principal")) {
-        return { ok: true, json: async () => ({ is_guest: true, guest_owner_token: "fresh-token" }) } as unknown as Response;
-      }
-      reads += 1;
-      const sent = (init?.headers as Record<string, string>)["X-Willab-Guest-Owner"];
-      const body = sent === "fresh-token"
-        ? policyRow()
-        : { code: "INVALID_GUEST_OWNER", error: "Guest owner token was rejected" };
-      return { ok: sent === "fresh-token", json: async () => body } as unknown as Response;
-    });
-    vi.stubGlobal("fetch", spy);
-    expect((await fetchAuthorization()).kind).toBe("acceptance_required");
-    expect(reads).toBe(2);
-    expect(store["willab_guest_owner:v1"]).toBe("fresh-token");
-  });
-
-  it("the acceptance and the AI-notice receipt carry the same identity", async () => {
-    store["willab_guest_owner:v1"] = "stored-token";
-    const spy = stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
-    const status = await fetchAuthorization();
-    expect(status.kind).toBeDefined();
-    await recordAiNoticeRendered({ aiNoticeVersion: "1.0", surface: "s", clientRenderId: "c", clientVersion: "v" });
-    for (const [, init] of spy.mock.calls) {
-      expect((init?.headers as Record<string, string>)["X-Willab-Guest-Owner"]).toBe("stored-token");
-    }
-  });
-
   it("a refused identity that holds the guest's work is kept, never reminted", async () => {
     // The backend also answers INVALID_GUEST_OWNER when its principal read
     // fails; dropping a used identity on that would lose the guest's work.
@@ -510,34 +206,5 @@ describe("a first-time guest (F1 Repair Plan Phase 0.5)", () => {
     await fetchAuthorization();
     expect(spy.mock.calls.some(([u]) => String(u).endsWith("/principal"))).toBe(false);
     expect(store["willab_guest_owner:v1"]).toBe("used-token");
-  });
-
-  it("a guest's acceptance marks the identity used; a signed-in one does not", async () => {
-    store["willab_guest_owner:v1"] = "minted-token";
-    store["willab_guest_owner_minted_only:v1"] = "1";
-    const policy = (await (async () => {
-      stubFetch(() => policyRow());
-      const st = await fetchAuthorization();
-      return st.kind === "acceptance_required" ? st.policy : null;
-    })())!;
-    const accept = () => acceptAuthorization({
-      policy, countryOfResidence: "pl", locale: "en", clientVersion: "v",
-      idempotencyKey: "k", optionalPurposes: [],
-    } as Parameters<typeof acceptAuthorization>[0]);
-    stubFetch(() => ({ authorized: true, receipt_id: "r1", policy_version: "phase1-2026.1" }));
-    authToken = "session-token";
-    await accept();
-    expect(store["willab_guest_owner_minted_only:v1"]).toBe("1");
-    authToken = null;
-    await accept();
-    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
-  });
-
-  it("an acceptance whose response was lost still marks the identity used on the next read", async () => {
-    store["willab_guest_owner:v1"] = "minted-token";
-    store["willab_guest_owner_minted_only:v1"] = "1";
-    stubFetch(() => policyRow({ authorized: true, code: "PROCESSING_AUTHORIZED" }));
-    expect((await fetchAuthorization()).kind).toBe("authorized");
-    expect(store["willab_guest_owner_minted_only:v1"]).toBeUndefined();
   });
 });

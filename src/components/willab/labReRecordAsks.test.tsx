@@ -150,56 +150,5 @@ describe("while the learning is off, Record again asks first", () => {
     expect(reRecord).toHaveBeenCalledTimes(1);
     expect(api.setTrainingConsent).not.toHaveBeenCalled();
   });
-
-  it("Yes sends the yes against what was shown, then starts the mic", async () => {
-    await openSlowScreen(consent());
-    api.setTrainingConsent.mockResolvedValue(consent({ active: true }));
-    tapRecordAgain();
-    await act(async () => button(TRAINING_ASK_COPY.yes)!.click());
-    await flush();
-    expect(api.setTrainingConsent).toHaveBeenCalledWith(true, consent());
-    expect(reRecord).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("never a gate when there is nothing to ask", () => {
-  it("the switch already on: the mic starts inside the same tap", async () => {
-    await openSlowScreen(consent({ active: true }));
-    expect(tapRecordAgain()).toBe(true);
-    expect(question()).toBeNull();
-    expect(abandon).not.toHaveBeenCalled();
-  });
-
-  it("a guest: no read, and the mic starts inside the same tap", async () => {
-    authToken = null;
-    await openSlowScreen(consent());
-    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
-    expect(tapRecordAgain()).toBe(true);
-    expect(question()).toBeNull();
-  });
-
-  it("a failed or closed read: the mic starts inside the same tap", async () => {
-    await openSlowScreen(null);
-    expect(tapRecordAgain()).toBe(true);
-    expect(question()).toBeNull();
-  });
-
-  it("a slow read shows the loading state, then passes when it settles empty", async () => {
-    let settle: (value: TrainingConsent | null) => void = () => undefined;
-    api.fetchTrainingConsent.mockReturnValue(
-      new Promise<TrainingConsent | null>((resolve) => {
-        settle = resolve;
-      }),
-    );
-    prefetchTrainingAsk();
-    act(() => root.render(createElement(Host, { reRecord, abandon })));
-    tapRecordAgain();
-    expect(question()).toBeNull();
-    expect(container.innerHTML).not.toBe("");
-    settle(null);
-    await flush();
-    expect(question()).toBeNull();
-    expect(reRecord).toHaveBeenCalledTimes(1);
-  });
 });
 

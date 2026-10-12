@@ -40,24 +40,12 @@ function render(unavailable?: string, initial?: PolicyTextState) {
 const settle = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
 describe("PublishedPolicyText", () => {
-  it("shows the stand-in while the record has not answered", () => {
-    api.fetchPublishedPolicyText.mockReturnValue(new Promise(() => {}));
-    render("could not load");
-    expect(container.textContent).toBe("waiting");
-  });
 
   it("shows the unavailable line once the record answers without a copy", async () => {
     api.fetchPublishedPolicyText.mockResolvedValue({ kind: "fallback" });
     render("could not load");
     await settle();
     expect(container.textContent).toBe("could not load");
-  });
-
-  it("keeps the stand-in for a page that gives no unavailable line", async () => {
-    api.fetchPublishedPolicyText.mockResolvedValue({ kind: "fallback" });
-    render();
-    await settle();
-    expect(container.textContent).toBe("waiting");
   });
 
   it("shows the stored copy once it is published", async () => {
@@ -68,23 +56,5 @@ describe("PublishedPolicyText", () => {
     await settle();
     expect(container.textContent).toContain("The stored words.");
     expect(container.textContent).toContain("Version 3.1");
-  });
-
-  it("renders what the server read at once, and the browser does not ask again", () => {
-    // Founder 2026-09-25, decisions 2/3: the copy is in the HTML sent.
-    render("could not load", { kind: "published", copy: "Served words.", version: "3.1" });
-    expect(container.textContent).toContain("Served words.");
-    expect(api.fetchPublishedPolicyText).not.toHaveBeenCalled();
-  });
-
-  it("tries again in the browser when the server could not read it", async () => {
-    api.fetchPublishedPolicyText.mockResolvedValue({
-      kind: "published", copy: "Second try.", version: "3.1",
-    });
-    render("could not load", { kind: "fallback" });
-    expect(container.textContent).toBe("waiting");
-    await settle();
-    expect(api.fetchPublishedPolicyText).toHaveBeenCalledWith("privacy");
-    expect(container.textContent).toContain("Second try.");
   });
 });

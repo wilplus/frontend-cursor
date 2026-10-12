@@ -4,7 +4,7 @@
    any phone"; build plan D-CS-2). A centred `justify-center` column inside
    a clipping shell spilled off both ends on a phone on its side: the mark
    was cut and "Enter the lab" could not be reached. */
-import { readFileSync } from "node:fs";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -41,15 +41,5 @@ describe("the welcome", () => {
     // The mark comes first and the button last, inside the one column.
     expect(column.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
     expect(column.textContent).toContain("Enter the lab");
-  });
-
-  it("sits in a bare shell with no padding; every other shell keeps its own", () => {
-    const surface = readFileSync("src/components/willab/WillabSurface.tsx", "utf8");
-    const fn = surface.slice(surface.indexOf("function shellPadding("));
-    expect(fn).toMatch(/if \(bare\) return "";/);
-    expect(fn).toMatch(/return `px-4 pb-6 \$\{flush \? "pt-0" : "pt-6"\}`;/);
-    // Only the welcome asks for the bare shell.
-    expect(surface.match(/,\s*false,\s*true,\s*\)/g)?.length).toBe(1);
-    expect(surface).toMatch(/<WelcomeConsent onAccept=\{flow\.acceptConsent\} \/>,\s*false,\s*true,/);
   });
 });

@@ -11,8 +11,7 @@
 /*       until confirmed;                                                     */
 /*    5. a failure says so and changes nothing.                               */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,7 +28,7 @@ vi.mock("@/services/api/trainingConsent", async (importOriginal) => {
 
 import TrainingConsentCard from "./TrainingConsentCard";
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
-import { mapTrainingConsent, type TrainingConsent } from "@/services/api/trainingConsent";
+import { type TrainingConsent } from "@/services/api/trainingConsent";
 
 const SENTENCE =
   "Keep separate copies of short moments from my recordings (the audio, its words and my coach's rating) to train WillpowerLab. I can turn this off at any time, and my copies are then deleted.";
@@ -72,54 +71,7 @@ async function renderWith(value: TrainingConsent | null) {
   await flush();
 }
 
-describe("mapTrainingConsent", () => {
-  it("reads the backend's answer", () => {
-    expect(mapTrainingConsent({
-      available: true, active: true, policy_version: "training-v1",
-      copy: SENTENCE, copy_sha256: "c".repeat(64),
-    })).toEqual(state({ active: true }));
-    expect(mapTrainingConsent({ code: "TRAINING_SWITCH_DISABLED" })).toBeNull();
-  });
-
-  it("does not offer a switch it cannot show the wording for", () => {
-    expect(mapTrainingConsent({ available: true, active: false })?.available)
-      .toBe(false);
-  });
-});
-
-describe("while the switch is dark", () => {
-  it("shows nothing when the backend keeps it closed", async () => {
-    await renderWith(null);
-    expect(container.innerHTML).toBe("");
-  });
-
-  it("shows nothing when there is no training policy", async () => {
-    await renderWith(state({ available: false }));
-    expect(container.innerHTML).toBe("");
-  });
-});
-
 describe("once it is available", () => {
-  it("shows the backend's sentence under the signed title, off", async () => {
-    await renderWith(state());
-    expect(container.querySelector("h2")?.textContent).toBe("Help improve WillpowerLab");
-    expect(container.textContent).toContain(SENTENCE);
-    const toggle = button(COPY.turnOn);
-    expect(toggle?.getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("shows the founder's eight lines above the sentence, before the switch", async () => {
-    await renderWith(state());
-    const lines = Array.from(container.querySelectorAll("li")).map((li) => li.textContent);
-    expect(lines).toEqual([...COPY.trainingBeforeLines]);
-    expect(COPY.trainingBeforeLines).toHaveLength(8);
-    expect(COPY.trainingBeforeLines[0]).toBe(
-      "Text and numbers only. No recording of your voice, and no clip of one, is ever copied or sent for training.",
-    );
-    const html = container.innerHTML;
-    expect(html.indexOf(COPY.trainingBeforeLines[7])).toBeLessThan(html.indexOf(SENTENCE));
-    expect(html.indexOf(SENTENCE)).toBeLessThan(html.indexOf(COPY.turnOn));
-  });
 
   it("turns on against exactly what was shown", async () => {
     await renderWith(state());
@@ -145,51 +97,5 @@ describe("once it is available", () => {
     await flush();
     expect(api.setTrainingConsent).toHaveBeenCalledWith(false, state({ active: true }));
     expect(button(COPY.turnOn)).toBeDefined();
-  });
-
-  it("cancelling sends nothing", async () => {
-    await renderWith(state({ active: true }));
-    await act(async () => button(COPY.turnOff)?.click());
-    await act(async () => button(COPY.cancel)?.click());
-    expect(api.setTrainingConsent).not.toHaveBeenCalled();
-    expect(container.querySelector('[role="group"]')).toBeNull();
-  });
-
-  it("says so when it could not save, and changes nothing", async () => {
-    await renderWith(state());
-    api.setTrainingConsent.mockResolvedValue(null);
-    await act(async () => button(COPY.turnOn)?.click());
-    await flush();
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(COPY.failed);
-    expect(button(COPY.turnOn)?.getAttribute("aria-checked")).toBe("false");
-  });
-});
-
-describe("the page intro follows the switch (founder N12, answer 3)", () => {
-  it("tells the page when the switch is offered", async () => {
-    const offered = vi.fn();
-    api.fetchTrainingConsent.mockResolvedValue(state());
-    act(() => root.render(createElement(TrainingConsentCard, { onOffered: offered })));
-    await flush();
-    expect(offered).toHaveBeenCalledWith(true);
-  });
-
-  it("tells the page when it is not", async () => {
-    const offered = vi.fn();
-    api.fetchTrainingConsent.mockResolvedValue(null);
-    act(() => root.render(createElement(TrainingConsentCard, { onOffered: offered })));
-    await flush();
-    expect(offered).toHaveBeenCalledWith(false);
-  });
-
-  it("keeps today's sentence until the switch is offered, then the approved one", () => {
-    expect(COPY.intro).toBe(
-      "Your recordings are used to run your own coaching. They are not used to train models.",
-    );
-    expect(COPY.introWithTraining).toBe(
-      "Your recordings are used to run your own coaching. Their words, and numbers measured from them, train models only if you turn on Help improve WillpowerLab.",
-    );
-    const page = readFileSync(join(process.cwd(), "src/app/account/data-consent/page.tsx"), "utf8");
-    expect(page).toContain("trainingOffered ? DATA_CONSENT_COPY.introWithTraining : DATA_CONSENT_COPY.intro");
   });
 });

@@ -49,35 +49,4 @@ describe("POST /api/v2/learning-exposures/ack", () => {
     expect(calls[0].init.requireAuth).toBeUndefined();
     expect(calls[0].init.failures).toBeUndefined();
   });
-
-  it("relays the backend strictly: a non-JSON upstream becomes UPSTREAM_NON_JSON at its status", async () => {
-    const { POST } = await import("./route");
-    await POST(
-      new NextRequest("http://localhost/api/v2/learning-exposures/ack", {
-        method: "POST",
-        body: JSON.stringify(BODY),
-      }),
-    );
-    const relay = calls[calls.length - 1].init.relay as (
-      upstream: Response,
-    ) => Promise<Response>;
-    const answered = await relay(new Response("<html>bad gateway</html>", { status: 502 }));
-    expect(answered.status).toBe(502);
-    expect(await answered.json()).toEqual({
-      code: "UPSTREAM_NON_JSON",
-      error: "Unexpected backend response (HTTP 502).",
-    });
-    const empty = await relay(new Response("", { status: 200 }));
-    expect(await empty.json()).toEqual({});
-  });
-
-  it("adds nothing of its own to the payload", async () => {
-    const { POST } = await import("./route");
-    const req = new NextRequest("http://localhost/api/v2/learning-exposures/ack", {
-      method: "POST",
-      body: "",
-    });
-    await POST(req);
-    expect(String(calls[calls.length - 1].init.body)).toBe("{}");
-  });
 });

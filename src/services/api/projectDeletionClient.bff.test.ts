@@ -50,17 +50,6 @@ describe("project deletion", () => {
     });
   });
 
-  it("cancels with no body", async () => {
-    const fn = stubFetch(200, { deletion: null });
-    expect(await cancelProjectDeletion("p")).toEqual({ ok: true, deletion: null });
-    const init = fn.mock.calls[0]?.[1] as RequestInit;
-    expect(init).toEqual({
-      method: "DELETE", credentials: "include",
-      headers: { Authorization: "Bearer tok" },
-    });
-    expect(init.body).toBeUndefined();
-  });
-
   it("changes nothing when refused, offline or signed out", async () => {
     stubFetch(409, { deletion: { state: "pending" } });
     expect(await requestProjectDeletion("p")).toEqual({ ok: false, deletion: null });

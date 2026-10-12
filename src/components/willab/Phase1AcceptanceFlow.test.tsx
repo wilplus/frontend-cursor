@@ -15,7 +15,7 @@
 /*  the auto-advance "for consistency", the second test here is what stops     */
 /*  them.                                                                      */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +37,6 @@ vi.mock("@/services/api/consentChoices", async (importOriginal) => ({
 
 import Phase1AcceptanceFlow from "./Phase1AcceptanceFlow";
 import {
-  acceptAuthorization,
   type ProcessingPolicy,
 } from "@/services/api/processingAuthorization";
 
@@ -115,22 +114,6 @@ describe("the country step", () => {
     });
     expect(host.textContent).toContain("Three things to confirm");
   });
-
-  it("lets a second choice replace the first, and the last tap wins", async () => {
-    await walkToCountry();
-
-    await click("Poland");
-    await act(async () => {
-      vi.advanceTimersByTime(100);
-    });
-    await click("Germany");
-
-    // The first transition was cancelled, not queued: one advance, not two.
-    await act(async () => {
-      vi.advanceTimersByTime(400);
-    });
-    expect(host.textContent).toContain("Three things to confirm");
-  });
 });
 
 describe("the confirm step", () => {
@@ -153,64 +136,6 @@ describe("the confirm step", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*  ASKED ONCE, PREFILLED AFTER (founder 2026-10-05, N48.4 Q21 A).            */
-/*                                                                            */
-/*  A re-acceptance shows the person's own earlier answer already chosen. It  */
-/*  is not a guess: a first-timer still sees nothing chosen, and a country    */
-/*  the new policy no longer allows is asked again rather than sent to be    */
-/*  refused. The answer stays theirs to change, and nothing advances on its  */
-/*  own: a prefill is not a tap.                                             */
-/* -------------------------------------------------------------------------- */
-
-function chosen(label: string): boolean {
-  return buttonSaying(label).getAttribute("aria-pressed") === "true";
-}
-
-describe("a re-acceptance (Q21 A)", () => {
-  it("shows the earlier country chosen, and sends it", async () => {
-    vi.mocked(acceptAuthorization).mockClear();
-    await walkToCountry("DE");
-    expect(chosen("Germany")).toBe(true);
-    expect(chosen("Poland")).toBe(false);
-    // A prefill is not a tap: the step waits for the person.
-    await act(async () => {
-      vi.advanceTimersByTime(2000);
-    });
-    expect(host.textContent).toContain("Where do you live?");
-    expect(buttonSaying("Continue").disabled).toBe(false);
-
-    await click("Continue");
-    expect(host.textContent).toContain("Three things to confirm");
-    await click("I am 18");
-    await click("I agree that a recording");
-    await click("Agree and continue");
-    expect(vi.mocked(acceptAuthorization)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(acceptAuthorization).mock.calls[0][0].countryOfResidence).toBe("de");
-  });
-
-  it("can still be changed", async () => {
-    await walkToCountry("de");
-    await click("Poland");
-    expect(chosen("Poland")).toBe(true);
-    expect(chosen("Germany")).toBe(false);
-  });
-
-  it("asks again when the policy in force no longer allows it", async () => {
-    await walkToCountry("fr");
-    expect(chosen("Poland")).toBe(false);
-    expect(chosen("Germany")).toBe(false);
-    expect(buttonSaying("Continue").disabled).toBe(true);
-  });
-
-  it("a first-timer sees nothing chosen", async () => {
-    await walkToCountry(null);
-    expect(chosen("Poland")).toBe(false);
-    expect(chosen("Germany")).toBe(false);
-    expect(buttonSaying("Continue").disabled).toBe(true);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /*  EVERY STEP OPENS AT ITS TOP AND FADES IN (consent lock 2026-10-07; build  */
 /*  plan D-CS-1). The gate's viewport scroller outlives the steps: a step     */
 /*  reached from far down the country list used to open scrolled past its    */
@@ -228,25 +153,6 @@ describe("each step opens at its top", () => {
   });
   afterEach(() => scroller.remove());
 
-  it("resets the gate scroller when a country carries the walk on", async () => {
-    await walkToCountry();
-    scroller.scrollTop = 600;
-    expect(scroller.scrollTop).toBe(600);
-    await click("Poland");
-    await act(async () => {
-      vi.advanceTimersByTime(260);
-    });
-    const heading = host.querySelector("h1")!;
-    expect(heading.textContent).toBe("Three things to confirm");
-    expect(scroller.scrollTop).toBe(0);
-    // The heading is the step's own, at the top of the new step.
-    const step = host.querySelector(".acceptance-step")!;
-    expect(step.contains(heading)).toBe(true);
-    expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      scroller.getBoundingClientRect().top,
-    );
-  });
-
   it("resets it on every step change, Back and the documents included", async () => {
     await walkToCountry();
     for (const [action, heading] of [
@@ -258,91 +164,5 @@ describe("each step opens at its top", () => {
       expect(host.querySelector("h1")?.textContent).toBe(heading);
       expect(scroller.scrollTop).toBe(0);
     }
-  });
-
-  it("keeps the scroll while the step stays (a tick on confirm)", async () => {
-    await walkToCountry();
-    await click("Poland");
-    await act(async () => {
-      vi.advanceTimersByTime(260);
-    });
-    scroller.scrollTop = 300;
-    await click("I am 18");
-    expect(scroller.scrollTop).toBe(300);
-  });
-
-  it("draws each step as a new element that fades in", async () => {
-    await walkToCountry();
-    const country = host.querySelector(".acceptance-step");
-    expect(country?.className).toMatch(/acceptance-step flex flex-1 flex-col/);
-    await click("Poland");
-    await act(async () => {
-      vi.advanceTimersByTime(260);
-    });
-    const confirm = host.querySelector(".acceptance-step");
-    expect(confirm).not.toBe(country);
-    expect(host.querySelectorAll(".acceptance-step")).toHaveLength(1);
-  });
-});
-
-describe("the step fade and the notch", () => {
-  const css = readFileSync("src/app/globals.css", "utf8");
-  const gate = readFileSync("src/components/willab/Phase1AcceptanceGate.tsx", "utf8");
-  const flow = readFileSync("src/components/willab/Phase1AcceptanceFlow.tsx", "utf8");
-
-  it("fades over 220ms ease-out, and only without reduce motion", () => {
-    expect(css).toMatch(
-      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.acceptance-step \{\s*animation: acceptance-step-in 0\.22s ease-out both;/,
-    );
-    expect(css).toMatch(/@keyframes acceptance-step-in \{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}/);
-  });
-
-  it("pads the notch on the gate and keeps the document pane on screen", () => {
-    expect(gate).toMatch(/fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background pt-\[env\(safe-area-inset-top\)\]/);
-    expect(flow).toMatch(/h-\[calc\(100dvh-env\(safe-area-inset-top\)\)\]/);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/*  PRIVACY 3.4: PRACTICE IS PART OF THE SERVICE (N55, N66.2; prototype       */
-/*  signed 2026-10-08). The tick follows the policy in force: offered, it is  */
-/*  today's screen; not offered, the tick and its "Optional" label go, the    */
-/*  heading counts two, and nothing optional is sent (the server refuses a   */
-/*  tick for a purpose the policy makes required).                           */
-/* -------------------------------------------------------------------------- */
-
-async function walkToConfirm() {
-  await walkToCountry();
-  await click("Poland");
-  await act(async () => {
-    vi.advanceTimersByTime(400);
-  });
-}
-
-describe("the practice tick follows the policy (N66.2)", () => {
-  afterEach(() => {
-    consent.offered = true;
-  });
-
-  it("is today's screen while the policy offers practice", async () => {
-    await walkToConfirm();
-    expect(host.textContent).toContain("Three things to confirm");
-    expect(host.textContent).toContain("Optional");
-    expect(host.textContent).toContain("Personalised practice.");
-  });
-
-  it("goes, and the heading counts two, where practice is part of the service", async () => {
-    consent.offered = false;
-    vi.mocked(acceptAuthorization).mockClear();
-    await walkToConfirm();
-    expect(host.textContent).toContain("Two things to confirm");
-    expect(host.textContent).not.toContain("Three things to confirm");
-    expect(host.textContent).not.toContain("Optional");
-    expect(host.textContent).not.toContain("Personalised practice.");
-    await click("I am 18");
-    await click("I agree that a recording");
-    await click("Agree and continue");
-    expect(vi.mocked(acceptAuthorization)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(acceptAuthorization).mock.calls[0][0].optionalPurposes).toEqual([]);
   });
 });

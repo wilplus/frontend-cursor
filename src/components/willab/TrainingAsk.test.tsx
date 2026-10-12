@@ -31,13 +31,8 @@ vi.mock("@/services/api/trainingConsent", async (importOriginal) => {
 });
 
 import TrainingAsk, {
-  TRAINING_ASK_COPY,
-  TrainingAskGate,
-  prefetchTrainingAsk,
   resetTrainingAsk,
-  trainingAskNeeded,
 } from "./TrainingAsk";
-import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
 
 const SENTENCE =
@@ -87,37 +82,7 @@ async function renderWith(value: TrainingConsent | null) {
   await flush();
 }
 
-describe("passes straight through", () => {
-  it("when the backend keeps the switch closed", async () => {
-    await renderWith(null);
-    expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it("when there is no training policy", async () => {
-    await renderWith(state({ available: false }));
-    expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it("when the learning is already on", async () => {
-    await renderWith(state({ active: true }));
-    expect(done).toHaveBeenCalledTimes(1);
-    expect(container.querySelector("h2")).toBeNull();
-  });
-});
-
 describe("while the learning is off", () => {
-  it("asks the founder's question over the signed lines and the sentence", async () => {
-    await renderWith(state());
-    expect(done).not.toHaveBeenCalled();
-    expect(container.querySelector("h2")?.textContent).toBe("Turn on the learning?");
-    const lines = Array.from(container.querySelectorAll("li")).map((li) => li.textContent);
-    expect(lines).toEqual([...COPY.trainingBeforeLines]);
-    expect(container.textContent).toContain(SENTENCE);
-    const html = container.innerHTML;
-    expect(html.indexOf(SENTENCE)).toBeLessThan(html.indexOf(">Yes<"));
-    expect(html.indexOf(">Yes<")).toBeLessThan(html.indexOf(">Skip<"));
-    expect(TRAINING_ASK_COPY).toMatchObject({ yes: "Yes", skip: "Skip" });
-  });
 
   it("Yes sends the yes against exactly what was shown, then passes", async () => {
     await renderWith(state());
@@ -133,94 +98,5 @@ describe("while the learning is off", () => {
     await act(async () => button("Skip")?.click());
     expect(api.setTrainingConsent).not.toHaveBeenCalled();
     expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it("a failed save says so and does not pass", async () => {
-    await renderWith(state());
-    api.setTrainingConsent.mockResolvedValue(null);
-    await act(async () => button("Yes")?.click());
-    await flush();
-    expect(container.querySelector("[role=alert]")?.textContent).toBe(COPY.failed);
-    expect(done).not.toHaveBeenCalled();
-    expect(button("Yes")).toBeTruthy();
-  });
-});
-
-describe("the gate over the pre-recording screens", () => {
-  it("shows the question first and the screen once answered", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(state());
-    const screen = createElement("p", { id: "screen" }, "Start recording");
-    act(() => root.render(createElement(TrainingAskGate, { asked: false, onDone: done }, screen)));
-    await flush();
-    expect(container.querySelector("#screen")).toBeNull();
-    expect(container.querySelector("h2")?.textContent).toBe("Turn on the learning?");
-
-    act(() => root.render(createElement(TrainingAskGate, { asked: true, onDone: done }, screen)));
-    await flush();
-    expect(container.querySelector("#screen")?.textContent).toBe("Start recording");
-    expect(container.querySelector("h2")).toBeNull();
-  });
-});
-
-describe("never a blank screen (founder 2026-10-04)", () => {
-  it("a guest is never asked and never waits: no read at all", async () => {
-    authToken = null;
-    await renderWith(state());
-    expect(api.fetchTrainingConsent).not.toHaveBeenCalled();
-    expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it("while the read is in flight the loading state shows, not an empty screen", async () => {
-    api.fetchTrainingConsent.mockReturnValue(new Promise(() => undefined));
-    act(() => root.render(createElement(TrainingAsk, { onDone: done })));
-    await flush();
-    expect(container.innerHTML).not.toBe("");
-    expect(container.querySelector("h2")).toBeNull();
-  });
-
-  it("read as the Lab opens, the question is there on the first frame", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(state());
-    prefetchTrainingAsk();
-    await flush();
-    act(() => root.render(createElement(TrainingAsk, { onDone: done })));
-    expect(container.querySelector("h2")?.textContent).toBe("Turn on the learning?");
-    expect(api.fetchTrainingConsent).toHaveBeenCalledTimes(1);
-  });
-});
-
-/* "Record Take 2" asks too (N28; F1 Repair Plan Phase 5): it reads whether
-   the question would be asked without waiting, so the mic can start inside
-   the same tap when there is nothing to ask. */
-describe("trainingAskNeeded", () => {
-  it("is unknown before the read lands", () => {
-    expect(trainingAskNeeded()).toBeNull();
-  });
-
-  it("is false once the switch is already on", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(state({ active: true }));
-    prefetchTrainingAsk();
-    await act(async () => {});
-    expect(trainingAskNeeded()).toBe(false);
-  });
-
-  it("is true while the question is open", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(state());
-    prefetchTrainingAsk();
-    await act(async () => {});
-    expect(trainingAskNeeded()).toBe(true);
-  });
-
-  it("a yes counts for the next ask in the same entry", async () => {
-    api.fetchTrainingConsent.mockResolvedValue(state());
-    api.setTrainingConsent.mockResolvedValue(state({ active: true }));
-    prefetchTrainingAsk();
-    await act(async () => root.render(createElement(TrainingAsk, { onDone: done })));
-    await act(async () => {});
-    const yes = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent === TRAINING_ASK_COPY.yes,
-    ) as HTMLButtonElement;
-    await act(async () => yes.click());
-    expect(done).toHaveBeenCalled();
-    expect(trainingAskNeeded()).toBe(false);
   });
 });

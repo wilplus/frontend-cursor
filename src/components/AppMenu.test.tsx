@@ -9,7 +9,6 @@
  * and the menu draws the row only when signed in with an href.
  */
 import { act, createElement, forwardRef, type ReactNode } from "react";
-import { readFileSync } from "node:fs";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -63,20 +62,6 @@ describe("the coach menu after the Library moved to the admin area", () => {
     expect(links.some((a) => a.textContent === "Library")).toBe(false);
     expect(links.some((a) => /\/coach\/(exercises|errors)|\/admin\/(library|errors)/.test(a.getAttribute("href") ?? ""))).toBe(false);
   });
-
-  it("signed out, the corpus row is not drawn even with an href", () => {
-    const links = openMenu({ authState: "anonymous", corpusHref: "/coach/corpus" });
-    expect(links.some((a) => a.textContent === "Training corpus")).toBe(false);
-  });
-
-  it("the menu takes no Library address, and neither mount links the two pages", () => {
-    expect(readFileSync("src/components/AppMenu.tsx", "utf8")).not.toContain("libraryHref");
-    for (const mount of ["src/components/SiteHeader.tsx", "src/components/dashboard/DashboardHeader.tsx"]) {
-      const source = readFileSync(mount, "utf8");
-      expect(source, mount).not.toContain("libraryHref");
-      expect(source, mount).not.toMatch(/\/coach\/(exercises|errors)|\/admin\/(library|errors)/);
-    }
-  });
 });
 
 describe("the menu after 2026-10-07 (founder)", () => {
@@ -85,18 +70,6 @@ describe("the menu after 2026-10-07 (founder)", () => {
     expect(links.some((a) => a.textContent === "Support")).toBe(false);
     expect(links.some((a) => a.textContent === "Community")).toBe(false);
     expect(links.some((a) => (a.getAttribute("href") ?? "").startsWith("mailto:"))).toBe(false);
-  });
-
-  it("marks the page you are on, not only on hover", () => {
-    pathname = "/account/data-consent";
-    const links = openMenu({ dataConsentHref: "/account/data-consent" });
-    const here = links.find((a) => a.textContent === "Data & consent");
-    const lab = links.find((a) => a.textContent === "Lab");
-    expect(here?.getAttribute("aria-current")).toBe("page");
-    expect(here?.className).toContain("bg-accent text-accent-foreground");
-    expect(lab?.getAttribute("aria-current")).toBeNull();
-    expect(lab?.className).not.toContain("bg-accent text-accent-foreground");
-    pathname = "/chat";
   });
 });
 

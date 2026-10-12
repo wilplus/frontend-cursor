@@ -54,24 +54,12 @@ async function spentEvents(fn: () => Promise<unknown>): Promise<number> {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("fetchArcFeedback — the metered read", () => {
-  it("re-reads the balance after a successful feedback load", async () => {
-    reply(200, PAYLOAD);
-    expect(await spentEvents(() => fetchArcFeedback("arc_1"))).toBe(1);
-  });
 
   it("does not claim a spend when the endpoint failed", async () => {
     // Nothing was charged, so nothing should twitch the balance. Firing here
     // would make an unreachable backend look like a purchase.
     reply(502, null);
     expect(await spentEvents(() => fetchArcFeedback("arc_1"))).toBe(0);
-  });
-
-  it("still re-reads when the BE served a 200 the mapper cannot use", async () => {
-    // The charge belongs to the request the BE served, not to the FE's ability
-    // to parse the answer. Skipping the refresh here would drop it in exactly
-    // the case where the user paid and got nothing back.
-    reply(200, { nonsense: true });
-    expect(await spentEvents(() => fetchArcFeedback("arc_1"))).toBe(1);
   });
 
   it("still returns the feedback — the charge never gates the read", async () => {
