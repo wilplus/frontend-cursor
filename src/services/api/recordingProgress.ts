@@ -1,8 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*  recordingProgress — progress toward the first audit (C-2 / S2)            */
 /*                                                                            */
-/*  GET /api/v2/user/recording-progress → { recorded_seconds, threshold_seconds,*/
-/*  unlocked }. The cumulative seconds the user has recorded across all their    */
+/*  { recorded_seconds, threshold_seconds, unlocked }, read from the upload      */
+/*  response. The cumulative seconds the user has recorded across all their     */
 /*  sessions vs the 600s (10 min) threshold that unlocks their first audit.      */
 /*                                                                            */
 /*  The FE NEVER sums snippet durations for this — snippet windows are selected   */
