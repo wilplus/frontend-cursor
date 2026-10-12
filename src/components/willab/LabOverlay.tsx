@@ -61,7 +61,7 @@ import {
   resetTrainingAsk,
 } from "./TrainingAsk";
 import RecordingRoadmap, { type RecordingRoot } from "./RecordingRoadmap";
-import RecordingLearn from "./RecordingLearn";
+import FinishTakeButton from "./FinishTakeButton";
 import { ROOTS_WAIT_CAP_MS, useRecordingRoots } from "./useRecordingRoots";
 import { continuedTakeDeck, deckOf } from "@/lib/willab/labEntryHandover";
 import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
@@ -1198,7 +1198,7 @@ export default function LabOverlay({
     // be bounced into the waiting screen on the previous take's blob.
     cancelMic();
     dispatch("take_started");
-    void mic.start({ arm: arcTakeIndex <= 1 });
+    void mic.start();
   }
 
   /** Later takes skip the emotion check and reuse the project's stored setup.
@@ -1220,7 +1220,7 @@ export default function LabOverlay({
     startPendingRef.current = true;
     cancelMic();
     dispatch("take_started");
-    void mic.start({ arm: arcTakeIndex <= 1 });
+    void mic.start();
   }
 
   /** Throw away the take that is still going up, and land on the mic.
@@ -1305,7 +1305,7 @@ export default function LabOverlay({
     // resolves, which is the screen he was asking for.
     cancelMic();
     dispatch("take_started");
-    void mic.start({ arm: arcTakeIndex <= 1 });
+    void mic.start();
   }
 
   /** "Record Take 2" from the text: the learning question first (N28),
@@ -1338,7 +1338,7 @@ export default function LabOverlay({
     // Same stale-"stopped" hazard as onReRead — reset before entering.
     cancelMic();
     dispatch("take_started");
-    void mic.start({ arm: arcTakeIndex <= 1 });
+    void mic.start();
   }
 
   /** "Record again" from the slow-processing screen: the learning question
@@ -1397,7 +1397,7 @@ export default function LabOverlay({
               m" on the left, in place of the old "Recording" label (founder
               lock 2026-10-07, the recording screens: "Recording" crossed out,
               "Take · Slide" moved up into the top bar). Every other step —
-              the learning screen and "Getting your mic ready" included —
+              "Getting your mic ready" included —
               keeps the bare ✕. This bar is the still frame: a slide change
               rewrites the line's text and nothing else. */}
           <RecordingWhere
@@ -1496,10 +1496,8 @@ export default function LabOverlay({
                 }
                 lastWasUploadRef.current = false;
                 // The submit click IS the user gesture getUserMedia needs, so the
-                // mic opens right here. A later Take records at once; Take 1
-                // holds the open mic on the learning screen (founder lock
-                // 2026-10-07), where the speaker's own scroll begins the
-                // recording — the permission prompt still rides this tap.
+                // mic opens right here and every Take, Take 1 included,
+                // records at once (N70: the learning screen is deleted).
                 setExploreEnabled(explore);
                 setContext(ctx);
                 setRejectedMsg(null);
@@ -1515,7 +1513,7 @@ export default function LabOverlay({
                 // this entry and onReRecord did not.
                 cancelMic();
                 dispatch("take_started");
-                void mic.start({ arm: arcTakeIndex <= 1 });
+                void mic.start();
               }}
             />
           </TrainingAskGate>
@@ -1524,12 +1522,7 @@ export default function LabOverlay({
         {state === "lab_recording" && (
           <RecordingPhase
             micState={mic.state}
-            armed={mic.armed}
             micWaitShownByHost
-            // Take 1's learning screen: the speaker's start gesture begins
-            // the recording on the mic held open since the setup tap. The
-            // mic-state effect then pins t=0 and slide 0, as for any start.
-            onBegin={() => void mic.start()}
             elapsed={elapsed}
             targetSec={context?.target_length_seconds ?? null}
             rejectedMsg={rejectedMsg}
@@ -1747,9 +1740,7 @@ export default function LabOverlay({
  *  used to go unchecked. */
 export function RecordingPhase({
   micState,
-  armed = false,
   micWaitShownByHost = false,
-  onBegin,
   elapsed,
   targetSec,
   rejectedMsg,
@@ -1763,13 +1754,9 @@ export function RecordingPhase({
   onSlideChange,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
-  /** The mic is open and waiting (Take 1): show the learning screen. */
-  armed?: boolean;
   /** The host draws "Getting your mic ready" itself, as one element across
    *  the whole later-Take wait (LabOverlay); the /dev mirror leaves it here. */
   micWaitShownByHost?: boolean;
-  /** The learning screen's start gesture: begin the recording. */
-  onBegin?: () => void;
   elapsed: number;
   /** R5 — the target length from setup (seconds, may arrive as a string). The
    *  clock counts DOWN to it, then UP as a red negative overrun; null/invalid →
@@ -1791,9 +1778,6 @@ export function RecordingPhase({
   onSlideChange: (slideIndex: number) => void;
 }) {
   const retryFileRef = useRef<HTMLInputElement | null>(null);
-  /** The recording began from the learning screen: it lands as the second
-   *  half of that move rather than gliding in from "Getting your mic ready". */
-  const fromLearnRef = useRef(false);
   // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
   // setup context and let the user re-record without re-entering Setup. This
   // wins over the connecting/idle spinner (cancelMic left the mic idle). When
@@ -1844,22 +1828,9 @@ export function RecordingPhase({
   // R4-5 — with the Pre-record screen gone, RecordingPhase is what shows while
   // getUserMedia is still resolving (status "idle" after the Setup submit fired
   // mic.start()). Show a brief connecting state so it never reads "Recording"
-  // before the mic is actually live.
-  //
-  // TAKE 1 (founder lock 2026-10-07): once the mic is open and held (armed),
-  // the learning screen takes this place — no slide, no clock, no Finish
-  // take — and the speaker's own scroll, swipe or key is the start.
+  // before the mic is actually live. Every Take, Take 1 included, starts by
+  // itself once the mic is open (N70: the learning screen is deleted).
   if (micState.status === "idle") {
-    if (armed && onBegin) {
-      return (
-        <RecordingLearn
-          onStart={() => {
-            fromLearnRef.current = true;
-            onBegin();
-          }}
-        />
-      );
-    }
     if (micWaitShownByHost) return null;
     return <LoadingState placement="surface" label={RECORDING_COPY.micReady} labelVisible />;
   }
@@ -1909,7 +1880,7 @@ export function RecordingPhase({
   const hasDeck = slides.length > 0;
 
   /* THE RECORDING STRIP (respec §4) — ONE line: pulsing dot → clock →
-     progress → stop. It used to be a four-storey tower (the word
+     progress. Finish take left it for the last slide's button (N70). It used to be a four-storey tower (the word
      "Recording", a 40px clock, a bar, then an 80px button) that pushed the
      slide off the top of a phone. Everything in it still says exactly what
      it said before; it says it across instead of down.
@@ -1951,21 +1922,6 @@ export function RecordingPhase({
           }}
         />
       </div>
-      {/* BE-2/R6-FE5 — stop is always available; there is no minimum
-          recording time anywhere (the old 60s lock is gone). */}
-      <button
-        type="button"
-        onClick={onStop}
-        aria-label="Finish take"
-        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-record px-4 text-[13px] font-semibold text-record-foreground"
-      >
-        <span
-          data-testid="finish-square"
-          className="h-3 w-3 shrink-0 rounded-[2px] bg-current"
-          aria-hidden
-        />
-        Finish take
-      </button>
     </div>
   );
 
@@ -1974,42 +1930,31 @@ export function RecordingPhase({
     // who uploaded nothing presents the default deck), but a take with an
     // empty slide list must still be stoppable.
     return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end pb-[env(safe-area-inset-bottom)]">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end gap-2.5 pb-[env(safe-area-inset-bottom)]">
         {strip}
+        <FinishTakeButton onClick={onStop} className="h-12 w-full rounded-2xl text-[15px]" />
       </div>
     );
   }
 
-  /* THE COLUMN: the slide takes the room that is going spare and the recording
-     strip stays pinned above the home indicator. Slide selection belongs to
-     the one anchor scroller, not a second navigation dock.
+  /* THE COLUMN: the slide takes the room that is going spare; the strip and
+     the Back / Next slide pair stay pinned above the home indicator.
 
-     THE STILL FRAME (founder lock 2026-10-07): only the slide and its helper
-     words move. The strip below — and the top bar's "Take · Slide" line in
-     the overlay's header — keep their elements through a slide change; the
-     roadmap animates its own content and nothing else. No line above the
-     strip (the founder: "delete the line right above the recording
-     progress bar"). */
+     THE STILL FRAME (founder lock 2026-10-12, N70): only the slide and its
+     helper words move, sideways. The strip, the buttons and the top bar's
+     "Take · Slide" line keep their elements through a slide change. No line
+     above the strip. */
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-1 flex-col">
-      {/* The preview stays visible while one native scroller carries the
-          current slide's roots. Reaching its edge selects the adjacent slide
-          and timestamps the same timeline as the retired buttons. */}
       <RecordingRoadmap
         slides={slides}
         presentationRef={presentationRef}
         currentSlide={currentSlide}
         roots={roots}
         onSlideChange={onSlideChange}
-        entrance={fromLearnRef.current ? "learn" : "mic"}
+        strip={strip}
+        onFinish={onStop}
       />
-
-      <div
-        data-testid="recording-strip"
-        className="relative z-10 -mx-1 shrink-0 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]"
-      >
-        {strip}
-      </div>
     </div>
   );
 }
@@ -2058,7 +2003,7 @@ function enteringRecording(state: WillabState): boolean {
 
 /** "Getting your mic ready": before a later Take (once any training question
  *  is answered) and while the mic is still opening on the recording screen
- *  (not Take 1's learning screen, not a rejected take). Exported for tests. */
+ *  (not a rejected take). Exported for tests. */
 export function showsMicWait(
   state: WillabState,
   trainingAsked: boolean,
@@ -2073,8 +2018,7 @@ export function showsMicWait(
 /** The content column. The recording screen sits close under its "Take ·
  *  Slide" line (founder 2026-10-07: "the margin there is too big, at least
  *  half that") with its strip 20px off the bottom, as the prototype's
- *  `.band.rec`; every other step — the learning screen and both mic waits
- *  included — keeps the usual 24px top and 32px bottom. Exported for the
+ *  `.band.rec`; every other step — both mic waits included — keeps the usual 24px top and 32px bottom. Exported for the
  *  /dev/recording mirror and tests. */
 export function labColumnClass(
   state: WillabState,

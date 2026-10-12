@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 /*  THE RECORDING SCREEN                                                       */
 /*                                                                            */
 /*  A source scan, because this screen is difficult to open without a live mic.*/
-/*  The non-cosmetic invariant is that every scroll-selected slide still       */
+/*  The non-cosmetic invariant is that every button-selected slide still       */
 /*  reaches the overlay's canonical setter. Those changes are timestamped into */
 /*  the timeline the backend uses for word-to-slide bucketing.                 */
 /* -------------------------------------------------------------------------- */
@@ -27,6 +27,10 @@ const SLIDE_TAKE = readFileSync(
 const LIBRARY = readFileSync(
   "src/components/willab/LibraryOverlay.tsx",
   "utf8",
+);
+const FINISH = readFileSync(
+  "src/components/willab/FinishTakeButton.tsx",
+  "utf8"
 );
 const GESTURES = readFileSync(
   "src/components/willab/useRecordingGestures.ts",
@@ -51,8 +55,8 @@ describe("the recording screen", () => {
   });
 
   it("keeps live capture distinct from destructive error styling", () => {
-    expect(PHASE).toMatch(/bg-record/);
-    expect(PHASE).toMatch(/text-record-foreground/);
+    expect(FINISH).toMatch(/bg-record/);
+    expect(FINISH).toMatch(/text-record-foreground/);
     const strip = PHASE.slice(
       PHASE.indexOf("const strip"),
       PHASE.indexOf("if (!hasDeck)")
@@ -68,7 +72,7 @@ describe("the recording screen", () => {
   });
 
   it("draws no line above the strip (founder lock 2026-10-07)", () => {
-    const dock = PHASE.slice(PHASE.indexOf('data-testid="recording-strip"'));
+    const dock = ROADMAP.slice(ROADMAP.indexOf('data-testid="recording-strip"'));
     const cls = dock.slice(0, dock.indexOf("{strip}"));
     expect(cls).toMatch(/relative z-10 -mx-1 shrink-0 bg-background/);
     expect(cls).not.toMatch(/border-t|border-b|divide-/);
@@ -78,16 +82,8 @@ describe("the recording screen", () => {
     expect(ROADMAP).toMatch(/h-full overflow-y-auto overscroll-contain/);
     expect(ROADMAP).toMatch(/<SlideStage/);
     expect(ROADMAP).toMatch(/currentRoots\.map/);
-    expect(ROADMAP).toMatch(/aria-current=\{currentSlide === index/);
-    expect(ROADMAP).toMatch(/onClick=\{\(\) => goToSlide\(index\)\}/);
     expect(ROADMAP).toMatch(/useRecordingGestures\(/);
     expect(ROADMAP).not.toMatch(/max-h-\[26vh\]/);
-  });
-
-  it("has no separate slide-changing panel", () => {
-    expect(PHASE).not.toMatch(/Previous slide|Next slide|Last slide/);
-    expect(PHASE).not.toMatch(/ChevronLeft|ChevronRight/);
-    expect(PHASE).toMatch(/onSlideChange=\{onSlideChange\}/);
   });
 
   it("keeps the recording strip to one compact row", () => {
@@ -100,7 +96,6 @@ describe("the recording screen", () => {
       "animate-pulse",
       "tabular-nums",
       "flex-1 overflow-hidden",
-      "Finish take",
     ];
     let at = -1;
     for (const token of order) {
@@ -108,7 +103,7 @@ describe("the recording screen", () => {
       expect(next).toBeGreaterThan(at);
       at = next;
     }
-    expect(strip).toMatch(/h-10 shrink-0/);
+    expect(strip).not.toMatch(/Finish take/);
     expect(PHASE).not.toMatch(/h-20 w-20|text-\[40px\]/);
   });
 
@@ -119,13 +114,6 @@ describe("the recording screen", () => {
     );
     expect(strip).toMatch(/aria-hidden/);
     expect(strip).not.toMatch(/%<|toFixed|Math\.round/);
-  });
-
-  it("uses one right-rail marker per slide", () => {
-    expect(ROADMAP).toMatch(/aria-label="Presentation slide position"/);
-    expect(ROADMAP).toMatch(/Go to slide \$\{index \+ 1\} of/);
-    expect(ROADMAP).toMatch(/h-6 w-1\.5 rounded-full bg-foreground/);
-    expect(STAGE).not.toMatch(/w-6 bg-primary|\{idx \+ 1\} \/ \{total\}/);
   });
 
   it("scroll-selected slides still timestamp the recording", () => {
@@ -177,18 +165,19 @@ describe("the recording screen", () => {
     );
   });
 
-  it("moves only the slide and its helper words (founder lock 2026-10-07)", () => {
+  it("moves only the slide and its helper words (founder lock 2026-10-12)", () => {
     // The roadmap hands the gesture hook exactly two moving elements: the
-    // slide box and the helper words' scroller. The rail sits beside them,
-    // outside what moves; the strip and the top bar are not in this file.
+    // slide box and the helper words' scroller. The strip and the buttons
+    // sit below them, outside what moves.
     expect(ROADMAP).toMatch(
       /\[slideBoxRef\.current, scrollRef\.current\]\.filter/
     );
     expect(ROADMAP).not.toMatch(/snap-y|snap-proximity|clampingRef/);
     expect(ROADMAP).not.toMatch(/onTouchStart|onTouchMove|onKeyDown/);
-    // The helper words take the wheel first; the swap is flushed so the
-    // landing animates the new slide, not the old one.
-    expect(GESTURES).toMatch(/scroller\.scrollTop \+= deltaY/);
+    // Sideways, never on a wheel; the swap is flushed so the landing
+    // animates the new slide, not the old one.
+    expect(GESTURES).toMatch(/translateX\(/);
+    expect(GESTURES).not.toMatch(/"wheel"|translateY\(/);
     expect(GESTURES).toMatch(/flushSync\(swap\)/);
   });
 
@@ -220,20 +209,10 @@ describe("the recording screen", () => {
   });
 
   it("drops no hover grow on Finish take and draws the 12px stop square", () => {
-    const strip = PHASE.slice(
-      PHASE.indexOf("const strip"),
-      PHASE.indexOf("if (!hasDeck)")
-    );
-    expect(strip).not.toMatch(/hover:scale/);
-    expect(strip).toMatch(/h-3 w-3 shrink-0 rounded-\[2px\] bg-current/);
+    expect(FINISH).not.toMatch(/hover:scale/);
+    expect(FINISH).toMatch(/h-3 w-3 shrink-0 rounded-\[2px\] bg-current/);
   });
 
-  it("animates the slide dots in 0.2 s with no hover colour", () => {
-    const rail = ROADMAP.slice(ROADMAP.indexOf('aria-label="Presentation slide position"'));
-    const dots = rail.slice(0, rail.indexOf("</nav>"));
-    expect(dots.match(/transition-\[height\] duration-200/g)?.length).toBe(2);
-    expect(dots).not.toMatch(/hover:/);
-  });
 });
 
 describe("guest Project ownership at the processing boundary", () => {

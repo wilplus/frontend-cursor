@@ -23,7 +23,6 @@ import type { PresentationSlide } from "@/components/willab/presentation";
 /*    ?target=  the setup target in seconds (default 1500 = 25 min)            */
 /*    ?slide=   which slide to open on                                        */
 /*    ?take=    the Take shown in the top bar (default 2)                     */
-/*    ?learn=1  open on Take 1's learning screen (the mic held, not recording) */
 /*    ?mic=1    open on "Getting your mic ready", then the screen glides in    */
 /*                                                                            */
 /*  DEV ONLY. Production renders nothing.                                     */
@@ -51,10 +50,7 @@ export default function RecordingHarness() {
     target: 1500,
   });
   const [take, setTake] = useState(2);
-  const [mic, setMic] = useState<{ status: MicStatus; armed: boolean }>({
-    status: "recording",
-    armed: false,
-  });
+  const [mic, setMic] = useState<{ status: MicStatus }>({ status: "recording" });
   // AFTER mount, never during render: the query string does not exist on the
   // server, so reading it in the render pass makes the first client paint
   // disagree with the server's and React throws the whole tree away.
@@ -65,12 +61,10 @@ export default function RecordingHarness() {
       elapsed: Number(q.get("t") ?? 150),
       target: Number(q.get("target") ?? 1500),
     });
-    const learn = q.get("learn") === "1";
-    setTake(learn ? 1 : Number(q.get("take") ?? 2));
-    if (learn) setMic({ status: "idle", armed: true });
+    setTake(Number(q.get("take") ?? 2));
     if (q.get("mic") === "1") {
-      setMic({ status: "idle", armed: false });
-      window.setTimeout(() => setMic({ status: "recording", armed: false }), 1200);
+      setMic({ status: "idle" });
+      window.setTimeout(() => setMic({ status: "recording" }), 1200);
     }
   }, []);
   // LabOverlay holds pull-to-refresh off while it records; the mirror does
@@ -99,8 +93,6 @@ export default function RecordingHarness() {
               ? { status: "recording", partialText: "" }
               : { status: "idle" }
           }
-          armed={mic.armed}
-          onBegin={() => setMic({ status: "recording", armed: false })}
           elapsed={elapsed}
           targetSec={target}
           rejectedMsg={null}

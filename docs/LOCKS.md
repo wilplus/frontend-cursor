@@ -12,7 +12,7 @@ sections is in `docs/history/CLAUDE-2026-10-11.md`.
 | Ideal Text page, Feedback sheet, paragraph sheet, helper words, Presentation Mode, export | <https://claude.ai/artifact/AeRVS91VUAiJLCePB82s3d> | `FOUNDER-LOCK-helper-words-2026-09-30.md` |
 | The Feedback walk (praise, helper words, practise, judgements, sharing; overlay look and motion) | <https://claude.ai/artifact/C2CTBmU1bfSSDQgJUHTKkE> | `FOUNDER-LOCK-feedback-walk-2026-10-06.md` |
 | The coach panel (Lounge door, queue, blind Judge, diagnosis, cure, Summary, training corpus, admin Library and Errors) | <https://claude.ai/artifact/TEBvGMehRF6wXCvJTEYTUA> | `FOUNDER-LOCK-coach-panel-redesign-2026-10-06.md` |
-| The recording screens (learning screen, mic ready, recording screen, keys, motion) | <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h> (v7) | `FOUNDER-LOCK-recording-screens-2026-10-07.md` |
+| The recording screens (mic ready, recording screen with Back / Next slide, keys, sideways motion; re-locked 2026-10-12, N70) | <https://claude.ai/artifact/4zD6Tjw4MWjooqWq6z4FAL> (version 4); keys <https://claude.ai/artifact/LU1XgQyqY2nPSvDAmsRJFo> (version 2, N70.1); the 2026-10-07 scrolling design <https://claude.ai/artifact/9CFAAP2Ue7pvRdLvdesn9h> (v7) is history | `FOUNDER-LOCK-recording-screens-2026-10-07.md` |
 | The consent screens and Data & consent page | <https://claude.ai/artifact/TuMKSE2BH364ZQ1Eq4UMdd> (v2); settings <https://claude.ai/artifact/4jDJsvBAquMUgaGkJgHR76> | `FOUNDER-LOCK-consent-screens-2026-10-07.md` |
 
 Three rules that always hold on these screens: the coach's Judge screen stays
