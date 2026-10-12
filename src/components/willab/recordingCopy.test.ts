@@ -1,12 +1,11 @@
 /* -------------------------------------------------------------------------- */
 /*  THE RECORDING SCREENS' WORDS AND NUMBERS, PINNED (build plan D-RC-8;       */
-/*  recording lock 2026-10-07 §The words and §How it moves, N59).              */
+/*  recording lock 2026-10-07 §The words and §How it moves, N59; N70).         */
 /*                                                                            */
 /*  RECORDING_COPY holds the lock's words exactly as signed; recordingWhere   */
 /*  writes "Take N · Slide n of m" with the Take's and the slide's position   */
-/*  as the only numbers (AC-9). The gesture constants are the lock's: a       */
+/*  as the only numbers (AC-9). The motion constants are the lock's: a        */
 /*  change to any of them is a change to the locked motion, and this test     */
-/*  (and e2e/recording-screens.spec.mjs, which reads the same constants)      */
 /*  fails on it.                                                              */
 /* -------------------------------------------------------------------------- */
 import { describe, expect, it } from "vitest";
@@ -15,8 +14,9 @@ import { RECORDING_COPY, recordingWhere } from "./recordingCopy";
 describe("RECORDING_COPY", () => {
   it("holds the lock's words, word for word", () => {
     expect(RECORDING_COPY).toMatchObject({
-      scrollToStart: "Scroll down to start",
-      clickToStart: "Click down to start",
+      back: "Back",
+      nextSlide: "Next slide",
+      micReady: "Getting your mic ready",
     });
   });
 
@@ -26,12 +26,7 @@ describe("RECORDING_COPY", () => {
       expect(value, key).not.toMatch(/%|score|rank/i);
     }
     // Every key is one the lock names; a new word needs the founder first.
-    expect(Object.keys(RECORDING_COPY).sort()).toEqual(
-      expect.arrayContaining(["clickToStart", "scrollToStart"]),
-    );
-    for (const key of Object.keys(RECORDING_COPY)) {
-      expect(["scrollToStart", "clickToStart", "micReady"]).toContain(key);
-    }
+    expect(Object.keys(RECORDING_COPY).sort()).toEqual(["back", "micReady", "nextSlide"]);
   });
 });
 

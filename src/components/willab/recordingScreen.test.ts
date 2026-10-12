@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 /*  THE RECORDING SCREEN                                                       */
 /*                                                                            */
 /*  A source scan, because this screen is difficult to open without a live mic.*/
-/*  The non-cosmetic invariant is that every scroll-selected slide still       */
+/*  The non-cosmetic invariant is that every button-selected slide still       */
 /*  reaches the overlay's canonical setter. Those changes are timestamped into */
 /*  the timeline the backend uses for word-to-slide bucketing.                 */
 /* -------------------------------------------------------------------------- */

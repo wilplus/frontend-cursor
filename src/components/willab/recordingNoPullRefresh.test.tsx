@@ -52,6 +52,8 @@ function Harness() {
     currentSlide: current,
     roots: ROOTS,
     onSlideChange: setCurrent,
+    strip: null,
+    onFinish: () => undefined,
   });
 }
 
@@ -123,28 +125,12 @@ describe("the recording stage and the page's pull-to-refresh", () => {
     expect(slideSeen).toBe(0);
   });
 
-  it("still turns a big edge swipe into exactly one slide change", () => {
+  it("never changes the slide on a swipe (founder lock 2026-10-12, N70)", () => {
     const { scroller } = render();
     // No overflow: the scroller is at both edges, as on Take 1.
-    const moves = drag(scroller, 400, 200, 8);
-    expect(slideSeen).toBe(1);
+    const moves = drag(scroller, 400, 100, 8);
+    expect(slideSeen).toBe(0);
     expect(moves.every((m) => m.defaultPrevented)).toBe(true);
-    // Back up again: one slide back.
-    drag(host.querySelector('[aria-label^="Speaking anchors"]')!, 200, 400, 8);
-    expect(slideSeen).toBe(0);
-  });
-
-  it("changes nothing below the lock's 90px of travel (founder lock 2026-10-07)", () => {
-    const { scroller } = render();
-    // 60px moved a slide under the old 48px rule; now it springs back.
-    const moves = drag(scroller, 400, 340);
-    expect(slideSeen).toBe(0);
-    // Still never a page pull while it follows the finger.
-    expect(moves.every((m) => m.defaultPrevented)).toBe(true);
-    drag(host.querySelector('[aria-label^="Speaking anchors"]')!, 400, 311);
-    expect(slideSeen).toBe(0);
-    drag(host.querySelector('[aria-label^="Speaking anchors"]')!, 400, 310);
-    expect(slideSeen).toBe(1);
   });
 
   it("starts no page pull from the top bar or the strip either", () => {
@@ -158,17 +144,6 @@ describe("the recording stage and the page's pull-to-refresh", () => {
     outside.remove();
   });
 
-  it("keeps the rail dots' taps", () => {
-    render();
-    const dot = host.querySelector<HTMLButtonElement>(
-      'button[aria-label="Go to slide 3 of 3"]',
-    )!;
-    touch("touchstart", dot, 300);
-    expect(touch("touchmove", dot, 302).defaultPrevented).toBe(true);
-    touch("touchend", dot, 302);
-    act(() => dot.click());
-    expect(slideSeen).toBe(2);
-  });
 });
 
 /* "Getting your mic ready" before a later Take (build plan D-RC-3): the

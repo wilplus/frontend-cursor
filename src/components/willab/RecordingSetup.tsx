@@ -25,8 +25,8 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
 /*                                                                            */
-/*  Replaces the single SessionContextForm. Five steps: topic (required),      */
-/*  audience, length, slides, and a strategic-context note. Only topic gates    */
+/*  Replaces the single SessionContextForm. Three visible steps: topic          */
+/*  (required), length and slides. Only topic gates                             */
 /*  advancing; everything else is optional. The final "Start recording" tap IS  */
 /*  the user gesture getUserMedia needs, so it must call onSubmit synchronously  */
 /*  (the parent starts the mic in the same click) — no async work sits between   */
@@ -45,19 +45,6 @@ const LENGTH_PRESETS = [
   { label: "45 min", sec: 2700 },
   { label: "60 min", sec: 3600 },
 ] as const;
-
-/** The 3-take nudge (founder 2026-07-27).
- *
- *  Reused VERBATIM from the readout, where it is already signed off, rather
- *  than written fresh — the places a user is told this must not say it two
- *  different ways, and reuse means no new copy to sign off. The live
- *  "Take N of 3" counter during recording is the third leg of the same nudge.
- *
- *  It sits under the LAST step's CTA only: said once, immediately before the
- *  take, where "record another after this one" is a thing the user can act on.
- *  Repeating it on all five steps would make it wallpaper. */
-export const THREE_TAKE_NUDGE =
-  "Your ideal text gets sharper with more takes. Three is where it really lands.";
 
 const SETUP_INPUT_CLS =
   "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
@@ -100,16 +87,12 @@ export default function RecordingSetup({
    *  out and a second one would just be two crosses on one screen). */
   onCancel?: () => void;
 }) {
+  // "audience", "call_to_action" and "context" are hidden, not deleted
+  // (founder 2026-10-12): their state, draft fields and submit wiring stay, so
+  // a continued take still carries the project's audience from preloadDeck.
   const steps: StepKey[] = hideDeck
-    ? ["topic", "audience", "call_to_action", "length", "context"]
-    : [
-        "topic",
-        "audience",
-        "call_to_action",
-        "length",
-        "slides",
-        "context",
-      ];
+    ? ["topic", "length"]
+    : ["topic", "length", "slides"];
   // Read once, at mount: the draft being resumed (or the fresh slot "Start a
   // new project" opened). Later renders never re-read it — this form owns it.
   const [active] = useState(() =>
@@ -489,18 +472,11 @@ export default function RecordingSetup({
         >
           {primaryLabel}
         </Button>
-        {isLast ? (
-          <>
-            <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
-              {THREE_TAKE_NUDGE}
-            </p>
-            {/* Price BEFORE the take, on the last step only — the same place
-                and for the same reason as the nudge: said once, immediately
-                before the thing it describes. Renders nothing unless token
-                pricing is live, and never disables the CTA above it. */}
-            <RecordPriceNote />
-          </>
-        ) : null}
+        {/* Price BEFORE the take, on the last step only: said once,
+            immediately before the thing it describes. Renders nothing unless
+            token pricing is live, and never disables the CTA above it. The
+            3-take nudge that sat here was removed (founder 2026-10-12). */}
+        {isLast ? <RecordPriceNote /> : null}
       </div>
     </div>
   );
