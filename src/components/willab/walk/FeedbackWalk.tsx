@@ -150,6 +150,9 @@ type Props<R> = {
    *  `moment`. The host tells the server what was shown (the Lounge's
    *  "new", D-FW-19). Nothing is drawn from it. */
   onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
+  /** The speaker answered a step (not a replay): the host shows the answer
+   *  as their own bubble in the chat. Nothing is drawn from it. */
+  onAnswer?: (step: WalkStep, value: string) => void;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -184,6 +187,7 @@ export default function FeedbackWalk<R = unknown>({
   onClose,
   lines: linesIO = null,
   onShown,
+  onAnswer,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -307,7 +311,10 @@ export default function FeedbackWalk<R = unknown>({
   /** Past this moment's practise: Skip on an exercise, or no practise to do. */
   const pastLoop = useCallback(() => land(plan, loopEnd(plan, at), "forward"), [plan, at, land]);
 
-  const answer = (s: WalkStep, value: string) => setAnswers((a) => ({ ...a, [walkSig(s)]: value }));
+  const answer = (s: WalkStep, value: string) => {
+    setAnswers((a) => ({ ...a, [walkSig(s)]: value }));
+    if (!s.replay) onAnswer?.(s, value);
+  };
   /** The answer a step was given: in this opening, or as the replay knows
    *  it (a clearer version's decision; an exercise's practise). */
   const answered = (s: WalkStep): string | null => {

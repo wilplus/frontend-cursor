@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { answerBody, momentChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
@@ -524,7 +524,7 @@ export function useDeckFeedbackWalk(args: {
       heard.words = [...heard.words.filter((w) => w !== entry.body), entry.body].slice(-2);
     }
     const { thread: to, take: on, arcId } = threadRef.current;
-    if (!to || !on || (entry.key !== "end" && !entry.body.trim())) return;
+    if (!to || !on || (entry.key !== "end" && !entry.extra?.clip && !entry.body.trim())) return;
     void to.append(walkStepDraft({ ...entry, take: on, arcId })).catch(() => undefined);
   }, []);
   const model = useMemo(
@@ -678,7 +678,9 @@ export function useDeckFeedbackWalk(args: {
   );
 
   const saveHelperWords = useCallback((save: FeedbackWalkHelperWords) => {
-    post({ key: `words:${save.partId}`, moment: null, attempt: null, author: "speaker", body: stripRichMarkers(save.span.text) });
+    // Each new pick is its own bubble; the chat strikes the ones it replaces.
+    const words = stripRichMarkers(save.span.text);
+    post({ key: `words:${save.partId}:${words}`, moment: null, attempt: null, author: "speaker", body: words, extra: { words_of: save.partId } });
     const { chunks: now, setRootPhrase, lockPart, saveBehind } = live.current;
     const chunk = now.find((c) => c.part.id === save.partId);
     if (!chunk) return;
@@ -758,7 +760,10 @@ export function useDeckFeedbackWalk(args: {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
       const said = shownStep(step, moment, coach?.text ?? null);
-      if (said) post({ key: step.key, ...at, ...said });
+      // The label above a moment, and the speaker's clip before its bubble.
+      const chat = said ? momentChat(walkModel.plan, step, moment) : null;
+      if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip } });
+      if (said) post({ key: step.key, ...at, ...said, extra: chat?.clip ? undefined : chat?.label });
       if (step.key === "processing") {
         post({ key: "try", ...at, author: "speaker", body: WALK_COPY.practiseN(step.attempt ?? 1) });
       }
@@ -772,6 +777,15 @@ export function useDeckFeedbackWalk(args: {
       }
     },
     [walkModel, post],
+  );
+
+  /** The speaker answered a step: their own bubble in the chat. */
+  const onAnswer = useCallback(
+    (step: WalkStep, value: string) => {
+      const body = answerBody(step, value);
+      if (body) post({ key: `answer:${step.key}`, moment: step.moment ?? null, attempt: step.attempt ?? null, author: "speaker", body });
+    },
+    [post],
   );
 
   const element = useMemo(
@@ -794,6 +808,7 @@ export function useDeckFeedbackWalk(args: {
           onEnd={onEnd}
           lines={lineBankIO}
           onShown={onShown}
+          onAnswer={onAnswer}
         />
     ),
     [
@@ -813,6 +828,7 @@ export function useDeckFeedbackWalk(args: {
       journal,
       onEnd,
       onShown,
+      onAnswer,
     ],
   );
 
