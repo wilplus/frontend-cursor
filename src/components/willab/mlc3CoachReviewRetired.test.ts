@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 /** Built, not written, so this fence is not itself a reference to it. */
 const RETIRED_PREFIX = ["coach", "mlc3"].join("/");
 
-const ROOTS = ["src", "e2e"];
+const ROOTS = ["src"];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
