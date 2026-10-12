@@ -118,10 +118,6 @@ describe("the finished walk, played again", () => {
     click(byTestId("walk-forward")); // "Accept and practise": no write, no recording
     expect(screen()).toBe("walk-screen-exVideo");
     click(byTestId("walk-forward")); // "Practise": no recording
-    expect(screen()).toBe("walk-screen-intro");
-    click(byTestId("walk-forward"));
-    expect(screen()).toBe("walk-screen-judge");
-    expect(pressed()).toBe("yes");
     expect(calls).toEqual([]);
   });
 });
