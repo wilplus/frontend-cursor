@@ -64,9 +64,20 @@ export default function WalkOthers({
   }, [skip, count]);
 
   const clip = clips?.[at];
+  // "Only my community": the bridge and the top bar name it (section 9).
+  const from = clips?.[0]?.community ?? null;
+  const bridge = !clips
+    ? ""
+    : from
+      ? clips.length === 1
+        ? WALK_COPY.othersOneFrom(from)
+        : WALK_COPY.othersManyFrom(clips.length, from)
+      : clips.length === 1
+        ? WALK_COPY.othersOne
+        : WALK_COPY.othersMany(clips.length);
   const nav = clips
     ? {
-        position: `${WALK_COPY.othersTitle} · ${at + 1} ${COPY.pagerOf} ${clips.length}`,
+        position: `${from ?? WALK_COPY.othersTitle} · ${at + 1} ${COPY.pagerOf} ${clips.length}`,
         index: at,
         total: clips.length,
         onBack: () => setAt((i) => Math.max(0, i - 1)),
@@ -83,7 +94,7 @@ export default function WalkOthers({
         <>
           <WalkMessage>
             {at === 0 ? (
-              <span>{clips.length === 1 ? WALK_COPY.othersOne : WALK_COPY.othersMany(clips.length)}</span>
+              <span>{bridge}</span>
             ) : null}
             <WalkPlayer
               key={clip.id}
