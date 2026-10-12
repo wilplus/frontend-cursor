@@ -1,19 +1,10 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  THE EXERCISE STEP, DRIVEN END TO END (contract 29a, locked screen L1).     */
-/*                                                                            */
-/*  Four defects found the day before a tester's first walk, each pinned by   */
-/*  a behaviour rather than a source grep:                                    */
-/*    1. the recording screen stayed up, clock running, when the mic could    */
-/*       not start (permission refused) or the practice could not be opened   */
-/*       — the only way off was the close button;                             */
-/*    2. the first recording read "Attempt 3", because the attempt number     */
-/*       was derived from a cap that is unknown until a practice row exists;  */
-/*    3. the practice judgement opened with the speaker's answer about the    */
-/*       ORIGINAL already selected and Done live, so one tap stored a         */
-/*       judgement nobody had made of the attempt (the locked screen starts   */
-/*       empty);                                                              */
-/*    4. Stop left the recording screen up for the whole upload.              */
+/*  THE JUDGEMENT SHEET'S EXERCISE RUNG, AFTER 2026-10-10 (founder: "the    */
+/*  practise screens should be the same in all cases"). The sheet records no  */
+/*  practise of its own any more: the exercise is practised in the Feedback   */
+/*  walk. What is left is the coach's sentence on a bookmark with no          */
+/*  exercise, and the lane the answer chooses.                                */
 /* -------------------------------------------------------------------------- */
 import { act, createElement, useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -138,46 +129,6 @@ function chunk(): DeckChunk {
   } as DeckChunk;
 }
 
-const attempt = {
-  id: "att-1",
-  attemptIndex: 1,
-  audioRef: "https://example.test/att-1.webm",
-  durationMs: 3000,
-  assessment: "recorded_for_comparison",
-  isStrongest: true,
-  kept: false,
-  userAnswer: null,
-};
-const openPractice = {
-  id: "prac-1",
-  status: "open",
-  exercise: {
-    exerciseId: "ex-1", version: 1, title: "Land the last word",
-    instruction: "Say it again and land on the last word.",
-    explanationVideoRef: null,
-  },
-  passage: "We should ship it now",
-  originalAudioRef: null,
-  originalStartOffsetMs: 0,
-  originalDurationMs: 0,
-  attempts: [],
-  attemptsRemaining: 3,
-  strongestAttempt: null,
-  finalReady: false,
-  finalMessage: null,
-  finalQuestion: null,
-  finalUserAnswer: null,
-  selectedAttemptId: null,
-  judgeableAttemptId: null,
-};
-const withAttempt = {
-  ...openPractice,
-  attempts: [attempt],
-  attemptsRemaining: 2,
-  strongestAttempt: attempt,
-  judgeableAttemptId: attempt.id,
-};
-
 const props = {
   onAccept: vi.fn(async () => true),
   onKeepMine: vi.fn(async () => true),
@@ -198,14 +149,6 @@ beforeEach(() => {
   mic.state = { status: "idle" };
   mic.started = 0;
   practiceApi.startConfidencePractice.mockReset();
-  practiceApi.uploadConfidencePracticeAttempt.mockReset();
-  practiceApi.judgeConfidencePracticeAttempt.mockReset();
-  practiceApi.startConfidencePractice.mockResolvedValue({ ok: true, practice: openPractice });
-  practiceApi.uploadConfidencePracticeAttempt.mockResolvedValue({ ok: true, practice: withAttempt });
-  practiceApi.judgeConfidencePracticeAttempt.mockResolvedValue({
-    ok: true, practice: { ...withAttempt, status: "completed" }, outcome: "adopt",
-    adopted: false, paragraph: null, attemptWords: "We should ship it now",
-  });
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -228,155 +171,6 @@ async function click(label: string) {
   });
 }
 const offer = () => container.querySelector('[data-testid="practice-offer"]');
-const recording = () => container.querySelector('[data-testid="practice-recording"]');
-const judgement = () => container.querySelector("[data-practice-judgement]");
-
-async function openOnTheOffer() {
-  await act(async () => {
-    root.render(
-      createElement(DeckChunkModal, {
-        ...props,
-        state: chunkStateFor(chunk(), { document: TEXT, suggestions: [item] }),
-      }),
-    );
-  });
-  await click("In-between");
-  expect(offer()).not.toBeNull();
-}
-
-async function stopWithAudio() {
-  await act(async () => {
-    mic.set({
-      status: "stopped", finalText: "", durationSec: 3,
-      audioBlob: new Blob([new Uint8Array(2000)], { type: "audio/webm" }),
-    });
-  });
-}
-
-describe("the recording screen", () => {
-  it("numbers the very first recording as attempt 1", async () => {
-    await openOnTheOffer();
-    await click("Practise");
-    expect(mic.started).toBe(1);
-    expect(recording()?.textContent).toContain("Attempt 1");
-    expect(recording()?.textContent).not.toContain("Attempt 3");
-  });
-
-  it("comes down when the mic cannot start, and the offer says why", async () => {
-    await openOnTheOffer();
-    await click("Practise");
-    expect(recording()).not.toBeNull();
-    await act(async () => {
-      mic.set({ status: "error", message: "Microphone access was refused.", code: "denied" });
-    });
-    expect(recording()).toBeNull();
-    expect(offer()).not.toBeNull();
-    expect(container.querySelector('[data-testid="exercise-error"]')?.textContent)
-      .toBe("Microphone access was refused.");
-    // The way on is still there: Practise, not a dead Stop.
-    expect(buttons().map((b) => b.textContent?.trim())).toContain("Practise");
-  });
-
-  it("comes down when the practice cannot be opened, and the offer says why", async () => {
-    practiceApi.startConfidencePractice.mockResolvedValue({
-      ok: false, error: "This is turned off in your data choices.",
-    });
-    await openOnTheOffer();
-    await click("Practise");
-    await stopWithAudio();
-    expect(recording()).toBeNull();
-    expect(offer()).not.toBeNull();
-    expect(container.querySelector('[data-testid="exercise-error"]')?.textContent)
-      .toBe("This is turned off in your data choices.");
-    expect(practiceApi.uploadConfidencePracticeAttempt).not.toHaveBeenCalled();
-  });
-
-  it("ends with Stop, not with the upload", async () => {
-    let finishUpload: (value: unknown) => void = () => {};
-    practiceApi.uploadConfidencePracticeAttempt.mockReturnValue(
-      new Promise((resolve) => { finishUpload = resolve; }),
-    );
-    await openOnTheOffer();
-    await click("Practise");
-    await stopWithAudio();
-    // The upload is in flight: the recording screen is gone and the offer's
-    // pill waits, disabled, rather than a Stop that has nothing to stop.
-    expect(recording()).toBeNull();
-    expect(offer()).not.toBeNull();
-    expect(button("Practise").disabled).toBe(true);
-    await act(async () => { finishUpload({ ok: true, practice: withAttempt }); });
-    expect(judgement()).not.toBeNull();
-  });
-});
-
-describe("the practice judgement", () => {
-  it("starts with no answer selected and Done disabled, then judges the attempt as picked", async () => {
-    await openOnTheOffer();
-    await click("Practise");
-    await stopWithAudio();
-    expect(judgement()).not.toBeNull();
-    const pressed = Array.from(container.querySelectorAll('[aria-pressed="true"]'));
-    expect(pressed).toHaveLength(0);
-    expect(button("Done").disabled).toBe(true);
-
-    await click("Not sure");
-    expect(button("Done").disabled).toBe(false);
-    await click("Done");
-    expect(practiceApi.judgeConfidencePracticeAttempt).toHaveBeenCalledWith(
-      "prac-1", "att-1", "not_sure",
-    );
-  });
-
-  it("empties again for the next attempt after a No", async () => {
-    practiceApi.judgeConfidencePracticeAttempt.mockResolvedValue({
-      ok: true, practice: withAttempt, outcome: "again",
-      adopted: false, paragraph: null, attemptWords: null,
-    });
-    await openOnTheOffer();
-    await click("Practise");
-    await stopWithAudio();
-    await click("No");
-    await click("Done");
-    // Back on the offer to practise again …
-    expect(offer()).not.toBeNull();
-    expect(buttons().map((b) => b.textContent?.trim())).toContain("Practise again");
-    // … and the second attempt's judgement starts empty.
-    const second = { ...attempt, id: "att-2", attemptIndex: 2 };
-    practiceApi.uploadConfidencePracticeAttempt.mockResolvedValue({
-      ok: true,
-      practice: { ...withAttempt, attempts: [attempt, second], attemptsRemaining: 1, judgeableAttemptId: "att-2" },
-    });
-    await click("Practise again");
-    expect(recording()?.textContent).toContain("Attempt 2");
-    await stopWithAudio();
-    expect(judgement()).not.toBeNull();
-    expect(container.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0);
-    expect(button("Done").disabled).toBe(true);
-  });
-});
-
-/* NO ATTEMPT CAP (founder lock 2026-09-30, D2; F1 Repair Plan Phase 4): the
-   recording after the third is "Attempt 4". It was numbered from a remaining
-   count that stops at zero, so every recording from the third on read
-   "Attempt 3". */
-describe("the attempt after the third", () => {
-  it("is numbered 4, not 3", async () => {
-    const three = [1, 2, 3].map((n) => ({ ...attempt, id: `att-${n}`, attemptIndex: n }));
-    practiceApi.judgeConfidencePracticeAttempt.mockResolvedValue({
-      ok: true, practice: { ...withAttempt, attempts: three, attemptsRemaining: 0, judgeableAttemptId: "att-3" },
-      outcome: "again", adopted: false, paragraph: null, attemptWords: null,
-    });
-    await openOnTheOffer();
-    await click("Practise");
-    await stopWithAudio();
-    await click("No");
-    await click("Done");
-    await click("Practise again");
-    expect(recording()?.textContent).toContain("Attempt 4");
-    expect(recording()?.textContent).not.toContain("Attempt 3");
-  });
-});
-
 /* THE BOOKMARK WITH NO EXERCISE (founder 2026-09-29): a No no longer leads
    nowhere. The server sends the bookmark to the coach when the answer saves;
    the sheet says so on the Exercise screen, and Continue is the way on. */

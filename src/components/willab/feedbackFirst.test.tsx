@@ -6,8 +6,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OpenChunkSheet, { asJudgement } from "./OpenChunkSheet";
-import DeckChunkModal from "./DeckChunkModal";
+import OpenChunkSheet from "./OpenChunkSheet";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import { fetchOwnerAnswers } from "@/services/api/bookmarkHistory";
@@ -118,7 +117,7 @@ const praiseNote = {
 async function open(
   moment: DocumentSuggestion,
   notes: DocumentSuggestion[] = [],
-  practiseHost: { onLockIn: () => Promise<never>; onHelperWordsSaved: () => void } | null = null,
+  onPractise: (partId: string, card: unknown, moment: unknown) => boolean = vi.fn(() => true),
 ) {
   const onSkip = vi.fn();
   const items = [moment, ...notes];
@@ -134,7 +133,7 @@ async function open(
     root.render(
       createElement(OpenChunkSheet, {
         state: s, arcId: "arc-1", takeSessionId: "take-1", headline: null,
-        onClose: vi.fn(), onSkip, practiseHost,
+        onClose: vi.fn(), onSkip, onPractise,
         renderSheet: () => createElement("div", { "data-testid": "judge" }),
       }),
     );
@@ -182,11 +181,13 @@ describe("judgement after feedback (24e-1)", () => {
       ...answered, status: null, bookmarkTier: "weak",
       practiceExercise: { ...(answered as DocumentSuggestion).practiceExercise, chosenByCoach: false },
     } as DocumentSuggestion;
-    await open(library, [], { onLockIn: vi.fn(), onHelperWordsSaved: vi.fn() });
+    const onPractise = vi.fn((_partId: string, _card: unknown, _moment: unknown) => true);
+    await open(library, [], onPractise);
     expect(container.querySelector('[data-testid="practise-card"]')?.getAttribute("data-kind")).toBe("exercise");
     await act(async () =>
       (container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement).click());
-    expect(container.querySelector('[data-testid="practise-sheet"]')).not.toBeNull();
+    // The Feedback walk's practise, on the exercise shown (founder 2026-10-10).
+    expect(onPractise).toHaveBeenCalledWith("p1", expect.objectContaining({ kind: "exercise" }), expect.objectContaining({ id: "s-cv" }));
     expect(container.querySelector('[data-testid="judge"]')).toBeNull();
   });
 

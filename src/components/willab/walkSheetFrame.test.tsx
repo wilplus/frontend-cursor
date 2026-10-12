@@ -3,9 +3,8 @@
    2026-09-29 against the locked design):
      - one sheet height for every step, the coach step included;
      - the compact "Play this moment · 0:09" row on Good job, Suggestion, the
-       Exercise and the paragraph sheet, not the full player;
-     - "Skip" on the exercise offer shows it is working while its write is
-       awaited;
+       paragraph sheet, not the full player (the Exercise is practised in
+       the Feedback walk since 2026-10-10);
      - a tap on a grey bar draws the paragraph sheet's frame at once, even
        before its reads land. */
 import { act, createElement } from "react";
@@ -219,42 +218,6 @@ describe("the compact player row", () => {
     expect(container.textContent).toContain("Good job");
     expect(playerCompact()).toBe("true");
   });
-
-  it("the Exercise draws the compact row under What you said", async () => {
-    await renderSheet([confidentVoice]);
-    await click("No");
-    const card = container.querySelector('[data-testid="exercise-your-recording"]');
-    expect(card).not.toBeNull();
-    expect(card?.querySelector('[data-testid="media-player"]')?.getAttribute("data-compact")).toBe("true");
-  });
-});
-
-describe("Skip on the exercise offer (D10: Skip, not Not now)", () => {
-  it("greys the link and spins the pill while the dismiss is awaited", async () => {
-    let settle: (v: unknown) => void = () => undefined;
-    vi.mocked(startConfidencePractice).mockReturnValueOnce(
-      new Promise((resolve) => {
-        settle = resolve;
-      }) as never,
-    );
-    await renderSheet([confidentVoice]);
-    await click("No");
-    const skip = () =>
-      Array.from(container.querySelectorAll("button")).find(
-        (b) => (b.textContent ?? "").trim() === "Skip",
-      ) as HTMLButtonElement;
-    expect(skip().disabled).toBe(false);
-    await click("Skip");
-    expect(skip().disabled).toBe(true);
-    const pill = Array.from(container.querySelectorAll("button")).find(
-      (b) => (b.textContent ?? "").trim() === "Practise",
-    ) as HTMLButtonElement;
-    expect(pill.disabled).toBe(true);
-    expect(pill.querySelector("[data-voice-mark]")).not.toBeNull();
-    await act(async () => {
-      settle({ ok: false, error: null });
-    });
-  });
 });
 
 describe("the paragraph sheet while its reads are pending", () => {
@@ -310,27 +273,6 @@ describe("the paragraph sheet while its reads are pending", () => {
     expect(container.querySelector('[data-testid="paragraph-sheet-loading"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="paragraph-sheet-next"]')).not.toBeNull();
     expect(container.textContent).not.toContain(TEXT);
-  });
-});
-
-describe("the Exercise step as the design draws it (L2)", () => {
-  it("is one orange Your coach card (video, play icon only, comment) with What you said under it, and no History row", async () => {
-    await renderSheet([confidentVoice]);
-    await click("No");
-    const offer = container.querySelector('[data-testid="practice-offer"]') as HTMLElement;
-    const card = offer.querySelector('[data-testid="exercise-coach-card"]') as HTMLElement;
-    expect(card).not.toBeNull();
-    expect(card.textContent).toContain("Your coach");
-    expect(card.textContent).toContain("Say it again, slower.");
-    const video = card.querySelector("video") as HTMLVideoElement;
-    expect(video.getAttribute("src")).toBe("https://media/coach-exercise.mp4");
-    expect(video.hasAttribute("controls")).toBe(false);
-    expect(card.querySelector('button[aria-label="Play"]')).not.toBeNull();
-    // The speaker's own recording sits under the coach's card.
-    const said = offer.querySelector('[data-testid="exercise-your-recording"]') as HTMLElement;
-    expect(card.compareDocumentPosition(said) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(offer.textContent).not.toContain("History");
-    expect(offer.querySelector('[data-testid="bundle-history"]')).toBeNull();
   });
 });
 

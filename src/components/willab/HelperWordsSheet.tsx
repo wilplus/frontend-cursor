@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { VoiceMark } from "./LoadingState";
-import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 import {
@@ -51,6 +50,9 @@ const EYEBROW =
 const PILL =
   "flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-5 text-[16px] font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-50";
 
+type WalkPlace = { nav: WalkNav | null; caption: string | null; moment: number | null };
+const NO_PLACE: WalkPlace = { nav: null, caption: null, moment: null };
+
 function tokenTone(picked: boolean, reachable: boolean): string {
   if (picked) return "bg-primary/10 text-primary";
   return reachable ? "text-foreground" : "text-muted-foreground/60";
@@ -64,8 +66,7 @@ export default function HelperWordsSheet({
   onUseFromTake,
   onDelete,
   onDone = null,
-  nav = null,
-  walk = null,
+  walk = NO_PLACE,
   onClose,
 }: {
   /** The saved helper words, joined " · ", or null. */
@@ -83,12 +84,10 @@ export default function HelperWordsSheet({
   /** The sheet finished — words saved or deleted — and the host moves on.
    *  Absent → the sheet closes. */
   onDone?: (() => void) | null;
-  nav?: ReactNode;
-  /** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A): the
-   *  walk's full-screen overlay with its still ‹ Slide n › bar and ✕, and
-   *  its motion, instead of today's sheet; `nav` is then unused. The same
-   *  words and buttons either way. */
-  walk?: { nav: WalkNav | null; caption: string | null; moment: number | null } | null;
+  /** THE WALK'S LOOK (build plan D-IT-6; founder 2026-10-07, Q-B3 A; made
+   *  permanent 2026-10-11): where the sheet sits, for the walk's still
+   *  ‹ Slide n › bar and its motion. Absent: no bar. */
+  walk?: WalkPlace;
   onClose: () => void;
 }) {
   const chips = useMemo(() => takeChips(history, currentText, COPY.historyTake), [history, currentText]);
@@ -271,50 +270,17 @@ export default function HelperWordsSheet({
     </button>
   );
 
-  if (walk) {
-    return (
-      <WalkSheetFrame
-        screen={{ key: "helper-words", moment: walk.moment }}
-        title={COPY.historyHelperWords}
-        nav={walk.nav}
-        caption={walk.caption}
-        footer={<WalkSheetFooter>{button}</WalkSheetFooter>}
-        onClose={onClose}
-        testId="helper-words-sheet"
-      >
-        {content}
-      </WalkSheetFrame>
-    );
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30 p-0 sm:items-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label={COPY.historyHelperWords}
-      data-testid="helper-words-sheet"
-      onClick={onClose}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onClose();
-      }}
+    <WalkSheetFrame
+      screen={{ key: "helper-words", moment: walk.moment }}
+      title={COPY.historyHelperWords}
+      nav={walk.nav}
+      caption={walk.caption}
+      footer={<WalkSheetFooter>{button}</WalkSheetFooter>}
+      onClose={onClose}
+      testId="helper-words-sheet"
     >
-      <div
-        className="flex h-[97dvh] max-h-[97dvh] w-full max-w-lg flex-col rounded-t-3xl bg-background shadow-xl sm:h-[94vh] sm:max-h-[94vh] sm:rounded-3xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {nav ? <div className="shrink-0 pt-3">{nav}</div> : null}
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-2 pt-5">
-          <h2 className="text-[22px] font-bold tracking-[-0.01em] text-foreground">
-            {COPY.historyHelperWords}
-          </h2>
-          <OverlayCloseButton onClick={onClose} ariaLabel="Close" />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-2">
-          {content}
-        </div>
-        <div className="shrink-0 px-5 pb-6 pt-2">{button}</div>
-      </div>
-    </div>
+      {content}
+    </WalkSheetFrame>
   );
 }

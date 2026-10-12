@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { feedbackWalkOn } from "@/lib/willab/feedbackWalkSwitch";
 import { useNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import {
   Check,
@@ -413,9 +412,6 @@ function renderIdealTextReportCard(
       date={reportDateLabel(message.client_created_at)}
       onOpen={openable ? open : null}
       latest={latest}
-      onOpenFeedback={
-        openable ? () => onOpenIdealText?.(arcId as string, "feedback") : null
-      }
     />
   );
 }
@@ -663,21 +659,6 @@ export function IdealTextHeroCard({
  *  as an artifact. Colours map to theme tokens (success = verified); the app has
  *  no amber token, so the unverified pill uses a dark-safe amber (informational,
  *  never red). Presentation only — the caller owns all data + the open handler. */
-/** THE UNREAD-FEEDBACK DOT (founder 2026-09-25): like WhatsApp — an orange
- *  dot with a white number, on the top-right corner of the bubble's edge.
- *  The number counts coach moments not opened yet; 0 draws nothing. */
-export function UnreadDot({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span
-      data-testid="unread-feedback-dot"
-      className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-[12px] font-semibold leading-none text-white ring-2 ring-background"
-    >
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}
-
 /** The tag on a marked bubble, as the locked walk prototype writes it
  *  (founder lock 2026-10-06, flow 1). */
 const NEW_TAG = "new";
@@ -703,14 +684,11 @@ function IdealRecordingCard({
   ctaLabel,
   onOpen,
   onWarm,
-  unread = 0,
   marked = false,
 }: {
   /** P1 (2026-10-08): a press on the CTA starts the read the opened screen
    *  needs, before the click lands. Timing only; nothing drawn changes. */
   onWarm?: () => void;
-  /** The orange dot's number; 0 hides the dot (Q42 A). */
-  unread?: number;
   /** New coach feedback waits for the walk: the outline and the "new" tag
    *  (D-FW-19). Never a count (AC-9). */
   marked?: boolean;
@@ -734,7 +712,6 @@ function IdealRecordingCard({
       className={`relative my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]${
         marked ? " outline outline-2 outline-offset-[3px] outline-primary" : ""}`}
     >
-      <UnreadDot count={unread} />
       {marked ? <NewTag /> : null}
       {/* Header: icon tile + title/date + version chip. The uppercase
           "IDEAL RECORDING" attachment label sat above this; it went with the
@@ -789,9 +766,6 @@ interface LiveIdealDoc {
   title: string | null;
   status: "unverified" | "verified" | null;
   version: number | null;
-  /** Coach moments with feedback not opened yet (founder 2026-09-25, Q40 B):
-   *  the number in the orange dot. A count, never a score (AC-9). */
-  unread: number;
 }
 
 /** Cards that want to hear when an arc's live document changed. */
@@ -802,13 +776,6 @@ const liveDocListeners = new Map<string, Set<() => void>>();
 export function refreshLiveIdealDoc(arcId: string): void {
   liveDocCache.delete(arcId);
   for (const listener of liveDocListeners.get(arcId) ?? []) listener();
-}
-
-/** The number in the dot: coach moments whose feedback is not opened yet. */
-export function unreadCoachFeedback(
-  summary: { items: readonly { hasUnreadCoachUpdate: boolean }[] } | null | undefined,
-): number {
-  return (summary?.items ?? []).filter((item) => item.hasUnreadCoachUpdate).length;
 }
 
 const liveDocCache = new Map<
@@ -828,7 +795,6 @@ function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
           title: r.title,
           status: r.status,
           version: r.version,
-          unread: unreadCoachFeedback(r.confidentMomentSummary),
         }
       : null;
   });
@@ -843,12 +809,10 @@ function LiveStatusIdealTextCard({
   date,
   onOpen,
   latest = false,
-  onOpenFeedback = null,
 }: {
   /** This is the project's latest Ideal Text bubble: the one that wears the
-   *  unread-feedback dot (founder 2026-09-25, Q39 B). */
+   *  "new" mark (D-FW-19). */
   latest?: boolean;
-  onOpenFeedback?: (() => void) | null;
   arcId: string | null;
   /** The project name the BE stamped on this row at write time. Null on rows
    *  written before 2026-08-15 — the cache and then the generic cover those. */
@@ -903,17 +867,12 @@ function LiveStatusIdealTextCard({
       listeners.delete(read);
     };
   }, [arcId]);
-  // With the Feedback walk on, the walk lock's mark replaces the dot (flow
-  // 1, D-FW-19): the orange outline and "new" while the coach's feedback
-  // waits for the walk, on the project's latest bubble only; a tap opens the
-  // text, where "Review feedback" starts the walk (Six Journey Questions 1).
-  // Read after mount: the address is not there on the server render.
-  const [walkOn, setWalkOn] = useState(false);
-  useEffect(() => setWalkOn(feedbackWalkOn()), []);
+  // The walk lock's mark (flow 1, D-FW-19): the orange outline and "new"
+  // while the coach's feedback waits for the walk, on the project's latest
+  // bubble only; a tap opens the text, where "Review feedback" starts the
+  // walk (Six Journey Questions 1).
   const fresh = useNewCoachFeedback(arcId);
-  const marked = walkOn && latest && fresh;
-  // The dot sits only on the project's latest Ideal Text bubble (Q39 B).
-  const unread = latest && !walkOn ? (live?.unread ?? 0) : 0;
+  const marked = latest && fresh;
   return (
     <IdealRecordingCard
       /* Live → stamped-on-the-row → remembered → the generic. The generic is
@@ -929,11 +888,8 @@ function LiveStatusIdealTextCard({
       meta={date}
       badge={version !== null ? `${version}.0` : null}
       ctaLabel="Open your ideal text"
-      unread={unread}
       marked={marked}
-      // While feedback waits, the bubble opens it (the same place as the
-      // email's link); otherwise the notebook, as always.
-      onOpen={unread > 0 && onOpenFeedback ? onOpenFeedback : onOpen}
+      onOpen={onOpen}
       onWarm={arcId ? () => prefetchIdealTextDisplay(arcId) : undefined}
     />
   );

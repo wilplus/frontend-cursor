@@ -7,7 +7,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OpenChunkSheet, { asJudgement } from "./OpenChunkSheet";
+import OpenChunkSheet from "./OpenChunkSheet";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -109,7 +109,6 @@ afterEach(async () => {
 });
 
 const closeSheet = vi.fn();
-type SheetProps = Parameters<typeof OpenChunkSheet>[0];
 
 const rewrite = {
   id: "s-rw",
@@ -156,11 +155,10 @@ async function open(
         onUseHelperWords: vi.fn(async () => true),
         onAccept: vi.fn(async () => true),
         onClose: closeSheet,
-        practiseHost: { onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })), onHelperWordsSaved: vi.fn() },
-        renderSheet: (practiseAgain: Parameters<SheetProps["renderSheet"]>[0]) =>
+        onPractise: vi.fn(() => true),
+        renderSheet: () =>
           createElement(DeckChunkModal, {
             state: s,
-            practiseAgain,
             onAccept: vi.fn(async () => true),
             onKeepMine: vi.fn(async () => true),
             onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),

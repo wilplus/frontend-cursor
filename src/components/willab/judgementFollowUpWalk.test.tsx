@@ -35,7 +35,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ParagraphSheet from "./ParagraphSheet";
 import { forgetParagraphSheetData } from "./paragraphSheetData";
-import { CHUNK_SHEET_COPY as COPY } from "./idealEditCopy";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
@@ -154,14 +153,6 @@ type Expect = {
   coachLine?: boolean;
 };
 
-const TONE: Record<Judgement, string> = {
-  yes: "green",
-  in_between: "blue",
-  no: "red",
-  not_sure: "yellow",
-  audio_unclear: "grey",
-};
-
 let root: Root;
 let container: HTMLDivElement;
 let onDone: ReturnType<typeof vi.fn<() => void>>;
@@ -200,7 +191,7 @@ async function judge(shape: keyof typeof MOMENTS, answer: Judgement) {
         // practise loop reaches every card, and a rewrite can be accepted.
         onPractise,
         onAccept: vi.fn(async () => true),
-        practiseEveryCard: true,
+        practisable: () => true,
         awaiting: null,
         onUseHelperWords,
         onDone,
@@ -245,10 +236,9 @@ async function expectWalk(shape: keyof typeof MOMENTS, answer: Judgement, want: 
   await judge(shape, answer);
   expect(q("overlay-practise")).not.toBeNull();
 
-  // D7: the speaker's own answer, said back in its colour; never the read.
-  const label = q("judgement-label");
-  expect(label?.getAttribute("data-tone")).toBe(TONE[answer]);
-  expect(label?.textContent).toContain(COPY.judgementWord[answer]);
+  // The walk's look draws no tinted chip (Q-WALK-PARA A): the answer
+  // decides the card and the buttons, and is never a badge.
+  expect(q("judgement-label")).toBeNull();
 
   const card = q("practise-card");
   expect(card?.getAttribute("data-kind") ?? null).toBe(want.card);

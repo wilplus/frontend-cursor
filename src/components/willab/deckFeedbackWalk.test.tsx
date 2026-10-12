@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /* -------------------------------------------------------------------------- */
-/*  The Feedback walk mounted on the real deck, behind its switch (build plan  */
-/*  D-FW-14; feedbackWalkOn).                                                  */
+/*  The Feedback walk mounted on the real deck (build plan D-FW-14; permanent  */
+/*  since the founder's 2026-10-11 "keep the new designs, make them           */
+/*  permanent").                                                              */
 /*                                                                            */
-/*  Off: the deck is exactly as it was (Review feedback opens the sheet).     */
-/*  On: Review feedback opens the walk on the coach's note or the first       */
+/*  Review feedback opens the walk on the coach's note or the first           */
 /*  praise; a tap on a paragraph with an open moment opens it there (Q-B3 A); */
 /*  helper words picked in it go through the deck's own save; a guest's pick  */
 /*  asks to sign up and writes nothing.                                       */
@@ -44,8 +44,8 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn(async () => "t") }
 vi.mock("@/hooks/useVisibleLearningExposure", () => ({
   useVisibleLearningExposure: () => undefined,
 }));
-/** The microphone, counted: the walk's practise must not open it with the
- *  switch off (D-FW-16). */
+/** The microphone, counted: the walk's practise opens it only on a
+ *  practise screen (D-FW-16). */
 const mic = vi.hoisted(() => ({ starts: 0, cancels: 0 }));
 vi.mock("@/hooks/useDualCaptureMic", () => ({
   useDualCaptureMic: () => ({
@@ -161,7 +161,6 @@ async function render(p: ReturnType<typeof props> & { reviewRequest?: number }, 
     root.render(block ? createElement(GuestGateContext.Provider, { value: block }, deck) : deck);
   });
 }
-const walkOn = () => vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "on");
 const walk = () => document.querySelector("[data-feedback-walk]");
 const live = () => document.querySelector<HTMLElement>("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
 const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-screen-']")?.dataset.testid ?? null;
@@ -172,27 +171,8 @@ const click = async (el: Element | null | undefined) => {
 const paragraph = (words: string) =>
   [...container.querySelectorAll<HTMLElement>("[data-chunk]")].find((el) => (el.textContent ?? "").includes(words));
 
-describe("the switch off", () => {
-  it("leaves the deck as it is: no walk, and Review feedback opens today's sheet", async () => {
-    const p = props();
-    await render(p);
-    expect(walk()).toBeNull();
-    await render({ ...p, reviewRequest: 1 });
-    expect(walk()).toBeNull();
-    expect(pager()).not.toBeNull();
-  });
-
-  it("a tap on the waiting paragraph opens today's sheet", async () => {
-    await render(props());
-    await click(paragraph("retention went up"));
-    expect(walk()).toBeNull();
-    expect(pager()).not.toBeNull();
-  });
-});
-
-describe("the switch on", () => {
+describe("the walk on the deck", () => {
   it("Review feedback opens the walk on the first praise, not today's sheet", async () => {
-    walkOn();
     const p = props();
     await render(p);
     expect(live()).toBeNull();
@@ -209,7 +189,6 @@ describe("the switch on", () => {
   });
 
   it("opens on the coach's note when the coach left one, and marks it seen", async () => {
-    walkOn();
     const p = props({ coachMessage: WORD });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -222,7 +201,6 @@ describe("the switch on", () => {
   });
 
   it("a tap on a paragraph with an open moment opens the walk there (Q-B3 A)", async () => {
-    walkOn();
     await render(props());
     await click(paragraph("retention went up"));
     expect(screen()).toBe("walk-screen-praise");
@@ -230,21 +208,19 @@ describe("the switch on", () => {
   });
 
   it("with nothing for this phase to show, Review feedback keeps today's sheet", async () => {
-    walkOn();
     // A judgement with no snippet to save the answer on draws no screen.
     const p = props({ suggestions: [{ ...judgement, snippetId: null }] });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
     expect(live()).toBeNull();
     // Today's walk across the bookmarks, its paragraph sheet drawn in the
-    // walk's look with the switch on (D-IT-6): the ‹ › bar is the walk's.
+    // walk's look (D-IT-6): the ‹ › bar is the walk's.
     const sheet = document.querySelector('[data-walk-stage] [data-testid="paragraph-sheet"]');
     expect(sheet?.querySelector("[data-walk-nav]")).not.toBeNull();
     expect(pager()).toBeNull();
   });
 
   it("helper words picked in the walk go through the deck's own save: the words and the lock", async () => {
-    walkOn();
     const p = props();
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -268,7 +244,6 @@ describe("the switch on", () => {
   });
 
   it("a guest's pick opens sign-up and writes nothing", async () => {
-    walkOn();
     const block = vi.fn(() => true);
     const p = props();
     await render(p, block);
@@ -303,7 +278,6 @@ describe("one door to the feedback (founder 2026-10-10: the journey unified)", (
   const headline = () => paragraph("retention went up")?.querySelector<HTMLElement>("[data-paragraph-headline]");
 
   it("a tap on an answered paragraph plays the walk again from it, not the paragraph sheet", async () => {
-    walkOn();
     savedWords();
     await render(answered());
     await act(async () => new Promise((r) => setTimeout(r, 0)));
@@ -313,7 +287,6 @@ describe("one door to the feedback (founder 2026-10-10: the journey unified)", (
   });
 
   it("a tap on its helper words opens the same walk", async () => {
-    walkOn();
     savedWords();
     await render(answered());
     await act(async () => new Promise((r) => setTimeout(r, 0)));
@@ -321,15 +294,6 @@ describe("one door to the feedback (founder 2026-10-10: the journey unified)", (
     await click(headline());
     expect(screen()).toBe("walk-screen-praise");
     expect(document.querySelector('[data-testid="paragraph-sheet"]')).toBeNull();
-  });
-
-  it("the switch off: the answered paragraph opens its own sheet as before", async () => {
-    savedWords();
-    await render(answered());
-    await act(async () => new Promise((r) => setTimeout(r, 0)));
-    await click(paragraph("retention went up"));
-    expect(walk()).toBeNull();
-    expect(document.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
   });
 
   it("the replay keeps the helper words live: a new pick is saved, the same pick writes nothing", () => {
@@ -359,17 +323,7 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(screen()).toBe("walk-screen-clearer");
   };
 
-  it("the switch off: no walk, nothing decided, today's sheet", async () => {
-    const p = props({ suggestions: [judgement, praise, rewrite] });
-    await render(p);
-    await render({ ...p, reviewRequest: 1 });
-    expect(walk()).toBeNull();
-    expect(pager()).not.toBeNull();
-    expect(p.onAccept).not.toHaveBeenCalled();
-  });
-
   it("draws the served words after the praise and its helper words", async () => {
-    walkOn();
     await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
     expect([...live()!.querySelectorAll("[data-walk-player] s")].map((n) => n.textContent)).toEqual(["went up"]);
     expect([...live()!.querySelectorAll("[data-walk-new-words] em")].map((n) => n.textContent)).toEqual(["rose"]);
@@ -377,7 +331,6 @@ describe("the clearer version in the walk (D-FW-15)", () => {
   });
 
   it("Accept and practise writes through the accept lane: the response, then the deck's onAccept", async () => {
-    walkOn();
     const p = props({ suggestions: [judgement, praise, rewrite] });
     await toClearer(p);
     await click(live()!.querySelector("[data-testid='walk-forward']"));
@@ -391,7 +344,6 @@ describe("the clearer version in the walk (D-FW-15)", () => {
   });
 
   it("Keep my words records the decline through the deck's onKeepMine and skips the practise", async () => {
-    walkOn();
     const p = props({ suggestions: [judgement, praise, rewrite] });
     await toClearer(p);
     await click(live()!.querySelector("[data-testid='walk-keep']"));
@@ -405,7 +357,6 @@ describe("the clearer version in the walk (D-FW-15)", () => {
   });
 
   it("with personalised practice off the button reads Accept", async () => {
-    walkOn();
     practice.on = false;
     await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
     expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(WALK_COPY.clearerAccept);
@@ -442,18 +393,7 @@ describe("the practise in the walk (D-FW-16)", () => {
   const practiseCalls = () =>
     vi.mocked(fetch).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("confidence-practice"));
 
-  it("the switch off: no walk, no practise opened, no microphone", async () => {
-    const p = props({ suggestions: [judgement, praise, practisable] });
-    await render(p);
-    await render({ ...p, reviewRequest: 1 });
-    expect(walk()).toBeNull();
-    expect(pager()).not.toBeNull();
-    expect(mic.starts).toBe(0);
-    expect(practiseCalls()).toEqual([]);
-  });
-
   it("Accept and practise opens the practise on the served item's snippet, recording at once", async () => {
-    walkOn();
     const p = props({ suggestions: [judgement, praise, practisable] });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -471,7 +411,6 @@ describe("the practise in the walk (D-FW-16)", () => {
   });
 
   it("a served rewrite with nothing to open a practise on goes straight past it", async () => {
-    walkOn();
     const p = props({ suggestions: [judgement, praise, rewrite] });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -497,19 +436,7 @@ describe("the exercise in the walk (D-FW-17)", () => {
   const practiseCalls = () =>
     vi.mocked(fetch).mock.calls.map(([url]) => String(url)).filter((url) => url.includes("confidence-practice"));
 
-  it("the switch off: no walk, no exercise video, nothing opened", async () => {
-    const p = props({ suggestions: [withExercise(), praise] });
-    await render(p);
-    await render({ ...p, reviewRequest: 1 });
-    expect(walk()).toBeNull();
-    expect(pager()).not.toBeNull();
-    expect(document.querySelector("[data-testid='walk-screen-exVideo']")).toBeNull();
-    expect(mic.starts).toBe(0);
-    expect(practiseCalls()).toEqual([]);
-  });
-
   it("after the praise, the library exercise's video, then Practise opens the practise on it", async () => {
-    walkOn();
     const p = props({ suggestions: [withExercise(), praise] });
     await render(p);
     await render({ ...p, reviewRequest: 1 });
@@ -585,19 +512,7 @@ describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
     expect(screen()).toBe("walk-screen-intro");
   }
 
-  it("the switch off: no walk, no Journal read, nothing judged", async () => {
-    serve("published");
-    const onJudged = vi.fn();
-    const p = props({ onJudged });
-    await render(p);
-    await render({ ...p, reviewRequest: 1 });
-    expect(walk()).toBeNull();
-    expect(requests.some((r) => r.url.includes("/journal/"))).toBe(false);
-    expect(onJudged).not.toHaveBeenCalled();
-  });
-
   it("with only a judgement left, Review feedback opens \"Judgement time!\"", async () => {
-    walkOn();
     serve("missing");
     const p = props({ suggestions: [judgement] });
     await render(p);
@@ -606,7 +521,6 @@ describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
   });
 
   it("the link opens the published post inside the walk; with none to read there is no link", async () => {
-    walkOn();
     serve("published");
     await toIntro(props());
     expect(requests.filter((r) => r.url.endsWith("/api/v2/journal/posts/why-we-ask-you-to-judge-honestly"))).toHaveLength(1);
@@ -624,7 +538,6 @@ describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
   });
 
   it("an answer saves the speaker's own Confident Voice answer through the feedback-response route, behind the screen", async () => {
-    walkOn();
     serve("missing");
     const onJudged = vi.fn();
     await toIntro(props({ onJudged }));
@@ -648,7 +561,6 @@ describe("\"Judgement time!\" and the judgements in the walk (D-FW-18)", () => {
   });
 
   it("Skip settles the moment as skipped: a moment event, its bar cleared, no answer written", async () => {
-    walkOn();
     serve("missing");
     const onJudged = vi.fn();
     await toIntro(props({ onJudged }));
@@ -686,18 +598,7 @@ describe("the finished walk, played again (Q-IT643b A)", () => {
   const skip = () => click(live()!.querySelector("[data-testid='walk-skip']"));
   const settle = () => act(async () => new Promise((r) => setTimeout(r, 0)));
 
-  it("the switch off: the link is never offered and nothing plays", async () => {
-    const onReplayReady = vi.fn();
-    const p = props({ suggestions: [answered, praise], onReplayReady });
-    await render(p);
-    await settle();
-    expect(onReplayReady).not.toHaveBeenCalledWith(true);
-    await render({ ...p, replayRequest: 1 } as typeof p);
-    expect(walk()).toBeNull();
-  });
-
   it("while a moment waits, the link is not offered", async () => {
-    walkOn();
     const onReplayReady = vi.fn();
     await render(props({ onReplayReady }));
     await settle();
@@ -705,7 +606,6 @@ describe("the finished walk, played again (Q-IT643b A)", () => {
   });
 
   it("once nothing waits, the link is offered and plays the walk with the judgement pressed as answered", async () => {
-    walkOn();
     const { fetchOwnerAnswers } = await import("@/services/api/bookmarkHistory");
     vi.mocked(fetchOwnerAnswers).mockResolvedValue([{ feedbackId: "s-cv", response: "yes" }]);
     const onReplayReady = vi.fn();

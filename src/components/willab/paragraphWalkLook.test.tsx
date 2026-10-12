@@ -2,12 +2,11 @@
 /* -------------------------------------------------------------------------- */
 /*  The paragraph's screens and the helper-words overlay in the walk's look    */
 /*  and motion (build plan D-IT-6; founder 2026-10-07, Q-B3 A, N63; walk lock  */
-/*  "UI and UX" and "How screens move"):                                       */
-/*    - with the walk's switch off, today's sheets, untouched;                */
-/*    - with it on, the walk's full-screen overlay (nothing of the page        */
-/*      behind it), a still top bar with ‹ Slide n › and ✕, the content       */
-/*      sliding under it, the overlay rising and sinking;                     */
-/*    - every visible string the same in both looks;                          */
+/*  "UI and UX" and "How screens move"; the only look since the founder's     */
+/*  2026-10-11 "keep the new designs, make them permanent"):                  */
+/*    - the walk's full-screen overlay (nothing of the page behind it), a     */
+/*      still top bar with ‹ Slide n › and ✕, the content sliding under it,  */
+/*      the overlay rising and sinking;                                       */
 /*    - History, Edit and the helper-words save, lock and delete unchanged;   */
 /*    - reduce motion: nothing moves, no leaving copy is drawn.               */
 /* -------------------------------------------------------------------------- */
@@ -141,49 +140,18 @@ const q = <T extends Element = HTMLElement>(sel: string) => document.querySelect
 /** The live screen (never the leaving copy). */
 const live = () => q("[data-walk-stage] .walk-layer:not(.walk-ghost)");
 
-/** Every string a reader meets, in any order: text and accessible names. */
-function strings(root: Element): string[] {
-  const out: string[] = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const t = n.textContent?.trim();
-    if (t) out.push(t);
-  }
-  root.querySelectorAll("[aria-label]").forEach((el) => out.push(`aria:${el.getAttribute("aria-label")}`));
-  return out.sort();
-}
-
-async function stringsIn(look: boolean, over: Partial<Props>, sel: string) {
-  await draw(sheet({ ...over, walkLook: look }));
-  const el = q(sel)!;
-  expect(el).not.toBeNull();
-  const out = strings(el);
-  await act(async () => root.render(createElement("div")));
-  document.querySelectorAll("[data-walk-sink]").forEach((n) => n.remove());
-  forgetParagraphSheetData();
-  forgetWalkHandoff();
-  return out;
-}
-
-describe("the switch decides the look (Q-B3: when the walk goes live)", () => {
-  it("off: today's sheet, the page dimmed behind it, today's ‹ › bar", async () => {
-    await draw(sheet());
-    expect(q("[data-walk-stage]")).toBeNull();
-    expect(q('[data-testid="paragraph-sheet"]')!.className).toMatch(/bg-foreground\/30/);
-    expect(q('[data-testid="feedback-pager"]')).not.toBeNull();
-  });
-
-  it("on (NEXT_PUBLIC_FEEDBACK_WALK=on): the walk's overlay", async () => {
-    vi.stubEnv("NEXT_PUBLIC_FEEDBACK_WALK", "on");
+describe("one look (founder 2026-10-11)", () => {
+  it("the paragraph's sheet is always the walk's overlay, never today's dimmed sheet", async () => {
     await draw(sheet());
     expect(live()!.querySelector('.walk-ov[data-testid="paragraph-sheet"]')).not.toBeNull();
     expect(q('[data-testid="feedback-pager"]')).toBeNull();
+    expect(document.body.innerHTML).not.toMatch(/bg-foreground\/30/);
   });
 });
 
 describe("the walk's look", () => {
   it("is full screen with nothing of the page behind it", async () => {
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     const stage = q("[data-walk-stage]")!;
     expect(stage.className).toMatch(/fixed inset-0 z-50/);
     const ov = live()!.querySelector(".walk-ov")!;
@@ -194,7 +162,7 @@ describe("the walk's look", () => {
   });
 
   it("has one still top bar: ‹ Slide 2 › and ✕; the title and the content below it", async () => {
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     const ov = live()!.querySelector(".walk-ov")!;
     const top = ov.firstElementChild!;
     expect(top.classList.contains("walk-ovtop")).toBe(true);
@@ -209,64 +177,22 @@ describe("the walk's look", () => {
   });
 
   it("Back is off on the first moment", async () => {
-    await draw(sheet({ walkLook: true, pager: pagerAt(0) }));
+    await draw(sheet({ pager: pagerAt(0) }));
     expect(q<HTMLButtonElement>(`[data-walk-nav] [aria-label='${COPY.pagerBack}']`)!.disabled).toBe(true);
   });
 
   it("outside the walk the bar reads the slide alone, no ‹ ›", async () => {
-    await draw(sheet({ walkLook: true, pager: null }));
+    await draw(sheet({ pager: null }));
     expect(q("[data-walk-nav]")).toBeNull();
     expect(q("[data-walk-caption]")!.textContent).toBe("Slide 2");
   });
 
   it("✕ and Escape close, as today", async () => {
     const onClose = vi.fn();
-    await draw(sheet({ walkLook: true, onClose }));
+    await draw(sheet({ onClose }));
     await act(async () => q<HTMLButtonElement>(".walk-ovtop [aria-label='Close']")!.click());
     live()!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(onClose).toHaveBeenCalledTimes(2);
-  });
-});
-
-/** The walk's player's own words (its clip length, its accessible name: the
- *  walk's signed "moment n of m"): the one player replaces today's, whose
- *  words the mocked MediaPlayer does not draw (Q-WALK-PARA A). */
-const lessWalkPlayer = (list: string[]) =>
-  list.filter((line) => !/^\d+:\d\d$/.test(line) && !/^aria:(Play|Pause) moment /.test(line));
-
-describe("every string is unchanged between the two looks", () => {
-  it("This paragraph: the same, less the tinted judgement chip (Q-WALK-PARA A)", async () => {
-    const off = await stringsIn(false, {}, '[data-testid="paragraph-sheet"]');
-    const on = await stringsIn(true, {}, '[data-testid="paragraph-sheet"]');
-    expect(off).toContain(COPY.titleParagraph);
-    expect(off).toContain(COPY.judgementLabel);
-    const chip = new Set<string>([COPY.judgementLabel, COPY.judgementWord.yes]);
-    expect(lessWalkPlayer(on)).toEqual(off.filter((line) => !chip.has(line)));
-  });
-
-  it("Helper words saved", async () => {
-    const over = { headline: "ship it now", firstTake: true };
-    const off = await stringsIn(false, over, '[data-testid="paragraph-sheet"]');
-    const on = await stringsIn(true, over, '[data-testid="paragraph-sheet"]');
-    expect(off).toContain(COPY.titleSaved);
-    expect(lessWalkPlayer(on)).toEqual(off);
-  });
-
-  it("the helper-words overlay", async () => {
-    const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete: vi.fn(async () => true) };
-    const over = { headline: "ship it now", startPicking: true, helperWordsHost };
-    const off = await stringsIn(false, over, '[data-testid="helper-words-sheet"]');
-    const on = await stringsIn(true, over, '[data-testid="helper-words-sheet"]');
-    expect(off).toContain(COPY.historyHelperWords);
-    expect(on).toEqual(off);
-  });
-
-  it("the picker, with its Take 1 note", async () => {
-    const over = { startPicking: true, firstTake: true, pager: null, slideLabel: null };
-    const off = await stringsIn(false, over, '[data-testid="paragraph-sheet"]');
-    const on = await stringsIn(true, over, '[data-testid="paragraph-sheet"]');
-    expect(off).toContain(COPY.titleEmphasis);
-    expect(on).toEqual(off);
   });
 });
 
@@ -275,7 +201,7 @@ describe("History, Edit and the helper words still work in the walk's look", () 
     const onUse = vi.fn(async (_span: RootPhraseSpan) => true);
     const onDone = vi.fn();
     const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete: vi.fn(async () => true) };
-    await draw(sheet({ walkLook: true, headline: "ship it now", onUseHelperWords: onUse, onDone, helperWordsHost }));
+    await draw(sheet({ headline: "ship it now", onUseHelperWords: onUse, onDone, helperWordsHost }));
     const history = live()!.querySelector<HTMLDetailsElement>('[data-testid="paragraph-history"]')!;
     expect(history.textContent).toContain(COPY.historyRow);
     await act(async () => history.querySelector("summary")!.click());
@@ -300,7 +226,7 @@ describe("History, Edit and the helper words still work in the walk's look", () 
   it("Delete asks once, then clears the words", async () => {
     const onDelete = vi.fn(async () => true);
     const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete };
-    await draw(sheet({ walkLook: true, headline: "ship it now", startPicking: true, helperWordsHost }));
+    await draw(sheet({ headline: "ship it now", startPicking: true, helperWordsHost }));
     await act(async () => live()!.querySelector<HTMLButtonElement>('[data-testid="helper-words-delete"]')!.click());
     const confirm = live()!.querySelector<HTMLButtonElement>('[data-testid="helper-words-delete-confirm"]')!;
     expect(confirm.textContent).toBe(COPY.helperWordsDeleteConfirm);
@@ -308,7 +234,7 @@ describe("History, Edit and the helper words still work in the walk's look", () 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it("HelperWordsSheet on its own: the walk's look only when asked", async () => {
+  it("HelperWordsSheet on its own: the walk's look, with or without a place", async () => {
     const base = {
       headline: "ship it now",
       currentText: TEXT,
@@ -317,7 +243,8 @@ describe("History, Edit and the helper words still work in the walk's look", () 
       onClose: vi.fn(),
     };
     await draw(createElement(HelperWordsSheet, base));
-    expect(q("[data-walk-stage]")).toBeNull();
+    expect(live()!.querySelector('.walk-ov[data-testid="helper-words-sheet"]')).not.toBeNull();
+    expect(q("[data-walk-caption]")).toBeNull();
     await draw(createElement(HelperWordsSheet, {
       ...base,
       walk: { nav: null, caption: "Slide 2", moment: null },
@@ -329,7 +256,7 @@ describe("History, Edit and the helper words still work in the walk's look", () 
 
 describe("how it moves (walk lock 'How screens move')", () => {
   it("rises over the page when it opens", async () => {
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     expect(live()!.getAttribute("data-walk-move")).toBe("open");
     expect(live()!.classList.contains("walk-m-open")).toBe(true);
   });
@@ -337,7 +264,7 @@ describe("how it moves (walk lock 'How screens move')", () => {
   it("Edit: the content slides on under the still top bar, the old copy slipping away", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete: vi.fn(async () => true) };
-    await draw(sheet({ walkLook: true, headline: "ship it now", helperWordsHost }));
+    await draw(sheet({ headline: "ship it now", helperWordsHost }));
     await act(async () => live()!.querySelector<HTMLButtonElement>('[data-testid="paragraph-helper-words"]')!.click());
     expect(live()!.getAttribute("data-walk-move")).toBe("next");
     expect(live()!.classList.contains("walk-m-next")).toBe(true);
@@ -355,7 +282,7 @@ describe("how it moves (walk lock 'How screens move')", () => {
 
   it("moves the same under React's strict mode (effects run twice)", async () => {
     const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete: vi.fn(async () => true) };
-    const props = { walkLook: true, headline: "ship it now", helperWordsHost };
+    const props = { headline: "ship it now", helperWordsHost };
     await draw(createElement(StrictMode, null, sheet(props)));
     expect(live()!.getAttribute("data-walk-move")).toBe("open");
     await act(async () => live()!.querySelector<HTMLButtonElement>('[data-testid="paragraph-helper-words"]')!.click());
@@ -364,17 +291,17 @@ describe("how it moves (walk lock 'How screens move')", () => {
   });
 
   it("‹ to an earlier moment slides back; › to a later one slides on", async () => {
-    await draw(createElement("div", { key: "a" }, sheet({ walkLook: true, pager: pagerAt(2) })));
-    await draw(createElement("div", { key: "b" }, sheet({ walkLook: true, pager: pagerAt(1) })));
+    await draw(createElement("div", { key: "a" }, sheet({ pager: pagerAt(2) })));
+    await draw(createElement("div", { key: "b" }, sheet({ pager: pagerAt(1) })));
     expect(live()!.getAttribute("data-walk-move")).toBe("back");
     expect(q("[data-walk-ghost]")!.className).toMatch(/walk-m-back/);
-    await draw(createElement("div", { key: "c" }, sheet({ walkLook: true, pager: pagerAt(2) })));
+    await draw(createElement("div", { key: "c" }, sheet({ pager: pagerAt(2) })));
     expect(live()!.getAttribute("data-walk-move")).toBe("next");
   });
 
   it("sinks when it closes, the page already underneath, then the copy goes", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     await act(async () => root.render(createElement("div")));
     const sink = q("[data-walk-sink]")!;
     expect(sink.getAttribute("aria-hidden")).toBe("true");
@@ -399,7 +326,7 @@ describe("reduce motion: every move is instant", () => {
   it("opens, moves and closes with no move, no leaving copy and no sink", async () => {
     reduce = true;
     const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete: vi.fn(async () => true) };
-    await draw(sheet({ walkLook: true, headline: "ship it now", helperWordsHost }));
+    await draw(sheet({ headline: "ship it now", helperWordsHost }));
     expect(live()!.getAttribute("data-walk-move")).toBe("none");
     expect(document.body.innerHTML).not.toMatch(/walk-m-(open|next|back|fade|close|swap)/);
     await act(async () => live()!.querySelector<HTMLButtonElement>('[data-testid="paragraph-helper-words"]')!.click());
@@ -422,7 +349,7 @@ describe("reduce motion: every move is instant", () => {
 
 describe("one player, no coloured chip in the walk's look (Q-WALK-PARA A)", () => {
   it("on: the walk's player with the moment's clip; no second player; no judgement chip", async () => {
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     const players = live()!.querySelectorAll("[data-walk-player]");
     expect(players).toHaveLength(1);
     expect(q('[data-testid="media-player"]')).toBeNull();
@@ -432,21 +359,14 @@ describe("one player, no coloured chip in the walk's look (Q-WALK-PARA A)", () =
     expect(q('[data-testid="overlay-practise"]')).not.toBeNull();
   });
 
-  it("off: today's sheet keeps its player and its chip", async () => {
-    await draw(sheet({ walkLook: false }));
-    expect(q('[data-testid="media-player"]')).not.toBeNull();
-    expect(q("[data-walk-player]")).toBeNull();
-    expect(q('[data-testid="judgement-label"]')).not.toBeNull();
-  });
-
   it("on a desktop the paragraph's screens are the walk's column too (Q-WALK-DESK A)", async () => {
-    await draw(sheet({ walkLook: true }));
+    await draw(sheet());
     expect(live()!.closest("[data-walk-sheet]")).not.toBeNull();
   });
 
   it("on, with no clip: no player at all", async () => {
     const silent = { ...moment, snippetAudioRef: null } as unknown as DocumentSuggestion;
-    await draw(sheet({ walkLook: true, decided: [silent] }));
+    await draw(sheet({ decided: [silent] }));
     expect(q("[data-walk-player]")).toBeNull();
   });
 });

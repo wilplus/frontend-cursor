@@ -7,7 +7,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OpenChunkSheet, { asJudgement } from "./OpenChunkSheet";
+import OpenChunkSheet from "./OpenChunkSheet";
 import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
@@ -111,7 +111,7 @@ afterEach(async () => {
 
 const closeSheet = vi.fn();
 const onAccept = vi.fn(async (_item: DocumentSuggestion) => true);
-type SheetProps = Parameters<typeof OpenChunkSheet>[0];
+const onPractise = vi.fn((_partId: string, _card: unknown, _moment: unknown) => true);
 
 const rewrite = {
   id: "s-rw",
@@ -158,11 +158,10 @@ async function open(
         onUseHelperWords: vi.fn(async () => true),
         onAccept,
         onClose: closeSheet,
-        practiseHost: { onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })), onHelperWordsSaved: vi.fn() },
-        renderSheet: (practiseAgain: Parameters<SheetProps["renderSheet"]>[0]) =>
+        onPractise,
+        renderSheet: () =>
           createElement(DeckChunkModal, {
             state: s,
-            practiseAgain,
             onAccept: vi.fn(async () => true),
             onKeepMine: vi.fn(async () => true),
             onLockIn: vi.fn(async () => ({ outcome: "ok" as const, rootPhraseProposal: null })),
@@ -177,6 +176,7 @@ async function open(
 
 async function accept(textUpdate: string | undefined) {
   onAccept.mockClear();
+  onPractise.mockClear();
   vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce(
     textUpdate === undefined ? { ok: true } : { ok: true, textUpdate });
   await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [
@@ -193,11 +193,15 @@ describe("accepting a rewrite", () => {
     expect(onAccept).toHaveBeenCalledTimes(1);
     expect(onAccept.mock.calls[0][0].acceptedOnServer).toBe(true);
     expect(container.querySelector('[role="alert"]')).toBeNull();
+    // Then the practise on the accepted words, in the Feedback walk.
+    expect(onPractise).toHaveBeenCalledTimes(1);
+    expect(onPractise.mock.calls[0][1]).toMatchObject({ kind: "rewrite", text: "We ship it now." });
   });
 
   it("the server refused: nothing changes and the sheet says so", async () => {
     await accept("protected");
     expect(onAccept).not.toHaveBeenCalled();
+    expect(onPractise).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
   });
 
