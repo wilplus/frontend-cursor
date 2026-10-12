@@ -12,6 +12,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { mapCandidates, type MatchCandidate } from "./machinePick";
+import { coachWrite } from "./coachAuth";
 
 export type ExerciseRequestResolution =
   | "exercise_chosen"
@@ -156,20 +157,8 @@ export async function answerCoachExerciseRequest(
   snippetId: string,
   answer: ExerciseRequestAnswer,
 ): Promise<{ ok: true; request: CoachExerciseRequest } | { ok: false; message: string }> {
-  try {
-    const res = await fetch(requestPath(sessionId, snippetId), {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(answerBody(answer)),
-    });
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (!res.ok) {
-      return { ok: false, message: str(data?.error) ?? FALLBACK_REFUSAL };
-    }
-    const request = mapCoachExerciseRequest(data?.request);
-    return request ? { ok: true, request } : { ok: false, message: FALLBACK_REFUSAL };
-  } catch {
-    return { ok: false, message: FALLBACK_REFUSAL };
-  }
+  const res = await coachWrite(requestPath(sessionId, snippetId), "PUT", answerBody(answer));
+  if (!res.ok) return { ok: false, message: str(res.data?.error) ?? FALLBACK_REFUSAL };
+  const request = mapCoachExerciseRequest(res.data?.request);
+  return request ? { ok: true, request } : { ok: false, message: FALLBACK_REFUSAL };
 }

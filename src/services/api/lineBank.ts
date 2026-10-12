@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { WalkLinesIO } from "@/lib/willab/walkLines";
 
 /* -------------------------------------------------------------------------- */
@@ -10,44 +10,23 @@ import type { WalkLinesIO } from "@/lib/willab/walkLines";
 /*  own turn, a failed record is not retried, and the walk never waits.       */
 /* -------------------------------------------------------------------------- */
 
-async function authed(): Promise<Record<string, string> | null> {
-  const token = await getAuthToken().catch(() => null);
-  return token ? { Authorization: `Bearer ${token}` } : null;
-}
-
 /** {bank: index} each bank says next; null when it cannot be read. */
 export async function fetchLineBankNext(): Promise<Record<string, number> | null> {
-  const headers = await authed();
-  if (!headers) return null;
-  try {
-    const res = await fetch("/api/v2/user/line-bank", { headers, cache: "no-store" });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => null)) as { next?: unknown } | null;
-    const next = data?.next;
-    if (!next || typeof next !== "object" || Array.isArray(next)) return null;
-    const out: Record<string, number> = {};
-    for (const [bank, index] of Object.entries(next as Record<string, unknown>)) {
-      if (typeof index === "number" && Number.isInteger(index) && index >= 0) out[bank] = index;
-    }
-    return out;
-  } catch {
-    return null;
+  const res = await bffFetch("/api/v2/user/line-bank", { cache: "no-store" });
+  if (res.kind !== "response" || !res.ok) return null;
+  const next = (res.body as { next?: unknown } | null)?.next;
+  if (!next || typeof next !== "object" || Array.isArray(next)) return null;
+  const out: Record<string, number> = {};
+  for (const [bank, index] of Object.entries(next as Record<string, unknown>)) {
+    if (typeof index === "number" && Number.isInteger(index) && index >= 0) out[bank] = index;
   }
+  return out;
 }
 
 /** A line of `bank` was shown: record it as said. */
 export async function recordLineShown(bank: string): Promise<void> {
-  const headers = await authed();
-  if (!headers) return;
-  try {
-    await fetch("/api/v2/user/line-bank/shown", {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ bank }),
-    });
-  } catch {
-    // Not retried: the next read follows whatever the memory holds.
-  }
+  // Not retried: the next read follows whatever the memory holds.
+  await bffFetch("/api/v2/user/line-bank/shown", { method: "POST", json: { bank } });
 }
 
 /** The walk's calls. */

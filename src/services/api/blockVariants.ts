@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  blockVariants — the block variant PICKER, revisions & restore              */
@@ -111,24 +111,14 @@ function mapBlock(raw: unknown): VariantBlock {
 export async function fetchBlockVariants(
   arcId: string
 ): Promise<BlockVariantsResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/blocks/variants`,
-      { headers, credentials: "include", cache: "no-store" }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/blocks/variants`,
+    { auth: "optional", credentials: "include", cache: "no-store" }
+  );
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 404) return { kind: "off" };
   if (!res.ok) return { kind: "error" };
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = res.body as Record<string, unknown> | null;
   if (!body || !Array.isArray(body.blocks)) return { kind: "error" };
   return {
     kind: "ready",
@@ -157,27 +147,11 @@ export async function selectBlockVariant(
   blockKey: number,
   variantId: string
 ): Promise<SelectVariantResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(
-        arcId
-      )}/blocks/${encodeURIComponent(String(blockKey))}/select`,
-      {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ variant_id: variantId }),
-      }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/blocks/${encodeURIComponent(String(blockKey))}/select`,
+    { method: "POST", auth: "optional", credentials: "include", json: { variant_id: variantId } }
+  );
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 404) return { kind: "gone" };
   if (res.status === 409) return { kind: "stale" };
   if (!res.ok) return { kind: "error" };
@@ -208,24 +182,14 @@ export type RevisionsResult =
 export async function fetchIdealTextRevisions(
   arcId: string
 ): Promise<RevisionsResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/revisions`,
-      { headers, credentials: "include", cache: "no-store" }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/revisions`,
+    { auth: "optional", credentials: "include", cache: "no-store" }
+  );
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 404) return { kind: "off" };
   if (!res.ok) return { kind: "error" };
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = res.body as Record<string, unknown> | null;
   if (!body || !Array.isArray(body.revisions)) return { kind: "error" };
   const revisions: IdealTextRevision[] = [];
   for (const item of body.revisions) {
@@ -269,25 +233,13 @@ export async function restoreIdealTextRevision(
   arcId: string,
   revision: number
 ): Promise<RestoreResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(
-        arcId
-      )}/ideal-text/revisions/${encodeURIComponent(String(revision))}/restore`,
-      { method: "POST", headers, credentials: "include" }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(
+    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/revisions/${encodeURIComponent(String(revision))}/restore`,
+    { method: "POST", auth: "optional", credentials: "include" }
+  );
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 404) return { kind: "gone" };
   if (!res.ok) return { kind: "error" };
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = res.body as Record<string, unknown> | null;
   return { kind: "ok", headRevision: intOrNull(body?.head_revision) };
 }

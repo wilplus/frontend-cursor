@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffOkBody } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  The Voice Album read (founder 2026-09-18: "the voices should be stored by  */
@@ -79,30 +79,14 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-async function authHeaders(): Promise<HeadersInit> {
-  const token = await getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function getJson(path: string): Promise<unknown | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method: "GET",
-      headers: await authHeaders(),
-      credentials: "include",
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!response.ok) return null;
-  return response.json().catch(() => null);
+function getJson(path: string): Promise<unknown> {
+  return bffOkBody(path, {
+    method: "GET",
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+    timeoutMs: 15_000,
+  });
 }
 
 function mapEntry(raw: unknown, fallbackProjectId: string | null): VoiceAlbumEntry | null {
@@ -263,18 +247,13 @@ export async function saveMomentNote(
   momentKey: string,
   body: string
 ): Promise<MomentEvent | null> {
-  let response: Response;
-  try {
-    response = await fetch("/api/v2/voice-album/note", {
+  const payload = rec(
+    await bffOkBody("/api/v2/voice-album/note", {
       method: "POST",
-      headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+      auth: "optional",
       credentials: "include",
-      body: JSON.stringify({ arc_id: projectId, moment_key: momentKey, body }),
-    });
-  } catch {
-    return null;
-  }
-  if (!response.ok) return null;
-  const payload = rec(await response.json().catch(() => null));
+      json: { arc_id: projectId, moment_key: momentKey, body },
+    }),
+  );
   return payload ? mapEvent(payload.note) : null;
 }

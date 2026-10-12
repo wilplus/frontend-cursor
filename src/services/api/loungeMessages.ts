@@ -12,6 +12,7 @@
  */
 
 import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch, bffOkBody } from "@/lib/api/bffFetch";
 import { readNewCoachFeedback, setNewCoachFeedback } from "@/lib/willab/newCoachFeedback";
 import { coachFeedbackSeenSettled } from "./coachFeedbackSeen";
 
@@ -132,24 +133,11 @@ export async function fetchLoungeHistory(opts?: {
     has_more: false,
     oldest_cursor: null,
   };
-  const headers = await authHeaders();
-  if (!headers) return empty;
-
   const qs = new URLSearchParams();
   qs.set("limit", String(opts?.limit ?? LOUNGE_PAGE_SIZE));
   if (opts?.before) qs.set("before", opts.before);
 
-  let res: Response;
-  try {
-    res = await fetch(`${ENDPOINT}?${qs.toString()}`, {
-      headers,
-      cache: "no-store",
-    });
-  } catch {
-    return empty;
-  }
-  if (!res.ok) return empty;
-  const data = (await res.json().catch(() => null)) as
+  const data = (await bffOkBody(`${ENDPOINT}?${qs.toString()}`, { cache: "no-store" })) as
     | (LoungeHistoryPage & { new_coach_feedback?: unknown })
     | null;
   if (!data || !Array.isArray(data.messages)) return empty;
@@ -205,9 +193,7 @@ export async function appendAllLoungeMessages(
 
 /** Clear the whole server thread (§3.14 user-deletable). */
 export async function clearLoungeThread(): Promise<void> {
-  const headers = await authHeaders();
-  if (!headers) return;
-  await fetch(ENDPOINT, { method: "DELETE", headers }).catch(() => {});
+  await bffFetch(ENDPOINT, { method: "DELETE" });
 }
 
 /**

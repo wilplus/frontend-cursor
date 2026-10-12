@@ -130,7 +130,7 @@ export interface TokenPrices {
   priceVersion: string | null;
   /** action key → price; never inline a number. */
   actions: Record<string, number>;
-  /** Ascending by maxSeconds — `bandFor` relies on the order. */
+  /** Ascending by maxSeconds. */
   bands: TokenBand[];
   tiers: Record<string, TokenTier>;
 }
@@ -176,18 +176,6 @@ export function mapTokenPrices(raw: unknown): TokenPrices | null {
   }
 
   return { priceVersion: str(raw.price_version), actions, bands, tiers };
-}
-
-/** The band a take of `seconds` lands in — the FIRST band whose cap it fits.
- *  Past the last band there is no higher price to quote, so the top band is
- *  returned: the BE charges what it charges, and quoting the top band is the
- *  honest ceiling rather than a made-up number. */
-export function bandFor(prices: TokenPrices | null, seconds: number | null): TokenBand | null {
-  if (!prices || prices.bands.length === 0) return null;
-  if (seconds === null) return prices.bands[prices.bands.length - 1];
-  return (
-    prices.bands.find((b) => seconds <= b.maxSeconds) ?? prices.bands[prices.bands.length - 1]
-  );
 }
 
 /** The prices probe, with FAILURE SEPARATED FROM OFF.

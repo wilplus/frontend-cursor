@@ -12,24 +12,19 @@
 
 import { isAnswer, mapMomentsQueue, type AnswerValue, type QueueSpeaker } from "@/lib/willab/coachWalk";
 import { mapCoachExerciseRequest, type CoachExerciseRequest } from "./coachExerciseRequest";
-import { coachReadInit } from "./coachAuth";
+import { coachRead, coachWrite } from "./coachAuth";
 
 export type MomentsQueueResult =
   | { ok: true; speakers: QueueSpeaker[] }
   | { ok: false; code: "RATER_LANGUAGES_REQUIRED" | "FORBIDDEN" | "UNAVAILABLE" };
 
 export async function fetchMomentsQueue(): Promise<MomentsQueueResult> {
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/coach/queue/moments", await coachReadInit());
-  } catch {
-    return { ok: false, code: "UNAVAILABLE" };
-  }
+  const res = await coachRead("/api/v2/coach/queue/moments");
+  if (res.status === 0) return { ok: false, code: "UNAVAILABLE" };
   if (res.status === 428) return { ok: false, code: "RATER_LANGUAGES_REQUIRED" };
   if (res.status === 401 || res.status === 403) return { ok: false, code: "FORBIDDEN" };
   if (!res.ok) return { ok: false, code: "UNAVAILABLE" };
-  const data = await res.json().catch(() => null);
-  return { ok: true, speakers: mapMomentsQueue(data) };
+  return { ok: true, speakers: mapMomentsQueue(res.data) };
 }
 
 /** What the machine heard on a moment, for its kind (D-CP-13; backend
@@ -113,16 +108,10 @@ export async function fetchMomentRead(
   sessionId: string,
   snippetId: string,
 ): Promise<MomentRead | null> {
-  try {
-    const res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/moment`,
-      await coachReadInit(),
-    );
-    if (!res.ok) return null;
-    return mapMomentRead(await res.json().catch(() => null));
-  } catch {
-    return null;
-  }
+  const res = await coachRead(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/moment`,
+  );
+  return res.ok ? mapMomentRead(res.data) : null;
 }
 
 /** PUT …/practice-judgement: the coach's answer on the speaker's chosen
@@ -132,20 +121,12 @@ export async function judgePractice(
   snippetId: string,
   answer: AnswerValue,
 ): Promise<boolean> {
-  try {
-    const res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/practice-judgement`,
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer }),
-      },
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await coachWrite(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/practice-judgement`,
+    "PUT",
+    { answer },
+  );
+  return res.ok;
 }
 
 /* ── screens 4 to 7 (group 4) ─────────────────────────────────────────── */
@@ -166,32 +147,23 @@ export async function draftForRequest(
   snippetId: string,
   notes?: string,
 ): Promise<RequestDraft | null> {
-  try {
-    const res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request/draft`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(notes?.trim() ? { notes: notes.trim() } : {}),
-      },
-    );
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    const draft = (data?.draft ?? null) as Record<string, unknown> | null;
-    if (!draft || typeof draft.text !== "string" || !draft.text.trim()) return null;
-    const surface = draft.surface;
-    if (surface !== "exercise_script" && surface !== "praise_line" && surface !== "clearer_version") {
-      return null;
-    }
-    return {
-      surface,
-      text: draft.text,
-      modelVersion: typeof draft.model_version === "string" ? draft.model_version : null,
-    };
-  } catch {
+  const res = await coachWrite(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request/draft`,
+    "POST",
+    notes?.trim() ? { notes: notes.trim() } : {},
+  );
+  if (!res.ok) return null;
+  const draft = (res.data?.draft ?? null) as Record<string, unknown> | null;
+  if (!draft || typeof draft.text !== "string" || !draft.text.trim()) return null;
+  const surface = draft.surface;
+  if (surface !== "exercise_script" && surface !== "praise_line" && surface !== "clearer_version") {
     return null;
   }
+  return {
+    surface,
+    text: draft.text,
+    modelVersion: typeof draft.model_version === "string" ? draft.model_version : null,
+  };
 }
 
 /** POST …/exercise-request/video (multipart): the video a coach adds to a
@@ -203,19 +175,16 @@ export async function uploadAnswerVideo(
 ): Promise<{ ok: true; videoUrl: string } | { ok: false; message: string }> {
   const form = new FormData();
   form.append("video_file", file, file.name || "answer.webm");
-  try {
-    const res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request/video`,
-      { method: "POST", credentials: "include", body: form },
-    );
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (!res.ok || typeof data?.video_url !== "string") {
-      return { ok: false, message: typeof data?.error === "string" ? data.error : "Couldn’t upload the video." };
-    }
-    return { ok: true, videoUrl: data.video_url };
-  } catch {
-    return { ok: false, message: "Couldn’t upload the video." };
+  const res = await coachWrite(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request/video`,
+    "POST",
+    form,
+  );
+  const data = res.data;
+  if (!res.ok || typeof data?.video_url !== "string") {
+    return { ok: false, message: typeof data?.error === "string" ? data.error : "Couldn’t upload the video." };
   }
+  return { ok: true, videoUrl: data.video_url };
 }
 
 export type WordsResolution = "line_written" | "version_written" | "note_written";
@@ -241,22 +210,13 @@ export async function answerInWords(
   };
   if (input.fileInCatalogue === false) body.file_in_catalogue = false;
   if (input.patternKey) body.pattern_key = input.patternKey;
-  try {
-    const res = await fetch(
-      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request`,
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-    if (res.ok) return { ok: true };
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    return { ok: false, message: typeof data?.error === "string" ? data.error : "Couldn’t save your answer." };
-  } catch {
-    return { ok: false, message: "Couldn’t save your answer." };
-  }
+  const res = await coachWrite(
+    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request`,
+    "PUT",
+    body,
+  );
+  if (res.ok) return { ok: true };
+  return { ok: false, message: typeof res.data?.error === "string" ? res.data.error : "Couldn’t save your answer." };
 }
 
 export interface TakeWord {
@@ -279,14 +239,8 @@ function mapTakeWord(raw: unknown): TakeWord | null {
 
 /** GET …/word: this coach's own word for the Take, or null. */
 export async function fetchTakeWord(sessionId: string): Promise<TakeWord | null> {
-  try {
-    const res = await fetch(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, await coachReadInit());
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    return mapTakeWord(data?.word);
-  } catch {
-    return null;
-  }
+  const res = await coachRead(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`);
+  return res.ok ? mapTakeWord(res.data?.word) : null;
 }
 
 /** PUT …/word: save the word; `share` sends it to the speaker. */
@@ -294,25 +248,15 @@ export async function saveTakeWord(
   sessionId: string,
   input: { text: string; videoRef: string | null; share: boolean },
 ): Promise<{ ok: true; word: TakeWord | null } | { ok: false; message: string }> {
-  try {
-    const res = await fetch(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: input.text,
-        ...(input.videoRef ? { video_ref: input.videoRef } : {}),
-        share: input.share,
-      }),
-    });
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (!res.ok) {
-      return { ok: false, message: typeof data?.error === "string" ? data.error : "Couldn’t save the word." };
-    }
-    return { ok: true, word: mapTakeWord(data?.word) };
-  } catch {
-    return { ok: false, message: "Couldn’t save the word." };
+  const res = await coachWrite(`/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word`, "PUT", {
+    text: input.text,
+    ...(input.videoRef ? { video_ref: input.videoRef } : {}),
+    share: input.share,
+  });
+  if (!res.ok) {
+    return { ok: false, message: typeof res.data?.error === "string" ? res.data.error : "Couldn’t save the word." };
   }
+  return { ok: true, word: mapTakeWord(res.data?.word) };
 }
 
 /* ── the catalogue of signed lines (the library's lines and moves) ────── */
@@ -345,16 +289,9 @@ function mapLine(raw: unknown): CatalogueLine | null {
 }
 
 export async function listCatalogue(): Promise<CatalogueLine[]> {
-  try {
-    const res = await fetch("/api/v2/coach/catalogue", await coachReadInit());
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    return Array.isArray(data?.lines)
-      ? data.lines.map(mapLine).filter((l): l is CatalogueLine => l !== null)
-      : [];
-  } catch {
-    return [];
-  }
+  const res = await coachRead("/api/v2/coach/catalogue");
+  const lines = res.ok ? res.data?.lines : null;
+  return Array.isArray(lines) ? lines.map(mapLine).filter((l): l is CatalogueLine => l !== null) : [];
 }
 
 export async function addCatalogueLine(input: {
@@ -363,22 +300,12 @@ export async function addCatalogueLine(input: {
   patternKey: string;
   text: string;
 }): Promise<{ ok: true; line: CatalogueLine | null } | { ok: false; message: string }> {
-  try {
-    const res = await fetch("/api/v2/coach/catalogue", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lane: input.lane, pattern_kind: input.patternKind,
-        pattern_key: input.patternKey, text: input.text,
-      }),
-    });
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (!res.ok) {
-      return { ok: false, message: typeof data?.error === "string" ? data.error : "Couldn’t save the line." };
-    }
-    return { ok: true, line: mapLine(data?.line) };
-  } catch {
-    return { ok: false, message: "Couldn’t save the line." };
+  const res = await coachWrite("/api/v2/coach/catalogue", "POST", {
+    lane: input.lane, pattern_kind: input.patternKind,
+    pattern_key: input.patternKey, text: input.text,
+  });
+  if (!res.ok) {
+    return { ok: false, message: typeof res.data?.error === "string" ? res.data.error : "Couldn’t save the line." };
   }
+  return { ok: true, line: mapLine(res.data?.line) };
 }

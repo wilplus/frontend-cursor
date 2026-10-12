@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import {
   mapReadoutFeatures,
   type ReadoutFeatures,
@@ -195,20 +196,9 @@ export function mapStrengths(raw: unknown): StrengthsView {
 }
 
 export async function fetchStrengths(): Promise<StrengthsView> {
-  const token = await getAuthToken();
-  if (!token) return { general: [], presentations: [] };
-
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/user/strengths", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch {
-    return { general: [], presentations: [] };
-  }
-  if (!res.ok) return { general: [], presentations: [] };
-  return mapStrengths(await res.json().catch(() => null));
+  const res = await bffFetch("/api/v2/user/strengths", { cache: "no-store" });
+  if (res.kind !== "response" || !res.ok) return { general: [], presentations: [] };
+  return mapStrengths(res.body);
 }
 
 /* -------------------------------------------------------------------------- */

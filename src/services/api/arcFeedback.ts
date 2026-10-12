@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import { notifyTokensSpent } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
@@ -141,19 +141,12 @@ export function groupKeyMomentsBySlide(
 export async function fetchArcFeedback(
   arcId: string
 ): Promise<ArcFeedback | null> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/feedback`,
-      { headers, credentials: "include", cache: "no-store" }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
+  const res = await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/feedback`, {
+    auth: "optional",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (res.kind !== "response" || !res.ok) return null;
   // TOKEN PRICING — this read is metered. The BE charges the `insights` price
   // here (1,000 today), once per arc, keyed on the arc id: re-opening the same
   // arc's feedback is free, and the charge is fail-open, so it never blocks or
@@ -172,5 +165,5 @@ export async function fetchArcFeedback(
   //
   // NOT priced on the trigger, deliberately — see the note in FeedbackOverlay.
   notifyTokensSpent();
-  return mapArcFeedback(await res.json().catch(() => null));
+  return mapArcFeedback(res.body);
 }

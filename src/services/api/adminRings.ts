@@ -8,6 +8,8 @@
  * code (RING_ONE_WAY_KILLED and friends) and the panel shows the code.
  */
 
+import { codedCall, jsonInit as json, type CodedResult } from "@/lib/api/bffCall";
+
 export interface FeatureCounts {
   reaches: number;
   on: number;
@@ -58,34 +60,10 @@ export interface RingChange {
   [key: string]: unknown;
 }
 
-export type AdminResult<T> = { ok: true; value: T } | { ok: false; code: string; status: number };
+export type AdminResult<T> = CodedResult<T>;
 
-async function readJson(response: Response): Promise<Record<string, unknown>> {
-  try {
-    const value = (await response.json()) as unknown;
-    return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function call<T>(path: string, init: RequestInit, pick: (body: Record<string, unknown>) => T): Promise<AdminResult<T>> {
-  try {
-    const response = await fetch(path, { cache: "no-store", ...init });
-    const body = await readJson(response);
-    if (!response.ok) {
-      return { ok: false, code: String(body.code ?? `HTTP_${response.status}`), status: response.status };
-    }
-    return { ok: true, value: pick(body) };
-  } catch {
-    return { ok: false, code: "UNREACHABLE", status: 0 };
-  }
-}
-
-const json = (body: unknown): RequestInit => ({
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(body),
-});
+const call = <T,>(path: string, init: RequestInit, pick: (body: Record<string, unknown>) => T) =>
+  codedCall(path, { cache: "no-store", ...init }, pick);
 
 export const adminRings = {
   features: () =>

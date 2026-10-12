@@ -4,6 +4,7 @@ import {
   type JournalCoverKind,
   type JournalPost,
 } from "./journal";
+import { jsonInit, messageCall, type MessageResult } from "@/lib/api/bffCall";
 
 /* -------------------------------------------------------------------------- */
 /*  journalAdmin — the CMS client (browser-side)                               */
@@ -40,14 +41,10 @@ export interface JournalPostDraft {
   published_at: string | null;
 }
 
-export type AdminResult<T> =
-  | { ok: true; data: T }
-  /** `code` is the backend's machine-readable reason, when it sent one. Added
-   *  for the cover generator, which must tell a rewordable refusal
-   *  (IMAGE_REJECTED) and a dead kill switch (DISABLED) apart from a transient
-   *  draw failure (V2_ERROR) that is worth a retry button. Optional on purpose:
-   *  every older caller reads only `message`/`status` and is unaffected. */
-  | { ok: false; status: number; message: string; code?: string };
+/** A failure's `code` lets the cover generator tell a rewordable refusal
+ *  (IMAGE_REJECTED) and a dead kill switch (DISABLED) apart from a transient
+ *  draw failure (V2_ERROR) that is worth a retry button. */
+export type AdminResult<T> = MessageResult<T>;
 
 function readError(data: unknown, status: number): string {
   const d = (data && typeof data === "object" ? data : {}) as Record<
@@ -62,34 +59,18 @@ function readError(data: unknown, status: number): string {
 }
 
 /** POST a password-gated CMS call. `path` is the segment after /journal/. */
-async function post<T>(
+function post<T>(
   path: string,
   password: string,
   body: Record<string, unknown>,
   pick: (data: unknown) => T
 ): Promise<AdminResult<T>> {
-  let res: Response;
-  let data: unknown;
-  try {
-    res = await fetch(`/api/v2/internal/journal/${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, ...body }),
-    });
-    data = await res.json().catch(() => ({}));
-  } catch {
-    return { ok: false, status: 0, message: "Network error. Try again." };
-  }
-  if (!res.ok) {
-    const code = (data as Record<string, unknown> | null)?.code;
-    return {
-      ok: false,
-      status: res.status,
-      message: readError(data, res.status),
-      ...(typeof code === "string" && code ? { code } : {}),
-    };
-  }
-  return { ok: true, data: pick(data) };
+  return messageCall(
+    `/api/v2/internal/journal/${path}`,
+    { method: "POST", ...jsonInit({ password, ...body }) },
+    readError,
+    pick,
+  );
 }
 
 function mapAdminPost(raw: unknown): AdminJournalPost | null {
@@ -208,7 +189,6 @@ export function criteriaForMainTarget(
   else delete next.primary_problem_tag;
   return next;
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Community Content Studio                                                   */

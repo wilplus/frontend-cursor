@@ -1,4 +1,4 @@
-import { bffFetch } from "@/lib/api/bffFetch";
+import { bffFetch, bffOkBody } from "@/lib/api/bffFetch";
 import type { FeedbackResponse } from "@/services/api/takeFeedback";
 
 /* The two reads behind an answered bookmark (founder 2026-09-25, Q19 A).
@@ -153,16 +153,10 @@ export function mapOwnerAnswers(body: unknown): OwnerAnswer[] {
   return out;
 }
 
-async function getJson(url: string): Promise<unknown | null> {
-  // Signed out still reads: the session cookie may authenticate, and a
-  // guest reads its own project's history and answers (Phase 0.6).
-  const result = await bffFetch(url, {
-    auth: "optional",
-    guest: true,
-    credentials: "include",
-    cache: "no-store",
-  });
-  return result.kind === "response" && result.ok ? result.body : null;
+/** Signed out still reads: the session cookie may authenticate, and a
+ *  guest reads its own project's history and answers (Phase 0.6). */
+function getJson(url: string): Promise<unknown> {
+  return bffOkBody(url, { auth: "optional", guest: true, credentials: "include", cache: "no-store" });
 }
 
 /** null when the Slide cannot be proven or the read failed: the sheet then

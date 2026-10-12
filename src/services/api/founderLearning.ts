@@ -18,39 +18,16 @@
 import { mapGapView, mapLedgerWeek, mapPaceRow, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
 import { mapExerciseJar, mapJarEvaluation, type ExerciseJar, type JarEvaluation } from "@/lib/founder/jar";
 import type { ConfidenceRatingValue } from "./stateRatings";
+import { codedCall, jsonInit as json, type CodedResult } from "@/lib/api/bffCall";
 
-export type FounderResult<T> = { ok: true; value: T } | { ok: false; code: string; status: number };
+export type FounderResult<T> = CodedResult<T>;
 
 /** The pair surfaces' one question takes three answers (ML-10). */
 export const PAIR_JUDGEMENTS = ["yes", "no", "not_sure"] as const;
 export type PairJudgement = (typeof PAIR_JUDGEMENTS)[number];
 
-async function readJson(response: Response): Promise<Record<string, unknown>> {
-  try {
-    const value = (await response.json()) as unknown;
-    return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function call<T>(path: string, init: RequestInit, pick: (body: Record<string, unknown>) => T): Promise<FounderResult<T>> {
-  try {
-    const response = await fetch(path, { cache: "no-store", credentials: "include", ...init });
-    const body = await readJson(response);
-    if (!response.ok) {
-      return { ok: false, code: String(body.code ?? `HTTP_${response.status}`), status: response.status };
-    }
-    return { ok: true, value: pick(body) };
-  } catch {
-    return { ok: false, code: "UNREACHABLE", status: 0 };
-  }
-}
-
-const json = (body: unknown): RequestInit => ({
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(body),
-});
+const call = <T,>(path: string, init: RequestInit, pick: (body: Record<string, unknown>) => T) =>
+  codedCall(path, { cache: "no-store", credentials: "include", ...init }, pick);
 
 export interface LedgerRead {
   ledger: Record<string, unknown>;
