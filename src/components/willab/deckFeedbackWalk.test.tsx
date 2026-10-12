@@ -14,7 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { GuestGateContext } from "./GuestSignUpDialog";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "./idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "./idealEditCopy";
 import { coachWordKey, coachWordSeen } from "./coachWordSeen";
 import {
   exerciseOf,
@@ -321,13 +321,6 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(screen()).toBe("walk-screen-clearer");
   };
 
-  it("draws the served words after the praise and its helper words", async () => {
-    await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
-    expect([...live()!.querySelectorAll("[data-walk-player] s")].map((n) => n.textContent)).toEqual(["went up"]);
-    expect([...live()!.querySelectorAll("[data-walk-new-words] em")].map((n) => n.textContent)).toEqual(["rose"]);
-    expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(COPY.pillAcceptPractise);
-  });
-
   it("Accept and practise writes through the accept lane: the response, then the deck's onAccept", async () => {
     const p = props({ suggestions: [judgement, praise, rewrite] });
     await toClearer(p);
@@ -354,10 +347,14 @@ describe("the clearer version in the walk (D-FW-15)", () => {
     expect(screen()).not.toBe("walk-screen-clearer");
   });
 
-  it("with personalised practice off the button reads Accept", async () => {
+  it("with personalised practice off the button reads Accept, and nothing asks to practise (WQ3 A, WQ3c A)", async () => {
     practice.on = false;
     await toClearer(props({ suggestions: [judgement, praise, rewrite] }));
     expect(live()!.querySelector("[data-testid='walk-forward']")!.textContent).toBe(WALK_COPY.clearerAccept);
+    // Nothing asks to practise (WQ3c A).
+    expect(live()!.textContent).not.toContain(COPY.pillAcceptPractise);
+    expect(live()!.textContent).not.toContain(WALK_LINE_BANK.B14.lines[0]);
+    expect(live()!.querySelector("[data-testid='walk-keep']")!.textContent).toBe(COPY.linkKeepMyWords);
   });
 });
 

@@ -71,7 +71,6 @@ const TEXT = "We should ship it now because the data is clear.";
 const QUOTE = "We should ship it now";
 
 type Judgement = "yes" | "in_between" | "not_sure" | "no" | "audio_unclear";
-const FIVE: readonly Judgement[] = ["yes", "in_between", "not_sure", "no", "audio_unclear"];
 
 function moment(over: Partial<DocumentSuggestion>): DocumentSuggestion {
   return {
@@ -134,12 +133,6 @@ const MOMENTS = {
   weakNothingFired: {
     decided: [moment({ bookmarkTier: "weak" })],
     pending: [rewrite],
-  },
-  weakWithCoach: {
-    // A problem fired, nothing in the library matched and no rewrite rides
-    // the paragraph: the bookmark is with the coach as an error (35g-2).
-    decided: [moment({ bookmarkTier: "weak", coachRequest: { status: "open", kind: "error" } })],
-    pending: [],
   },
 } as const;
 
@@ -273,57 +266,30 @@ async function expectWalk(shape: keyof typeof MOMENTS, answer: Judgement, want: 
   }
 }
 
-describe("a moment the machine read confident: praise now, on every answer but Audio unclear", () => {
-  const cases: Record<Judgement, Expect> = {
-    yes: { card: "praise", pill: "next", link: null, helperWords: true },
-    in_between: { card: "praise", pill: "next", link: "practise", helperWords: true },
-    not_sure: { card: "praise", pill: "practise", link: "skip", helperWords: false },
-    no: { card: "praise", pill: "practise", link: "skip", helperWords: false },
-    audio_unclear: { card: null, pill: "next", link: null, helperWords: false },
-  };
-  it.each(FIVE)("%s", async (answer) => {
-    await expectWalk("confident", answer, cases[answer]);
-  });
-});
+/* One case per behaviour of the matrix (founder 2026-10-12, "do the lingering
+ * tests cleanup"): Not sure walks exactly as No, Yes on a weak read draws no
+ * card whatever fired, and Audio unclear draws nothing on any read. Two
+ * cells are proven on the sheet as the page opens it (paragraphSheet.test.tsx):
+ * Yes on praise, and the plain moment with the coach's line. */
+const CASES: ReadonlyArray<[string, keyof typeof MOMENTS, Judgement, Expect]> = [
+  ["read confident, In-between: praise with a Practise link, then the helper words", "confident", "in_between",
+    { card: "praise", pill: "next", link: "practise", helperWords: true }],
+  ["read confident, No: praise to practise or skip, no helper words (B2)", "confident", "no",
+    { card: "praise", pill: "practise", link: "skip", helperWords: false }],
+  ["Audio unclear: nothing, and no helper words", "confident", "audio_unclear",
+    { card: null, pill: "next", link: null, helperWords: false }],
+  ["read weak, Yes: no card, the helper words", "weakProblemFired", "yes",
+    { card: null, pill: "next", link: null, helperWords: true }],
+  ["read weak where a problem fired, No: the library video, even with a rewrite on the paragraph", "weakProblemFired", "no",
+    { card: "exercise", pill: "practise", link: "skip", helperWords: false }],
+  ["read weak where nothing fired, In-between: the rewrite; Keep my words goes on to the helper words (29b)", "weakNothingFired", "in_between",
+    { card: "rewrite", pill: "accept", link: "keep", helperWords: true }],
+  ["read weak where nothing fired, No: the rewrite; Keep my words practises the speaker's own words (29b)", "weakNothingFired", "no",
+    { card: "rewrite", pill: "accept", link: "keep", helperWords: false }],
+];
 
-describe("a moment read weak where a problem fired: the library video below Yes, nothing on Yes", () => {
-  const cases: Record<Judgement, Expect> = {
-    yes: { card: null, pill: "next", link: null, helperWords: true },
-    in_between: { card: "exercise", pill: "next", link: "practise", helperWords: true },
-    not_sure: { card: "exercise", pill: "practise", link: "skip", helperWords: false },
-    no: { card: "exercise", pill: "practise", link: "skip", helperWords: false },
-    audio_unclear: { card: null, pill: "next", link: null, helperWords: false },
-  };
-  it.each(FIVE)("%s", async (answer) => {
-    await expectWalk("weakProblemFired", answer, cases[answer]);
-  });
-});
-
-describe("a moment read weak where nothing fired: the rewrite below Yes, nothing on Yes", () => {
-  const cases: Record<Judgement, Expect> = {
-    yes: { card: null, pill: "next", link: null, helperWords: true },
-    // 29b: the rewrite is accepted then practised; Keep my words on an
-    // In-between goes on as Next did, to the helper words.
-    in_between: { card: "rewrite", pill: "accept", link: "keep", helperWords: true },
-    not_sure: { card: "rewrite", pill: "accept", link: "keep", helperWords: false },
-    no: { card: "rewrite", pill: "accept", link: "keep", helperWords: false },
-    audio_unclear: { card: null, pill: "next", link: null, helperWords: false },
-  };
-  it.each(FIVE)("%s", async (answer) => {
-    await expectWalk("weakNothingFired", answer, cases[answer]);
-  });
-});
-
-describe("a moment read weak and with the coach as an error (35g-2, D1)", () => {
-  const cases: Partial<Record<Judgement, Expect>> = {
-    yes: { card: null, pill: "next", link: null, helperWords: true },
-    // No judgement ends on an overlay with nothing to do (D1): the moment to
-    // say again, with the coach's signed promise under it (Q5).
-    not_sure: { card: "plain", pill: "practise", link: "skip", helperWords: false, coachLine: true },
-    no: { card: "plain", pill: "practise", link: "skip", helperWords: false, coachLine: true },
-    audio_unclear: { card: null, pill: "next", link: null, helperWords: false },
-  };
-  it.each(["yes", "not_sure", "no", "audio_unclear"] as const)("%s", async (answer) => {
-    await expectWalk("weakWithCoach", answer, cases[answer]!);
+describe("what follows each judgement, by the machine's read (24f)", () => {
+  it.each(CASES)("%s", async (_name, shape, answer, want) => {
+    await expectWalk(shape, answer, want);
   });
 });

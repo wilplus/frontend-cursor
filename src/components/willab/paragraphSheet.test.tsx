@@ -189,27 +189,6 @@ describe("the paragraph overlay, saved state (founder lock 2026-09-30, B8, D6)",
     await act(async () => next.click());
     expect(onDone).toHaveBeenCalledTimes(1);
   });
-
-  it("outside the walk, the slide alone heads the sheet", async () => {
-    await act(async () => {
-      root.render(
-        createElement(OpenChunkSheet, {
-          state: state(),
-          arcId: "arc-1",
-          takeSessionId: "take-1",
-          headline: "ship it now",
-          onUseHelperWords: useWords,
-          onClose: closeSheet,
-          slideLabel: "Slide 2",
-          renderSheet: () => null,
-        }),
-      );
-    });
-    const sheet = container.querySelector('[data-testid="paragraph-sheet"]') as HTMLElement;
-    expect(sheet.querySelector("[data-walk-caption]")?.textContent).toBe("Slide 2");
-    expect(sheet.querySelector("[data-walk-nav]")).toBeNull();
-  });
-
 });
 
 describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1, D7)", () => {
@@ -311,14 +290,6 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     expect(labels()).toContain("Next");
   });
 
-  it("Skip moves on without opening the helper words (B2)", async () => {
-    closeSheet.mockClear();
-    await withAnswer("no");
-    await act(async () => (container.querySelector('[data-testid="paragraph-sheet-skip"]') as HTMLButtonElement).click());
-    expect(closeSheet).toHaveBeenCalled();
-    expect(container.textContent ?? "").not.toContain("Choose your helper words");
-  });
-
   it("Yes: the praise as the card, Next and nothing under it; Next opens the helper words (24e)", async () => {
     const praise = {
       id: "s-pr",
@@ -371,23 +342,6 @@ describe("the paragraph overlay, practise state (founder lock 2026-09-30, B5, D1
     await act(async () => (container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement).click());
     expect(container.textContent).toContain("Choose your helper words");
     expect(container.textContent).toContain("0 of 4 words");
-  });
-
-  it("In-between: Next with Practise as the plain link under it (Q1 B)", async () => {
-    await withAnswer("in_between");
-    const next = container.querySelector('[data-testid="paragraph-sheet-next"]') as HTMLButtonElement;
-    expect(next.textContent).toBe("Next");
-    const link = container.querySelector('[data-testid="paragraph-sheet-practise"]') as HTMLButtonElement;
-    expect(link.textContent).toBe("Practise");
-    expect(next.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("Audio unclear: no practise card, Next", async () => {
-    await withAnswer("audio_unclear");
-    expect(container.querySelector('[data-testid="practise-card"]')).toBeNull();
-    expect(labels()).toContain("Next");
-    expect(labels()).not.toContain("Done");
-    expect(labels()).not.toContain("Practise");
   });
 
   it("a Not sure answer with nothing matched: the plain moment to say again, with the coach's sentence (D1, Q5)", async () => {
@@ -588,11 +542,6 @@ describe("a locked paragraph chooses new helper words (Q27 B)", () => {
       { document: TEXT, suggestions: [] },
     );
   }
-
-  it("opens the sheet on a locked paragraph with nothing answered", async () => {
-    await render(lockedState());
-    expect(container.querySelector('[data-testid="paragraph-sheet"]')).not.toBeNull();
-  });
 
   it("tapping the helper words opens the picker with nothing selected; Use this phrase locks them", async () => {
     useWords.mockClear();

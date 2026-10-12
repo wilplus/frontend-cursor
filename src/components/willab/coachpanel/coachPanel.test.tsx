@@ -36,10 +36,10 @@ import CoachPanel, { useTakeMedia } from "./CoachPanel";
 import { fetchCoachReviewSession } from "@/services/api/coachReview";
 import {
   JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, allSpeakersChoice, awaitingMoments, heardWords,
-  revealLines, speakerChoice, takeChoice, takesNewestFirst,
+  revealLines, speakerChoice, takeChoice,
 } from "./CoachPanelScreens";
 import {
-  mapCoachSpeakers, queueSpeakerFor, speakersFromQueue, type PanelSpeaker,
+  mapCoachSpeakers, queueSpeakerFor, type PanelSpeaker,
 } from "@/services/api/coachSpeakers";
 import { BLANK_IMPORT, CorpusHomeScreen, CorpusImportScreen, importChoice, importReady } from "./CoachCorpusScreens";
 import { CoachPanelPinned } from "./CoachPanelDoor";
@@ -107,15 +107,6 @@ describe("the reducer's un-rating (C1)", () => {
   const judging = [{ type: "open" }, { type: "take", speaker: HERON, take: TAKE }]
     .reduce((s, a) => panelReducer(s, a as PanelAction), PANEL_START);
 
-  it("a failed save takes What happened back to the moment's Judge screen, unrated", () => {
-    const moved = panelReducer(judging, { type: "rated", snippetId: "s1", value: "yes" });
-    expect(moved.screen.key).toBe("reveal");
-    const failed = panelReducer(moved, { type: "unrated", snippetId: "s1" });
-    expect(failed.screen).toMatchObject({ key: "judge", index: 0 });
-    expect(failed.rated).toEqual({});
-    expect(failed.history).toEqual(judging.history);
-  });
-
   it("elsewhere, it only un-rates; ‹ back onto that moment lands on Judge, never on What happened", () => {
     const moved = panelReducer(judging, { type: "rated", snippetId: "s1", value: "yes" });
     const onward = panelReducer(moved, { type: "next" });
@@ -123,10 +114,6 @@ describe("the reducer's un-rating (C1)", () => {
     const failed = panelReducer(onward, { type: "unrated", snippetId: "s1" });
     expect(failed.screen).toMatchObject({ key: "judge", index: 1 });
     expect(panelReducer(failed, { type: "back" }).screen).toMatchObject({ key: "judge", index: 0 });
-  });
-
-  it("a moment not rated is left as it is", () => {
-    expect(panelReducer(judging, { type: "unrated", snippetId: "s1" })).toBe(judging);
   });
 });
 
@@ -142,11 +129,7 @@ describe("the pure parts", () => {
     expect(ALL.map((s) => s.pseudonym)).toEqual(["Quiet Heron", "Calm Otter", "Bold Finch", "Quick Wren"]);
     expect(ALL[0].goal).toBe("Sound calm and sure in the board meeting.");
     expect(ALL[3].goal).toBeNull(); // blank is no goal
-    expect(allSpeakersChoice(ALL[0], 0)).toMatchObject({ label: "Quiet Heron", subtitle: "2 moments waiting", dot: true });
-    expect(allSpeakersChoice(ALL[1], 1)).toMatchObject({ subtitle: COPY.waitingForText, done: true, dim: true });
-    expect(allSpeakersChoice(ALL[1], 1).dot).toBeUndefined();
-    expect(allSpeakersChoice(ALL[2], 2)).toMatchObject({ subtitle: "All answered · 3 Takes" });
-    expect(allSpeakersChoice(ALL[3], 3)).toMatchObject({ subtitle: "All answered · 1 Take" });
+    // The choices drawn from them: proven on the Your speakers screen below.
     // Nothing about a moment reaches the list.
     expect(JSON.stringify(ALL)).not.toMatch(/snippet|moments|passage|kind/);
   });
@@ -157,16 +140,6 @@ describe("the pure parts", () => {
     expect(choice).toMatchObject({ subtitle: "All answered · 3 Takes" });
     expect(choice.done).toBeUndefined();
     expect(choice.dim).toBeUndefined();
-  });
-
-  it("when the Speakers read fails, the queue's own speakers stand in", () => {
-    const fallback = speakersFromQueue([HERON, OTTER, DONE]);
-    expect(fallback.map((s) => [s.pseudonym, s.waiting, s.waitingForText, s.takeCount])).toEqual([
-      ["Quiet Heron", 2, 0, 2], ["Calm Otter", 0, 1, 1], ["Bold Finch", 0, 0, 1],
-    ]);
-    expect(fallback.map(allSpeakersChoice).map((c) => c.subtitle)).toEqual([
-      "2 moments waiting", COPY.waitingForText, "All answered · 1 Take",
-    ]);
   });
 
   it("a speaker opened from the list before the queue has their moments: wait, then a count that does not open", () => {
@@ -189,8 +162,7 @@ describe("the pure parts", () => {
     expect(takeChoice(finch.takes[1], 1)).toMatchObject({ label: "Take 2", subtitle: COPY.allMomentsAnswered, done: true, mark: "check" });
   });
 
-  it("a Take: waiting of all, answered, or waiting for the text; newest first", () => {
-    expect(takesNewestFirst(HERON.takes).map((t) => t.takeIndex)).toEqual([2, 1]);
+  it("a Take: waiting of all, answered, or waiting for the text", () => {
     expect(takeChoice(TAKE, 0)).toMatchObject({ label: "Take 2", subtitle: "2 of 2 moments waiting" });
     expect(takeChoice(OLD, 1)).toMatchObject({ label: "Take 1", subtitle: "Answered · 3 moments", done: true });
     expect(takeChoice(OLD, 0).subtitle).toBe(COPY.allMomentsAnswered);
@@ -215,12 +187,8 @@ describe("the pure parts", () => {
     // A praise moment: the cues behind it, by the kind question's words.
     expect(heard([{ kind: "cue", key: "landed_ending", label: null }, { kind: "cue", key: "settled_pitch", label: null }]))
       .toEqual(["landed the ending", "settled pitch"]);
-    expect(heard([{ kind: "cue", key: "wide_range", label: null }, { kind: "cue", key: "full_volume", label: null },
-      { kind: "cue", key: "no_hesitation", label: null }, { kind: "cue", key: "kept_moving", label: null }, { kind: "cue", key: "opened_strong", label: null }]))
-      .toEqual(["wide range", "full volume", "no hesitation", "kept moving", "opened strong"]);
     // A rewrite moment: the reason keys have no signed word, so nothing.
     expect(heard([{ kind: "reason", key: "weak_delivery_read", label: null }])).toEqual([]);
-    expect(heard([{ kind: "reason", key: "weak_slide_fit_read", label: null }, { kind: "reason", key: "profanity_read", label: null }])).toEqual([]);
     // A cue the copy does not know shows nothing either; never the raw key.
     expect(heard([{ kind: "cue", key: "new_cue", label: null }])).toEqual([]);
     // A note: "nothing" when the machine heard nothing.

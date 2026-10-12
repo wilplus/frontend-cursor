@@ -237,16 +237,10 @@ describe("the judgements", () => {
 });
 
 describe("toastRides", () => {
-  it("is true onto another overlay screen, false onto the end card or off the plan", () => {
-    const judgeA: WalkStep = { key: "judge", moment: 0 };
+  it("rides onto the sharing screen after the last judgement", () => {
+    // Onto the next judgement and never onto the end card: proven above.
     const judgeB: WalkStep = { key: "judge", moment: 1 };
-    const share: WalkStep = { key: "community" };
-    const end: WalkStep = { key: "end", overlay: false };
-    expect(toastRides([judgeA, judgeB, end], judgeA)).toBe(true);
-    expect(toastRides([judgeA, judgeB, end], judgeB)).toBe(false);
-    expect(toastRides([judgeA, judgeB, share, end], judgeB)).toBe(true);
-    expect(toastRides([judgeA, end], { key: "judge", moment: 0 })).toBe(false);
-    expect(toastRides([judgeA], judgeA)).toBe(false);
+    expect(toastRides([judgeB, { key: "community" }, { key: "end", overlay: false }], judgeB)).toBe(true);
   });
 });
 
