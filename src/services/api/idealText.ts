@@ -2435,6 +2435,15 @@ export function invalidateIdealTextDisplay(arcId: string): void {
   idealTextDisplayHandoffs.delete(arcId);
 }
 
+/** The user-edit 409s that mean "the document moved under you": the edit
+ *  is superseded, so the caller refetches and adopts the current text. */
+const DOCUMENT_MOVED_CODES = new Set([
+  "IDEAL_TEXT_USER_EDIT_CONFLICT",
+  "IDEAL_TEXT_PARTS_REFRESH_REQUIRED",
+  "IDEAL_TEXT_DOCUMENT_SOURCE_STALE",
+  "IDEAL_TEXT_LEGACY_REPLAY_CONFLICT",
+]);
+
 export type UserEditSaveResult =
   | { ok: true; version: number | null }
   /** A newer version assembled while the student was typing. */
@@ -2521,6 +2530,14 @@ export async function saveIdealUserEdit(
     // Two different 409s share the status; the code discriminates them.
     if (body?.code === "NOTHING_TO_EDIT" || body?.error === "NOTHING_TO_EDIT") {
       return { ok: false, reason: "nothingToEdit" };
+    }
+    // The server refused these words for good (founder 2026-10-12, option
+    // 1): only a "document moved" refusal is a supersede — refetch and adopt
+    // the new text. Any other IDEAL_TEXT_* refusal is a failed save, exactly
+    // like a 500: the typed words stay on screen.
+    const code = typeof body?.code === "string" ? body.code : "";
+    if (code.startsWith("IDEAL_TEXT_") && !DOCUMENT_MOVED_CODES.has(code)) {
+      return { ok: false, reason: "error" };
     }
     return {
       ok: false,

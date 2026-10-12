@@ -56,6 +56,17 @@ describe("saveIdealUserEdit", () => {
     // stale edit landing on top of the take that just assembled.
     expect(calls).toHaveLength(1);
   });
+
+  it("supersedes on a document-moved refusal and fails the save on any other", async () => {
+    mockFetch({ status: 409, body: { code: "IDEAL_TEXT_PARTS_REFRESH_REQUIRED" } });
+    expect(await saveIdealUserEdit("arc1", "words", 6)).toEqual({
+      ok: false, reason: "superseded", currentVersion: null,
+    });
+    mockFetch({ status: 409, body: { code: "IDEAL_TEXT_PART_REQUIRES_UNLOCK" } });
+    expect(await saveIdealUserEdit("arc1", "words", 6)).toEqual({
+      ok: false, reason: "error",
+    });
+  });
 });
 
 afterEach(() => {
