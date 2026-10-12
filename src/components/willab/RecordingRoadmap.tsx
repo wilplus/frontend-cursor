@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { ENTER_OFFSET_PX, type Dir } from "@/lib/willab/recordingGesture";
 import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
+import FinishTakeButton from "./FinishTakeButton";
+import { RECORDING_COPY } from "./recordingCopy";
 import { useRecordingGestures } from "./useRecordingGestures";
 
 export interface RecordingRoot {
@@ -13,18 +15,18 @@ export interface RecordingRoot {
 }
 
 /**
- * The canonical manual rehearsal navigator (founder lock 2026-10-07, the
- * recording screens).
+ * The canonical manual rehearsal navigator (founder lock 2026-10-12, the
+ * recording screens, N70).
  *
- * ONLY THE SLIDE AND ITS HELPER WORDS MOVE. A slide change glides those two
- * out, swaps them in place and lands them from the other side; the slide dots
- * stay where they are and only change which one is current. The top bar and
- * the strip live outside this component and are not touched by a move.
+ * BUTTONS, NOT SCROLLING. Back and Next slide sit under the strip; on the
+ * last slide Next slide becomes the red Finish take, the only way a Take
+ * ends from here. ← → change the slide too (N70.1). No slide dots.
  *
- * The helper words scroll first: when they are longer than the space, the
- * gesture scrolls them, and at their edge it moves the slide. Every slide
- * change still reaches the overlay's setter, which timestamps it into the
- * timeline the backend buckets words with. Nothing here follows audio.
+ * ONLY THE SLIDE AND ITS HELPER WORDS MOVE, sideways: Next sends them out to
+ * the left and lands the next ones from the right; Back the reverse. The top
+ * bar, the strip and the buttons are not touched by a move. Every slide
+ * change reaches the overlay's setter, which timestamps it into the timeline
+ * the backend buckets words with. Nothing here follows audio.
  */
 export default function RecordingRoadmap({
   slides,
@@ -32,17 +34,17 @@ export default function RecordingRoadmap({
   currentSlide,
   roots,
   onSlideChange,
-  entrance = "mic",
+  strip,
+  onFinish,
 }: {
   slides: PresentationSlide[];
   presentationRef: string | null;
   currentSlide: number;
   roots: RecordingRoot[];
   onSlideChange: (slideIndex: number) => void;
-  /** How the screen arrives: from "Getting your mic ready" it glides in
-   *  softly; from the learning screen it lands from below, as the next
-   *  screen of the same move. */
-  entrance?: "mic" | "learn";
+  /** The clock and its bar, drawn above the buttons. */
+  strip: ReactNode;
+  onFinish: () => void;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideBoxRef = useRef<HTMLDivElement | null>(null);
@@ -58,8 +60,8 @@ export default function RecordingRoadmap({
     [currentSlide, roots]
   );
 
-  // A slide arriving from below opens at the top of its words; one arriving
-  // from above opens at their end, where the speaker left that way.
+  // A slide arriving forward opens at the top of its words; one arriving
+  // back opens at their end, where the speaker left that way.
   // Layout, not passive: it must hold before the landing paints.
   useLayoutEffect(() => {
     const scroller = scrollRef.current;
@@ -87,7 +89,7 @@ export default function RecordingRoadmap({
     scroller: () => scrollRef.current,
     travel: () => {
       const stage = stageRef.current;
-      return stage ? Math.round(stage.clientHeight * 0.3) || 160 : 160;
+      return stage ? Math.round(stage.clientWidth * 0.35) || 160 : 160;
     },
     canGo,
     go: (dir) => goToSlide(currentSlideRef.current + dir),
@@ -110,17 +112,15 @@ export default function RecordingRoadmap({
   // The entrance, once: the content lands; the frame around it is already
   // still.
   useLayoutEffect(() => {
-    const stage = stageRef.current;
-    enter(
-      entrance === "learn" && stage
-        ? Math.round(stage.clientHeight * 0.3) || 160
-        : ENTER_OFFSET_PX
-    );
-    // Mount only: a later change of `entrance` is not a new arrival.
+    enter(ENTER_OFFSET_PX);
+    // Mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const last = currentSlide >= slides.length - 1;
+
   return (
+    <>
     <div ref={stageRef} className="flex min-h-0 flex-1 flex-col">
       <div ref={slideBoxRef} className="shrink-0 pb-4 will-change-transform">
         <SlideStage
@@ -134,7 +134,7 @@ export default function RecordingRoadmap({
         <div
           ref={scrollRef}
           tabIndex={-1}
-          className="scrollbar-none h-full overflow-y-auto overscroll-contain pr-9 outline-none will-change-transform"
+          className="scrollbar-none h-full overflow-y-auto overscroll-contain outline-none will-change-transform"
           aria-label={`Speaking anchors for slide ${currentSlide + 1}`}
         >
           <div className="flex min-h-full flex-col justify-center py-6">
@@ -154,33 +154,37 @@ export default function RecordingRoadmap({
           </div>
         </div>
 
-        {slides.length > 1 ? (
-          <nav
-            className="absolute inset-y-0 right-0 flex flex-col items-center justify-center"
-            aria-label="Presentation slide position"
-          >
-            {slides.map((slide, index) => (
-              <button
-                key={`rail-${index}-${slide.title}`}
-                type="button"
-                aria-label={`Go to slide ${index + 1} of ${slides.length}`}
-                aria-current={currentSlide === index ? "step" : undefined}
-                onClick={() => goToSlide(index)}
-                className="flex h-8 w-8 items-center justify-center"
-              >
-                <span
-                  className={
-                    currentSlide === index
-                      ? "h-6 w-1.5 rounded-full bg-foreground transition-[height] duration-200"
-                      : "h-1.5 w-1.5 rounded-full bg-muted-foreground/35 transition-[height] duration-200"
-                  }
-                  aria-hidden
-                />
-              </button>
-            ))}
-          </nav>
-        ) : null}
       </div>
     </div>
+
+      <div
+        data-testid="recording-strip"
+        className="relative z-10 -mx-1 shrink-0 bg-background px-1 pt-4 pb-[env(safe-area-inset-bottom)]"
+      >
+        {strip}
+        {/* The coach panel's pair: equal halves, 48px, 16px corners. */}
+        <div className="mt-2.5 flex gap-2.5">
+          <button
+            type="button"
+            onClick={() => goToSlide(currentSlide - 1)}
+            disabled={currentSlide === 0}
+            className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
+          >
+            {RECORDING_COPY.back}
+          </button>
+          {last ? (
+            <FinishTakeButton onClick={onFinish} className="h-12 flex-1 rounded-2xl text-[15px]" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => goToSlide(currentSlide + 1)}
+              className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-foreground text-[15px] font-semibold text-background"
+            >
+              {RECORDING_COPY.nextSlide}
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

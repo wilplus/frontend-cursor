@@ -1,22 +1,20 @@
 /* -------------------------------------------------------------------------- */
 /*  recordingCopy — the words the recording screens' lock added               */
-/*  (founder lock 2026-10-07, FOUNDER-LOCK-recording-screens-2026-10-07,      */
-/*  decisions log N59).                                                       */
+/*  (founder lock 2026-10-07, N59, as amended 2026-10-12, N70).               */
 /*                                                                            */
-/*  ONLY THE LOCK'S WORDS live here, typed exactly as signed: the three the   */
-/*  lock added and "Getting your mic ready", visible since Q-B4 A. Every      */
-/*  other word on these screens is today's and stays where it already is      */
-/*  ("Finish take", "Discard this take?", the processing wait).               */
+/*  ONLY THE LOCK'S WORDS live here, typed exactly as signed. Every other     */
+/*  word on these screens is today's and stays where it already is ("Finish  */
+/*  take", "Discard this take?", the processing wait). "Scroll down to start" */
+/*  and "Click down to start" were retired with the learning screen (N70).    */
 /*  recordingCopy.test.ts holds the list.                                     */
 /* -------------------------------------------------------------------------- */
 
 export const RECORDING_COPY = {
-  /** The first recording's learning screen, on a touch screen (the
-   *  founder's own words). */
-  scrollToStart: "Scroll down to start",
-  /** The same screen on a desktop, under the arrow keys. */
-  clickToStart: "Click down to start",
-  /** Before a later Take, as small grey text under the voice mark (the
+  /** The two buttons under the strip (N70). On the last slide Next slide
+   *  becomes Finish take. */
+  back: "Back",
+  nextSlide: "Next slide",
+  /** Before every Take, as small grey text under the voice mark (the
    *  prototype's renderMic). It was read only by screen readers until the
    *  founder signed every word a locked prototype shows (Q-B4 A, decisions
    *  log N62/N63, 2026-10-07). */

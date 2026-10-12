@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-/* The recording screen while recording (founder lock 2026-10-07):
-   - only the slide and its helper words move; the top bar's "Take · Slide"
-     line, the slide dots and the strip stay still and are never re-mounted
-     during a slide change;
-   - the keyboard works with no click first;
-   - the wheel moves a slide at 140, or 90 that rests, and swallows the
-     momentum tail. */
+/* The recording screen while recording (founder lock 2026-10-12, N70):
+   - Back and Next slide change the slide; on the last slide Next slide is
+     the red Finish take, the only way a Take ends here;
+   - only the slide and its helper words move, sideways; the top bar's
+     "Take · Slide" line, the strip and the buttons stay still;
+   - the keys work with no click first, never end a Take, and never take
+     the Space that presses a focused button. */
 import { act, createElement, Fragment, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,16 +18,16 @@ vi.mock("./pdfSlides", () => ({
 }));
 
 import { RecordingPhase, RecordingWhere, labColumnClass } from "./LabOverlay";
-import { resetSharedWheel } from "./useRecordingGestures";
 
 let root: Root;
 let host: HTMLDivElement;
 let seen: number[] = [];
+let stops = 0;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  resetSharedWheel();
   seen = [];
+  stops = 0;
   host = document.createElement("div");
   document.body.appendChild(host);
   act(() => {
@@ -75,7 +75,9 @@ function Screen() {
       targetSec: 300,
       rejectedMsg: null,
       uploadRetry: null,
-      onStop: () => undefined,
+      onStop: () => {
+        stops += 1;
+      },
       onRecordAgain: () => undefined,
       slides: SLIDES,
       presentationRef: null,
@@ -101,14 +103,6 @@ function key(k: string, init: KeyboardEventInit = {}, target: EventTarget = docu
   return event;
 }
 
-function wheel(deltaY: number) {
-  const event = new WheelEvent("wheel", { deltaY, bubbles: true, cancelable: true });
-  act(() => {
-    window.dispatchEvent(event);
-  });
-  return event;
-}
-
 const where = () => host.querySelector('[data-testid="recording-where"]')!;
 const scroller = () => host.querySelector<HTMLElement>('[aria-label^="Speaking anchors"]')!;
 
@@ -117,11 +111,19 @@ function frame() {
   return {
     topBar: host.querySelector('[data-testid="top-bar"]')!,
     where: where(),
-    rail: host.querySelector('nav[aria-label="Presentation slide position"]')!,
-    dots: Array.from(host.querySelectorAll('nav[aria-label="Presentation slide position"] button')),
     strip: host.querySelector('[data-testid="recording-strip"]')!,
-    finish: host.querySelector('button[aria-label="Finish take"]')!,
+    back: button("Back"),
   };
+}
+
+function button(name: string) {
+  return Array.from(host.querySelectorAll("button")).find(
+    (b) => b.textContent === name || b.getAttribute("aria-label") === name,
+  ) as HTMLButtonElement | undefined;
+}
+
+function click(name: string) {
+  act(() => button(name)!.click());
 }
 
 describe("the top bar", () => {
@@ -132,7 +134,7 @@ describe("the top bar", () => {
     expect(host.textContent).not.toMatch(/Recording/);
   });
 
-  it("is an empty slot before the recording screen (learning screen, mic ready)", () => {
+  it("is an empty slot before the recording screen (mic ready)", () => {
     act(() =>
       root.render(
         createElement(RecordingWhere, {
@@ -148,7 +150,7 @@ describe("the top bar", () => {
   });
 });
 
-describe("the strip and the dots, as the prototype draws them (build plan D-RC-2)", () => {
+describe("the strip, as the prototype draws it (build plan D-RC-2)", () => {
   it("sits 20px off the bottom on the recording screen only", () => {
     const rec = labColumnClass("lab_recording", "recording").split(" ");
     expect(rec).toContain("pb-5");
@@ -166,31 +168,40 @@ describe("the strip and the dots, as the prototype draws them (build plan D-RC-2
     }
   });
 
-  it("does not grow Finish take on hover; its stop square is 12px with 2px corners", () => {
+  it("has no slide dots and no Finish take in the strip", () => {
     render();
-    const { finish } = frame();
-    expect(finish.className).not.toMatch(/hover:/);
-    expect(finish.className).not.toMatch(/scale/);
-    const square = finish.querySelector('[data-testid="finish-square"]')!;
-    expect(square.className.split(" ")).toEqual(
-      expect.arrayContaining(["h-3", "w-3", "rounded-[2px]", "bg-current"]),
-    );
-    expect(finish.querySelector("svg")).toBeNull();
+    expect(host.querySelector('nav[aria-label="Presentation slide position"]')).toBeNull();
+    expect(button("Finish take")).toBeUndefined();
+  });
+});
+
+describe("Back and Next slide (N70)", () => {
+  it("move one slide each way; Back is greyed on the first slide", () => {
+    render();
+    expect(button("Back")!.disabled).toBe(true);
+    click("Next slide");
+    expect(seen).toEqual([1]);
+    expect(button("Back")!.disabled).toBe(false);
+    click("Back");
+    expect(seen).toEqual([1, 0]);
   });
 
-  it("animates the dots' height in 200ms, with no hover colour", () => {
+  it("turns Next slide into the red Finish take on the last slide, which ends the Take", () => {
     render();
-    const marks = frame().dots.map((b) => b.querySelector("span")!.className);
-    expect(marks).toHaveLength(3);
-    for (const cls of marks) {
-      expect(cls).toMatch(/transition-\[height\] duration-200/);
-      expect(cls).not.toMatch(/hover:/);
-    }
+    click("Next slide");
+    click("Next slide");
+    expect(button("Next slide")).toBeUndefined();
+    const finish = button("Finish take")!;
+    expect(finish.className).toMatch(/bg-record/);
+    expect(finish.querySelector('[data-testid="finish-square"]')).not.toBeNull();
+    expect(stops).toBe(0);
+    click("Finish take");
+    expect(stops).toBe(1);
   });
 });
 
 describe("the still frame", () => {
-  it("keeps the top bar, the dots and the strip through a slide change", () => {
+  it("keeps the top bar, the strip and the buttons through a slide change", () => {
     render();
     const before = frame();
     key("ArrowDown");
@@ -198,17 +209,9 @@ describe("the still frame", () => {
     const after = frame();
     expect(after.topBar).toBe(before.topBar);
     expect(after.where).toBe(before.where);
-    expect(after.rail).toBe(before.rail);
-    expect(after.dots).toEqual(before.dots);
     expect(after.strip).toBe(before.strip);
-    expect(after.finish).toBe(before.finish);
-    for (const el of [after.where, after.rail, after.strip]) {
-      expect(el.isConnected).toBe(true);
-    }
-    // Only the text and the current dot changed.
+    expect(after.back).toBe(before.back);
     expect(after.where.textContent).toBe("Take 2 · Slide 2 of 3");
-    expect(after.dots[1].getAttribute("aria-current")).toBe("step");
-    expect(after.dots[0].hasAttribute("aria-current")).toBe(false);
     expect(host.querySelector('[data-testid="slide"]')!.textContent).toBe("page 2");
     expect(host.textContent).toContain("words for slide 2");
   });
@@ -224,24 +227,24 @@ describe("the still frame", () => {
     const before = frame();
     const slideBox = host.querySelector('[data-testid="slide"]')!.closest(".shrink-0") as HTMLElement;
     const words = scroller();
-    key("ArrowDown");
-    // Gliding out: the content moves up and fades; the frame does not move.
-    expect(slideBox.style.transform).toMatch(/translateY\(-/);
-    expect(words.style.transform).toMatch(/translateY\(-/);
+    click("Next slide");
+    // Gliding out to the left and fading; the frame does not move.
+    expect(slideBox.style.transform).toMatch(/translateX\(-/);
+    expect(words.style.transform).toMatch(/translateX\(-/);
     expect(slideBox.style.transition).toContain("200ms");
-    for (const el of [before.topBar, before.where, before.rail, before.strip]) {
+    for (const el of [before.topBar, before.where, before.strip]) {
       expect((el as HTMLElement).style.transform).toBe("");
     }
     expect(seen).toEqual([]);
     act(() => {
       vi.advanceTimersByTime(200);
     });
-    // Swapped in place, landing from below on the locked curve.
+    // Swapped in place, landing from the right on the locked curve.
     expect(seen).toEqual([1]);
     expect(host.querySelector('[data-testid="slide"]')!.closest(".shrink-0")).toBe(slideBox);
     expect(scroller()).toBe(words);
     expect(slideBox.style.transition).toContain("420ms cubic-bezier(.16,1,.3,1)");
-    expect(slideBox.style.transform).toBe("translateY(0px)");
+    expect(slideBox.style.transform).toBe("translateX(0px)");
     // A second press while it lands is not a second move.
     key("ArrowDown");
     act(() => {
@@ -250,12 +253,33 @@ describe("the still frame", () => {
     expect(seen).toEqual([1]);
     const after = frame();
     expect(after.where).toBe(before.where);
-    expect(after.rail).toBe(before.rail);
     expect(after.strip).toBe(before.strip);
   });
 });
 
 describe("the keyboard, with no click first", () => {
+  it("← → change the slide, and never end the Take at the last slide (N70.1)", () => {
+    render();
+    key("ArrowRight");
+    key("ArrowRight");
+    expect(seen).toEqual([1, 2]);
+    key("ArrowRight");
+    key(" ");
+    expect(seen).toEqual([1, 2]);
+    expect(stops).toBe(0);
+    key("ArrowLeft");
+    expect(seen).toEqual([1, 2, 1]);
+  });
+
+  it("leaves Space to a focused button, but still moves on ← →", () => {
+    render();
+    const next = button("Next slide")!;
+    expect(key(" ", {}, next).defaultPrevented).toBe(false);
+    expect(seen).toEqual([]);
+    key("ArrowRight", {}, next);
+    expect(seen).toEqual([1]);
+  });
+
   it("↓ Page Down Space go forward; ↑ Page Up go back", () => {
     render();
     key("ArrowDown");
@@ -307,50 +331,6 @@ describe("the keyboard, with no click first", () => {
     expect(sc.scrollTop).toBeGreaterThan(0);
     sc.scrollTop = 800; // at their end
     key("ArrowDown");
-    expect(seen).toEqual([1]);
-  });
-});
-
-describe("the wheel", () => {
-  it("moves at 140, swallows the tail, and moves again after a quiet 450ms", () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    render();
-    expect(wheel(100).defaultPrevented).toBe(true);
-    expect(seen).toEqual([]);
-    wheel(40);
-    expect(seen).toEqual([1]);
-    // The momentum tail, 16ms apart, for over a second: ignored.
-    for (let i = 0; i < 70; i += 1) {
-      act(() => {
-        vi.advanceTimersByTime(16);
-      });
-      wheel(Math.max(2, 80 - i));
-    }
-    expect(seen).toEqual([1]);
-    act(() => {
-      vi.advanceTimersByTime(460);
-    });
-    wheel(150);
-    expect(seen).toEqual([1, 2]);
-  });
-
-  it("moves at 90 once the wheel rests 220ms, and not below", () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    render();
-    wheel(80);
-    act(() => {
-      vi.advanceTimersByTime(220);
-    });
-    expect(seen).toEqual([]);
-    wheel(60);
-    wheel(35);
-    act(() => {
-      vi.advanceTimersByTime(219);
-    });
-    expect(seen).toEqual([]);
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
     expect(seen).toEqual([1]);
   });
 });

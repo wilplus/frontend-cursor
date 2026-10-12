@@ -235,7 +235,7 @@ describe("the host wires Record again exactly like Record Take 2", () => {
     expect(body).toMatch(
       // Take 1 holds the mic for the learning screen (founder lock
       // 2026-10-07); a later Take records at once.
-      /abandonSlowTake\(\);[\s\S]*cancelMic\(\);\s*dispatch\("take_started"\);\s*void mic\.start\(\{ arm: arcTakeIndex <= 1 \}\);/,
+      /abandonSlowTake\(\);[\s\S]*cancelMic\(\);\s*dispatch\("take_started"\);\s*void mic\.start\(\);/,
     );
     const abandonFn = HOST.slice(HOST.indexOf("function abandonSlowTake()"));
     const abandonBody = abandonFn.slice(0, abandonFn.indexOf("\n  }\n"));

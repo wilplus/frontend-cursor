@@ -40,9 +40,9 @@ src/lib/willab/coachPanelCopy.ts
 src/app/admin/library/
 src/app/admin/errors/
 
-# ── The recording screens (founder, 2026-10-07, N59)
+# ── The recording screens (founder, 2026-10-07, N59; amended 2026-10-12, N70)
 src/components/willab/LabOverlay.tsx
-src/components/willab/RecordingLearn.tsx
+src/components/willab/FinishTakeButton.tsx
 src/components/willab/RecordingRoadmap.tsx
 src/components/willab/recordingCopy.ts
 src/components/willab/useRecordingGestures.ts
