@@ -86,6 +86,7 @@ import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
 import { useDeckFeedbackWalk, useWalkReplayRequest, walkFinished } from "./useDeckFeedbackWalk";
 import type { CoachMessage } from "@/services/api/idealText";
+import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 
 /* -------------------------------------------------------------------------- */
 /*  TranscriptReviewDeck — the ideal text as a slide deck (founder 2026-08-11, */
@@ -239,6 +240,7 @@ export default function TranscriptReviewDeck({
   openFeedback = false,
   coachMessage = null,
   reviewRequest = 0,
+  reviewAt = null,
   onReviewWaiting,
   replayRequest,
   onReplayReady,
@@ -330,6 +332,8 @@ export default function TranscriptReviewDeck({
   /** Bumped by the host's "Review feedback" button: open the walk at the
    *  first waiting moment in text order (founder 2026-09-26). */
   reviewRequest?: number;
+  /** The Lounge step tapped: the walk opens on it (lock 2026-10-12). */
+  reviewAt?: WalkStepTarget | null;
   /** Whether any moment still waits for the speaker — the host's bottom
    *  button reads it to offer Review feedback or the next take. */
   onReviewWaiting?: (waiting: boolean) => void;
@@ -743,18 +747,20 @@ export default function TranscriptReviewDeck({
     if (reviewRequest === reviewSeenRef.current) return;
     reviewSeenRef.current = reviewRequest;
     // The Feedback walk, when it has a screen to show.
-    if (feedbackWalk.review()) return;
+    if (feedbackWalk.review(reviewAt)) return;
     // Step 0 first when the coach left a message; its Continue opens the walk.
     if (coachStep.show()) return;
     // TOP TO BOTTOM (founder lock 2026-09-30, B8): the walk visits the
     // open feedbacks and the saved paragraphs in text order, from the first
     // screen, whenever a judgement still waits somewhere in the text.
     if (firstWaiting >= 0) walk.openAt(0);
+    // reviewAt rides with the request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewRequest, firstWaiting, walk, coachStep, feedbackWalk]);
   /* THE FINISHED WALK, PLAYED AGAIN (founder 2026-10-08, Q-IT643b A): the
      link under "Record Take N" is offered only once nothing waits and the
      walk has a screen to play; its tap plays it with the answers as given. */
-  useWalkReplayRequest(feedbackWalk, replayRequest, onReplayReady);
+  useWalkReplayRequest(feedbackWalk, replayRequest, onReplayReady, reviewAt);
 
   /* ── NESTED SCROLL (SPEC §11.3, founder 2026-08-14) ──────────────────────
    *

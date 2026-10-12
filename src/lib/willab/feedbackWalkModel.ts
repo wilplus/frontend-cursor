@@ -312,6 +312,17 @@ export function walkStart(model: FeedbackWalkModel<unknown>): number | null {
   return at >= 0 ? at : null;
 }
 
+/** A step tapped in the Lounge (lock 2026-10-12, section 1): where that
+ *  step sits in the walk. Null when this walk has no such step. */
+export type WalkStepTarget = { step: string; moment: number | null };
+export function walkStepAt(model: FeedbackWalkModel<unknown>, target: WalkStepTarget | null | undefined): number | null {
+  if (!target) return null;
+  const at = model.plan.findIndex(
+    (s) => s.overlay !== false && s.key === target.step && (s.moment ?? null) === target.moment,
+  );
+  return at >= 0 ? at : null;
+}
+
 /** Where a tap on a paragraph opens the walk (Q-B3 A): its moment's first
  *  screen. Null when no moment of the walk is on it, or when this phase
  *  draws none of its screens. */

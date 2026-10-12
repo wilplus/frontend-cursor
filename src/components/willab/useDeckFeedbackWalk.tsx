@@ -31,6 +31,8 @@ import {
   walkHelpersForPart,
   walkStart,
   walkStepForPart,
+  walkStepAt,
+  type WalkStepTarget,
   type FeedbackWalkItem,
   type FeedbackWalkItemExercise,
 } from "@/lib/willab/feedbackWalkModel";
@@ -476,7 +478,7 @@ export function useDeckFeedbackWalk(args: {
    *  "Review feedback" under "Record Take N" plays it again. */
   finished?: boolean;
 }): {
-  review: () => boolean;
+  review: (target?: WalkStepTarget | null) => boolean;
   tapPart: (partId: string, open: boolean) => boolean;
   /** A paragraph's helper words were tapped: that slide's helper-words step
    *  in the same walk, live or finished (lock 2026-10-12, section 4). False
@@ -487,7 +489,7 @@ export function useDeckFeedbackWalk(args: {
   replayPart: (partId: string) => boolean;
   /** Plays the finished walk again (Q-IT643b A). False when there is
    *  nothing to play. */
-  replay: () => boolean;
+  replay: (target?: WalkStepTarget | null) => boolean;
   /** Practise on a paragraph's own sheet: the walk's practise screens on the
    *  card the sheet shows (paragraphPractise). False when it cannot open. */
   practisePart: (partId: string, card: PractiseCard, moment: DocumentSuggestion | null) => boolean;
@@ -596,9 +598,9 @@ export function useDeckFeedbackWalk(args: {
 
   const coachSeenRef = useRef(coachSeen);
   coachSeenRef.current = coachSeen;
-  const review = useCallback((): boolean => {
+  const review = useCallback((target?: WalkStepTarget | null): boolean => {
     setReplaying(null);
-    const opened = openAt(walkStart(model));
+    const opened = openAt(walkStepAt(model, target) ?? walkStart(model));
     if (opened && model.plan.some((step) => step.key === "coachnote")) coachSeenRef.current();
     return opened;
   }, [model, openAt]);
@@ -612,11 +614,11 @@ export function useDeckFeedbackWalk(args: {
     [model, openAt],
   );
 
-  const replay = useCallback((): boolean => {
+  const replay = useCallback((target?: WalkStepTarget | null): boolean => {
     if (!canReplay) return false;
     void ownAnswersOf(pageTake).then((answers) => {
       const again = buildReplay(answers);
-      const at = walkStart(again);
+      const at = walkStepAt(again, target) ?? walkStart(again);
       if (at === null) return;
       setOwnAnswers(answers);
       setReplaying(again);
@@ -837,9 +839,10 @@ export function walkFinished(ready: boolean, firstWaiting: number, coachWordUnse
  *  the host hears whether the finished walk can play again, and each bump
  *  of its request plays it. */
 export function useWalkReplayRequest(
-  walk: { replay: () => boolean; canReplay: boolean },
+  walk: { replay: (target?: WalkStepTarget | null) => boolean; canReplay: boolean },
   request: number | undefined,
   onReady: ((ready: boolean) => void) | undefined,
+  target?: WalkStepTarget | null,
 ): void {
   const { canReplay, replay } = walk;
   useEffect(() => {
@@ -849,6 +852,8 @@ export function useWalkReplayRequest(
   useEffect(() => {
     if (request === seenRef.current) return;
     seenRef.current = request;
-    replay();
+    replay(target);
+    // The target rides with the request; a new target alone opens nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, replay]);
 }

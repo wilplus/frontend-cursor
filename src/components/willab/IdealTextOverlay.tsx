@@ -1,5 +1,6 @@
 "use client";
 
+import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
@@ -114,10 +115,13 @@ export default function IdealTextOverlay({
   arcId,
   analysisPending = false,
   initialMode = "notebook",
+  reviewAt = null,
   onClose,
   onReadAloud,
 }: {
   arcId: string;
+  /** With "review": the Lounge step tapped, where the walk opens. */
+  reviewAt?: WalkStepTarget | null;
   /** W4/W5 — true while a take for this arc is still analysing. While true
    *  the overlay shows its LOADING state instead of fetching (a fetch now
    *  would return LAST take's document and render it as if it were this
@@ -993,6 +997,7 @@ export default function IdealTextOverlay({
           />
           <TranscriptReviewDeck
             reviewRequest={reviewRequest}
+            reviewAt={reviewAt}
             coachMessage={sd.coachMessage}
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
