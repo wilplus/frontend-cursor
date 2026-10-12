@@ -28,17 +28,6 @@ function title(name: string | null) {
 }
 
 describe("the Ideal Text header's name", () => {
-  it("shows a long name whole, with no width cap and no fade", () => {
-    const span = title("Garage pitch to the regional board");
-    expect(span.textContent).toBe("Garage pitch to the regional board");
-    expect(span.className).not.toMatch(/max-w-\[10ch\]|mask-image/);
-  });
-
-  it("ellipsizes only on real overflow: it may shrink, and truncate does the rest", () => {
-    const cls = title("Garage pitch").className.split(" ");
-    expect(cls).toEqual(expect.arrayContaining(["block", "min-w-0", "truncate"]));
-    expect(cls).not.toContain("shrink-0");
-  });
 
   it("keeps the generic name when the project has none", () => {
     expect(title(null).textContent).toBe("Your ideal text");

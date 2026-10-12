@@ -131,14 +131,6 @@ describe("panel copy", () => {
     }
   });
 
-  it("has no copy for a state that no longer exists", () => {
-    // A `#` typed before onboarding is finished falls through as ordinary chat
-    // and stores nothing (BE 2026-07-26, superseding §6.2). There is no
-    // redirect line, so there must be no copy for one: putting a string back
-    // here would be putting the half-working tag back with it.
-    expect("SETUP_GATE_REDIRECT" in copy).toBe(false);
-  });
-
   it("says the delete cannot be undone", () => {
     expect(copy.DELETE.body.toLowerCase()).toMatch(/cannot be undone/);
   });

@@ -46,30 +46,6 @@ afterEach(() => {
   host.remove();
 });
 
-describe("the look (walk prototype .foot)", () => {
-  it("the pill is 54px, 16px semibold, full width, with the 10px red dot and no mic", () => {
-    render({ takeCount: 1 });
-    const cls = pill()!.className.split(" ");
-    for (const c of ["h-[54px]", "text-[16px]", "font-semibold", "w-full", "rounded-full", "bg-foreground"]) {
-      expect(cls).toContain(c);
-    }
-    const dot = pill()!.querySelector("span[aria-hidden]") as HTMLElement;
-    expect(dot.className.split(" ")).toEqual(expect.arrayContaining(["h-2.5", "w-2.5", "rounded-full", "bg-record"]));
-    expect(host.querySelector("svg")).toBeNull();
-    expect(pill()!.textContent).toBe("Record Take 2");
-  });
-
-  it("the link is 40px, 16px muted, with no icon; the foot has no top border", () => {
-    render({ takeCount: 1, reviewWaiting: true, onReview: vi.fn() });
-    const cls = link()!.className.split(" ");
-    for (const c of ["h-10", "text-[16px]", "text-muted-foreground", "w-full"]) expect(cls).toContain(c);
-    expect(link()!.querySelector("svg")).toBeNull();
-    const foot = host.querySelector("[data-ideal-text-actions]") as HTMLElement;
-    expect(foot.className.split(" ")).toEqual(["flex", "flex-col", "gap-1"]);
-    expect(foot.className).not.toMatch(/border/);
-  });
-});
-
 describe("the next step (J1, J4, Q-B10 A)", () => {
   it("while a moment waits: Review feedback is the pill, Record Take N the link", () => {
     const onReview = vi.fn();

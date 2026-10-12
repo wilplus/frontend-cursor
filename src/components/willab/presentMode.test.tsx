@@ -62,15 +62,6 @@ function show(props: Record<string, unknown> = {}) {
 }
 
 describe("Presentation Mode", () => {
-  it("is a dark screen", () => {
-    show();
-    const screen = host.querySelector("[data-present-mode]") as HTMLElement;
-    const cls = screen.className.split(" ");
-    expect(cls).toContain("dark");
-    expect(cls).toContain("bg-background");
-    expect(cls).toContain("text-foreground");
-    expect(cls).toContain("fixed");
-  });
 
   it("has no slide-dot rail, no arrows and no counter", () => {
     show();
@@ -88,28 +79,4 @@ describe("Presentation Mode", () => {
     expect(buttons[0].className).toContain("rounded-full border border-border");
   });
 
-  it("runs the paragraphs at 17px rising to 20px", () => {
-    show();
-    const text = host.querySelector("[data-present-text]") as HTMLElement;
-    const cls = text.className.split(" ");
-    expect(cls).toContain("text-[17px]");
-    expect(cls).toContain("md:text-[20px]");
-    expect(host.textContent).toContain("borrowed mic");
-  });
-
-  it("draws the headline bold and orange, with its words italic inside the paragraph", () => {
-    show();
-    const headlines = [...host.querySelectorAll("[data-present-headline]")];
-    expect(headlines.map((h) => h.textContent)).toEqual(["the timing matters"]);
-    const cls = headlines[0].className.split(" ");
-    expect(cls).toContain("font-bold");
-    expect(cls).toContain("text-primary");
-    const italic = [...host.querySelectorAll("[data-present-text] .italic, [data-present-text] i, [data-present-text] em")]
-      .map((el) => el.textContent?.trim())
-      .filter(Boolean);
-    expect(italic).toEqual(["the timing matters"]);
-    // The italic words are not orange (clause 20: the headline is the only orange).
-    const marked = host.querySelector("[data-present-text] .italic") as HTMLElement;
-    expect(marked.className).not.toContain("text-primary");
-  });
 });

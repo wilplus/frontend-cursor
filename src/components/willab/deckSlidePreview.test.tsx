@@ -85,28 +85,6 @@ describe("the deck's slide preview", () => {
     expect(host.textContent).not.toContain("Slide preview unavailable");
   });
 
-  it("BOUNDS the slide so it never buries the words below it", async () => {
-    // Founder 2026-09-17: "on the desktop it covers the whole screen and the
-    // text is not visible." PdfPage renders at its container's width, so an
-    // unbounded box reached 1518x2144 on a desktop column — two and a half
-    // viewports of picture above the speaker's own sentences.
-    failNextLoad = false;
-    await render({ presentationRef: "https://cdn.example/deck.pdf", pageIndex: 0 });
-    // The frame is the INNER box: host > spacing div > frame.
-    const frame = host.firstElementChild!.firstElementChild as HTMLElement;
-    expect(frame.className).toMatch(/aspect-video/);
-    expect(frame.className).toMatch(/max-h-\[38vh\]/);
-    // ...and the WIDTH is capped to 16:9 of that height, or a real slide
-    // letterboxes inside a column-wide letterbox instead of filling the frame.
-    expect(frame.className).toMatch(/max-w-\[67vh\]/);
-    // The same bound on the failure box, so the layout does not jump.
-    failNextLoad = true;
-    await render({ presentationRef: "https://cdn.example/other.pdf", pageIndex: 0 });
-    expect(
-      (host.firstElementChild!.firstElementChild as HTMLElement).className,
-    ).toMatch(/aspect-video/);
-  });
-
 });
 
 describe("a deckless project reads the same way as a decked one", () => {

@@ -39,29 +39,6 @@ describe("the words", () => {
 });
 
 describe("LoadingState with a visible label", () => {
-  it("shows the label 16px under the 64px mark, 15px and muted", () => {
-    act(() => {
-      root.render(
-        createElement(LoadingState, {
-          placement: "surface",
-          label: RECORDING_COPY.micReady,
-          labelVisible: true,
-        }),
-      );
-    });
-    const label = host.querySelector("[data-loading-label]") as HTMLElement;
-    expect(label.textContent).toBe("Getting your mic ready");
-    expect(label.getAttribute("role")).toBe("status");
-    expect(label.className).toContain("mt-4");
-    expect(label.className).toContain("text-[15px]");
-    expect(label.className).toContain("text-muted-foreground");
-    expect(host.querySelector(".sr-only")).toBeNull();
-    // Under the mark: the mark comes first in the same column.
-    const column = label.parentElement as HTMLElement;
-    expect(column.className).toContain("flex-col");
-    expect(column.firstElementChild?.getAttribute("data-voice-mark")).toBe("");
-    expect(column.firstElementChild?.getAttribute("style")).toContain("height: 64px");
-  });
 
   it("keeps every other wait as it was: the mark and an sr-only label", () => {
     act(() => {

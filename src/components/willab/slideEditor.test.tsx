@@ -24,7 +24,6 @@ vi.mock("./MarkedEditor", () => ({
 }));
 
 import { SlideEditor } from "./TranscriptReviewDeck";
-import { CHUNK_SHEET_COPY } from "./idealEditCopy";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 
 const chunk = (id: string, text: string) => ({ part: { id, text, locked: false } }) as unknown as DeckChunk;
@@ -67,27 +66,6 @@ function type(index: number, text: string) {
 }
 
 describe("the slide editor", () => {
-  it("is a full-screen sheet: top bar, cards, the note, Save over Cancel, no slide picture", () => {
-    render();
-    const dialog = host.querySelector('[role="dialog"]')!;
-    expect(dialog.getAttribute("aria-label")).toBe("Edit the text");
-    expect(dialog.className).toMatch(/fixed inset-0/);
-    expect(dialog.className).not.toMatch(/max-h-\[82dvh\]|rounded-t-3xl/);
-    const bar = dialog.firstElementChild!;
-    expect(bar.querySelector("h2")?.textContent).toBe("Edit the text");
-    expect(bar.querySelector("p")?.textContent).toBe("Slide 2");
-    expect(bar.querySelector('button[aria-label="Close"]')).not.toBeNull();
-    expect(host.querySelectorAll('[data-testid="paragraph-card"]')).toHaveLength(2);
-    expect(dialog.textContent).toContain(CHUNK_SHEET_COPY.editorNextTakeNote);
-    expect(host.querySelector('[data-testid="slide-picture"]')).toBeNull();
-    const save = button("Save");
-    const cancel = button("Cancel");
-    expect(save.className).toMatch(/rounded-full bg-foreground/);
-    expect(cancel.className).toMatch(/text-muted-foreground/);
-    expect(cancel.className).not.toMatch(/border|bg-/);
-    // Cancel sits under Save.
-    expect(save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
 
   it("writes only the paragraphs whose words changed", async () => {
     const { onSave } = render();

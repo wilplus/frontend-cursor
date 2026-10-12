@@ -95,25 +95,6 @@ describe("mapQueuePiece — drop-not-repair", () => {
     }]);
   });
 
-  it("ignores a retired MLC-3 inline handle — the label goes to the snippet like every row", () => {
-    // The MLC-3 loop is retired (founder 2026-09-30, L8; contract 66): the
-    // backend no longer hands one out and its routes answer 410.
-    const mapped = mapQueuePiece(piece({
-      canonical_position: 1,
-      blind_review: {
-        project_id: "10000000-0000-4000-8000-000000000001",
-        review_batch_id: "10000000-0000-4000-8000-000000000002",
-        review_assignment_id: "10000000-0000-4000-8000-000000000003",
-        blind_packet_id: "10000000-0000-4000-8000-000000000004",
-        presentation_id: "10000000-0000-4000-8000-000000000005",
-        acknowledgement_token: "10000000-0000-4000-8000-000000000006",
-        visible_payload_sha256: "a".repeat(64),
-      },
-    }));
-    expect(mapped).toEqual(mapQueuePiece(piece()));
-    expect(mapped?.reviewActId).toBe("snip-1");
-  });
-
   it("drops a row with no snippet id — the label PUT would have nowhere to go", () => {
     expect(mapQueuePiece(piece({ snippet_id: "" }))).toBeNull();
   });

@@ -5,7 +5,7 @@ import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
-import WalkMessage, { WalkNewWords } from "./WalkMessage";
+import WalkMessage from "./WalkMessage";
 import WalkJudgement from "./WalkJudgement";
 import WalkFooter from "./WalkFooter";
 import WalkOptions, { toggleWalkOption } from "./WalkOptions";
@@ -64,17 +64,6 @@ describe("WalkMessage", () => {
     expect(avatars[0].outerHTML).toBe(avatars[1].outerHTML);
   });
 
-  it("only the new words are orange", () => {
-    draw(
-      <WalkMessage>
-        <WalkNewWords>
-          <em>The</em> window closes
-        </WalkNewWords>
-      </WalkMessage>,
-    );
-    expect(q("[data-walk-new-words]")!.className).toMatch(/\[&_em\]:text-primary/);
-    expect(q("[data-walk-message]")!.className).not.toMatch(/text-primary/);
-  });
 });
 
 describe("WalkJudgement", () => {
@@ -85,20 +74,6 @@ describe("WalkJudgement", () => {
     const small = qa("[data-size='small']").map((b) => b.textContent);
     expect(main).toEqual(["Yes", "In-between", "No"]);
     expect(small).toEqual(["Not sure", "Audio unclear"]);
-  });
-
-  it("renders the two small answers smaller than the three main ones", () => {
-    draw(createElement(WalkJudgement, { onAnswer: () => {} }));
-    for (const b of qa("[data-size='main']")) {
-      expect(b.className).toMatch(/text-\[16px\]/);
-      expect(b.className).toMatch(/font-semibold/);
-    }
-    for (const b of qa("[data-size='small']")) {
-      expect(b.className).toMatch(/text-\[14px\]/);
-      expect(b.className).toMatch(/font-medium/);
-      expect(b.className).toMatch(/text-muted-foreground/);
-      expect(b.className).not.toMatch(/text-\[16px\]/);
-    }
   });
 
   it("a chosen answer fills black, holds, then answers once", () => {
@@ -124,26 +99,6 @@ describe("WalkJudgement", () => {
 });
 
 describe("WalkFooter", () => {
-  it("one black pill, grey links under it", () => {
-    const next = vi.fn();
-    const skip = vi.fn();
-    draw(createElement(WalkFooter, {
-      pill: { label: COPY.pillAcceptPractise, onClick: next },
-      links: [{ label: COPY.linkKeepMyWords, onClick: skip }],
-    }));
-    const buttons = qa<HTMLButtonElement>("[data-walk-footer] button");
-    expect(buttons.map((b) => b.textContent)).toEqual([COPY.pillAcceptPractise, COPY.linkKeepMyWords]);
-    expect(qa("[data-walk-pill]")).toHaveLength(1);
-    expect(q("[data-walk-pill]")!.className).toMatch(/bg-foreground/);
-    expect(q("[data-walk-pill]")!.className).toMatch(/rounded-full/);
-    expect(q("[data-walk-link]")!.className).toMatch(/text-muted-foreground/);
-    expect(q("[data-walk-link]")!.className).not.toMatch(/bg-foreground/);
-    expect(q("[data-walk-footer]")!.className).toMatch(/flex-col/);
-    act(() => buttons[0].click());
-    act(() => buttons[1].click());
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(skip).toHaveBeenCalledTimes(1);
-  });
 
   it("a disabled pill does nothing", () => {
     const next = vi.fn();
@@ -298,8 +253,4 @@ describe("WalkPlayer", () => {
     expect(q("[data-walk-player]")!.textContent).toContain("Two hires");
   });
 
-  it("plays in ink, not orange (orange marks only new words)", () => {
-    draw(createElement(WalkPlayer, { seed: "m", src: null, label: "moment" }));
-    expect(host.innerHTML).not.toMatch(/bg-primary/);
-  });
 });

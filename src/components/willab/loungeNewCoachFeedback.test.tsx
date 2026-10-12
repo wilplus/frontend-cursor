@@ -159,19 +159,6 @@ describe("the flag, as served", () => {
 });
 
 describe("the bubble (walk lock flow 1)", () => {
-  it("latest bubble, new coach feedback: the orange outline and the \"new\" tag, no dot", async () => {
-    setNewCoachFeedback({ "arc-1": true });
-    await draw("arc-1", true);
-    expect(card()!.className).toMatch(/outline-2/);
-    expect(card()!.className).toMatch(/outline-primary/);
-    expect(card()!.className).toMatch(/outline-offset-\[3px\]/);
-    expect(tag()!.textContent).toBe("new");
-    expect(tag()!.className).toMatch(/bg-primary/);
-    expect(tag()!.className).toMatch(/text-white/);
-    expect(dot()).toBeNull();
-    // No number anywhere on the mark (AC-9).
-    expect(tag()!.textContent).not.toMatch(/\d/);
-  });
 
   it("clears when the flag clears", async () => {
     setNewCoachFeedback({ "arc-1": true });

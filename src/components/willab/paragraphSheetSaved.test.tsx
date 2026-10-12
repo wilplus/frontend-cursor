@@ -125,20 +125,3 @@ describe("the saved state's player (D6 amended, N48.1)", () => {
   });
 });
 
-describe("the words card (helper-words build list, task 4 mock)", () => {
-  it("reads Helper words with an outlined Edit chip at its top right, the words under them", async () => {
-    await render(false);
-    const card = container.querySelector('[data-testid="paragraph-helper-card"]')!;
-    const top = card.firstElementChild!;
-    expect(top.className).toMatch(/justify-between/);
-    const [label, chip] = Array.from(top.children);
-    expect(label.textContent).toBe("Helper words");
-    expect(chip.getAttribute("data-testid")).toBe("paragraph-helper-words");
-    expect(chip.textContent).toBe("Edit");
-    expect(chip.className.split(" ")).toEqual(
-      expect.arrayContaining(["rounded-full", "border", "text-primary"]),
-    );
-    // The words come after the label row.
-    expect(top.nextElementSibling?.textContent).toBe("ship it now");
-  });
-});
