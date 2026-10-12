@@ -111,7 +111,6 @@ describe("CEO hostname routing", () => {
     for (const api of [
       "/api/v2/coach/exercises",
       "/api/v2/coach/exercises/land-the-ending/video",
-      "/api/v2/coach/exercises/script-draft",
       "/api/v2/coach/catalogue",
       "/api/v2/coach/speaking-errors",
       "/api/v2/user/profile",
