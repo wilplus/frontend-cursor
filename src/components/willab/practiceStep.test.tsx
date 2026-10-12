@@ -13,7 +13,7 @@ import DeckChunkModal from "./DeckChunkModal";
 import { chunkStateFor, type DeckChunk } from "@/lib/willab/deckChunks";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 import type { DualCaptureState } from "@/hooks/useDualCaptureMic";
-import { coachHasIt } from "./ParagraphSheet";
+import { coachHasIt } from "@/lib/willab/paragraphOverlay";
 
 /* One mic for every hook in the sheet (the service flow calls it too), so a
    state pushed here reaches the exercise step exactly as the browser's
@@ -74,8 +74,6 @@ vi.mock("@/lib/api/auth-client", () => ({
 const practiceApi = vi.hoisted(() => ({
   startConfidencePractice: vi.fn(),
   uploadConfidencePracticeAttempt: vi.fn(),
-  judgeConfidencePracticeAttempt: vi.fn(),
-  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   savePracticeHelperWords: vi.fn(async () => true),
 }));

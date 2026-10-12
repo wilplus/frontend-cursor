@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import CoachVideo from "../CoachVideo";
-import { CHUNK_SHEET_COPY as COPY, WALK_COPY, WALK_LINE_BANK } from "../idealEditCopy";
+import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
 import WalkStage from "./WalkStage";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
@@ -25,8 +25,6 @@ import type { WalkStep } from "@/lib/willab/walkPlan";
 import { loopEnd } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import {
-  bankLine,
-  clearerTurn,
   firstJudgement,
   type FeedbackWalkModel,
   type FeedbackWalkMoment,

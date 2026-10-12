@@ -31,7 +31,6 @@ export const DATA_CONSENT_COPY = {
     "You agreed that a recording of you speaking may reveal sensitive information about you. Withdrawing this ends your use of recording. Everything you already made stays readable.",
   withdraw: "Withdraw",
   withdrawConfirm: "Withdraw and stop recording?",
-  coachSpeakerOff: "This speaker has turned off personalised practice.",
   cancel: "Cancel",
   loadFailed: "Couldn’t load your choices. Try again.",
   recordingOff: "Recording is off.",

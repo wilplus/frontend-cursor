@@ -3,13 +3,11 @@
 import { useDeliveryHeadlines } from "@/components/willab/useSlideHeadlines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import MediaPlayer from "@/components/results/MediaPlayer";
 import { MediaRefreshProvider, useMediaRefresher } from "@/lib/media/mediaRefresh";
 import OverlayCloseButton from "./OverlayCloseButton";
 import ProcessingWait from "./ProcessingWait";
 import IdealTextPendingCoach from "./IdealTextPendingCoach";
 import LoadingState from "./LoadingState";
-import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import IdealTextHeading from "./IdealTextHeading";
@@ -24,16 +22,9 @@ import {
   fetchIdealTextCore,
   fetchIdealTextForOpen,
   saveIdealUserEdit,
-  segmentIdealText,
-  type DecisionHistoryEntry,
-  type IdealKeyMomentLink,
   type DocumentSuggestion,
-  type IdealPiece,
-  type KeyPoint,
   type IdealText,
-  type MomentSuggestion,
   type IdealTextResult,
-  type CoachMessage,
 } from "@/services/api/idealText";
 import { decideBlock } from "@/services/api/documentDecide";
 import {
@@ -58,7 +49,6 @@ import {
 } from "./BlockVariantPicker";
 import TranscriptReviewDeck from "./TranscriptReviewDeck";
 import { useVisibleLearningExposure } from "@/hooks/useVisibleLearningExposure";
-import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import type { LockResult } from "./DeckChunkModal";
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import {
@@ -96,10 +86,6 @@ import {
 } from "@/lib/willab/documentParts";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
-import type {
-  ConfidentMomentOwnerEdit,
-  ConfidentMomentSummary,
-} from "@/services/api/confidentMomentBundles";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */

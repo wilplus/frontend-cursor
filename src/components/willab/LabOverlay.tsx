@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ import { useDocumentSettle } from "./useDocumentSettle";
 import { postJourneyForSavedTake } from "@/services/api/journeyNextSteps";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { fetchArcSetup } from "@/services/api/arcSetup";
-import { fetchIdealTextCore } from "@/services/api/idealText";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import {

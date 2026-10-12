@@ -14,25 +14,7 @@
 /* -------------------------------------------------------------------------- */
 
 export const IDEAL_EDIT_COPY = {
-  /* --- the arrange mode toggle ------------------------------------------- */
-  arrangeOpen: "Add or move parts",
-  arrangeDone: "Done",
-
-  /* --- adding ------------------------------------------------------------ */
-  addHere: "Add text here",
-  addPlaceholder: "Type what you want to say here",
-  addConfirm: "Add",
-  addCancel: "Cancel",
-
-  /* --- moving ------------------------------------------------------------ */
-  dragHandle: "Move this part",
-  moveUp: "Move up",
-  moveDown: "Move down",
   removePart: "Remove this part",
-
-  /* --- the honest note under the parts ----------------------------------- */
-  persistenceNote:
-    "Rewording sticks. Anything you add or move here is yours to keep, and when a new take lands you get one tap to put it back.",
 
   /* --- a new take landed mid-edit (409 VERSION_SUPERSEDED) ----------------
      The card that lived here is RETIRED (founder 2026-08-10, option A). With
@@ -73,12 +55,6 @@ export const IDEAL_EDIT_COPY = {
      or not; not yet lock in / lock in". The lock choice rides the decide
      popover; these are his two options, his words. */
   lockIn: "Lock in",
-  lockNotYet: "Not yet lock in",
-  /* R3 — a section with undecided suggestions cannot be locked, because
-     locking would make those suggestions unreachable. Auto-deciding them would
-     write a decision the student never made. */
-  lockBlocked:
-    "Please approve or disregard pending suggestions before locking.",
   /* 409 STALE_DOCUMENT has NO string, deliberately. The document moved under
      the student (a take assembled, or the coach verified), and the existing
      lane already answers that by silently refetching — the text visibly
@@ -202,10 +178,6 @@ export const CHUNK_SHEET_COPY = {
      N48.3 Q8 A; it read "Small rewrite" until then). */
   cardClearerVersion: "Clearer version",
   cardWithEmphasis: "With emphasis",
-  /* The judgement screen shows the corrected take ALONE — the original
-     playback is gone from it, so this eyebrow is the only thing naming which
-     recording is in the orange card. */
-  cardCorrectedVersion: "Corrected version",
   /* An INSTRUCTION for the interaction rather than a label for the content,
      which is why it does not read "With emphasis" like its sibling. Founder
      left it deliberately (handoff, "one note"). */
@@ -264,23 +236,7 @@ export const CHUNK_SHEET_COPY = {
      words and helper words changed. "Before" is gone with the two-list
      layout: the timeline shows each Take with its own helper words (Q26 B). Words only — no score (AC-9). "Exercise"
      and "Practise" reuse titleExercise and pillPractise above. */
-  /* --- "You have judged this as your …" (founder 2026-09-26) -------------
-     SIGNED OFF as written, replacing "You said: <chip>". The answered sheet
-     says the owner's own judgement back as one sentence, one per answer.
-     Words only — the answer is the owner's self-report, never a score. */
-  historyJudgedYes: "You have judged this as your confident moment",
-  historyJudgedInBetween: "You have judged this as your moment in-between",
-  historyJudgedNo: "You have judged this as your not-so-much confident moment",
-  historyJudgedAudioUnclear: "This audio playback was unclear",
-  historyJudgedNotSure: "You were not sure how to judge this one",
   historyCorrectionAccepted: "Correction accepted",
-  historyPraised: "Praised",
-  historyFromPractice: "From your practice",
-  historyHowItChanged: "How this changed",
-  /* Founder 2026-09-26 (Ideal Text redesign, L6): the one new string. Heads
-     the folded rows of earlier Takes under the current one, so history reads
-     as history. */
-  historyEarlierTakes: "Earlier Takes",
   /* Under the slide editor (founder 2026-09-26, J11). */
   editorNextTakeNote:
     "Your next Take rewrites this from what you say. This version stays in the history.",

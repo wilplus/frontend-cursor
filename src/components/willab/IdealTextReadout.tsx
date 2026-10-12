@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendTakeToCoach } from "@/services/api/sendTakeToCoach";
 import {
