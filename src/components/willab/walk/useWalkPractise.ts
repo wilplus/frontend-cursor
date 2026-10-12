@@ -76,6 +76,11 @@ function passageOf<R>(step: WalkStep, moment: FeedbackWalkMoment<R>): { item: R;
   if (step.kind === "words" && moment.clearer) {
     return { item: moment.practiseItem, passage: { kind: "rewrite", say: moment.clearer.say } };
   }
+  // "Keep my words": the speaker's own sentence, said again (lock
+  // 2026-10-12, section 2.4).
+  if (step.kind === "keep" && moment.clearer) {
+    return { item: moment.practiseItem, passage: { kind: "plain" } };
+  }
   if (step.kind === "moment" && moment.practiseItem != null) {
     return { item: moment.practiseItem, passage: { kind: "plain" } };
   }
@@ -173,9 +178,12 @@ export function useWalkPractise<R>(args: {
     [],
   );
 
+  // After Stop every move is instant (lock 2026-10-12, section 2.5: "the
+  // walk returns instantly, with no rise animation"): the try's bubble
+  // stays where it is while the mark breathes and the answer arrives.
   const late = useCallback((processingAt: number, tried: WalkStep, retry: number) => {
     const { plan: p, relay: lay } = live.current;
-    lay(withRead(p, processingAt, tried, null, { words: false, retryAttempt: retry }), processingAt + 1, "fade");
+    lay(withRead(p, processingAt, tried, null, { words: false, retryAttempt: retry }), processingAt + 1, "none");
   }, []);
 
   /** Upload the try, ask the machine, lay its answer in. */
@@ -191,6 +199,14 @@ export function useWalkPractise<R>(args: {
         live.current.at === checkingAt &&
         live.current.plan[checkingAt]?.key === "processing";
       const attempt = from.step.attempt ?? 1;
+      // The try's voice is on screen from Stop (its orange bubble stays
+      // through the checking and the answer, lock 2026-10-12).
+      const url = URL.createObjectURL(audio);
+      urls.current.push(url);
+      setTries((t) => ({
+        ...t,
+        [moment]: { practiceId: t[moment]?.practiceId ?? "", words: null, audio: { url, durationMs: Math.round(durationSec * 1000) } },
+      }));
       const practiceId = practiseIO ? await (opened.current.get(moment) ?? Promise.resolve(null)) : null;
       if (!practiseIO || !practiceId) {
         if (current()) late(checkingAt, from.step, attempt);
@@ -201,12 +217,7 @@ export function useWalkPractise<R>(args: {
         if (current()) late(checkingAt, from.step, attempt);
         return;
       }
-      const url = URL.createObjectURL(audio);
-      urls.current.push(url);
-      setTries((t) => ({
-        ...t,
-        [moment]: { practiceId, words: null, audio: { url, durationMs: Math.round(durationSec * 1000) } },
-      }));
+      setTries((t) => ({ ...t, [moment]: { ...t[moment], practiceId } }));
       const tried: WalkStep = { ...from.step, attempt: sent.attempt };
       const read = await within(practiseIO.check(practiceId, sent.attemptId), limit);
       if (!current()) return;
@@ -216,7 +227,7 @@ export function useWalkPractise<R>(args: {
       }
       setTries((t) => ({ ...t, [moment]: { ...t[moment], practiceId, words: read.attemptWords } }));
       const { plan: p, relay: lay } = live.current;
-      lay(withRead(p, checkingAt, tried, read.check, { words: read.attemptWords !== null }), checkingAt + 1, "fade");
+      lay(withRead(p, checkingAt, tried, read.check, { words: read.attemptWords !== null }), checkingAt + 1, "none");
     },
     [late],
   );
@@ -242,7 +253,7 @@ export function useWalkPractise<R>(args: {
     const here = p[i];
     if (here?.key !== "practise") return;
     const checking = withChecking(p, i);
-    lay(withRead(checking, i + 1, here, null, { words: false, retryAttempt: here.attempt ?? 1 }), i + 2, "fade");
+    lay(withRead(checking, i + 1, here, null, { words: false, retryAttempt: here.attempt ?? 1 }), i + 2, "none");
   }, [mic.state]);
 
   const stop = useCallback(() => {
@@ -253,7 +264,7 @@ export function useWalkPractise<R>(args: {
     run.current += 1;
     pending.current = { at: i, step: here, run: run.current };
     void mic.stop();
-    lay(withChecking(p, i), i + 1, "fade");
+    lay(withChecking(p, i), i + 1, "none");
   }, [mic]);
 
   const cancel = useCallback(() => {
@@ -275,7 +286,7 @@ export function useWalkPractise<R>(args: {
     if (here?.key !== "late" || here.moment == null || !ms[here.moment]) return;
     const practise = p.find((s) => s.key === "practise" && s.moment === here.moment);
     if (!practise) return;
-    lay(withRetry(p, i, practise), i, "fade");
+    lay(withRetry(p, i, practise), i, "none");
   }, []);
 
   const reset = useCallback(() => {

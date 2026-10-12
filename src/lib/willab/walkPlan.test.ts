@@ -30,6 +30,6 @@ describe("the 2026-10-12 lock", () => {
       { start: 20, slide: 2, blockId: "c", tiered: true },
     ];
     const plan = buildWalkPlan({ moments: walkMoments(items), coachNote: false, practiceOn: true, guest: false });
-    expect(plan.map((s) => s.key)).toEqual(["page", "praise", "helpers", "clearer", "practise", "others", "end"]);
+    expect(plan.map((s) => s.key)).toEqual(["page", "praise", "helpers", "clearer", "practise", "others", "summary", "end"]);
   });
 });

@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
+import LoadingState from "../LoadingState";
 import WalkOverlay, { type WalkNav } from "./WalkOverlay";
 import WalkMessage from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
-import WalkLoading from "./WalkLoading";
 import RecordingStrip from "./RecordingStrip";
 import type { WalkStep, WalkStepKey } from "@/lib/willab/walkPlan";
 import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
@@ -15,21 +15,21 @@ import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
 
 /* -------------------------------------------------------------------------- */
-/*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-06,  */
-/*  flow 7), drawn as the dev harness's stills draw them                      */
-/*  (src/app/dev/feedback-walk/walkScreens): pure, from the step and what     */
-/*  the controller (useWalkPractise) holds.                                   */
+/*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-12,  */
+/*  moment and feedback chat, section 2.5; prototype v31 `openRecorder` and    */
+/*  the `try` step): pure, from the step and what the controller              */
+/*  (useWalkPractise) holds.                                                  */
 /*                                                                            */
-/*    practise    no title, no slide bar, no helper text: the words to say    */
-/*                (after an exercise its instruction first, on a clearer      */
-/*                version the served line first) and the Take's               */
-/*                own recording strip, with Skip                              */
-/*    processing  the breathing voice mark only                               */
-/*    improved    "Good job", the try's voice, a line of the signed bank      */
-/*    encourage   "Practise", the try's voice, "It was better, …" or an NX3a  */
-/*                line, "Practise again" to the next try, Skip               */
-/*    thanks      after the third try that is not praise: a CM3b line, and    */
-/*                the walk moves on                                           */
+/*    practise    the recorder without the slide: "Practise · Slide N" and ✕  */
+/*                (back to the walk) on top, a grey bubble with the served    */
+/*                line (else Line A), the words to say centred in the rest,   */
+/*                the Take's strip (dot, clock, bar) and Skip / red Stop      */
+/*    processing  the orange "Practise N" bubble, the breathing mark under it */
+/*    improved    "Practise N", then "Good job" and a signed line; Next       */
+/*    encourage   "Practise N", then "Practise" and the signed encouragement; */
+/*                "Practise again" with the red dot, Skip                     */
+/*    thanks      after the third try that is not praise: the signed move-on  */
+/*                line; Next                                                  */
 /*    late        a read that came late or not at all (O5): Next, and         */
 /*                Practise again while a try is left                          */
 /*                                                                            */
@@ -42,9 +42,13 @@ export type PractiseScreenCtx = {
   plan: readonly WalkStep[];
   at: (step: WalkStep) => number;
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
-  total: number;
   close: () => void;
+  /** ✕ on the recorder: back to the step that opened the practise. */
+  back: () => void;
   forward: () => void;
+  /** The answer given to `step` earlier in this walk; null: none yet. */
+  answered: (step: WalkStep) => string | null;
+  answer: (step: WalkStep, value: string) => void;
   elapsed: number;
   stop: () => void;
   skip: () => void;
@@ -57,8 +61,9 @@ export type PractiseScreenCtx = {
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
 
-/** The voice the screens after a try play: the try's own, else the moment's. */
-function TryPlayer({
+/** The try's own voice as the speaker's orange bubble, "Practise N" above it
+ *  (lock 2026-10-12, section 2.5); the moment's voice until the try is kept. */
+function TryBubble({
   ctx,
   moment,
   attempt,
@@ -73,49 +78,47 @@ function TryPlayer({
     : moment.clip
       ? { src: moment.clip.src, startOffsetMs: moment.clip.startOffsetMs, durationMs: moment.clip.durationMs }
       : null;
-  if (!clip) return null;
+  const label = WALK_COPY.practiseN(attempt ?? 1);
   return (
     <WalkPlayer
-      seed={`moment-${moment.index}`}
-      src={clip.src}
-      startOffsetMs={clip.startOffsetMs}
-      durationMs={clip.durationMs}
-      label={
-        tried
-          ? WALK_COPY.practiseN(attempt ?? 1)
-          : `${COPY.pagerMoment} ${moment.index + 1} ${COPY.pagerOf} ${ctx.total}`
-      }
+      look="me"
+      seed={`try-${moment.index}-${attempt ?? 1}`}
+      src={clip?.src ?? null}
+      startOffsetMs={clip?.startOffsetMs}
+      durationMs={clip?.durationMs}
+      label={label}
+      words={<span>{label}</span>}
     />
   );
 }
 
-/** The words a practise asks for: a clearer version's accepted words, an
- *  exercise's passage, or the moment's own words said again. */
+/** The words a practise asks for: a clearer version's accepted words, the
+ *  speaker's own sentence kept, an exercise's passage, or the moment said
+ *  again. */
 function wordsToSay(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | undefined {
   if (step.kind === "words") return moment.clearer?.say;
+  if (step.kind === "keep") return moment.clearer?.said;
   if (step.kind === "instruction") return moment.exercise?.say;
   return moment.paragraphText;
 }
 
-/** The message above the words to say: an exercise's instruction (flow 8),
- *  or a clearer version's served line (its signed `rewriteMove`, as the
- *  prototype's "Say it this way, …"). Only from the served item; none, none. */
-function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string | null {
-  if (step.kind === "instruction") return moment.exercise?.instruction ?? null;
-  if (step.kind === "words") return moment.clearer?.coachLine ?? null;
+/** The bubble above the words to say: the served line (an exercise's
+ *  instruction, a clearer version's `rewriteMove`), else Line A. */
+function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string {
+  if (step.kind === "instruction") return moment.exercise?.instruction ?? WALK_COPY.lineA;
+  if (step.kind === "words") return moment.clearer?.coachLine ?? WALK_COPY.lineA;
   return WALK_COPY.lineA;
 }
 
-/** Practising: recording from the start; no title, no slide bar. After an
- *  exercise its instruction comes first, and on a clearer version's words
- *  the served line, as a message, when the item carries one. */
+/** The recorder (lock 2026-10-12, section 2.5): "Practise · Slide N" and ✕,
+ *  the bubble, the words centred in the space left, the strip and the pair. */
 function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  const say = wordsToSay(step, moment);
-  const instruction = lineAbove(step, moment);
+  const coach = step.kind === "instruction" && moment.exercise?.byCoach === true;
   return (
     <WalkOverlay
       testId={testId(step)}
-      onClose={ctx.close}
+      where={WALK_COPY.practiseWhere(moment.slideLabel ?? COPY.titlePractise)}
+      onClose={ctx.back}
       footer={
         <div data-walk-footer className="flex flex-col px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
           <RecordingStrip elapsed={ctx.elapsed} />
@@ -144,70 +147,109 @@ function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
         </div>
       }
     >
-      {instruction ? <WalkMessage>{instruction}</WalkMessage> : null}
-      <p data-walk-say className="m-0 text-[25px] font-semibold leading-[1.35]">
-        {say}
+      <WalkMessage coach={coach} wide>
+        {lineAbove(step, moment)}
+      </WalkMessage>
+      <p data-walk-say className="my-auto text-[25px] font-semibold leading-[1.35]">
+        {wordsToSay(step, moment)}
       </p>
     </WalkOverlay>
   );
 }
 
-function Processing(ctx: PractiseScreenCtx, step: WalkStep) {
+/** The try is with the machine: its bubble stays, the mark breathes under it. */
+function Processing(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   return (
-    <WalkOverlay testId={testId(step)} onClose={ctx.close} bare>
-      <WalkLoading />
+    <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close}>
+      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
+      <div data-walk-loading className="flex justify-center py-5">
+        <LoadingState placement="surface" />
+      </div>
     </WalkOverlay>
   );
 }
 
+/** The answered footer: "✓ …" over a black Next. */
+function Done({ ctx, line }: { ctx: PractiseScreenCtx; line: string }) {
+  return (
+    <WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }}>
+      <p className="m-0 text-center text-[13px] text-muted-foreground">{line}</p>
+    </WalkFooter>
+  );
+}
+
 function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+  const ok = () => {
+    ctx.answer(step, "ok");
+    ctx.forward();
+  };
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      title={COPY.titlePraise}
-      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ctx.forward, testId: "walk-forward" }} />}
+      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
     >
-      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
-      <WalkMessage>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
+      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
+      <WalkMessage>
+        <span>{COPY.titlePraise}</span>
+        <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+      </WalkMessage>
     </WalkOverlay>
   );
 }
 
 function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+  const given = ctx.answered(step);
+  const again = () => {
+    ctx.answer(step, "again");
+    ctx.forward();
+  };
+  const skip = () => {
+    ctx.answer(step, "skip");
+    ctx.skip();
+  };
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      title={COPY.titlePractise}
       footer={
-        <WalkFooter
-          pill={{ label: COPY.pillPractiseAgain, onClick: ctx.forward, testId: "walk-forward" }}
-          links={[{ label: WALK_COPY.skip, onClick: ctx.skip, testId: "walk-skip" }]}
-        />
+        given ? (
+          <Done ctx={ctx} line={given === "again" ? WALK_COPY.answeredPractised : WALK_COPY.answeredSkipped} />
+        ) : (
+          <WalkFooter
+            dot
+            pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }}
+            links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
+          />
+        )
       }
     >
-      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
-      <WalkMessage>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
+      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
+      <WalkMessage>
+        <span>{COPY.titlePractise}</span>
+        <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+      </WalkMessage>
     </WalkOverlay>
   );
 }
 
-/** After the third try that is not praise (CM3b A): the walk moves on.
- *  TODO(D-FW-18): it moves on to "Judgement time!"; until the judgements are
- *  drawn it goes to the plan's next screen. */
+/** After the third try that is not praise (CM3b A): the signed move-on line
+ *  alone, and Next. */
 function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+  const ok = () => {
+    ctx.answer(step, "ok");
+    ctx.forward();
+  };
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      title={COPY.titlePractise}
-      footer={<WalkFooter pill={{ label: COPY.pillContinue, onClick: ctx.forward, testId: "walk-forward" }} />}
+      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
     >
-      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
+      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
       <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
     </WalkOverlay>
   );
@@ -220,7 +262,6 @@ function Late(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      title={COPY.titlePractise}
       footer={
         <WalkFooter
           pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }}
@@ -232,7 +273,7 @@ function Late(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment
         />
       }
     >
-      <TryPlayer ctx={ctx} moment={moment} attempt={step.attempt} />
+      <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
     </WalkOverlay>
   );
 }

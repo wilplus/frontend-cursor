@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { postReviewSummary } from "@/services/api/reviewSummary";
+import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 import { shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
@@ -28,6 +28,7 @@ import { judgedStatus } from "@/lib/willab/chunkSteps";
 import {
   buildFeedbackReplay,
   buildFeedbackWalk,
+  walkHelpersForPart,
   walkStart,
   walkStepForPart,
   type FeedbackWalkItem,
@@ -214,7 +215,9 @@ function walkItemOf(
 export function rewriteOf(item: DocumentSuggestion): FeedbackWalkItem<DocumentSuggestion>["rewrite"] {
   if (item.kind !== "replace" || !item.proposedText?.trim()) return null;
   if (item.feedbackFamily !== "rewrite_clarity" && item.openCard !== "rewrite") return null;
-  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, item };
+  // The decision already given (the replay shows it answered).
+  const decided = item.status === "approved" ? "accept" : item.status === "dismissed" ? "keep" : null;
+  return { quote: item.quote, proposedText: item.proposedText, move: item.rewriteMove, item, decided };
 }
 
 /** The exercise an item's follow-up opens on (D-FW-17): the served offer,
@@ -396,11 +399,30 @@ export function paragraphPractise(args: {
   let kind: WalkStep["kind"] = "moment";
   if (card.kind === "exercise") {
     if (!source.practiceExercise || !card.passage.trim()) return null;
-    one = { ...base, exercise: { video: card.video, instruction: card.instruction, say: card.passage, item: source } };
+    one = {
+      ...base,
+      exercise: {
+        video: card.video,
+        byCoach: source.practiceExercise.chosenByCoach === true,
+        instruction: card.instruction,
+        say: card.passage,
+        item: source,
+      },
+    };
     kind = "instruction";
   } else if (card.kind === "rewrite") {
     const pieces = clearerPieces(card.item.quote, card.text) ?? { before: [], after: [] };
-    one = { ...base, clearer: { ...pieces, say: card.text, coachLine: card.move?.trim() || null, item: source } };
+    one = {
+      ...base,
+      clearer: {
+        ...pieces,
+        say: card.text,
+        said: card.item.quote,
+        coachLine: card.move?.trim() || null,
+        decided: null,
+        item: source,
+      },
+    };
     kind = "words";
   }
   return {
@@ -426,6 +448,8 @@ export function useDeckFeedbackWalk(args: {
   /** Marks the coach's word for the Take as seen (useCoachStep). */
   coachSeen: () => void;
   firstTake: boolean;
+  /** The Take reviewed, for the summary's "Take N". */
+  takeIndex?: number | null;
   /** The page's Take, when the feedback items name none. */
   takeSessionId?: string | null;
   /** The Take's project: the Lounge's walk steps name it, so a tap turns
@@ -440,8 +464,9 @@ export function useDeckFeedbackWalk(args: {
   /** A moment judged or skipped in the walk: its bar leaves the page at
    *  once, settled as the server settles it (the Feedback sheet's own). */
   onJudged?: (s: DocumentSuggestion, decided: "approved" | "dismissed") => void;
-  /** The walk ran out: the deck's end card. */
-  onEnd: () => void;
+  /** The walk ran out onto the page. Nothing else: the old end card is
+   *  retired for this flow (lock 2026-10-12, section 2.7). */
+  onEnd?: () => void;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -453,6 +478,10 @@ export function useDeckFeedbackWalk(args: {
 }): {
   review: () => boolean;
   tapPart: (partId: string, open: boolean) => boolean;
+  /** A paragraph's helper words were tapped: that slide's helper-words step
+   *  in the same walk, live or finished (lock 2026-10-12, section 4). False
+   *  when the paragraph has none. */
+  openHelpers: (partId: string) => boolean;
   /** Plays the walk again from this paragraph's first moment. False when
    *  the paragraph has none in the replay. */
   replayPart: (partId: string) => boolean;
@@ -599,7 +628,7 @@ export function useDeckFeedbackWalk(args: {
   const replayPart = useCallback(
     (partId: string): boolean => {
       if (!replayReady) return false;
-      const now = withLiveHelperWords(buildReplay(ownAnswers));
+      const now = buildReplay(ownAnswers);
       const at = walkStepForPart(now, partId);
       if (at === null) return false;
       setReplaying(now);
@@ -607,6 +636,25 @@ export function useDeckFeedbackWalk(args: {
       return true;
     },
     [replayReady, buildReplay, ownAnswers, openAt],
+  );
+
+  const openHelpers = useCallback(
+    (partId: string): boolean => {
+      // The live walk's step while the paragraph still waits; else the
+      // finished walk's, where the words stay editable.
+      const liveAt = walkHelpersForPart(model, partId);
+      if (liveAt !== null) {
+        setReplaying(null);
+        return openAt(liveAt);
+      }
+      if (!replayReady) return false;
+      const now = buildReplay(ownAnswers);
+      const at = walkHelpersForPart(now, partId);
+      if (at === null) return false;
+      setReplaying(now);
+      return openAt(at);
+    },
+    [model, replayReady, buildReplay, ownAnswers, openAt],
   );
 
   const practisePart = useCallback(
@@ -677,26 +725,29 @@ export function useDeckFeedbackWalk(args: {
     skipJudgements(items, (item) => live.current.onJudged?.(item, "dismissed"));
   }, []);
   const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
-  // A paragraph's practise ends on the page; the walk's end card is the walk's.
+  // The closing summary, the walk's last step (lock 2026-10-12, sections
+  // 2.7 and 3): written once per Take and read back for the bubble, then
+  // the thread reloads so it shows in the Lounge too. Null: the step is
+  // skipped.
+  const summary = useCallback(async (): Promise<string | null> => {
+    const { thread: to, take: on, arcId } = threadRef.current;
+    if (!on || !arcId) return null;
+    const heard = heardRef.current;
+    const text = await postReviewSummaryText(arcId, {
+      takeSessionId: on,
+      practice: heard.practice,
+      helperWords: heard.words,
+      coachNote: live.current.coachMessage?.text ?? null,
+    });
+    if (text) void to?.reload();
+    return text;
+  }, []);
+  // A paragraph's practise ends on the page quietly; the review's end tells
+  // the Lounge ("Continue review" leaves it) and lands on the Ideal Text.
   const onEnd = useCallback(() => {
     if (practisingRef.current) return;
-    // The review's end: "Continue review" leaves the Lounge.
     post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
-    // The closing summary, written once per Take, then the thread reloads
-    // so it shows after the review.
-    const { thread: to, take: on, arcId } = threadRef.current;
-    if (on && arcId) {
-      const heard = heardRef.current;
-      void postReviewSummary(arcId, {
-        takeSessionId: on,
-        practice: heard.practice,
-        helperWords: heard.words,
-        coachNote: live.current.coachMessage?.text ?? null,
-      }).then((ok) => {
-        if (ok) void to?.reload();
-      });
-    }
-    live.current.onEnd();
+    live.current.onEnd?.();
   }, [post]);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
@@ -728,6 +779,7 @@ export function useDeckFeedbackWalk(args: {
           request={request}
           coachNote={coachMessage}
           firstTake={firstTake}
+          takeIndex={args.takeIndex ?? null}
           onSaveHelperWords={saveHelperWords}
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
@@ -736,6 +788,7 @@ export function useDeckFeedbackWalk(args: {
           onJudge={judge}
           onSkipJudging={skipJudging}
           journal={journal}
+          summary={summary}
           onEnd={onEnd}
           lines={lineBankIO}
           onShown={onShown}
@@ -746,6 +799,8 @@ export function useDeckFeedbackWalk(args: {
       request,
       coachMessage,
       firstTake,
+      args.takeIndex,
+      summary,
       saveHelperWords,
       acceptClearer,
       keepWords,
@@ -760,19 +815,9 @@ export function useDeckFeedbackWalk(args: {
   );
 
   return useMemo(
-    () => ({ review, tapPart, replayPart, replay, canReplay, practisePart, element }),
-    [review, tapPart, replayPart, replay, canReplay, practisePart, element],
+    () => ({ review, tapPart, openHelpers, replayPart, replay, canReplay, practisePart, element }),
+    [review, tapPart, openHelpers, replayPart, replay, canReplay, practisePart, element],
   );
-}
-
-/** The replay opened from a paragraph keeps its helper words live: the
- *  speaker may pick new ones there (L1: they persist until the speaker picks
- *  new ones), as the paragraph sheet allowed. Pure. */
-export function withLiveHelperWords<M extends { plan: readonly WalkStep[] }>(model: M): M {
-  return {
-    ...model,
-    plan: model.plan.map((step) => (step.key === "helpers" && step.replay ? { ...step, replay: false } : step)),
-  };
 }
 
 /** Two helper word sets read the same, markers and case aside. Pure. */

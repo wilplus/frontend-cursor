@@ -400,6 +400,24 @@ export const WALK_COPY = {
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
   practiseN: (n: number) => `Practise ${n}`,
+  /* The lens, one to one with the locked prototype (v31, 2026-10-12): the
+     top bar's words, the judging answers, the answered lines. */
+  /** "Practise · Slide 3", the practise recorder's top bar. */
+  practiseWhere: (slide: string) => `Practise · ${slide}`,
+  /** "Slide 2 · helper words". */
+  navHelperWords: "helper words",
+  /** The link under the picker once the words are chosen. */
+  keepThese: "Keep these",
+  judgeYes: "Yes",
+  judgeInBetween: "In-between",
+  judgeNo: "No",
+  judgeUnclear: "Audio unclear",
+  /* An answered step, reopened. */
+  answeredAccepted: "✓ You accepted and practised it",
+  answeredKept: "✓ You kept your words",
+  answeredPractised: "✓ Practised",
+  answeredSkipped: "✓ Skipped",
+  answered: "✓ Answered",
 } as const;
 
 /* -------------------------------------------------------------------------- */

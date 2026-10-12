@@ -160,8 +160,9 @@ describe("the walk on the deck", () => {
     expect(screen()).toBe("walk-screen-praise");
     expect(live()!.className).toContain("walk-m-open");
     expect(pager()).toBeNull();
+    // "Good job" is the bubble's first line, then the praise (lock 2026-10-12).
     expect(live()!.querySelector("[data-walk-message]")!.textContent).toBe(
-      [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(""),
+      [COPY.titlePraise, [PRAISE_LEAD, PRAISE_CUE_COPY.landed_ending].join(" ")].join(""),
     );
     expect(live()!.querySelector("[data-walk-nav]")!.getAttribute("aria-label")).toBe(
       `Slide 2 · ${COPY.pagerMoment} 1 ${COPY.pagerOf} 1`,

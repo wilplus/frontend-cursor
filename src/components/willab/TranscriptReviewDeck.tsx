@@ -541,10 +541,6 @@ export default function TranscriptReviewDeck({
   const { headlines, drop: dropHeadline } = useDroppedHeadlines(readHeadlines);
   // Deleted here, before the next read says so (N48.2 Q6 A).
   const [deletedHere, setDeletedHere] = useState<ReadonlySet<string>>(() => new Set());
-  const openHelperWords = useCallback((chunk: DeckChunk) => {
-    openParagraph(chunk);
-    setOpenWords(true);
-  }, [openParagraph]);
   const openState = openChunk ? stateOf(openChunk) : null;
   /** A paragraph opens its own sheet when no judgement waits on it or its
    *  helper words are saved (founder lock 2026-09-30, B5, B8). */
@@ -722,6 +718,7 @@ export default function TranscriptReviewDeck({
     coachMessage,
     coachSeen: coachStep.seen,
     firstTake: takeCount === 1,
+    takeIndex: takeCount,
     takeSessionId,
     arcId,
     setRootPhrase,
@@ -730,7 +727,6 @@ export default function TranscriptReviewDeck({
     lockPart: onLockPart,
     saveBehind,
     onJudged,
-    onEnd: finishWalk,
     answeredOf,
     helperWordsOf,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
@@ -1325,14 +1321,15 @@ export default function TranscriptReviewDeck({
                       {...paragraphTap(
                         opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)) ||
                           Boolean(headlines.get(c.part.id)),
-                        () => {
-                          // A moment opens its step in the walk (an answered
-                          // one plays it again); helper words open their
-                          // step; other text does nothing (lock 2026-10-12,
-                          // section 4).
+                        (target) => {
+                          // Helper words open that slide's helper-words step
+                          // in the walk; a moment opens its step (an answered
+                          // one plays it again); other text does nothing
+                          // (lock 2026-10-12, section 4).
+                          const onWords = target instanceof Element && target.closest(".walk-helper-word") !== null;
+                          if (onWords && feedbackWalk.openHelpers(c.part.id)) return;
                           if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                          if (feedbackWalk.replayPart(c.part.id)) return;
-                          if (headlines.get(c.part.id)) openHelperWords(c);
+                          feedbackWalk.replayPart(c.part.id);
                         },
                       )}
                       data-settled={unsettled ? undefined : "true"}
@@ -1353,7 +1350,7 @@ export default function TranscriptReviewDeck({
                           c.displayText ?? c.part.text,
                           headlines.get(c.part.id),
                         )}
-                        tintClass="text-primary not-italic"
+                        tintClass="walk-helper-word text-primary not-italic"
                       />
                     </p>
                     );
@@ -1764,18 +1761,20 @@ function firstWaitingBookmark(
  *  focus, no pointer. Pure, so the deck gains no branch. */
 function paragraphTap(
   opens: boolean,
-  open: () => void,
+  /** What was tapped (the helper words, or the paragraph); null from the
+   *  keyboard. */
+  open: (target: EventTarget | null) => void,
 ): Record<string, unknown> {
   if (!opens) return {};
   return {
     role: "button",
     tabIndex: 0,
     "data-opens-sheet": "true",
-    onClick: open,
+    onClick: (event: { target: EventTarget | null }) => open(event.target),
     onKeyDown: (event: { key: string; preventDefault: () => void }) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      open();
+      open(null);
     },
     style: { cursor: "pointer" },
   };

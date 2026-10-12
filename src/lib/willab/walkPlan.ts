@@ -8,7 +8,8 @@
 /*    the page → the coach's note (only when there is one) → every praise,    */
 /*    each followed by its helper words → the practising (a clearer version,  */
 /*    an exercise, or the moment said again) → other speakers' moments →     */
-/*    the end card. Sharing is asked before the next recording instead.       */
+/*    the closing summary → the page. Sharing is asked before the next        */
+/*    recording instead.                                                      */
 /*    "Judgement time!" and judging your own moments are gone (founder lock   */
 /*    2026-10-12, moment and feedback chat, section 2).                       */
 /*                                                                            */
@@ -86,6 +87,8 @@ export type WalkStepKey =
   | "judge"
   /** Judge other speakers, once, after the practising (lock 2026-10-12). */
   | "others"
+  /** The closing summary, the last lens step (lock 2026-10-12, section 2.7). */
+  | "summary"
   | "end";
 
 export type WalkStep = WalkScreen & {
@@ -139,6 +142,7 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
   }
   // Sharing is asked before the next recording now (lock 2026-10-12, §5).
   steps.push({ key: "others" });
+  steps.push({ key: "summary" });
   steps.push({ key: "end", overlay: false });
   if (!input.guest) return steps;
   return steps.map((s) => (s.key === "page" || s.key === "end" ? s : { ...s, readOnly: true }));
