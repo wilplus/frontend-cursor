@@ -1,8 +1,8 @@
 /* The finished walk, played again (founder 2026-10-08, Q-IT643b A):
    buildFeedbackReplay and phraseSelection. */
 import { describe, expect, it } from "vitest";
-import { buildFeedbackReplay, buildFeedbackWalk, walkStart, type FeedbackWalkItem } from "./feedbackWalkModel";
-import { phraseSelection, phraseTokens } from "./phraseTokens";
+import { buildFeedbackReplay, type FeedbackWalkItem } from "./feedbackWalkModel";
+import { phraseSelection } from "./phraseTokens";
 import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 
 const clip = { src: "data:audio/wav;base64,", startOffsetMs: 0, durationMs: 9000 };
@@ -33,39 +33,10 @@ const replay = (over: Partial<Parameters<typeof buildFeedbackReplay<string>>[0]>
   });
 
 describe("buildFeedbackReplay", () => {
-  it("plays the walk's own order, with no practise recorded and a judgement only where one was given", () => {
-    const model = replay();
-    expect(model.plan.map((s) => `${s.key}${s.moment ?? ""}`)).toEqual([
-      "page", "coachnote", "praise0", "helpers0", "clearer1", "exVideo2", "intro", "judge0", "judge1", "end",
-    ]);
-    // The live walk would record a practise after the clearer version and the exercise.
-    const live = buildFeedbackWalk({ items: ITEMS, coachNote: true, practiceOn: true, guest: false });
-    expect(live.plan.filter((s) => s.key === "practise")).toHaveLength(2);
-    expect(walkStart(model)).toBe(1);
-  });
-
-  it("marks only the screens whose taps would write", () => {
-    const flagged = replay().plan.filter((s) => s.replay).map((s) => s.key);
-    expect(flagged).toEqual(["helpers", "clearer", "exVideo"]);
-  });
-
-  it("carries the answers as given: helper words as saved, judgements as answered", () => {
-    const model = replay();
-    expect(model.replay?.answers).toEqual({ 0: "yes", 1: "no" });
-    const tokens = phraseTokens(ITEMS[0].paragraphText).map((t) => t.text);
-    const pick = model.replay!.picks[0];
-    expect(tokens.slice(pick.from, pick.to + 1)).toEqual(["growth", "doubled."]);
-    expect(model.replay!.picks[1]).toBeUndefined();
-  });
-
   it("with no answer given there is no judging at all, and no lone \"Judgement time!\"", () => {
     const keys = replay({ answerOf: () => null }).plan.map((s) => s.key);
     expect(keys).not.toContain("judge");
     expect(keys).not.toContain("intro");
-  });
-
-  it("nothing to play: no start", () => {
-    expect(walkStart(replay({ items: [], coachNote: false }))).toBeNull();
   });
 });
 

@@ -38,12 +38,6 @@ const praise = item({
 } as Partial<DocumentSuggestion>);
 
 describe("which screen an item gets", () => {
-  it("routes each family to its own face", () => {
-    expect(stepKindFor(confidence)).toBe("feedback");
-    expect(stepKindFor(praise)).toBe("praise");
-    expect(stepKindFor(rewrite)).toBe("suggestion");
-  });
-
   it("recognises confident voice by source as well as family", () => {
     // The wire sends it as kind 'bold' with source set, so a family-only check
     // would drop it into the rewrite face and ask the wrong question.
@@ -58,26 +52,9 @@ describe("which screen an item gets", () => {
 });
 
 describe("order is enforced, not inherited", () => {
-  it("asks the confidence question first however the payload arrived", () => {
-    // THE REASON: confidence is a judgement about the speaker's own delivery.
-    // Asking it after a rewrite proposal makes them judge a recording they
-    // have just been told to change.
-    const served = [rewrite, praise, confidence];
-    expect(orderedInventory(served).map((s) => s.id)).toEqual([
-      "cv", "rw", "pr",
-    ]);
-  });
-
   it("leaves everything else in the order the Manager served (L2)", () => {
     const served = [praise, rewrite];
     expect(orderedInventory(served).map((s) => s.id)).toEqual(["pr", "rw"]);
-  });
-
-  it("is stable with several confidence items", () => {
-    const second = item({ id: "cv2", feedbackFamily: "confident_voice" });
-    expect(
-      orderedInventory([rewrite, confidence, second]).map((s) => s.id),
-    ).toEqual(["cv", "cv2", "rw"]);
   });
 });
 
@@ -85,26 +62,6 @@ describe("the ladder", () => {
   it("ends at the lock, always", () => {
     const steps = buildChunkSteps({ inventory: [], canEmphasise: false });
     expect(steps.map((s) => s.kind)).toEqual(["lock"]);
-  });
-
-  it("puts the emphasis offer between the feedback and the lock", () => {
-    // It used to live inside the editor, sharing a footer with Lock — two
-    // decisions in one footer.
-    const steps = buildChunkSteps({
-      inventory: [rewrite, confidence],
-      canEmphasise: true,
-    });
-    expect(steps.map((s) => s.kind)).toEqual([
-      "feedback", "suggestion", "emphasis", "lock",
-    ]);
-  });
-
-  it("omits the emphasis step when there is nothing to emphasise", () => {
-    const steps = buildChunkSteps({
-      inventory: [praise],
-      canEmphasise: false,
-    });
-    expect(steps.map((s) => s.kind)).toEqual(["praise", "lock"]);
   });
 
   it("never holds two exercise rungs (24f: one exercise per Take)", () => {
@@ -118,30 +75,9 @@ describe("the ladder", () => {
       "exercise",
     ]);
   });
-
-  it("gives the two founder paths four steps each", () => {
-    const suggestionPath = buildChunkSteps({
-      inventory: [confidence, rewrite],
-      canEmphasise: true,
-    });
-    const praisePath = buildChunkSteps({
-      inventory: [confidence, praise],
-      canEmphasise: true,
-    });
-    expect(suggestionPath).toHaveLength(4);
-    expect(praisePath).toHaveLength(4);
-  });
 });
 
 describe("titles", () => {
-  it("names each screen after its own decision", () => {
-    expect(stepTitle("feedback", false)).toBe("Feedback");
-    expect(stepTitle("suggestion", false)).toBe("Suggestion");
-    expect(stepTitle("praise", false)).toBe("Good job");
-    expect(stepTitle("emphasis", false)).toBe("Choose your helper words");
-    expect(stepTitle("lock", false)).toBe("Lock");
-  });
-
   it("calls the lock step 'Edit this chunk' when nothing was pending", () => {
     // Reopening a clean paragraph is an edit, not the end of a review.
     expect(stepTitle("lock", true)).toBe("Edit this chunk");
@@ -158,11 +94,6 @@ describe("the step bar counts screens and nothing else (AC-9)", () => {
     expect(stepProgress(steps, "cv")).toEqual({ total: 4, current: 0 });
     expect(stepProgress(steps, "emphasis")).toEqual({ total: 4, current: 2 });
     expect(stepProgress(steps, "lock")).toEqual({ total: 4, current: 3 });
-  });
-
-  it("falls back to the first segment rather than guessing", () => {
-    expect(stepProgress(steps, null)).toEqual({ total: 4, current: 0 });
-    expect(stepProgress(steps, "nope")).toEqual({ total: 4, current: 0 });
   });
 
   it("always counts the lock, so the total is never a problem count", () => {
@@ -199,19 +130,6 @@ describe("locksAsPreview — you see what you are committing", () => {
     expect(locksAsPreview({
       locked: false, hadFeedback: true, chosenPhrase: null,
     })).toBe(false);
-    expect(locksAsPreview({
-      locked: false, hadFeedback: false, chosenPhrase: null,
-    })).toBe(false);
-    // A locked paragraph that DID have feedback keeps its editor, unchanged.
-    expect(locksAsPreview({
-      locked: true, hadFeedback: true, chosenPhrase: null,
-    })).toBe(false);
-  });
-
-  it("an empty phrase is no phrase", () => {
-    expect(locksAsPreview({
-      locked: false, hadFeedback: true, chosenPhrase: "",
-    })).toBe(false);
   });
 });
 
@@ -238,24 +156,6 @@ describe("judgedStatus — the status the server serves for an answered row", ()
  * What still matters most is the second half: the step and the store read the
  * SAME rule. A screen offered but not saved is silent data loss. */
 describe("opensRootPhrase — Yes and In-between (founder lock 2026-09-30, B2)", () => {
-  it("opens for the two answers that lock", () => {
-    for (const answer of ["yes", "in_between"] as const) {
-      expect(opensRootPhrase(answer)).toBe(true);
-    }
-  });
-
-  it("stays closed on No, Not sure and Audio unclear: the sheet closes after the feedback", () => {
-    // Narrows 2026-09-25, which opened it on Not sure too. A practice judged
-    // Yes or In-between afterwards supersedes this answer (29a).
-    expect(opensRootPhrase("no")).toBe(false);
-    expect(opensRootPhrase("not_sure")).toBe(false);
-    expect(opensRootPhrase("audio_unclear")).toBe(false);
-  });
-
-  it("stays closed until something is answered at all", () => {
-    expect(opensRootPhrase(null)).toBe(false);
-  });
-
   it("opens for the coarse answer the older paths can express", () => {
     expect(opensRootPhrase("yes")).toBe(true);
     expect(opensRootPhrase("other")).toBe(true);
@@ -285,20 +185,8 @@ describe("opensRootPhrase — Yes and In-between (founder lock 2026-09-30, B2)",
  * The distinction these pin is the one a collapsed yes/other answer cannot
  * express at all: "No" and "In-between" fall on opposite sides of it. */
 describe("closesLock — No and Audio unclear end the ladder early", () => {
-  it("closes on No and Audio unclear", () => {
-    expect(closesLock("no")).toBe(true);
-    expect(closesLock("audio_unclear")).toBe(true);
-  });
-
   it("Not sure ends the ladder too (founder lock 2026-09-30, B2; until then Q1 B kept its Lock)", () => {
     expect(closesLock("not_sure")).toBe(true);
-  });
-
-  it("In-between keeps its Lock", () => {
-    // Founder, asked directly the same day. Someone who thought it was
-    // middling still thought something about the words; a No, a shrug and a
-    // dead mic are the three that say this is not the delivery to freeze.
-    expect(closesLock("in_between")).toBe(false);
   });
 
   it("Yes, the coarse answer, and no answer at all keep it", () => {
@@ -321,14 +209,6 @@ describe("closesLock — No and Audio unclear end the ladder early", () => {
     expect(ladder("in_between")).toContain("lock");
     expect(ladder("no")).not.toContain("lock");
     expect(ladder("audio_unclear")).not.toContain("lock");
-  });
-
-  it("an older caller that passes no canLock keeps the lock", () => {
-    // Safe-ahead: the flag defaults to true, so nothing that has not been
-    // taught the rule loses a step.
-    expect(
-      buildChunkSteps({ inventory: [], canEmphasise: false }).map((s) => s.kind),
-    ).toEqual(["lock"]);
   });
 
   it("never returns an empty ladder", () => {

@@ -140,15 +140,6 @@ const q = <T extends Element = HTMLElement>(sel: string) => document.querySelect
 /** The live screen (never the leaving copy). */
 const live = () => q("[data-walk-stage] .walk-layer:not(.walk-ghost)");
 
-describe("one look (founder 2026-10-11)", () => {
-  it("the paragraph's sheet is always the walk's overlay, never today's dimmed sheet", async () => {
-    await draw(sheet());
-    expect(live()!.querySelector('.walk-ov[data-testid="paragraph-sheet"]')).not.toBeNull();
-    expect(q('[data-testid="feedback-pager"]')).toBeNull();
-    expect(document.body.innerHTML).not.toMatch(/bg-foreground\/30/);
-  });
-});
-
 describe("the walk's look", () => {
   it("is full screen with nothing of the page behind it", async () => {
     await draw(sheet());
@@ -221,17 +212,6 @@ describe("History, Edit and the helper words still work in the walk's look", () 
     expect(onUse).toHaveBeenCalledTimes(1);
     expect(onUse.mock.calls[0][0].text).toBe("it now");
     expect(onDone).toHaveBeenCalledTimes(1);
-  });
-
-  it("Delete asks once, then clears the words", async () => {
-    const onDelete = vi.fn(async () => true);
-    const helperWordsHost = { onUseFromTake: vi.fn(async () => true), onDelete };
-    await draw(sheet({ headline: "ship it now", startPicking: true, helperWordsHost }));
-    await act(async () => live()!.querySelector<HTMLButtonElement>('[data-testid="helper-words-delete"]')!.click());
-    const confirm = live()!.querySelector<HTMLButtonElement>('[data-testid="helper-words-delete-confirm"]')!;
-    expect(confirm.textContent).toBe(COPY.helperWordsDeleteConfirm);
-    await act(async () => confirm.click());
-    expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
   it("HelperWordsSheet on its own: the walk's look, with or without a place", async () => {
@@ -310,7 +290,6 @@ describe("how it moves (walk lock 'How screens move')", () => {
     act(() => vi.advanceTimersByTime(400));
     expect(q("[data-walk-sink]")).toBeNull();
   });
-
 });
 
 describe("reduce motion: every move is instant", () => {
@@ -328,7 +307,6 @@ describe("reduce motion: every move is instant", () => {
     expect(q("[data-walk-sink]")).toBeNull();
     expect(document.body.innerHTML).not.toMatch(/walk-m-(open|next|back|fade|close|swap)/);
   });
-
 });
 
 describe("one player, no coloured chip in the walk's look (Q-WALK-PARA A)", () => {

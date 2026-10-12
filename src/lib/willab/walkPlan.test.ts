@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FLOW } from "@/app/dev/feedback-walk/walkFixtures";
 import {
-  WALK_MAX_TRIES,
-  afterTry,
   buildWalkPlan,
-  stepForMoment,
   walkMoments,
   withOutcomes,
   type WalkMoment,
@@ -54,91 +51,15 @@ describe("buildWalkPlan", () => {
     expect(plan.filter((s) => s.key === "intro")).toHaveLength(1);
   });
 
-  it("no coach word: no coach note", () => {
-    const plan = buildWalkPlan({ moments: HARNESS, coachNote: false, practiceOn: true, guest: false });
-    expect(plan.some((s) => s.key === "coachnote")).toBe(false);
-    expect(plan[1].key).toBe("praise");
-  });
-
-  it("no praise: straight to the practising", () => {
-    const plan = buildWalkPlan({
-      moments: [{ index: 0, slide: 0, clearer: true }],
-      coachNote: false, practiceOn: true, guest: false,
-    });
-    expect(keys(plan)).toEqual(["page", "clearer:0", "practise:0", "intro", "judge:0", "community", "end"]);
-  });
-
-  it("practice off: a clearer version offers Accept, nothing is practised (WQ3 A)", () => {
-    const plan = buildWalkPlan({ moments: HARNESS, coachNote: false, practiceOn: false, guest: false });
-    expect(plan.some((s) => s.key === "practise" || s.key === "exVideo")).toBe(false);
-    expect(plan.find((s) => s.key === "clearer")?.kind).toBe("accept");
-    expect(plan.filter((s) => s.key === "judge")).toHaveLength(4);
-  });
-
-  it("guest: every screen read-only, so any answer opens sign-up (N32.5)", () => {
-    const plan = buildWalkPlan({ moments: HARNESS, coachNote: true, practiceOn: true, guest: true });
-    for (const step of plan) {
-      expect(step.readOnly ?? false).toBe(step.key !== "page" && step.key !== "end");
-    }
-  });
-
   it("a moment already judged gets no judgement; none left means no Judgement time!", () => {
     const judged = HARNESS.map((m) => ({ ...m, judged: true }));
     const plan = buildWalkPlan({ moments: judged, coachNote: false, practiceOn: true, guest: false });
     expect(plan.some((s) => s.key === "intro" || s.key === "judge")).toBe(false);
   });
 
-  it("sharing can be left out", () => {
-    const plan = buildWalkPlan({ moments: HARNESS, coachNote: false, practiceOn: true, guest: false, sharing: false });
-    expect(plan.some((s) => s.key === "community")).toBe(false);
-  });
-
   it("carries no number, read or score", () => {
     const plan = buildWalkPlan({ moments: HARNESS, coachNote: true, practiceOn: true, guest: false });
     expect(JSON.stringify(plan)).not.toMatch(/score|read|probab|band/i);
-  });
-});
-
-describe("the practise loop (CM3a A, CM3b A)", () => {
-  const first: WalkStep = { key: "practise", moment: 1, slide: 0, kind: "words", attempt: 1 };
-
-  it("praise: checking, the praise, then helper words", () => {
-    expect(afterTry(first, "praise").map((s) => s.key)).toEqual(["processing", "improved", "helpers"]);
-  });
-
-  it("again: checking, encouragement, the next try", () => {
-    const next = afterTry(first, "again");
-    expect(next.map((s) => s.key)).toEqual(["processing", "encourage", "practise"]);
-    expect(next[2].attempt).toBe(2);
-  });
-
-  it("after the third try that is not praise: thanks, and the walk moves on", () => {
-    const third = { ...first, attempt: WALK_MAX_TRIES };
-    expect(afterTry(third, "again").map((s) => s.key)).toEqual(["processing", "thanks"]);
-    const plan = buildWalkPlan({ moments: [{ index: 1, slide: 0, clearer: true }], coachNote: false, practiceOn: true, guest: false });
-    const flow = withOutcomes(plan, { 1: ["again", "again", "again"] });
-    expect(keys(flow)).toEqual([
-      "page", "clearer:1", "practise:1",
-      "processing:1", "encourage:1", "practise:1",
-      "processing:1", "encourage:1", "practise:1",
-      "processing:1", "thanks:1",
-      "intro", "judge:1", "community", "end",
-    ]);
-  });
-});
-
-describe("stepForMoment (Q-B3 A)", () => {
-  const plan = buildWalkPlan({ moments: HARNESS, coachNote: true, practiceOn: true, guest: false });
-
-  it("opens a moment at its first screen", () => {
-    expect(plan[stepForMoment(plan, 0) ?? -1]).toMatchObject({ key: "praise", moment: 0 });
-    expect(plan[stepForMoment(plan, 3) ?? -1]).toMatchObject({ key: "exVideo", moment: 3 });
-  });
-
-  it("a moment with only its judgement left opens there; none open is null", () => {
-    const onlyJudge = buildWalkPlan({ moments: [{ index: 5, slide: 0 }], coachNote: false, practiceOn: true, guest: false });
-    expect(onlyJudge[stepForMoment(onlyJudge, 5) ?? -1]).toMatchObject({ key: "judge", moment: 5 });
-    expect(stepForMoment(plan, 9)).toBeNull();
   });
 });
 

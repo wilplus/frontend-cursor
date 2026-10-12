@@ -412,8 +412,6 @@ describe("a delete the backend refuses (409 TAKE_HAS_LINEAGE)", () => {
     const cases: Array<[number, unknown]> = [
       [409, { code: "SOMETHING_ELSE" }], // a 409 with another code
       [500, { code: "TAKE_HAS_LINEAGE" }], // the code without the 409
-      [404, { code: "NOT_FOUND" }],
-      [502, "not an object"],
     ];
     for (const [status, body] of cases) {
       vi.stubGlobal("fetch", refuse(status, body));

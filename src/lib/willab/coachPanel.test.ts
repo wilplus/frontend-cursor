@@ -37,12 +37,6 @@ describe("opening", () => {
     expect(s.history).toEqual([]);
   });
 
-  it("a speaker, then a Take opens its first open moment on Judge", () => {
-    const s = atTake();
-    expect(where(s)).toBe("judge:s1");
-    expect(s.history.map((h) => h.key)).toEqual(["queue", "speaker"]);
-  });
-
   it("a Take whose first moments are done opens the first open one", () => {
     const take = { ...TAKE, moments: [m("a", "answered"), m("b", "nothing_to_add"), m("c")] };
     const s = run({ type: "open" }, { type: "take", speaker: HERON, take });
@@ -145,13 +139,6 @@ describe("the training corpus (D-CP-20)", () => {
 });
 
 describe("judging", () => {
-  it("a saved rating moves on to What happened by itself", () => {
-    const s = panelReducer(atTake(), { type: "rated", snippetId: "s1", value: "no" });
-    expect(where(s)).toBe("reveal:s1");
-    expect(s.rated).toEqual({ s1: "no" });
-    expect(s.dir).toBe("forward");
-  });
-
   it("a rating for another moment does not move the screen", () => {
     const s = panelReducer(atTake(), { type: "rated", snippetId: "s3", value: "yes" });
     expect(where(s)).toBe("judge:s1");

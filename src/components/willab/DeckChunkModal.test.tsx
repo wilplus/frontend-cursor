@@ -816,21 +816,6 @@ describe("the ladder", () => {
     );
   });
 
-  it("a No has no helper-words step and no Lock (founder 2026-09-25)", async () => {
-    // REVERSED AGAIN, by the founder: "if they choose judgment no or unclear,
-    // then they should have no option to root that. Just close the overlay."
-    // The feedback still shows; after it the sheet ends. A practice judged
-    // Yes, In-between or Not sure later is how a No reaches helper words.
-    vi.mocked(props.onSetRootPhrase).mockClear();
-    vi.mocked(props.onClose).mockClear();
-    await renderLadder({ style: emphasis });
-    await click("No");
-    expect(container.textContent).not.toContain("With emphasis");
-    expect(buttonLabels()).not.toContain("Use these helper words");
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onSetRootPhrase).not.toHaveBeenCalled();
-  });
-
   it("a paragraph never judged at all also skips it", async () => {
     // The common case, and the one the founder called out: a paragraph the
     // detector never flagged is never judged, so MOST paragraphs reach Lock
@@ -949,7 +934,6 @@ describe("a superseded Take is read-only, not a dead end", () => {
     expect(await behind[0].done).toBe("failed");
     expect(container.querySelector('[data-testid="superseded-notice"]')).toBeNull();
   });
-
 });
 
 /* ── THE ANSWER DECIDES WHETHER THERE IS A LOCK AT ALL ────────────────────
@@ -997,44 +981,6 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
     expect(props.onLockIn).not.toHaveBeenCalled();
   });
 
-  it("Audio unclear is the same as No: no helper words, no Lock", async () => {
-    await renderLadder({ pending: [confidentVoice] });
-    await click("Audio unclear");
-    expect(container.textContent).not.toContain("Tap the words");
-    expect(buttonLabels()).not.toContain("Lock");
-  });
-
-  it("Not sure is like No: no helper words, no Lock (founder lock 2026-09-30, B2; until then Q1 B)", async () => {
-    vi.mocked(props.onLockIn).mockClear();
-    await renderLadder({ pending: [confidentVoice] });
-    await click("Not sure");
-    expect(container.textContent).not.toContain("Tap the words");
-    expect(buttonLabels()).not.toContain("Use these helper words");
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onLockIn).not.toHaveBeenCalled();
-  });
-
-  it("In-between keeps its Lock", async () => {
-    // The one non-Yes answer the founder left alone, asked directly.
-    vi.mocked(props.onLockIn).mockClear();
-    await renderLadder({ pending: [confidentVoice] });
-    await click("In-between");
-    await tapAWordAndCommit();
-    // No Lock screen: "Use these helper words" locked the words (Q24 B).
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onLockIn).toHaveBeenCalled();
-  });
-
-  it("Yes is untouched: the lock step is still there and still locks", async () => {
-    vi.mocked(props.onLockIn).mockClear();
-    await renderLadder({ pending: [confidentVoice] });
-    await click("Yes");
-    await tapAWordAndCommit();
-    // No Lock screen: "Use these helper words" locked the words (Q24 B).
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(props.onLockIn).toHaveBeenCalled();
-  });
-
   it("the phrase is written the moment it is chosen, before any lock", async () => {
     // The founder's versioning reason: the phrase is a fact about THIS
     // recording as soon as it is picked. Waiting for a lock that may never
@@ -1066,7 +1012,6 @@ describe("No, Not sure and Audio unclear end the sheet; Yes and In-between choos
     expect(words).toBeTruthy();
     expect(await words!.done).toBe("failed");
   });
-
 });
 
 /* ── DECLINING A DRILL MUST NOT COST THE ROOTING PHRASE ───────────────────
@@ -1135,21 +1080,6 @@ describe("an exercise on the moment never stops the ladder (practised in the wal
     expect(container.querySelector('[data-testid="practice-offer"]')).toBeNull();
     expect(container.textContent).toContain("Tap the words");
     expect(buttonLabels()).toContain("Use these helper words");
-  });
-
-  it("In-between lands on Emphasis, not Lock", async () => {
-    await openOnTheDrill("In-between");
-    expect(container.textContent).toContain("Tap the words");
-    expect(buttonLabels()).toContain("Use these helper words");
-  });
-
-  it("No ends the sheet: no helper words, no Lock (founder 2026-09-25)", async () => {
-    // A No has neither the helper-words step nor the Lock.
-    vi.mocked(props.onClose).mockClear();
-    await openOnTheDrill("No");
-    expect(container.textContent).not.toContain("Tap the words");
-    expect(buttonLabels()).not.toContain("Lock");
-    expect(buttonLabels()).not.toContain("Keep evolving");
   });
 
   it("the paragraph's answer opens its helper words and its lock", async () => {

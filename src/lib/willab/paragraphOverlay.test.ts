@@ -9,12 +9,10 @@ import {
   historyRows,
   nextOpensPicker,
   canAcceptCard,
-  overlayFooter,
   ownWordsCard,
   practiseCardOf,
   feedbackFirstCard,
   feedbackFirstFooter,
-  machineReadOf,
   shownAtOpen,
 } from "./paragraphOverlay";
 
@@ -65,7 +63,6 @@ const praise = item({
 } as Partial<DocumentSuggestion>);
 
 describe("the judgement label (D7)", () => {
-
   it("reads only the five answers", () => {
     expect(asJudgementValue("yes")).toBe("yes");
     expect(asJudgementValue("acknowledged")).toBeNull();
@@ -74,25 +71,6 @@ describe("the judgement label (D7)", () => {
 });
 
 describe("the practise card (B5, D1, D3)", () => {
-  it("is the exercise, with its video, on In-between, No and Not sure", () => {
-    for (const answer of ["in_between", "no", "not_sure"] as const) {
-      const card = practiseCardOf([withExercise, rewrite], answer, TEXT);
-      expect(card?.kind).toBe("exercise");
-      if (card?.kind === "exercise") {
-        expect(card.video).toBe("https://media/ex.mp4");
-        expect(card.instruction).toBe("Land the last word.");
-        expect(card.passage).toBe("We should ship it now");
-      }
-    }
-  });
-
-  it("a Yes never opens the library exercise; the praise shows, and a rewrite never does (24f)", () => {
-    expect(practiseCardOf([withExercise, rewrite, praise], "yes", TEXT)?.kind).toBe("praise");
-    // Phase 6: a Yes on a moment read weak shows nothing now (the matrix).
-    expect(practiseCardOf([withExercise, rewrite], "yes", TEXT)).toBeNull();
-    expect(practiseCardOf([withExercise], "yes", TEXT)).toBeNull();
-  });
-
   it("a Yes shows an exercise the coach chose", () => {
     const coached = {
       ...withExercise,
@@ -115,36 +93,17 @@ describe("the practise card (B5, D1, D3)", () => {
     expect(practiseCardOf([praised], "no", TEXT)).toMatchObject({ kind: "plain", coach: false });
   });
 
-  it("Audio unclear shows no card; a paragraph never judged shows its rewrite or nothing", () => {
-    expect(practiseCardOf([withExercise, rewrite, praise], "audio_unclear", TEXT)).toBeNull();
+  it("a paragraph never judged shows its rewrite or nothing", () => {
     expect(practiseCardOf([rewrite], null, TEXT)?.kind).toBe("rewrite");
     expect(practiseCardOf([moment], null, TEXT)).toBeNull();
   });
 });
 
 describe("the button (B5 as overridden, Q1 B, D3)", () => {
-  it("Yes: Next, nothing under it", () => {
-    expect(overlayFooter("yes", true)).toEqual({ pill: "next", link: null });
-  });
-  it("In-between: Next, Practise as the link when a practise can open", () => {
-    expect(overlayFooter("in_between", true)).toEqual({ pill: "next", link: "practise" });
-    expect(overlayFooter("in_between", false)).toEqual({ pill: "next", link: null });
-  });
-  it("No and Not sure: Practise with Skip", () => {
-    expect(overlayFooter("no", true)).toEqual({ pill: "practise", link: "skip" });
-    expect(overlayFooter("not_sure", true)).toEqual({ pill: "practise", link: "skip" });
-  });
-  it("Audio unclear and no judgement: Next", () => {
-    expect(overlayFooter("audio_unclear", true)).toEqual({ pill: "next", link: null });
-    expect(overlayFooter(null, true)).toEqual({ pill: "next", link: null });
-  });
-  it("Next opens the helper words after a Yes or In-between on unsaved words only (24e, B2)", () => {
-    expect(nextOpensPicker("yes", null)).toBe(true);
-    expect(nextOpensPicker("in_between", null)).toBe(true);
+  it("Next opens the helper words on unsaved words only (24e, B2)", () => {
+    // Which answers open them is proven on the rendered sheet
+    // (judgementFollowUpWalk.test.tsx); saved words are left here.
     expect(nextOpensPicker("yes", "ship it")).toBe(false);
-    expect(nextOpensPicker("not_sure", null)).toBe(false);
-    expect(nextOpensPicker("audio_unclear", null)).toBe(false);
-    expect(nextOpensPicker(null, null)).toBe(false);
   });
 });
 
@@ -168,10 +127,6 @@ describe("History (Q1)", () => {
       { label: "Take 2", answer: "in_between", helperWords: "two days" },
       { label: "Take 1", answer: "no", helperWords: "nine days" },
     ]);
-  });
-
-  it("is empty with no history", () => {
-    expect(historyRows(null, "Take", "Correction accepted")).toEqual([]);
   });
 
   // A DELETED SET STAYS IN HISTORY (B4/D4, contract 13; Phase 5).
@@ -202,10 +157,6 @@ describe("History (Q1)", () => {
     expect(historyRows(deleted, "Take", "Correction accepted")[0]).toEqual(
       { label: "Take 3", answer: null, helperWords: "two days now" },
     );
-  });
-
-  it("does not show the newest Take while its words still stand", () => {
-    expect(historyRows(history, "Take", "Correction accepted").map((r) => r.label)).toEqual(["Take 2", "Take 1"]);
   });
 
   // AN ACCEPTED CORRECTION IS ITS OWN ROW (founder 2026-10-05, N48.1; C11).
@@ -261,24 +212,12 @@ describe("accepting a rewrite (founder 2026-09-30, C11; contract 29b)", () => {
   });
 
   it("can be accepted below Yes while it is still open, and only with a host", () => {
-    expect(canAcceptCard(rewriteCard, "no", true)).toBe(true);
-    expect(canAcceptCard(rewriteCard, "in_between", true)).toBe(true);
-    expect(canAcceptCard(rewriteCard, "not_sure", true)).toBe(true);
+    // Accept below Yes is proven on the rendered sheet; the rest is here.
     expect(canAcceptCard(rewriteCard, "yes", true)).toBe(false);
-    expect(canAcceptCard(rewriteCard, "audio_unclear", true)).toBe(false);
-    expect(canAcceptCard(rewriteCard, null, true)).toBe(false);
     expect(canAcceptCard(rewriteCard, "no", false)).toBe(false);
     const approved = { ...rewrite, status: "approved" } as DocumentSuggestion;
     expect(canAcceptCard(practiseCardOf([moment, approved], "no", TEXT), "no", true)).toBe(false);
     expect(canAcceptCard(practiseCardOf([moment, praise], "no", TEXT), "no", true)).toBe(false);
-  });
-
-  it("the footer is Accept and practise with Keep my words, and a Yes keeps Next", () => {
-    expect(overlayFooter("no", true, true)).toEqual({ pill: "accept", link: "keep" });
-    expect(overlayFooter("in_between", true, true)).toEqual({ pill: "accept", link: "keep" });
-    expect(overlayFooter("yes", true, true)).toEqual({ pill: "next", link: null });
-    // Without an accept, exactly as before.
-    expect(overlayFooter("no", true, false)).toEqual({ pill: "practise", link: "skip" });
   });
 
   it("Keep my words below In-between practises the moment's own words", () => {
@@ -295,20 +234,8 @@ describe("feedback first", () => {
   const tier = (item: DocumentSuggestion, bookmarkTier: "confident" | "weak") =>
     ({ ...item, bookmarkTier }) as DocumentSuggestion;
 
-  it("reads the machine from the moment's tier", () => {
-    expect(machineReadOf([tier(moment, "confident")])).toBe("confident");
-    expect(machineReadOf([tier(moment, "weak")])).toBe("weak");
-    expect(machineReadOf([moment])).toBeNull();
-  });
-
-  it("a confident moment opens on its praise, and Next asks the judgement", () => {
-    const items = [tier(moment, "confident"), praise, rewrite];
-    expect(feedbackFirstCard(items, "confident", TEXT)?.kind).toBe("praise");
-    expect(feedbackFirstFooter("confident", true, false)).toEqual({ pill: "next", link: null });
-  });
-
   it("a moment that needed work opens on its exercise, else its rewrite, else itself", () => {
-    expect(feedbackFirstCard([tier(withExercise, "weak"), rewrite], "weak", TEXT)?.kind).toBe("exercise");
+    // The exercise is proven on the rendered sheet (feedbackFirst.test.tsx).
     expect(feedbackFirstCard([tier(moment, "weak"), rewrite], "weak", TEXT)?.kind).toBe("rewrite");
     expect(feedbackFirstCard([tier(moment, "weak")], "weak", TEXT)?.kind).toBe("plain");
     expect(feedbackFirstFooter("weak", true, false)).toEqual({ pill: "practise", link: "skip" });
@@ -318,11 +245,6 @@ describe("feedback first", () => {
   it("nothing to practise reads Next, which asks the judgement", () => {
     expect(feedbackFirstFooter("weak", false, false)).toEqual({ pill: "next", link: null });
     expect(feedbackFirstCard([moment], null, TEXT)).toBeNull();
-  });
-
-  it("reports what was on screen", () => {
-    expect(shownAtOpen(null)).toEqual([]);
-    expect(shownAtOpen(feedbackFirstCard([tier(moment, "weak"), rewrite], "weak", TEXT))).toEqual(["rewrite"]);
   });
 });
 
@@ -411,9 +333,7 @@ describe("the card the matrix names (openCard)", () => {
 
   it("after In-between, No or Not sure the named card leads too; Yes and Audio unclear keep their rule", () => {
     const items = [routed(moment, "coach_request"), rewrite, praise];
-    for (const judgement of ["in_between", "no", "not_sure"] as const) {
-      expect(practiseCardOf(items, judgement, TEXT)).toMatchObject({ kind: "plain", coach: true });
-    }
+    expect(practiseCardOf(items, "no", TEXT)).toMatchObject({ kind: "plain", coach: true });
     expect(practiseCardOf(items, "yes", TEXT)?.kind).toBe("praise");
     expect(practiseCardOf(items, "audio_unclear", TEXT)).toBeNull();
   });

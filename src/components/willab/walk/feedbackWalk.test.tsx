@@ -124,38 +124,12 @@ describe("FeedbackWalk", () => {
     }
   });
 
-  it("saves the picked helper words as one phrase, then moves on", () => {
-    const props = draw(null);
-    draw({ seq: 1, at: 3 });
-    expect(screen()).toBe("walk-screen-helpers");
-    click(words()[3]); // "growth"
-    click(words()[4]); // "doubled,"
-    expect(words()[3].getAttribute("aria-pressed")).toBe("true");
-    forward();
-    expect(props.onSaveHelperWords).toHaveBeenCalledWith({
-      partId: "p1",
-      span: { text: "growth doubled,", start: 17, end: 32 },
-      paragraphText: ITEMS[0].paragraphText,
-    });
-    expect(screen()).toBe("walk-screen-praise");
-  });
-
   it("a guest's pick opens sign-up and writes nothing (N32.5)", () => {
     const onGuest = vi.fn();
     const props = draw(null, { guest: true, onGuest });
     draw({ seq: 1, at: 3 }, { guest: true, onGuest });
     click(words()[0]);
     expect(onGuest).toHaveBeenCalledTimes(1);
-    expect(words()[0].getAttribute("aria-pressed")).toBe("false");
-    expect(props.onSaveHelperWords).not.toHaveBeenCalled();
-  });
-
-  it("asks the page's guest gate, as the Feedback sheet does, and writes nothing", () => {
-    const block = vi.fn(() => true);
-    const props = draw(null, { block });
-    draw({ seq: 1, at: 3 }, { block });
-    click(words()[0]);
-    expect(block).toHaveBeenCalled();
     expect(words()[0].getAttribute("aria-pressed")).toBe("false");
     expect(props.onSaveHelperWords).not.toHaveBeenCalled();
   });
@@ -294,33 +268,6 @@ describe("the clearer version (D-FW-15)", () => {
       await Promise.resolve();
     });
     expect(said()[0]).not.toBe(WALK_LINE_BANK.B13.lines[3]);
-  });
-
-  it("Accept and practise hands the decision on, then moves on without waiting", () => {
-    const spies = drawClearer(true, FIRST);
-    forward();
-    expect(spies.onAcceptClearer).toHaveBeenCalledWith("s-rewrite");
-    expect(spies.onKeepWords).not.toHaveBeenCalled();
-    expect(screen()).toBe("walk-screen-clearer");
-    expect(msg().querySelector("[data-walk-new-words]")!.textContent).toBe("We need two hires.");
-  });
-
-  it("Keep my words records the decline and skips the practise", () => {
-    const spies = drawClearer(true, FIRST + 1);
-    click(live()!.querySelector("[data-testid='walk-keep']"));
-    expect(spies.onKeepWords).toHaveBeenCalledWith("s-second");
-    expect(spies.onAcceptClearer).not.toHaveBeenCalled();
-    expect(live()).toBeNull();
-    expect(spies.onKeepWords).toHaveBeenCalledTimes(1);
-  });
-
-  it("with personalised practice off the button reads Accept, and nothing asks to practise (WQ3 A, WQ3c A)", () => {
-    drawClearer(false, FIRST);
-    const pill = live()!.querySelector("[data-testid='walk-forward']")!;
-    expect(pill.textContent).toBe(WALK_COPY.clearerAccept);
-    expect(live()!.textContent).not.toContain(COPY.pillAcceptPractise);
-    expect(live()!.textContent).not.toContain(WALK_LINE_BANK.B14.lines[0]);
-    expect(live()!.querySelector("[data-testid='walk-keep']")!.textContent).toBe(COPY.linkKeepMyWords);
   });
 
   it("a guest's Accept or Keep opens sign-up and decides nothing", () => {

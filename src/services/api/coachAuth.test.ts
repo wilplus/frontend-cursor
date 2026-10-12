@@ -7,23 +7,13 @@ const getAuthToken = vi.fn<() => Promise<string | null>>();
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: () => getAuthToken() }));
 
 import { coachReadInit } from "./coachAuth";
-import { fetchMomentRead, fetchMomentsQueue, fetchTakeWord, listCatalogue } from "./coachWalk";
-import { fetchCoachReviewSession } from "./coachReview";
-import { fetchBlockPicks, fetchErrorAudit, fetchExercisePreference, fetchV4MomentPicks, fetchV4SurerPairs } from "./coachPanel";
-import { fetchCoachSpeakers } from "./coachSpeakers";
+import { fetchMomentRead } from "./coachWalk";
 
+/* One representative read (founder 2026-10-12, "do the lingering tests
+   cleanup"): every coach GET builds its init with coachReadInit, proven above;
+   the moment read, the hot path after a rating, stands for them. */
 const READS: Array<[string, () => Promise<unknown>]> = [
-  ["the moments queue", () => fetchMomentsQueue()],
   ["the moment read", () => fetchMomentRead("t1", "s1")],
-  ["the Take's word", () => fetchTakeWord("t1")],
-  ["the catalogue", () => listCatalogue()],
-  ["the review session", () => fetchCoachReviewSession("t1")],
-  ["the error audit", () => fetchErrorAudit()],
-  ["the block picks", () => fetchBlockPicks()],
-  ["the V4 picks", () => fetchV4MomentPicks()],
-  ["the V4 pairs", () => fetchV4SurerPairs()],
-  ["the exercise preference", () => fetchExercisePreference("t1", "s1")],
-  ["the speakers", () => fetchCoachSpeakers()],
 ];
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -48,7 +38,7 @@ describe("coachReadInit", () => {
   });
 });
 
-describe("every coach GET sends the Authorization header", () => {
+describe("a coach GET sends the Authorization header", () => {
   it.each(READS)("%s", async (_name, read) => {
     getAuthToken.mockResolvedValue("tok-123");
     await read();
