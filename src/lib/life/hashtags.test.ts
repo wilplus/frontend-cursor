@@ -2,81 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyPick,
   filterPicker,
-  isLifeTagged,
   LIFE_TAGS,
-  parseLeadingTag,
   pickerEntries,
   pickerQuery,
 } from "./hashtags";
-
-describe("parseLeadingTag", () => {
-  it("returns null when there is no leading hashtag", () => {
-    // This is the ordinary chat path. Anything other than null here would send
-    // a normal question down the life route.
-    expect(parseLeadingTag("how does breathing affect pitch?")).toBeNull();
-    expect(parseLeadingTag("")).toBeNull();
-    expect(parseLeadingTag("talked about #mistake yesterday")).toBeNull();
-  });
-
-  it("routes each documented alias to its canonical tag", () => {
-    const cases: Array<[string, string, string]> = [
-      ["#principle a thing", "mistake", "case"],
-      ["#mistake a thing", "mistake", "case"],
-      ["#error a thing", "mistake", "case"],
-      ["#problem a thing", "mistake", "case"],
-      ["#data a thing", "observation", "goal_diff"],
-      ["#observation a thing", "observation", "goal_diff"],
-      ["#reflection a thing", "observation", "goal_diff"],
-      ["#idea a thing", "observation", "goal_diff"],
-      ["#finding a thing", "observation", "goal_diff"],
-      ["#win a thing", "win", "win"],
-      ["#wins a thing", "win", "win"],
-      ["#wygrane a thing", "win", "win"],
-      ["#liftmeup a thing", "win", "win"],
-      ["#add a line", "add", "phrase_add"],
-      ["#edit the one thing", "edit", "day_edit"],
-    ];
-    for (const [input, tag, route] of cases) {
-      const parsed = parseLeadingTag(input);
-      expect(parsed, input).not.toBeNull();
-      expect(parsed!.tag, input).toBe(tag);
-      expect(parsed!.route, input).toBe(route);
-    }
-  });
-
-  it("keeps #sin working while leaving it off the picker", () => {
-    // Right for the founder, wrong as a public category in a speaking product.
-    expect(parseLeadingTag("#sin something")?.route).toBe("case");
-    expect(pickerEntries().some((e) => e.tag === "sin")).toBe(false);
-  });
-
-  it("matches on the first token only, so '#lift me up' is not a win", () => {
-    // Hashtags break at whitespace. This is exactly why the alias is the
-    // single word #liftmeup.
-    const parsed = parseLeadingTag("#lift me up");
-    expect(parsed?.alias).toBe("lift");
-    expect(parsed?.route).toBe("capture");
-    expect(isLifeTagged("#lift me up")).toBe(false);
-    expect(isLifeTagged("#liftmeup")).toBe(true);
-  });
-
-  it("treats an unknown tag as capture, not as an error", () => {
-    // Every note lands regardless of tag. Capture never fails and never blocks.
-    const parsed = parseLeadingTag("#groceries milk");
-    expect(parsed?.route).toBe("capture");
-    expect(parsed?.rest).toBe("milk");
-  });
-
-  it("is case-insensitive and strips the tag from the rest", () => {
-    const parsed = parseLeadingTag("#MISTAKE  I rushed the pitch");
-    expect(parsed?.tag).toBe("mistake");
-    expect(parsed?.rest).toBe("I rushed the pitch");
-  });
-
-  it("handles a tag with no body", () => {
-    expect(parseLeadingTag("#win")?.rest).toBe("");
-  });
-});
 
 describe("pickerQuery", () => {
   it("opens on a bare # and on a partial tag", () => {

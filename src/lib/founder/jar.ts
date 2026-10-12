@@ -50,7 +50,6 @@ export const JAR_EXCLUSIONS = [
   "untraced", "fallback", "no_targeted_problem", "rules_changed", "repeat",
   "below_minimum_probability", "no_attempt", "no_valid_attempt",
 ] as const;
-export type JarExclusion = (typeof JAR_EXCLUSIONS)[number];
 
 export interface JarExercise {
   exerciseId: string;

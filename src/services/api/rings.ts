@@ -21,18 +21,6 @@
  * on only when the backend sees it.
  */
 
-export const RING_FEATURES = {
-  exerciseService: "exercise_service",
-  exerciseServiceUi: "exercise_service_ui",
-  coachInlineAuthoring: "coach_inline_authoring",
-  confidentMomentBundles: "confident_moment_bundles",
-  rootingCoverage: "rooting_coverage",
-  canonicalTakeRows: "canonical_take_rows",
-  confidenceLearningWrites: "confidence_learning_writes",
-} as const;
-
-export type RingFeature = (typeof RING_FEATURES)[keyof typeof RING_FEATURES] | string;
-
 export type ConsentPurpose = "personalised_practice" | "pooled_model_improvement";
 
 export interface PendingAnnouncement {
@@ -123,11 +111,6 @@ export function mapRingState(raw: unknown): RingState {
     pendingAnnouncements: pending,
     unavailable: row.unavailable === true,
   };
-}
-
-/** Pure: is this feature on for the person the state describes? */
-export function featureIsOn(state: RingState | null | undefined, feature: RingFeature): boolean {
-  return Boolean(state && !state.unavailable && state.featuresOn.has(feature));
 }
 
 async function readJson(response: Response): Promise<unknown> {

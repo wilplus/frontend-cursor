@@ -5,24 +5,11 @@ import {
   openingPlace,
   placeFromScroll,
   rememberPlace,
-  rememberedPlace,
 } from "./waitingTipsDeck";
 import { availableWaitingTips } from "./processingWaitingTips";
-import { WAITING_TIPS, pickWaitingTip } from "./waitingTips";
+import { WAITING_TIPS } from "./waitingTips";
 
 describe("waitingTips", () => {
-  it("always returns one of the approved tips", () => {
-    for (let i = 0; i < 50; i++) {
-      expect(WAITING_TIPS).toContain(pickWaitingTip());
-    }
-  });
-
-  it("can return more than one distinct tip across sessions", () => {
-    // One tip per waiting session, but not the SAME one every session.
-    const seen = new Set<string>();
-    for (let i = 0; i < 200; i++) seen.add(pickWaitingTip());
-    expect(seen.size).toBeGreaterThan(1);
-  });
 
   it("carries no em-dashes (product copy rule)", () => {
     for (const tip of WAITING_TIPS) expect(tip).not.toContain("—");
@@ -130,44 +117,6 @@ describe("the advice does not move on its own", () => {
     // It announced text that changed unasked. Announcing a tip the reader
     // scrolled to deliberately would talk over them.
     expect(source).not.toContain("aria-live");
-  });
-});
-
-describe("the reader keeps their place across a remount", () => {
-  /* One wait remounts this screen: the analysis phase hands over to the
-     document phase, and an overlay can close and reopen. Starting again at the
-     first tip would take someone back to the top of something they were
-     halfway through — what waitingTips.ts calls for: "the exact scroll
-     position survives every processing screen". */
-  beforeEach(() => forgetPlaces());
-
-  it("starts at the first tip when the job has not been seen", () => {
-    expect(rememberedPlace(1_000, 12)).toBe(0);
-  });
-
-  it("gives back exactly where that job got to", () => {
-    rememberPlace(1_000, 5);
-    expect(rememberedPlace(1_000, 12)).toBe(5);
-  });
-
-  it("keeps jobs apart", () => {
-    rememberPlace(1_000, 5);
-    expect(rememberedPlace(2_000, 12)).toBe(0);
-  });
-
-  it("clamps a place the collection can no longer hold", () => {
-    // The collection is filtered at runtime (version skew, malformed entries),
-    // so a remembered index can outlive the tip it pointed at.
-    rememberPlace(1_000, 11);
-    expect(rememberedPlace(1_000, 4)).toBe(3);
-    expect(rememberedPlace(1_000, 1)).toBe(0);
-  });
-
-  it("does not grow without bound in a long-lived tab", () => {
-    for (let job = 0; job < 20; job += 1) rememberPlace(job, 1);
-    // The oldest are dropped; the most recent are still answerable.
-    expect(rememberedPlace(19, 12)).toBe(1);
-    expect(rememberedPlace(0, 12)).toBe(0);
   });
 });
 

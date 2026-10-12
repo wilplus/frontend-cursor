@@ -161,7 +161,6 @@ async function render(p: ReturnType<typeof props> & { reviewRequest?: number }, 
     root.render(block ? createElement(GuestGateContext.Provider, { value: block }, deck) : deck);
   });
 }
-const walk = () => document.querySelector("[data-feedback-walk]");
 const live = () => document.querySelector<HTMLElement>("[data-feedback-walk] .walk-layer:not(.walk-ghost)");
 const screen = () => live()?.querySelector<HTMLElement>("[data-testid^='walk-screen-']")?.dataset.testid ?? null;
 const pager = () => document.querySelector('[data-testid="feedback-pager"]');

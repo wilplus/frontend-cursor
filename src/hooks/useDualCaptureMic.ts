@@ -154,17 +154,6 @@ export function pickDualCaptureMimeType(): string | null {
   return null;
 }
 
-/**
- * Feature-detection helper used by the chat input bar to decide whether
- * to render the mic affordance at all (prompt C2). Returns true only
- * when BOTH the Web Speech API AND a usable MediaRecorder mimeType are
- * available — there's no point showing the mic if either half of the
- * dual capture would fail.
- */
-export function isDualCaptureSupported(): boolean {
-  return getSpeechRecognitionCtor() !== null && pickDualCaptureMimeType() !== null;
-}
-
 export function useDualCaptureMic(opts?: {
   lang?: string;
   /** Run Web Speech for a live transcript (default true). The Lab sets this

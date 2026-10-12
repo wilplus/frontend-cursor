@@ -45,11 +45,6 @@ export interface UserProfileDraft {
 }
 
 
-/** Coaches must configure this once before receiving blind audio. */
-export function shouldAskRaterLanguages(profile: UserProfile | null): boolean {
-  return profile?.is_coach === true && profile.proficient_languages === null;
-}
-
 const ENDPOINT = "/api/v2/user/profile";
 
 /**

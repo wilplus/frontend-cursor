@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  batchTake,
   coerceTargetSeconds,
   fmtClock,
   formatRecordingClock,
   isUploadAsk,
   isRetiredLoungeMessage,
   loungeToHistory,
-  parseVocabulary,
   splitBotMessage,
   measureSlideClockOffset,
 } from "./willabHelpers";
@@ -141,17 +139,6 @@ describe("fmtClock", () => {
   });
 });
 
-describe("parseVocabulary", () => {
-  it("splits on commas, trims, and drops empties", () => {
-    expect(parseVocabulary("a, b ,, c,")).toEqual(["a", "b", "c"]);
-  });
-
-  it("returns an empty array for blank input", () => {
-    expect(parseVocabulary("")).toEqual([]);
-    expect(parseVocabulary("   ")).toEqual([]);
-  });
-});
-
 describe("splitBotMessage", () => {
   it("splits on blank lines into separate bubbles", () => {
     expect(splitBotMessage("First thought.\n\nSecond thought.")).toEqual([
@@ -270,23 +257,6 @@ describe("formatRecordingClock (R5 iOS countdown)", () => {
 
   it("coerces a string target for the countdown", () => {
     expect(label(60, "180")).toBe("2:00");
-  });
-});
-
-describe("batchTake", () => {
-  it("maps absolute take indexes onto the 3-take batch (never 'Take 24 of 3')", () => {
-    expect(batchTake(1)).toBe(1);
-    expect(batchTake(2)).toBe(2);
-    expect(batchTake(3)).toBe(3);
-    expect(batchTake(4)).toBe(1); // next batch starts
-    expect(batchTake(24)).toBe(3);
-    expect(batchTake(25)).toBe(1);
-  });
-
-  it("guards junk input", () => {
-    expect(batchTake(0)).toBe(1);
-    expect(batchTake(-2)).toBe(1);
-    expect(batchTake(NaN)).toBe(1);
   });
 });
 

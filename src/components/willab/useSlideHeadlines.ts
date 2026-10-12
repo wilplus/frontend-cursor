@@ -8,22 +8,6 @@ import {
 import { paragraphHeadlines } from "@/lib/willab/answeredBookmark";
 import { holdLabRoots, primeLabRoots } from "@/lib/willab/labEntryHandover";
 
-/** Each paragraph's helper words as its headline (founder 2026-09-26: above
- *  the paragraph they came from, superseding one headline per Slide).
- *
- *  Read from the same locked roots the recording screen shows, so the page
- *  and the next Take can never disagree about which words are whose.
- *  Re-read whenever the document changes and whenever a sheet closes — the
- *  lock that sets them happens inside the sheet. A failed read draws no
- *  headline rather than a stale one. */
-export function useParagraphHeadlines(
-  arcId: string | null,
-  document: string,
-  sheetOpen: boolean,
-): Map<string, string> {
-  return useHeadlineRead(arcId, document, sheetOpen, 0).headlines;
-}
-
 /** The page's helper words for Presentation Mode and export (F1 Repair Plan
  *  Phase 5). LAST CONFIGURATION (founder 2026-10-05: "export should show the
  *  paragraphs that stayed, like the last configuration"): read with the page,

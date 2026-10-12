@@ -7,7 +7,7 @@
 /*  sounds, the audit is a clip and the error's own question.                */
 /*                                                                            */
 /*    GET/POST …/snippets/:snip/exercise-preference  → 1b keep / swap / new  */
-/*    POST …/word/draft, …/moment-line/draft         → 7 drafts, text only   */
+/*    POST …/word/draft                              → 7 drafts, text only   */
 /*    GET /coach/error-audit, POST …/:id/answer       → 6a blind Yes / No     */
 /*    GET /coach/block-picks, POST …/:id/answer       → 8 blind pick          */
 /* -------------------------------------------------------------------------- */
@@ -152,18 +152,6 @@ export function mapCoachWordDraft(raw: unknown): CoachWordDraft | null {
 export async function draftTakeWord(sessionId: string, notes?: string): Promise<CoachWordDraft | null> {
   const { status, data } = await post(
     `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/word/draft`,
-    notes?.trim() ? { notes: notes.trim() } : {},
-  );
-  return status === 200 ? mapCoachWordDraft(data) : null;
-}
-
-export async function draftMomentLine(
-  sessionId: string,
-  snippetId: string,
-  notes?: string,
-): Promise<CoachWordDraft | null> {
-  const { status, data } = await post(
-    momentPath(sessionId, snippetId, "moment-line/draft"),
     notes?.trim() ? { notes: notes.trim() } : {},
   );
   return status === 200 ? mapCoachWordDraft(data) : null;

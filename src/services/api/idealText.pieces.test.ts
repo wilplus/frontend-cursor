@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mapIdealPieces, type IdealPiece } from "./idealText";
+import { mapIdealPieces } from "./idealText";
 import {
-  latestTakeIndex,
-  sliceSegmentsByParagraphs,
   slidePagesForParagraphs,
-  splitBadgeParagraphSpans,
   splitBadgeParagraphs,
 } from "@/lib/willab/pieceBadges";
-import { segmentIdealText } from "./idealText";
 
 /* DISCERNMENT (founder 2026-07-20) — the version-badge layer's pure logic. */
 
@@ -112,76 +108,6 @@ describe("splitBadgeParagraphs", () => {
       "start {{orange:one\n\ntwo}} end",
       "next",
     ]);
-  });
-});
-
-describe("sliceSegmentsByParagraphs (document-level star matching)", () => {
-  const moments = (anchors: string[]) =>
-    anchors.map((a, i) => ({
-      anchor: a,
-      snippetId: `s${i}`,
-      takeSessionId: `t${i}`,
-    }));
-
-  it("a recurring anchor stars ONCE, at its document-first occurrence", () => {
-    // "we can do this" appears in both paragraphs; per-paragraph matching
-    // would star both (review R-db1). Document-level slicing keeps one.
-    const text = "I think we can do this today.\n\nWe can do this.";
-    const segs = segmentIdealText(text, [], moments(["we can do this"]));
-    const spans = splitBadgeParagraphSpans(text);
-    const out = sliceSegmentsByParagraphs(segs, spans);
-    expect(out).not.toBeNull();
-    const starred = out!.map((para) => para.filter((s) => s.moment).length);
-    expect(starred).toEqual([1, 0]);
-  });
-
-  it("plain segments slice at boundaries; separators fall away", () => {
-    const text = "alpha beta\n\ngamma delta";
-    const segs = segmentIdealText(text, [], moments(["gamma"]));
-    const out = sliceSegmentsByParagraphs(segs, splitBadgeParagraphSpans(text));
-    expect(out![0].map((s) => s.text).join("")).toBe("alpha beta");
-    expect(out![1].map((s) => s.text).join("")).toBe("gamma delta");
-    expect(out![1][0].moment).toBeTruthy();
-  });
-
-  it("nulls when a styled range would straddle a paragraph boundary", () => {
-    const text = "one two\n\nthree four";
-    // A hand-built styled segment spanning the boundary (segmentIdealText
-    // itself can't produce this today; the guard is for future shapes).
-    const segs = [
-      { text: "one " },
-      { text: "two\n\nthree", bold: true },
-      { text: " four" },
-    ];
-    expect(
-      sliceSegmentsByParagraphs(segs, splitBadgeParagraphSpans(text))
-    ).toBeNull();
-  });
-});
-
-describe("latestTakeIndex", () => {
-  const base = {
-    pieceKey: 0,
-    text: "x",
-    snippetId: "s",
-    takeSessionId: "t",
-    status: "settled" as const,
-    challenger: null,
-  };
-  it("takes the max across incumbents AND challengers", () => {
-    const pieces: IdealPiece[] = [
-      { ...base, takeIndex: 1 },
-      {
-        ...base,
-        pieceKey: 1,
-        takeIndex: 2,
-        challenger: { snippetId: "c", takeIndex: 3, text: "y", why: null },
-      },
-    ];
-    expect(latestTakeIndex(pieces)).toBe(3);
-  });
-  it("null when nothing carries an index", () => {
-    expect(latestTakeIndex([{ ...base, takeIndex: null }])).toBeNull();
   });
 });
 

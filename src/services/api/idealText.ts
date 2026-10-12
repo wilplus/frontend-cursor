@@ -7,10 +7,7 @@ import {
   retryableMarkSections,
 } from "@/lib/willab/enrichmentSettle";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
-import type {
-  LearningExposureHandle,
-  LearningSurface,
-} from "@/services/api/learningExposures";
+import type { LearningExposureHandle } from "@/services/api/learningExposures";
 import { mapLearningExposureHandles } from "@/services/api/learningExposures";
 import {
   mapConfidentMomentSummary,
@@ -508,15 +505,6 @@ const FEEDBACK_FAMILIES: readonly FeedbackFamily[] = [
   "confident_voice",
   "great_formulation",
   "rewrite_clarity",
-];
-const LEARNING_SURFACES: readonly LearningSurface[] = [
-  "confidence_classification",
-  "correction_generation",
-  "coach_comment_generation",
-  "praise_generation",
-  "praise_selection",
-  "correction_selection",
-  "ideal_text_generation",
 ];
 
 const DEFAULT_PRACTICE_YES_INTRODUCTION =
@@ -1118,34 +1106,6 @@ export function mapKeyPoints(raw: unknown): KeyPoint[] | null {
       start: num(r.start),
       end: num(r.end),
     });
-  }
-  return out;
-}
-
-/** FE-7 — the document-absolute ranges the full-text view may tint.
- *
- *  VERIFY BEFORE TINTING. `start`/`end` are char offsets into the SERVED text
- *  (markers included), exactly like a tracked change, and the same rule
- *  applies: if the slice does not equal the cue verbatim, drop that key point
- *  SILENTLY rather than guess a position. A stale offset that paints anyway
- *  would accent words the coach never marked.
- *
- *  Deliberately returns positions only — no rank, no order index, no score.
- *  A key point is a qualitative cue (AC-9); the array's order is the
- *  document's order and carries no importance signal. Pure. */
-export function keyPointTintRanges(
-  text: string,
-  keyPoints: KeyPoint[] | null,
-): Array<[number, number]> {
-  if (!text || !keyPoints || keyPoints.length === 0) return [];
-  const out: Array<[number, number]> = [];
-  for (const kp of keyPoints) {
-    const { start, end } = kp;
-    if (start === null || end === null) continue; // un-anchored cue: card only
-    if (!Number.isInteger(start) || !Number.isInteger(end)) continue;
-    if (start < 0 || end > text.length || end <= start) continue;
-    if (text.slice(start, end) !== kp.text) continue;
-    out.push([start, end]);
   }
   return out;
 }
@@ -2604,40 +2564,6 @@ export async function saveIdealNotes(
   }
   return res.ok;
 }
-
-/* ------------------------------ coach lane -------------------------------- */
-
-export interface CoachIdealText {
-  /** The auto-assembled draft merged with any saved coach edit. */
-  text: string;
-  approved: boolean;
-  /** BE-B — the eager assembler's status. "pending" = fewer than 3 spoken
-   *  takes (nothing to review yet); "empty" = takes are in but nothing to
-   *  assemble yet (no coach-confirmed key moments — the BE no longer serves a
-   *  "ready" empty block); "ready" = the persisted draft exists and the editor
-   *  can open instantly. null only on legacy payloads → treated as a soft
-   *  error now that the BE always sends assembly_state. */
-  assemblyState: "pending" | "empty" | "ready" | null;
-  /** Spoken-take counts for the pending copy ("N of M takes recorded").
-   *  null when the payload omits them. */
-  takesDone: number | null;
-  takesTarget: number | null;
-  /** FP-1 — provenance: "machine" (the auto-assembled draft, untouched) vs
-   *  "coach" (the coach has edited it). Drives a coach-only chip. null on
-   *  older payloads → the chip hides. */
-  source: "machine" | "coach" | null;
-  /** The arc's deck (for the redesign's cover slide). Safe-ahead: null until
-   *  the BE echoes presentation_ref here → the panel shows a blank cover. */
-  presentationRef: string | null;
-  /** #214 — the STUDENT's own edit of the current version (read-only reference
-   *  for the coach; separate lane, never merged automatically). null = none. */
-  userEdit: {
-    text: string;
-    version: number | null;
-    updatedAt: string | null;
-  } | null;
-}
-
 
 /* ------------------------- notebook text segments ------------------------- */
 

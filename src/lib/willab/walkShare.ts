@@ -30,8 +30,6 @@ export const SHARE_WORDS_VERSION = "sharing-screen-2026-10-06";
 /** The server's shortest pass code (services/communities.PASS_CODE_MIN). */
 export const SHARE_PASS_CODE_MIN = 6;
 
-export type ShareTick = "general" | "mine" | "own" | "none";
-
 export type ShareFields = {
   /** "Only my community": its pass code. */
   minePassCode: string;

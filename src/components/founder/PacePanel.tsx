@@ -9,7 +9,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useState } from "react";
-import { coverageWord, fill, formatRate, gapCount, jarLabel, paceLine, sliderMax, weeksAt, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
+import { coverageWord, formatRate, gapCount, jarLabel, paceLine, sliderMax, weeksAt, type GapView, type LedgerWeek, type PaceRow } from "@/lib/founder/pace";
 import { founderLearning, type LedgerRead } from "@/services/api/founderLearning";
 import { listCoachExercises } from "@/services/api/coachExercises";
 import { FounderFrame, Meter, Panel, Refusal } from "./FounderFrame";

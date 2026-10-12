@@ -2,13 +2,11 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  BLANK_DRAFT,
   draftBody,
   draftFrom,
   draftProblem,
   mapCoachExercise,
   saveCoachExerciseWithVideo,
-  suggestExerciseId,
   type CoachExerciseDraft,
 } from "./coachExercises";
 
@@ -23,12 +21,17 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const GOOD: CoachExerciseDraft = {
-  ...BLANK_DRAFT,
   exerciseId: "land-the-ending",
   title: "Land the ending",
   instruction: "Say the last word fully.",
+  introductionCopy: "",
   acousticProblemTags: ["ending_compression", "rushing"],
   mainTarget: "ending_compression",
+  matchingCriteria: null,
+  explanationVideoUrl: "",
+  active: true,
+  aiDraftText: null,
+  aiDraftModelVersion: null,
 };
 
 describe("mapCoachExercise", () => {
@@ -111,10 +114,6 @@ describe("draftProblem", () => {
     expect(draftProblem(GOOD, true)).toBeNull();
   });
 
-  it("suggests an id from a title", () => {
-    expect(suggestExerciseId("Land the ending!")).toBe("land-the-ending");
-    expect(suggestExerciseId("  2nd try: Émphasis ")).toBe("nd-try-emphasis");
-  });
 });
 
 describe("saveCoachExerciseWithVideo", () => {
@@ -152,7 +151,6 @@ describe("the doors", () => {
   const routes = [
     "src/app/api/v2/coach/exercises/route.ts",
     "src/app/api/v2/coach/exercises/[exerciseId]/video/route.ts",
-    "src/app/api/v2/coach/exercises/script-draft/route.ts",
   ];
 
   it("every BFF route goes through callBackend and names its own upstream", () => {

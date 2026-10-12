@@ -155,10 +155,6 @@ export function afterJudged(moment: QueueMoment): QueueMoment {
   return moment.state === "judge_it" ? { ...moment, state: "judged" } : moment;
 }
 
-export function afterRequestOpen(moment: QueueMoment, kind: MomentKind): QueueMoment {
-  return { ...moment, state: "answer_it", kind };
-}
-
 export function afterNothingToAdd(moment: QueueMoment): QueueMoment {
   return { ...moment, state: "nothing_to_add" };
 }

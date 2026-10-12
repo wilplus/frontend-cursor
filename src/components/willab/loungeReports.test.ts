@@ -4,7 +4,6 @@ import {
   insightView,
   IDEAL_TEXT_UNCONFIRMED_BODY,
   idealTextUnconfirmedDraft,
-  isReportMessage,
   readoutSummaryDraft,
   readoutView,
 } from "./loungeReports";
@@ -38,15 +37,6 @@ describe("readoutSummaryDraft", () => {
   it("carries session_id so the card opens its readout (item 1)", () => {
     const d = readoutSummaryDraft({ topic: "t", sessionId: "sess-9" });
     expect(d.metadata).toMatchObject({ session_id: "sess-9" });
-  });
-});
-
-describe("isReportMessage", () => {
-  it("is true for report kinds, false otherwise", () => {
-    expect(isReportMessage({ kind: "recording_summary" })).toBe(true);
-    expect(isReportMessage({ kind: "insight" })).toBe(true);
-    expect(isReportMessage({ kind: "text" })).toBe(false);
-    expect(isReportMessage({ kind: "status" })).toBe(false);
   });
 });
 

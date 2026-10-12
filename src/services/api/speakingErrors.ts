@@ -172,14 +172,3 @@ export function draftProblem(draft: SpeakingErrorDraft): string | null {
   }
   return null;
 }
-
-/** The id a label suggests, so the common case needs no thinking about shape. */
-export function suggestErrorId(label: string): string {
-  return label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^[^a-z]+/, "")
-    .replace(/_+$/, "")
-    .slice(0, 63);
-}

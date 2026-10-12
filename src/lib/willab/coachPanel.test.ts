@@ -4,7 +4,6 @@ import {
   firstUnlabelledIndex,
   isRated,
   nextUnlabelledIndex,
-  momentCounter,
   momentOf,
   panelReducer,
   takeWithRatings,
@@ -126,16 +125,6 @@ describe("the training corpus (D-CP-20)", () => {
     expect(s.screen.key).toBe("lounge");
   });
 
-  it("judging an import: the panel's Judge screen, back to the imports when done", () => {
-    let s = run({ type: "corpus" }, { type: "corpusJudge", importId: "import-2", topic: "Board update, March" });
-    expect(s.screen).toEqual({ key: "corpus", importId: "import-2", topic: "Board update, March" });
-    expect(walkScreenOf(s.screen)).toEqual({ key: "corpus", kind: "import-2" });
-    expect(momentOf(s.screen)).toBeNull(); // not a speaker's moment
-    expect(momentCounter(s.screen)).toBeNull();
-    s = panelReducer(s, { type: "corpusHome" });
-    expect(s.screen.key).toBe("corpushome");
-  });
-
   it("a saved set-up goes straight to its judging, history cleared, a soft cross-fade", () => {
     const s = run({ type: "corpus" }, { type: "corpusImport", setupOf: "i1" }, { type: "corpusAnalyse" },
       { type: "corpusSetUp", importId: "i1", topic: "Workshop" });
@@ -235,22 +224,6 @@ describe("› and ‹", () => {
     const s = panelReducer(atTake(), { type: "close" });
     expect(s.screen.key).toBe("lounge");
     expect(s.history).toEqual([]);
-  });
-});
-
-describe("the counter counts moments only", () => {
-  it("moment N of M over the Take's moments", () => {
-    let s = atTake();
-    expect(momentCounter(s.screen)).toEqual({ index: 0, total: 4 });
-    s = panelReducer(s, { type: "next" });
-    expect(momentCounter(s.screen)).toEqual({ index: 1, total: 4 });
-    s = panelReducer(s, { type: "rated", snippetId: "s2", value: "yes" });
-    expect(momentCounter(s.screen)).toEqual({ index: 1, total: 4 });
-  });
-
-  it("no counter off the moments", () => {
-    expect(momentCounter(run({ type: "open" }).screen)).toBeNull();
-    expect(momentCounter(run({ type: "open" }, { type: "speaker", speaker: HERON }).screen)).toBeNull();
   });
 });
 

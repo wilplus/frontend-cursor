@@ -1,9 +1,6 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import type { Outcome } from "./practiceCheck";
 
-/** The five judgement answers, by their backend names. */
-type FiveAnswers = "yes" | "in_between" | "no" | "not_sure" | "audio_unclear";
-
 export interface Community {
   id: string;
   kind: "general" | "private";
@@ -24,14 +21,6 @@ export interface ShareResult {
   takeSessionId: string;
   communityIds: string[];
   none: boolean;
-}
-
-export interface CommunityClip {
-  clipId: string;
-  source: "community" | "training";
-  audioRef: string | null;
-  startOffsetMs: number | null;
-  durationMs: number | null;
 }
 
 async function call<T>(
@@ -69,10 +58,6 @@ function strOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function numOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function strings(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
@@ -103,26 +88,6 @@ function mapShare(data: Record<string, unknown>): ShareResult {
     communityIds: strings(data.community_ids),
     none: data.none === true,
   };
-}
-
-function mapClip(raw: unknown): CommunityClip {
-  const row = asRecord(raw);
-  return {
-    clipId: typeof row.clip_id === "string" ? row.clip_id : "",
-    source: row.source === "community" ? "community" : "training",
-    audioRef: strOrNull(row.audio_ref),
-    startOffsetMs: numOrNull(row.start_offset_ms),
-    durationMs: numOrNull(row.duration_ms),
-  };
-}
-
-function mapClips(data: Record<string, unknown>): CommunityClip[] {
-  if (!Array.isArray(data.clips)) return [];
-  return data.clips.map(mapClip);
-}
-
-function mapRecorded(data: Record<string, unknown>): { recorded: boolean } {
-  return { recorded: data.recorded === true };
 }
 
 export function fetchCommunities(): Promise<Outcome<Community[]>> {
@@ -158,20 +123,5 @@ export function shareTake(takeSessionId: string, choice: ShareChoice): Promise<O
       },
     },
     mapShare,
-  );
-}
-
-export function fetchCommunityQueue(): Promise<Outcome<CommunityClip[]>> {
-  return call("/api/v2/user/communities/queue", { method: "GET" }, mapClips);
-}
-
-export function answerCommunityClip(
-  clipId: string,
-  value: FiveAnswers,
-): Promise<Outcome<{ recorded: boolean }>> {
-  return call(
-    "/api/v2/user/communities/answers",
-    { method: "POST", body: { clip_id: clipId, value } },
-    mapRecorded,
   );
 }

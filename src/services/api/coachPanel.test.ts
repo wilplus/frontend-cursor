@@ -92,7 +92,6 @@ describe("the calls", () => {
   it("every BFF route goes through the one relay", () => {
     const routes = [
       "src/app/api/v2/coach/sessions/[sessionId]/snippets/[snippetId]/exercise-preference/route.ts",
-      "src/app/api/v2/coach/sessions/[sessionId]/snippets/[snippetId]/moment-line/draft/route.ts",
       "src/app/api/v2/coach/sessions/[sessionId]/word/draft/route.ts",
       "src/app/api/v2/coach/error-audit/route.ts",
       "src/app/api/v2/coach/error-audit/[auditId]/answer/route.ts",

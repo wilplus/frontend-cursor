@@ -8,7 +8,6 @@ import {
   mapTokenPrices,
   nextBalance,
   priceForArcAction,
-  priceOf,
   type TokenBalance,
 } from "./tokens";
 
@@ -183,17 +182,6 @@ describe("mapTokenPrices", () => {
     expect(p.actions).toEqual({ good: 100 });
     expect(p.bands).toHaveLength(1);
     expect(p.tiers).toEqual({});
-  });
-});
-
-describe("priceOf", () => {
-  it("returns null for an unpublished action instead of inventing a price", () => {
-    const p = mapTokenPrices(PRICES_PAYLOAD);
-    expect(priceOf(p, "take_long")).toBe(6000);
-    // A price the FE does not have is "show nothing", never a default and
-    // never free. Acting on a guessed number is what this forbids.
-    expect(priceOf(p, "coach_review")).toBeNull();
-    expect(priceOf(null, "take_long")).toBeNull();
   });
 });
 

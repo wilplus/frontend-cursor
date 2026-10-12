@@ -60,7 +60,6 @@ vi.mock("@/services/api/confidentVoicePractice", () => ({
   // from, before anything has been recorded.
   startConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   uploadConfidencePracticeAttempt: vi.fn(async () => ({ ok: false, error: null })),
-  finishConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
 }));
 

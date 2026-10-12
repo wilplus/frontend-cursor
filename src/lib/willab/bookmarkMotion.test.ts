@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   type BookmarkTier,
   markPulses,
-  marksMove,
   motionClasses,
 } from "./bookmarkMotion";
 
@@ -72,31 +71,5 @@ describe("markPulses", () => {
     expect(markPulses("confident")).toBe(false);
     expect(markPulses("standard")).toBe(false);
     expect(markPulses(null)).toBe(false);
-  });
-});
-
-describe("marksMove — the founder's sentence, asserted directly", () => {
-  it("green does NOT move", () => {
-    // Said in a comment for weeks while the screen did the opposite. Now it
-    // is a test.
-    expect(marksMove("confident")).toBe(false);
-  });
-
-  it("an ordinary orange mark does NOT move", () => {
-    expect(marksMove("standard")).toBe(false);
-  });
-
-  it("an untiered mark does NOT move", () => {
-    // It used to, via the ring. With the ring gone there is nothing for it
-    // to breathe around, so stillness is the honest default.
-    expect(marksMove(null)).toBe(false);
-  });
-
-  it("the orange mark moves", () => {
-    expect(marksMove("weak")).toBe(true);
-  });
-
-  it("exactly one tier moves, so motion still means one thing", () => {
-    expect(TIERS.filter((tier) => marksMove(tier))).toEqual(["weak"]);
   });
 });

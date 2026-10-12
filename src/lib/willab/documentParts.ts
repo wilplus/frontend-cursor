@@ -282,30 +282,6 @@ export function lockTargetAt(
  *  difference is that a part carries its id THROUGH the operation instead of
  *  being re-derived from its new position afterwards.                        */
 
-/** Move the part at `from` so it lands at index `to` in the RESULT list.
- *  Out-of-range or no-op moves return the input untouched, so a caller can
- *  compare by identity and skip marking the document dirty. */
-export function movePart(parts: Part[], from: number, to: number): Part[] {
-  if (from < 0 || from >= parts.length) return parts;
-  const target = Math.max(0, Math.min(to, parts.length - 1));
-  if (target === from) return parts;
-  const next = parts.slice();
-  const [moved] = next.splice(from, 1);
-  next.splice(target, 0, moved);
-  return next;
-}
-
-/** Insert new words at gap `at` (0 = before the first part, length = after the
- *  last). Blank input is refused — a tap that adds nothing is not an edit. */
-export function insertPart(parts: Part[], at: number, text: string): Part[] {
-  const words = text.trim();
-  if (!words) return parts;
-  const target = Math.max(0, Math.min(at, parts.length));
-  const next = parts.slice();
-  next.splice(target, 0, { id: newPartId(), text: words });
-  return next;
-}
-
 /** Replace the words of one part, KEEPING its id but reopening its version.
  *  A reword is the same Paragraph identity with uncommitted words: the prior
  *  lock and orange exact span cannot truthfully cover text the user just

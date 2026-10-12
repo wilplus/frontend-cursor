@@ -128,7 +128,7 @@ export interface TokenPrices {
   /** Tells you when a cached list is stale. Surfaced in the wallet so a wrong
    *  price is traceable to a version rather than guessed at. */
   priceVersion: string | null;
-  /** action key → price. Read through `priceOf`; never inline a number. */
+  /** action key → price; never inline a number. */
   actions: Record<string, number>;
   /** Ascending by maxSeconds — `bandFor` relies on the order. */
   bands: TokenBand[];
@@ -176,14 +176,6 @@ export function mapTokenPrices(raw: unknown): TokenPrices | null {
   }
 
   return { priceVersion: str(raw.price_version), actions, bands, tiers };
-}
-
-/** The price of a named action, or null when the BE did not publish one.
- *  Null means "show no price", never "free" and never a guessed default. */
-export function priceOf(prices: TokenPrices | null, action: string): number | null {
-  if (!prices) return null;
-  const p = prices.actions[action];
-  return typeof p === "number" ? p : null;
 }
 
 /** The band a take of `seconds` lands in — the FIRST band whose cap it fits.
@@ -256,12 +248,6 @@ async function readTokenPrices(): Promise<TokenPricesRead> {
 export function fetchTokenPricesRead(): Promise<TokenPricesRead> {
   pricesCache ??= readTokenPrices();
   return pricesCache;
-}
-
-/** Back-compat shape for callers that only need the list or nothing. */
-export async function fetchTokenPrices(): Promise<TokenPrices | null> {
-  const r = await fetchTokenPricesRead();
-  return r.kind === "ready" ? r.prices : null;
 }
 
 /** Drop the memoised read. Used by the wallet's retry and by tests. */

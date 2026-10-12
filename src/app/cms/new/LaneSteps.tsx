@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ExternalLink, Lock } from "lucide-react";
+import { type ReactNode } from "react";
 import type { LaneDraft } from "./laneDraft";
 import { slugify } from "./laneDraft";
 import { LANE_INPUT, LaneField } from "./LaneShell";

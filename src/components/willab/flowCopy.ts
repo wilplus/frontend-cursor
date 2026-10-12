@@ -43,18 +43,7 @@ export const FLOW_COPY = {
    *  second explanatory line is no longer needed. */
   analysing: "Working on your take.",
 
-  /** S3-long · past ~90s the line SOFTENS rather than escalating. Never an
-   *  estimate: we would be guessing, and a missed estimate is worse than
-   *  none at all. Split into state + next like every other pair, so the
-   *  "one line of state, one of what's next" shape holds everywhere. */
-  analysingLong: "Still working.",
-  analysingLongNext: "Longer takes take longer to go through.",
 
-  /** S4 · the version landed. The whole message. What used to sit here —
-   *  "your ideal text gets sharper with more takes, three is where it really
-   *  lands" — is deleted: a nudge stamped into permanent history reads as
-   *  pressure on the tenth scroll-back. */
-  versionReady: "Your ideal text is ready.",
 
   /* `workingOnText` lived here — "Working on your text", the blocking
    * screen's own line (SPEC-lockin-loop §1, founder 2026-08-10). DELETED

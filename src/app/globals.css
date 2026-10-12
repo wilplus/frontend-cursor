@@ -249,16 +249,6 @@ button,
   height: 0;
 }
 
-/* Recording mode: lock body scroll; allow main content to scroll if needed (safe mobile pattern) */
-body.no-scroll {
-  overflow: hidden;
-}
-
-.recording-screen {
-  min-height: 100dvh;
-  overflow-y: auto;
-}
-
 /* Welcome voice mark — three dots pulse vertically (EQ-style) while three faint
    rings breathe outward; the outer ring is the only colour. NOTE: namespaced
    `welcome-voice-dot` because the bare `voice-dot` keyframe above is already the

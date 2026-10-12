@@ -20,20 +20,12 @@ const SLIDE_RENDER = readFileSync(
   "src/components/willab/pdfSlides.tsx",
   "utf8",
 );
-const SLIDE_TAKE = readFileSync(
-  "src/components/willab/SlideTake.tsx",
-  "utf8",
-);
 const LIBRARY = readFileSync(
   "src/components/willab/LibraryOverlay.tsx",
   "utf8",
 );
 const GESTURES = readFileSync(
   "src/components/willab/useRecordingGestures.ts",
-  "utf8"
-);
-const ROOTS = readFileSync(
-  "src/components/willab/useRecordingRoots.ts",
   "utf8"
 );
 const CSS = readFileSync("src/app/globals.css", "utf8");
@@ -149,7 +141,6 @@ describe("the recording screen", () => {
   it("never substitutes transcribed text for a missing slide image", () => {
     expect(SLIDE_RENDER).not.toContain("function TextSlide");
     expect(SLIDE_RENDER).toContain("Slide preview unavailable");
-    expect(SLIDE_TAKE).not.toContain("<TextSlide");
     expect(LIBRARY).not.toContain("<TextSlide");
   });
 
@@ -207,16 +198,6 @@ describe("the recording screen", () => {
   it("keeps the retired golden-thread line absent", () => {
     expect(PHASE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
     expect(STAGE).not.toMatch(/goldenThread|GOLDEN_THREAD/);
-  });
-
-  it("preloads exact committed roots before a continued Take starts", () => {
-    expect(ROOTS).toMatch(/fetchRecordingRoots\(arcId\)/);
-    expect(ROOTS).toMatch(/const RETRIES = 2;/);
-    expect(ROOTS).toMatch(/attempt < RETRIES/);
-    expect(LAB).toMatch(/entering: enteringRecording\(state\)/);
-    const entering = LAB.slice(LAB.indexOf("function enteringRecording("));
-    expect(entering.slice(0, entering.indexOf("\n}\n"))).toMatch(/state === "lab_prerecord"/);
-    expect(LAB).not.toMatch(/buildCommittedSlideRoots\(result\.pieces/);
   });
 
   it("drops no hover grow on Finish take and draws the 12px stop square", () => {

@@ -35,11 +35,6 @@
 /*  button that waits for the refetch.                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Escape a literal for use inside a RegExp. */
-function esc(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** The accepted-accent wrappers — identical to what wrap_accent bakes. */
 const OPEN = "{{orange:";
 const CLOSE = "}}";

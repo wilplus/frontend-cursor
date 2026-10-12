@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { postChatQuery } from "@/services/api/chatQuery";
 import { refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
-  batchTake,
   isRetiredLoungeMessage,
   isUploadAsk,
   loungeToHistory,
@@ -163,7 +161,6 @@ export default function Lounge({
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
-  const router = useRouter();
   const userId = useUserId();
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;

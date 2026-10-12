@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cachedIdealTitle, rememberIdealTitle } from "./idealTitleCache";
+import { cachedIdealTitle } from "./idealTitleCache";
 
 /* The module hydrates from localStorage ONCE and keeps a module-level Map, so
  * each test re-imports it fresh — otherwise the first test's Map would answer

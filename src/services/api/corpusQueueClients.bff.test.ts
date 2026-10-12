@@ -8,7 +8,6 @@ vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: vi.fn() }));
 
 import { getAuthToken } from "@/lib/api/auth-client";
 import {
-  confirmCoachSessionLanguage,
   fetchConfidenceQueueResult,
   fetchCorpusClipPlayback,
   fetchTrainingImports,
@@ -104,30 +103,6 @@ describe("fetchConfidenceQueueResult", () => {
       ok: false, status: 401, code: "UNAUTHENTICATED",
       error: "Not authenticated", language: null,
     });
-    expect(fn).not.toHaveBeenCalled();
-  });
-});
-
-describe("confirmCoachSessionLanguage", () => {
-  it("puts the normalised language and reports only ok", async () => {
-    const fn = stubFetch(204, null);
-    expect(await confirmCoachSessionLanguage("s/1", " EN ")).toBe(true);
-    expect(fn).toHaveBeenCalledWith("/api/v2/coach/sessions/s%2F1/confidence-queue", {
-      method: "PUT",
-      headers: { ...BEARER, "Content-Type": "application/json" },
-      body: JSON.stringify({ language: "en" }),
-    });
-    stubFetch(409, null);
-    expect(await confirmCoachSessionLanguage("s", "en")).toBe(false);
-    offline();
-    expect(await confirmCoachSessionLanguage("s", "en")).toBe(false);
-  });
-
-  it("sends nothing for an unsupported language or when signed out", async () => {
-    const fn = stubFetch(200, null);
-    expect(await confirmCoachSessionLanguage("s", "klingon")).toBe(false);
-    token.mockResolvedValue(null);
-    expect(await confirmCoachSessionLanguage("s", "en")).toBe(false);
     expect(fn).not.toHaveBeenCalled();
   });
 });

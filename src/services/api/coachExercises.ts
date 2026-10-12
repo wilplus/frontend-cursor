@@ -89,11 +89,6 @@ export interface SavedExercise {
   transcriptStatus: TranscriptStatus | null;
 }
 
-export interface ScriptDraft {
-  draft: string;
-  modelVersion: string | null;
-}
-
 function mapVersionRow(raw: unknown): ExerciseVersionRow | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -147,20 +142,6 @@ export function draftFrom(exercise: CoachExercise): CoachExerciseDraft {
     aiDraftModelVersion: null,
   };
 }
-
-export const BLANK_DRAFT: CoachExerciseDraft = {
-  exerciseId: "",
-  title: "",
-  instruction: "",
-  introductionCopy: "",
-  acousticProblemTags: [],
-  mainTarget: null,
-  matchingCriteria: null,
-  explanationVideoUrl: "",
-  active: true,
-  aiDraftText: null,
-  aiDraftModelVersion: null,
-};
 
 /** The request body, in the backend's own names. The video's address is
  *  sent only when there is one: a new exercise's arrives with its file, and
@@ -287,34 +268,6 @@ export function saveCoachExerciseWithVideo(draft: CoachExerciseDraft, file: File
   );
 }
 
-/** A first script for the video, to the coach only. Nothing is stored. */
-export function draftExerciseScript(input: {
-  errorIds: string[];
-  title?: string;
-  notes?: string;
-}) {
-  return call<ScriptDraft>(
-    "/api/v2/coach/exercises/script-draft",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        error_ids: input.errorIds,
-        ...(input.title?.trim() ? { title: input.title.trim() } : {}),
-        ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
-      }),
-    },
-    (data) => {
-      const d = asRecord(data);
-      if (typeof d.draft !== "string" || !d.draft.trim()) return null;
-      return {
-        draft: d.draft,
-        modelVersion: typeof d.model_version === "string" ? d.model_version : null,
-      };
-    },
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /*  Client-side validation                                                     */
 /*                                                                            */
@@ -338,18 +291,6 @@ export function draftProblem(
   if (draft.acousticProblemTags.length === 0) return "Pick at least one speaking error it treats.";
   if (!hasVideo) return "An exercise needs its video before it can be saved.";
   return null;
-}
-
-/** An id from a title: `Land the ending` → `land-the-ending`. */
-export function suggestExerciseId(title: string): string {
-  return title
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/^[^a-z]+/, "")
-    .slice(0, 63);
 }
 
 /* ── the founder's Library page: retire, bring back (CP3 A; D-CP-21) ──── */

@@ -17,12 +17,6 @@ import type { DocumentSuggestion } from "@/services/api/idealText";
 /*      existing star + modal treatment, so it never draws a strike here.      */
 /* -------------------------------------------------------------------------- */
 
-/** One render unit: a plain run, or a run carrying its suggestion. */
-export interface TrackedSegment {
-  text: string;
-  suggestion?: DocumentSuggestion;
-}
-
 /** The suggestions that may actually render over `text`, sorted by position
  *  and guaranteed non-overlapping. Pure. */
 function verifies(text: string, s: DocumentSuggestion): boolean {
@@ -81,35 +75,6 @@ export function resolveAdviceSpans(
   return packSpans(usable, taken);
 }
 
-/** Split `text` into plain runs and suggestion runs, in document order.
- *  `hidden` (ids the user just decided in this session) render as plain text
- *  so the tracked change disappears the instant it is accepted or kept. Pure. */
-export function buildTrackedSegments(
-  text: string,
-  suggestions: DocumentSuggestion[] | null,
-  hidden?: ReadonlySet<string>
-): TrackedSegment[] {
-  const accepted = [
-    ...resolveTrackedSuggestions(text, suggestions),
-    // Advice rides the same segment stream so a coaching star can sit inline
-    // in the document; it carries no text change (TrackedText draws a star,
-    // never a strike).
-    ...resolveAdviceSpans(text, suggestions),
-  ]
-    .filter((s) => !hidden?.has(s.id))
-    .sort((a, b) => a.start - b.start);
-  if (accepted.length === 0) return text ? [{ text }] : [];
-  const out: TrackedSegment[] = [];
-  let cursor = 0;
-  for (const s of accepted) {
-    if (s.start > cursor) out.push({ text: text.slice(cursor, s.start) });
-    out.push({ text: text.slice(s.start, s.end), suggestion: s });
-    cursor = s.end;
-  }
-  if (cursor < text.length) out.push({ text: text.slice(cursor) });
-  return out;
-}
-
 /** Apply the student's ACCEPTED replacements to the text, right-to-left so
  *  earlier spans keep their offsets. Used for the local optimistic text while
  *  the server reassembles. Pure. */
@@ -126,18 +91,4 @@ export function applyAcceptedReplacements(
     out = out.slice(0, s.start) + (s.proposedText ?? "") + out.slice(s.end);
   }
   return out;
-}
-
-/** Re-express document-level suggestions inside a paragraph slice: only the
- *  ones FULLY within [start, end) survive, rebased to paragraph-local
- *  offsets. A suggestion straddling a paragraph boundary is dropped (it
- *  cannot be drawn in one paragraph). Pure. */
-export function rebaseSuggestionsToSpan(
-  suggestions: DocumentSuggestion[] | null,
-  span: { start: number; end: number }
-): DocumentSuggestion[] | null {
-  if (!suggestions) return null;
-  return suggestions
-    .filter((s) => s.start >= span.start && s.end <= span.end)
-    .map((s) => ({ ...s, start: s.start - span.start, end: s.end - span.start }));
 }

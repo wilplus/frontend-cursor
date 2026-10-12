@@ -63,9 +63,3 @@ export function markPulses(tier: BookmarkTier): boolean {
 export function motionClasses(tier: BookmarkTier): string {
   return markPulses(tier) ? "motion-safe:animate-pulse" : "";
 }
-
-/** True when this mark is animated at all — the property the founder's
- *  sentence is actually about, and the one worth asserting directly. */
-export function marksMove(tier: BookmarkTier): boolean {
-  return motionClasses(tier).length > 0;
-}

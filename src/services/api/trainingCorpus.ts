@@ -973,19 +973,6 @@ export async function fetchCorpusClipPlayback(
     : { ok: false, status: result.status, code: "INVALID_PLAYBACK_RESPONSE", error: null, language: null };
 }
 
-export async function confirmCoachSessionLanguage(
-  sessionId: string,
-  language: string,
-): Promise<boolean> {
-  const normalized = normalizeLanguage(language);
-  if (!normalized) return false;
-  const result = await bffFetch(
-    `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/confidence-queue`,
-    { method: "PUT", json: { language: normalized } },
-  );
-  return result.kind === "response" && result.ok;
-}
-
 /* ------------------------------ the label ---------------------------------
  * The WRITE lives in stateRatings.ts — buildRatingBody + saveStateRating,
  * the one ternary instrument every surface shares. The binary + 1–5

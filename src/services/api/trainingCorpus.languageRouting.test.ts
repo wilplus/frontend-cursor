@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  confirmCoachSessionLanguage,
   fetchConfidenceQueueResult,
 } from "./trainingCorpus";
 
@@ -32,29 +31,4 @@ describe("confidence queue language routing", () => {
     });
   });
 
-  it("submits one normalized coach confirmation through the BFF", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(
-      confirmCoachSessionLanguage("session/1", " EN "),
-    ).resolves.toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v2/coach/sessions/session%2F1/confidence-queue",
-      expect.objectContaining({
-        method: "PUT",
-        body: JSON.stringify({ language: "en" }),
-      }),
-    );
-  });
-
-  it("never sends an unsupported language", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(
-      confirmCoachSessionLanguage("session-1", "unknown"),
-    ).resolves.toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
 });

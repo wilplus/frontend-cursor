@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyAcceptedReplacements,
-  buildTrackedSegments,
-  rebaseSuggestionsToSpan,
   resolveAdviceSpans,
   resolveTrackedSuggestions,
 } from "./trackedChanges";
@@ -74,26 +72,6 @@ describe("resolveTrackedSuggestions (verify or drop)", () => {
   });
 });
 
-describe("buildTrackedSegments", () => {
-  it("splits into plain runs and suggestion runs in document order", () => {
-    const s = sug({ start: 2, end: 7, quote: "think" });
-    const segs = buildTrackedSegments(TEXT, [s]);
-    expect(segs.map((x) => x.text)).toEqual(["I ", "think", " we can do this today."]);
-    expect(segs[1].suggestion?.id).toBe(s.id);
-    expect(segs.map((x) => x.text).join("")).toBe(TEXT);
-  });
-
-  it("hidden ids fall back to plain text", () => {
-    const s = sug({ start: 2, end: 7, quote: "think" });
-    const segs = buildTrackedSegments(TEXT, [s], new Set([s.id]));
-    expect(segs.every((x) => !x.suggestion)).toBe(true);
-  });
-
-  it("returns the whole text when nothing resolves", () => {
-    expect(buildTrackedSegments(TEXT, null)).toEqual([{ text: TEXT }]);
-  });
-});
-
 describe("applyAcceptedReplacements", () => {
   it("applies right-to-left so earlier spans keep their offsets", () => {
     const a = sug({ id: "a", start: 2, end: 7, quote: "think", proposedText: "believe" });
@@ -130,10 +108,4 @@ describe("resolveAdviceSpans + rebaseSuggestionsToSpan", () => {
     expect(resolveAdviceSpans(TEXT, [adv])).toEqual([]);
   });
 
-  it("rebase keeps only fully-contained spans, offset to paragraph-local", () => {
-    const inside = sug({ id: "in", start: 12, end: 17, quote: "x" });
-    const straddling = sug({ id: "out", start: 8, end: 14, quote: "y" });
-    const out = rebaseSuggestionsToSpan([inside, straddling], { start: 10, end: 20 });
-    expect(out?.map((s) => [s.id, s.start, s.end])).toEqual([["in", 2, 7]]);
-  });
 });

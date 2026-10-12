@@ -6,13 +6,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   EMPTY_RING_STATE,
-  featureIsOn,
   loadRingState,
   mapRingState,
   recordAnnouncementDecision,
   refreshRingState,
   resetRingStateCache,
-  RING_FEATURES,
 } from "./rings";
 
 const PAYLOAD = {
@@ -52,22 +50,6 @@ describe("mapRingState", () => {
   it("anything else is the empty state: nothing on, nothing pending", () => {
     for (const raw of [null, "x", [], 7]) expect(mapRingState(raw)).toEqual(EMPTY_RING_STATE);
     expect(mapRingState({ unavailable: true, features_on: ["exercise_service_ui"] }).unavailable).toBe(true);
-  });
-});
-
-describe("featureIsOn", () => {
-  it("is what the backend said and never a guess", () => {
-    const state = mapRingState(PAYLOAD);
-    expect(featureIsOn(state, RING_FEATURES.exerciseServiceUi)).toBe(true);
-    expect(featureIsOn(state, RING_FEATURES.exerciseService)).toBe(false); // consent absent upstream
-    expect(featureIsOn(state, RING_FEATURES.canonicalTakeRows)).toBe(false);
-  });
-
-  it("is off while loading and off when the read failed", () => {
-    expect(featureIsOn(null, RING_FEATURES.exerciseServiceUi)).toBe(false);
-    expect(featureIsOn(undefined, RING_FEATURES.exerciseServiceUi)).toBe(false);
-    const failed = mapRingState({ ...PAYLOAD, unavailable: true });
-    expect(featureIsOn(failed, RING_FEATURES.exerciseServiceUi)).toBe(false);
   });
 });
 

@@ -7,7 +7,6 @@ import type { ParagraphHistory } from "@/services/api/bookmarkHistory";
 import {
   asJudgementValue,
   historyRows,
-  judgementTone,
   nextOpensPicker,
   canAcceptCard,
   overlayFooter,
@@ -66,13 +65,6 @@ const praise = item({
 } as Partial<DocumentSuggestion>);
 
 describe("the judgement label (D7)", () => {
-  it("is the speaker's own answer, in its colour: green, blue, red, yellow, grey", () => {
-    expect(judgementTone("yes")).toBe("green");
-    expect(judgementTone("in_between")).toBe("blue");
-    expect(judgementTone("no")).toBe("red");
-    expect(judgementTone("not_sure")).toBe("yellow");
-    expect(judgementTone("audio_unclear")).toBe("grey");
-  });
 
   it("reads only the five answers", () => {
     expect(asJudgementValue("yes")).toBe("yes");

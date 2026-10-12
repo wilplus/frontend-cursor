@@ -25,9 +25,3 @@ export const WAITING_TIPS: readonly string[] = [
   "Make rehearsal slightly demanding and the real delivery slightly simpler: practise standing, with a timer, then remove the timer pressure when you present.",
   "A light industry observation can make an opening warmer when it is true, relevant, and natural in your voice.",
 ];
-
-/** One tip at random. Call this ONCE per waiting session (after mount, so the
- *  server and the client never disagree about which one was picked). */
-export function pickWaitingTip(): string {
-  return WAITING_TIPS[Math.floor(Math.random() * WAITING_TIPS.length)];
-}

@@ -3,7 +3,6 @@ import { act, createElement, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usePinThreadBottom } from "./usePinThreadBottom";
-import { notifyThreadToLatest } from "@/lib/willabWindowEvents";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,10 +62,4 @@ describe("the newest bubble is always shown (founder 2026-09-28)", () => {
     expect(thread().scrollTop).toBe(0);
   });
 
-  it("lands on the newest bubble after See next steps", () => {
-    draw(3);
-    thread().scrollTop = 100;
-    act(() => notifyThreadToLatest());
-    expect(thread().scrollTop).toBe(900);
-  });
 });

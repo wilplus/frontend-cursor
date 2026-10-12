@@ -12,7 +12,6 @@
 /* -------------------------------------------------------------------------- */
 
 import { mapCandidates, type MatchCandidate } from "./machinePick";
-import { coachReadInit } from "./coachAuth";
 
 export type ExerciseRequestResolution =
   | "exercise_chosen"
@@ -122,22 +121,6 @@ export function mapCoachExerciseRequest(raw: unknown): CoachExerciseRequest | nu
 
 function requestPath(sessionId: string, snippetId: string): string {
   return `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/snippets/${encodeURIComponent(snippetId)}/exercise-request`;
-}
-
-/** The request for this moment, or null when there is none to show (404,
- *  the blind gate, practice turned off, or any failure). */
-export async function fetchCoachExerciseRequest(
-  sessionId: string,
-  snippetId: string,
-): Promise<CoachExerciseRequest | null> {
-  try {
-    const res = await fetch(requestPath(sessionId, snippetId), await coachReadInit());
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    return mapCoachExerciseRequest(data?.request);
-  } catch {
-    return null;
-  }
 }
 
 export function answerBody(answer: ExerciseRequestAnswer): Record<string, unknown> {

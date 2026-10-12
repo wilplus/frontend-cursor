@@ -100,27 +100,6 @@ export const EMPHASIS_WHY = [
  *  brief — do not reword it. */
 export const PRAISE_LEAD = "It was your confident moment.";
 
-/** "Do you agree?" on the Confident Voice card (founder 2026-08-15).
- *
- *  NOT the blind instrument's question. `CONFIDENCE_QUESTION` ("Does the
- *  speaker sound confident here?") is asked of a rater who has been told
- *  nothing; this is asked of the speaker, about a read they have just been
- *  shown, and the wording has to say so or the answer means something the
- *  corpus cannot interpret. The row is stamped anchored server-side for the
- *  same reason.
- *
- *  Second person, because it is their own voice — the blind lanes say "the
- *  speaker" precisely because their rater does not know whose it is. */
-export const AGREE_QUESTION = "Does that match how it felt to you?";
-
-/** After the answer lands. It says the answer was heard and nothing about
- *  what it will do — a promise about the corpus is a promise this surface
- *  cannot keep, and their answer does not become a vote. */
-export const AGREE_THANKS = "Thanks — that helps us learn your voice.";
-
-/** The line under the lead, before the cues. */
-export const PRAISE_CUE_LEAD = "Here is what your voice did:";
-
 /** ONE SENTENCE PER CUE KEY — the BE's closed delivery-cues vocabulary.
  *
  *  A key with no entry renders NOTHING, exactly like an unknown `why`: an
