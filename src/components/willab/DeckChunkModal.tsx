@@ -338,7 +338,7 @@ function handsOffAfterAnswer(onAnswered: DeckChunkModalProps["onAnswered"]): boo
 }
 
 /** A tapped word previews in the accent; a word a tap cannot reach under
- *  the four-word cap reads muted (founder lock 2026-09-30, B3). Module-level
+ *  the six-word cap reads muted (founder lock 2026-09-30, B3). Module-level
  *  so the component, frozen at the complexity ratchet, gains no branch. */
 function emphasisTokenTone(picked: boolean, reachable: boolean): string {
   if (picked) return "bg-primary/10 text-primary";

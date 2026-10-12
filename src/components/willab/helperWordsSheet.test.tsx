@@ -106,18 +106,20 @@ describe("the overlay", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("four words at most, from whichever Take is open (B3)", async () => {
+  it("six words at most, from whichever Take is open (B3)", async () => {
     await renderSheet(null);
-    // One tap, one word, next to the others (QA4 A, Q-B5 A): four taps make
-    // four words; a word the run cannot reach in one step is greyed.
+    // One tap, one word, next to the others (QA4 A, Q-B5 A): six taps make
+    // six words; a word the run cannot reach in one step is greyed.
     await act(async () => word("The").click());
     expect(word("window").disabled).toBe(true);
     expect(word("timing").disabled).toBe(false);
     await act(async () => word("timing").click());
     await act(async () => word("matters").click());
     await act(async () => word("here:").click());
-    expect(container.textContent).toContain("4 of 4 words");
-    // The fifth word cannot be reached.
-    expect(word("the").disabled).toBe(true);
+    await act(async () => word("the").click());
+    await act(async () => word("window").click());
+    expect(container.textContent).toContain("6 of 6 words");
+    // The seventh word cannot be reached.
+    expect(word("shuts").disabled).toBe(true);
   });
 });

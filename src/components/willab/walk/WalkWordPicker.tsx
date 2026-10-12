@@ -11,12 +11,12 @@ import { CHUNK_SHEET_COPY as COPY } from "../idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkWordPicker — the helper-words picker inside the plain white box        */
-/*  (founder lock 2026-10-06; helper-words lock B3: at most four words).      */
-/*  "Tap the words" on the left, how many of the four on the right; a picked  */
+/*  (founder lock 2026-10-06; helper-words lock B3: at most six words).       */
+/*  "Tap the words" on the left, how many of the six on the right; a picked   */
 /*  word takes the orange picker highlight, fading in.                        */
 /*                                                                            */
 /*  ONE RULE FOR EVERY PICKER (build plan D-IT-5; N51.5 QA4 A, N63 Q-B5 A):    */
-/*  `nextSelection` — each tap adds one word next to the others, up to four,  */
+/*  `nextSelection` — each tap adds one word next to the others, up to six,   */
 /*  so the pick is always one connected phrase. A word a tap cannot reach is  */
 /*  greyed and does nothing.                                                  */
 /* -------------------------------------------------------------------------- */

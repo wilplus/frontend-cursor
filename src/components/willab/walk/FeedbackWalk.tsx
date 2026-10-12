@@ -96,7 +96,7 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 /*  Every word on these screens is a signed one (CHUNK_SHEET_COPY, WALK_COPY) */
 /*  or the caller's (the coach's note, the praise words the item carries);    */
 /*  nothing here makes one up. No number, read or machine pick is drawn: the  */
-/*  only figures are the moment's position and the four-word count (AC-9).   */
+/*  only figures are the moment's position and the six-word count (AC-9).    */
 /*                                                                            */
 /*  A guest reads every screen; a pick or a save opens the sign-up dialog     */
 /*  and writes nothing (N32.5).                                               */
@@ -536,7 +536,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
 }
 
 /** "Choose your helper words", after a praise: the subtitle, then at most
- *  four words, one phrase. */
+ *  six words, one phrase. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
   const words = (step.kind === "try" ? ctx.practise.tryOf(moment.index)?.words : null) ?? moment.paragraphText;

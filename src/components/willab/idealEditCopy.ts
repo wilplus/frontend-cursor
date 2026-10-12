@@ -183,8 +183,8 @@ export const CHUNK_SHEET_COPY = {
      left it deliberately (handoff, "one note"). */
   cardTapWords: "Tap the words",
   /** Beside "Tap the words" on both pickers (founder lock 2026-09-30, B3;
-   *  signed with the lock, B9): how many of the four the run holds. */
-  emphasisCount: (picked: number) => `${picked} of 4 words`,
+   *  signed with the lock, B9): how many of the six the run holds. */
+  emphasisCount: (picked: number) => `${picked} of 6 words`,
 
   /* --- praise on weak evidence -------------------------------------------
      FOUNDER WORDING, 2026-09-24, replacing "This may be one of the strongest

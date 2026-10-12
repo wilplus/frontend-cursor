@@ -128,8 +128,10 @@ export function tokensWithinFragment(
 /** A helper-word pick is at most this many words (founder lock 2026-09-30,
  *  B3, contract 13). A cue is read at a glance while recording and has to be
  *  found again in the next Take's words; a sentence does neither. Phrases
- *  saved before the cap are shown as they are — the cap is on the pick. */
-export const HELPER_WORDS_MAX = 4;
+ *  saved before the cap are shown as they are — the cap is on the pick.
+ *  Raised from four to six 2026-10-12; the backend's HELPER_WORDS_MAX
+ *  (services/slide_helper_words.py) must match. */
+export const HELPER_WORDS_MAX = 6;
 
 /** How many words a run holds; 0 for none. */
 export function selectionLength(selection: PhraseSelection | null): number {
@@ -147,8 +149,8 @@ export function selectionLength(selection: PhraseSelection | null): number {
  *  takes it away, so the phrase grows and shrinks one word at a time and is
  *  never broken in the middle. Taking away the only word clears the pick.
  *
- *  AT MOST FOUR WORDS (founder lock 2026-09-30, B3). A tap that would make a
- *  fifth word does nothing, and so does a tap on any word the run cannot
+ *  AT MOST SIX WORDS (founder lock 2026-09-30, B3; six since 2026-10-12). A
+ *  tap that would make a seventh word does nothing, and so does a tap on any word the run cannot
  *  reach in one step: the same selection comes back, by identity, so a
  *  picker can grey the words a tap cannot reach.
  */
@@ -244,7 +246,7 @@ export function quoteSpan(raw: string, quote: string): RootPhraseSpan | null {
 
 /** Saved helper words as a selection of the paragraph's words, so a screen
  *  can draw them pressed (the replayed walk, Q-IT643b A). Null when the
- *  words cannot be found once, or are more than four: nothing is guessed. */
+ *  words cannot be found once, or are more than six: nothing is guessed. */
 export function phraseSelection(raw: string, phrase: string | null | undefined): PhraseSelection | null {
   const span = quoteSpan(raw, stripRichMarkers(phrase ?? "").trim());
   if (!span) return null;
