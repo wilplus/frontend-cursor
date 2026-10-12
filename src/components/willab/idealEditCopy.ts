@@ -399,6 +399,9 @@ export const WALK_COPY = {
   nextShareAsk: "Do you agree to share your next take with others?",
   shareOnlyMe: "Only me",
   shareAddCommunity: "+ Add a community with a passcode",
+  /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
+  lineA: "Say this one like your confident moment.",
+  practiseN: (n: number) => `Practise ${n}`,
 } as const;
 
 /* -------------------------------------------------------------------------- */
