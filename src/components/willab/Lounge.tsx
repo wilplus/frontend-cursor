@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Send, Upload } from "lucide-react";
+import { Plus, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import CoachWalkEntry from "./coachwalk/CoachWalkEntry";
@@ -1237,7 +1237,7 @@ export default function Lounge({
         {thread.loading ? (
           <LoadingState placement="surface" />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState onStart={onStart} />
+          <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
           threadItems.map((item, i) => item.message.kind === "walk_step" ? (
             <WalkStepBubble key={item.reactKey} message={item.message} onOpenIdealText={openIdealText} />
@@ -1431,7 +1431,21 @@ export default function Lounge({
           Continue review
         </button>
       ) : null}
-      <form onSubmit={handleSend} className="flex items-end gap-2">
+      <form onSubmit={handleSend} className="flex items-end gap-0.5">
+        {/* THE "+" (founder 2026-10-12, WhatsApp-like): it opens the
+            projects, where "Start a new project" starts one. It replaced the
+            Record button. Held while a Take is still landing, for the same
+            reason that button was (the spoken take count is the version). */}
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={takeInFlight}
+          aria-label="Your projects"
+          title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
+          className="-ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:text-muted-foreground/50 disabled:hover:bg-transparent"
+        >
+          <Plus className="h-5 w-5" aria-hidden />
+        </button>
         <div className="relative flex-1">
           <textarea
             ref={composerRef}
@@ -1462,7 +1476,7 @@ export default function Lounge({
                field does scroll, but a bar inside a rounded chat input reads as
                a broken control, and a textarea has no business scrolling
                sideways at all — it soft-wraps. */
-            className={`scrollbar-none block max-h-40 min-h-[48px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-3 pl-4 text-[15px] leading-snug outline-none focus:border-primary ${
+            className={`scrollbar-none block max-h-40 min-h-[40px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-2 pl-3.5 text-[15px] leading-snug outline-none focus:border-primary ${
               draftText.trim() ? "pr-12" : "pr-4"
             }`}
             aria-label="Message Will"
@@ -1474,48 +1488,12 @@ export default function Lounge({
               type="submit"
               disabled={botThinking}
               aria-label="Send"
-              className="absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors disabled:cursor-default disabled:text-muted-foreground"
+              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors disabled:cursor-default disabled:text-muted-foreground"
             >
               <Send className="h-5 w-5" />
             </button>
           ) : null}
         </div>
-        {/* Its own control, with its own stroke — recording is not a thing you
-            do TO the message you are typing. The dot is the recording signal
-            (the one place red reads as "live action").
-
-            It ALWAYS opens the project choice: never a last-used default,
-            never an auto-continue, even when a cached arc exists. Founder
-            2026-07-27 — that disconnection is deliberate. Every take carries
-            the immutable Project ID chosen here; the app never guesses from
-            its title, topic, or deck. */}
-        {/* WITHHELD WHILE A TAKE IS STILL LANDING (founder 2026-08-05: "there
-            is no new button to record unless the text is displayed and
-            waiting is finished").
-
-            Disabled, not removed — an entry point that vanishes reads as a
-            broken app, and the chip above already says why it is waiting.
-
-            This is a correctness rule as much as a UX one: the ideal-text
-            version is now the SPOKEN TAKE COUNT, so a take started while the
-            previous one is still assembling races the version being written.
-            A failed analysis does NOT hold the button — that is exactly when
-            someone needs to record again. */}
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={takeInFlight}
-          title={takeInFlight ? FLOW_COPY.recordHeld : undefined}
-          className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-default disabled:border-border/60 disabled:text-muted-foreground disabled:hover:bg-background"
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              takeInFlight ? "bg-muted-foreground/40" : "bg-red-500"
-            }`}
-            aria-hidden
-          />
-          Record
-        </button>
       </form>
 
       {/* Delivery layer — the 4 bubbles' destinations. */}
@@ -1995,33 +1973,19 @@ function Bubble({
 }
 
 function LoungeEmptyState({ onStart }: { onStart: () => void }) {
-  // Same destination as the composer's Record: ALWAYS the project choice,
-  // never a last-used default (FE-4).
+  // ONE BUTTON, CENTRED, NOTHING ELSE (founder 2026-10-12). With no project
+  // yet there is nothing to choose between, so it goes straight to the new
+  // project's onboarding; the "+" beside the message box opens the projects.
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <div className="flex w-full max-w-[23rem] flex-col items-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Your first take
-        </p>
-        <h1 className="mt-3 text-balance text-[clamp(1.5rem,6vw,2rem)] font-semibold leading-[1.18] tracking-[-0.03em] text-foreground">
-          Create your first Ideal Text
-        </h1>
-        <p className="mt-3 max-w-[20rem] text-balance text-[15px] leading-[1.55] text-muted-foreground">
-          Record your talk as it is today. We’ll shape it into a clear text and
-          prepare focused feedback for you to review.
-        </p>
-        <button
-          type="button"
-          onClick={onStart}
-          className="mt-7 flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
-        >
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500"
-            aria-hidden
-          />
-          Start your first recording
-        </button>
-      </div>
+    <div className="flex flex-1 items-center justify-center px-6">
+      <button
+        type="button"
+        onClick={onStart}
+        className="flex h-12 items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-6 text-[15px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+      >
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
+        Start your first recording
+      </button>
     </div>
   );
 }
