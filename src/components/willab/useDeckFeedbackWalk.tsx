@@ -698,7 +698,7 @@ export function useDeckFeedbackWalk(args: {
         ),
       CHUNK_SHEET_COPY.failWordsBehind,
     );
-  }, []);
+  }, [post]);
   const judge = useCallback((save: WalkJudgementSave<DocumentSuggestion>) => {
     const { saveBehind, onJudged } = live.current;
     const { item, answer } = save;

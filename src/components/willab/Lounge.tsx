@@ -1239,7 +1239,9 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState onStart={onStart} />
         ) : (
-          threadItems.map((item, i) => (
+          threadItems.map((item, i) => item.message.kind === "walk_step" ? (
+            <WalkStepBubble key={item.reactKey} message={item.message} onOpenIdealText={openIdealText} />
+          ) : (
             <Bubble
               key={item.reactKey}
               message={item.message}
@@ -1785,9 +1787,6 @@ function Bubble({
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
-  if (message.kind === "walk_step") {
-    return <WalkStepBubble message={message} onOpenIdealText={onOpenIdealText} />;
-  }
   const offerType = readOfferType(message.metadata);
   if (offerType) {
     return (
