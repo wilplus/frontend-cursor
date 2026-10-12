@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 /*  @require_founder gates every call underneath regardless, so this page is  */
 /*  about exposure, not authorization. Linked from the CEO header only.       */
 /*                                                                            */
-/*  AC-9: this panel shows how the machine's jars fill and the four doors —   */
+/*  AC-9: this panel shows how the machine's jars fill —                     */
 /*  counts about the system, never a read on a speaker.                       */
 /* -------------------------------------------------------------------------- */
 

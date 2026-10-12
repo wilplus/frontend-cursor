@@ -3,9 +3,8 @@
 /* -------------------------------------------------------------------------- */
 /*  The pace panel (founder 2026-09-30, C9; ML-4): one row per jar with its    */
 /*  count, its bar, the pace the weekly job observed and the weeks to the    */
-/*  bar at that pace; a slider per row asks "and at N a week?"; the four     */
-/*  doors as the code constants say them; the stored weeks with any          */
-/*  migration a READY cue drafted. Nothing here opens a door or merges a     */
+/*  bar at that pace; a slider per row asks "and at N a week?"; the stored   */
+/*  weeks with any migration a READY cue drafted. Nothing here merges a      */
 /*  draft: the founder copies the draft into a PR.                            */
 /* -------------------------------------------------------------------------- */
 
@@ -15,13 +14,6 @@ import { founderLearning, type LedgerRead } from "@/services/api/founderLearning
 import { listCoachExercises } from "@/services/api/coachExercises";
 import { FounderFrame, Meter, Panel, Refusal } from "./FounderFrame";
 import JarPanel, { JAR_COPY } from "./JarPanel";
-
-const DOOR_LABELS: Record<string, string> = {
-  consent: "Door 1 · the training yes (consent)",
-  dataset_release: "Door 2 · dataset releases",
-  training: "Door 3 · training runs",
-  promotion: "Door 4 · promotion",
-};
 
 function WhatIf({ row }: { row: PaceRow }) {
   const max = sliderMax(row);
@@ -100,23 +92,6 @@ function Gaps({ gaps }: { gaps: GapView | null }) {
         {gaps.unavailable.length > 0 ? ` · unavailable: ${gaps.unavailable.join(", ")}` : ""}
       </p>
     </div>
-  );
-}
-
-function Doors({ doors }: { doors: Record<string, unknown> }) {
-  return (
-    <ul className="grid gap-2 sm:grid-cols-2">
-      {Object.entries(DOOR_LABELS).map(([key, label]) => {
-        const door = (doors[key] ?? {}) as Record<string, unknown>;
-        const open = door.open === true;
-        return (
-          <li key={key} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-sm">
-            <span>{label}</span>
-            <span className={open ? "font-medium" : "text-muted-foreground"}>{open ? "open" : "closed"}</span>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 
@@ -212,9 +187,6 @@ export default function PacePanel() {
           ) : null}
           <Panel title="Gaps" note="Which pattern needs an exercise filmed, and how many coach requests wait on it. A source the machine could not read says unknown, never zero.">
             <Gaps gaps={read.gaps} />
-          </Panel>
-          <Panel title="Doors" note="As the code constants say them. Nothing on this page opens one.">
-            <Doors doors={(ledger.doors ?? {}) as Record<string, unknown>} />
           </Panel>
           <Panel title="Stored weeks" note="One row per ISO week from the weekly job; a second run in the same week replaces it.">
             <div className="mb-3 flex flex-wrap items-center gap-3">

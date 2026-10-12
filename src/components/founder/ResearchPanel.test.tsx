@@ -48,7 +48,6 @@ const OVERVIEW = {
   },
   golden: {},
   weekly: [],
-  doors: {},
   unavailable: [],
 };
 
