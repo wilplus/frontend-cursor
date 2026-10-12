@@ -81,7 +81,6 @@ export default function ParagraphWalk({ view }: { view: ParagraphView }) {
           helperWordsHost={host}
           startPicking={view === "helpers"}
           firstTake
-          walkLook
           pager={{
             index: at,
             total: PARAGRAPHS.length,

@@ -820,9 +820,6 @@ export default function ParagraphSheet({
   /** The project has exactly one Take: the picker says where the helper
    *  words will show up. */
   firstTake?: boolean;
-  /** Ignored: the walk's look is the only look (founder 2026-10-11). Still
-   *  accepted because the dev harness passes it. */
-  walkLook?: boolean;
   onClose: () => void;
 }) {
   // Read ahead by the page (founder 2026-09-28, "1A"): the sheet opens
