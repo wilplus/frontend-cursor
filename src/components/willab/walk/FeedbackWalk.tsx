@@ -250,10 +250,11 @@ export default function FeedbackWalk<R = unknown>({
     if (here === atNow.current) land(plan, here + 1, "forward");
   };
   const back = useCallback(() => {
-    // The checking screen, a late read and the recorder are passed over: a
-    // try is not checked twice by going back.
+    // The checking screen, a late read, the recorder and the judging are
+    // passed over: a try is not checked twice by going back, and a
+    // judgement stays as given (lock 2026-10-12, section 2.6).
     let to = at - 1;
-    while (to > 0 && ["processing", "late", "practise"].includes(plan[to]?.key)) to -= 1;
+    while (to > 0 && ["processing", "late", "practise", "others"].includes(plan[to]?.key)) to -= 1;
     if (plan[to]?.overlay === false || to < 0) return;
     go(to, "back");
   }, [at, plan, go]);
