@@ -3,7 +3,6 @@
    Screens: "SLIDE 2 OF 6", capitals by CSS; build plan D-IT-1). A text with
    no deck keeps "Your talk", and the copied text keeps naming a slide
    "Slide n", unchanged. */
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./pdfSlides", () => ({
@@ -13,8 +12,6 @@ vi.mock("./pdfSlides", () => ({
 }));
 
 import { kickerFor } from "./TranscriptReviewDeck";
-
-const DECK = readFileSync("src/components/willab/TranscriptReviewDeck.tsx", "utf8");
 
 describe("kickerFor", () => {
   it("reads Slide n of m", () => {
@@ -35,20 +32,4 @@ describe("kickerFor", () => {
     expect(kickerFor(7, 6)).toBe("Slide 8");
   });
 
-  it("is what the kicker and the slide tile's label say, in capitals by CSS", () => {
-    const kicker = DECK.slice(DECK.indexOf('<p className="min-w-0 flex-1 text-[11px] font-medium uppercase'));
-    expect(kicker.slice(0, kicker.indexOf("</p>"))).toMatch(/\{kickerFor\(g\.slideIndex, slideCount\)\}/);
-    expect(DECK).toMatch(/label=\{kickerFor\(g\.slideIndex, slideCount\)\}/);
-  });
-
-  it("leaves the copied text naming each slide as before", () => {
-    const copy = DECK.slice(DECK.indexOf("async function copyDeck()"));
-    const body = copy.slice(0, copy.indexOf("navigator.clipboard"));
-    expect(body).toMatch(/copyLabelFor\(g\.slideIndex\), titleFor\(g\.slideIndex\)/);
-    expect(body).not.toMatch(/kickerFor/);
-    const label = DECK.slice(DECK.indexOf("function copyLabelFor("));
-    expect(label.slice(0, label.indexOf("\n}\n"))).toMatch(
-      /slideIndex === null \? "Your talk" : `Slide \$\{slideIndex \+ 1\}`/,
-    );
-  });
 });

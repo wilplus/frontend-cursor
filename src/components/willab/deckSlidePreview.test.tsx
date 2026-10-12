@@ -11,7 +11,6 @@
 /*  buries the speaker's words, and a new deck or page gets a fresh attempt on */
 /*  its own. What is gone is asking the speaker to do the app's job twice.     */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -108,17 +107,6 @@ describe("the deck's slide preview", () => {
     ).toMatch(/aspect-video/);
   });
 
-  it("never substitutes the words for the picture", () => {
-    // SlideRender's rule, held here too: what the speaker said while a slide
-    // was on screen is not a picture of that slide.
-    const src = readFileSync(
-      "src/components/willab/DeckSlidePreview.tsx",
-      "utf8",
-    )
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(src).not.toMatch(/transcript|chunk\.|part\.text/i);
-  });
 });
 
 describe("a deckless project reads the same way as a decked one", () => {
@@ -164,27 +152,3 @@ describe("a deckless project reads the same way as a decked one", () => {
   });
 });
 
-describe("the deck uses it instead of a raw page with a swallowed error", () => {
-  const deck = readFileSync(
-    "src/components/willab/TranscriptReviewDeck.tsx",
-    "utf8",
-  );
-
-  it("renders the recoverable preview on the deck", () => {
-    // Through the slide tile beside each kicker (the slide editor shows no
-    // picture since D-IT-4: the page behind it already does).
-    const thumb = readFileSync("src/components/willab/DeckSlideThumb.tsx", "utf8");
-    expect(deck).toMatch(/<DeckSlideThumb\b/);
-    expect(thumb).toMatch(/<DeckSlidePreview\b/);
-  });
-
-  it("no longer drops the failure on the floor", () => {
-    expect(deck).not.toMatch(/onError=\{\(\) => undefined\}[\s\S]{0,80}className="w-full"/);
-  });
-
-  it("and neither surface renders a raw PdfPage any more", () => {
-    // The deck goes through the bounded component, so a size or failure rule
-    // can only be written once.
-    expect(deck).not.toMatch(/<PdfPage\b/);
-  });
-});

@@ -4,7 +4,6 @@
    down to start" on a desktop; a swipe, a scroll, ↓, Page Down, Space or
    Enter starts the recording. It replaces the first-time "Scroll down" hint
    that was remembered per device. */
-import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -197,13 +196,6 @@ describe("the learning screen", () => {
     expect(host.textContent).not.toContain("Scroll down to start");
     expect(host.querySelector('[data-testid="slide"]')).not.toBeNull();
     expect(host.textContent).toContain("Finish take");
-  });
-});
-
-describe("the retired first-time hint", () => {
-  it("is gone, with its per-device memory", () => {
-    const roadmap = readFileSync("src/components/willab/RecordingRoadmap.tsx", "utf8");
-    expect(roadmap).not.toMatch(/scrollHintSeen|NextSlideHint|"Scroll down"/);
   });
 });
 

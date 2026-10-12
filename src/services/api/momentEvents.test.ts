@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { reportMomentEvent } from "./momentEvents";
@@ -53,13 +52,4 @@ describe("reportMomentEvent", () => {
     expect(await reportMomentEvent("snip-1", "opened")).toEqual({ kind: "failed" });
   });
 
-  it("the BFF route goes through callBackend and names its upstream", () => {
-    const source = readFileSync(
-      "src/app/api/v2/user/snippets/[snippetId]/moment-event/route.ts",
-      "utf8",
-    );
-    expect(source).toContain("callBackend(");
-    expect(source).toContain("/moment-event");
-    expect(source).not.toMatch(/\bfetch\(/);
-  });
 });

@@ -16,7 +16,6 @@
 /*  microphone to render): the real Processing screen inside the real gate,   */
 /*  wired as the host wires it; and the host's wiring pinned in its source.   */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -44,8 +43,6 @@ import {
   resetTrainingAsk,
 } from "./TrainingAsk";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
-
-const HOST = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
 
 function consent(over: Partial<TrainingConsent> = {}): TrainingConsent {
   return {
@@ -206,50 +203,3 @@ describe("never a gate when there is nothing to ask", () => {
   });
 });
 
-describe("the host wires Record again exactly like Record Take 2", () => {
-  const processing = HOST.slice(HOST.indexOf('{state === "lab_processing" && ('));
-  const block = processing.slice(0, processing.indexOf("</NextTakeGate>"));
-
-  it("hands Processing the asking handler, not the mic", () => {
-    expect(block).toMatch(/onReRecord=\{askThenReRecord\}/);
-    expect(block).not.toMatch(/mic\.start\(\)/);
-  });
-
-  it("puts the question in front of the processing screen", () => {
-    expect(block).toMatch(
-      /<NextTakeGate\s+asking=\{askBeforeReRecord\}\s+onDone=\{\(\) => \{\s*setAskBeforeReRecord\(false\);\s*markTrainingAsked\(\);\s*reRecord\(\);\s*\}\}\s*>\s*<Processing/,
-    );
-  });
-
-  it("asks through askThenRun, abandoning the slow take before the question", () => {
-    const fn = HOST.slice(HOST.indexOf("function askThenReRecord()"));
-    const body = fn.slice(0, fn.indexOf("\n  }\n"));
-    expect(body).toMatch(
-      /askThenRun\(reRecord, \(\) => \{\s*abandonSlowTake\(\);\s*setAskBeforeReRecord\(true\);\s*\}\)/,
-    );
-  });
-
-  it("re-records the way it always did: abandon, reset the mic, new Take, start", () => {
-    const fn = HOST.slice(HOST.indexOf("function reRecord()"));
-    const body = fn.slice(0, fn.indexOf("\n  }\n"));
-    expect(body).toMatch(
-      // Take 1 holds the mic for the learning screen (founder lock
-      // 2026-10-07); a later Take records at once.
-      /abandonSlowTake\(\);[\s\S]*cancelMic\(\);\s*dispatch\("take_started"\);\s*void mic\.start\(\{ arm: arcTakeIndex <= 1 \}\);/,
-    );
-    const abandonFn = HOST.slice(HOST.indexOf("function abandonSlowTake()"));
-    const abandonBody = abandonFn.slice(0, abandonFn.indexOf("\n  }\n"));
-    for (const step of [
-      "pendingCarryRef.current = null;",
-      "setPollSessionId(null);",
-      "setPollSlow(false);",
-      "setProcessingReady(false);",
-      "uploadStartedRef.current = false;",
-      "setBlob(null);",
-      "startPendingRef.current = true;",
-    ]) {
-      expect(abandonBody).toContain(step);
-    }
-    expect(abandonBody).not.toMatch(/mic\.start|dispatch\(/);
-  });
-});

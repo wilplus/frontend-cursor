@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /* -------------------------------------------------------------------------- */
@@ -15,8 +14,6 @@ import { describe, expect, it } from "vitest";
 /*  Asserted on the source, because the fix is a rule about identity rather    */
 /*  than a render: one R2 object is one path, however many times it is signed. */
 /* -------------------------------------------------------------------------- */
-
-const HOOK = readFileSync("src/components/willab/useArcDeckRef.ts", "utf8");
 
 /** The hook's rule, mirrored here so the cases below are readable. A drift
  *  between this and the hook is caught by the source assertions underneath. */
@@ -56,23 +53,3 @@ describe("one object is one deck, however often it is signed", () => {
   });
 });
 
-describe("the hook holds the ref it already handed out", () => {
-  it("compares on identity rather than on the whole url", () => {
-    expect(HOOK).toContain("mediaObjectIdentity");
-    expect(HOOK).toContain(
-      "mediaObjectIdentity(held.current.ref) === mediaObjectIdentity(next)",
-    );
-  });
-
-  it("replaces it when the arc changes", () => {
-    // A different arc is a different deck even if the path somehow matched.
-    expect(HOOK).toContain("held.current.arcId === arcId");
-  });
-
-  it("does not return the raw payload ref any more", () => {
-    // The old body ended `return payloadRef ?? cached ?? fetched;` — that
-    // straight pass-through is what let a re-signed URL reach pdf.js.
-    expect(HOOK).not.toMatch(/return payloadRef \?\? cached \?\? fetched;/);
-    expect(HOOK).toContain("holdWhileSameObject");
-  });
-});

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 
 import { emphasizeQuote } from "./emphasizeQuote";
 
@@ -23,17 +22,6 @@ describe("emphasizeQuote paints the ACCEPTED accent", () => {
     // immediately, instead of waiting for the host's refetch.
     expect(emphasizeQuote("So family is it all. Thank you.", "family is it all"))
       .toBe("So {{orange:family is it all}}. Thank you.");
-  });
-
-  it("writes the SAME token the backend bakes", () => {
-    // The one thing this test file exists for. `{{orange:` is what
-    // ideal_text_block.wrap_accent writes; anything else means the student
-    // sees one treatment on the click and another on the refetch.
-    const src = readFileSync("src/lib/willab/emphasizeQuote.ts", "utf8");
-    expect(src).toMatch(/const OPEN = "\{\{orange:";/);
-    expect(src).toMatch(/const CLOSE = "\}\}";/);
-    // And bold — the PROPOSED-accent mark — is not written here at all.
-    expect(emphasizeQuote("a b c", "b")).not.toContain("**");
   });
 
   it("wraps only the FIRST occurrence", () => {

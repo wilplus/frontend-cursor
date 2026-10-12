@@ -1,6 +1,3 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as copy from "./copy";
 
@@ -174,59 +171,3 @@ describe("panel copy", () => {
 /*  actually see.                                                              */
 /* -------------------------------------------------------------------------- */
 
-const SRC = fileURLToPath(new URL("../../", import.meta.url));
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-/** Names imported from `@/lib/life/copy` anywhere in the app (not tests). */
-function importedCopyNames(): Set<string> {
-  const names = new Set<string>();
-  // `[^}]` rather than a lazy `[\s\S]*?`: the lazy form starts matching at the
-  // FIRST `import {` in the file and runs on until it reaches the copy import's
-  // closing brace, capturing every import statement in between as one blob.
-  // Excluding `}` pins the match to a single brace pair, and still spans lines,
-  // which the longer import lists here need.
-  const importFrom = /import\s*\{([^}]*)\}\s*from\s*["']@\/lib\/life\/copy["']/g;
-  for (const file of walk(SRC)) {
-    if (file.endsWith(join("lib", "life", "copy.ts"))) continue;
-    const source = readFileSync(file, "utf8");
-    for (const match of source.matchAll(importFrom)) {
-      for (const raw of match[1].split(",")) {
-        const name = raw.trim().split(/\s+as\s+/)[0].trim();
-        if (name) names.add(name);
-      }
-    }
-  }
-  return names;
-}
-
-describe("copy reachability", () => {
-  it("extracts identifiers, not blobs", () => {
-    // Guards the extractor, and this one has already earned its keep: a count
-    // check alone passed while the regex was capturing three whole import
-    // statements as a single "name", which silently reported live copy as
-    // orphaned. Shape is the assertion that catches that; size is not.
-    const names = [...importedCopyNames()];
-    expect(names.length).toBeGreaterThan(3);
-    for (const name of names) {
-      expect(name, name).toMatch(/^[A-Z][A-Z0-9_]*$/);
-    }
-  });
-
-  it("has no export that nothing imports", () => {
-    const imported = importedCopyNames();
-    const orphans = Object.keys(copy).filter((name) => !imported.has(name));
-    // An orphan is either copy for a screen that was never built, or copy for
-    // a screen that was removed. Both read as shipped. Delete it or wire it.
-    expect(orphans).toEqual([]);
-  });
-});

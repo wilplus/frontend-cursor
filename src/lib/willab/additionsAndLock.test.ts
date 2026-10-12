@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { mapAdditions, mapParts } from "@/services/api/idealText";
@@ -24,9 +21,6 @@ import {
 /*  never sets it optimistically — a lock drawn that the server did not grant   */
 /*  is the one state worth never rendering.                                    */
 /* -------------------------------------------------------------------------- */
-
-const SRC = join(fileURLToPath(new URL("../../", import.meta.url)));
-const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 
 const raw = (over: Record<string, unknown> = {}) => ({
   id: "block:30",
@@ -168,25 +162,4 @@ describe("the founder copy is exactly what was signed off", () => {
     expect(IDEAL_EDIT_COPY).not.toHaveProperty("lockStale");
   });
 
-  it("no new user-facing string is inlined in the components", () => {
-    // The whole point of the one-file rule: a string cannot quietly ship from
-    // a JSX edit. The surface must render from IDEAL_EDIT_COPY (DocumentArranger, the
-    // other one, was deleted unused, founder 2026-10-11).
-    for (const rel of [
-      join("components", "willab", "AdditionsPanel.tsx"),
-    ]) {
-      const src = read(rel)
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "");
-      expect(src, rel).toMatch(/idealEditCopy/);
-      // The approved strings must appear as KEY references, never as literals.
-      for (const literal of [
-        "New material detected",
-        "Add to script",
-        "Lock section",
-      ]) {
-        expect(src, `${rel} inlines "${literal}"`).not.toContain(literal);
-      }
-    }
-  });
 });

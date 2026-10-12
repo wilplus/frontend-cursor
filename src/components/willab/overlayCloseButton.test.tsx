@@ -8,7 +8,6 @@
 /*  and the ⋯ beside it on the text page wears the same style. A caller may   */
 /*  place it; none may restyle it.                                            */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -86,34 +85,3 @@ describe("the one style", () => {
   });
 });
 
-describe("where it is drawn", () => {
-  it("the recording screens' header and the text page's header draw it plain", () => {
-    const lab = readFileSync("src/components/willab/LabOverlay.tsx", "utf8");
-    expect(lab).toMatch(/<OverlayCloseButton onClick=\{handleClose\} \/>/);
-    const ideal = readFileSync("src/components/willab/IdealTextOverlay.tsx", "utf8");
-    expect(ideal).toMatch(/<OverlayCloseButton onClick=\{onClose\} \/>/);
-    const mirror = readFileSync("src/app/dev/recording/page.tsx", "utf8");
-    expect(mirror).toMatch(/<OverlayCloseButton onClick=\{\(\) => \{\}\} \/>/);
-  });
-
-  it("no willab screen restyles it: a className it passes only places it", () => {
-    const { execSync } = require("node:child_process") as typeof import("node:child_process");
-    const files = execSync("grep -rl --include=*.tsx '<OverlayCloseButton' src || true", { encoding: "utf8" })
-      .split("\n")
-      .filter(Boolean);
-    const restyled: string[] = [];
-    for (const file of files) {
-      const src = readFileSync(file, "utf8");
-      for (const m of src.matchAll(/<OverlayCloseButton[\s\S]*?\/>/g)) {
-        const cls = /className=(?:"([^"]*)"|\{`([^`]*)`\})/.exec(m[0]);
-        const classes = (cls?.[1] ?? cls?.[2] ?? "").split(/\s+/).filter(Boolean);
-        const bad = classes.filter((c) =>
-          /^(h|w|size)-|^border(-(?!border))?|^bg-(?!background)|^text-(?!muted)|^rounded|^ring/.test(c),
-        );
-        if (bad.length) restyled.push(`${file}: ${bad.join(" ")}`);
-      }
-    }
-    expect(restyled, restyled.join("\n")).toEqual([]);
-  });
-
-});

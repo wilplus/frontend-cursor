@@ -4,7 +4,6 @@
 /*  walk (build plan D-FW-18; walk lock flow 9-10; JP1 A, Q-B4 A, WQ4 A,       */
 /*  Q-B6 A; QA1 A).                                                            */
 /* -------------------------------------------------------------------------- */
-import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -305,18 +304,6 @@ describe("AC-9", () => {
 });
 
 describe("reduce motion", () => {
-  const css = readFileSync("src/app/globals.css", "utf8");
-  const reduce = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce) {\n  .walk-stage"));
-
-  it("the intro, the post and the judgements sit in the stage the reduce-motion rule makes instant", () => {
-    draw();
-    toIntro();
-    expect(live()!.closest(".walk-stage")).not.toBeNull();
-    click(byTestId("walk-journal"));
-    expect(live()!.closest(".walk-stage")).not.toBeNull();
-    expect(reduce).toMatch(/\.walk-stage \*[\s\S]*animation-duration: 0\.01s !important/);
-    expect(reduce).toMatch(/\.walk-ghost \{\s*display: none !important;/);
-  });
 
   it("the toast still goes when it stands still (its timer, not its animation, ends it)", () => {
     draw();

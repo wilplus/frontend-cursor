@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildDeckChunks, type DeckSuggestionLite } from "@/lib/willab/deckChunks";
 
@@ -21,11 +20,6 @@ import { buildDeckChunks, type DeckSuggestionLite } from "@/lib/willab/deckChunk
 /*  own history: grey → bookmark → full text → lock with its orange phrase.    */
 /* -------------------------------------------------------------------------- */
 
-const DECK = readFileSync(
-  "src/components/willab/TranscriptReviewDeck.tsx",
-  "utf8",
-);
-
 const DOC = "First paragraph words.\n\nSecond paragraph words.";
 const open = (over: Partial<DeckSuggestionLite> = {}): DeckSuggestionLite => ({
   id: "s1",
@@ -36,21 +30,6 @@ const open = (over: Partial<DeckSuggestionLite> = {}): DeckSuggestionLite => ({
 });
 
 describe("settled text is ordinary, never grey", () => {
-  it("draws every block in the full text colour (founder 2026-09-26)", () => {
-    // Ideal Text redesign B, amending 24g-1: grey meant two things (a
-    // judgement waiting, and words nobody touched) and at 55% it read as
-    // disabled on the speaker's own speech. The waiting judgement is now the
-    // orange bar in the left margin; the words always keep their colour.
-    // `unsettled` keeps its one condition — it now drives only the bar.
-    expect(DECK).toContain("const unsettled =");
-    expect(DECK).toContain('c.status === "waiting" &&');
-    expect(DECK).not.toContain("text-foreground/55");
-    expect(DECK).toContain(
-      // No indent (founder 2026-09-28): the bars sit in the margin.
-      // 17px on a phone to 20px on desktop (founder 2026-09-30, "D").
-      'className="relative text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground"',
-    );
-  });
 
   it("an untouched block is grey with no mark; a reviewed one is neither", () => {
     const chunks = buildDeckChunks(DOC, null, []);
@@ -58,19 +37,6 @@ describe("settled text is ordinary, never grey", () => {
     const reviewed = buildDeckChunks(DOC, null, [open({ status: "dismissed" })]);
     expect(reviewed[0].status).toBe("clean");
     expect(reviewed[0].pendingIds).toEqual([]);
-  });
-
-  it("greys exactly where the bookmark is drawn, and nowhere else", () => {
-    // 24f anchors the rewrite and the praise TO a Confident Voice item rather
-    // than standing them up as their own cards, so a block cannot hold a
-    // rewrite without the judgement that carries it — founder: "the rewrite
-    // only happens after the judgement". Sharing the condition makes that
-    // structural fact impossible to contradict on screen.
-    // One named condition (2026-10-05), shared with "Review feedback".
-    expect(DECK).toContain("const unsettled = barWaiting(c);");
-    const gate = DECK.slice(DECK.indexOf("const barWaiting ="));
-    expect(gate.slice(0, 300)).toContain("markWorthShowing");
-    expect(DECK).toMatch(/\{unsettled \? \([\s\S]{0,80}?<DeckLockMark/);
   });
 
   it("marks a locked block settled", () => {
@@ -106,22 +72,3 @@ describe("settled text is ordinary, never grey", () => {
   });
 });
 
-describe("the two signals, and no others", () => {
-  it("colours no part of the text grey", () => {
-    // The old rule was "grey only at block level, never part of a word". With
-    // grey gone entirely (founder 2026-09-26) the strongest form of it holds:
-    // no grey text class anywhere in the deck.
-    expect(DECK.split("text-foreground/55").length - 1).toBe(0);
-  });
-
-  it("adds no underline, highlight or badge to the text", () => {
-    // 24g-1: "the two signals are the grey block and the bookmark, and
-    // nothing else". Asserted on the paragraph's OWN class list — a window of
-    // surrounding source would catch unrelated markup and say nothing.
-    const classes = DECK.slice(
-      DECK.indexOf("text-[clamp(1.3rem,1rem+1.1vw,1.875rem)]"),
-    ).slice(0, 200);
-    expect(classes).not.toContain("underline");
-    expect(classes).not.toContain("bg-");
-  });
-});

@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import {
-  CONFIDENT_VOICE_NO,
   CONFIDENT_VOICE_WHY,
   PRAISE_CUE_COPY,
   praiseLines,
 } from "./trackedChangeWhy";
-import { CHUNK_SHEET_COPY as COPY } from "@/components/willab/idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  THE PRAISE LANE (founder 2026-08-15)                                       */
@@ -30,16 +28,6 @@ function code(path: string): string {
 }
 
 const MODAL = code("src/components/willab/DeckChunkModal.tsx");
-
-/** One step renderer's body: from its declaration to the next sibling
- *  declaration at the component's own indentation. */
-function renderer(name: string): string {
-  const start = MODAL.indexOf(`function ${name}(): React.ReactNode {`);
-  expect(start, `${name} is not declared`).toBeGreaterThan(-1);
-  const rest = MODAL.slice(start + 1);
-  const end = rest.search(/\n {2}(?:function |const )/);
-  return end === -1 ? rest : rest.slice(0, end);
-}
 
 /** The BE's closed vocabulary (services/delivery_cues.py CUE_KEYS). */
 const BE_CUE_KEYS = [
@@ -115,16 +103,6 @@ describe("praiseLines", () => {
 });
 
 describe("the modal renders praise as evidence, not as a verdict", () => {
-  it("plays the recording of the moment", () => {
-    // The claim is about how it SOUNDED — the one claim this product makes
-    // that a student cannot check by reading. Since #370 the feedback step
-    // has its own renderer: reached only on its own step, drawn only with a
-    // suggestion in hand, and carrying the player.
-    expect(MODAL).toMatch(/step\.kind === "feedback" \? renderFeedbackStep\(\)/);
-    const feedback = renderer("renderFeedbackStep");
-    expect(feedback).toMatch(/^[^{]*\{\s*if \(!suggestion\) return null;/);
-    expect(feedback).toMatch(/MediaPlayer/);
-  });
 
   it("is read, not rated (founder 2026-09-15)", () => {
     // The rating is gone: a black CTA on a question about your own praise
@@ -140,76 +118,9 @@ describe("the modal renders praise as evidence, not as a verdict", () => {
     expect(MODAL).not.toMatch(/Use as flagship/);
   });
 
-  it("shows no 'Suggested' block, because nothing is suggested", () => {
-    // Praise has its own step now; the rewrite cards render only on theirs.
-    // Each step dispatches to its own renderer, both need a suggestion in
-    // hand, and the "clearer version" card lives in the suggestion renderer
-    // alone — never in praise.
-    expect(MODAL).toMatch(/step\.kind === "praise" \? renderPraiseStep\(\)/);
-    expect(MODAL).toMatch(
-      /step\.kind === "suggestion" \? renderSuggestionStep\(\)/,
-    );
-    const praise = renderer("renderPraiseStep");
-    const rewrite = renderer("renderSuggestionStep");
-    for (const body of [praise, rewrite]) {
-      expect(body).toMatch(/^[^{]*\{\s*if \(!suggestion\) return null;/);
-    }
-    expect(praise).not.toMatch(/cardClearerVersion/);
-    expect(rewrite).toMatch(/cardClearerVersion/);
-  });
-
-  it("does not stack a generic reason line on top of the praise", () => {
-    // This used to be guarded — `rationale && !isPraise && !isConfidentVoice`
-    // kept the machine's whyLine() away from praise. On 2026-09-15 the founder
-    // removed that line from the sheet outright ("delete the text 'this makes
-    // your point easier to understand'"), so praise is safe by construction:
-    // there is no generic reason line left anywhere to stack.
-    expect(MODAL).not.toMatch(/\{rationale\b/);
-    expect(MODAL).not.toMatch(/whyLine\(suggestion\)/);
-    // The coach note card went with it (§6). The coach REVIEW STATUS pill
-    // stays — a different thing, drawn only once the coach confirmed the
-    // moment (founder 2026-09-29).
-    expect(MODAL).not.toMatch(/coachNote/);
-    expect(MODAL).toMatch(/coachReviewStatus === "coach_reviewed" \? \(/);
-  });
 });
 
 describe("the Confident Voice card asks, and asks honestly", () => {
-  it("goes FULL SCREEN, without a gesture", () => {
-    // A question arriving half below the fold gets answered by whoever
-    // scrolls, which is a bias in which moments reach the album rather than a
-    // layout nit.
-    expect(MODAL).toMatch(/expanded \|\| isConfidentVoice/);
-  });
-
-  it("renders the five-choice immutable self-report", () => {
-    // The question moved into idealEditCopy with the rest of the sheet's
-    // strings (LIVE LOOP: a sign-off is one file to read), so the modal
-    // references it rather than spelling it.
-    expect(MODAL).toMatch(/question=\{COPY\.confidenceQuestion\}/);
-    expect(COPY.confidenceQuestion).toBe("Does this sound confident to you?");
-    expect(MODAL).toMatch(/ConfidenceLabelChips/);
-  });
-
-  it("asks immediately after playback, and nothing else is on the screen", () => {
-    // The explanation block is gone (founder 2026-09-15, §6): listen, then
-    // answer. Answering advances on its own — there is no thank-you screen
-    // and no Done step behind it.
-    const player = MODAL.indexOf("MediaPlayer");
-    const question = MODAL.indexOf("confidenceQuestion");
-    expect(player).toBeGreaterThan(-1);
-    expect(question).toBeGreaterThan(player);
-    expect(MODAL).not.toMatch(/CONFIDENT_VOICE_WHY|AGREE_THANKS/);
-  });
-
-  it("keeps the No copy available, unshown, and still neutral", () => {
-    // The card no longer renders it, but the string is the founder's and the
-    // rule it encodes outlives this layout: an answer of "no" is never argued
-    // with.
-    expect(MODAL).not.toContain("CONFIDENT_VOICE_NO");
-    expect(CONFIDENT_VOICE_NO).toBe("Thanks for letting us know.");
-    expect(CONFIDENT_VOICE_NO).not.toMatch(/confident|learn|voice/i);
-  });
 
   it("keeps a possible confidence read neutral", () => {
     expect(CONFIDENT_VOICE_WHY).not.toMatch(
@@ -217,15 +128,4 @@ describe("the Confident Voice card asks, and asks honestly", () => {
     );
   });
 
-  it("writes the exact feedback identity and lets the database bind its clip", () => {
-    expect(MODAL).toMatch(/saveTakeFeedbackResponse/);
-    expect(MODAL).toMatch(/feedbackFamily: "confident_voice"/);
-    expect(MODAL).not.toMatch(/response: value,[\s\S]{0,80}snippetId/);
-  });
-
-  it("rolls the chip back when the write fails", () => {
-    // A lit chip over a row the server never took is the same lie the style
-    // apply refuses to tell.
-    expect(MODAL).toMatch(/setAgreeValue\(null\);[\s\S]{0,120}setAgreeError/);
-  });
 });

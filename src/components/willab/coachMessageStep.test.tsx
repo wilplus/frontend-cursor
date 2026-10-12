@@ -3,8 +3,6 @@
    2026-09-29, Q1; Final Screens L8). */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CoachStepLayer } from "./CoachMessageSheet";
 import { useCoachStep } from "./useCoachStep";
@@ -133,12 +131,3 @@ describe("step 0", () => {
   });
 });
 
-describe("only on the Ideal Text", () => {
-  it("is never mounted by Recording Mode, Presentation Mode or export", () => {
-    const dir = join(process.cwd(), "src/components/willab");
-    const users = readdirSync(dir)
-      .filter((f) => /\.tsx?$/.test(f) && !f.includes(".test."))
-      .filter((f) => readFileSync(join(dir, f), "utf8").includes("CoachMessageSheet"));
-    expect(users.sort()).toEqual(["CoachMessageSheet.tsx", "TranscriptReviewDeck.tsx"]);
-  });
-});

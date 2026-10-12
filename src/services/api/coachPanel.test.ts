@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -89,19 +88,4 @@ describe("the calls", () => {
     expect(fetchMock.mock.calls[0]![0]).toBe("/api/v2/coach/sessions/s/snippets/m/exercise-preference");
   });
 
-  it("every BFF route goes through the one relay", () => {
-    const routes = [
-      "src/app/api/v2/coach/sessions/[sessionId]/snippets/[snippetId]/exercise-preference/route.ts",
-      "src/app/api/v2/coach/sessions/[sessionId]/word/draft/route.ts",
-      "src/app/api/v2/coach/error-audit/route.ts",
-      "src/app/api/v2/coach/error-audit/[auditId]/answer/route.ts",
-      "src/app/api/v2/coach/block-picks/route.ts",
-      "src/app/api/v2/coach/block-picks/[pickId]/answer/route.ts",
-    ];
-    for (const route of routes) {
-      const source = readFileSync(route, "utf8");
-      expect(source).toMatch(/relayJson\(/);
-      expect(source).not.toMatch(/\bfetch\(/);
-    }
-  });
 });

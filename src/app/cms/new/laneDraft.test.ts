@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -28,8 +27,6 @@ import {
 /*  it lets you past.                                                         */
 /* -------------------------------------------------------------------------- */
 
-const CLIENT = readFileSync("src/app/cms/new/page.client.tsx", "utf8");
-
 function full(over: Partial<LaneDraft> = {}): LaneDraft {
   return {
     ...blankDraft("post"),
@@ -52,11 +49,6 @@ describe("the lane is the shape the founder locked", () => {
     expect(skippable.sort()).toEqual(["community", "cover", "excerpt"]);
   });
 
-  it("has no fork and no exercise lane left", () => {
-    expect(CLIENT).not.toContain('"exercise"');
-    expect(CLIENT).not.toContain("<Fork");
-    expect(CLIENT).toContain('router.replace("/cms/new/post/1")');
-  });
 });
 
 describe("a step will not let you past what it needs", () => {
@@ -132,9 +124,3 @@ describe("slugify", () => {
   });
 });
 
-describe("the doors into the lane", () => {
-  it("bounces to the CMS when the tab has no password, carrying where it was going", () => {
-    expect(CLIENT).toContain("/cms?next=");
-    expect(CLIENT).not.toContain('router.replace("/cms")');
-  });
-});

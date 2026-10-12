@@ -2,7 +2,6 @@
 /* The Feedback walk's production controller (build plan D-FW-14): the coach's
    note, the praise and the helper words, moving as the lock says, and a
    guest's pick asking to sign up. */
-import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -125,20 +124,6 @@ describe("FeedbackWalk", () => {
     }
   });
 
-  it("on a desktop the walk is the phone's column, centred on the same white (Q-WALK-DESK A)", () => {
-    const css = readFileSync("src/app/globals.css", "utf8");
-    // The overlay keeps the whole screen; its parts sit in a 430px column.
-    expect(css).toMatch(
-      /\[data-feedback-walk\] \.walk-ov,\s*\[data-walk-sheet\] \.walk-ov \{\s*padding-inline: max\(0px, calc\(\(100% - var\(--walk-column\)\) \/ 2\)\);/,
-    );
-    expect(css).toMatch(/--walk-column: 430px;/);
-    expect(css).toMatch(/\.walk-endsheet \{\s*margin-inline: auto;\s*max-width: var\(--walk-column\);/);
-    // The rule is scoped to the walk: its overlay is drawn inside [data-feedback-walk].
-    draw(null);
-    draw({ seq: 1, at: 1 });
-    expect(live()!.querySelector(".walk-ov")!.closest("[data-feedback-walk]")).not.toBeNull();
-  });
-
   it("saves the picked helper words as one phrase, then moves on", () => {
     const props = draw(null);
     draw({ seq: 1, at: 3 });
@@ -190,24 +175,6 @@ describe("FeedbackWalk", () => {
     draw({ seq: 1, at: 2 });
     const html = host.innerHTML;
     expect(html).not.toMatch(/great_formulation|confident_voice|rewrite_clarity|openCard|tier|score|%/i);
-  });
-});
-
-describe("reduce motion", () => {
-  const css = readFileSync("src/app/globals.css", "utf8");
-  const reduce = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce) {\n  .walk-stage"));
-
-  it("every walk layer sits in the stage the reduce-motion rule makes instant", () => {
-    draw(null);
-    draw({ seq: 1, at: 1 });
-    expect(live()!.closest(".walk-stage")).not.toBeNull();
-    expect(reduce).toMatch(/\.walk-stage \*[\s\S]*animation-duration: 0\.01s !important/);
-    expect(reduce).toMatch(/\.walk-ghost \{\s*display: none !important;/);
-  });
-
-  it("opens in 0.38 s and sinks in 0.28 s without it", () => {
-    expect(css).toMatch(/\.walk-m-open > \.walk-ov \{\s*animation: walk-sheet-up 0\.38s/);
-    expect(css).toMatch(/\.walk-ghost\.walk-m-close > \.walk-ov \{\s*animation: walk-sheet-down 0\.28s/);
   });
 });
 

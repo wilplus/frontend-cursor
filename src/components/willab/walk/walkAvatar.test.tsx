@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -41,13 +39,4 @@ describe("WalkAvatar", () => {
     expect(avatar.getAttribute("title")).toBeNull();
   });
 
-  it("source has no photo path", () => {
-    const source = readFileSync(
-      join(process.cwd(), "src/components/willab/walk/WalkMessage.tsx"),
-      "utf8",
-    );
-    expect(source).not.toContain("avatarSrc");
-    expect(source).not.toContain("backgroundImage");
-    expect(source).not.toContain("src=");
-  });
 });

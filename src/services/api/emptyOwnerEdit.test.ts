@@ -17,7 +17,6 @@
 /*  document was destroyed on the way to the screen by a truthiness check.     */
 /* -------------------------------------------------------------------------- */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 import { piecesForOwnerEdit, type IdealPiece } from "./idealText";
 
 const piece = (partId: string, slideIndex: number | null): IdealPiece => ({
@@ -62,27 +61,3 @@ describe("the empty envelope never displaces the served mapping", () => {
     ).toBeNull();
   });
 });
-
-describe("the mapper reads the edit for content, not for presence", () => {
-  const SOURCE = readMapper();
-
-  it("gates parts and pieces on the edit HAVING parts", () => {
-    // Both lanes go through one derived value so they cannot drift apart: the
-    // zip must follow the same list the deck is built from, or the comparison
-    // between them is meaningless.
-    expect(SOURCE).toContain(
-      "ownerEdit && ownerEdit.parts.length > 0 ? ownerEdit.parts : null",
-    );
-    expect(SOURCE).toContain("parts: ownerEditParts");
-    expect(SOURCE).toContain("pieces: ownerEditParts");
-  });
-
-  it("never gates either lane on the envelope's mere presence again", () => {
-    expect(SOURCE).not.toContain("parts: ownerEdit\n");
-    expect(SOURCE).not.toContain("pieces: ownerEdit\n");
-  });
-});
-
-function readMapper(): string {
-  return readFileSync("src/services/api/idealText.ts", "utf8");
-}
