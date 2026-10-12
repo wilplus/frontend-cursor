@@ -2038,7 +2038,7 @@ function WalkStepBubble({
     <div className="flex max-w-[85%] items-start gap-2">
       <span
         aria-hidden="true"
-        className={`mt-1 h-5 w-5 shrink-0 rounded-full ${coach ? "bg-slate-400/60" : "bg-foreground/15"}`}
+        className={`mt-1 h-5 w-5 shrink-0 rounded-full md:hidden ${coach ? "bg-slate-400/60" : "bg-foreground/15"}`}
       />
       <button
         type="button"
@@ -2064,7 +2064,7 @@ function SummaryBubble({ message }: { message: LoungeMessage }) {
   const earlier = typeof meta.earlier === "string" ? meta.earlier : null;
   return (
     <div data-summary-bubble className="flex max-w-[85%] items-start gap-2">
-      <span aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 rounded-full bg-foreground/15" />
+      <span aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 rounded-full bg-foreground/15 md:hidden" />
       <div className="flex min-w-0 flex-col gap-1">
         {updated ? <span className="text-[12.5px] text-muted-foreground">Later · from your coach</span> : null}
         <div

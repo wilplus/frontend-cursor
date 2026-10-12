@@ -12,13 +12,14 @@ import type { ReactNode } from "react";
 
 /** The grey profile picture: one grey silhouette for the coach and the app
  *  alike, no photos (founder NX2 B, 2026-10-06; decisions log N53).
- *  aria-hidden; still no sender label. */
+ *  aria-hidden; still no sender label. Phones only: on a wide screen the
+ *  bubble stands alone (founder 2026-10-12). */
 export function WalkAvatar() {
   return (
     <span
       aria-hidden="true"
       data-walk-avatar
-      className="mt-px inline-flex h-[22px] w-[22px] flex-none items-end justify-center overflow-hidden rounded-full bg-foreground/15"
+      className="mt-px inline-flex h-[22px] w-[22px] flex-none items-end justify-center overflow-hidden rounded-full bg-foreground/15 md:hidden"
     >
       <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-foreground/40" aria-hidden="true">
         <circle cx="12" cy="9" r="4.2" />
