@@ -8,25 +8,6 @@ name: tests
 #          also runs the design-lock guard (build plan X5): a commit on the
 #          PR that changes a founder-locked screen's file without a
 #          `Founder-Approved:` trailer is red.
-#
-#   e2e  — the five self-contained real-browser specs against `next dev`
-#          (see e2e/README.md). BLOCKING (founder decision 2026-08-14: the policy is
-#          enforced at the configuration level immediately, without waiting
-#          for the Actions minutes outage to clear — the observation-period
-#          continue-on-error is retired). Since 2026-10-07 it also runs the
-#          shared screenshot harness (build plan X7): every locked screen at
-#          phone and desktop size, uploaded as the `design-screens` artifact,
-#          and red on any number that is not a count or a position (AC-9).
-#
-#   csp  — one real-browser spec against a PRODUCTION build, asserting the
-#          Content-Security-Policy blocks nothing the app actually loads,
-#          then the record-flow spec on the same build (Phase 2, Q-T7).
-#          BLOCKING from the start, unlike e2e: this tier exists because #242
-#          shipped a policy that broke every route, and it passed a green
-#          build, a green unit tier and a hand audit of the rendered HTML.
-#          The stylesheet it blocked is written at RUNTIME by a dependency,
-#          so a browser is the only thing that can see it. A flake here costs
-#          a re-run; a miss here costs a total outage.
 
 on:
   push:
