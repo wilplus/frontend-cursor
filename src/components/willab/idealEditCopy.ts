@@ -347,9 +347,8 @@ export const WALK_COPY = {
      words as CHUNK_SHEET_COPY.emphasisFirstTakeNote, which the sheets show
      on Take 1 only. */
   helpersSubtitle: CHUNK_SHEET_COPY.emphasisFirstTakeNote,
-  /* Sharing, after every finished review. */
+  /* Sharing, asked before the next recording (NextTakeShareScreen). */
   shareTitle: "After all, it's about speaking publicly!",
-  shareAsk: "Do you agree to share this take with others?",
 
   /* --- signed with the line bank (N54) ----------------------------------- */
   /* After a try where nothing moved (NX3a), rotating; `encourage` above shows
@@ -379,15 +378,10 @@ export const WALK_COPY = {
   shareGeneralHint: "Fastest improvement in speaking publicly",
   shareMine: "Only my community",
   shareMineHint: "Slower but steady growth",
-  shareOwn: "Set up my own community",
-  shareNone: "None",
   shareNoneHint: "Slowest progress, but safe",
   fieldPassCode: "Pass code",
-  fieldCommunityName: "Community name",
   /* Sharing messages (WQ6 A). */
-  sharePassCodeTaken: "That pass code is taken. Try another one.",
   sharePassCodeUnknown: "No community has that pass code.",
-  shareAcceptTerms: "Please accept the updated Terms and Privacy first.",
   shareFailed: "Couldn't share this take. Try again.",
   /* Judging other speakers, once, after practice (founder lock 2026-10-12,
      moment and feedback chat, section 2.6 and Line B, section 8). */

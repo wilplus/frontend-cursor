@@ -148,7 +148,6 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
   const [dir, setDir] = useState<WalkDir | undefined>(undefined);
   const [answers, setAnswers] = useState<Record<number, ConfidenceRatingValue>>({});
   const [helpers, setHelpers] = useState<Record<number, PhraseSelection | null>>({});
-  const [community, setCommunity] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [endLeaving, setEndLeaving] = useState(false);
   // Skip on "Judgement time!" clears the bars (Q-B6 A); the walk still asks
@@ -201,14 +200,13 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     if (typeof moment === "number") setAccepted((a) => ({ ...a, [moment]: true }));
     pastPractise();
   }, [flow, steps, at, pastPractise]);
-  /** Skip on "Judgement time!" (Q-B6 A): the bars are cleared, and the walk
-   *  still asks to share, then the end card. */
+  /** Skip on "Judgement time!" (Q-B6 A): the bars are cleared, then the end
+   *  card. */
   const skipJudging = useCallback(() => {
     if (!flow) return;
     setBarsCleared(true);
     setAnswers({});
-    const community = steps.findIndex((s, i) => i > at && s.key === "community");
-    go(community === -1 ? steps.length - 1 : community, "fade");
+    go(steps.length - 1, "fade");
   }, [flow, steps, at, go]);
   const openJournal = useCallback(() => {
     if (!flow) return;
@@ -243,8 +241,6 @@ function Walk({ mode }: { mode: Extract<Mode, { kind: "single" | "flow" }> }) {
     },
     helpers,
     pickHelpers: (moment, picked) => setHelpers((h) => ({ ...h, [moment]: picked })),
-    community,
-    setCommunity,
     elapsed,
   });
 

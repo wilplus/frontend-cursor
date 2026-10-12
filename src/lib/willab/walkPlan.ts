@@ -61,8 +61,6 @@ export type WalkPlanInput = {
   /** A guest: every screen is shown read-only, and any answer, pick or
    *  practise opens sign-up instead of writing (N32.5). */
   guest: boolean;
-  /** Sharing is offered after a finished review (N52.4); false hides it. */
-  sharing?: boolean;
 };
 
 /** Every screen the plan can name. */
@@ -88,7 +86,6 @@ export type WalkStepKey =
   | "judge"
   /** Judge other speakers, once, after the practising (lock 2026-10-12). */
   | "others"
-  | "community"
   | "end";
 
 export type WalkStep = WalkScreen & {

@@ -11,6 +11,9 @@ import { shareTake } from "@/services/api/communities";
 /** The version of the words the speaker saw; the server lists it. */
 export const NEXT_SHARE_WORDS_VERSION = "sharing-screen-2026-10-12";
 
+/** The server's shortest pass code (services/communities.PASS_CODE_MIN). */
+export const SHARE_PASS_CODE_MIN = 6;
+
 const KEY = "willab.nextTakeShare";
 const KEEP_MS = 6 * 60 * 60 * 1000;
 
