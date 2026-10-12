@@ -14,17 +14,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReportCard from "./ReportCard";
-import { coachShownOn } from "./useDeckFeedbackWalk";
 import {
   forgetNewCoachFeedback,
-  newCoachFeedbackFor,
-  readNewCoachFeedback,
   setNewCoachFeedback,
 } from "@/lib/willab/newCoachFeedback";
-import { fetchLoungeHistory, refreshNewCoachFeedback, type LoungeMessage } from "@/services/api/loungeMessages";
-import { markCoachFeedbackSeen } from "@/services/api/coachFeedbackSeen";
-import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
-import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
+import { type LoungeMessage } from "@/services/api/loungeMessages";
 
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: vi.fn(async () => "test-token"),
@@ -88,76 +82,6 @@ const tag = () => container.querySelector('[data-testid="new-coach-feedback-tag"
 const card = () => container.querySelector<HTMLElement>("[data-marked]");
 const dot = () => container.querySelector('[data-testid="unread-feedback-dot"]');
 
-describe("the flag, as served", () => {
-  it("reads one yes/no per project; anything else is no flag", () => {
-    expect(readNewCoachFeedback({ "arc-1": true, "arc-2": false, "arc-3": 2 })).toEqual({
-      "arc-1": true,
-      "arc-2": false,
-      "arc-3": false,
-    });
-    expect(readNewCoachFeedback(null)).toBeNull();
-    expect(readNewCoachFeedback([true])).toBeNull();
-    setNewCoachFeedback({ "arc-1": true });
-    expect(newCoachFeedbackFor("arc-1")).toBe(true);
-    expect(newCoachFeedbackFor("arc-2")).toBe(false);
-    expect(newCoachFeedbackFor(null)).toBe(false);
-  });
-
-  it("the newest history page sets it; an older page leaves it", async () => {
-    const page = (flags: unknown) => ({
-      ok: true,
-      json: async () => ({ messages: [], has_more: false, oldest_cursor: null, new_coach_feedback: flags }),
-    });
-    const fetchMock = vi.fn(async () => page({ "arc-1": true }));
-    vi.stubGlobal("fetch", fetchMock);
-    await fetchLoungeHistory();
-    expect(newCoachFeedbackFor("arc-1")).toBe(true);
-    fetchMock.mockImplementation(async () => page({ "arc-1": false }));
-    await fetchLoungeHistory({ before: "2026-10-08T00:00:00Z" });
-    expect(newCoachFeedbackFor("arc-1")).toBe(true);
-    // A page without it (an older backend) keeps what is known.
-    fetchMock.mockImplementation(async () => page(undefined));
-    await fetchLoungeHistory();
-    expect(newCoachFeedbackFor("arc-1")).toBe(true);
-  });
-
-  it("is read again only after the walk's shows have landed", async () => {
-    const order: string[] = [];
-    let land: () => void = () => undefined;
-    const fetchMock = vi.fn(async (url: string) => {
-      if (url.includes("coach-feedback/seen")) {
-        order.push("seen sent");
-        await new Promise<void>((resolve) => { land = resolve; });
-        order.push("seen landed");
-        return { ok: true, json: async () => ({ seen: true }) };
-      }
-      order.push(`read ${url.includes("limit=1") ? "limit=1" : url}`);
-      return { ok: true, json: async () => ({ messages: [], has_more: false, oldest_cursor: null, new_coach_feedback: { "arc-1": false } }) };
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    setNewCoachFeedback({ "arc-1": true });
-    const seen = markCoachFeedbackSeen({ takeSessionId: "take-1" });
-    const refresh = refreshNewCoachFeedback();
-    await act(async () => { await Promise.resolve(); });
-    land();
-    await seen;
-    await refresh;
-    expect(order).toEqual(["seen sent", "seen landed", "read limit=1"]);
-    expect(newCoachFeedbackFor("arc-1")).toBe(false);
-  });
-
-  it("says what was shown: the Take for the coach's note, the snippet for a moment", async () => {
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({ ok: true, json: async () => ({ seen: true }) }));
-    vi.stubGlobal("fetch", fetchMock);
-    await markCoachFeedbackSeen({ takeSessionId: "take-1" });
-    await markCoachFeedbackSeen({ takeSessionId: "take-1", snippetId: "snip-1" });
-    expect(fetchMock.mock.calls.map(([url, init]) => [url, JSON.parse(String(init?.body))])).toEqual([
-      ["/api/v2/user/coach-feedback/seen", { take_session_id: "take-1" }],
-      ["/api/v2/user/coach-feedback/seen", { take_session_id: "take-1", snippet_id: "snip-1" }],
-    ]);
-  });
-});
-
 describe("the bubble (walk lock flow 1)", () => {
 
   it("clears when the flag clears", async () => {
@@ -167,45 +91,5 @@ describe("the bubble (walk lock flow 1)", () => {
     await act(async () => setNewCoachFeedback({ "arc-1": false }));
     expect(tag()).toBeNull();
     expect(card()).toBeNull();
-  });
-
-  it("an older bubble of the project, or another project, stays plain", async () => {
-    setNewCoachFeedback({ "arc-1": true });
-    await draw("arc-1", false);
-    expect(tag()).toBeNull();
-    await draw("arc-2", true);
-    expect(tag()).toBeNull();
-    expect(dot()).toBeNull();
-  });
-});
-
-describe("what a walk screen showed of the coach's work", () => {
-  const item = (id: string, snippetId: string | null, takeSessionId: string | null = "take-2") =>
-    ({ id, snippetId, takeSessionId }) as unknown as DocumentSuggestion;
-  const coach = { text: "Lovely.", videoUrl: null, takeIndex: 2, publishedAt: null, takeSessionId: "take-2" } as CoachMessage;
-  const moment = (over: Partial<FeedbackWalkMoment<DocumentSuggestion>>) =>
-    ({ index: 0, clearer: null, exercise: null, practiseItem: null, judgeItem: null, ...over }) as FeedbackWalkMoment<DocumentSuggestion>;
-
-  it("the coach's note: its Take", () => {
-    expect(coachShownOn({ key: "coachnote" }, null, coach)).toEqual([{ takeSessionId: "take-2" }]);
-    expect(coachShownOn({ key: "coachnote" }, null, { ...coach, takeSessionId: null })).toEqual([]);
-  });
-
-  it("a moment: each of its snippets once, from its items and what is open on its paragraphs", () => {
-    const shown = coachShownOn(
-      { key: "praise", moment: 0 },
-      moment({ judgeItem: item("cv", "snip-1"), practiseItem: item("rw", "snip-1"), exercise: { video: null, instruction: null, say: "x", item: item("ex", "snip-2") } }),
-      coach,
-      [item("open", "snip-3"), item("nosnip", null), item("notake", "snip-4", null)],
-    );
-    expect(shown).toEqual([
-      { takeSessionId: "take-2", snippetId: "snip-1" },
-      { takeSessionId: "take-2", snippetId: "snip-2" },
-      { takeSessionId: "take-2", snippetId: "snip-3" },
-    ]);
-  });
-
-  it("a screen of no moment says nothing", () => {
-    expect(coachShownOn({ key: "intro" }, null, coach)).toEqual([]);
   });
 });

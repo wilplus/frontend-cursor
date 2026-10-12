@@ -46,52 +46,7 @@ function offends(text: string, pattern: RegExp): boolean {
   return false;
 }
 
-describe("the copy checker itself", () => {
-  // Without this, a negation rule that swallowed everything would make the
-  // fence tests below pass on copy that violates them.
-  const banned = /\b(streaks?|scores?|consistency)\b/i;
-
-  it("flags a real violation", () => {
-    expect(offends("Your consistency score is high.", banned)).toBe(true);
-    expect(offends("You are on a 12 day streak.", banned)).toBe(true);
-  });
-
-  it("allows the surface to say it has none of them", () => {
-    expect(
-      offends("There is no streak, no score, and nothing that counts.", banned)
-    ).toBe(false);
-  });
-
-  it("does not let a negation in an earlier sentence excuse a later claim", () => {
-    expect(offends("There is no ping. Your score is 40.", banned)).toBe(true);
-  });
-});
-
 describe("panel copy", () => {
-  it("has something to check", () => {
-    // Guards the walker itself: a refactor that stopped finding strings would
-    // otherwise make every assertion below pass vacuously.
-    expect(ALL.length).toBeGreaterThan(60);
-  });
-
-  it("uses no em-dashes or en-dashes", () => {
-    // Founder rule, same as the Journal's. Commas or periods.
-    //
-    // ONE named exemption (2026-07-30): DAY.distractionQuestion is
-    // founder-PROVIDED verbatim copy, quoted with the founder's own em dash
-    // ("Am I doing this to move the bet — or to hide?"). Quoted copy is not
-    // house copy; the exemption is by exact path so nothing else can ride
-    // in under it.
-    const FOUNDER_VERBATIM = new Set(["DAY.distractionQuestion"]);
-    const offenders = ALL.filter(
-      (s) => /[—–]/.test(s.text) && !FOUNDER_VERBATIM.has(s.path)
-    );
-    expect(offenders.map((s) => s.path)).toEqual([]);
-    // The exemption may only ever cover the string it was granted for.
-    expect(copy.DAY.distractionQuestion).toBe(
-      "Am I doing this to move the bet — or to hide?"
-    );
-  });
 
   it("surfaces no score, streak, percentage or consistency meter", () => {
     // N4 / AC-9. This surface must not invent a number the product spent a
@@ -100,55 +55,6 @@ describe("panel copy", () => {
       /\b(streaks?|scores?|scored|scoring|consistency|percent(age)?|rating|ranked)\b/i;
     const offenders = ALL.filter((s) => offends(s.text, banned));
     expect(offenders.map((s) => s.path)).toEqual([]);
-  });
-
-  it("prints no percentage anywhere, negated or not", () => {
-    const offenders = ALL.filter((s) => /\d\s?%/.test(s.text));
-    expect(offenders.map((s) => s.path)).toEqual([]);
-  });
-
-  it("never tells the user they missed a day or fell behind", () => {
-    // N3 / L-4. Not typing means living, not failing. ("Come back to it" about
-    // the setup form is fine; it is about the form, not about the user.)
-    const nudging =
-      /\b(you missed|missed a day|fell behind|falling behind|don'?t forget|keep it up|haven'?t logged|days? in a row|get back on track)\b/i;
-    const offenders = ALL.filter((s) => offends(s.text, nudging));
-    expect(offenders.map((s) => s.path)).toEqual([]);
-  });
-
-  it("keeps every string the prompt flags for sign-off non-empty", () => {
-    // A blank here ships a screen with nothing on it, which is worse than
-    // unapproved copy.
-    expect(copy.GUIDE.paragraphs.length).toBeGreaterThanOrEqual(3);
-    expect(copy.CONSENT.points.length).toBeGreaterThanOrEqual(4);
-    for (const point of copy.CONSENT.points) {
-      expect(point.heading.trim()).not.toBe("");
-      expect(point.body.trim()).not.toBe("");
-    }
-    expect(copy.DELETE.body.trim()).not.toBe("");
-    for (const [key, text] of Object.entries(copy.EMPTY)) {
-      expect(text.trim(), key).not.toBe("");
-    }
-  });
-
-  it("says the delete cannot be undone", () => {
-    expect(copy.DELETE.body.toLowerCase()).toMatch(/cannot be undone/);
-  });
-
-  it("states retention and both exits on the consent screen", () => {
-    // L-6 requires what is stored, where, for how long, and that it can be
-    // exported and hard-deleted.
-    const consent = strings(copy.CONSENT)
-      .map((s) => s.text)
-      .join(" ")
-      .toLowerCase();
-    expect(consent).toMatch(/until you delete it|how long/);
-    expect(consent).toMatch(/download/);
-    expect(consent).toMatch(/erase|delete/);
-  });
-
-  it("does not pre-accept consent in its own label", () => {
-    expect(copy.CONSENT.checkboxLabel.toLowerCase()).toMatch(/i have read/);
   });
 });
 

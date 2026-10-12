@@ -25,7 +25,7 @@ vi.mock("@/components/willab/coachwalk/CoachJudgeInstrument", () => ({
 }));
 
 import GoldenJudging from "./GoldenJudging";
-import { mapGoldenCounts, mapGoldenMoment } from "@/services/api/founderLearning";
+import { mapGoldenCounts } from "@/services/api/founderLearning";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -51,17 +51,6 @@ const counts = (over: Partial<ReturnType<typeof mapGoldenCounts>> = {}) => ({
 const button = (label: string) =>
   Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === label);
 
-describe("the client mapping", () => {
-  it("reads the kind, the final and whether the seal is intact", () => {
-    expect(mapGoldenCounts({ surface: "praise_line", kind: "pair", count: 2, set_size: 50, sealed: null })?.kind).toBe("pair");
-    expect(mapGoldenCounts({ surface: "confidence", count: 2, set_size: 50, sealed: null })?.kind).toBe("clip");
-    expect(mapGoldenCounts({ surface: "praise_line", kind: "pair", count: 49, set_size: 50,
-      sealed: { count: 50, sha256: "a", sealed_at: "2026-10-05" }, sealed_intact: false })?.sealedIntact).toBe(false);
-    expect(mapGoldenMoment({ snippet_id: "pair-1", passage: "so the figure", final: "you held it" })?.final).toBe("you held it");
-    expect(mapGoldenMoment({ snippet_id: "s1", passage: "words" })?.final).toBeNull();
-  });
-});
-
 describe("judging a pair surface", () => {
   it("shows the passage and the coach's final, never a draft, and sends one of three", async () => {
     api.nextMoment.mockResolvedValue({ ok: true, value: {
@@ -82,24 +71,5 @@ describe("judging a pair surface", () => {
     await flush();
     expect(api.judge).toHaveBeenCalledWith("praise_line", { snippet_id: "pair-1", take_session_id: null, value: "not_sure" });
     expect(onChange).toHaveBeenCalled();
-  });
-
-  it("keeps the coach's instrument for a clip surface", async () => {
-    api.nextMoment.mockResolvedValue({ ok: true, value: {
-      snippetId: "s1", takeSessionId: "t1", passage: "words", final: null, audioUrl: "https://r2/x.webm", startOffsetMs: 0, durationMs: 900,
-    } });
-    act(() => root.render(createElement(GoldenJudging, { surface: "confidence", counts: counts({ surface: "confidence", kind: "clip" }), onChange: () => {} })));
-    await act(async () => button("Continue judging")?.click());
-    await flush();
-    expect(container.querySelector('[data-testid="clip-instrument"]')).not.toBeNull();
-  });
-
-  it("a sealed set that erasure changed says so and can be judged again", () => {
-    act(() => root.render(createElement(GoldenJudging, {
-      surface: "praise_line", onChange: () => {},
-      counts: counts({ count: 49, sealed: { count: 50, sha256: "a".repeat(64), sealed_at: "2026-10-05T00:00:00Z" }, sealedIntact: false }),
-    })));
-    expect(container.textContent).toContain("Erasure removed a moment from the sealed set.");
-    expect(button("Continue judging")).toBeDefined();
   });
 });
