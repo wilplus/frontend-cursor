@@ -9,7 +9,7 @@ const BFF_REVISION = "public-unsubscribe-v1";
  *
  * Public, token-gated. The token (signed JWT or opaque per backend
  * choice) is generated server-side when the email is built; clicking
- * the unsubscribe link in PostSessionResultsEmail lands the user on
+ * the unsubscribe link in an email lands the user on
  * /unsubscribe?token=<...>, which POSTs the token to this BFF.
  *
  * No bearer required — the token IS the auth. The backend validates

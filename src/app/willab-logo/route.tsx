@@ -4,7 +4,7 @@ import { ImageResponse } from "next/og";
  * GET /willab-logo
  *
  * The WillpowerLab logo for transactional email headers
- * (PostSessionResultsEmail and friends), rendered to a PNG at the edge.
+ * (the backend builds them), rendered to a PNG at the edge.
  *
  * THE APP'S OWN LOGO (founder 2026-09-25: "change it to the logo from the
  * app ... the logo text is black font WillpowerLab and small symbol logo").

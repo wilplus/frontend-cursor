@@ -33,8 +33,6 @@
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "emails/**/*.ts",
-    "emails/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": [
