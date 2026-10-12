@@ -95,6 +95,7 @@ export default function IdealTextActions({
       ) : null}
       {asking ? (
         <NextTakeShareScreen
+          takeCount={takeCount}
           onDone={() => {
             setAsking(false);
             onNewTake();

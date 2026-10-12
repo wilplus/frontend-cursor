@@ -1243,7 +1243,12 @@ export default function Lounge({
           <LoungeEmptyState onStart={onStartNewProject ?? onStart} />
         ) : (
           threadItems.map((item, i) => item.message.kind === "walk_step" ? (
-            <WalkStepBubble key={item.reactKey} message={item.message} onOpenIdealText={openIdealText} />
+            <WalkStepBubble
+              key={item.reactKey}
+              message={item.message}
+              card={reviewCardOf(item.message, threadItems)}
+              onOpenIdealText={openIdealText}
+            />
           ) : item.message.metadata?.summary === true ? (
             <SummaryBubble key={item.reactKey} message={item.message} />
           ) : (
@@ -1429,7 +1434,7 @@ export default function Lounge({
           type="button"
           data-testid="continue-review"
           onClick={() => openIdealText(reviewToContinue, "review")}
-          className="mb-2 w-full rounded-full border-[1.5px] border-primary px-4 py-2 text-[15px] font-semibold text-foreground"
+          className="mb-2 flex h-[46px] w-full items-center justify-center rounded-full bg-foreground text-[15px] font-semibold text-background"
         >
           Continue review
         </button>
@@ -2012,45 +2017,114 @@ export function continueReviewArc(items: readonly ThreadItem[]): string | null {
  *  corners, 20px avatar. A tap turns the lens back on. */
 function WalkStepBubble({
   message,
+  card,
   onOpenIdealText,
 }: {
   message: LoungeMessage;
+  /** The review's end: its Ideal Text card's words; null otherwise. */
+  card: { title: string; take: number | null } | null;
   onOpenIdealText?: (arcId: string, mode?: IdealTextLaunchMode) => void;
 }) {
-  if (!message.body.trim()) return null;
   const arc = typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+  if (message.metadata?.step === "end") {
+    return arc && card ? <IdealTextCardBubble title={card.title} take={card.take} onOpen={() => onOpenIdealText?.(arc)} /> : null;
+  }
+  if (!message.body.trim()) return null;
   const mine = message.role === "user";
   const coach = message.metadata?.author === "coach";
   const open = arc ? () => onOpenIdealText?.(arc, "review") : undefined;
   if (mine) {
     return (
-      <button
-        type="button"
-        data-walk-step-bubble
-        onClick={open}
-        className="ml-auto block max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] text-primary-foreground"
-      >
-        {message.body}
-      </button>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          data-walk-step-bubble
+          onClick={open}
+          className="max-w-[85%] whitespace-pre-wrap break-words rounded-[16px] bg-primary px-3 py-2 text-left text-[15px] leading-[1.45] text-primary-foreground"
+        >
+          {message.body}
+        </button>
+      </div>
     );
   }
   return (
-    <div className="flex max-w-[85%] items-start gap-2">
-      <span
-        aria-hidden="true"
-        className={`mt-1 h-5 w-5 shrink-0 rounded-full md:hidden ${coach ? "bg-slate-400/60" : "bg-foreground/15"}`}
-      />
+    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+      <ChatAvatar coach={coach} />
       <button
         type="button"
         data-walk-step-bubble
         onClick={open}
-        className="flex items-start gap-1.5 whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-left text-[15px] text-foreground"
+        className="relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 pr-[30px] text-left text-[15px] leading-[1.45] text-foreground"
       >
-        <span className="min-w-0">{message.body}</span>
-        {arc ? <span aria-hidden="true" className="text-muted-foreground">›</span> : null}
+        {message.body}
+        <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+          ›
+        </span>
       </button>
     </div>
   );
+}
+
+/** The small grey silhouette beside the app's and the coach's bubbles (the
+ *  coach's grey-blue). Phones only (founder 2026-10-12). */
+function ChatAvatar({ coach = false }: { coach?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex h-5 w-5 shrink-0 items-end justify-center overflow-hidden rounded-full md:hidden ${coach ? "bg-[#bfc7d6]" : "bg-[#d9d9de]"}`}
+    >
+      <svg viewBox="0 0 24 24" className={`h-[15px] w-[15px] ${coach ? "fill-[#5d6b85]" : "fill-[#8a8a93]"}`} aria-hidden="true">
+        <circle cx="12" cy="9" r="4.2" />
+        <path d="M3.5 24c.6-5 4.1-8 8.5-8s7.9 3 8.5 8z" />
+      </svg>
+    </span>
+  );
+}
+
+/** The Ideal Text card that ends a review in the chat (prototype .itcard):
+ *  the slide thumb, the project's name, "AI-generated text · Take N", ›. */
+function IdealTextCardBubble({ title, take, onOpen }: { title: string; take: number | null; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      data-review-card
+      onClick={onOpen}
+      className="relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]"
+    >
+      <span aria-hidden="true" className="aspect-video w-[72px] flex-none rounded-md bg-gradient-to-br from-[#dde3ee] to-[#c7d0e0]" />
+      <span className="min-w-0">
+        <b className="block truncate text-[15px] font-semibold">{title}</b>
+        <small className="block text-[12px] text-muted-foreground">
+          {take !== null ? `AI-generated text · Take ${take}` : "AI-generated text"}
+        </small>
+      </span>
+      <span aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+        ›
+      </span>
+    </button>
+  );
+}
+
+/** The words on a review's Ideal Text card: the project's name (as its
+ *  Ideal Text bubbles carry it) and the Take (as its summary carries it).
+ *  Null when the message is not a review's end or no name is known. */
+export function reviewCardOf(
+  message: LoungeMessage,
+  items: readonly ThreadItem[],
+): { title: string; take: number | null } | null {
+  const meta = message.metadata ?? {};
+  if (meta.step !== "end" || typeof meta.arc_id !== "string") return null;
+  let title: string | null = null;
+  let take: number | null = null;
+  for (const item of items) {
+    const m = item.kind === "message" ? item.message.metadata ?? {} : {};
+    if (m.arc_id !== meta.arc_id) continue;
+    if (typeof m.topic === "string" && m.topic.trim()) title = m.topic.trim();
+    if (m.summary === true && m.take_session_id === meta.take_session_id && typeof m.take_index === "number") {
+      take = m.take_index;
+    }
+  }
+  return title ? { title, take } : null;
 }
 
 /** The closing summary after a review (founder lock 2026-10-12, section 3):
@@ -2060,33 +2134,27 @@ function WalkStepBubble({
 function SummaryBubble({ message }: { message: LoungeMessage }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   const meta = message.metadata ?? {};
-  const updated = meta.coach_update === true;
-  const earlier = typeof meta.earlier === "string" ? meta.earlier : null;
+  const earlier = meta.coach_update === true && typeof meta.earlier === "string" ? meta.earlier : null;
   return (
-    <div data-summary-bubble className="flex max-w-[85%] items-start gap-2">
-      <span aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 rounded-full bg-foreground/15 md:hidden" />
-      <div className="flex min-w-0 flex-col gap-1">
-        {updated ? <span className="text-[12.5px] text-muted-foreground">Later · from your coach</span> : null}
-        <div
-          className={`whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] text-foreground ${updated ? "ring-[1.5px] ring-primary" : ""}`}
-        >
-          {message.body}
-        </div>
-        {updated && earlier ? (
+    <div data-summary-bubble className="mr-auto flex max-w-[88%] items-end gap-1.5">
+      <ChatAvatar />
+      <div className="whitespace-pre-wrap break-words rounded-[16px] bg-muted px-3 py-2 text-[15px] leading-[1.45] text-foreground">
+        {message.body}
+        {earlier ? (
           <>
             <button
               type="button"
               onClick={() => setEarlierOpen((open) => !open)}
-              className="text-left text-[12.5px] text-muted-foreground"
+              className="mt-2 block text-left text-[12.5px] text-muted-foreground underline underline-offset-[3px]"
             >
               {earlierOpen
                 ? "Updated with your coach's note · hide the earlier version"
                 : "Updated with your coach's note · see the earlier version"}
             </button>
             {earlierOpen ? (
-              <div className="whitespace-pre-wrap break-words rounded-[16px] bg-muted/60 px-3 py-2 text-[15px] text-muted-foreground">
+              <span className="mt-1.5 block border-t border-border pt-1.5 text-[13.5px] text-muted-foreground">
                 {earlier}
-              </div>
+              </span>
             ) : null}
           </>
         ) : null}

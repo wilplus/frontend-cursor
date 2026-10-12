@@ -379,7 +379,6 @@ export const WALK_COPY = {
   shareMine: "Only my community",
   shareMineHint: "Slower but steady growth",
   shareNoneHint: "Slowest progress, but safe",
-  fieldPassCode: "Pass code",
   /* Sharing messages (WQ6 A). */
   sharePassCodeUnknown: "No community has that pass code.",
   shareFailed: "Couldn't share this take. Try again.",
@@ -396,6 +395,8 @@ export const WALK_COPY = {
   nextShareAsk: "Do you agree to share your next take with others?",
   shareOnlyMe: "Only me",
   shareAddCommunity: "+ Add a community with a passcode",
+  sharePasscode: "Passcode",
+  shareAdd: "Add",
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
   practiseN: (n: number) => `Practise ${n}`,
