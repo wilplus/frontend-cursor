@@ -1,6 +1,6 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend, relayStrict } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
+import { relayStrict } from "@/app/api/_lib/backend";
 
 export const runtime = "nodejs";
 
@@ -18,15 +18,4 @@ export const runtime = "nodejs";
 // founder-held).
 const RELAY = relayStrict({ code: "UPSTREAM_NON_JSON", empty: "object" });
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  const body = await req.text();
-  const res = await callBackend("/v2/admin/rings/people/bulk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body || "{}",
-    relay: RELAY,
-  });
-  // A cached ring is a wrong ring — this panel exists to move it.
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const POST = proxyRoute("POST", "/v2/admin/rings/people/bulk", { body: "json", relay: RELAY, noStore: true });

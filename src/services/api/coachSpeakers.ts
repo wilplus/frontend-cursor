@@ -7,7 +7,7 @@
 /* -------------------------------------------------------------------------- */
 
 import type { QueueSpeaker, QueueTake } from "@/lib/willab/coachWalk";
-import { coachReadInit } from "./coachAuth";
+import { coachRead } from "./coachAuth";
 
 export interface PanelSpeakerTake {
   sessionId: string;
@@ -72,13 +72,8 @@ export function mapCoachSpeakers(raw: unknown): PanelSpeaker[] {
 
 /** null on any failure: the list then draws the queue's speakers alone. */
 export async function fetchCoachSpeakers(): Promise<PanelSpeaker[] | null> {
-  try {
-    const res = await fetch("/api/v2/coach/speakers", await coachReadInit());
-    if (!res.ok) return null;
-    return mapCoachSpeakers(await res.json().catch(() => null));
-  } catch {
-    return null;
-  }
+  const res = await coachRead("/api/v2/coach/speakers");
+  return res.ok ? mapCoachSpeakers(res.data) : null;
 }
 
 /** The queue's own speakers as the Speakers list draws them: the fallback

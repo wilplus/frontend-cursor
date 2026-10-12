@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
 import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
 import { type LabSessionContext } from "@/components/willab/LabOverlay";
@@ -23,21 +23,12 @@ export interface SessionReadout {
 export async function fetchSessionReadout(
   sessionId: string
 ): Promise<SessionReadout | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/user/sessions/${encodeURIComponent(sessionId)}/readout`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
-    );
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const res = await bffFetch(
+    `/api/v2/user/sessions/${encodeURIComponent(sessionId)}/readout`,
+    { cache: "no-store" }
+  );
+  if (res.kind !== "response" || !res.ok) return null;
+  const body = res.body as Record<string, unknown> | null;
   if (!body) return null;
 
   // The BE mirrors audit_paid TOP-LEVEL (sibling of "readout"); fold it into the

@@ -1,4 +1,4 @@
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
@@ -10,6 +10,4 @@ export const runtime = "nodejs";
  * Newest first. Used to reconcile the at-home status (review_pending /
  * insights) with server truth on load.
  */
-export async function GET() {
-  return callBackend("/v2/user/readouts", { method: "GET" });
-}
+export const GET = proxyRoute("GET", "/v2/user/readouts");

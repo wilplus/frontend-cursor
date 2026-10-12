@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /** What the backend said about one "exercise rendered" confirmation.
  *  - `recorded`: the render counts as shown (MLC-3 §3.5).
@@ -14,28 +14,12 @@ export async function reportExerciseRendered(
   snippetId: string,
   exerciseId: string,
 ): Promise<ExerciseRenderedOutcome> {
-  try {
-    const token = await getAuthToken();
-    if (!token) return "failed";
-    const res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/exercise-rendered`,
-      {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ exercise_id: exerciseId }),
-      },
-    );
-    if (res.status === 409) return "stale";
-    if (!res.ok) return "failed";
-    const data = (await res.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
-    return data?.recorded === true ? "recorded" : "ignored";
-  } catch {
-    return "failed";
-  }
+  const res = await bffFetch(
+    `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/exercise-rendered`,
+    { method: "POST", cache: "no-store", json: { exercise_id: exerciseId } },
+  );
+  if (res.kind !== "response") return "failed";
+  if (res.status === 409) return "stale";
+  if (!res.ok) return "failed";
+  return (res.body as Record<string, unknown> | null)?.recorded === true ? "recorded" : "ignored";
 }

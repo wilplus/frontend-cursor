@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  Archive a project (founder 2026-09-26, N14).                              */
@@ -8,21 +8,11 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /* -------------------------------------------------------------------------- */
 
 async function send(projectId: string, method: "POST" | "DELETE"): Promise<boolean> {
-  const token = await getAuthToken();
-  if (!token) return false;
-  try {
-    const res = await fetch(
-      `/api/v2/projects/${encodeURIComponent(projectId)}/archive`,
-      {
-        method,
-        credentials: "include",
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const res = await bffFetch(`/api/v2/projects/${encodeURIComponent(projectId)}/archive`, {
+    method,
+    credentials: "include",
+  });
+  return res.kind === "response" && res.ok;
 }
 
 /** Hide the project from the list. false changes nothing. */

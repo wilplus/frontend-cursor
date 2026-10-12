@@ -1,5 +1,4 @@
-import { NextRequest } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
@@ -12,8 +11,4 @@ export const runtime = "nodejs";
  * item until the coach publishes something newer. Verbatim pass-through:
  * 200 {"seen": true}; 400 INVALID_INPUT; 404 NOT_FOUND; 500 V2_ERROR.
  */
-export async function POST(request: NextRequest) {
-  return callBackend("/v2/user/coach-feedback/seen", {
-    method: "POST", body: await request.text(), headers: { "Content-Type": "application/json" },
-  });
-}
+export const POST = proxyRoute("POST", "/v2/user/coach-feedback/seen", { body: "text" });

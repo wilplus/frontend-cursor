@@ -1,13 +1,3 @@
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
-export async function POST(
-  _request: Request,
-  { params }: { params: { projectId: string; takeId: string } }
-) {
-  const projectId = encodeURIComponent(params.projectId);
-  const takeId = encodeURIComponent(params.takeId);
-  return callBackend(
-    `/v2/projects/${projectId}/takes/${takeId}/send-to-coach`,
-    { method: "POST" }
-  );
-}
+export const POST = proxyRoute("POST", "/v2/projects/:projectId/takes/:takeId/send-to-coach");

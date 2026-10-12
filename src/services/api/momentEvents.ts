@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /** What a bookmark can have on screen when it opens: the sheet's own
  *  report, kept by the backend to these kinds (migration 0408). */
@@ -32,31 +32,14 @@ export async function reportMomentEvent(
   event: MomentEvent,
   shown: readonly MomentShown[] = [],
 ): Promise<MomentEventOutcome> {
-  try {
-    const token = await getAuthToken();
-    if (!token) return { kind: "failed" };
-    const res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/moment-event`,
-      {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ event, shown: [...shown] }),
-      },
-    );
-    if (!res.ok) return { kind: "failed" };
-    const data = (await res.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
-    const followUp =
-      typeof data?.follow_up === "string" ? data.follow_up : "none";
-    return data?.recorded === true
-      ? { kind: "recorded", followUp }
-      : { kind: "ignored", followUp };
-  } catch {
-    return { kind: "failed" };
-  }
+  const res = await bffFetch(
+    `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/moment-event`,
+    { method: "POST", cache: "no-store", json: { event, shown: [...shown] } },
+  );
+  if (res.kind !== "response" || !res.ok) return { kind: "failed" };
+  const data = res.body as Record<string, unknown> | null;
+  const followUp = typeof data?.follow_up === "string" ? data.follow_up : "none";
+  return data?.recorded === true
+    ? { kind: "recorded", followUp }
+    : { kind: "ignored", followUp };
 }

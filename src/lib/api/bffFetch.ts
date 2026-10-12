@@ -18,6 +18,12 @@ export interface BffRequest {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Sent as JSON, with `Content-Type: application/json`. */
   json?: unknown;
+  /** A body sent as is (a FormData upload); use `json` for JSON. */
+  body?: BodyInit;
+  /** Headers sent before Content-Type and the Bearer header. */
+  headers?: Record<string, string>;
+  /** Abort when no answer has come within this long (a network failure). */
+  timeoutMs?: number;
   cache?: RequestCache;
   credentials?: RequestCredentials;
   /** "required" (default): without a session token nothing is sent.
@@ -47,13 +53,14 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 function requestInit(request: BffRequest, token: string | null): RequestInit {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...request.headers };
   if (request.json !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
   else if (request.guest) Object.assign(headers, guestOwnerHeaders());
   const init: RequestInit = { headers };
   if (request.method) init.method = request.method;
   if (request.json !== undefined) init.body = JSON.stringify(request.json);
+  else if (request.body !== undefined) init.body = request.body;
   if (request.cache) init.cache = request.cache;
   if (request.credentials) init.credentials = request.credentials;
   return init;
@@ -67,12 +74,24 @@ export async function bffFetch(
   if (!token && request.auth !== "optional" && !request.guest) {
     return { kind: "unauthenticated" };
   }
+  const init = requestInit(request, token);
+  const controller = request.timeoutMs ? new AbortController() : null;
+  if (controller) init.signal = controller.signal;
+  const timer = controller ? setTimeout(() => controller.abort(), request.timeoutMs) : null;
   let response: Response;
   try {
-    response = await fetch(path, requestInit(request, token));
+    response = await fetch(path, init);
   } catch {
     return { kind: "network" };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   const body = await readJson(response);
   return { kind: "response", ok: response.ok, status: response.status, body };
+}
+
+/** The parsed body of a 2xx answer, or null for anything else. */
+export async function bffOkBody(path: string, request: BffRequest = {}): Promise<unknown> {
+  const result = await bffFetch(path, request);
+  return result.kind === "response" && result.ok ? result.body : null;
 }

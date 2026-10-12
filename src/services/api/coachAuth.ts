@@ -22,3 +22,48 @@ export async function coachReadInit(): Promise<RequestInit> {
     ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
   };
 }
+
+/** What a coach call got back. status 0: nothing answered. `data` is the
+ *  parsed body, or null when there was none or it did not parse. */
+export interface CoachAnswer {
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown> | null;
+}
+
+async function answerOf(call: Promise<Response>): Promise<CoachAnswer> {
+  try {
+    const res = await call;
+    const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  }
+}
+
+/** A coach GET, with coachReadInit's cookie and token. */
+export async function coachRead(path: string): Promise<CoachAnswer> {
+  return answerOf(coachReadInit().then((init) => fetch(path, init)));
+}
+
+/** A coach write on the session cookie: a FormData upload as is, anything
+ *  else as JSON. */
+export function coachWrite(
+  path: string,
+  method: "POST" | "PUT",
+  body: unknown,
+): Promise<CoachAnswer> {
+  return answerOf(
+    fetch(
+      path,
+      body instanceof FormData
+        ? { method, credentials: "include", body }
+        : {
+            method,
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+    ),
+  );
+}

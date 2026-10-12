@@ -1,5 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
-import type { Outcome } from "./practiceCheck";
+import { outcomeCall as call, type Outcome } from "@/lib/api/bffCall";
 
 export interface Community {
   id: string;
@@ -21,33 +20,6 @@ export interface ShareResult {
   takeSessionId: string;
   communityIds: string[];
   none: boolean;
-}
-
-async function call<T>(
-  path: string,
-  init: { method: "GET" | "POST" | "PUT"; body?: unknown },
-  map: (data: Record<string, unknown>) => T,
-): Promise<Outcome<T>> {
-  try {
-    const token = await getAuthToken();
-    if (!token) return { ok: false, status: 401, code: "NO_SESSION" };
-    const res = await fetch(path, {
-      method: init.method,
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
-      },
-      ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-    });
-    const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!res.ok) {
-      return { ok: false, status: res.status, code: typeof data?.code === "string" ? data.code : null };
-    }
-    return { ok: true, data: map(data ?? {}) };
-  } catch {
-    return { ok: false, status: 0, code: null };
-  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

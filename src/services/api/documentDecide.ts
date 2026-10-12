@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 import type { DocumentSuggestion } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
@@ -30,20 +30,13 @@ async function post(
   path: string,
   body: Record<string, unknown>
 ): Promise<BlockDecideResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(path, {
-      method: "POST",
-      headers,
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(path, {
+    method: "POST",
+    auth: "optional",
+    credentials: "include",
+    json: body,
+  });
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 409) return { kind: "stale" };
   if (!res.ok) return { kind: "error" };
   return { kind: "ok" };

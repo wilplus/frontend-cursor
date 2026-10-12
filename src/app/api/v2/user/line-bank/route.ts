@@ -1,4 +1,4 @@
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +10,4 @@ export const dynamic = "force-dynamic";
  * backend 0438, routes/v2/line_bank.py): 200 {"next": {bank: index}}.
  * Indexes into the signed banks only. Verbatim pass-through.
  */
-export async function GET() {
-  return callBackend("/v2/user/line-bank", { method: "GET" });
-}
+export const GET = proxyRoute("GET", "/v2/user/line-bank");

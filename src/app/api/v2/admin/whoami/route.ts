@@ -1,6 +1,5 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "@/app/api/_lib/backend";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 
@@ -13,9 +12,4 @@ export const runtime = "nodejs";
 /*  "not an admin" from "the backend is unreachable", and only the status      */
 /*  carries that.                                                             */
 /* -------------------------------------------------------------------------- */
-export async function GET(_req: NextRequest): Promise<NextResponse> {
-  const res = await callBackend("/v2/admin/whoami", { method: "GET" });
-  // A cached admin verdict is how a revoked admin keeps their panel.
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+export const GET = proxyRoute("GET", "/v2/admin/whoami", { noStore: true });

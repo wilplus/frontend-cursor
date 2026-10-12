@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  saveIdealText — MASTER DOCUMENT, "Save the ideal text" (BE-3, founder      */
@@ -28,23 +28,15 @@ export type SaveIdealTextResult =
 export async function saveIdealText(
   arcId: string
 ): Promise<SaveIdealTextResult> {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/save`,
-      { method: "POST", headers, credentials: "include" }
-    );
-  } catch {
-    return { kind: "error" };
-  }
+  const res = await bffFetch(`/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/save`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    auth: "optional",
+  });
+  if (res.kind !== "response") return { kind: "error" };
   if (res.status === 404) return { kind: "unavailable" };
-  const body = (await res.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const body = res.body as Record<string, unknown> | null;
   if (res.status === 409) {
     // The BE distinguishes "nothing to save" from a real failure; only the
     // former is benign.

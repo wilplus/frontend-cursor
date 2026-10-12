@@ -1,5 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
-import { guestOwnerHeaders } from "./projects";
+import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  suggestionFeedback — record a user's Apply / ✓-preferred / Apply-all tap    */
@@ -70,13 +69,6 @@ export interface SuggestionFeedbackInput {
 export async function sendSuggestionFeedback(
   input: SuggestionFeedbackInput
 ): Promise<{ saved: boolean }> {
-  const token = await getAuthToken(); // optional — guest-allowed
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(token ? {} : guestOwnerHeaders()),
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
   const payload: Record<string, unknown> = {
     session_id: input.sessionId,
     target: input.target,
@@ -93,23 +85,11 @@ export async function sendSuggestionFeedback(
   if (input.styleLane) payload.style_lane = true;
   if (input.source) payload.source = input.source;
 
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/user/snippets/${encodeURIComponent(input.snippetId)}/suggestion-feedback`,
-      {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify(payload),
-      }
-    );
-  } catch {
-    return { saved: false };
-  }
-  if (!res.ok) return { saved: false };
-  const body = (await res.json().catch(() => null)) as
-    | { saved?: boolean }
-    | null;
-  return { saved: body?.saved === true };
+  // Guest-allowed: with no session the guest owner token rides instead.
+  const res = await bffFetch(
+    `/api/v2/user/snippets/${encodeURIComponent(input.snippetId)}/suggestion-feedback`,
+    { method: "POST", json: payload, credentials: "include", guest: true },
+  );
+  if (res.kind !== "response" || !res.ok) return { saved: false };
+  return { saved: (res.body as { saved?: boolean } | null)?.saved === true };
 }

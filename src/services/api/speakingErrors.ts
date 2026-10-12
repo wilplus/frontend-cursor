@@ -19,6 +19,8 @@
 /*  not offer it.                                                             */
 /* -------------------------------------------------------------------------- */
 
+import { coachReadError, messageCall, type MessageResult } from "@/lib/api/bffCall";
+
 export type SpeakingErrorStatus = "observed" | "detected" | "shadow";
 
 export interface SpeakingError {
@@ -36,12 +38,10 @@ export interface SpeakingError {
   active: boolean;
 }
 
-export type LibraryResult<T> =
-  | { ok: true; data: T }
-  /** `code` distinguishes a rewordable refusal (INVALID_INPUT) from
-   *  ALREADY_DETECTED, which is not a mistake the author can fix by editing
-   *  the form — it means the entry is load-bearing and must be left alone. */
-  | { ok: false; status: number; message: string; code?: string };
+/** A failure's `code` distinguishes a rewordable refusal (INVALID_INPUT) from
+ *  ALREADY_DETECTED, which is not a mistake the author can fix by editing
+ *  the form — it means the entry is load-bearing and must be left alone. */
+export type LibraryResult<T> = MessageResult<T>;
 
 /** A new entry, as the form collects it. `status` is deliberately absent. */
 export interface SpeakingErrorDraft {
@@ -75,38 +75,8 @@ export function mapSpeakingError(raw: unknown): SpeakingError | null {
   };
 }
 
-function readError(data: unknown, status: number): string {
-  const d = (data && typeof data === "object" ? data : {}) as Record<
-    string,
-    unknown
-  >;
-  if (typeof d.error === "string" && d.error.trim()) return d.error;
-  if (status === 401 || status === 403) return "Coach access required.";
-  return `Request failed (HTTP ${status}).`;
-}
-
-async function call<T>(
-  init: RequestInit,
-  pick: (data: unknown) => T,
-): Promise<LibraryResult<T>> {
-  let res: Response;
-  let data: unknown;
-  try {
-    res = await fetch("/api/v2/coach/speaking-errors", init);
-    data = await res.json().catch(() => ({}));
-  } catch {
-    return { ok: false, status: 0, message: "Network error. Try again." };
-  }
-  if (!res.ok) {
-    const code = (data as Record<string, unknown> | null)?.code;
-    return {
-      ok: false,
-      status: res.status,
-      message: readError(data, res.status),
-      ...(typeof code === "string" && code ? { code } : {}),
-    };
-  }
-  return { ok: true, data: pick(data) };
+function call<T>(init: RequestInit, pick: (data: unknown) => T): Promise<LibraryResult<T>> {
+  return messageCall("/api/v2/coach/speaking-errors", init, coachReadError, pick);
 }
 
 /** The whole library, retired entries included — an author who cannot see a
@@ -143,32 +113,4 @@ export function saveSpeakingError(draft: SpeakingErrorDraft) {
       return mapSpeakingError(d.error);
     },
   );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Client-side validation                                                     */
-/*                                                                            */
-/*  Mirrors ERROR_ID_SHAPE in services/speaking_error_library.py, which itself */
-/*  mirrors a CHECK constraint. Duplicated on purpose at every layer: matching */
-/*  is string overlap, so `word compression` and `word_compression` would      */
-/*  match nothing, raise nothing, and route nothing. The database is the real  */
-/*  guard; this exists so an author is told why before they submit.           */
-/* -------------------------------------------------------------------------- */
-
-export const ERROR_ID_SHAPE = /^[a-z][a-z0-9_]{1,62}$/;
-
-/** A sentence explaining the first problem with a draft, or null if it is
- *  ready to send. Field order matches the form's reading order. */
-export function draftProblem(draft: SpeakingErrorDraft): string | null {
-  if (!ERROR_ID_SHAPE.test(draft.errorId.trim())) {
-    return "The id needs lower-case letters, digits and underscores only, starting with a letter — matching is string overlap, so a space or a capital would match nothing.";
-  }
-  if (!draft.label.trim()) return "Give it a short human name.";
-  if (!draft.definition.trim()) {
-    return "Write what is measured. A name with no definition is exactly the defect the construct fence exists to prevent.";
-  }
-  if (!draft.asks.trim()) {
-    return "Write the single question this pattern answers — one thing, never two.";
-  }
-  return null;
 }

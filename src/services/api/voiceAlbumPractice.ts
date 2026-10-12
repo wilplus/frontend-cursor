@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/api/auth-client";
+import { bffFetch, bffOkBody } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
 /*  "Practice new" — clips still waiting for your Confident Voice answer.      */
@@ -51,11 +51,6 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-async function authHeaders(): Promise<HeadersInit> {
-  const token = await getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 function mapClip(raw: unknown): PracticeClip | null {
   const row = rec(raw);
   if (!row) return null;
@@ -80,24 +75,15 @@ function mapClip(raw: unknown): PracticeClip | null {
 
 /** null = the read failed; an empty `mine` = nothing left to answer. */
 export async function fetchPracticeQueue(): Promise<PracticeQueue | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  let response: Response;
-  try {
-    response = await fetch("/api/v2/voice-album/practice-queue", {
+  const body = rec(
+    await bffOkBody("/api/v2/voice-album/practice-queue", {
       method: "GET",
-      headers: await authHeaders(),
+      auth: "optional",
       credentials: "include",
       cache: "no-store",
-      signal: controller.signal,
-    });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!response.ok) return null;
-  const body = rec(await response.json().catch(() => null));
+      timeoutMs: 15_000,
+    }),
+  );
   if (!body) return null;
 
   const mine: PracticeClip[] = [];
@@ -117,21 +103,16 @@ export async function savePracticeAnswer(
   clip: PracticeClip,
   answer: PracticeAnswer
 ): Promise<boolean> {
-  let response: Response;
-  try {
-    response = await fetch("/api/v2/voice-album/practice-answer", {
-      method: "POST",
-      headers: { ...(await authHeaders()), "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        arc_id: clip.projectId,
-        take_session_id: clip.takeSessionId,
-        snippet_id: clip.snippetId,
-        response: answer,
-      }),
-    });
-  } catch {
-    return false;
-  }
-  return response.ok;
+  const response = await bffFetch("/api/v2/voice-album/practice-answer", {
+    method: "POST",
+    auth: "optional",
+    credentials: "include",
+    json: {
+      arc_id: clip.projectId,
+      take_session_id: clip.takeSessionId,
+      snippet_id: clip.snippetId,
+      response: answer,
+    },
+  });
+  return response.kind === "response" && response.ok;
 }
