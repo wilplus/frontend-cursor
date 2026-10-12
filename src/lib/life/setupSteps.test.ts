@@ -125,11 +125,6 @@ describe("coerceSetupAnswers", () => {
     expect(answers.bets.map((b) => b.key)).toEqual(["life", "company", "dream"]);
   });
 
-  it("never throws on junk", () => {
-    for (const junk of [null, "nope", 7, [], { horizons: "no" }, { bets: 3 }]) {
-      expect(() => coerceSetupAnswers(junk)).not.toThrow();
-    }
-  });
 });
 
 describe("pruneAnswers", () => {

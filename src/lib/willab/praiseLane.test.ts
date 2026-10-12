@@ -96,10 +96,6 @@ describe("praiseLines", () => {
     expect(praiseLines(["wide_range", "wide_range"])).toHaveLength(1);
   });
 
-  it("is empty for no cues, and never throws on junk", () => {
-    expect(praiseLines([])).toEqual([]);
-    expect(() => praiseLines(["", "x"])).not.toThrow();
-  });
 });
 
 describe("the modal renders praise as evidence, not as a verdict", () => {

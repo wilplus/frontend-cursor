@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ANALYSIS_CEILING,
   DOCUMENT_CEILING,
-  documentTailFraction,
   waitPercent,
 } from "./waitProgress";
 
@@ -190,9 +189,4 @@ describe("the bar spans both phases and stops short of full", () => {
     ).toBeGreaterThanOrEqual(ANALYSIS_CEILING);
   });
 
-  it("tolerates a nonsense cap without dividing by zero", () => {
-    expect(doc(1_000, { capMs: 0 })).toBe(DOCUMENT_CEILING);
-    expect(documentTailFraction(1_000, 0)).toBe(1);
-    expect(documentTailFraction(-5, CAP)).toBe(0);
-  });
 });

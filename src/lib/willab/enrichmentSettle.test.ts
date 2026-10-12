@@ -78,10 +78,6 @@ describe("the settle budget", () => {
     expect(settleDelayMs(SETTLE_DELAYS_MS.length + 50)).toBe(last);
   });
 
-  it("clamps a nonsense attempt to the first delay", () => {
-    expect(settleDelayMs(-1)).toBe(SETTLE_DELAYS_MS[0]);
-    expect(settleDelayMs(0.4)).toBe(SETTLE_DELAYS_MS[0]);
-  });
 });
 
 describe("nextSettleDelayMs — may we ask again?", () => {

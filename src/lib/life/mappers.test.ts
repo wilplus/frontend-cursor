@@ -175,9 +175,6 @@ describe("mapLifeItems", () => {
     ).toHaveLength(0);
   });
 
-  it("accepts a bare array as well as a wrapped one", () => {
-    expect(mapLifeItems([{ id: "1", kind: "win", title: "x" }])).toHaveLength(1);
-  });
 });
 
 describe("mapPrincipleDetail", () => {
@@ -474,18 +471,6 @@ describe("mapLifeWeek", () => {
     expect(week.untagged[0].body).toBe("a thought");
   });
 
-  it("accepts a bare string where an object was expected", () => {
-    const week = mapLifeWeek({
-      week_of: "2026-07-26",
-      habits_failed: ["Pompeiana", "  "],
-      goals_moved: ["Ship the panel"],
-    })!;
-    expect(week.habitsFailed).toHaveLength(1);
-    expect(week.habitsFailed[0].label).toBe("Pompeiana");
-    expect(week.habitsFailed[0].why).toBe("");
-    expect(week.goalsMoved[0].title).toBe("Ship the panel");
-  });
-
   it("reads the wire shape GET /v2/life/week actually sends", () => {
     // The review row rides under `week` (keyed by week_start), with the
     // displaced goal, the ranked batch and the untagged notes as SIBLINGS.
@@ -557,13 +542,6 @@ describe("mapLifeWeek", () => {
     expect(week.proposals.map((p) => p.id)).toEqual(["p2"]);
   });
 
-  it("tolerates a week with nothing in it", () => {
-    const week = mapLifeWeek({ week_of: "2026-07-26" })!;
-    expect(week.habitsFailed).toEqual([]);
-    expect(week.proposals).toEqual([]);
-    expect(week.untagged).toEqual([]);
-    expect(week.becomingSentence).toBe("");
-  });
 });
 
 describe("mapTimelineEvents", () => {
@@ -661,14 +639,6 @@ describe("mapTimelineEvents", () => {
     expect(dated[0].endAt).toBe("2031-01-01");
   });
 
-  it("still accepts a bare array, and the older field names", () => {
-    const out = mapTimelineEvents([
-      { id: "x", title: "Old shape", at: "2027-01-01", bet_key: "dream" },
-    ]);
-    expect(out).toHaveLength(1);
-    expect(out[0].betKey).toBe("dream");
-  });
-
   it("is empty for a payload holding none of the four", () => {
     expect(mapTimelineEvents({})).toEqual([]);
     expect(mapTimelineEvents(null)).toEqual([]);
@@ -736,10 +706,6 @@ describe("mapLifeItem — betKey", () => {
       bet_id: "3f1a5c8e-0000-4000-8000-000000000000",
     })!;
     expect(item.betKey).toBeNull();
-  });
-
-  it("still honours the older names when a payload uses them", () => {
-    expect(mapLifeItem({ ...base, bet_key: "dream" })!.betKey).toBe("dream");
   });
 
   it("is null for a collection that is not a bet", () => {

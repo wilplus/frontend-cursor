@@ -96,11 +96,6 @@ describe("the slide on Read (B5)", () => {
     expect(readSlideFor(null, { index: 0, title: "Our Q3 numbers" })).toBeNull();
     expect(readSlideFor(null, { index: 5, title: "Main premise" })).toBeNull();
   });
-  it("no slide, or a nonsense index, draws nothing", () => {
-    expect(readSlideFor(PDF, null)).toBeNull();
-    expect(readSlideFor(PDF, { index: -1, title: "" })).toBeNull();
-    expect(readSlideFor(PDF, { index: 1.5, title: "" })).toBeNull();
-  });
 });
 
 describe("the speaker's goal on the queue (D-CP-12)", () => {

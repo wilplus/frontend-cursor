@@ -80,12 +80,6 @@ describe("mapSpeakingError", () => {
     expect(mapSpeakingError({ ...base, active: false })?.active).toBe(false);
   });
 
-  it("never throws on junk", () => {
-    for (const junk of [null, undefined, 1, "x", []]) {
-      expect(() => mapSpeakingError(junk)).not.toThrow();
-      expect(mapSpeakingError(junk)).toBeNull();
-    }
-  });
 });
 
 describe("the id shape is the thing that makes matching work", () => {

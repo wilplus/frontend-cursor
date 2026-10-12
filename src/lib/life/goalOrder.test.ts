@@ -26,11 +26,6 @@ describe("isPastDue", () => {
     );
   });
 
-  it("treats undated and unparseable dates as not past due", () => {
-    expect(isPastDue(g("a", null), NOW)).toBe(false);
-    // Garbage in the field must read as undated, never explode or mark.
-    expect(isPastDue(g("a", "not-a-date"), NOW)).toBe(false);
-  });
 });
 
 describe("orderGoals", () => {

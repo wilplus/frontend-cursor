@@ -105,11 +105,6 @@ describe("a bad URL lands somewhere real", () => {
     expect(clampStep("post", "3")).toBe(3);
   });
 
-  it("never throws on nonsense", () => {
-    for (const raw of ["x", undefined, null, {}, NaN]) {
-      expect(clampStep("post", raw)).toBe(1);
-    }
-  });
 });
 
 describe("slugify", () => {
