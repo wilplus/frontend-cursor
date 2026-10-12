@@ -1,11 +1,8 @@
 import "server-only";
-import { NextRequest, NextResponse } from "next/server";
-import { relayJson } from "@/app/api/_lib/afterPracticeRelay";
+import { proxyRoute } from "@/app/api/_lib/proxyRoute";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /** One answer on another speaker's moment: {clip_id, value}. */
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  return relayJson(req, "/v2/user/communities/answers", "POST");
-}
+export const POST = proxyRoute("POST", "/v2/user/communities/answers", { body: "json" });
