@@ -8,6 +8,7 @@ import {
   saveWhatsAppPhone,
 } from "@/services/api/whatsapp";
 import { hasOffer, offerDraft, readOfferType, type OfferType } from "./loungeOffers";
+import SymmetricPair from "./SymmetricPair";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabWhatsAppPrompt — the second Lounge offer (founder 2026-10-12).       */
@@ -127,8 +128,9 @@ function offeredSince(messages: LoungeMessage[], since: string): boolean {
   return messages.some((m) => readOfferType(m.metadata) !== null && m.client_created_at >= since);
 }
 
-/** The footer while the WhatsApp offer is open: Not now | number | Save in
- *  one row. `onResolve` returns the record button. */
+/** The footer while the WhatsApp offer is open: the number field in a grey
+ *  card, then Not now | Save, as the install offer. `onResolve` returns the
+ *  record button. */
 export function WhatsAppOfferActions({
   offer,
   onResolve,
@@ -159,26 +161,17 @@ export function WhatsAppOfferActions({
     onResolve();
   };
 
-  // One compact row (founder 2026-10-12: "smaller so it fits the screen"):
-  // Not now | number | Save, the pills matching SymmetricPair's.
+  // Laid out like the install offer (founder 2026-10-12): the grey card on
+  // top (here the number field), then the same Not now | Save pair below.
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
-      <div className="flex items-stretch gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            offer.softDismiss();
-            onResolve();
-          }}
-          className="flex h-11 shrink-0 items-center justify-center rounded-full border border-border px-4 text-[15px] text-foreground transition-colors hover:border-primary/50"
-        >
-          {WHATSAPP_COPY.notNow}
-        </button>
+    <div className="flex flex-col gap-3">
+      <form
+        className="rounded-xl bg-muted p-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
         <input
           type="tel"
           inputMode="tel"
@@ -192,21 +185,23 @@ export function WhatsAppOfferActions({
             if (error) setError(null);
           }}
           disabled={saving}
-          className="h-11 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex h-11 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {saving ? WHATSAPP_COPY.saving : WHATSAPP_COPY.save}
-        </button>
-      </div>
-      {error ? (
-        <p role="alert" className="mt-2 px-1 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </form>
+        {error ? (
+          <p role="alert" className="mt-2 text-[13px] text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </form>
+      <SymmetricPair
+        closeLabel={WHATSAPP_COPY.notNow}
+        onClose={() => {
+          offer.softDismiss();
+          onResolve();
+        }}
+        actionLabel={saving ? WHATSAPP_COPY.saving : WHATSAPP_COPY.save}
+        onAction={() => void save()}
+      />
+    </div>
   );
 }
