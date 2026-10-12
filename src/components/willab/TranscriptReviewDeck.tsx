@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Pencil } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import DeckChunkModal, {
   type LockResult,
@@ -28,7 +28,6 @@ import {
   useHeadlinesWithPending,
 } from "@/components/willab/useSlideHeadlines";
 import type { RootPhraseSpan } from "@/services/api/partLock";
-import DeckLockMark from "@/components/willab/DeckLockMark";
 import MarkedEditor from "@/components/willab/MarkedEditor";
 import { RichText } from "@/components/willab/RichText";
 import { parseRichSpans } from "@/lib/willab/richMarkers";
@@ -1248,16 +1247,6 @@ export default function TranscriptReviewDeck({
                 <p className="min-w-0 flex-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground md:flex-none">
                   {kickerFor(g.slideIndex, slideCount)}
                 </p>
-                {/* A SMALL PENCIL, NOT A WORD (founder 2026-09-26). */}
-                <button
-                  type="button"
-                  onClick={() => setEditingSlideIndex(g.slideIndex)}
-                  aria-label="Edit the text"
-                  title="Edit the text"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden />
-                </button>
                 </div>
               </div>
               {/* The INNER chunk scroller: overscroll-contained so the
@@ -1337,13 +1326,13 @@ export default function TranscriptReviewDeck({
                         // An open moment opens the walk there, when it is on
                         // (Q-B3 A); an answered one plays the walk again from
                         // it (founder 2026-10-10); one with no moment its sheet.
+                        // Other text does nothing (lock 2026-10-12, section 4).
                         if (feedbackWalk.tapPart(c.part.id, unsettled)) return;
-                        if (feedbackWalk.replayPart(c.part.id)) return;
-                        if (!walk.openPart(c.part.id)) openParagraph(c);
+                        feedbackWalk.replayPart(c.part.id);
                       })}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground"
+                      className="relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground active:bg-muted"
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
@@ -1369,60 +1358,8 @@ export default function TranscriptReviewDeck({
                           c.displayText ?? c.part.text,
                           headlines.get(c.part.id),
                         )}
-                        tintClass="italic"
+                        tintClass="text-primary"
                       />
-                      {/* THE MARK IS FOR THE CONFIDENT VOICE QUESTION
-                          (founder 2026-09-17: "show it only when there is a
-                          confident voice judgement waiting under that
-                          bookmark").
-
-                          A mark at the end of every paragraph is a column of
-                          identical icons down the length of a talk, which
-                          reads as decoration and teaches the eye to skip the
-                          ones that mean something.
-
-                          VISIBILITY ONLY. Nothing behind the mark changes —
-                          the sheet, the ladder, the lock and the inventory are
-                          untouched, and every item the Manager approved is
-                          still there when it opens. */}
-                      {unsettled ? (
-                      <DeckLockMark
-                        status={c.status}
-                        tier={c.tier}
-                        flagship={summaryByParagraph.get(c.part.id)?.some((item) => item.isOrange) === true || Boolean(c.part.rootPhrase) || parseRichSpans(c.part.text).some(
-                          (span) => span.highlight && span.text.trim().length > 0
-                        )}
-                        onClick={() => {
-                          if (feedbackWalk.tapPart(c.part.id, true)) return;
-                          // Joins the walk at this bookmark (Q29 A).
-                          if (!walk.openPart(c.part.id)) openParagraph(c);
-                        }}
-                        // THE COACH'S MESSAGE, VISIBLE FROM THE LOCK (founder
-                        // 2026-08-11). The same join the modal already runs,
-                        // now run per chunk so the page can say WHICH chunk
-                        // carries it. Free: `coachMomentForChunk` is a pure
-                        // anchor lookup over the served document, and the
-                        // metered feedback read still fires only on the tap
-                        // inside the modal.
-                        hasCoach={
-                          summaryByParagraph.get(c.part.id)?.some((item) => item.hasCoachUpdate) === true ||
-                          st.coach.hasFeedback
-                        }
-                        hasUnreadCoachUpdate={
-                          summaryByParagraph.get(c.part.id)
-                            ?.some((item) => item.hasUnreadCoachUpdate) === true
-                        }
-                        reviewStatus={st.coach.reviewStatus}
-                        // THE STYLE LANE'S HANDLE (founder 2026-08-12). Same
-                        // shape as the coach dot, and for the same reason: the
-                        // proposal lives only inside the modal, so without a
-                        // mark on the page the only way to find it is to open
-                        // every locked chunk in turn. `styleFor` is the pure
-                        // overlap the modal already runs on the open chunk —
-                        // run per chunk here, it costs one span comparison.
-                        hasStyle={st.style !== null}
-                      />
-                      ) : null}
                     </p>
                     );
                   })}
