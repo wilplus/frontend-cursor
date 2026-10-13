@@ -71,6 +71,11 @@ import {
   InstallOfferActions,
   type InstallOffer,
 } from "./WillabInstallPrompt";
+import {
+  useWhatsAppOffer,
+  WhatsAppOfferActions,
+  type WhatsAppOffer,
+} from "./WillabWhatsAppPrompt";
 import SymmetricPair from "./SymmetricPair";
 import OfferBubble from "./OfferBubble";
 import {
@@ -995,7 +1000,7 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { joke: 2, install: 1 };
+    const rank: Record<OfferType, number> = { joke: 2, install: 1, whatsapp: 0 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -1058,6 +1063,20 @@ export default function Lounge({
     thread.append,
     openOffer,
   ]);
+
+  // The second offer (founder 2026-10-12): a WhatsApp number for "The feedback
+  // from your coach is in!". It waits for the install offer and a free footer;
+  // its trigger lives in the hook (same fresh-send gate as install above).
+  const whatsapp = useWhatsAppOffer({
+    state,
+    messages,
+    threadLoading: thread.loading,
+    append: thread.append,
+    settleTimeRef,
+    installCanOffer: install.canOffer,
+    activeOffer,
+    openOffer,
+  });
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
@@ -1359,6 +1378,7 @@ export default function Lounge({
         <OfferActions
           type={activeOffer}
           install={install}
+          whatsapp={whatsapp}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1650,14 +1670,19 @@ function ActionButton({
 function OfferActions({
   type,
   install,
+  whatsapp,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
+  whatsapp: WhatsAppOffer;
   onResolve: () => void;
 }) {
   if (type === "install") {
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
+  }
+  if (type === "whatsapp") {
+    return <WhatsAppOfferActions offer={whatsapp} onResolve={onResolve} />;
   }
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
