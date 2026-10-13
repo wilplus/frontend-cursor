@@ -227,7 +227,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 </EmbeddedCheckoutProvider>
               </div>
             ) : (
-            <form className="grid max-w-[460px] gap-4" onSubmit={submit} noValidate>
+            <form className="grid max-w-[460px] gap-4" onSubmit={(e) => void submit(e, !!signedIn?.allow_skip_payment)} noValidate>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-name">
                 Your name
                 <input id="bk-name" className={field} autoComplete="name" value={form.name}
@@ -246,14 +246,15 @@ export default function BookingPage({ info }: { info: PageInfo }) {
               </label>
               {error && <p className="text-[13px] text-destructive">{error}</p>}
               <div>
-                <button type="submit" disabled={sending || !!signedIn?.preview}
-                  className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                  {sending ? "Opening payment…" : `Continue to payment · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
-                </button>
-                {signedIn?.allow_skip_payment && (
+                {signedIn?.allow_skip_payment ? (
                   <button type="button" disabled={sending || !!signedIn?.preview} onClick={(e) => void submit(e, true)}
-                    className="ml-2 rounded-[10px] border border-border px-[18px] py-3 font-semibold disabled:opacity-60">
+                    className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
                     Book without paying
+                  </button>
+                ) : (
+                  <button type="submit" disabled={sending || !!signedIn?.preview}
+                    className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
+                    {sending ? "Opening payment…" : `Continue to payment · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                   </button>
                 )}
               </div>
