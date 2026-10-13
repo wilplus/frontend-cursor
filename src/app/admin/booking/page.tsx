@@ -27,6 +27,7 @@ interface Settings {
   meet_url: string;
   enabled: boolean;
   bonus_tokens: number;
+  new_user_discount_pct: number;
 }
 
 interface Booking {
@@ -169,6 +170,11 @@ function BookingAdmin() {
             </label>
             <div className="grid gap-3.5 sm:grid-cols-2">
               {numSelect("duration_min", [30, 45, 60, 90], "min", "Length")}
+              <label className={label} htmlFor="bk-newpct">
+                First lesson off for new people (%)
+                <input id="bk-newpct" className={field} type="number" min="0" max="100" step="5" value={s.new_user_discount_pct ?? 0}
+                  onChange={(e) => set("new_user_discount_pct", Math.min(100, Math.max(0, Number(e.target.value) || 0)))} />
+              </label>
               <label className={label} htmlFor="bk-bonus">
                 Tokens with each lesson
                 <input id="bk-bonus" className={field} type="number" min="0" step="1000" value={s.bonus_tokens}

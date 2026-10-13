@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const FIELDS = [
   "slug", "title", "host_name", "duration_min", "price_cents", "currency",
   "buffer_before_min", "buffer_after_min", "notice_hours", "horizon_days",
-  "timezone", "weekly_hours", "calendar_ics_url", "meet_url", "enabled", "bonus_tokens",
+  "timezone", "weekly_hours", "calendar_ics_url", "meet_url", "enabled", "bonus_tokens", "new_user_discount_pct",
 ];
 
 /* PUT /api/v2/admin/booking/settings — save. The body is rebuilt from the
