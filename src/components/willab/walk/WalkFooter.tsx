@@ -13,7 +13,7 @@ export type WalkAction = {
   testId?: string;
 };
 
-export function WalkPill({ action, dot = false }: { action: WalkAction; dot?: boolean }) {
+export function WalkPill({ action, dot = false, outline = false }: { action: WalkAction; dot?: boolean; outline?: boolean }) {
   return (
     <button
       type="button"
@@ -21,7 +21,10 @@ export function WalkPill({ action, dot = false }: { action: WalkAction; dot?: bo
       data-testid={action.testId}
       onClick={action.onClick}
       disabled={action.disabled}
-      className="walk-press flex h-[54px] w-full items-center justify-center gap-[9px] rounded-full bg-foreground text-center text-[16px] font-semibold text-background disabled:cursor-default disabled:opacity-30"
+      data-walk-pill-outline={outline ? "true" : undefined}
+      className={`walk-press flex h-[54px] w-full items-center justify-center gap-[9px] rounded-full text-center text-[16px] font-semibold disabled:cursor-default disabled:opacity-30 ${
+        outline ? "border-[1.5px] border-foreground bg-background text-foreground" : "bg-foreground text-background"
+      }`}
     >
       {dot ? <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-record" /> : null}
       {action.label}
@@ -47,19 +50,23 @@ export function WalkLink({ action }: { action: WalkAction }) {
 export default function WalkFooter({
   pill,
   dot = false,
+  outline = false,
   links = [],
   children,
 }: {
   pill?: WalkAction | null;
   /** The record dot inside the pill ("Record Take N"). */
   dot?: boolean;
+  /** White with a black outline: Practise in the voice Exercise's thread
+   *  (founder 2026-10-13, P2 A). */
+  outline?: boolean;
   links?: readonly WalkAction[];
   children?: ReactNode;
 }) {
   return (
     <div data-walk-footer className="flex flex-col gap-1 px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
       {children}
-      {pill ? <WalkPill action={pill} dot={dot} /> : null}
+      {pill ? <WalkPill action={pill} dot={dot} outline={outline} /> : null}
       {links.map((link) => (
         <WalkLink key={link.label} action={link} />
       ))}

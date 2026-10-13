@@ -77,7 +77,8 @@ function TryBubble({
   moment: FeedbackWalkMoment<unknown>;
   attempt?: number;
 }) {
-  const tried = ctx.tryOf(moment.index)?.audio ?? null;
+  const own = ctx.tryOf(moment.index);
+  const tried = (attempt != null ? own?.audios?.[attempt] : undefined) ?? own?.audio ?? null;
   const clip = tried
     ? { src: tried.url, startOffsetMs: 0, durationMs: tried.durationMs }
     : moment.clip
@@ -115,6 +116,36 @@ function lineAbove(step: WalkStep, moment: FeedbackWalkMoment<unknown>): string 
   return WALK_COPY.lineA;
 }
 
+/** The recorder's footer (N70): the Take's strip, then Skip as its Back
+ *  and a red Stop as its Finish take, because a practise is one sentence. */
+function RecorderFooter({ ctx }: { ctx: PractiseScreenCtx }) {
+  return (
+    <div data-walk-footer className="flex flex-col px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
+      <RecordingStrip elapsed={ctx.elapsed} />
+      <div className="mt-2.5 flex gap-2.5">
+        <button
+          type="button"
+          data-testid="walk-skip"
+          onClick={ctx.skip}
+          className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground"
+        >
+          {WALK_COPY.skip}
+        </button>
+        <button
+          type="button"
+          data-testid="walk-stop"
+          onClick={ctx.stop}
+          aria-label={COPY.pillStop}
+          className="flex h-12 flex-1 shrink-0 items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground"
+        >
+          <span className="h-3 w-3 shrink-0 rounded-[2px] bg-current" aria-hidden />
+          {COPY.pillStop}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** The recorder (lock 2026-10-12, section 2.5): "Practise · Slide N" and ✕,
  *  the bubble, the words centred in the space left, the strip and the pair. */
 function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
@@ -124,33 +155,7 @@ function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
       testId={testId(step)}
       where={WALK_COPY.practiseWhere(moment.slideLabel ?? COPY.titlePractise)}
       onClose={ctx.back}
-      footer={
-        <div data-walk-footer className="flex flex-col px-5 pb-[max(30px,env(safe-area-inset-bottom))] pt-2">
-          <RecordingStrip elapsed={ctx.elapsed} />
-          {/* The recording screen's pair (N70): Skip as its Back, a red Stop
-              as its Finish take, because a practise is one sentence. */}
-          <div className="mt-2.5 flex gap-2.5">
-            <button
-              type="button"
-              data-testid="walk-skip"
-              onClick={ctx.skip}
-              className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground"
-            >
-              {WALK_COPY.skip}
-            </button>
-            <button
-              type="button"
-              data-testid="walk-stop"
-              onClick={ctx.stop}
-              aria-label={COPY.pillStop}
-              className="flex h-12 flex-1 shrink-0 items-center justify-center gap-2 rounded-2xl bg-record text-[15px] font-semibold text-record-foreground"
-            >
-              <span className="h-3 w-3 shrink-0 rounded-[2px] bg-current" aria-hidden />
-              {COPY.pillStop}
-            </button>
-          </div>
-        </div>
-      }
+      footer={<RecorderFooter ctx={ctx} />}
     >
       <WalkMessage coach={coach} wide>
         {lineAbove(step, moment)}
@@ -162,14 +167,21 @@ function Practise(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMo
   );
 }
 
+/** The breathing mark while the machine checks the try. */
+function Checking() {
+  return (
+    <div data-walk-loading className="flex justify-center py-5">
+      <LoadingState placement="surface" />
+    </div>
+  );
+}
+
 /** The try is with the machine: its bubble stays, the mark breathes under it. */
 function Processing(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   return (
     <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close}>
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <div data-walk-loading className="flex justify-center py-5">
-        <LoadingState placement="surface" />
-      </div>
+      <Checking />
     </WalkOverlay>
   );
 }
@@ -183,28 +195,40 @@ function Done({ ctx, line }: { ctx: PractiseScreenCtx; line: string }) {
   );
 }
 
-function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+/** A footer whose only action is Next, after `step` is answered "ok". */
+function NextFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
   const ok = () => {
     ctx.answer(step, "ok");
     ctx.forward();
   };
+  return <WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />;
+}
+
+function ImprovedMessage({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  return (
+    <WalkMessage>
+      <span>{COPY.titlePraise}</span>
+      <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+    </WalkMessage>
+  );
+}
+
+function Improved(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
+      footer={<NextFooter ctx={ctx} step={step} />}
     >
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <WalkMessage>
-        <span>{COPY.titlePraise}</span>
-        <span>{improvedLine(ctx.plan, ctx.at(step), ctx.say)}</span>
-      </WalkMessage>
+      <ImprovedMessage ctx={ctx} step={step} />
     </WalkOverlay>
   );
 }
 
-function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+/** "Practise again" and Skip under a "not yet"; outlined in the thread. */
+function EncourageFooter({ ctx, step, outline = false }: { ctx: PractiseScreenCtx; step: WalkStep; outline?: boolean }) {
   const given = ctx.answered(step);
   const again = () => {
     ctx.answer(step, "again");
@@ -214,30 +238,39 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
     ctx.answer(step, "skip");
     ctx.skip();
   };
+  if (given) return <Done ctx={ctx} line={given === "again" ? WALK_COPY.answeredPractised : WALK_COPY.answeredSkipped} />;
+  return (
+    <WalkFooter
+      dot
+      outline={outline}
+      pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }}
+      links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
+    />
+  );
+}
+
+/** The "not yet": the AI clip in the voice Exercise, else the encouragement. */
+function EncourageMessage({ ctx, step, moment }: { ctx: PractiseScreenCtx; step: WalkStep; moment: FeedbackWalkMoment<unknown> }) {
+  return (
+    aiInstead(ctx, step, moment) ?? (
+      <WalkMessage>
+        <span>{COPY.titlePractise}</span>
+        <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+      </WalkMessage>
+    )
+  );
+}
+
+function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      footer={
-        given ? (
-          <Done ctx={ctx} line={given === "again" ? WALK_COPY.answeredPractised : WALK_COPY.answeredSkipped} />
-        ) : (
-          <WalkFooter
-            dot
-            pill={{ label: COPY.pillPractiseAgain, onClick: again, testId: "walk-forward" }}
-            links={[{ label: WALK_COPY.skip, onClick: skip, testId: "walk-skip" }]}
-          />
-        )
-      }
+      footer={<EncourageFooter ctx={ctx} step={step} />}
     >
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      {aiInstead(ctx, step, moment) ?? (
-        <WalkMessage>
-          <span>{COPY.titlePractise}</span>
-          <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
-        </WalkMessage>
-      )}
+      <EncourageMessage ctx={ctx} step={step} moment={moment} />
     </WalkOverlay>
   );
 }
@@ -262,16 +295,12 @@ function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
 /** After the third try that is not praise (CM3b A): the signed move-on line
  *  alone, and Next. */
 function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
-  const ok = () => {
-    ctx.answer(step, "ok");
-    ctx.forward();
-  };
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      footer={<WalkFooter pill={{ label: COPY.pagerNext, onClick: ok, testId: "walk-forward" }} />}
+      footer={<NextFooter ctx={ctx} step={step} />}
     >
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
       <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>
@@ -279,27 +308,91 @@ function Thanks(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMome
   );
 }
 
+/** Next, and Practise again while a try is left, after a late read (O5). */
+function LateFooter({ ctx, step }: { ctx: PractiseScreenCtx; step: WalkStep }) {
+  return (
+    <WalkFooter
+      pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }}
+      links={triesLeft(step) ? [{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }] : []}
+    />
+  );
+}
+
 /** A late or failed read (O5): the try is not reached yet. */
 function Late(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
   return (
-    <WalkOverlay
-      testId={testId(step)}
-      nav={ctx.nav(step, moment)}
-      onClose={ctx.close}
-      footer={
-        <WalkFooter
-          pill={{ label: COPY.pagerNext, onClick: ctx.skip, testId: "walk-forward" }}
-          links={
-            triesLeft(step)
-              ? [{ label: COPY.pillPractiseAgain, onClick: ctx.again, testId: "walk-again" }]
-              : []
-          }
-        />
-      }
-    >
+    <WalkOverlay testId={testId(step)} nav={ctx.nav(step, moment)} onClose={ctx.close} footer={<LateFooter ctx={ctx} step={step} />}>
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
     </WalkOverlay>
   );
+}
+
+/* ---- the voice Exercise's thread (founder 2026-10-13, P1 A, P2 A) -------- */
+/*  Each practise step's own bubbles, piled under the ones before in one      */
+/*  overlay (FeedbackWalk draws it): the words to say in quotes, the try as   */
+/*  it records and then its voice, the check, the answer. Only the current    */
+/*  step has a footer.                                                        */
+
+/** The speaker's try while it records: their orange bubble, a dot pulsing. */
+function LiveTry({ attempt }: { attempt?: number }) {
+  return (
+    <div data-walk-live-try className="flex justify-end">
+      <span className="inline-flex items-center gap-2.5 rounded-[22px] bg-primary px-[17px] py-[13px] text-[16px] font-semibold text-primary-foreground">
+        <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-primary-foreground motion-safe:animate-pulse" />
+        {WALK_COPY.practiseN(attempt ?? 1)}
+      </span>
+    </div>
+  );
+}
+
+/** A practise step's bubbles in the thread. */
+export function practiseThreadItem(
+  ctx: PractiseScreenCtx,
+  step: WalkStep,
+  moment: FeedbackWalkMoment<unknown>,
+  current: boolean,
+): ReactNode {
+  switch (step.key) {
+    case "practise":
+      return (
+        <>
+          <WalkMessage coach={step.kind === "instruction" && moment.exercise?.byCoach === true} wide>
+            <span>{lineAbove(step, moment)}</span>
+            <span>
+              “<span data-walk-say>{wordsToSay(step, moment)}</span>”
+            </span>
+          </WalkMessage>
+          {current ? <LiveTry attempt={step.attempt} /> : <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />}
+        </>
+      );
+    case "processing":
+      return current ? <Checking /> : null;
+    case "improved":
+      return <ImprovedMessage ctx={ctx} step={step} />;
+    case "encourage":
+      return <EncourageMessage ctx={ctx} step={step} moment={moment} />;
+    case "thanks":
+      return <WalkMessage>{thanksLine(ctx.plan, ctx.at(step), ctx.say)}</WalkMessage>;
+    default:
+      return null;
+  }
+}
+
+/** The thread's footer while `step` is the current one. */
+export function practiseThreadFooter(ctx: PractiseScreenCtx, step: WalkStep): ReactNode {
+  switch (step.key) {
+    case "practise":
+      return <RecorderFooter ctx={ctx} />;
+    case "improved":
+    case "thanks":
+      return <NextFooter ctx={ctx} step={step} />;
+    case "encourage":
+      return <EncourageFooter ctx={ctx} step={step} outline />;
+    case "late":
+      return <LateFooter ctx={ctx} step={step} />;
+    default:
+      return null;
+  }
 }
 
 const SCREENS: Partial<

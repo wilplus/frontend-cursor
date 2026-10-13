@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import CoachVideo from "../CoachVideo";
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "../idealEditCopy";
 import { useGuestBlock } from "../GuestSignUpDialog";
@@ -10,7 +10,7 @@ import WalkMessage, { WalkNewWords } from "./WalkMessage";
 import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkWordPicker from "./WalkWordPicker";
-import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
+import { practiseThreadFooter, practiseThreadItem, renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScreens";
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
@@ -21,7 +21,7 @@ import type { WalkJournalPost } from "./WalkJudgementScreens";
 import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
-import { loopEnd } from "@/lib/willab/walkPractise";
+import { loopEnd, threadStart } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
@@ -449,9 +449,16 @@ export default function FeedbackWalk<R = unknown>({
     onOthers,
   };
 
+  // The voice Exercise's thread is one screen to the stage: its steps change
+  // inside it, and only leaving it moves (founder 2026-10-13, P1 A).
+  const stage =
+    threadStart(plan, at) >= 0
+      ? { key: "thread", moment: step.moment, overlay: step.overlay, real: step }
+      : { ...step, real: step };
+
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      <WalkStage screen={step} dir={dir} render={(s) => renderScreen(ctx, s, backFromPractise)} />
+      <WalkStage screen={stage} dir={dir} render={(s) => renderScreen(ctx, s.real, backFromPractise)} />
     </div>
   );
 }
@@ -710,44 +717,101 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  is one (the coach's, else the library's), the instruction (else Line A);
  *  Practise with the red dot, Skip. Nothing here waits on a coach (WQ2 B). */
 function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
-  const exercise = moment.exercise;
-  if (!exercise) return null;
-  const given = ctx.answered(step);
+  if (!moment.exercise) return null;
   return (
     <WalkOverlay
       testId={testId(step)}
       nav={ctx.nav(step, moment)}
       onClose={ctx.close}
-      footer={
-        given ? (
-          <Answered
-            ctx={ctx}
-            line={given === "go" ? WALK_COPY.answeredPractised : given === "skip" ? WALK_COPY.answeredSkipped : WALK_COPY.answered}
-          />
-        ) : (
-          <WalkFooter
-            dot
-            pill={{ label: WALK_COPY.exercisePractise, onClick: () => ctx.exercise(step), testId: "walk-forward" }}
-            links={[{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }]}
-          />
-        )
-      }
+      footer={<ExerciseFooter ctx={ctx} step={step} />}
     >
-      <Clip moment={moment} />
-      {aiExercise(ctx, step, moment) ?? (
-      <WalkMessage coach={exercise.byCoach} wide>
-        <span>{COPY.titleExercise}</span>
-        {exercise.video ? (
-          <CoachVideo
-            src={exercise.video}
-            className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
-          />
-        ) : null}
-        <span>{exercise.instruction ?? WALK_COPY.lineA}</span>
-      </WalkMessage>
-      )}
+      <ExerciseBody ctx={ctx} step={step} moment={moment} />
     </WalkOverlay>
   );
+}
+
+/** Practise with the red dot and Skip, or the answer once given. Outlined in
+ *  the thread (founder 2026-10-13, P2 A). */
+function ExerciseFooter<R>({ ctx, step, outline = false }: { ctx: ScreenCtx<R>; step: WalkStep; outline?: boolean }) {
+  const given = ctx.answered(step);
+  if (given) {
+    return (
+      <Answered
+        ctx={ctx}
+        line={given === "go" ? WALK_COPY.answeredPractised : given === "skip" ? WALK_COPY.answeredSkipped : WALK_COPY.answered}
+      />
+    );
+  }
+  return (
+    <WalkFooter
+      dot
+      outline={outline}
+      pill={{ label: WALK_COPY.exercisePractise, onClick: () => ctx.exercise(step), testId: "walk-forward" }}
+      links={[{ label: WALK_COPY.skip, onClick: () => ctx.skipExercise(step), testId: "walk-skip" }]}
+    />
+  );
+}
+
+/** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise. */
+function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
+  const exercise = moment.exercise;
+  if (!exercise) return null;
+  return (
+    <>
+      <Clip moment={moment} />
+      {aiExercise(ctx, step, moment) ?? (
+        <WalkMessage coach={exercise.byCoach} wide>
+          <span>{COPY.titleExercise}</span>
+          {exercise.video ? (
+            <CoachVideo
+              src={exercise.video}
+              className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
+            />
+          ) : null}
+          <span>{exercise.instruction ?? WALK_COPY.lineA}</span>
+        </WalkMessage>
+      )}
+    </>
+  );
+}
+
+/** The voice Exercise as one thread (founder 2026-10-13, P1 A): the
+ *  Exercise, then every try, check and answer under the one before, in one
+ *  overlay that stays put; only the current step has a footer. */
+function Thread<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>, practiseCtx: PractiseScreenCtx) {
+  const at = ctx.at(step);
+  const steps = ctx.walk.plan.slice(Math.max(0, threadStart(ctx.walk.plan, at)), at + 1);
+  const footer =
+    step.key === "exVideo" ? <ExerciseFooter ctx={ctx} step={step} outline /> : practiseThreadFooter(practiseCtx, step);
+  return (
+    <WalkOverlay
+      testId={testId(step)}
+      nav={ctx.nav(step, moment)}
+      onClose={step.key === "practise" ? practiseCtx.back : ctx.close}
+      footer={footer}
+    >
+      {steps.map((s, i) => (
+        <Fragment key={`${s.key}:${s.attempt ?? 0}:${i}`}>
+          {s.key === "exVideo" ? (
+            <ExerciseBody ctx={ctx} step={s} moment={moment} />
+          ) : (
+            practiseThreadItem(practiseCtx, s, moment as FeedbackWalkMoment<unknown>, s === step)
+          )}
+        </Fragment>
+      ))}
+      <ThreadEnd count={steps.length} />
+    </WalkOverlay>
+  );
+}
+
+/** Keeps the newest bubble in view as the thread grows. */
+function ThreadEnd({ count }: { count: number }) {
+  const end = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    end.current?.scrollIntoView?.({ block: "end", behavior: reduce ? "auto" : "smooth" });
+  }, [count]);
+  return <div ref={end} aria-hidden className="h-px flex-none" />;
 }
 
 /** No video fits this problem: the AI clip in the video's place (N71), the
@@ -806,7 +870,6 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
   if (step.key === "praise") return Praise(ctx, step, moment);
   if (step.key === "helpers") return Helpers(ctx, step, moment);
   if (step.key === "clearer") return Clearer(ctx, step, moment);
-  if (step.key === "exVideo") return Exercise(ctx, step, moment);
   const practiseCtx: PractiseScreenCtx = {
     plan: ctx.walk.plan,
     at: ctx.at,
@@ -819,5 +882,7 @@ function renderScreen<R>(ctx: ScreenCtx<R>, step: WalkStep, backFromPractise: ()
     say: ctx.say,
     ...ctx.practise,
   };
+  if (threadStart(ctx.walk.plan, ctx.at(step)) >= 0) return Thread(ctx, step, moment, practiseCtx);
+  if (step.key === "exVideo") return Exercise(ctx, step, moment);
   return renderPractiseScreen(practiseCtx, step, moment as FeedbackWalkMoment<unknown>) ?? null;
 }

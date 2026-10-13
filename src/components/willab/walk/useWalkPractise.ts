@@ -53,6 +53,8 @@ export type WalkTry = {
   words: string | null;
   /** The try's voice, played on the screens after it. */
   audio: { url: string; durationMs: number } | null;
+  /** Each try's own voice by its number: the thread keeps every try. */
+  audios?: Record<number, { url: string; durationMs: number }>;
 };
 
 function within<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
@@ -282,7 +284,12 @@ export function useWalkPractise<R>(args: {
       urls.current.push(url);
       setTries((t) => ({
         ...t,
-        [moment]: { practiceId: t[moment]?.practiceId ?? "", words: null, audio: { url, durationMs: Math.round(durationSec * 1000) } },
+        [moment]: {
+          practiceId: t[moment]?.practiceId ?? "",
+          words: null,
+          audio: { url, durationMs: Math.round(durationSec * 1000) },
+          audios: { ...t[moment]?.audios, [attempt]: { url, durationMs: Math.round(durationSec * 1000) } },
+        },
       }));
       const practiceId = practiseIO ? await (opened.current.get(moment) ?? Promise.resolve(null)) : null;
       if (!practiseIO || !practiceId) {
