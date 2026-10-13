@@ -14,9 +14,13 @@ export default async function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const supabase = createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession reads the session cookie; getUser would add a Supabase round
+  // trip to every screen change under (protected). The middleware already
+  // verified the user on the document request, and every backend call
+  // verifies the token itself.
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session?.user) {
     redirect("/login?redirectTo=/dashboard");
   }
 

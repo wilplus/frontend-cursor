@@ -82,9 +82,13 @@ export function useAppMenuData(): AppMenuData {
     let cancelled = false;
 
     async function load() {
+      // getSession reads the stored session; getUser is a network round trip
+      // to Supabase on every screen that mounts the header. The menu only
+      // needs who is signed in; the backend verifies the token on every call.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
       if (cancelled) return;
       if (!user) {
         setAuthState("anonymous");

@@ -35,12 +35,22 @@ export default function AdminGate({
 
   useEffect(() => {
     let cancelled = false;
+    // SPEED (founder 2026-10-13: "tap and open"). After one confirmed probe in
+    // this tab, the next admin page renders at once and re-checks in the
+    // background; a "no" on the re-check still hides it. The remembered yes
+    // only skips the blank wait: every admin endpoint enforces
+    // @require_admin, so it opens no data.
+    if (rememberedAdmin()) setAllowed(true);
     void fetch("/api/v2/admin/whoami", { cache: "no-store" })
       .then((r) => {
-        if (!cancelled) setAllowed(r.ok);
+        if (cancelled) return;
+        remember(r.ok);
+        setAllowed(r.ok);
       })
       .catch(() => {
-        if (!cancelled) setAllowed(false);
+        if (cancelled) return;
+        remember(false);
+        setAllowed(false);
       });
     return () => {
       cancelled = true;
@@ -59,4 +69,23 @@ export default function AdminGate({
     );
   }
   return <>{children}</>;
+}
+
+const REMEMBER_KEY = "willab:admin-confirmed:v1";
+
+function rememberedAdmin(): boolean {
+  try {
+    return sessionStorage.getItem(REMEMBER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function remember(ok: boolean) {
+  try {
+    if (ok) sessionStorage.setItem(REMEMBER_KEY, "1");
+    else sessionStorage.removeItem(REMEMBER_KEY);
+  } catch {
+    /* storage blocked: every page probes, as before */
+  }
 }

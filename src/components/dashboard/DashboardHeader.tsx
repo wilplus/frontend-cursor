@@ -25,7 +25,7 @@ export default function DashboardHeader() {
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            href="/"
+            href={menu.authState === "signed_in" ? "/chat" : "/"}
             className="rounded transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="WillpowerLab home"
           >
