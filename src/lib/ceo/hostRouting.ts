@@ -27,6 +27,7 @@ const CEO_API_PATHS = [
   "/api/v2/admin/rings",
   "/api/v2/admin/learning",
   "/api/v2/admin/booking",
+  "/api/v2/admin/people",
   "/api/v2/research",
 ];
 /** BFF routes the CEO host serves WITHOUT taking them off the main host: the

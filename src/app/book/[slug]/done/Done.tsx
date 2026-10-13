@@ -1,3 +1,4 @@
+import Logo from "@/components/Logo";
 import { city, fmtDay, fmtTime, money } from "@/lib/booking/time";
 import { Shell, type PageInfo } from "../BookingPage";
 
@@ -12,6 +13,8 @@ export interface Confirmation {
   meet_url: string;
   price_cents: number;
   currency: string;
+  list_price_cents: number;
+  bonus_tokens: number;
 }
 
 export default function Done({ info, booking }: { info: PageInfo; booking: Confirmation | null }) {
@@ -19,7 +22,7 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
     return (
       <Shell>
         <div className="mx-auto grid max-w-[520px] gap-3.5">
-          <h1 className="font-heading text-[30px] leading-tight">We couldn&apos;t find this booking</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">We couldn&apos;t find this booking</h1>
           <p className="text-muted-foreground">
             If you paid, the confirmation email is on its way. If it doesn&apos;t arrive in a few minutes,
             write to artur@willonski.com.
@@ -38,12 +41,13 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
   return (
     <Shell>
       <div className="mx-auto grid max-w-[520px] gap-3.5">
+        <a href="/" className="mb-4 no-underline" aria-label="WillpowerLab home"><Logo /></a>
         <div className="grid h-10 w-10 place-items-center rounded-full bg-[hsl(var(--success))] text-white">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
             <path d="m5 12 5 5 9-10" />
           </svg>
         </div>
-        <h1 className="font-heading text-[30px] leading-tight">You&apos;re booked</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">You&apos;re booked</h1>
         <p className="text-muted-foreground">A calendar invite is on its way to {booking.guest_email}.</p>
         <dl className="grid border-t border-border">
           <div className={row}><dt className="text-muted-foreground">What</dt><dd>{booking.title} with {info.host_name}</dd></div>
@@ -57,7 +61,18 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
               <a href={booking.meet_url} className="underline" target="_blank" rel="noreferrer">{booking.meet_url}</a>
             </dd>
           </div>
-          <div className={row}><dt className="text-muted-foreground">Paid</dt><dd>{money(booking.price_cents, booking.currency)}</dd></div>
+          <div className={row}><dt className="text-muted-foreground">Paid</dt><dd>
+            {booking.price_cents < booking.list_price_cents && (
+              <s className="mr-2 text-muted-foreground">{money(booking.list_price_cents, booking.currency)}</s>
+            )}
+            {money(booking.price_cents, booking.currency)}
+          </dd></div>
+          {booking.bonus_tokens > 0 && (
+            <div className={row}>
+              <dt className="text-muted-foreground">Tokens</dt>
+              <dd>{booking.bonus_tokens.toLocaleString("en-US")} added to your account</dd>
+            </div>
+          )}
         </dl>
         <p className="text-sm text-muted-foreground">Need to cancel or move it? Reply to the confirmation email.</p>
       </div>

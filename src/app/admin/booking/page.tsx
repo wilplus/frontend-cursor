@@ -26,6 +26,7 @@ interface Settings {
   calendar_ics_url: string;
   meet_url: string;
   enabled: boolean;
+  bonus_tokens: number;
 }
 
 interface Booking {
@@ -37,7 +38,10 @@ interface Booking {
   guest_timezone: string;
   note: string;
   price_cents: number;
+  list_price_cents: number | null;
   currency: string;
+  bonus_tokens: number;
+  tokens_granted_at: string | null;
 }
 
 const DAYS: [string, string][] = [["1", "Mon"], ["2", "Tue"], ["3", "Wed"], ["4", "Thu"], ["5", "Fri"], ["6", "Sat"], ["0", "Sun"]];
@@ -131,6 +135,8 @@ function BookingAdmin() {
               <span>{b.guest_name} · {b.guest_email}</span>
               <span className="text-[13px] text-muted-foreground">
                 {fmtTime(st, b.guest_timezone, true)} their time ({city(b.guest_timezone)}) · paid {money(b.price_cents, b.currency)}
+                {b.list_price_cents && b.price_cents < b.list_price_cents ? ` (list ${money(b.list_price_cents, b.currency)})` : ""}
+                {b.bonus_tokens ? ` · ${b.bonus_tokens.toLocaleString("en-US")} tokens${b.tokens_granted_at ? " added" : " pending"}` : ""}
               </span>
               {b.note && <span className="text-[13px] text-muted-foreground">“{b.note}”</span>}
             </div>
@@ -163,6 +169,11 @@ function BookingAdmin() {
             </label>
             <div className="grid gap-3.5 sm:grid-cols-2">
               {numSelect("duration_min", [30, 45, 60, 90], "min", "Length")}
+              <label className={label} htmlFor="bk-bonus">
+                Tokens with each lesson
+                <input id="bk-bonus" className={field} type="number" min="0" step="1000" value={s.bonus_tokens}
+                  onChange={(e) => set("bonus_tokens", Math.max(0, Number(e.target.value) || 0))} />
+              </label>
               <label className={label} htmlFor="bk-price">
                 Price
                 <div className="flex gap-2.5">

@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import PendingCoachSend from "@/components/willab/PendingCoachSend";
 import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
+import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
 // Serif Display via Tailwind's `font-heading`, whose stack reads
@@ -94,6 +95,7 @@ export default function RootLayout({
         <Footer />
         <Toaster position="top-center" />
         <ServiceWorkerRegistrar />
+        <HomeScreenReporter />
         {/* Side-effect-only: claim the guest graph, then send the exact parked
             Project Take after OAuth. Renders nothing. */}
         <PendingCoachSend />

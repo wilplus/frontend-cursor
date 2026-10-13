@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Logo from "@/components/Logo";
 import {
   allZones, city, dayKey, detectedZone, fmtDay, fmtShortDay, fmtTime, gmtLabel, money, parts,
   prefers12h, zoned,
@@ -21,6 +22,18 @@ export interface PageInfo {
   currency: string;
   horizon_days: number;
   host_timezone: string;
+  bonus_tokens: number;
+}
+
+/** What the signed-in person pays and gets (GET .../offer). */
+export interface Offer {
+  list_price_cents: number;
+  price_cents: number;
+  currency: string;
+  bonus_tokens: number;
+  preview: boolean;
+  email?: string;
+  name?: string;
 }
 
 const ERRORS: Record<string, string> = {
@@ -33,21 +46,27 @@ const ERRORS: Record<string, string> = {
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function Meta({ info, tz, children }: { info: PageInfo; tz: string; children?: React.ReactNode }) {
+export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string; offer?: Offer | null; children?: React.ReactNode }) {
   const row = "flex items-center gap-2.5";
+  const price = offer ? offer.price_cents : info.price_cents;
+  const list = offer ? offer.list_price_cents : info.price_cents;
+  const tokens = offer ? offer.bonus_tokens : info.bonus_tokens;
   return (
     <div className="min-w-0 p-5 md:p-7">
-      <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-        <div className="grid h-9 w-9 place-items-center rounded-full border border-border bg-muted text-[13px] text-foreground">
-          AW
-        </div>
-        {info.host_name}
+      <a href="/" className="no-underline" aria-label="WillpowerLab home"><Logo /></a>
+      <div className="mt-2 flex items-center gap-2 text-[13px] text-muted-foreground">
+        <span className="grid h-6 w-6 place-items-center rounded-full border border-border bg-muted text-[10px] text-foreground">AW</span>
+        with {info.host_name}
       </div>
-      <h1 className="my-3.5 font-heading text-[30px] leading-tight [text-wrap:balance]">{info.title}</h1>
+      <h1 className="my-4 text-2xl font-semibold tracking-tight [text-wrap:balance]">{info.title}</h1>
       <div className="grid gap-2 text-sm text-muted-foreground">
         <div className={row}><Icon d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />{info.duration_min} min</div>
         <div className={row}><Icon d="M3 8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v10l-5-3" />Google Meet</div>
-        <div className={row}><Icon d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18" />{money(info.price_cents, info.currency)}</div>
+        <div className={row}><Icon d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18" /><span className="flex items-baseline gap-2">
+          {price < list && <s>{money(list, info.currency)}</s>}
+          <span className={price < list ? "font-semibold text-foreground" : ""}>{money(price, info.currency)}</span>
+        </span></div>
+        {tokens > 0 && <div className={row}><Icon d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" />Includes {tokens.toLocaleString("en-US")} tokens</div>}
         <div className={row}><Icon d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />{city(tz)}</div>
       </div>
       {children}
@@ -70,7 +89,9 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const [slots, setSlots] = useState<number[] | null>(null);
   const [selDay, setSelDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", note: "" });
+  const [form, setForm] = useState({ name: "", note: "" });
+  // null = still asking; "signed-out" = no account session.
+  const [offer, setOffer] = useState<Offer | "signed-out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const timesRef = useRef<HTMLDivElement>(null);
@@ -81,7 +102,19 @@ export default function BookingPage({ info }: { info: PageInfo }) {
     setH12(prefers12h());
     const p = parts(Date.now(), z);
     setMonth({ y: p.y, m: p.m });
-  }, []);
+    const as = new URLSearchParams(window.location.search).get("as");
+    fetch(`/api/v2/booking/${info.slug}/offer${as ? `?as=${encodeURIComponent(as)}` : ""}`, { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) return setOffer("signed-out");
+        const o = (await r.json()) as Offer;
+        setOffer(o);
+        setForm((f) => ({ ...f, name: f.name || o.name || "" }));
+      })
+      .catch(() => setOffer("signed-out"));
+  }, [info.slug]);
+
+  const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
+  const loginHref = `/login?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`;
 
   // One request per visible month, from its first to its last midnight in
   // the viewer's zone.
@@ -125,16 +158,14 @@ export default function BookingPage({ info }: { info: PageInfo }) {
       e.preventDefault();
       if (slot === null) return;
       const name = form.name.trim();
-      const email = form.email.trim();
       if (!name) return setError(ERRORS.NAME_REQUIRED);
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError(ERRORS.EMAIL_INVALID);
       setSending(true);
       setError(null);
       try {
         const res = await fetch(`/api/v2/booking/${info.slug}/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ start: new Date(slot).toISOString(), name, email, note: form.note, timezone: tz }),
+          body: JSON.stringify({ start: new Date(slot).toISOString(), name, note: form.note, timezone: tz }),
         });
         const body = (await res.json().catch(() => ({}))) as { url?: string; code?: string };
         if (res.ok && body.url) {
@@ -160,9 +191,9 @@ export default function BookingPage({ info }: { info: PageInfo }) {
     const end = slot + info.duration_min * 60000;
     const field = "w-full min-w-0 rounded-[10px] border border-border bg-background px-3 py-2.5 focus:border-foreground focus:outline-none";
     return (
-      <Shell>
+      <Shell preview={!!signedIn?.preview}>
         <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr]">
-          <Meta info={info} tz={tz}>
+          <Meta info={info} tz={tz} offer={signedIn}>
             <div className="mt-4 border-t border-border pt-4 text-sm">
               <strong className="block font-semibold">{fmtDay(slot, tz)}</strong>
               {fmtTime(slot, tz, h12)} – {fmtTime(end, tz, h12)}
@@ -178,11 +209,12 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 <input id="bk-name" className={field} autoComplete="name" value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })} required />
               </label>
-              <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-email">
-                Email
-                <input id="bk-email" type="email" className={field} autoComplete="email" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-              </label>
+              {signedIn?.email && (
+                <div className="grid gap-1.5 text-[13px] font-medium">
+                  Email
+                  <span className="py-1 font-normal text-muted-foreground">{signedIn.email}</span>
+                </div>
+              )}
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
                 <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>
                 <textarea id="bk-note" className={`${field} min-h-[84px]`} value={form.note}
@@ -190,9 +222,9 @@ export default function BookingPage({ info }: { info: PageInfo }) {
               </label>
               {error && <p className="text-[13px] text-destructive">{error}</p>}
               <div>
-                <button type="submit" disabled={sending}
+                <button type="submit" disabled={sending || !!signedIn?.preview}
                   className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
-                  {sending ? "Opening payment…" : `Continue to payment · ${money(info.price_cents, info.currency)}`}
+                  {sending ? "Opening payment…" : `Continue to payment · ${money(signedIn?.price_cents ?? info.price_cents, info.currency)}`}
                 </button>
               </div>
               <p className="text-[13px] text-muted-foreground">
@@ -218,9 +250,15 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const iconBtn = "grid h-[34px] w-[34px] place-items-center rounded-lg hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
-    <Shell>
+    <Shell preview={!!signedIn?.preview}>
       <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr_240px]">
-        <Meta info={info} tz={tz} />
+        <Meta info={info} tz={tz} offer={signedIn}>
+          {offer === "signed-out" && (
+            <a href={loginHref} className="mt-5 inline-block rounded-[10px] bg-foreground px-4 py-2.5 text-sm font-semibold text-background no-underline">
+              Sign in to book
+            </a>
+          )}
+        </Meta>
         <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
           <div className="mb-3 flex items-center justify-between">
             <b className="font-semibold">{monthName}</b>
@@ -288,7 +326,14 @@ export default function BookingPage({ info }: { info: PageInfo }) {
           ) : dayTimes.length ? (
             <div className="grid max-h-[420px] grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 overflow-auto md:grid-cols-1">
               {dayTimes.map((s) => (
-                <button key={s} onClick={() => { setSlot(s); window.scrollTo(0, 0); }}
+                <button key={s} onClick={() => {
+                    if (offer === "signed-out") {
+                      window.location.href = loginHref;
+                      return;
+                    }
+                    setSlot(s);
+                    window.scrollTo(0, 0);
+                  }}
                   className="rounded-[10px] border border-border bg-background px-2 py-[11px] font-medium tabular-nums hover:border-foreground">
                   {fmtTime(s, tz, h12)}
                 </button>
@@ -311,6 +356,15 @@ function Chevron({ d }: { d: string }) {
   );
 }
 
-export function Shell({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto max-w-[1020px] px-4 pb-12 pt-5 md:pt-10">{children}</main>;
+export function Shell({ children, preview }: { children: React.ReactNode; preview?: boolean }) {
+  return (
+    <main className="mx-auto max-w-[1020px] px-4 pb-12 pt-5 md:pt-10">
+      {preview && (
+        <p className="mb-3 rounded-[10px] bg-muted px-3 py-2 text-[13px] text-muted-foreground">
+          Preview: this is the page and price this person sees. Booking is off in preview.
+        </p>
+      )}
+      {children}
+    </main>
+  );
 }
