@@ -236,6 +236,8 @@ function TokenTopUpPanel() {
         </section>
       ) : null}
 
+      {account?.user_id ? <LessonPrice key={account.user_id} userId={account.user_id} /> : null}
+
       <div className="mt-6 space-y-3">
         <label className="block text-sm font-medium" htmlFor="admin-tokens">
           Tokens to add
@@ -285,5 +287,67 @@ function TokenTopUpPanel() {
         </p>
       ) : null}
     </main>
+  );
+}
+
+/** One person's booking-page price (founder 2026-10-13). Empty = the list
+ *  price everyone pays; a lower price shows them the list price crossed out. */
+function LessonPrice({ userId }: { userId: string }) {
+  const [price, setPrice] = useState("");
+  const [list, setList] = useState<number | null>(null);
+  const [slug, setSlug] = useState("artur");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/v2/admin/booking/user-price?user_id=${encodeURIComponent(userId)}`, { cache: "no-store" })
+      .then((r) => readJson(r))
+      .then((b) => {
+        setList(typeof b.list_price_cents === "number" ? b.list_price_cents : null);
+        if (typeof b.slug === "string") setSlug(b.slug);
+        setPrice(typeof b.price_cents === "number" ? String(b.price_cents / 100) : "");
+      })
+      .catch(() => setMsg("Could not load the lesson price."));
+  }, [userId]);
+
+  const save = async () => {
+    setMsg(null);
+    const res = await fetch("/api/v2/admin/booking/user-price", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, price_cents: price.trim() === "" ? null : Math.round(Number(price) * 100) }),
+    }).catch(() => null);
+    const b = res ? await readJson(res) : {};
+    setMsg(res?.ok ? "Lesson price saved." : (b.error as string) ?? "Could not save the lesson price.");
+  };
+
+  return (
+    <div className="mt-6 space-y-3">
+      <label className="block text-sm font-medium" htmlFor="admin-lesson-price">
+        Lesson price for this person
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="admin-lesson-price"
+          type="number"
+          min="0"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder={list !== null ? String(list / 100) : ""}
+          className="flex-1 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm tabular-nums outline-none focus:border-foreground/40"
+        />
+        <button type="button" onClick={() => void save()}
+          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background">
+          Save
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/50">
+        <span>Leave empty for the normal price{list !== null ? ` (${list / 100})` : ""}.</span>
+        <a className="underline" target="_blank" rel="noreferrer"
+          href={`https://www.willpowerlab.com/book/${slug}?as=${encodeURIComponent(userId)}`}>
+          See their booking page
+        </a>
+      </div>
+      {msg ? <p className="text-sm">{msg}</p> : null}
+    </div>
   );
 }
