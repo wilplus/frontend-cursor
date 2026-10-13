@@ -53,6 +53,7 @@ import { idealTextReadyDraft, idealTextUnconfirmedDraft } from "./loungeReports"
 import { FLOW_COPY } from "./flowCopy";
 import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
+import DeckSlidePreview from "./DeckSlidePreview";
 import IdealTextOverlay, { type IdealTextLaunchMode } from "./IdealTextOverlay";
 import type { WalkStepTarget } from "@/lib/willab/feedbackWalkModel";
 import LibraryOverlay from "./LibraryOverlay";
@@ -2043,7 +2044,12 @@ function WalkStepBubble({
   const meta = message.metadata ?? {};
   const arc = typeof meta.arc_id === "string" ? meta.arc_id : null;
   if (meta.step === "end") {
-    return arc && card ? <IdealTextCardBubble title={card.title} take={card.take} onOpen={() => onOpenIdealText?.(arc)} /> : null;
+    // The project's first slide on the card; no `deck` from the server keeps the plain tile.
+    const deck = meta.deck && typeof meta.deck === "object" ? (meta.deck as { presentation_ref?: unknown }) : null;
+    const slideRef = deck ? (typeof deck.presentation_ref === "string" ? deck.presentation_ref : null) : undefined;
+    return arc && card ? (
+      <IdealTextCardBubble title={card.title} take={card.take} slideRef={slideRef} onOpen={() => onOpenIdealText?.(arc)} />
+    ) : null;
   }
   const clip = walkClipOf(meta.clip);
   if (!message.body.trim() && !clip) return null;
@@ -2246,7 +2252,18 @@ function ChatAvatar({ coach = false }: { coach?: boolean }) {
 
 /** The Ideal Text card that ends a review in the chat (prototype .itcard):
  *  the slide thumb, the project's name, "AI-generated text · Take N", ›. */
-function IdealTextCardBubble({ title, take, onOpen }: { title: string; take: number | null; onOpen: () => void }) {
+function IdealTextCardBubble({
+  title,
+  take,
+  slideRef,
+  onOpen,
+}: {
+  title: string;
+  take: number | null;
+  /** The project's deck (null: the default deck); undefined: not known, the plain tile. */
+  slideRef?: string | null;
+  onOpen: () => void;
+}) {
   return (
     <button
       type="button"
@@ -2254,7 +2271,14 @@ function IdealTextCardBubble({ title, take, onOpen }: { title: string; take: num
       onClick={onOpen}
       className="relative mr-auto flex w-[80%] max-w-sm items-center gap-2.5 rounded-[18px] border border-border bg-background p-2.5 pr-7 text-left transition-transform active:scale-[0.98]"
     >
-      <span aria-hidden="true" className="aspect-video w-[72px] flex-none rounded-md bg-gradient-to-br from-[#dde3ee] to-[#c7d0e0]" />
+      <span aria-hidden="true" className="aspect-video w-[72px] flex-none overflow-hidden rounded-md bg-gradient-to-br from-[#dde3ee] to-[#c7d0e0]">
+        {slideRef !== undefined ? (
+          // Drawn at 360px and shrunk to the 72px tile, so the slide keeps its own proportions.
+          <span className="block w-[360px] origin-top-left scale-[0.2]">
+            <DeckSlidePreview presentationRef={slideRef} pageIndex={0} className="" size="header" />
+          </span>
+        ) : null}
+      </span>
       <span className="min-w-0">
         <b className="block truncate text-[15px] font-semibold">{title}</b>
         <small className="block text-[12px] text-muted-foreground">
