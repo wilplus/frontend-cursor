@@ -61,7 +61,7 @@ export default function NextTakeShareScreen({
     void fetchCommunities().then((res) => {
       if (!live) return;
       if (!res.ok) {
-        onDone();
+        (onCancel ?? onDone)();
         return;
       }
       const own = res.data.filter((c) => c.kind === "private");
@@ -110,11 +110,9 @@ export default function NextTakeShareScreen({
     void (async () => {
       for (const draft of shareChat(next, ticks, names, arcId)) await thread?.append(draft);
     })().catch(() => undefined);
-    if (ticks.includes("none")) {
-      keepNextTakeShare(null);
-      return onDone();
-    }
-    keepNextTakeShare({ general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] });
+    keepNextTakeShare(
+      ticks.includes("none") ? null : { general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] },
+    );
     onDone();
   };
 

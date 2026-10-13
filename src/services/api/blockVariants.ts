@@ -160,14 +160,14 @@ export async function selectBlockVariant(
 
 /* ------------------------------ the timeline ------------------------------ */
 
-/** The closed reason vocabulary. "unknown" is the FE's own degrade for a
- *  token outside the enum — it renders neutral fallback copy, NEVER the raw
- *  token, and never invents a specific claim. */
-export type RevisionReason = "seed" | "accept" | "select" | "restore" | "unknown";
-
+/** One version of the whole document, for the History under ⋯ (lock
+ *  2026-10-12, section 4). Read only: an old version is never brought back,
+ *  because the Ideal Text is what the latest Take said (rule 5). */
 export interface IdealTextRevision {
   revision: number;
-  reason: RevisionReason;
+  /** The Take whose words this version holds; null when unknown. */
+  takeIndex: number | null;
+  text: string;
   createdAt: string | null;
   isHead: boolean;
 }
@@ -195,19 +195,14 @@ export async function fetchIdealTextRevisions(
   for (const item of body.revisions) {
     if (!item || typeof item !== "object") continue;
     const r = item as Record<string, unknown>;
-    // The revision number is the restore key — a row without one offers a
-    // restore that can never succeed, so it is dropped, never repaired.
+    // The revision number is the row's key — a row without one is dropped,
+    // never repaired.
     const revision = intOrNull(r.revision);
     if (revision === null) continue;
     revisions.push({
       revision,
-      reason:
-        r.reason === "seed" ||
-        r.reason === "accept" ||
-        r.reason === "select" ||
-        r.reason === "restore"
-          ? r.reason
-          : "unknown",
+      takeIndex: intOrNull(r.take_index),
+      text: str(r.text),
       createdAt: str(r.created_at) || null,
       isHead: r.is_head === true,
     });
@@ -217,29 +212,4 @@ export async function fetchIdealTextRevisions(
     headRevision: intOrNull(body.head_revision),
     revisions,
   };
-}
-
-export type RestoreResult =
-  /** Restored; the head is a NEW revision (restore is itself history and is
-   *  itself undoable). */
-  | { kind: "ok"; headRevision: number | null }
-  /** 404 — flag off / revision unknown: refetch silently. */
-  | { kind: "gone" }
-  | { kind: "error" };
-
-/** Repoint the head at what `revision` recorded. Restore never deletes —
- *  blocks added to the document after that revision stay as they are. */
-export async function restoreIdealTextRevision(
-  arcId: string,
-  revision: number
-): Promise<RestoreResult> {
-  const res = await bffFetch(
-    `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/revisions/${encodeURIComponent(String(revision))}/restore`,
-    { method: "POST", auth: "optional", credentials: "include" }
-  );
-  if (res.kind !== "response") return { kind: "error" };
-  if (res.status === 404) return { kind: "gone" };
-  if (!res.ok) return { kind: "error" };
-  const body = res.body as Record<string, unknown> | null;
-  return { kind: "ok", headRevision: intOrNull(body?.head_revision) };
 }

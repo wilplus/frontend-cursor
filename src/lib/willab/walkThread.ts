@@ -21,6 +21,8 @@ export type WalkAuthor = "app" | "coach" | "speaker";
 export type WalkThreadEntry = {
   take: string;
   arcId: string | null;
+  /** The Take's number ("🔒 Take N" once a newer Take exists). */
+  takeIndex?: number | null;
   key: string;
   moment: number | null;
   attempt: number | null;
@@ -56,6 +58,7 @@ export function walkStepDraft(e: WalkThreadEntry): LoungeMessageDraft {
     metadata: {
       take_session_id: e.take,
       arc_id: e.arcId,
+      take_index: e.takeIndex ?? null,
       step: e.key,
       moment: e.moment,
       attempt: e.attempt,
@@ -209,8 +212,11 @@ export function shownStep(
       return titled(COPY.titlePraise, moment?.praiseWords.join(" "));
     case "helpers":
       return app(COPY.titleEmphasis);
-    case "clearer":
-      return moment?.clearer?.say ? titled(COPY.cardClearerVersion, `${say("B13")}\n${moment.clearer.say}`) : null;
+    case "clearer": {
+      // The words that arrive, orange in the chat (prototype v31 `.new em`).
+      const said = moment?.clearer?.say ? titled(COPY.cardClearerVersion, `${say("B13")}\n${moment.clearer.say}`) : null;
+      return said ? { ...said, extra: { new_words: moment?.clearer?.after ?? null } } : null;
+    }
     case "exVideo": {
       const ex = moment?.exercise;
       if (!ex) return moment ? titled(COPY.titleExercise, WALK_COPY.lineA) : null;
