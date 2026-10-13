@@ -104,7 +104,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** A destructive change asks once before it happens. */
-function Confirm({
+export function Confirm({
   question,
   confirmLabel,
   onConfirm,
@@ -130,7 +130,7 @@ function Confirm({
   );
 }
 
-function Failed({ show }: { show: boolean }) {
+export function Failed({ show }: { show: boolean }) {
   return show ? (
     <p role="alert" className="text-sm text-destructive">{COPY.failed}</p>
   ) : null;

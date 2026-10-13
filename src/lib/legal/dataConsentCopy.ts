@@ -71,4 +71,13 @@ export const DATA_CONSENT_COPY = {
   // `intro` stays, because it is still true.
   introWithTraining:
     "Your recordings are used to run your own coaching. Their words, and numbers measured from them, train models only if you turn on Help improve WillpowerLab.",
+  // The AI version of your voice card, L6-L11 (founder lock 2026-10-12,
+  // backend docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md, N71). On for
+  // everyone; Delete turns it off, Turn on brings it back.
+  aiVoiceTitle: "AI version of your voice",
+  aiVoiceOn: "Made from your first Take to create your practice examples. Only you hear it.",
+  aiVoiceDelete: "Delete",
+  aiVoiceDeleteConfirm:
+    "Delete your AI voice? We delete it at ElevenLabs and here, with every example made from it, and we stop making examples. Your own recordings stay.",
+  aiVoiceOff: "Off. Turn it on and we'll make it from your next Take.",
 } as const;
