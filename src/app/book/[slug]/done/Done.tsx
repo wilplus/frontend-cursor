@@ -62,10 +62,14 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
             </dd>
           </div>
           <div className={row}><dt className="text-muted-foreground">Paid</dt><dd>
-            {booking.price_cents < booking.list_price_cents && (
-              <s className="mr-2 text-muted-foreground">{money(booking.list_price_cents, booking.currency)}</s>
+            {booking.price_cents === 0 ? "Not paid" : (
+              <>
+                {booking.price_cents < booking.list_price_cents && (
+                  <s className="mr-2 text-muted-foreground">{money(booking.list_price_cents, booking.currency)}</s>
+                )}
+                {money(booking.price_cents, booking.currency)}
+              </>
             )}
-            {money(booking.price_cents, booking.currency)}
           </dd></div>
           {booking.bonus_tokens > 0 && (
             <div className={row}>

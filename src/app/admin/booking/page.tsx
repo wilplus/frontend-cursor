@@ -28,6 +28,7 @@ interface Settings {
   enabled: boolean;
   bonus_tokens: number;
   new_user_discount_pct: number;
+  allow_skip_payment: boolean;
 }
 
 interface Booking {
@@ -152,6 +153,10 @@ function BookingAdmin() {
             <label className="flex items-center gap-2 font-medium" htmlFor="bk-enabled">
               <input id="bk-enabled" type="checkbox" checked={s.enabled} onChange={(e) => set("enabled", e.target.checked)} />
               Page is on
+            </label>
+            <label className="flex items-center gap-2 font-medium" htmlFor="bk-skip">
+              <input id="bk-skip" type="checkbox" checked={!!s.allow_skip_payment} onChange={(e) => set("allow_skip_payment", e.target.checked)} />
+              Allow booking without paying
             </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
               {s.enabled ? <>Live at <a className="underline" href={`https://www.willpowerlab.com/book/${s.slug}`} target="_blank" rel="noreferrer">{pageUrl}</a></> : "Nobody can book while the page is off."}
