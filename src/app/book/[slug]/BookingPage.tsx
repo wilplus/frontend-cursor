@@ -123,7 +123,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   }, [info.slug]);
 
   const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
-  const loginHref = `/login?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`;
+  const loginHref = `/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`;
 
   // One request per visible month, from its first to its last midnight in
   // the viewer's zone.
