@@ -37,7 +37,6 @@ import {
 import {
   fetchBlockVariants,
   fetchIdealTextRevisions,
-  restoreIdealTextRevision,
   selectBlockVariant,
   type BlockVariant,
   type IdealTextRevision,
@@ -109,7 +108,10 @@ export type IdealTextLaunchMode =
   /** The lens back on (founder lock 2026-10-12, moment and feedback chat,
    *  section 1): a walk step tapped in the Lounge, or "Continue review",
    *  opens the walk, or plays the finished one again. */
-  | "review";
+  | "review"
+  /** The sharing bubble tapped in the Lounge: the sharing step before the
+   *  next recording (prototype v31, the share step). */
+  | "share";
 
 export default function IdealTextOverlay({
   arcId,
@@ -211,18 +213,15 @@ export default function IdealTextOverlay({
     const gen = ++variantsGenRef.current;
     void fetchBlockVariants(arcId).then((v) => {
       if (gen !== variantsGenRef.current) return;
-      if (v.kind === "off") {
-        setVariantBlocks(null);
-        setRevisions(null);
-        return;
-      }
-      if (v.kind !== "ready") return;
-      setVariantBlocks(v.blocks);
-      void fetchIdealTextRevisions(arcId).then((rv) => {
-        if (gen !== variantsGenRef.current) return;
-        if (rv.kind === "ready") setRevisions(rv.revisions);
-        else if (rv.kind === "off") setRevisions(null);
-      });
+      if (v.kind === "off") setVariantBlocks(null);
+      else if (v.kind === "ready") setVariantBlocks(v.blocks);
+    });
+    // The History under ⋯ is the document's versions, Take by Take; it does
+    // not hang on the variant pool (lock 2026-10-12, section 4).
+    void fetchIdealTextRevisions(arcId).then((rv) => {
+      if (gen !== variantsGenRef.current) return;
+      if (rv.kind === "ready") setRevisions(rv.revisions);
+      else if (rv.kind === "off") setRevisions(null);
     });
   }, [arcId]);
 
@@ -292,7 +291,9 @@ export default function IdealTextOverlay({
     reviewOpenedRef.current = false;
   }, [arcId, initialMode]);
   useEffect(() => {
-    if (initialMode !== "review" || reviewOpenedRef.current) return;
+    // The coach-feedback email and bubble open the review too: only helper
+    // words and moment sentences open anything (lock 2026-10-12, section 4).
+    if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
     if (reviewWaiting) setReviewRequest((n) => n + 1);
     else if (replayReady) setReplayRequest((n) => n + 1);
     else return;
@@ -806,23 +807,6 @@ export default function IdealTextOverlay({
     [arcId],
   );
 
-  /** BLOCK_VARIANTS — restore (fear 2): repoint the head at what `revision`
-   *  recorded. The head that comes back is a NEW revision — restore is
-   *  itself history, and itself undoable. Never presented as deletion. */
-  const restoreRevision = useCallback(
-    async (revision: number): Promise<boolean> => {
-      const r = await restoreIdealTextRevision(arcId, revision);
-      if (r.kind === "error") return false;
-      setTimelineOpen(false);
-      // gone (flag off / revision unknown) refetches silently too — the
-      // timeline hides itself if the feature went away.
-      fetchGenRef.current++;
-      setRefetchNonce((n) => n + 1);
-      return true;
-    },
-    [arcId],
-  );
-
   // The held version to offer back: the BE's `prior_edit` once it ships, else
   // the local buffer from the supersede we just handled.
 
@@ -927,6 +911,7 @@ export default function IdealTextOverlay({
         onReviewAgain={replayReady ? () => setReplayRequest((n) => n + 1) : null}
         onNewTake={() => onReadAloud(sd.version)}
         onClose={onClose}
+        shareFirst={!endCard && initialMode === "share"}
       />
     );
   }
@@ -1003,8 +988,8 @@ export default function IdealTextOverlay({
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
+            onLensClose={onClose}
             renderNextStep={() => nextStep(false, true)}
-            openFeedback={initialMode === "feedback"}
             chrome="stage"
             document={displayText}
             parts={sd.parts}
@@ -1201,7 +1186,6 @@ export default function IdealTextOverlay({
       <RevisionTimelineSheet
         open={timelineOpen}
         revisions={revisions ?? []}
-        onRestore={restoreRevision}
         onClose={() => setTimelineOpen(false)}
       />
     </div>

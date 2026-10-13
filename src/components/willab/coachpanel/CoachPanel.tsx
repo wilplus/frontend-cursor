@@ -1,8 +1,8 @@
 "use client";
 
 /* -------------------------------------------------------------------------- */
-/*  The coach panel, redrawn — P1's host (founder lock 2026-10-06, flow steps  */
-/*  2 to 5; build plan P1).                                                    */
+/*  The coach panel, redrawn — its host (founder lock 2026-10-06, flow steps  */
+/*  2 to 13).                                                                  */
 /*                                                                            */
 /*  Draws the reducer's screen (lib/willab/coachPanel.ts) on the walk's stage, */
 /*  with the walk's motion, and does the panel's reads and its one write:      */
@@ -14,9 +14,11 @@
 /*                   What happened at once with the save in flight (C1); a   */
 /*                   failed save goes back to Judge with today's error.      */
 /*    What happened  the read the saved rating returned (C2), else           */
-/*                   fetchMomentRead, ONLY once the screen is What happened  */
-/*                   AND the rating's save has succeeded; the loader until   */
+/*                   fetchMomentRead, ONLY once the screen is past Judge AND */
+/*                   the rating's save has succeeded; the loader until       */
 /*                   then. Never prefetched (BLIND COACH).                    */
+/*    the answer     diagnosis, cure, words, video, Ready for {p}, Summary   */
+/*                   and the Take word: CoachAnswerFlow's reads and writes   */
 /*    blind lines    the error audit and the block pick, read when the queue  */
 /*                   opens; drawn only when the backend serves them           */
 /*    all speakers   GET /v2/coach/speakers, read each time Your speakers    */
@@ -39,15 +41,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import WalkStage from "../walk/WalkStage";
 import WalkToast from "../walk/WalkToast";
 import type { WalkNav } from "../walk/WalkOverlay";
-import { CoachAuditSheet, CoachBlockPickSheet } from "../coachwalk/CoachBlindSheet";
-import { V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
+import { CoachAuditSheet, CoachBlockPickSheet, V4MomentPickSheet, V4SurerSheet } from "./V4BlindSheets";
 import { useConfidenceChainReceipt, type ConfidenceChainEcho } from "../coachwalk/useConfidenceChainReceipt";
 import { readMoment, useMomentReadSeeds, type MomentReadSeeds } from "../coachwalk/momentReadSeeds";
-import { JudgeScreen, QueueScreen, RevealScreen, SpeakerScreen, SpeakersScreen, type PanelClip } from "./CoachPanelScreens";
+import {
+  JudgeScreen, PanelPlayer, QueueScreen, RevealBody, RevealScreen, SpeakerScreen, SpeakersScreen, revealLines, type PanelClip,
+} from "./CoachPanelScreens";
+import { useAnswerFlow } from "./CoachAnswerFlow";
 import { BLANK_IMPORT, CorpusAnalyseScreen, CorpusHomeScreen, CorpusImportScreen, type ImportForm } from "./CoachCorpusScreens";
 import CoachCorpusJudge from "./CoachCorpusJudge";
 import {
-  momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
+  isMomentScreen, momentOf, walkScreenOf, type MomentScreen, type PanelAction, type PanelScreen, type PanelState,
 } from "@/lib/willab/coachPanel";
 import { readSlideFor, type AnswerValue, type QueueSpeaker, type ReadSlide } from "@/lib/willab/coachWalk";
 import type { WalkScreen } from "@/lib/willab/walkMotion";
@@ -116,28 +120,31 @@ function useBlindLinks(open: boolean): { links: unknown; refresh: () => Promise<
   return { links, refresh };
 }
 
-/** What happened's read, asked for only while What happened is on screen
- *  and its rating is no longer saving (C1); the saved rating's own read when
- *  it brought one (C2). */
-function useRevealRead(
+/** The moment's read, asked for only while a screen after Judge is on
+ *  screen and its rating is no longer saving (C1); the saved rating's own
+ *  read when it brought one (C2). `reread` forgets a read, so the next
+ *  screen of that moment reads it fresh (after an answer). */
+function useMomentRead(
   screen: PanelScreen,
   seeds: MomentReadSeeds,
   saving: Readonly<Record<string, true>>,
-): Record<string, MomentRead | null> {
+): { reads: Record<string, MomentRead | null>; reread: (snippetId: string) => void } {
   const [reads, setReads] = useState<Record<string, MomentRead | null>>({});
-  const reveal = screen.key === "reveal" ? screen : null;
-  const sessionId = reveal?.take.sessionId ?? null;
-  const snippetId = reveal ? momentOf(reveal)?.snippetId ?? null : null;
+  const after = screen.key !== "judge" ? momentOf(screen) : null;
+  const sessionId = after && "take" in screen ? screen.take.sessionId : null;
+  const snippetId = after?.snippetId ?? null;
   const held = snippetId !== null && saving[snippetId] === true;
+  const missing = snippetId !== null && !(snippetId in reads);
   useEffect(() => {
-    if (!sessionId || !snippetId || held) return;
+    if (!sessionId || !snippetId || held || !missing) return;
     let cancelled = false;
     void readMoment(seeds, sessionId, snippetId).then((read) => {
       if (!cancelled) setReads((prev) => ({ ...prev, [snippetId]: read }));
     });
     return () => { cancelled = true; };
-  }, [sessionId, snippetId, seeds, held]);
-  return reads;
+  }, [sessionId, snippetId, seeds, held, missing]);
+  const reread = useCallback((id: string) => setReads(({ [id]: _old, ...rest }) => rest), []);
+  return { reads, reread };
 }
 
 /** The blind lines, read each time the queue opens; null while dark. */
@@ -237,20 +244,21 @@ function useJudgeSave(dispatch: Dispatch<PanelAction>, seeds: MomentReadSeeds, o
 }
 
 /** The live Judge screen: the chain's render receipt, and the tap. */
-function JudgeLive({ screen, nav, clip, fail, onAnswer, onClose }: {
+function JudgeLive({ screen, nav, clip, fail, onAnswer, onSkip, onClose }: {
   screen: MomentScreen;
   nav: WalkNav;
   clip: PanelClip | null;
   /** The last failed save of this moment, if any. */
   fail: JudgeFail | undefined;
   onAnswer: (snippetId: string, value: AnswerValue, echo: ConfidenceChainEcho | null) => void;
+  onSkip: () => void;
   onClose: () => void;
 }) {
   const snippetId = momentOf(screen)?.snippetId ?? "";
   const chain = useConfidenceChainReceipt(snippetId, clip !== null);
   return (
     <JudgeScreen nav={nav} momentId={snippetId} clip={clip} error={fail?.error ?? null} attempt={fail?.attempt ?? 0}
-      onAnswer={(value) => onAnswer(snippetId, value, chain.current)} onClose={onClose} />
+      onAnswer={(value) => onAnswer(snippetId, value, chain.current)} onSkip={onSkip} onClose={onClose} />
   );
 }
 
@@ -259,8 +267,6 @@ export type CoachPanelProps = {
   dispatch: Dispatch<PanelAction>;
   speakers: readonly QueueSpeaker[];
   loading: boolean;
-  /** What happened's Next: P1 hands the moment to today's answer flow. */
-  onHandover: (screen: MomentScreen) => void;
 };
 
 function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker): QueueSpeaker {
@@ -269,16 +275,16 @@ function liveSpeaker(speakers: readonly QueueSpeaker[], snapshot: QueueSpeaker):
   return live.goal == null && snapshot.goal != null ? { ...live, goal: snapshot.goal } : live;
 }
 
-export default function CoachPanel({ state, dispatch, speakers, loading, onHandover }: CoachPanelProps) {
+export default function CoachPanel({ state, dispatch, speakers, loading }: CoachPanelProps) {
   const { screen } = state;
   const stage: StageScreen = useMemo(() => ({ ...walkScreenOf(screen), panel: screen }), [screen]);
-  const takeId = screen.key === "judge" || screen.key === "reveal" ? screen.take.sessionId : null;
+  const takeId = momentOf(screen) && "take" in screen ? screen.take.sessionId : null;
   const { media, refresh: refreshTake } = useTakeMedia(takeId);
   const seeds = useMomentReadSeeds();
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const say = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }));
   const judge = useJudgeSave(dispatch, seeds, () => say(COPY.toastJudged));
-  const reads = useRevealRead(screen, seeds, judge.saving);
+  const { reads, reread } = useMomentRead(screen, seeds, judge.saving);
   const blind = useBlindLines(screen.key === "queue");
   const all = useAllSpeakers(screen.key === "speakers");
   const corpus = useImports(screen.key === "corpushome");
@@ -365,6 +371,36 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     backDisabled: state.history.length === 0,
   });
 
+  const clipOf = (s: MomentScreen): PanelClip | null => {
+    const id = momentOf(s)?.snippetId;
+    return id ? media[s.take.sessionId]?.clips[id] ?? null : null;
+  };
+  const slideOf = (s: MomentScreen): ReadSlide | null => {
+    const id = momentOf(s)?.snippetId;
+    return id ? media[s.take.sessionId]?.slides[id] ?? null : null;
+  };
+  const playerFor = (s: MomentScreen, passage: string) => (
+    <PanelPlayer nav={navFor(s)} momentId={momentOf(s)?.snippetId ?? ""} clip={clipOf(s)}
+      words={passage ? <span data-testid="coach-panel-passage">{passage}</span> : null} />
+  );
+  const answer = useAnswerFlow({
+    state, dispatch, reads, reread, say, navFor, playerFor, close,
+    summaryBody: (s, extra) => {
+      const read = reads[momentOf(s)?.snippetId ?? ""];
+      return (
+        <RevealBody read={read} slide={slideOf(s)} player={playerFor(s, read?.passage ?? "")}
+          lines={read ? [...revealLines(read, s.speaker.pseudonym, state.rated[momentOf(s)?.snippetId ?? ""] ?? null), ...(extra ? [extra] : [])] : []} />
+      );
+    },
+  });
+
+  /** What happened's Next: the diagnosis first for an error, else the
+   *  choice; a moment nothing reached the coach from is passed. */
+  function afterReveal(read: MomentRead | null | undefined): void {
+    if (!read?.request) dispatch({ type: "pass" });
+    else dispatch({ type: "step", key: read.request.kind === "error" ? "diagnose" : "decide" });
+  }
+
   function render(s: StageScreen) {
     const panel = s.panel;
     const live = panel === screen;
@@ -410,7 +446,7 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
     if (panel.key === "corpusanalyse") return <CorpusAnalyseScreen onClose={close} />;
     if (panel.key === "corpus") {
       return live ? (
-        <CoachCorpusJudge importId={panel.importId} topic={panel.topic}
+        <CoachCorpusJudge importId={panel.importId} topic={panel.topic} onSaved={() => say(COPY.toastJudged)}
           onDone={() => { corpus.refresh(); dispatch({ type: "corpusHome" }); }}
           onBack={() => dispatch({ type: "back" })} onClose={close} />
       ) : (
@@ -418,51 +454,61 @@ export default function CoachPanel({ state, dispatch, speakers, loading, onHando
           momentId={panel.importId} clip={null} error={null} attempt={0} onAnswer={() => undefined} onClose={close} />
       );
     }
+    if (panel.key === "takeword" || panel.key === "takevideo") return answer.renderTake(panel, live);
     const moment = momentOf(panel);
-    if (!moment) return null;
+    if (!moment || !isMomentScreen(panel)) return null;
     const nav = navFor(panel);
-    const takeMedia = media[panel.take.sessionId];
-    const clip = takeMedia?.clips[moment.snippetId] ?? null;
+    const clip = clipOf(panel);
     if (panel.key === "judge") {
       return live ? (
         <JudgeLive screen={panel} nav={nav} clip={clip} fail={judge.fails[moment.snippetId]}
-          onAnswer={(id, value, echo) => void judge.answer(id, value, echo)} onClose={close} />
+          onAnswer={(id, value, echo) => void judge.answer(id, value, echo)}
+          onSkip={() => dispatch(panel.take.moments.length > 1 ? { type: "next" } : { type: "back" })} onClose={close} />
       ) : (
         <JudgeScreen nav={nav} momentId={moment.snippetId} clip={clip} error={null} attempt={0}
           onAnswer={() => undefined} onClose={close} />
       );
     }
-    return (
-      <RevealScreen nav={nav} momentId={moment.snippetId} clip={clip}
-        slide={takeMedia?.slides[moment.snippetId] ?? null}
-        read={reads[moment.snippetId]} pseudonym={panel.speaker.pseudonym}
-        justRated={state.rated[moment.snippetId] ?? null}
-        onNext={() => onHandover(panel)} onClose={close} />
-    );
+    if (panel.key === "reveal") {
+      const read = reads[moment.snippetId];
+      return (
+        <RevealScreen nav={nav} momentId={moment.snippetId} clip={clip} slide={slideOf(panel)}
+          read={read} pseudonym={panel.speaker.pseudonym}
+          justRated={state.rated[moment.snippetId] ?? null}
+          onNext={() => afterReveal(read)} onClose={close} />
+      );
+    }
+    return answer.renderMoment(panel, live);
   }
 
   return (
     <MediaRefreshProvider refresh={refreshMedia} payload={mediaPayload}>
-      <WalkStage screen={stage} dir={state.dir} render={render} />
+      {/* On a computer, the same phone-width screens, centred (Q-B14 A). */}
+      {screen.key !== "lounge" ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-muted md:block" /> : null}
+      <WalkStage screen={stage} dir={state.dir} render={render} className="md:mx-auto md:max-w-[430px]" />
       <input ref={fileInput} type="file" accept="audio/*,video/mp4" className="hidden" data-testid="corpus-file-input"
         onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (f) setForm((prev) => ({ ...prev, file: f })); }} />
       {toast ? <WalkToast key={toast.id} message={toast.text} onDone={() => setToast(null)} /> : null}
       {blindOpen === "audit" && blind.audit ? (
-        <CoachAuditSheet queue={blind.audit} onClose={() => setBlindOpen(null)}
-          onDone={() => { setBlindOpen(null); blind.setAudit(null); }} />
+        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+          <CoachAuditSheet queue={blind.audit} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
+            onDone={() => { setBlindOpen(null); blind.setAudit(null); }} />
+        </div>
       ) : null}
       {blindOpen === "picks" && blind.picks ? (
-        <CoachBlockPickSheet queue={blind.picks} onClose={() => setBlindOpen(null)}
-          onDone={() => { setBlindOpen(null); blind.setPicks(null); }} />
+        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
+          <CoachBlockPickSheet queue={blind.picks} onClose={() => setBlindOpen(null)}
+            onDone={() => { setBlindOpen(null); blind.setPicks(null); }} />
+        </div>
       ) : null}
       {blindOpen === "v4picks" && blind.v4Picks ? (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
           <V4MomentPickSheet queue={blind.v4Picks} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setV4Picks(null); }} />
         </div>
       ) : null}
       {blindOpen === "v4surer" && blind.v4Surer ? (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 md:mx-auto md:max-w-[430px]">
           <V4SurerSheet queue={blind.v4Surer} nextLabel={COPY.next} onClose={() => setBlindOpen(null)}
             onDone={() => { setBlindOpen(null); blind.setV4Surer(null); }} />
         </div>

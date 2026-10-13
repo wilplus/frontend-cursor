@@ -54,7 +54,7 @@ export type Outcome<T> =
  *  answered: status 0. */
 export async function outcomeCall<T>(
   path: string,
-  init: { method: "GET" | "POST" | "PUT"; body?: unknown },
+  init: { method: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown },
   map: (data: Record<string, unknown>) => T,
 ): Promise<Outcome<T>> {
   try {

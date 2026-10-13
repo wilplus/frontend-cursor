@@ -36,19 +36,4 @@ export const BLOCK_VARIANT_COPY = {
   /* --- the timeline -------------------------------------------------------- */
   timelineEntry: "History",
   timelineTitle: "Version history",
-  /** Reason lines — qualitative history copy for the closed enum, NEVER the
-   *  raw token. `unknown` is the FE's degrade for a token outside the enum:
-   *  neutral, claims nothing specific. */
-  reason: {
-    seed: "First assembled",
-    accept: "Suggestion accepted",
-    select: "You chose a version",
-    restore: "Restored an earlier version",
-    unknown: "Updated",
-  } as const,
-
-  /* --- restore -------------------------------------------------------------- */
-  restore: "Bring back these choices",
-  restoreReassurance: "Nothing is deleted — you can return to any version.",
-  restoreFailed: "Couldn't bring that back just now. Give it another go.",
 } as const;

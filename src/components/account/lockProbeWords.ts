@@ -122,6 +122,18 @@ export const SETTINGS_PROTOTYPE_WORDS: readonly string[] = [
   "Delete your account?",
 ];
 
+/** docs/design/ai-voice-settings-2026-10-12.html, words L6-L11 of the AI
+ *  voice lock (backend docs/FOUNDER-LOCK-ai-voice-practice-2026-10-12.md). */
+export const AI_VOICE_PROTOTYPE_WORDS: readonly string[] = [
+  "AI version of your voice",
+  "Made from your first Take to create your practice examples. Only you hear it.",
+  "Delete",
+  "Delete your AI voice? We delete it at ElevenLabs and here, with every example made from it, and we stop making examples. Your own recordings stay.",
+  "Off. Turn it on and we'll make it from your next Take.",
+  "Turn on",
+  "Cancel",
+];
+
 /** State lines the live screens show that no prototype draws, each signed
  *  on its own. Kept per Q-B15 A (9): "'What's changed since you agreed'
  *  stays as signed". */

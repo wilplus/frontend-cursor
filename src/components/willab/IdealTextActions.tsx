@@ -35,6 +35,7 @@ export default function IdealTextActions({
   arcId = null,
   endCard = false,
   onClose = null,
+  shareFirst = false,
 }: {
   /** The project, for the sharing question's chat bubbles. */
   arcId?: string | null;
@@ -58,6 +59,9 @@ export default function IdealTextActions({
   /** The grey "Close" under "Record Take N", the page's one way out to the
    *  chat (founder lock 2026-10-12, sections 4 and 9). */
   onClose?: (() => void) | null;
+  /** Opened from the sharing bubble in the Lounge: the sharing step shows
+   *  at once, and its ✕ goes back to the chat. */
+  shareFirst?: boolean;
 }) {
   /* JOURNEY DECISIONS J1 AND J4 (founder 2026-09-29; F1 Repair Plan Phase 7).
    * J1: after a Take the speaker lands on the text and taps "Review
@@ -76,8 +80,8 @@ export default function IdealTextActions({
      to the record loop never silently disappears. */
   /* From Take 2 on, sharing is asked before the next recording (founder
      lock 2026-10-12, moment and feedback chat, section 5). */
-  const [asking, setAsking] = useState(false);
   const asksShare = typeof takeCount === "number" && takeCount >= 1;
+  const [asking, setAsking] = useState(shareFirst && asksShare);
   const record = {
     label: nextRecordingLabel,
     onClick: asksShare ? () => setAsking(true) : onNewTake,
@@ -104,6 +108,7 @@ export default function IdealTextActions({
             setAsking(false);
             onNewTake();
           }}
+          onClose={shareFirst && onClose ? onClose : () => setAsking(false)}
         />
       ) : null}
     </div>

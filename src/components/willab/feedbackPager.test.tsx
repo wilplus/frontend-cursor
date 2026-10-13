@@ -57,12 +57,10 @@ const buttons = () =>
 function Harness({
   onOpen,
   onCloseAll,
-  openFeedback,
   rebuilt = null,
 }: {
   onOpen: (b: Bookmark) => void;
   onCloseAll: () => void;
-  openFeedback: boolean;
   /** What the host's re-read of the document rebuilds the list into. */
   rebuilt?: Bookmark[] | null;
 }) {
@@ -71,8 +69,6 @@ function Harness({
     bookmarks: list,
     open: onOpen,
     closeAll: onCloseAll,
-    openFeedback,
-    ready: true,
   });
   return createElement(
     "div",
@@ -89,13 +85,12 @@ function Harness({
 
 describe("the walk", () => {
 
-  it("does not open anything by itself without the link", async () => {
+  it("does not open anything by itself", async () => {
     const opened: string[] = [];
     await act(async () =>
       root.render(createElement(Harness, {
         onOpen: (b: Bookmark) => opened.push(b.partId),
         onCloseAll: vi.fn(),
-        openFeedback: false,
       })),
     );
     expect(opened).toEqual([]);

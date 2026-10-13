@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
 import { ENTER_OFFSET_PX, type Dir } from "@/lib/willab/recordingGesture";
 import type { PresentationSlide } from "./presentation";
 import SlideStage from "./SlideStage";
@@ -109,6 +109,14 @@ export default function RecordingRoadmap({
     [glide, slides.length]
   );
 
+  /** Back / Next slide. After a mouse click the focus goes back to the page,
+   *  so Space still means forward; only a button reached with Tab keeps its
+   *  own Space and Enter (keys lock N70.1: `if(ev.detail!==0) focusKeys()`). */
+  const press = (index: number) => (event: MouseEvent<HTMLButtonElement>) => {
+    goToSlide(index);
+    if (event.detail !== 0) event.currentTarget.blur();
+  };
+
   // The entrance, once: the content lands; the frame around it is already
   // still.
   useLayoutEffect(() => {
@@ -166,7 +174,7 @@ export default function RecordingRoadmap({
         <div className="mt-2.5 flex gap-2.5">
           <button
             type="button"
-            onClick={() => goToSlide(currentSlide - 1)}
+            onClick={press(currentSlide - 1)}
             disabled={currentSlide === 0}
             className="flex h-12 flex-1 items-center justify-center rounded-2xl border-[1.5px] border-border bg-background text-[15px] font-semibold text-foreground disabled:opacity-35"
           >
@@ -177,7 +185,7 @@ export default function RecordingRoadmap({
           ) : (
             <button
               type="button"
-              onClick={() => goToSlide(currentSlide + 1)}
+              onClick={press(currentSlide + 1)}
               className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-foreground text-[15px] font-semibold text-background"
             >
               {RECORDING_COPY.nextSlide}

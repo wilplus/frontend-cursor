@@ -47,6 +47,7 @@ export function startFor(name: ScreenName): PanelState {
         screen: { key: "reveal", speaker: heron, take, index: 0 },
         history: [{ key: "queue" }, speaker],
         rated: { [SNIPS[0]]: "no" },
+        marks: {},
       };
   }
 }

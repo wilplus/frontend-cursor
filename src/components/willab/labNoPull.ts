@@ -22,16 +22,17 @@ export function takeOnlyInThisTab(state: WillabState, micStatus: MicStatus): boo
 
 /** "Getting your mic ready" before a later Take (and the training question
  *  that may come first): no pull-to-refresh either (founder lock 2026-10-07,
- *  the recording screens: "no page reload or pull-to-refresh, ever"). This
- *  screen has no gesture hook of its own, so it also wears the belt. */
+ *  the recording screens: "no page reload or pull-to-refresh, ever"). */
 export function labPrerecordNoPull(state: WillabState): boolean {
   return state === "lab_prerecord";
 }
 
-/** The Lab's whole no-pull rule, in one call. */
+/** The Lab's whole no-pull rule, in one call. iOS before 16 ignores the
+ *  root's overscroll-behavior, so the touch belt is worn for the same span:
+ *  the mic wait and the processing screen have no gesture hook of their own
+ *  (the prototype cancels every touch move off a scroller, on every screen). */
 export function useLabNoPull(state: WillabState, micStatus: MicStatus): void {
-  useNoPullToRefresh(
-    takeOnlyInThisTab(state, micStatus) || labPrerecordNoPull(state),
-  );
-  useTouchPullBelt(labPrerecordNoPull(state));
+  const noPull = takeOnlyInThisTab(state, micStatus) || labPrerecordNoPull(state);
+  useNoPullToRefresh(noPull);
+  useTouchPullBelt(noPull);
 }

@@ -237,13 +237,13 @@ export default function TranscriptReviewDeck({
   takeSessionId = null,
   confidentMomentSummary = null,
   onConfidentMomentChanged,
-  openFeedback = false,
   coachMessage = null,
   reviewRequest = 0,
   reviewAt = null,
   onReviewWaiting,
   replayRequest,
   onReplayReady,
+  onLensClose,
   renderNextStep,
   feedbackPending = false,
   takeCount = null,
@@ -323,9 +323,6 @@ export default function TranscriptReviewDeck({
    *  letting the marks arrive late and move the words. */
   feedbackPending?: boolean;
   onConfidentMomentChanged?: () => void;
-  /** Open on the coach's feedback once the deck is ready: the email link and
-   *  the chat bubble (founder 2026-09-25, Q28 A). */
-  openFeedback?: boolean;
   /** The coach's overall message: step 0 of the Feedback sheet (founder
    *  2026-09-29, Q1; Final Screens L8). */
   coachMessage?: CoachMessage | null;
@@ -343,6 +340,8 @@ export default function TranscriptReviewDeck({
   /** Whether the finished walk can be played again — the host offers the
    *  link only then. */
   onReplayReady?: (ready: boolean) => void;
+  /** ✕ on the review: the host shows the chat (lock 2026-10-12, section 1). */
+  onLensClose?: () => void;
   /** The host's next step (the next take, or See next steps), drawn on the
    *  card after the last moment of the walk. Absent → the card offers only
    *  the way back to the text. */
@@ -487,16 +486,6 @@ export default function TranscriptReviewDeck({
       ),
     [groups, fit],
   );
-  const railSlides = useMemo(() => {
-    const out: { slideIndex: number | null; first: number; count: number }[] =
-      [];
-    screens.forEach((s, i) => {
-      const last = out[out.length - 1];
-      if (last && last.slideIndex === s.slideIndex) last.count += 1;
-      else out.push({ slideIndex: s.slideIndex, first: i, count: 1 });
-    });
-    return out;
-  }, [screens]);
 
   // The open modal is addressed by PART ID, not by object: an accept
   // reassembles the document underneath the modal, and re-deriving the chunk
@@ -638,8 +627,6 @@ export default function TranscriptReviewDeck({
     bookmarks,
     open: openBookmark,
     closeAll: finishWalk,
-    openFeedback,
-    ready: deckReady,
     labelOf,
   });
   const closeWalk = useCallback(() => {
@@ -734,6 +721,7 @@ export default function TranscriptReviewDeck({
     answeredOf,
     helperWordsOf,
     finished: walkFinished(deckReady, firstWaiting, coachStep.unseen),
+    onLensClose,
   });
   /* AN UNSEEN COACH WORD IS WAITING TOO (founder 2026-10-05, N48.3 Q11 A):
      "Review feedback" stays for it after every moment is answered, and opens
@@ -787,7 +775,6 @@ export default function TranscriptReviewDeck({
   const posRef = useRef<DeckPosition>({ slide: 0, chunk: 0 });
   const wheelGestureRef = useRef<WheelGestureState>(IDLE_WHEEL_GESTURE);
   const touchRef = useRef<{ y: number; consumed: boolean } | null>(null);
-  const [atSlide, setAtSlide] = useState(0);
   // NO `atChunk` STATE (2026-08-15). It existed only to re-render the rail's
   // per-chunk ticks, which are gone. The live position stays in `posRef` —
   // the scroll gate, the boundary bubble and the backwards-entry landing all
@@ -799,7 +786,6 @@ export default function TranscriptReviewDeck({
 
   const setPosition = useCallback((next: DeckPosition) => {
     posRef.current = next;
-    setAtSlide(next.slide);
   }, []);
 
   const chunkOffsetsOf = (inner: HTMLElement): number[] =>
@@ -988,7 +974,6 @@ export default function TranscriptReviewDeck({
       chunk: 0,
     });
     posRef.current = clamped;
-    setAtSlide(clamped.slide);
     const outer = scrollerRef.current;
     if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
   }, [firstUnreadScreen, counts]);
@@ -1093,8 +1078,7 @@ export default function TranscriptReviewDeck({
     const seat = () => {
       const clamped = clampPosition(counts, posRef.current);
       posRef.current = clamped;
-      setAtSlide(clamped.slide);
-      const outer = scrollerRef.current;
+        const outer = scrollerRef.current;
       if (outer) outer.scrollTo({ top: clamped.slide * outer.clientHeight });
     };
     seatWidthRef.current = window.innerWidth;
@@ -1316,6 +1300,9 @@ export default function TranscriptReviewDeck({
                        that carries it (24f) — and a paragraph saved with
                        helper words draws none (B7, Q3; `barWaiting`). */
                     const unsettled = barWaiting(c);
+                    const opens =
+                      opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)) ||
+                      Boolean(headlines.get(c.part.id));
                     return (
                     /* TEXT SIZE (founder 2026-09-30, "D"): 17px on a phone
                        rising to 20px on desktop, down from 21–30px. Only the
@@ -1325,8 +1312,7 @@ export default function TranscriptReviewDeck({
                       key={`${c.part.id}:${c.sliceIndex ?? 0}`}
                       data-chunk
                       {...paragraphTap(
-                        opensFromPage(bookmarkIds, c.part.id, unsettled || opensOwnSheet(c)) ||
-                          Boolean(headlines.get(c.part.id)),
+                        opens,
                         (target) => {
                           // Helper words open that slide's helper-words step
                           // in the walk; a moment opens its step (an answered
@@ -1340,7 +1326,11 @@ export default function TranscriptReviewDeck({
                       )}
                       data-settled={unsettled ? undefined : "true"}
                       data-untouched={c.status === "untouched" ? "true" : undefined}
-                      className="relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground active:bg-muted"
+                      className={`relative rounded-md text-[clamp(1.0625rem,0.98rem+0.34vw,1.25rem)] leading-[1.65] text-foreground${
+                        /* Only text that opens a step greys while pressed
+                           (lock 2026-10-12, section 9). */
+                        opens ? " active:bg-muted" : ""
+                      }`}
                     >
                       {/* DISPLAY TEXT, which is the whole paragraph unless it
                           was too tall for one screen and got split across
@@ -1356,7 +1346,7 @@ export default function TranscriptReviewDeck({
                           c.displayText ?? c.part.text,
                           headlines.get(c.part.id),
                         )}
-                        tintClass="walk-helper-word text-primary not-italic"
+                        tintClass="walk-helper-word text-primary font-semibold not-italic"
                       />
                     </p>
                     );
@@ -1367,83 +1357,8 @@ export default function TranscriptReviewDeck({
           ))}
         </div>
 
-        {/* THE RAIL — TWO GRAINS, PAGES PER SLIDE (§11.4, re-cut
-            2026-08-15). The pill is the SLIDE; each mark inside it is one
-            SCREEN of that slide, the current one stretched. A slide that
-            runs onto a second screen therefore shows two marks — which is
-            the whole read: where am I, and how much of this slide is left.
-            The former third grain (a tick per chunk inside the active
-            screen) is gone; see the mark below for why.
-            POSITION ONLY — "slide 3, second of two screens" is navigation;
-            the rail must never grade (AC-9). */}
-        {deckReady &&
-        (screens.length > 1 || (counts[0] ?? 0) > 1) ? (
-          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-2.5">
-            {railSlides.map((rs, ord) => {
-              const slideScreens = screens.slice(rs.first, rs.first + rs.count);
-              const marks = slideScreens.map((scr, k) => {
-                const si = rs.first + k;
-                const label =
-                  scr.screensInSlide > 1
-                    ? `Go to ${copyLabelFor(rs.slideIndex)}, screen ${
-                        scr.screenOfSlide + 1
-                      } of ${scr.screensInSlide}`
-                    : `Go to ${copyLabelFor(rs.slideIndex)}`;
-                // ONE MARK PER SCREEN — no chunk ticks (founder 2026-08-15:
-                // "just the pages per slide … one level of hierarchy can be
-                // removed, this deepest one").
-                //
-                // The active screen used to expand into a capsule holding one
-                // tick per chunk, which made the rail read at three grains at
-                // once: pill = slide, mark = screen, tick = chunk. Two of
-                // those answer "where am I"; the third answered "which
-                // paragraph is under my thumb", which the reader can already
-                // see — the paragraphs are RIGHT THERE on the screen it was
-                // describing. It cost the rail its glanceability to restate
-                // what the page already showed.
-                //
-                // Nothing is lost from navigation: chunk scrolling inside a
-                // screen is native and continuous (§11.3), so there was never
-                // a step for those ticks to be the control for. The live
-                // chunk position stays in `posRef`, where the scroll gate and
-                // the backwards-entry landing already read it.
-                return (
-                  <button
-                    key={`scr-${si}`}
-                    type="button"
-                    aria-label={label}
-                    aria-current={atSlide === si ? "true" : undefined}
-                    onClick={() => goTo({ slide: si, chunk: 0 })}
-                    className={`rounded-full transition-all ${
-                      atSlide === si
-                        ? "h-[1.1rem] w-2 bg-foreground"
-                        : "h-2 w-2 bg-muted-foreground/40 hover:bg-muted-foreground"
-                    }`}
-                  />
-                );
-              });
-              // §11.7.3: a multi-screen slide's marks share one pill — the
-              // continuation is VISIBLE on the rail. The pill is the SLIDE,
-              // its marks are that slide's SCREENS, and that is now the whole
-              // rail. Position only, never a grade (AC-9).
-              return rs.count > 1 ? (
-                <div
-                  key={rs.slideIndex ?? `rail-${ord}`}
-                  className="flex flex-col items-center gap-1.5 rounded-2xl border border-border/60 px-[3px] py-1.5"
-                >
-                  {marks}
-                </div>
-              ) : (
-                <div
-                  key={rs.slideIndex ?? `rail-${ord}`}
-                  className="flex flex-col items-center"
-                >
-                  {marks}
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
+        {/* NO RAIL: the page is top bar, slide row, paragraphs and foot,
+            nothing else (lock 2026-10-12, section 4). */}
       </div>
 
       {/* NO FOOTER (founder 2026-08-11). The review count, the slide

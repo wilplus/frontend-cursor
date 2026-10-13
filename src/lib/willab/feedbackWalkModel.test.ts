@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   WALK_PHASE_SCREENS,
   buildFeedbackWalk,
+  walkStepAt,
   type FeedbackWalkItem,
   type FeedbackWalkItemExercise,
 } from "./feedbackWalkModel";
@@ -34,11 +35,11 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
       s.key === "practise" ? `practise:${s.kind}` : s.key,
     );
 
-  it("never waits for a coach: a moment still with the coach is said again, with no screen of its own", () => {
+  it("never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again", () => {
     const waiting = item({ partId: "p6", start: 300, blockId: "b6", openCard: "coach_request", item: "s-wait" }) as FeedbackWalkItem<string>;
     const plan = buildFeedbackWalk({ items: [waiting], coachNote: false, practiceOn: true, guest: false }).plan;
     expect(plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
-      "page", "practise:moment", "others", "summary", "end",
+      "page", "exVideo", "practise:moment", "others", "summary", "end",
     ]);
     // The coach's exercise, once shared, takes the moment's place: no other
     // state lies between them. The exercise step stands with or without a
@@ -48,5 +49,17 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
     const plain = { ...waiting, exercise: offer(), hasExercise: true };
     expect(keysOf([plain])).toEqual(["page", "exVideo", "practise:instruction", "others", "summary", "end"]);
     for (const step of plan) expect(WALK_PHASE_SCREENS.has(step.key)).toBe(true);
+  });
+});
+
+describe("a step tapped in the Lounge (lock 2026-10-12, section 1)", () => {
+  it("opens the bubble's own moment, found by its paragraph once moments before it are answered", () => {
+    const open = (partId: string, start: number) =>
+      item({ partId, start, blockId: partId, openCard: "coach_request", item: partId }) as FeedbackWalkItem<string>;
+    // Posted while p1 still waited, p2's step was moment 1; p1 is answered now.
+    const model = buildFeedbackWalk({ items: [open("p2", 200), open("p3", 300)], coachNote: false, practiceOn: true, guest: false });
+    const at = walkStepAt(model, { step: "practise", moment: 1, part: "p2" });
+    expect(at).not.toBeNull();
+    expect(model.moments[model.plan[at as number].moment as number].partId).toBe("p2");
   });
 });

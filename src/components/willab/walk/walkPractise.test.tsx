@@ -8,7 +8,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_SHEET_COPY as COPY, PRACTISE_LINES, WALK_COPY } from "../idealEditCopy";
-import FeedbackWalk, { type FeedbackWalkPractiseWords } from "./FeedbackWalk";
+import FeedbackWalk from "./FeedbackWalk";
 import { buildFeedbackWalk, type FeedbackWalkItem } from "@/lib/willab/feedbackWalkModel";
 import { walkPractiseIO } from "@/services/api/walkPractise";
 import type { ConfidentVoicePracticeOffer } from "@/services/api/idealText";
@@ -137,14 +137,12 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 
 let host: HTMLDivElement;
 let root: Root;
-let saved: FeedbackWalkPractiseWords[];
 let ended: number;
 beforeEach(() => {
   Object.assign(mic, { starts: 0, stops: 0, cancels: 0, fail: false });
   answers = [];
   uploadFails = false;
   calls = [];
-  saved = [];
   ended = 0;
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
   URL.createObjectURL = vi.fn(() => "blob:try");
@@ -185,7 +183,6 @@ function draw(
     readLimitMs: over.readLimitMs ?? 1000,
     practise: io,
     onSaveHelperWords: () => undefined,
-    onSavePractiseWords: (s: FeedbackWalkPractiseWords) => saved.push(s),
     onEnd: () => {
       ended += 1;
     },
@@ -243,7 +240,7 @@ describe("the practise screen", () => {
 });
 
 describe("the machine's answer", () => {
-  it("praise on try 1: the line for the reading that moved, then helper words from the try's own words", async () => {
+  it("praise on try 1: the line for the reading that moved, then Next goes on with no helper words (lock 2026-10-12, 2.5)", async () => {
     draw();
     await accept();
     answers = [{ next: "praise", key: "cue:landed_ending" }];
@@ -252,15 +249,6 @@ describe("the machine's answer", () => {
     expect(PRACTISE_LINES.better.landed_ending.map((l) => `${COPY.titlePraise}${l}`)).toContain(message());
     expect(live()!.querySelector("[data-walk-player][data-walk-me]")).not.toBeNull();
     forward();
-    expect(screen()).toBe("walk-screen-helpers");
-    const words = [...live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")];
-    expect(words.map((w) => w.textContent)).toEqual("the window closes once they match our price".split(" "));
-    click(words[6]); // "our"
-    click(live()!.querySelectorAll<HTMLButtonElement>("[data-walk-word-picker] button")[7]); // "price"
-    forward();
-    expect(saved).toEqual([
-      { practiceId: "11111111-1111-4111-8111-111111111111", partId: "p3", phrase: "our price" },
-    ]);
     await act(async () => {}); // nobody to judge after practice: it moves on
     expect(ended).toBe(1);
   });

@@ -867,9 +867,10 @@
         "revisions": [
           {
             "revision": 1,
-            "reason": "seed",
-            "createdAt": null,
-            "isHead": false
+            "takeIndex": 1,
+            "text": "Hello.",
+            "createdAt": "2026-10-12T10:00:00Z",
+            "isHead": true
           }
         ]
       }
@@ -891,9 +892,10 @@
         "revisions": [
           {
             "revision": 1,
-            "reason": "seed",
-            "createdAt": null,
-            "isHead": false
+            "takeIndex": 1,
+            "text": "Hello.",
+            "createdAt": "2026-10-12T10:00:00Z",
+            "isHead": true
           }
         ]
       }

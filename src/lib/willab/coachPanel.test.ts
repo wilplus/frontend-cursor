@@ -26,14 +26,14 @@ const where = (s: PanelState) => `${s.screen.key}${momentOf(s.screen) ? `:${mome
 
 describe("judging", () => {
 
-  it("What happened is never reached for an unrated moment (BLIND COACH)", () => {
+  it("no screen after Judge is reached for an unrated moment (BLIND COACH)", () => {
     // Every path: open, › around the whole take, ‹ all the way back.
     let s = atTake();
     const seen: string[] = [where(s)];
     for (let i = 0; i < 8; i++) { s = panelReducer(s, { type: "next" }); seen.push(where(s)); }
     for (let i = 0; i < 12; i++) { s = panelReducer(s, { type: "back" }); seen.push(where(s)); }
     for (const w of seen) {
-      if (w.startsWith("reveal:")) expect(w).toBe("reveal:s2"); // s2 was answered before
+      if (w.includes(":") && !w.startsWith("judge:")) expect(w).toBe("summary:s2"); // s2 was answered before
     }
   });
 });
@@ -44,5 +44,38 @@ describe("› and ‹", () => {
     let s = panelReducer(atTake(), { type: "rated", snippetId: "s1", value: "in_between" });
     s = panelReducer(s, { type: "back" });
     expect(where(s)).toBe("speaker");
+  });
+});
+
+describe("the answer", () => {
+  const rated = () => [
+    { type: "rated", snippetId: "s1", value: "no" },
+    { type: "step", key: "decide" },
+    { type: "step", key: "words" },
+  ] as PanelAction[];
+
+  it("an answer moves on to the next moment that waits, and after the last to the Take's word", () => {
+    let s = rated().reduce(panelReducer, atTake());
+    s = panelReducer(s, { type: "finish" });
+    expect(where(s)).toBe("judge:s3");
+    for (const id of ["s3", "s4"]) {
+      s = panelReducer(s, { type: "rated", snippetId: id, value: "yes" });
+      s = panelReducer(s, { type: "finish" });
+    }
+    expect(s.screen.key).toBe("takeword");
+  });
+
+  it("an answered moment opens on Summary; Change my answer reopens its choice", () => {
+    let s = rated().reduce(panelReducer, atTake());
+    s = panelReducer(s, { type: "finish" });
+    s = panelReducer(s, { type: "back" });
+    // ‹ into a step of the answered moment reopens its choice (prototype back()).
+    expect(where(s)).toBe("decide:s1");
+    s = panelReducer(s, { type: "finish" });
+    expect(where(s)).toBe("judge:s3");
+    s = run({ type: "open" }, { type: "take", speaker: HERON, take: { ...TAKE, moments: [m("s2", "answered")] } });
+    expect(where(s)).toBe("summary:s2");
+    s = panelReducer(s, { type: "changeAnswer", to: "decide" });
+    expect(where(s)).toBe("decide:s2");
   });
 });

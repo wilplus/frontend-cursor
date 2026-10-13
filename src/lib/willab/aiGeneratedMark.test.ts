@@ -31,9 +31,13 @@ describe("Article 50(2) — every surface that shows generated text is marked", 
       expect(code, `${file} visible note`).toContain('<AiGeneratedNote kind="ideal-text"');
       // The caption names the Take shown (N48.3 Q8 A).
       expect(code, `${file} caption take`).toContain("take={sd?.takeCount}");
-      expect(code, `${file} marked copy`).toContain("copyAiGeneratedText(");
       // The unmarked copy path is what this replaces; it must not come back.
       expect(code, `${file} raw writeText`).not.toContain("clipboard\n        ?.writeText");
+    }
+    // The readout's ⋯ lives in its own file.
+    for (const file of ["IdealTextOverlay.tsx", "ReadoutMenu.tsx"]) {
+      const code = src("components", "willab", file);
+      expect(code, `${file} marked copy`).toContain("copyAiGeneratedText(");
     }
   });
 });

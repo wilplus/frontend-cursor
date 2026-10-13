@@ -1753,7 +1753,8 @@ function mapIdealTextCorePayload(
     suggestions: null,
     styleChanges: null,
     decisionHistory: null,
-    saved: null,
+    // Served beside the snapshot, never inside it; null withholds the item.
+    saved: typeof body.is_saved === "boolean" ? body.is_saved : null,
     keyPoints: null,
     parts: ownerEditParts
       ? ownerEditPartsWithRoots(ownerEditParts, mapParts(body.parts))

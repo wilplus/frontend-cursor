@@ -25,7 +25,7 @@ import { loopEnd, threadStart } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
-import { phraseTokens, selectionSpan, selectionText, type PhraseSelection } from "@/lib/willab/phraseTokens";
+import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /* -------------------------------------------------------------------------- */
@@ -92,14 +92,6 @@ export type FeedbackWalkHelperWords = {
   paragraphText: string;
 };
 
-/** Helper words tapped from a praised try's own words (not the
- *  paragraph's): saved on the practice, then the paragraph is locked. */
-export type FeedbackWalkPractiseWords = {
-  practiceId: string;
-  partId: string;
-  phrase: string;
-};
-
 type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
    *  it closes, so a re-read of the page cannot move the screen under the
@@ -127,8 +119,6 @@ type Props<R> = {
   /** The practise's calls (open, upload, check). Without them a practise
    *  screen is never reached: "Accept and practise" goes past it. */
   practise?: WalkPractiseIO<R> | null;
-  /** Helper words picked from a praised try. */
-  onSavePractiseWords?: (save: FeedbackWalkPractiseWords) => void;
   /** O5's limit on the machine's read; tests shorten it. */
   readLimitMs?: number;
   /** Judging one's own moments is gone from the walk (lock 2026-10-12,
@@ -194,7 +184,6 @@ export default function FeedbackWalk<R = unknown>({
   onAcceptClearer,
   onKeepWords,
   practise: practiseIO = null,
-  onSavePractiseWords,
   readLimitMs,
   summary = null,
   onEnd,
@@ -392,13 +381,6 @@ export default function FeedbackWalk<R = unknown>({
       if (blocked(s)) return;
       answer(s, "use");
       const picked = picks[pickKey(s)] ?? null;
-      const tried = s.kind === "try" ? practise.tryOf(moment.index) : undefined;
-      if (tried?.words) {
-        const phrase = selectionText(tried.words, phraseTokens(tried.words), picked);
-        if (phrase) onSavePractiseWords?.({ practiceId: tried.practiceId, partId: moment.partId, phrase });
-        forward();
-        return;
-      }
       const span = selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), picked);
       if (span) {
         onSaveHelperWords({ partId: moment.partId, span, paragraphText: moment.paragraphText });
@@ -622,7 +604,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
  *  of the screen. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
-  const words = (step.kind === "try" ? ctx.practise.tryOf(moment.index)?.words : null) ?? moment.paragraphText;
+  const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
     ctx.answer(step, "skip");
@@ -717,7 +699,6 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  is one (the coach's, else the library's), the instruction (else Line A);
  *  Practise with the red dot, Skip. Nothing here waits on a coach (WQ2 B). */
 function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
-  if (!moment.exercise) return null;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -752,23 +733,23 @@ function ExerciseFooter<R>({ ctx, step, outline = false }: { ctx: ScreenCtx<R>; 
   );
 }
 
-/** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise. */
+/** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise
+ *  (with no exercise served, the locked screen with Line A). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
-  if (!exercise) return null;
   return (
     <>
       <Clip moment={moment} />
       {aiExercise(ctx, step, moment) ?? (
-        <WalkMessage coach={exercise.byCoach} wide>
+        <WalkMessage coach={exercise?.byCoach === true} wide>
           <span>{COPY.titleExercise}</span>
-          {exercise.video ? (
+          {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
               className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
             />
           ) : null}
-          <span>{exercise.instruction ?? WALK_COPY.lineA}</span>
+          <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>
         </WalkMessage>
       )}
     </>
@@ -832,9 +813,11 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   );
 }
 
-/** Other speakers' moments, one per practise try before this step. */
+/** Other speakers' moments, one per recorded try before this step (lock
+ *  2026-10-12, 2.6): each Stop lays in a checking screen, so a try queued
+ *  after a "Not yet" and skipped is not counted. */
 function Others(ctx: ScreenCtx, step: WalkStep) {
-  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "practise").length;
+  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "processing").length;
   return (
     <WalkOthers
       testId={testId(step)}

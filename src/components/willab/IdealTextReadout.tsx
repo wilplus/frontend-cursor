@@ -70,7 +70,8 @@ import {
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import FeedbackFailedNotice from "./FeedbackFailedNotice";
 import IdealTextActions from "./IdealTextActions";
-import IdealTextMenu from "./IdealTextMenu";
+import ReadoutMenu from "./ReadoutMenu";
+import { useReadoutLanding } from "./useReadoutLanding";
 import type { ReadoutPayload } from "./readout";
 import type {
   ConfidentMomentOwnerEdit,
@@ -963,6 +964,17 @@ export default function IdealTextReadout({
     [applyEdit, flushEdits, markDirty],
   );
 
+  const covered = useReadoutLanding({
+    reviewWaiting,
+    analysisPending,
+    canRead,
+    arcId,
+    sdSettled,
+    feedbackPending,
+    hasDocument: sd !== null,
+    onClose,
+  });
+
   // SPEC-lockin-loop §1 — THE BLOCKING SCREEN. While the document assembles
   // the old text is INACCESSIBLE: no reading it, no copying it, no editing
   // it — "no browse-with-banner". Only the way out stays, because the block
@@ -987,7 +999,9 @@ export default function IdealTextReadout({
   // INACCESSIBLE — no reading it, no copying it, no editing it, "no
   // browse-with-banner" (SPEC-lockin-loop §1). Only the way out remains,
   // because the block is on the text, not on leaving.
-  if (analysisPending) {
+  if (analysisPending) return waitScreen();
+
+  function waitScreen(): React.ReactNode {
     return (
       <div className="flex flex-1 flex-col">
         {onClose ? (
@@ -1037,8 +1051,13 @@ export default function IdealTextReadout({
     <div
       data-ideal-text-wheel-owner
       {...aiGeneratedAttrs("ideal-text")}
-      className="flex min-h-0 flex-1 flex-col gap-4 overscroll-none"
+      className="relative flex min-h-0 flex-1 flex-col gap-4 overscroll-none"
     >
+      {covered ? (
+        <div className="absolute inset-0 z-40 flex flex-col bg-background">
+          {waitScreen()}
+        </div>
+      ) : null}
       {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
           like one: the project's name with its verification state beside it,
           the actions and the way out on the same row. It used to spend this
@@ -1061,8 +1080,8 @@ export default function IdealTextReadout({
           <ReadoutMenu
             text={text}
             arcId={arcId}
-            saved={sd?.saved}
-            title={sd?.title}
+            doc={sd}
+            presentationRef={deckRef}
             onBeforeSave={flushEdits}
             onSaved={() => {
               // The server now holds the student's newest words AND has
@@ -1110,6 +1129,7 @@ export default function IdealTextReadout({
             onReviewWaiting={setReviewWaiting}
             replayRequest={replayRequest}
             onReplayReady={setReplayReady}
+            onLensClose={onClose}
             renderNextStep={() => nextStep(false, true)}
             chrome="stage"
             document={text}
@@ -1244,47 +1264,5 @@ export default function IdealTextReadout({
         onClose={() => setPickerBlock(null)}
       />
     </div>
-  );
-}
-
-/** The header's ⋯ (founder 2026-09-26), on the first draft too (2026-09-28,
- *  8B): Copy lives in the menu everywhere. Before the served document
- *  arrives there is nothing to save, so that item is withheld (saved =
- *  null) and Copy takes the draft's words. Same marked copy from the one
- *  module as the notebook, so the two cannot export differently. */
-function ReadoutMenu({
-  text,
-  arcId,
-  saved,
-  title,
-  onBeforeSave,
-  onSaved,
-}: {
-  text: string;
-  arcId: string | null | undefined;
-  saved: boolean | null | undefined;
-  title: string | null | undefined;
-  onBeforeSave: () => Promise<boolean>;
-  onSaved: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  if (!text) return null;
-  return (
-    <IdealTextMenu
-      arcId={arcId ?? ""}
-      saved={saved ?? null}
-      onBeforeSave={onBeforeSave}
-      onSaved={onSaved}
-      onCopy={() => {
-        void copyAiGeneratedText(stripRichMarkers(text), "ideal-text", {
-          name: title ?? undefined,
-        }).then((ok) => {
-          if (!ok) return;
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1600);
-        });
-      }}
-      copied={copied}
-    />
   );
 }

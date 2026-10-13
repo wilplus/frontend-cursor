@@ -1,101 +1,91 @@
 /* -------------------------------------------------------------------------- */
-/*  The one answer, by kind (founder 2026-09-30, A3 to A6; build plan P2-11).  */
+/*  The coach's answer to one moment, by kind — the pure half (founder lock    */
+/*  2026-10-06, the coach panel redrawn, flow steps 6 to 12; Q-B7 A, Q-B13 A). */
 /*                                                                            */
-/*  Words, Video, Home are the same three screens for every kind; only the    */
-/*  labels and whether the video is the default differ. This is that table,   */
-/*  pure, plus what each answer writes. No fetch, no React.                    */
+/*    an error the coach hears  → an exercise: the served one kept, another   */
+/*                                swapped in, or a new one (words + video);   */
+/*                                without a video it goes to the speaker      */
+/*                                without the library, never stuck            */
+/*    "I don't hear an error"   → a note                                      */
+/*    praise                    → a praise line, filed in the library unless  */
+/*                                Skip or "Share without the library"         */
+/*    a clearer version         → the speaker's only, never the library       */
+/*                                (Q-B13 A)                                   */
+/*    an ambiguity              → a note                                      */
 /*                                                                            */
-/*    error      → an exercise: instruction + video + a home in the library   */
-/*    praise     → a praise line: filed in the catalogue unless kept          */
-/*    rewrite    → a clearer version: the speaker's only, never a move        */
-/*    ambiguity  → a note: rides the moment only                              */
+/*  No fetch, no React.                                                       */
 /* -------------------------------------------------------------------------- */
 
 import type { MomentKind } from "./coachWalk";
-import { COACH_WALK_COPY as COPY } from "./coachWalkCopy";
+import { COACH_PANEL_COPY as COPY } from "./coachPanelCopy";
+import type { CoachExerciseRequest } from "@/services/api/coachExerciseRequest";
+import type { CoachExerciseDraft } from "@/services/api/coachExercises";
+import type { Diagnosis } from "@/services/api/coachPanel";
 
+/** What the answer becomes. */
 export type AnswerHome = "exercise" | "line" | "version" | "note";
 
-export interface AnswerPlan {
-  kind: MomentKind;
-  wordsTitle: string;
-  /** The draft surface the backend writes for this kind, or null (ambiguity). */
-  draftSurface: "exercise_script" | "praise_line" | "clearer_version" | null;
-  /** Video is the default (the primary is Record) or optional (the link). */
-  videoDefault: boolean;
-  home: AnswerHome;
-  /** The pattern the Home screen asks for: the error, a cue or the read, a move, none. */
-  pattern: "error" | "cue" | "move" | "none";
+export function answerHome(kind: MomentKind, diagnosis: Diagnosis | null): AnswerHome {
+  if (kind === "error") return diagnosis?.kind === "no_error" ? "note" : "exercise";
+  if (kind === "praise") return "line";
+  if (kind === "rewrite") return "version";
+  return "note";
 }
 
-export function answerPlan(kind: MomentKind): AnswerPlan {
-  switch (kind) {
-    case "error":
-      return { kind, wordsTitle: COPY.wordsTitle.error, draftSurface: "exercise_script",
-        videoDefault: true, home: "exercise", pattern: "error" };
-    case "praise":
-      return { kind, wordsTitle: COPY.wordsTitle.praise, draftSurface: "praise_line",
-        videoDefault: false, home: "line", pattern: "cue" };
-    case "rewrite":
-      return { kind, wordsTitle: COPY.wordsTitle.rewrite, draftSurface: "clearer_version",
-        videoDefault: false, home: "version", pattern: "move" };
-    default:
-      return { kind, wordsTitle: COPY.wordsTitle.ambiguity, draftSurface: null,
-        videoDefault: false, home: "note", pattern: "none" };
+/** Your instruction, Your praise, Your clearer version, Your note. */
+export function wordsTitle(home: AnswerHome): string {
+  if (home === "exercise") return COPY.wordsTitle.error;
+  if (home === "line") return COPY.wordsTitle.praise;
+  if (home === "version") return COPY.wordsTitle.rewrite;
+  return COPY.wordsTitle.ambiguity;
+}
+
+/** After the video: the kind question for praise and a clearer version,
+ *  else straight to Ready for {p} (Q-B13 A: a note goes straight there). */
+export function afterVideo(home: AnswerHome): "kind" | "share" {
+  return home === "line" || home === "version" ? "kind" : "share";
+}
+
+/** The kind question's title and its answers. */
+export function kindQuestion(home: AnswerHome, pseudonym: string): { title: string; options: { key: string; label: string }[] } {
+  if (home === "line") {
+    return { title: COPY.whatDidDoWell(pseudonym), options: Object.entries(COPY.cue).map(([key, label]) => ({ key, label })) };
   }
+  return { title: COPY.whatKindOfFix, options: Object.entries(COPY.moves).map(([key, label]) => ({ key, label })) };
 }
 
-/** The screens this answer walks, in order. Home exists for everything but a
- *  note, which rides the moment and has nowhere else to live. */
-export function answerSteps(plan: AnswerPlan): ("words" | "video" | "home")[] {
-  return plan.home === "note" ? ["words", "video"] : ["words", "video", "home"];
+/** Does "Share with {p}" file the answer in the library too? A praise line
+ *  does unless the kind question was skipped; an exercise does with its
+ *  video, under an error the library knows (an error just named waits for
+ *  the founder's definition, so its answer reaches the speaker alone); a
+ *  clearer version and a note never do. */
+export function sharesWithLibrary(input: {
+  home: AnswerHome; video: boolean; kindSkipped: boolean; named: boolean;
+}): boolean {
+  if (input.home === "line") return !input.kindSkipped;
+  if (input.home === "exercise") return input.video && !input.named;
+  return false;
 }
 
-export const REWRITE_MOVES = Object.keys(COPY.homeMoves) as (keyof typeof COPY.homeMoves)[];
-
-/** The delivery cues a praise line may be filed under (services/delivery_cues
- *  CUE_KEYS on the backend), with the words the coach reads. */
-export const CUE_OPTIONS: { key: string; label: string }[] = [
-  { key: "opened_strong", label: "opened strong" },
-  { key: "landed_ending", label: "landed the ending" },
-  { key: "kept_moving", label: "kept moving" },
-  { key: "settled_pitch", label: "settled pitch" },
-  { key: "no_hesitation", label: "no hesitation" },
-  { key: "full_volume", label: "full volume" },
-  { key: "wide_range", label: "wide range" },
-];
-
-export interface HomeState {
-  name: string;
-  mainTarget: string | null;
-  alsoTreats: string[];
-  /** praise: the cue key or "confident_read"; rewrite: the move key. */
-  patternKey: string | null;
-  /** praise only: keep the line to this speaker, off the catalogue. */
-  keepToSpeaker: boolean;
+/** The line under the message on Ready for {p}, or null. */
+export function shareNote(home: AnswerHome, video: boolean, pseudonym: string): string | null {
+  return home === "exercise" && !video ? COPY.withoutAVideo(pseudonym) : null;
 }
 
-/** What the Home screen starts with: the spotted patterns first. */
-export function homeDefaults(plan: AnswerPlan, spotted: { errorId: string }[]): HomeState {
-  const first = spotted[0]?.errorId ?? null;
-  return {
-    name: "",
-    mainTarget: plan.pattern === "error" ? first : null,
-    alsoTreats: plan.pattern === "error" ? spotted.slice(1).map((s) => s.errorId) : [],
-    patternKey: plan.pattern === "cue" ? (first ?? "confident_read")
-      : plan.pattern === "move" ? null : null,
-    keepToSpeaker: false,
-  };
-}
-
-/** Why the Home screen cannot go on yet, in one sentence, or null. */
-export function homeProblem(plan: AnswerPlan, home: HomeState, hasVideo: boolean,
-  libraryWanted: boolean): string | null {
-  if (plan.home !== "exercise" || !libraryWanted) return null;
-  if (!home.name.trim()) return COPY.homeNeedsName;
-  if (!home.mainTarget) return COPY.homeNeedsTarget;
-  if (!hasVideo) return COPY.homeNeedsVideo;
-  return null;
+/** Summary's "Your answer", in the prototype's words, or null while the
+ *  moment has none. */
+export function yourAnswerWords(
+  request: Pick<CoachExerciseRequest, "id" | "resolution" | "resolvedExerciseId"> | null,
+  servedId: string | null,
+  titleOf: (exerciseId: string) => string | null,
+): string | null {
+  if (!request?.resolution) return null;
+  if (request.resolution === "no_safe_match") return COPY.nothingToAdd;
+  const id = request.resolvedExerciseId;
+  if (!id) return COPY.shared;
+  if (id === exerciseIdFor(request.id)) return COPY.sharedInLibrary;
+  const title = titleOf(id) ?? id;
+  return id === servedId ? COPY.keptExercise(title) : COPY.swappedExercise(title);
 }
 
 /** The exercise id the library files a moment's exercise under. */
@@ -103,10 +93,30 @@ export function exerciseIdFor(requestId: string): string {
   return `coach-request-${requestId}`;
 }
 
+/** A new exercise made for one moment, under the diagnosed error: named by
+ *  its instruction's first words (the library needs a name; the prototype
+ *  asks for none). */
+export function momentExerciseDraft(requestId: string, errorId: string, instruction: string): CoachExerciseDraft {
+  const words = instruction.trim().split(/\s+/).filter(Boolean);
+  return {
+    exerciseId: exerciseIdFor(requestId),
+    title: words.slice(0, 6).join(" ").replace(/[.,;:!?]+$/, ""),
+    instruction: instruction.trim(),
+    introductionCopy: "",
+    acousticProblemTags: [errorId],
+    mainTarget: errorId,
+    matchingCriteria: null,
+    explanationVideoUrl: "",
+    active: true,
+    aiDraftText: null,
+    aiDraftModelVersion: null,
+  };
+}
+
 /** A slug for a new library exercise from its name (mirrors the backend's
  *  EXERCISE_ID_SHAPE: lowercase, digits, underscore, dash, 2 to 63). */
 export function slugFor(name: string): string {
-  const slug = name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  const slug = name.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "").slice(0, 63);
   return /^[a-z]/.test(slug) && slug.length >= 2 ? slug : `exercise-${slug || "new"}`.slice(0, 63);

@@ -51,6 +51,12 @@ const REUSED = {
   judgeQuestion: WALK.judgeQuestion,
   judgeFail: WALK.judgeFail,
   toastJudged: WALK.toastJudged,
+  /** The coach's answers since the 2026-10-12 lock (section 7): the
+   *  speaker's own 👍 😐 👎 and "Audio unclear", and the signed "Skip". */
+  judgeYes: WALK_COPY.judgeYes,
+  judgeInBetween: WALK_COPY.judgeInBetween,
+  judgeNo: WALK_COPY.judgeNo,
+  judgeUnclear: WALK_COPY.judgeUnclear,
   /** The five answers as words after the fact (Confident, In-between, …). */
   answer: WALK.answer,
   you: WALK.readYou,
@@ -60,6 +66,9 @@ const REUSED = {
   /* the cure */
   pillAnswer: WALK.pillAnswer,
   nothingToAdd: WALK.linkNothingToAdd,
+  toastNothingToAdd: WALK.toastNothingToAdd,
+  /** The kind question for a clearer version ("What kind of fix is it?"). */
+  moves: WALK.homeMoves as Record<string, string>,
   keepIt: WALK.prefKeep,
   swapIt: WALK.prefSwap,
   makeANewOne: WALK.prefNew,
@@ -229,6 +238,15 @@ const PROTOTYPE = {
   } as Record<string, string>,
   /* all speakers */
   allAnsweredTakes: (n: number) => `All answered · ${count(n, "Take", "Takes")}`,
+  /* the Lounge door: speakers waiting */
+  newTag: "new",
+  /* the cure's toasts and Summary's "Your answer" */
+  kept: "Kept",
+  swapped: "Swapped",
+  keptExercise: (exercise: string) => `Kept: ${exercise}`,
+  swappedExercise: (exercise: string) => `Swapped: ${exercise}`,
+  sharedInLibrary: "Shared · in the library",
+  shared: "Shared",
   /* the training corpus */
   importAudio: "Import audio",
   importPill: "Import",

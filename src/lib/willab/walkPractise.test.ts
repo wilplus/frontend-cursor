@@ -18,7 +18,7 @@ const PRACTISE_AT = PLAN.findIndex((s) => s.key === "practise");
 function tryOnce(plan: readonly WalkStep[], at: number, read: PractiseRead | null, attempt: number) {
   const checking = withChecking(plan, at);
   const tried = { ...plan[at], attempt };
-  return { plan: withRead(checking, at + 1, tried, read, { words: true, retryAttempt: attempt + 1 }), at: at + 2 };
+  return { plan: withRead(checking, at + 1, tried, read, { retryAttempt: attempt + 1 }), at: at + 2 };
 }
 
 describe("the practise loop's plan", () => {
