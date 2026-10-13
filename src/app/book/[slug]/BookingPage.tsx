@@ -1,0 +1,316 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  allZones, city, dayKey, detectedZone, fmtDay, fmtShortDay, fmtTime, gmtLabel, money, parts,
+  prefers12h, zoned,
+} from "@/lib/booking/time";
+
+/* -------------------------------------------------------------------------- */
+/*  /book/<slug> — the public booking page (founder 2026-10-13, v1).           */
+/*  Pick a day and a time in your own time zone, give a name and an email,     */
+/*  pay on Stripe. Built from the approved prototype.                          */
+/* -------------------------------------------------------------------------- */
+
+export interface PageInfo {
+  slug: string;
+  title: string;
+  host_name: string;
+  duration_min: number;
+  price_cents: number;
+  currency: string;
+  horizon_days: number;
+  host_timezone: string;
+}
+
+const ERRORS: Record<string, string> = {
+  SLOT_TAKEN: "That time was just taken. Pick another.",
+  NAME_REQUIRED: "Add your name.",
+  EMAIL_INVALID: "Check the email address. It should look like name@example.com.",
+  PAYMENTS_OFF: "Payments aren't set up yet. Try again later.",
+  RATE_LIMITED: "Too many tries. Wait a few minutes and try again.",
+};
+
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+export function Meta({ info, tz, children }: { info: PageInfo; tz: string; children?: React.ReactNode }) {
+  const row = "flex items-center gap-2.5";
+  return (
+    <div className="min-w-0 p-5 md:p-7">
+      <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+        <div className="grid h-9 w-9 place-items-center rounded-full border border-border bg-muted text-[13px] text-foreground">
+          AW
+        </div>
+        {info.host_name}
+      </div>
+      <h1 className="my-3.5 font-heading text-[30px] leading-tight [text-wrap:balance]">{info.title}</h1>
+      <div className="grid gap-2 text-sm text-muted-foreground">
+        <div className={row}><Icon d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />{info.duration_min} min</div>
+        <div className={row}><Icon d="M3 8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 10l5-3v10l-5-3" />Google Meet</div>
+        <div className={row}><Icon d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18" />{money(info.price_cents, info.currency)}</div>
+        <div className={row}><Icon d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />{city(tz)}</div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+}
+
+export default function BookingPage({ info }: { info: PageInfo }) {
+  const [tz, setTz] = useState("UTC");
+  const [h12, setH12] = useState(true);
+  const [month, setMonth] = useState<{ y: number; m: number } | null>(null);
+  const [slots, setSlots] = useState<number[] | null>(null);
+  const [selDay, setSelDay] = useState<string | null>(null);
+  const [slot, setSlot] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: "", email: "", note: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const timesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const z = detectedZone();
+    setTz(z);
+    setH12(prefers12h());
+    const p = parts(Date.now(), z);
+    setMonth({ y: p.y, m: p.m });
+  }, []);
+
+  // One request per visible month, from its first to its last midnight in
+  // the viewer's zone.
+  useEffect(() => {
+    if (!month) return;
+    const from = zoned(month.y, month.m, 1, 0, 0, tz);
+    const to = zoned(month.y, month.m + 1, 1, 0, 0, tz);
+    let live = true;
+    setSlots(null);
+    fetch(`/api/v2/booking/${info.slug}/slots?from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}`, {
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : { slots: [] }))
+      .then((b: { slots?: string[] }) => live && setSlots((b.slots || []).map((s) => Date.parse(s))))
+      .catch(() => live && setSlots([]));
+    return () => {
+      live = false;
+    };
+  }, [month, tz, info.slug]);
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const s of slots || []) {
+      const k = dayKey(s, tz);
+      map.set(k, [...(map.get(k) || []), s]);
+    }
+    return map;
+  }, [slots, tz]);
+
+  // Open the first day that has times, so the page never starts empty.
+  useEffect(() => {
+    if (!slots) return;
+    if (selDay && byDay.has(selDay)) return;
+    setSelDay(slots.length ? dayKey(slots[0], tz) : null);
+  }, [slots, byDay, selDay, tz]);
+
+  const zones = useMemo(() => allZones([tz, info.host_timezone]), [tz, info.host_timezone]);
+
+  const submit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (slot === null) return;
+      const name = form.name.trim();
+      const email = form.email.trim();
+      if (!name) return setError(ERRORS.NAME_REQUIRED);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError(ERRORS.EMAIL_INVALID);
+      setSending(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/v2/booking/${info.slug}/checkout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ start: new Date(slot).toISOString(), name, email, note: form.note, timezone: tz }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { url?: string; code?: string };
+        if (res.ok && body.url) {
+          window.location.href = body.url;
+          return;
+        }
+        setError(ERRORS[body.code || ""] || "Something went wrong. Try again.");
+        if (body.code === "SLOT_TAKEN") {
+          setSlot(null);
+          setMonth((m) => (m ? { ...m } : m));
+        }
+      } catch {
+        setError("Could not reach the server. Check your connection and try again.");
+      }
+      setSending(false);
+    },
+    [slot, form, tz, info.slug]
+  );
+
+  if (!month) return null;
+
+  if (slot !== null) {
+    const end = slot + info.duration_min * 60000;
+    const field = "w-full min-w-0 rounded-[10px] border border-border bg-background px-3 py-2.5 focus:border-foreground focus:outline-none";
+    return (
+      <Shell>
+        <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr]">
+          <Meta info={info} tz={tz}>
+            <div className="mt-4 border-t border-border pt-4 text-sm">
+              <strong className="block font-semibold">{fmtDay(slot, tz)}</strong>
+              {fmtTime(slot, tz, h12)} – {fmtTime(end, tz, h12)}
+            </div>
+          </Meta>
+          <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
+            <button className="mb-3.5 text-sm text-muted-foreground" onClick={() => { setSlot(null); setError(null); }}>
+              ← Back
+            </button>
+            <form className="grid max-w-[460px] gap-4" onSubmit={submit} noValidate>
+              <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-name">
+                Your name
+                <input id="bk-name" className={field} autoComplete="name" value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </label>
+              <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-email">
+                Email
+                <input id="bk-email" type="email" className={field} autoComplete="email" value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              </label>
+              <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-note">
+                <span>Anything {info.host_name.split(" ")[0]} should know? <span className="text-muted-foreground">(optional)</span></span>
+                <textarea id="bk-note" className={`${field} min-h-[84px]`} value={form.note}
+                  onChange={(e) => setForm({ ...form, note: e.target.value })} />
+              </label>
+              {error && <p className="text-[13px] text-destructive">{error}</p>}
+              <div>
+                <button type="submit" disabled={sending}
+                  className="rounded-[10px] bg-foreground px-[18px] py-3 font-semibold text-background disabled:opacity-60">
+                  {sending ? "Opening payment…" : `Continue to payment · ${money(info.price_cents, info.currency)}`}
+                </button>
+              </div>
+              <p className="text-[13px] text-muted-foreground">
+                You&apos;ll get a calendar invite with the Google Meet link by email.
+              </p>
+            </form>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  const { y, m } = month;
+  const today = parts(Date.now(), tz);
+  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const last = parts(Date.now() + info.horizon_days * 86400000, tz);
+  const atStart = y === today.y && m === today.m;
+  const atEnd = y > last.y || (y === last.y && m >= last.m);
+  const dayTimes = selDay ? byDay.get(selDay) || [] : [];
+  const monthName = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
+    .format(Date.UTC(y, m - 1, 1));
+  const iconBtn = "grid h-[34px] w-[34px] place-items-center rounded-lg hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent";
+
+  return (
+    <Shell>
+      <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr_240px]">
+        <Meta info={info} tz={tz} />
+        <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
+          <div className="mb-3 flex items-center justify-between">
+            <b className="font-semibold">{monthName}</b>
+            <div className="flex gap-1">
+              <button className={iconBtn} disabled={atStart} aria-label="Previous month"
+                onClick={() => setMonth(m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 })}>
+                <Chevron d="m15 6-6 6 6 6" />
+              </button>
+              <button className={iconBtn} disabled={atEnd} aria-label="Next month"
+                onClick={() => setMonth(m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 })}>
+                <Chevron d="m9 6 6 6-6 6" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {DOW.map((d) => (
+              <span key={d} className="py-1 text-[11px] uppercase tracking-wider text-muted-foreground">{d}</span>
+            ))}
+            {Array.from({ length: lead }, (_, i) => <span key={`l${i}`} />)}
+            {Array.from({ length: days }, (_, i) => {
+              const d = i + 1;
+              const key = `${y}-${m}-${d}`;
+              const open = byDay.has(key);
+              const sel = key === selDay;
+              const isToday = y === today.y && m === today.m && d === today.d;
+              return (
+                <button key={key} disabled={!open} aria-label={`${d}${open ? ", times available" : ""}`}
+                  onClick={() => {
+                    setSelDay(key);
+                    if (window.innerWidth < 768) timesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`relative aspect-square rounded-[10px] tabular-nums transition-colors ${
+                    sel ? "bg-foreground font-semibold text-background"
+                      : open ? "bg-muted font-semibold text-foreground hover:outline hover:outline-1 hover:outline-foreground"
+                        : "text-muted-foreground"
+                  }`}>
+                  {d}
+                  {isToday && <span className="absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-[18px] flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+            <label htmlFor="bk-tz">Time zone</label>
+            <select id="bk-tz" value={tz} onChange={(e) => { setTz(e.target.value); setSelDay(null); }}
+              className="min-w-0 max-w-full flex-[1_1_200px] rounded-lg border border-border bg-background px-2 py-[7px]">
+              {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")} ({gmtLabel(z)})</option>)}
+            </select>
+          </div>
+        </div>
+        <div ref={timesRef} className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <b className="font-semibold">{dayTimes.length ? fmtShortDay(dayTimes[0], tz) : "Pick a day"}</b>
+            <div className="inline-flex rounded-lg border border-border text-xs" role="group" aria-label="Clock format">
+              {[true, false].map((v) => (
+                <button key={String(v)} aria-pressed={h12 === v} onClick={() => setH12(v)}
+                  className={`rounded-[7px] px-2 py-[3px] ${h12 === v ? "bg-muted text-foreground" : "text-muted-foreground"}`}>
+                  {v ? "12h" : "24h"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {slots === null ? (
+            <p className="text-sm text-muted-foreground">Loading times…</p>
+          ) : dayTimes.length ? (
+            <div className="grid max-h-[420px] grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 overflow-auto md:grid-cols-1">
+              {dayTimes.map((s) => (
+                <button key={s} onClick={() => { setSlot(s); window.scrollTo(0, 0); }}
+                  className="rounded-[10px] border border-border bg-background px-2 py-[11px] font-medium tabular-nums hover:border-foreground">
+                  {fmtTime(s, tz, h12)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No open times this month.</p>
+          )}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function Chevron({ d }: { d: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+}
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto max-w-[1020px] px-4 pb-12 pt-5 md:pt-10">{children}</main>;
+}
