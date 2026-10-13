@@ -161,6 +161,14 @@ export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLi
   return cue ? PRACTISE_LINES.better[cue] : PRACTISE_LINES.better.general;
 }
 
+/** The line for the reading a "not yet" named, or null when none clearly
+ *  moved: the voice Exercise's AI bubble opens with it (founder
+ *  2026-10-13, B). */
+export function missLine(kind: string | null | undefined): string | null {
+  const cue = cueOf(kind, "miss:");
+  return cue ? PRACTISE_LINES.notYet[cue] : null;
+}
+
 /** The "not yet" at `at`: the line for the reading that went the wrong way,
  *  else the general one (option A). */
 export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {

@@ -176,14 +176,14 @@ export function answerBody(step: WalkStep, value: string): string | null {
 
 /** The AI bubble a step showed (N71), as the chat stores it: its lines, and
  *  the practice whose clip the chat fetches afresh (a link expires). */
-export function aiVoiceChat(ai: { title?: string; line: string; then?: string; practiceId: string }): {
+export function aiVoiceChat(ai: { title?: string; lead?: string; line: string; then?: string; practiceId: string }): {
   author: WalkAuthor;
   body: string;
   extra: Record<string, unknown>;
 } {
   return {
     author: "app",
-    body: [ai.title, ai.line, ai.then].filter(Boolean).join("\n"),
+    body: [ai.title, ai.lead, ai.line, ai.then].filter(Boolean).join("\n"),
     extra: { ai_voice: { practice_id: ai.practiceId, then: ai.then ?? null } },
   };
 }
