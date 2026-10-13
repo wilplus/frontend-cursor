@@ -215,32 +215,34 @@ export function MockPresentationSlide({
   title: string;
   body: string;
 }) {
-  const bullets = bulletLines(body);
+  const lines = bulletLines(body);
+  // The demo deck (founder 2026-10-13): a coloured slide, a white bar, a big
+  // title and one line under it, or numbered tiles when the lines are numbers.
+  const tiles = lines.length > 1 && lines.every((line) => /^\d+$/.test(line));
   return (
     <div
-      className="relative h-full w-full overflow-hidden bg-[#061a3a] bg-cover bg-center"
-      style={{ backgroundImage: `url(${artworkSrc})` }}
+      className="relative h-full w-full overflow-hidden bg-[#0b2a7a] bg-cover bg-center"
+      // Text sized to the slide, not the screen (cqw), so every size reads alike.
+      style={{ backgroundImage: `url(${artworkSrc})`, containerType: "inline-size" }}
       role="img"
-      aria-label={`${title}. ${bullets.join(" ")}`.trim()}
+      aria-label={`${title}. ${lines.join(" ")}`.trim()}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,19,45,0.98)_0%,rgba(3,19,45,0.86)_35%,rgba(3,19,45,0.12)_66%,rgba(3,19,45,0)_100%)]" />
-      <div className="absolute inset-y-0 left-0 flex w-[56%] flex-col justify-center px-[6%] py-[5%] text-white">
-        <span className="mb-[5%] h-1 w-[18%] rounded-full bg-primary" />
-        <h3 className="text-[clamp(1rem,3vw,2.2rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
-          {title}
-        </h3>
-        {bullets.length > 0 ? (
-          <ul className="mt-[6%] flex flex-col gap-[0.45em] text-[clamp(0.58rem,1.25vw,1rem)] leading-[1.35] text-white/90">
-            {bullets.map((line) => (
-              <li key={line} className="flex gap-[0.6em]">
-                <span
-                  aria-hidden="true"
-                  className="mt-[0.55em] size-1 shrink-0 rounded-full bg-primary"
-                />
-                <span>{line}</span>
-              </li>
+      <div className="absolute inset-0 flex flex-col justify-center px-[9%] text-white">
+        <span className="mb-[3.5%] h-[1.5%] min-h-[2px] w-[9%] rounded-full bg-white/90" />
+        <h3 className="text-[9cqw] font-extrabold leading-none tracking-[-0.03em]">{title}</h3>
+        {tiles ? (
+          <div className="mt-[3.5%] flex gap-[2.7%]">
+            {lines.map((line) => (
+              <span
+                key={line}
+                className="flex aspect-square w-[12.5%] items-center justify-center rounded-[18%] bg-white/20 text-[6.6cqw] font-extrabold"
+              >
+                {line}
+              </span>
             ))}
-          </ul>
+          </div>
+        ) : lines.length > 0 ? (
+          <p className="mt-[2.7%] text-[3.5cqw] font-medium text-white/90">{lines.join(" ")}</p>
         ) : null}
       </div>
     </div>

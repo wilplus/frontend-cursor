@@ -96,6 +96,48 @@ function loadPresentationArtwork(src: string | null): Promise<HTMLImageElement |
   });
 }
 
+function drawDemoSlide(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  title: string,
+  body: string,
+): void {
+  const font = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  const lines = body.split(/\n+/).map((part) => part.trim()).filter(Boolean);
+  const tiles = lines.length > 1 && lines.every((line) => /^\d+$/.test(line));
+  const x = Math.round(width * 0.09);
+  const titleSize = Math.round(width * 0.09);
+  const under = tiles ? width * 0.125 : width * 0.035;
+  let y = Math.round(height / 2 - (titleSize + under) / 2);
+  context.fillStyle = "rgba(255,255,255,0.9)";
+  context.fillRect(x, y - height * 0.06, width * 0.09, Math.max(2, height * 0.015));
+  context.fillStyle = "#ffffff";
+  context.font = `800 ${titleSize}px ${font}`;
+  y += titleSize * 0.85;
+  context.fillText(title || "Presentation slide", x, y);
+  if (tiles) {
+    const size = width * 0.125;
+    const top = y + width * 0.035;
+    lines.forEach((line, index) => {
+      const left = x + index * size * 1.22;
+      context.fillStyle = "rgba(255,255,255,0.2)";
+      context.beginPath();
+      context.roundRect(left, top, size, size, size * 0.18);
+      context.fill();
+      context.fillStyle = "#ffffff";
+      context.font = `800 ${Math.round(size * 0.53)}px ${font}`;
+      context.textAlign = "center";
+      context.fillText(line, left + size / 2, top + size * 0.69);
+      context.textAlign = "left";
+    });
+  } else if (lines.length > 0) {
+    context.fillStyle = "rgba(255,255,255,0.92)";
+    context.font = `500 ${Math.round(width * 0.035)}px ${font}`;
+    context.fillText(lines.join(" "), x, y + width * 0.06);
+  }
+}
+
 /** The canonical deckless visual used by every downloaded format. */
 export async function renderMockPresentationSlide({
   title,
@@ -116,12 +158,10 @@ export async function renderMockPresentationSlide({
   const artwork = await loadPresentationArtwork(artworkSrc);
   if (artwork) {
     context.drawImage(artwork, 0, 0, width, height);
-    const shade = context.createLinearGradient(0, 0, width * 0.7, 0);
-    shade.addColorStop(0, "rgba(3, 19, 45, 0.98)");
-    shade.addColorStop(0.52, "rgba(3, 19, 45, 0.76)");
-    shade.addColorStop(1, "rgba(3, 19, 45, 0)");
-    context.fillStyle = shade;
-    context.fillRect(0, 0, width, height);
+    // The demo deck (founder 2026-10-13): the coloured artwork, no shade; the
+    // same bar, title and line or tiles as MockPresentationSlide.
+    drawDemoSlide(context, width, height, title, body);
+    return output;
   } else {
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);

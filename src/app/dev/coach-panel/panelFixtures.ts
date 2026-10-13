@@ -249,7 +249,7 @@ function handlers(rated: Map<string, string>, resolved: Set<string>, tone: strin
     { when: (c) => c.url.endsWith(`/api/v2/coach/sessions/${TAKE_2}`),
       reply: () => json({ session_id: TAKE_2, presentation_ref: null, snippets: SNIPS.map((id, i) => ({
         id, index: i, transcript: "", audio_ref: tone, start_offset_ms: 0, duration_ms: 2400,
-        slide: { index: i % 3, title: ["Main premise", "Development", "Conclusion"][i % 3], body: "" },
+        slide: { index: i % 3, title: ["Opening", "Main points", "Summary"][i % 3], body: "" },
       })) }) },
     { when: (c) => c.url.includes("/api/v2/coach/snippets/") && c.url.endsWith("/confidence-label"),
       reply: (c) => { const id = snip(c.url); rated.set(id, String(c.body?.value ?? ""));
