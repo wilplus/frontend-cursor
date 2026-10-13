@@ -12,6 +12,7 @@
 import { CHUNK_SHEET_COPY as COPY, WALK_COPY } from "@/components/willab/idealEditCopy";
 import type { LoungeMessageDraft } from "@/services/api/loungeMessages";
 import type { FeedbackWalkMoment } from "./feedbackWalkModel";
+import type { WalkBankKey } from "./walkLines";
 import type { WalkStep } from "./walkPlan";
 import { encourageLine, improvedLine, thanksLine } from "./walkPractise";
 
@@ -98,12 +99,17 @@ export function momentChat(
 
 /** Sharing before the next recording, in the chat (prototype v31, lens
  *  off): "Record Take N", the question, and the speaker's choice. */
-export function shareChat(nextTake: number | null, ticks: readonly string[], communities: readonly string[]): LoungeMessageDraft[] {
+export function shareChat(
+  nextTake: number | null,
+  ticks: readonly string[],
+  communities: readonly string[],
+  arcId: string | null = null,
+): LoungeMessageDraft[] {
   const say = (role: "user" | "bot", body: string): LoungeMessageDraft => ({
     role,
     kind: "walk_step",
     body,
-    metadata: { step: "share", author: role === "user" ? "speaker" : "app" },
+    metadata: { step: "share", author: role === "user" ? "speaker" : "app", arc_id: arcId },
   });
   const choice = ticks
     .map((t) =>
@@ -119,6 +125,43 @@ export function shareChat(nextTake: number | null, ticks: readonly string[], com
     say("bot", `${WALK_COPY.shareTitle}\n${WALK_COPY.nextShareAsk}`),
     say("user", choice),
   ];
+}
+
+/** The bridge line before other speakers' moments (lock 2026-10-12,
+ *  sections 2.6 and 9): from the speaker's community when the moments are
+ *  its own, else from other speakers. */
+export function othersBridge(of: number, from: string | null): string {
+  if (from) return of === 1 ? WALK_COPY.othersOneFrom(from) : WALK_COPY.othersManyFrom(of, from);
+  return of === 1 ? WALK_COPY.othersOne : WALK_COPY.othersMany(of);
+}
+
+const FACES: Record<string, string> = {
+  yes: `👍 ${WALK_COPY.judgeYes}`,
+  in_between: `😐 ${WALK_COPY.judgeInBetween}`,
+  no: `👎 ${WALK_COPY.judgeNo}`,
+  audio_unclear: WALK_COPY.judgeUnclear,
+};
+
+/** Judging other speakers in the chat (prototype v31 `judge`, lens off):
+ *  "Other speakers" (or the community) above the first, the bridge or
+ *  "Moment n of N" with the question under it, and the speaker's answer as
+ *  their own bubble ("👍 Yes"). Their clip is not posted: it is someone
+ *  else's recording, and the chat draws none. Null: nothing to post. */
+export function othersChat(
+  at: number,
+  of: number,
+  from: string | null,
+  answer: string | null,
+): Omit<WalkThreadEntry, "take" | "arcId"> | null {
+  const where = { moment: null, attempt: at + 1 };
+  if (answer) return FACES[answer] ? { key: "answer:others", ...where, author: "speaker", body: FACES[answer] } : null;
+  return {
+    key: "others",
+    ...where,
+    author: "app",
+    body: at === 0 ? othersBridge(of, from) : `Moment ${at + 1} ${COPY.pagerOf} ${of}`,
+    extra: { hint: COPY.confidenceQuestion, ...(at === 0 ? { heading: from ?? WALK_COPY.othersTitle } : {}) },
+  };
 }
 
 /** The speaker's answer to a step as their own bubble says it (prototype
@@ -145,12 +188,15 @@ export function aiVoiceChat(ai: { title?: string; line: string; then?: string; p
   };
 }
 
-/** What a shown step says in the chat, and who says it; null: nothing. */
+/** What a shown step says in the chat, and who says it; null: nothing.
+ *  `say`: the signed line the walk's screen took from a bank, so the chat
+ *  says the same one. */
 export function shownStep(
   step: WalkStep,
   moment: FeedbackWalkMoment<unknown> | null,
   coachText: string | null,
-): { author: WalkAuthor; body: string } | null {
+  say: (bank: WalkBankKey) => string = () => WALK_COPY.clearerOffer,
+): { author: WalkAuthor; body: string; extra?: Record<string, unknown> } | null {
   const app = (body: string | null | undefined) => (body && body.trim() ? { author: "app" as const, body } : null);
   // The bubble's first line, as the prototype's chat writes it.
   const titled = (title: string, body: string | null | undefined) => app(body && body.trim() ? `${title}\n${body}` : null);
@@ -163,9 +209,18 @@ export function shownStep(
     case "helpers":
       return app(COPY.titleEmphasis);
     case "clearer":
-      return titled(COPY.cardClearerVersion, moment?.clearer?.say);
-    case "exVideo":
-      return moment?.exercise ? titled(COPY.titleExercise, moment.exercise.instruction ?? WALK_COPY.lineA) : null;
+      return moment?.clearer?.say ? titled(COPY.cardClearerVersion, `${say("B13")}\n${moment.clearer.say}`) : null;
+    case "exVideo": {
+      const ex = moment?.exercise;
+      if (!ex) return null;
+      // The video's thumb in the bubble (prototype v31 `vthumb`): the
+      // exercise's stored link (a library or coach upload's public address).
+      return {
+        author: ex.byCoach ? "coach" : "app",
+        body: `${COPY.titleExercise}\n${ex.instruction ?? WALK_COPY.lineA}`,
+        ...(ex.video ? { extra: { video: ex.video } } : {}),
+      };
+    }
     case "practise":
       return app(
         step.kind === "words"

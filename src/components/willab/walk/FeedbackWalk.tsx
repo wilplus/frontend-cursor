@@ -18,7 +18,7 @@ import WalkAiVoice, { aiVoiceShown, type AiVoiceLines } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import type { SayLine, WalkLinesIO } from "@/lib/willab/walkLines";
+import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import { loopEnd } from "@/lib/willab/walkPractise";
@@ -152,10 +152,18 @@ type Props<R> = {
    *  "new", D-FW-19). Nothing is drawn from it. `ai`: the AI bubble the
    *  screen shows in place of the locked one (N71), so the chat says the
    *  same; a screen still waiting on its clip is told once the clip is in. */
-  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null, ai?: WalkAiShown | null) => void;
+  onShown?: (
+    step: WalkStep,
+    moment: FeedbackWalkMoment<R> | null,
+    say: (bank: WalkBankKey) => string,
+    ai?: WalkAiShown | null,
+  ) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat. Nothing is drawn from it. */
   onAnswer?: (step: WalkStep, value: string) => void;
+  /** Another speaker's moment shown (`answer` null) or answered: the host
+   *  posts it to the chat. Nothing is drawn from it. */
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
 
 /** The AI bubble a screen showed, for the chat. */
@@ -194,6 +202,7 @@ export default function FeedbackWalk<R = unknown>({
   lines: linesIO = null,
   onShown,
   onAnswer,
+  onOthers,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -296,6 +305,8 @@ export default function FeedbackWalk<R = unknown>({
   const aiPractice = step?.moment != null && ai && ai !== "pending" ? practise.aiVoicePracticeOf(step.moment) : undefined;
   const aiState = step?.moment != null ? practise.aiVoiceOf(step.moment) : undefined;
   const aiKey = ai === "pending" ? "pending" : `${aiState?.demo ?? ""}|${aiState?.clip?.state ?? ""}|${aiPractice ?? ""}|${ai?.line ?? ""}`;
+  const walkLines = useWalkLines(linesIO);
+  const { say: sayLine } = walkLines;
   const aiRef = useRef<WalkAiShown | null>(null);
   aiRef.current = ai && ai !== "pending" && aiPractice ? { ...ai, practiceId: aiPractice } : null;
   const shownRef = useRef(onShown);
@@ -305,11 +316,10 @@ export default function FeedbackWalk<R = unknown>({
     // The Exercise screen's clip is still being asked: told once it is known.
     if (step.key === "exVideo" && step.moment != null && practise.aiVoiceAsking(step.moment)) return;
     const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
-    shownRef.current?.(step, moment, aiRef.current);
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank), aiRef.current);
     // practise.aiVoiceAsking is stable; aiKey changes when the answer lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq, step, walk.moments, aiKey]);
-  const walkLines = useWalkLines(linesIO);
   resetRef.current = () => {
     practise.reset();
     walkLines.reopen();
@@ -436,6 +446,7 @@ export default function FeedbackWalk<R = unknown>({
     summary,
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
+    onOthers,
   };
 
   return (
@@ -488,6 +499,7 @@ type ScreenCtx<R = unknown> = {
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
 
 /** The top bar's words for a step (prototype `navOf`): "Slide N · moment n
@@ -765,6 +777,7 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
       skip={Boolean(step.readOnly || step.replay)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
+      onChat={ctx.onOthers}
     />
   );
 }

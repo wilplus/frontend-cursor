@@ -32,10 +32,13 @@ import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 
 export default function NextTakeShareScreen({
   takeCount = null,
+  arcId = null,
   onDone,
 }: {
   /** The Take just reviewed, for the top bar ("Take 2"). */
   takeCount?: number | null;
+  /** The project: its chat bubbles open its Ideal Text (›). */
+  arcId?: string | null;
   onDone: () => void;
 }) {
   const [saved, setSaved] = useState<Community[] | null>(null);
@@ -99,7 +102,7 @@ export default function NextTakeShareScreen({
     const names = (saved ?? []).filter((c) => mine.includes(c.id)).map((c) => c.name ?? "").filter(Boolean);
     const next = typeof takeCount === "number" ? takeCount + 1 : null;
     void (async () => {
-      for (const draft of shareChat(next, ticks, names)) await thread?.append(draft);
+      for (const draft of shareChat(next, ticks, names, arcId)) await thread?.append(draft);
     })().catch(() => undefined);
     if (ticks.includes("none")) return close();
     keepNextTakeShare({ general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] });

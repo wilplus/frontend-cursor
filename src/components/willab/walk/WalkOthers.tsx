@@ -11,6 +11,7 @@ import WalkPlayer from "./WalkPlayer";
 import WalkFooter from "./WalkFooter";
 import WalkLoading from "./WalkLoading";
 import { answerOtherClip, fetchOtherClips, type OtherClip } from "@/services/api/otherSpeakers";
+import { othersBridge } from "@/lib/willab/walkThread";
 
 /* -------------------------------------------------------------------------- */
 /*  WalkOthers — judge other speakers, once, after practice (founder lock      */
@@ -37,6 +38,7 @@ export default function WalkOthers({
   onDone,
   onClose,
   holdMs = WALK_ANSWER_HOLD_MS,
+  onChat,
 }: {
   testId?: string;
   /** How many to judge: one per practise try, 1 to 3. */
@@ -46,6 +48,9 @@ export default function WalkOthers({
   onDone: () => void;
   onClose: () => void;
   holdMs?: number;
+  /** A moment shown (`answer` null) or answered, for the chat. Nothing is
+   *  drawn from it. */
+  onChat?: (at: number, of: number, from: string | null, answer: ConfidenceRatingValue | null) => void;
 }) {
   const [clips, setClips] = useState<OtherClip[] | null>(null);
   const [at, setAt] = useState(0);
@@ -81,15 +86,12 @@ export default function WalkOthers({
   const answered = clip ? given[clip.id] ?? null : null;
   // "Only my community": the bridge and the top bar name it (section 9).
   const from = clips?.[0]?.community ?? null;
-  const bridge = !clips
-    ? ""
-    : from
-      ? clips.length === 1
-        ? WALK_COPY.othersOneFrom(from)
-        : WALK_COPY.othersManyFrom(clips.length, from)
-      : clips.length === 1
-        ? WALK_COPY.othersOne
-        : WALK_COPY.othersMany(clips.length);
+  const bridge = clips ? othersBridge(clips.length, from) : "";
+  const chat = useRef(onChat);
+  chat.current = onChat;
+  useEffect(() => {
+    if (clips && at < clips.length) chat.current?.(at, clips.length, clips[0]?.community ?? null, null);
+  }, [clips, at]);
   const forward = () => (clips && at + 1 < clips.length ? setAt(at + 1) : onDone());
   const nav = clips
     ? {
@@ -107,6 +109,7 @@ export default function WalkOthers({
     if (!clip || answered !== null) return;
     setGiven((g) => ({ ...g, [clip.id]: value }));
     void answerOtherClip(clip.id, value);
+    onChat?.(at, clips?.length ?? 1, from, value);
     timer.current = window.setTimeout(forward, holdMs);
   };
 

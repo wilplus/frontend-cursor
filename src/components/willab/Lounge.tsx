@@ -2050,7 +2050,12 @@ function WalkStepBubble({
   const mine = message.role === "user";
   const step = typeof meta.step === "string" ? meta.step : null;
   const moment = typeof meta.moment === "number" ? meta.moment : null;
-  const open = arc ? () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null) : undefined;
+  // Sharing has no step in the walk: its › opens the Ideal Text page.
+  const open = !arc
+    ? undefined
+    : step === "share"
+      ? () => onOpenIdealText?.(arc)
+      : () => onOpenIdealText?.(arc, "review", step ? { step, moment } : null);
   const label = chatLabelOf(meta);
   const ai = clip || mine ? null : aiVoiceOfMeta(meta);
   return (
@@ -2066,7 +2071,7 @@ function WalkStepBubble({
           onOpen={open}
         />
       ) : clip ? (
-        <ClipBubble clip={clip} seed={message.client_id} />
+        <ClipBubble clip={clip} seed={message.client_id} caption={message.body.trim() || null} />
       ) : mine ? (
         <div className="flex justify-end">
           <button
@@ -2079,24 +2084,47 @@ function WalkStepBubble({
           </button>
         </div>
       ) : (
-        <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
-          <ChatAvatar coach={meta.author === "coach"} />
-          <button
-            type="button"
-            data-walk-step-bubble
-            onClick={open}
-            className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
-          >
-            {message.body}
-            {open ? (
-              <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
-                ›
-              </span>
-            ) : null}
-          </button>
-        </div>
+        <AppStepBubble message={message} open={open} />
       )}
     </>
+  );
+}
+
+
+/** The app's or the coach's step in the chat: light grey on the left; the
+ *  exercise's video as a thumb under its first line (prototype v31
+ *  `vthumb`, the lens plays it), and the small hint line under it. */
+function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () => void }) {
+  const meta = message.metadata ?? {};
+  const hint = typeof meta.hint === "string" ? meta.hint : null;
+  const video = typeof meta.video === "string" && meta.video ? meta.video : null;
+  const cut = video ? message.body.indexOf("\n") : -1;
+  return (
+    <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
+      <ChatAvatar coach={meta.author === "coach"} />
+      <button
+        type="button"
+        data-walk-step-bubble
+        onClick={open}
+        className={`relative whitespace-pre-wrap break-words rounded-[16px] bg-muted py-2 pl-3 text-left text-[15px] leading-[1.45] text-foreground ${open ? "pr-[30px]" : "pr-3"}`}
+      >
+        {cut > 0 ? (
+          <>
+            {message.body.slice(0, cut)}
+            <ExerciseThumb />
+            {message.body.slice(cut + 1)}
+          </>
+        ) : (
+          message.body
+        )}
+        {hint ? <span className="mt-[3px] block text-[12.5px] text-muted-foreground">{hint}</span> : null}
+        {open ? (
+          <span aria-hidden="true" className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[20px] text-muted-foreground">
+            ›
+          </span>
+        ) : null}
+      </button>
+    </div>
   );
 }
 
@@ -2122,6 +2150,7 @@ function walkClipOf(value: unknown): WalkChatClip | null {
 /** The line above a moment in the chat (prototype v31 `.meta-l`): "Slide 2 ·
  *  moment 1 of 2", "Moment 1 of 2" with no slide, or "Slide 3". */
 export function chatLabelOf(meta: Record<string, unknown>): string | null {
+  if (typeof meta.heading === "string") return meta.heading;
   const slide = typeof meta.slide_label === "string" ? meta.slide_label : null;
   const n = meta.green_n;
   const of = meta.green_of;
@@ -2132,10 +2161,11 @@ export function chatLabelOf(meta: Record<string, unknown>): string | null {
 /** The speaker's own clip in the chat (prototype v31 `.lb.me.aud`): an
  *  orange bubble on the right, 78% wide, their words above the player where
  *  the feedback is about them, with what goes struck. */
-function ClipBubble({ clip, seed }: { clip: WalkChatClip; seed: string }) {
+function ClipBubble({ clip, seed, caption = null }: { clip: WalkChatClip; seed: string; caption?: string | null }) {
   return (
     <div className="flex justify-end">
       <div className="flex w-[78%] flex-col gap-1 rounded-[16px] bg-primary px-3 py-2 text-primary-foreground">
+        {caption ? <span className="text-[13px] leading-[1.45] opacity-[0.92]">{caption}</span> : null}
         {clip.words ? (
           <span className="text-[13px] leading-[1.45] opacity-[0.92] [&_s]:text-white/[0.72] [&_s]:decoration-[1.5px]">
             {clip.words.map((p, i) => (p.cut ? <s key={i}>{p.text}</s> : <span key={i}>{p.text}</span>))}
@@ -2154,6 +2184,18 @@ function ClipBubble({ clip, seed }: { clip: WalkChatClip; seed: string }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** The exercise video's thumb in its chat bubble (prototype v31 `vthumb`):
+ *  a dark 16:9 box with the play mark; the tap opens the lens, which plays. */
+function ExerciseThumb() {
+  return (
+    <span aria-hidden="true" className="my-1.5 flex aspect-video w-[150px] items-center justify-center rounded-[10px] bg-gradient-to-br from-[#30343c] to-[#17191e]">
+      <span className="relative h-[26px] w-[26px] rounded-full bg-white/[0.94]">
+        <span className="absolute left-[10px] top-[7px] border-y-[6px] border-l-[9px] border-y-transparent border-l-[#121212]" />
+      </span>
+    </span>
   );
 }
 

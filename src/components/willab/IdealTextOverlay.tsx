@@ -920,6 +920,7 @@ export default function IdealTextOverlay({
       <IdealTextActions
         canRecordTake={sd.canRecordTake}
         takeCount={sd.takeCount}
+        arcId={arcId}
         reviewWaiting={waiting}
         endCard={endCard}
         onReview={() => setReviewRequest((n) => n + 1)}
