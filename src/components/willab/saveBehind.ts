@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import {
-  acceptOutcome,
   saveTakeFeedbackResponse,
   type FeedbackFamily,
   type FeedbackResponse,
@@ -172,9 +171,10 @@ export async function acceptRewriteBehind<I extends RewriteItem>(
 ): Promise<BehindOutcome> {
   const saved = await respond(item, "apply_suggestion");
   if (!saved.ok) return saved.reason === "superseded" ? "final" : "failed";
-  const outcome = acceptOutcome(saved.textUpdate);
-  if (outcome === "refused") return "final";
-  const applied = await accept(outcome === "server" ? { ...item, acceptedOnServer: true } : item);
+  // RULE 5 (founder lock 2026-10-12): an accepted clearer version is what the
+  // speaker practises; the Ideal Text takes it only once they say it in the
+  // next Take. The answer is recorded; no word of the document changes.
+  const applied = await accept({ ...item, acceptedOnServer: true });
   return applied ? "ok" : "failed";
 }
 

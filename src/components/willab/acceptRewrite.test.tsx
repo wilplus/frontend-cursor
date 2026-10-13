@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-/* AN ACCEPTED REWRITE IS A PARAGRAPH VERSION (F1 Repair Plan Phase 4, P1-1;
-   contract 29b). The server writes the words from the V3 freeze and says
-   what it did in `text_update`: written, the page is told so and sends no
-   ledger decision of its own; refused, the sheet says the accept was not
-   saved and nothing changes. */
+/* AN ACCEPTED CLEARER VERSION IS PRACTISED, NOT WRITTEN (rule 5, founder
+   lock 2026-10-12): the speaker's answer is saved, the page sends no
+   decision that changes a word, and the practise goes on. The Ideal Text
+   takes the words only once they are said in the next Take. */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -172,11 +171,11 @@ async function open(
 }
 
 
-async function accept(textUpdate: string | undefined) {
+async function accept() {
   onAccept.mockClear();
   onPractise.mockClear();
   vi.mocked(saveTakeFeedbackResponse).mockResolvedValueOnce(
-    textUpdate === undefined ? { ok: true } : { ok: true, textUpdate });
+    { ok: true });
   await open("no", { practiceExercise: null } as unknown as Partial<DocumentSuggestion>, [
     { ...rewrite, takeSessionId: "take-1", feedbackFamily: "rewrite_clarity" } as DocumentSuggestion,
   ]);
@@ -186,11 +185,10 @@ async function accept(textUpdate: string | undefined) {
 }
 
 describe("accepting a rewrite", () => {
-
-  it("the server refused: nothing changes and the sheet says so", async () => {
-    await accept("protected");
-    expect(onAccept).not.toHaveBeenCalled();
-    expect(onPractise).not.toHaveBeenCalled();
-    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+  it("records the answer, changes no word, and goes on to the practise", async () => {
+    await accept();
+    expect(saveTakeFeedbackResponse).toHaveBeenCalledWith(expect.objectContaining({ response: "apply_suggestion" }));
+    expect(onAccept).toHaveBeenCalledWith(expect.objectContaining({ acceptedOnServer: true }));
+    expect(onPractise).toHaveBeenCalled();
   });
 });
