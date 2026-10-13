@@ -7,6 +7,7 @@ import PendingCoachSend from "@/components/willab/PendingCoachSend";
 import GuestProjectClaim from "@/components/willab/GuestProjectClaim";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import HomeScreenReporter from "@/components/pwa/HomeScreenReporter";
+import BookingReturn from "@/components/booking/BookingReturn";
 
 // Body copy stays on the system stack (font-sans). Headings opt in to DM
 // Serif Display via Tailwind's `font-heading`, whose stack reads
@@ -100,6 +101,7 @@ export default function RootLayout({
             Project Take after OAuth. Renders nothing. */}
         <PendingCoachSend />
         <GuestProjectClaim />
+        <BookingReturn />
       </body>
     </html>
   );

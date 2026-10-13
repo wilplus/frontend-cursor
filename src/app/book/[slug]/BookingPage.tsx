@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import Logo from "@/components/Logo";
+import { bookingUrl, clearBookingReturn, readBookingReturn, saveBookingReturn } from "@/lib/booking/returnTo";
 import {
   allZones, city, dayKey, detectedZone, fmtDay, fmtShortDay, fmtTime, gmtLabel, money, parts,
   prefers12h, zoned,
@@ -118,12 +119,21 @@ export default function BookingPage({ info }: { info: PageInfo }) {
         const o = (await r.json()) as Offer;
         setOffer(o);
         setForm((f) => ({ ...f, name: f.name || o.name || "" }));
+        // Back from sign-in / sign-up: open the time they had chosen.
+        const saved = readBookingReturn();
+        clearBookingReturn();
+        const chosen = Date.parse(new URLSearchParams(window.location.search).get("slot") || "")
+          || (saved?.slug === info.slug ? saved.slot : null);
+        if (chosen && chosen > Date.now()) setSlot(chosen);
       })
       .catch(() => setOffer("signed-out"));
   }, [info.slug]);
 
   const signedIn = offer !== null && offer !== "signed-out" ? offer : null;
-  const loginHref = `/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`;
+  const signUpFor = (chosen: number | null) => {
+    saveBookingReturn(info.slug, chosen);
+    window.location.href = `/signup?redirectTo=${encodeURIComponent(bookingUrl({ slug: info.slug, slot: chosen }))}`;
+  };
 
   // One request per visible month, from its first to its last midnight in
   // the viewer's zone.
@@ -286,7 +296,8 @@ export default function BookingPage({ info }: { info: PageInfo }) {
       <div className="grid rounded-[14px] border border-border md:grid-cols-[260px_1fr_240px]">
         <Meta info={info} tz={tz} offer={signedIn}>
           {offer === "signed-out" && (
-            <a href={loginHref} className="mt-5 inline-block rounded-[10px] bg-foreground px-4 py-2.5 text-sm font-semibold text-background no-underline">
+            <a href={`/signup?redirectTo=${encodeURIComponent(`/book/${info.slug}`)}`}
+              onClick={(e) => { e.preventDefault(); signUpFor(null); }} className="mt-5 inline-block rounded-[10px] bg-foreground px-4 py-2.5 text-sm font-semibold text-background no-underline">
               Sign in to book
             </a>
           )}
@@ -360,7 +371,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
               {dayTimes.map((s) => (
                 <button key={s} onClick={() => {
                     if (offer === "signed-out") {
-                      window.location.href = loginHref;
+                      signUpFor(s);
                       return;
                     }
                     setSlot(s);
