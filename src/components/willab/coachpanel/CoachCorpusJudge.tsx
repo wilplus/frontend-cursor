@@ -32,9 +32,11 @@ import {
   acknowledgeConfidenceChainRender, buildRatingBody, saveStateRating, type ConfidenceChainBlindHandle,
 } from "@/services/api/stateRatings";
 
-export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onClose }: {
+export default function CoachCorpusJudge({ importId, topic, onSaved, onDone, onBack, onClose }: {
   importId: string;
   topic: string;
+  /** An answer is saved: "Answer saved", as on a speaker's moment. */
+  onSaved: () => void;
   /** Every moment judged (or the last one passed): back to the imports. */
   onDone: () => void;
   onBack: () => void;
@@ -91,6 +93,7 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
     setQueue((q) => q ? { ...q, queue: q.queue.map((p, i) => (i === at
       ? { ...p, label: { value, unrateable: false, confident: value === "yes" ? true : value === "no" ? false : null, intensity: null, note: null } }
       : p)) } : q);
+    onSaved();
     const next = nextUnlabelledIndex(labelled, at);
     if (next >= 0) setAt(next);
     else onDone();
@@ -126,6 +129,7 @@ export default function CoachCorpusJudge({ importId, topic, onDone, onBack, onCl
           attempt={attempt}
           // The chain's receipt never blocks the coach's own label (Q2).
           onAnswer={(value) => void answer(value, exposureId)}
+          onSkip={nav.onNext}
           onClose={onClose}
         />
       )}

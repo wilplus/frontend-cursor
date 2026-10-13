@@ -104,6 +104,73 @@ export async function recordExercisePreference(
   return { ok: false, status, message: str(data?.error) ?? "Couldn’t record that." };
 }
 
+/* ── the diagnosis first (coach panel lock flow 6; D-CP-4) ─────────── */
+
+/** One error the coach may name, in the lock's order: the machine-heard
+ *  ones first (flagged), then the library's, then the coach-named ones. */
+export interface ErrorChoice {
+  kind: "error" | "named_error";
+  /** The library's error id, or the coach-named error's id. */
+  id: string;
+  label: string;
+  machineHeard: boolean;
+}
+
+export interface Diagnosis {
+  kind: "error" | "named_error" | "no_error";
+  /** The library error, or the coach-named error, diagnosed. */
+  id: string | null;
+}
+
+export interface DiagnosisView {
+  errors: ErrorChoice[];
+  current: Diagnosis | null;
+}
+
+function mapDiagnosis(raw: unknown): Diagnosis | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Raw;
+  if (r.kind === "no_error") return { kind: "no_error", id: null };
+  if (r.kind === "error") return { kind: "error", id: str(r.error_id) };
+  if (r.kind === "named_error") return { kind: "named_error", id: str(r.named_error_id) };
+  return null;
+}
+
+export function mapDiagnosisView(raw: unknown): DiagnosisView {
+  const r = (raw ?? {}) as Raw;
+  const errors = Array.isArray(r.errors)
+    ? r.errors
+        .filter((e): e is Raw => !!e && typeof e === "object")
+        .flatMap((e): ErrorChoice[] => {
+          const kind = e.kind === "named_error" ? "named_error" : "error";
+          const id = kind === "error" ? str(e.error_id) : str(e.named_error_id);
+          const label = str(e.label);
+          return id && label ? [{ kind, id, label, machineHeard: e.machine_heard === true }] : [];
+        })
+    : [];
+  return { errors, current: mapDiagnosis(r.diagnosis) };
+}
+
+/** null before the blind rating (409) or on any failure. */
+export async function fetchDiagnosis(sessionId: string, snippetId: string): Promise<DiagnosisView | null> {
+  const { status, data } = await get(momentPath(sessionId, snippetId, "diagnosis"));
+  return status === 200 ? mapDiagnosisView(data) : null;
+}
+
+export type DiagnosisInput = { errorId: string } | { newName: string } | { noError: true };
+
+export async function saveDiagnosis(
+  sessionId: string,
+  snippetId: string,
+  input: DiagnosisInput,
+): Promise<{ ok: true; current: Diagnosis | null } | { ok: false; message: string }> {
+  const body = "errorId" in input ? { error_id: input.errorId }
+    : "newName" in input ? { new_name: input.newName } : { no_error: true };
+  const res = await coachWrite(momentPath(sessionId, snippetId, "diagnosis"), "PUT", body);
+  if (!res.ok) return { ok: false, message: str(res.data?.error) ?? "Couldn’t save your answer." };
+  return { ok: true, current: mapDiagnosis(res.data?.diagnosis) };
+}
+
 /* ── 7 · drafts of the coach's own words (text only) ─────────────────── */
 
 export interface CoachWordDraft {

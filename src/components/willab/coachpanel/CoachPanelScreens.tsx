@@ -10,7 +10,8 @@
 /*    SpeakersScreen Your speakers: every speaker this coach may hear, an     */
 /*                   orange dot on those waiting (flow step 1; D-CP-12)      */
 /*    SpeakerScreen  one speaker: their goal and their Takes                 */
-/*    JudgeScreen    the player, the question, the five answers. NOTHING     */
+/*    JudgeScreen    the player, the question, 👍 😐 👎, Audio unclear, Skip. */
+/*                   NOTHING                                                  */
 /*                   ELSE (BLIND COACH): no passage, no kind, no machine      */
 /*                   read, no slide                                           */
 /*    RevealScreen   What happened: the passage with its player; You, the     */
@@ -23,17 +24,17 @@
 /*  and a moment's position.                                                  */
 /* -------------------------------------------------------------------------- */
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import WalkOverlay, { walkNavText, type WalkNav } from "../walk/WalkOverlay";
 import WalkPlayer from "../walk/WalkPlayer";
-import WalkJudgement from "../walk/WalkJudgement";
+import WalkFaces, { WalkUnclear } from "../walk/WalkFaces";
 import WalkFooter from "../walk/WalkFooter";
 import WalkLoading from "../walk/WalkLoading";
 import WalkChoices, { type WalkChoice } from "../walk/WalkChoices";
 import DeckSlidePreview from "../DeckSlidePreview";
-import { OWNER_PRIMARY_RATING_OPTIONS } from "../ConfidenceLabelChips";
 import { answerWord, type AnswerValue, type QueueSpeaker, type QueueTake, type ReadSlide } from "@/lib/willab/coachWalk";
 import { COACH_PANEL_COPY as COPY } from "@/lib/willab/coachPanelCopy";
+import { WALK_ANSWER_HOLD_MS } from "@/lib/willab/walkMotion";
 import type { MomentRead } from "@/services/api/coachWalk";
 import type { BlockPickQueue, ErrorAuditQueue, V4MomentPickQueue, V4SurerQueue } from "@/services/api/coachPanel";
 import type { PanelSpeaker } from "@/services/api/coachSpeakers";
@@ -58,7 +59,7 @@ function Group({ label, children, testId }: { label: string; children: ReactNode
   );
 }
 
-function Player({ nav, momentId, clip, words }: {
+export function PanelPlayer({ nav, momentId, clip, words }: {
   nav: WalkNav; momentId: string; clip: PanelClip | null; words?: ReactNode;
 }) {
   return (
@@ -234,7 +235,9 @@ export function takeChoice(take: QueueTake, index: number): WalkChoice {
   // answered", Q-B4 A).
   const subtitle =
     index === 0 || take.moments.length === 0 ? COPY.allMomentsAnswered : COPY.answeredMoments(take.moments.length);
-  return { value, label, subtitle, done: true, mark: "check" };
+  // The newest Take still opens, on its Summary (prototype openTake); the
+  // older ones are drawn done.
+  return { value, label, subtitle, done: index !== 0 || take.moments.length === 0, mark: "check" };
 }
 
 /** A speaker opened from Your speakers before the queue has their moments:
@@ -278,7 +281,30 @@ export function SpeakerScreen({ speaker, loading = false, onTake, onBack, onClos
 
 /* ── Judge this moment (blind) ───────────────────────────────────────── */
 
-export function JudgeScreen({ nav, momentId, clip, error, attempt, onAnswer, onClose }: {
+/** The coach's answers since the 2026-10-12 lock (section 7): 👍 😐 👎 and
+ *  "Audio unclear", as the speaker's own; a chosen answer holds a moment,
+ *  then moves on. One answer per visit. */
+function JudgeAnswers({ onAnswer, holdMs = WALK_ANSWER_HOLD_MS }: {
+  onAnswer: (value: AnswerValue) => void;
+  holdMs?: number;
+}) {
+  const [chosen, setChosen] = useState<AnswerValue | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  const pick = (value: AnswerValue) => {
+    if (chosen) return;
+    setChosen(value);
+    timer.current = window.setTimeout(() => onAnswer(value), holdMs);
+  };
+  return (
+    <>
+      <WalkFaces answered={chosen === "audio_unclear" ? null : chosen} onPick={pick} />
+      {chosen === null ? <WalkUnclear onPick={() => pick("audio_unclear")} /> : null}
+    </>
+  );
+}
+
+export function JudgeScreen({ nav, momentId, clip, error, attempt, onAnswer, onSkip, onClose }: {
   nav: WalkNav;
   momentId: string;
   clip: PanelClip | null;
@@ -286,12 +312,16 @@ export function JudgeScreen({ nav, momentId, clip, error, attempt, onAnswer, onC
   /** A new try after a failed save draws the answers unfilled again. */
   attempt: number;
   onAnswer: (value: AnswerValue) => void;
+  /** Skip: on without an answer (the signed "Skip", lock 2026-10-12 §7). */
+  onSkip?: () => void;
   onClose: () => void;
 }) {
+  const footer = onSkip ? <WalkFooter links={[{ label: COPY.skip, onClick: onSkip, testId: "coach-panel-judge-skip" }]} /> : null;
   return (
-    <WalkOverlay nav={nav} title={COPY.judgeTitle} onClose={onClose} testId="coach-panel-judge">
-      <Player nav={nav} momentId={momentId} clip={clip} />
-      <WalkJudgement key={attempt} question={COPY.judgeQuestion} primary={OWNER_PRIMARY_RATING_OPTIONS} onAnswer={onAnswer} />
+    <WalkOverlay nav={nav} title={COPY.judgeTitle} onClose={onClose} footer={footer} testId="coach-panel-judge">
+      <PanelPlayer nav={nav} momentId={momentId} clip={clip} />
+      <p className="m-0 text-[16px] font-semibold">{COPY.judgeQuestion}</p>
+      <JudgeAnswers key={attempt} onAnswer={onAnswer} />
       {error ? <p role="alert" className="m-0 text-center text-[14px] text-destructive">{error}</p> : null}
     </WalkOverlay>
   );
@@ -347,7 +377,7 @@ export function revealLines(
   return lines;
 }
 
-function Facts({ lines }: { lines: RevealLine[] }) {
+export function Facts({ lines }: { lines: RevealLine[] }) {
   return (
     <dl data-testid="coach-panel-facts" className="m-0 flex flex-col gap-2 text-[15.5px]">
       {lines.map((line) => (
@@ -357,6 +387,30 @@ function Facts({ lines }: { lines: RevealLine[] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** What happened's body, and Summary's: the slide, the passage on its
+ *  player, the lines. The loader while the read is on its way. */
+export function RevealBody({ read, slide, player, lines }: {
+  /** undefined while it loads, null when it could not be read. */
+  read: MomentRead | null | undefined;
+  slide: ReadSlide | null;
+  player: ReactNode;
+  lines: RevealLine[];
+}) {
+  if (read === undefined) return <WalkLoading />;
+  if (read === null) return <p role="alert" className="m-0 text-[15px]">{COPY.readFail}</p>;
+  return (
+    <>
+      {slide ? (
+        <div data-testid="coach-panel-slide" className="w-[48%] shrink-0">
+          <DeckSlidePreview presentationRef={slide.presentationRef} pageIndex={slide.pageIndex} size="header" className="" />
+        </div>
+      ) : null}
+      {player}
+      <Facts lines={lines} />
+    </>
   );
 }
 
@@ -373,26 +427,13 @@ export function RevealScreen({ nav, momentId, clip, slide, read, pseudonym, just
   onClose: () => void;
 }) {
   const footer = read ? <WalkFooter pill={{ label: COPY.next, onClick: onNext, testId: "coach-panel-reveal-next" }} /> : null;
+  const player = (
+    <PanelPlayer nav={nav} momentId={momentId} clip={clip}
+      words={read?.passage ? <span data-testid="coach-panel-passage">{read.passage}</span> : null} />
+  );
   return (
     <WalkOverlay nav={nav} title={COPY.whatHappened} onClose={onClose} footer={footer} testId="coach-panel-reveal">
-      {read === undefined ? <WalkLoading /> : null}
-      {read === null ? <p role="alert" className="m-0 text-[15px]">{COPY.readFail}</p> : null}
-      {read ? (
-        <>
-          {slide ? (
-            <div data-testid="coach-panel-slide" className="w-[48%] shrink-0">
-              <DeckSlidePreview presentationRef={slide.presentationRef} pageIndex={slide.pageIndex} size="header" className="" />
-            </div>
-          ) : null}
-          <Player
-            nav={nav}
-            momentId={momentId}
-            clip={clip}
-            words={read.passage ? <span data-testid="coach-panel-passage">{read.passage}</span> : null}
-          />
-          <Facts lines={revealLines(read, pseudonym, justRated)} />
-        </>
-      ) : null}
+      <RevealBody read={read} slide={slide} player={player} lines={read ? revealLines(read, pseudonym, justRated) : []} />
     </WalkOverlay>
   );
 }
