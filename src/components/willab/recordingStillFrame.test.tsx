@@ -150,6 +150,23 @@ describe("Back and Next slide (N70)", () => {
   });
 });
 
+describe("Space after a mouse click (keys lock N70.1)", () => {
+  it("goes forward, never presses the clicked Back again", () => {
+    render();
+    click("Next slide");
+    click("Next slide");
+    const back = button("Back")!;
+    // A mouse click focuses the button first (Chrome, Firefox); detail 1.
+    back.focus();
+    act(() => {
+      back.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    });
+    expect(seen).toEqual([1, 2, 1]);
+    key(" ", {}, document.activeElement ?? document.body);
+    expect(seen).toEqual([1, 2, 1, 2]);
+  });
+});
+
 describe("the still frame", () => {
   it("keeps the top bar, the strip and the buttons through a slide change", () => {
     render();

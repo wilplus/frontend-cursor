@@ -108,7 +108,8 @@ describe("the recording stage and the page's pull-to-refresh", () => {
 });
 
 /* "Getting your mic ready" before a later Take (build plan D-RC-3): the
-   Lab's own no-pull rule now covers lab_prerecord too, root and belt. */
+   Lab's own no-pull rule covers lab_prerecord too, root and belt, and the
+   belt is worn for the whole span (recording screens lock: never a reload). */
 describe("no pull-to-refresh on the later-Take mic wait", () => {
   type LabState = Parameters<typeof useLabNoPull>[0];
   type Mic = Parameters<typeof useLabNoPull>[1];
@@ -140,5 +141,16 @@ describe("no pull-to-refresh on the later-Take mic wait", () => {
     expect(html()).toBe("none");
     show("lab_recording", "recording");
     expect(html()).toBe("none");
+  });
+
+  // iOS before 16 ignores the root property: the mic wait and the processing
+  // screen have no gesture hook, so the Lab's belt must cancel the pull.
+  it("cancels a pull down on the mic wait and the processing screen", () => {
+    show("lab_recording", "idle");
+    expect(drag(host, 100, 160).every((m) => m.defaultPrevented)).toBe(true);
+    show("lab_processing");
+    expect(drag(host, 100, 160).every((m) => m.defaultPrevented)).toBe(true);
+    show("lab_session_context");
+    expect(drag(host, 100, 160).some((m) => m.defaultPrevented)).toBe(false);
   });
 });
