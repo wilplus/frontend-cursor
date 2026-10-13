@@ -17,6 +17,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DataConsentChoices from "@/components/account/DataConsentChoices";
 import PolicyUpdateCard from "@/components/account/PolicyUpdateCard";
 import TrainingConsentCard from "@/components/account/TrainingConsentCard";
+import AiVoiceCard from "@/components/account/AiVoiceCard";
 import ProjectsCard from "@/components/account/ProjectsCard";
 import DeleteAccountCard from "@/components/account/DeleteAccountCard";
 import SupportCard from "@/components/account/SupportCard";
@@ -50,6 +51,7 @@ export default function DataConsentPage() {
         <div className="mt-6">
           <TrainingConsentCard onOffered={setTrainingOffered} />
         </div>
+        <AiVoiceCard />
         <ProjectsCard />
         <SupportCard />
         <DeleteAccountCard />

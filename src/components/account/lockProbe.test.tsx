@@ -22,6 +22,9 @@ const api = vi.hoisted(() => ({
   fetchAuthorization: vi.fn(),
   fetchTrainings: vi.fn(),
   getAuthToken: vi.fn(async () => "token"),
+  readAiVoiceCard: vi.fn(),
+  deleteAiVoice: vi.fn(),
+  turnOnAiVoice: vi.fn(),
 }));
 
 vi.mock("next/link", () => ({
@@ -50,6 +53,11 @@ vi.mock("@/services/api/processingAuthorization", async (importOriginal) => ({
   recordAiNoticeRendered: vi.fn(async () => undefined),
   acceptAuthorization: vi.fn(async () => ({ kind: "accepted" })),
 }));
+vi.mock("@/services/api/aiVoice", () => ({
+  readAiVoiceCard: api.readAiVoiceCard,
+  deleteAiVoice: api.deleteAiVoice,
+  turnOnAiVoice: api.turnOnAiVoice,
+}));
 vi.mock("@/services/api/trainings", () => ({ fetchTrainings: api.fetchTrainings }));
 vi.mock("@/services/api/projectArchive", () => ({ unarchiveProject: vi.fn() }));
 vi.mock("@/services/api/projectDeletion", () => ({
@@ -65,9 +73,15 @@ vi.mock("@/services/api/accountDeletion", async (importOriginal) => ({
 import Phase1AcceptanceFlow from "@/components/willab/Phase1AcceptanceFlow";
 import { resetTrainingAsk } from "@/components/willab/TrainingAsk";
 import DeleteAccountCard from "./DeleteAccountCard";
+import AiVoiceCard from "./AiVoiceCard";
 import type { ProcessingPolicy } from "@/services/api/processingAuthorization";
 import type { TrainingConsent } from "@/services/api/trainingConsent";
-import { CONSENT_PROTOTYPE_WORDS, SETTINGS_PROTOTYPE_WORDS, SIGNED_STATE_LINES } from "./lockProbeWords";
+import {
+  AI_VOICE_PROTOTYPE_WORDS,
+  CONSENT_PROTOTYPE_WORDS,
+  SETTINGS_PROTOTYPE_WORDS,
+  SIGNED_STATE_LINES,
+} from "./lockProbeWords";
 
 /* ----------------------------- the fixtures --------------------------------- */
 
@@ -110,6 +124,7 @@ const OWN = ["alex@example.com", "12,000 · 30 Aug", "Board pitch", "Conference 
 const ALLOWED = new Set([
   ...CONSENT_PROTOTYPE_WORDS,
   ...SETTINGS_PROTOTYPE_WORDS,
+  ...AI_VOICE_PROTOTYPE_WORDS,
   ...SIGNED_STATE_LINES.map((l) => l.text),
   ...POLICY_WORDS,
   TRAINING.copy as string,
@@ -292,5 +307,23 @@ describe("Data & consent", () => {
       }),
     );
     probe("delete, under way without a date");
+  });
+
+  it("AI version of your voice: on, the Delete confirm, off, on again", async () => {
+    const card = (state: string) => ({ ok: true, data: { available: true, state } });
+    api.readAiVoiceCard.mockResolvedValue(card("on"));
+    api.deleteAiVoice.mockResolvedValue(card("off"));
+    api.turnOnAiVoice.mockResolvedValue(card("on"));
+    await render(createElement(AiVoiceCard));
+    probe("ai voice, on");
+    await click("Delete");
+    probe("ai voice, confirming");
+    expect(api.deleteAiVoice).not.toHaveBeenCalled();
+    await click("Delete");
+    expect(api.deleteAiVoice).toHaveBeenCalledTimes(1);
+    probe("ai voice, off");
+    await click("Turn on");
+    expect(api.turnOnAiVoice).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain(AI_VOICE_PROTOTYPE_WORDS[1]);
   });
 });

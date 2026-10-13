@@ -42,3 +42,29 @@ export function readAiVoice(practiceId: string): Promise<Outcome<AiVoiceState>> 
 export function noteAiVoicePlay(practiceId: string): Promise<Outcome<null>> {
   return call(path(practiceId, "/play"), { method: "POST", body: {} }, () => null);
 }
+
+/* The Data & consent card (L6-L11): on or off, and nothing else. "deleting"
+   is a Delete the provider has not confirmed yet; Delete again retries it. */
+export interface AiVoiceCard {
+  available: boolean;
+  state: "on" | "off" | "deleting";
+}
+
+export function mapAiVoiceCard(data: Record<string, unknown>): AiVoiceCard {
+  const state = data.state === "off" || data.state === "deleting" ? data.state : "on";
+  return { available: data.available === true, state };
+}
+
+const CARD = "/api/v2/user/ai-voice";
+
+export function readAiVoiceCard(): Promise<Outcome<AiVoiceCard>> {
+  return call(CARD, { method: "GET" }, mapAiVoiceCard);
+}
+
+export function turnOnAiVoice(): Promise<Outcome<AiVoiceCard>> {
+  return call(CARD, { method: "POST", body: {} }, mapAiVoiceCard);
+}
+
+export function deleteAiVoice(): Promise<Outcome<AiVoiceCard>> {
+  return call(CARD, { method: "DELETE" }, mapAiVoiceCard);
+}
