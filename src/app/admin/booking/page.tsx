@@ -237,11 +237,12 @@ function BookingAdmin() {
           <h2 className={h3}>Calendar and meeting</h2>
           <div className={box}>
             <label className={label} htmlFor="bk-ics">
-              Proton Calendar share link
-              <input id="bk-ics" className={field} value={s.calendar_ics_url} onChange={(e) => set("calendar_ics_url", e.target.value)} />
+              Calendar share links (one per line)
+              <textarea id="bk-ics" rows={3} className={field} value={s.calendar_ics_url}
+                onChange={(e) => set("calendar_ics_url", e.target.value)} />
             </label>
             <p className="-mt-2 text-[13px] text-muted-foreground">
-              Your busy times are read from this link, so nobody can book over them. In Proton: Calendar settings → Share →
+              Busy times from every calendar listed block the booking page. In Proton: Calendar settings → Share →
               Share with anyone → Full view. Each booking is also sent to you as an invite you add with one click.
             </p>
             <label className={label} htmlFor="bk-meet">
