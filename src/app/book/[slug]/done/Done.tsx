@@ -15,6 +15,7 @@ export interface Confirmation {
   currency: string;
   list_price_cents: number;
   bonus_tokens: number;
+  due_cents?: number;
 }
 
 export default function Done({ info, booking }: { info: PageInfo; booking: Confirmation | null }) {
@@ -61,16 +62,27 @@ export default function Done({ info, booking }: { info: PageInfo; booking: Confi
               <a href={booking.meet_url} className="underline" target="_blank" rel="noreferrer">{booking.meet_url}</a>
             </dd>
           </div>
-          <div className={row}><dt className="text-muted-foreground">Paid</dt><dd>
-            {booking.price_cents === 0 ? "Not paid" : (
-              <>
-                {booking.price_cents < booking.list_price_cents && (
-                  <s className="mr-2 text-muted-foreground">{money(booking.list_price_cents, booking.currency)}</s>
-                )}
-                {money(booking.price_cents, booking.currency)}
-              </>
-            )}
-          </dd></div>
+          {(() => {
+            // Booked without paying: show what is still to be paid, at the
+            // price they had when booking (e.g. the first-lesson discount).
+            const due = booking.price_cents === 0 ? booking.due_cents || 0 : 0;
+            const amount = due || booking.price_cents;
+            return (
+              <div className={row}>
+                <dt className="text-muted-foreground">{due ? "To be paid" : "Paid"}</dt>
+                <dd>
+                  {amount === 0 ? "Not paid" : (
+                    <>
+                      {amount < booking.list_price_cents && (
+                        <s className="mr-2 text-muted-foreground">{money(booking.list_price_cents, booking.currency)}</s>
+                      )}
+                      {money(amount, booking.currency)}
+                    </>
+                  )}
+                </dd>
+              </div>
+            );
+          })()}
           {booking.bonus_tokens > 0 && (
             <div className={row}>
               <dt className="text-muted-foreground">Tokens</dt>
