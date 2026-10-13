@@ -1,0 +1,86 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
+import { offerDraft, type OfferType } from "./loungeOffers";
+
+/* -------------------------------------------------------------------------- */
+/*  An ask the admin sent this person from their profile (founder 2026-10-13,  */
+/*  step 2). It shows after their next fresh Take, in the footer slot the app's */
+/*  own offers use, one at a time:                                             */
+/*    whatsapp     → the WhatsApp offer                                         */
+/*    home_screen  → the add-to-home-screen offer (only where it can install)   */
+/*    consent      → a pointer to the Data & consent page                       */
+/*  While an ask is open the automatic offers hold back, so a Take never gets   */
+/*  two questions.                                                             */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminAsk {
+  id: string;
+  kind: "whatsapp" | "home_screen" | "consent";
+  consent_key: string | null;
+}
+
+interface Inputs {
+  state: string;
+  messages: LoungeMessage[];
+  threadLoading: boolean;
+  append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+  settleTimeRef: MutableRefObject<string | null>;
+  installCanOffer: boolean;
+  activeOffer: OfferType | null;
+  openOffer: (type: OfferType) => void;
+}
+
+const OFFER_FOR: Record<AdminAsk["kind"], OfferType> = {
+  whatsapp: "whatsapp",
+  home_screen: "install",
+  consent: "consent",
+};
+
+function report(id: string, event: "shown" | "opened") {
+  void fetch(`/api/v2/user/asks/${encodeURIComponent(id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event }),
+  }).catch(() => undefined);
+}
+
+export function useAdminAsk(inputs: Inputs) {
+  const { state, messages, threadLoading, append, settleTimeRef, installCanOffer, activeOffer, openOffer } = inputs;
+  // undefined = still asking the server; null = nothing waiting.
+  const [ask, setAsk] = useState<AdminAsk | null | undefined>(undefined);
+  const shownRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/v2/user/asks/next", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { ask: null }))
+      .then((b: { ask?: AdminAsk | null }) => live && setAsk(b.ask ?? null))
+      .catch(() => live && setAsk(null));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const settle = settleTimeRef.current;
+    if (!ask || shownRef.current === ask.id || threadLoading || settle === null) return;
+    if (state !== "review_pending" || activeOffer !== null) return;
+    if (ask.kind === "home_screen" && !installCanOffer) return;
+    const fresh = messages.some((m) => m.kind === "recording_summary" && m.client_created_at > settle);
+    if (!fresh) return;
+    shownRef.current = ask.id;
+    const type = OFFER_FOR[ask.kind];
+    void append(offerDraft(type));
+    openOffer(type);
+    report(ask.id, "shown");
+  }, [ask, state, activeOffer, installCanOffer, threadLoading, messages, append, openOffer, settleTimeRef]);
+
+  const opened = useCallback(() => {
+    if (ask) report(ask.id, "opened");
+  }, [ask]);
+
+  /** Hold the automatic offers while an ask is pending or loading. */
+  return { held: ask !== null, opened };
+}

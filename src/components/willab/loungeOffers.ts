@@ -20,9 +20,9 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
  *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so the
  *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
  *  render as ordinary bot text, which is exactly what the fallback was for. */
-export type OfferType = "install" | "whatsapp" | "joke";
+export type OfferType = "install" | "whatsapp" | "joke" | "consent";
 
-const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke"];
+const OFFER_TYPES: readonly OfferType[] = ["install", "whatsapp", "joke", "consent"];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
@@ -31,6 +31,10 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   // WhatsApp (founder 2026-10-12): the second offer, after install.
   whatsapp:
     "Want a WhatsApp message when your coach's feedback is in? Add your phone number.",
+  // Consent (founder 2026-10-13, step 2): sent by the admin to one person; it
+  // points to the Data & consent page, where they answer on the locked screen.
+  consent:
+    "One question about how we use your data is still open. You can look at it and answer yes or no.",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
 };

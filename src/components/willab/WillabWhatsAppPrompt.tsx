@@ -54,6 +54,8 @@ interface TriggerInputs {
   /** May the install offer still be offered? It goes first: the WhatsApp
    *  offer waits until install is in the thread or cannot be offered. */
   installCanOffer: boolean;
+  /** An ask the admin sent this person holds the automatic offers back. */
+  held?: boolean;
   activeOffer: OfferType | null;
   openOffer: (type: OfferType) => void;
 }
@@ -84,7 +86,7 @@ export function useWhatsAppOffer(inputs: TriggerInputs): WhatsAppOffer {
  *  offer, once install has had its turn on an earlier recording. */
 function useAutoOffer(inputs: TriggerInputs, canOffer: boolean) {
   const { state, messages, threadLoading, append, settleTimeRef } = inputs;
-  const { installCanOffer, activeOffer, openOffer } = inputs;
+  const { installCanOffer, activeOffer, openOffer, held } = inputs;
   const handledRef = useRef(false);
   // The fresh recording during which an offer (install) was open: that
   // recording has had its offer, whatever the timestamps say.
@@ -100,6 +102,7 @@ function useAutoOffer(inputs: TriggerInputs, canOffer: boolean) {
     if (threadLoading || settle === null || handledRef.current) return;
     if (state !== "review_pending" || !canOffer) return;
     if (activeOffer !== null) return;
+    if (held) return;
     if (installCanOffer && !hasOffer(messages, "install")) return;
     if (hasOffer(messages, "whatsapp")) return;
     const fresh = latestFreshSend(messages, settle);
@@ -108,7 +111,7 @@ function useAutoOffer(inputs: TriggerInputs, canOffer: boolean) {
     handledRef.current = true;
     void append(offerDraft("whatsapp"));
     openOffer("whatsapp");
-  }, [state, canOffer, installCanOffer, activeOffer, threadLoading, messages, append, openOffer, settleTimeRef]);
+  }, [state, canOffer, installCanOffer, activeOffer, held, threadLoading, messages, append, openOffer, settleTimeRef]);
 }
 
 /** The newest recording_summary minted after the settle stamp, or null. */
