@@ -104,6 +104,7 @@ export default function IdealTextActions({
             setAsking(false);
             onNewTake();
           }}
+          onClose={() => setAsking(false)}
         />
       ) : null}
     </div>

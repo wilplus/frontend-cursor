@@ -27,19 +27,25 @@ import { useLoungeThreadMaybe } from "./LoungeThreadContext";
 /*    when the speaker has communities, else "General community".            */
 /*                                                                            */
 /*  The choice is kept for the Take about to be recorded (nextTakeShare.ts).  */
-/*  ✕ records without sharing. With communities off, nothing is asked.      */
+/*  ✕ closes the question and records nothing (prototype v31, lensOff); only */
+/*  Continue goes on to the recording. With communities off, nothing is      */
+/*  asked.                                                                    */
 /* -------------------------------------------------------------------------- */
 
 export default function NextTakeShareScreen({
   takeCount = null,
   arcId = null,
   onDone,
+  onClose,
 }: {
   /** The Take just reviewed, for the top bar ("Take 2"). */
   takeCount?: number | null;
   /** The project: its chat bubbles open its Ideal Text (›). */
   arcId?: string | null;
+  /** Continue: on to the recording. */
   onDone: () => void;
+  /** ✕: the question closes and nothing is recorded. */
+  onClose: () => void;
 }) {
   const [saved, setSaved] = useState<Community[] | null>(null);
   const [ticks, setTicks] = useState<string[]>([]);
@@ -75,7 +81,7 @@ export default function NextTakeShareScreen({
 
   const close = () => {
     keepNextTakeShare(null);
-    onDone();
+    onClose();
   };
 
   const add = async () => {
@@ -104,7 +110,10 @@ export default function NextTakeShareScreen({
     void (async () => {
       for (const draft of shareChat(next, ticks, names, arcId)) await thread?.append(draft);
     })().catch(() => undefined);
-    if (ticks.includes("none")) return close();
+    if (ticks.includes("none")) {
+      keepNextTakeShare(null);
+      return onDone();
+    }
     keepNextTakeShare({ general: ticks.includes("general"), communityIds: ticks.includes("mine") ? mine : [] });
     onDone();
   };
