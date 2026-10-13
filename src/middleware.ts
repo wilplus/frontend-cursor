@@ -356,7 +356,10 @@ export async function middleware(req: NextRequest) {
   // Redirect logged-in users away from login/signup/reset-password, but NOT from /update-password
   // (user must set new password there after clicking the reset link)
   if (session && isAuthRoute(pathname) && pathname !== "/update-password") {
-    return applyCsp(NextResponse.redirect(new URL("/chat", req.url)), cspDirectives);
+    // Signed in already: go where the link asked (e.g. the booking page).
+    const back = searchParams.get("redirectTo");
+    const target = back && back.startsWith("/") && !back.startsWith("//") ? back : "/chat";
+    return applyCsp(NextResponse.redirect(new URL(target, req.url)), cspDirectives);
   }
 
   return res;
