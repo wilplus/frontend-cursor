@@ -823,6 +823,7 @@ export default function LabOverlay({
             : { stage: "completed", percent: 100 },
         );
         setProcessingReady(true);
+        leaveToChatRef.current(waitsForReview);
       } else if (result.kind === "ideal_text_unconfirmed") {
         // Synchronous execution reached the same locked Take 1 boundary as
         // queue/daemon mode. The take and feedback stay addressable; return to
@@ -861,6 +862,7 @@ export default function LabOverlay({
           progress: { stage: "processing_recording", percent: 5 },
         });
         setPollSessionId(result.sessionId);
+        leaveToChatRef.current();
       } else if (result.kind === "rejected") {
         // R4-5 — the min-content gate (422) used to send the user back to the
         // Pre-record screen. That screen is gone, so surface the message in
@@ -1346,6 +1348,17 @@ export default function LabOverlay({
       setAskBeforeReRecord(true);
     });
   }
+
+  /* THE WAIT IS IN THE CHAT (founder lock 2026-10-12, section 1): once the
+     server holds the Take, a signed-in speaker goes back to the Lounge,
+     which shows "Processing your recording" and opens the review when the
+     feedback is ready. A guest keeps this screen: their text opens here. */
+  const leaveToChatRef = useRef((go = true) => undefined as void);
+  leaveToChatRef.current = (go = true) => {
+    if (!go || signedIn !== true) return;
+    mic.cancel();
+    onClose();
+  };
 
   function handleClose() {
     if (mic.state.status === "recording") {
