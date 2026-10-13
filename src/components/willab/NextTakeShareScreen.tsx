@@ -60,11 +60,9 @@ export default function NextTakeShareScreen({
     let live = true;
     void fetchCommunities().then((res) => {
       if (!live) return;
-      if (!res.ok) {
-        onDone();
-        return;
-      }
-      const own = res.data.filter((c) => c.kind === "private");
+      // A failed read still asks: the speaker's communities are just not
+      // listed (it used to skip the question and look like it closed).
+      const own = res.ok ? res.data.filter((c) => c.kind === "private") : [];
       setSaved(own);
       setMine(own.map((c) => c.id));
       setTicks(own.length > 0 ? ["mine"] : ["general"]);
@@ -177,6 +175,8 @@ export default function NextTakeShareScreen({
 
   return (
     <div data-next-take-share className="fixed inset-0 z-[90] flex flex-col bg-background">
+      {/* Phone width on a wide screen, centred. */}
+      <div className="mx-auto flex h-full w-full flex-col md:max-w-[430px]">
       <WalkOverlay
         testId="next-take-share"
         caption={typeof takeCount === "number" && takeCount >= 1 ? `${COPY.historyTake} ${takeCount}` : null}
@@ -194,6 +194,7 @@ export default function NextTakeShareScreen({
         </WalkMessage>
         {saved ? <WalkOptions options={options} selected={ticks} onChange={setTicks} /> : null}
       </WalkOverlay>
+      </div>
       {toast ? <WalkToast key={toast.seq} message={toast.text} onDone={() => setToast(null)} /> : null}
     </div>
   );

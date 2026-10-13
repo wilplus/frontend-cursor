@@ -294,11 +294,14 @@ export default function IdealTextOverlay({
     // The coach-feedback email and bubble open the review too: only helper
     // words and moment sentences open anything (lock 2026-10-12, section 4).
     if ((initialMode !== "review" && initialMode !== "feedback") || reviewOpenedRef.current) return;
+    // After a Take (no step asked for) the review is the live walk: wait
+    // for its moments, which can land after the text, rather than settle
+    // on the finished one. An answered step tapped in the chat replays.
     if (reviewWaiting) setReviewRequest((n) => n + 1);
-    else if (replayReady) setReplayRequest((n) => n + 1);
+    else if (replayReady && reviewAt && !feedbackPending) setReplayRequest((n) => n + 1);
     else return;
     reviewOpenedRef.current = true;
-  }, [initialMode, reviewWaiting, replayReady]);
+  }, [initialMode, reviewWaiting, replayReady, reviewAt, feedbackPending]);
 
   useEffect(() => {
     let active = true;
