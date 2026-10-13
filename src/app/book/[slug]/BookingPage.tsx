@@ -26,6 +26,7 @@ export interface PageInfo {
   horizon_days: number;
   host_timezone: string;
   bonus_tokens: number;
+  new_user_price_cents?: number;
 }
 
 /** What the signed-in person pays and gets (GET .../offer). */
@@ -57,7 +58,8 @@ const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function Meta({ info, tz, offer, children }: { info: PageInfo; tz: string; offer?: Offer | null; children?: React.ReactNode }) {
   const row = "flex items-center gap-2.5";
-  const price = offer ? offer.price_cents : info.price_cents;
+  // Signed out: show the first-time price (most visitors are new).
+  const price = offer ? offer.price_cents : info.new_user_price_cents ?? info.price_cents;
   const list = offer ? offer.list_price_cents : info.price_cents;
   const tokens = offer ? offer.bonus_tokens : info.bonus_tokens;
   return (
