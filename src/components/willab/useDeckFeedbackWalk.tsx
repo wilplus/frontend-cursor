@@ -799,7 +799,11 @@ export function useDeckFeedbackWalk(args: {
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
       // The AI bubble in the locked one's place (N71) says what the screen said.
       const aiSaid = ai ? aiVoiceChat(ai) : null;
-      const said = aiSaid ?? shownStep(step, moment, coach?.text ?? null, say);
+      let said = aiSaid ?? shownStep(step, moment, coach?.text ?? null, say);
+      // The coach's video as a thumb in their bubble (prototype v31).
+      if (step.key === "coachnote" && coach?.videoUrl) {
+        said = { author: "coach", body: said?.body ?? CHUNK_SHEET_COPY.titleCoach, extra: { video: coach.videoUrl } };
+      }
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip } });
