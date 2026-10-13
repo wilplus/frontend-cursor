@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,12 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   const router = useRouter();
   const supabase = createClient();
   const [showEmailForm, setShowEmailForm] = useState(!!skipProviderPicker);
+  // Carry "where to go after" (e.g. the booking page) through to sign-in.
+  const [loginHref, setLoginHref] = useState("/login");
+  useEffect(() => {
+    const back = new URLSearchParams(window.location.search).get("redirectTo");
+    if (back) setLoginHref(`/login?redirectTo=${encodeURIComponent(back)}`);
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,7 +92,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
         }
         if (code === "EMAIL_IN_USE" || res.status === 409) {
           toast.error("This email is already registered. Please sign in instead.");
-          router.push("/login");
+          router.push(loginHref);
           return;
         }
         toast.error(message ?? "Registration failed. Please try again.");
@@ -206,7 +212,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link href={loginHref} className="font-medium text-primary hover:underline">
             Sign in
           </Link>
         </p>
@@ -323,7 +329,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
 
       <p className="mt-4 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href={loginHref} className="font-medium text-primary hover:underline">
           Sign in
         </Link>
       </p>
