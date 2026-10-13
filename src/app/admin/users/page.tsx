@@ -229,19 +229,13 @@ function UserDirectory() {
                   </div>
                 </dl>
 
-                {user.email ? (
-                  <Link
-                    href={`/admin/tokens?email=${encodeURIComponent(user.email)}`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-foreground/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-foreground/[0.05]"
-                  >
-                    <WalletCards className="h-4 w-4" aria-hidden />
-                    Top up tokens
-                  </Link>
-                ) : (
-                  <span className="text-center text-xs text-foreground/40">
-                    Email required for top-up
-                  </span>
-                )}
+                <Link
+                  href={`/admin/users/${encodeURIComponent(user.user_id)}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-foreground/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-foreground/[0.05]"
+                >
+                  <WalletCards className="h-4 w-4" aria-hidden />
+                  Open profile
+                </Link>
               </article>
             ))}
           </div>
