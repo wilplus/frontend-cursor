@@ -64,6 +64,29 @@ export function loopEnd(plan: readonly WalkStep[], at: number): number {
   return Math.min(to, plan.length - 1);
 }
 
+/** The steps that pile up in the voice Exercise's one thread (founder
+ *  2026-10-13, P1 A): the Exercise and its practise loop. */
+const THREAD: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>(["exVideo", ...LOOP]);
+
+/** Where the voice Exercise's thread that `at` sits in starts: the Exercise,
+ *  else its first try; -1 when `at` is not in one (a clearer version's
+ *  practise, any other screen). */
+export function threadStart(plan: readonly WalkStep[], at: number): number {
+  const moment = plan[at]?.moment;
+  if (moment == null || !THREAD.has(plan[at].key)) return -1;
+  let start = -1;
+  for (let i = at; i >= 0; i -= 1) {
+    const s = plan[i];
+    if (s.moment !== moment || !THREAD.has(s.key)) return start;
+    if (s.key === "exVideo") return i;
+    if (s.key === "practise") {
+      if (s.kind !== "instruction") return start;
+      start = i;
+    }
+  }
+  return start;
+}
+
 /** Stop on the try at `at`: the checking screen follows it, and whatever
  *  this loop had planned after it is dropped until the machine answers. */
 export function withChecking(plan: readonly WalkStep[], at: number): WalkStep[] {

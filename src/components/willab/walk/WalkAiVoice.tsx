@@ -14,6 +14,7 @@ import type { AiVoiceState } from "@/services/api/aiVoice";
 /*  One grey app bubble: a signed line, the label (L1) and the one player,    */
 /*  audio only, never the words; it never plays by itself. At most three per  */
 /*  exercise. Only the voice Exercise: never praise, never a clearer version.*/
+/*  The first "not yet" always says L4 then L3 (founder 2026-10-13, P3 B).    */
 /* -------------------------------------------------------------------------- */
 
 export const AI_VOICE_MAX = 3;
@@ -64,9 +65,12 @@ export function aiVoiceShown(
     return aiPendingOnExercise(state) ? "pending" : null;
   }
   if (step.key !== "encourage" || state?.clip?.state !== "ready" || !inVoiceLane(plan, at, step.moment)) return null;
-  const shown = aiShownBefore(plan, at, step.moment, aiOnExercise(state));
-  if (shown >= AI_VOICE_MAX) return null;
-  return shown === 0 ? { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow } : { line: WALK_COPY.aiVoiceAgain };
+  if (aiShownBefore(plan, at, step.moment, aiOnExercise(state)) >= AI_VOICE_MAX) return null;
+  // The first "not yet" says L4 and L3, even after the Exercise's own clip;
+  // every later one L5 (founder 2026-10-13, P3 B).
+  return aiShownBefore(plan, at, step.moment, false) === 0
+    ? { line: WALK_COPY.aiVoiceFirst, then: WALK_COPY.aiVoiceNow }
+    : { line: WALK_COPY.aiVoiceAgain };
 }
 
 export default function WalkAiVoice({
