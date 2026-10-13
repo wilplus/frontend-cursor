@@ -13,6 +13,11 @@ import {
   withRetry,
 } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO, WalkPractisePassage } from "@/services/api/walkPractise";
+import { ensureAiVoice, noteAiVoicePlay, readAiVoice, type AiVoiceState } from "@/services/api/aiVoice";
+
+/** How often, and how long, a clip being made is asked after (N71). */
+const AI_VOICE_POLL_MS = 2000;
+const AI_VOICE_POLL_TRIES = 20;
 
 /* -------------------------------------------------------------------------- */
 /*  useWalkPractise — the practise loop's live half (build plan D-FW-16;       */
@@ -103,6 +108,11 @@ export type WalkPractise = {
   cancel: () => void;
   /** A new opening of the walk: every moment starts afresh. */
   reset: () => void;
+  /** The AI version of the speaker's voice for a voice Exercise moment
+   *  (founder lock 2026-10-12, N71); undefined until asked. */
+  aiVoiceOf: (moment: number) => AiVoiceState | undefined;
+  /** The speaker pressed play on the AI clip. */
+  aiVoicePlayed: (moment: number) => void;
 };
 
 export function useWalkPractise<R>(args: {
@@ -129,6 +139,10 @@ export function useWalkPractise<R>(args: {
   const opened = useRef(new Map<number, Promise<string | null>>());
   const pending = useRef<{ at: number; step: WalkStep; run: number } | null>(null);
   const urls = useRef<string[]>([]);
+  const [aiVoice, setAiVoice] = useState<Record<number, AiVoiceState>>({});
+  const aiAsked = useRef(new Set<number>());
+  const aiPractice = useRef(new Map<number, string>());
+  const aiTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   const step = plan[at];
   const recording = step?.key === "practise";
@@ -154,6 +168,51 @@ export function useWalkPractise<R>(args: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, sig]);
 
+  // The AI version of your voice (N71): asked once per voice Exercise
+  // moment, when its Exercise screen opens (no video may fit) or its
+  // practise starts. Only this lane: a clearer version never asks.
+  useEffect(() => {
+    const { io: practiseIO, plan: p, at: i, moments: ms, blocked: guestOnly } = live.current;
+    const here = p[i];
+    // A replayed or read-only walk asks nothing: it only shows what was.
+    if (!practiseIO || here?.moment == null || guestOnly(here) || here.replay || here.readOnly) return;
+    const inLane = here.key === "exVideo" || (here.key === "practise" && here.kind === "instruction");
+    const moment = ms[here.moment];
+    if (!inLane || !moment?.exercise || aiAsked.current.has(here.moment)) return;
+    const index = here.moment;
+    aiAsked.current.add(index);
+    const what = passageOf({ ...here, kind: "instruction" }, moment);
+    if (!what) return;
+    if (!opened.current.has(index)) {
+      opened.current.set(index, practiseIO.open(what.item, what.passage).catch(() => null));
+    }
+    let tries = 0;
+    const keep = (state: AiVoiceState) => setAiVoice((v) => ({ ...v, [index]: state }));
+    const poll = (practiceId: string) => {
+      const timer = setTimeout(async () => {
+        aiTimers.current.delete(timer);
+        tries += 1;
+        const read = await readAiVoice(practiceId);
+        if (!read.ok) return;
+        keep(read.data);
+        if (read.data.clip?.state === "pending" && tries < AI_VOICE_POLL_TRIES) poll(practiceId);
+      }, AI_VOICE_POLL_MS);
+      aiTimers.current.add(timer);
+    };
+    void (opened.current.get(index) ?? Promise.resolve(null)).then(async (practiceId) => {
+      if (!practiceId) return;
+      aiPractice.current.set(index, practiceId);
+      const asked = await ensureAiVoice(practiceId);
+      if (!asked.ok) return;
+      keep(asked.data);
+      if (asked.data.clip?.state === "pending") poll(practiceId);
+    });
+    // The clip keeps being asked after while the walk moves on (Exercise →
+    // practise → not yet); the walk going away stops it (below).
+    // The screen's identity is the trigger, as above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at, sig]);
+
   // Off a practise, the mic is off.
   useEffect(() => {
     if (recording || !micOn.current) return;
@@ -170,10 +229,12 @@ export function useWalkPractise<R>(args: {
     return () => clearInterval(timer);
   }, [capturing]);
 
-  // The try's voice is a local copy; it goes when the walk goes.
+  // The try's voice is a local copy; it goes when the walk goes, and so
+  // does any wait on an AI clip.
   useEffect(
     () => () => {
       for (const url of urls.current) URL.revokeObjectURL(url);
+      for (const timer of aiTimers.current) clearTimeout(timer);
     },
     [],
   );
@@ -293,9 +354,19 @@ export function useWalkPractise<R>(args: {
     cancel();
     opened.current = new Map();
     setTries({});
+    for (const timer of aiTimers.current) clearTimeout(timer);
+    aiTimers.current.clear();
+    aiAsked.current = new Set();
+    aiPractice.current = new Map();
+    setAiVoice({});
   }, [cancel]);
 
   const tryOf = useCallback((moment: number) => tries[moment], [tries]);
+  const aiVoiceOf = useCallback((moment: number) => aiVoice[moment], [aiVoice]);
+  const aiVoicePlayed = useCallback((moment: number) => {
+    const practiceId = aiPractice.current.get(moment);
+    if (practiceId) void noteAiVoicePlay(practiceId);
+  }, []);
 
-  return { elapsed, stop, skip, again, tryOf, cancel, reset };
+  return { elapsed, stop, skip, again, tryOf, cancel, reset, aiVoiceOf, aiVoicePlayed };
 }
