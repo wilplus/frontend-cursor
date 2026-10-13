@@ -443,6 +443,39 @@ export const WALK_COPY = {
 /*  caller's rules. No number but the Take number ever appears (AC-9).        */
 /* -------------------------------------------------------------------------- */
 
+/* The practise's lines, one per reading (founder 2026-10-13, option A): the
+   machine reads each try against the speaker's own voice (pitch range,
+   loudness, pauses, pitch, pace, ending, start) and says the line for what
+   moved, never a rotation and never a number (AC-9). The key is the
+   confident direction's; under notYet it names the reading that went the
+   other way ("settled_pitch": the pitch went higher). DRAFT 2026-10-13:
+   the founder is curating these 17 lines; not to ship until signed. */
+export const PRACTISE_LINES = {
+  better: {
+    wide_range: "Your voice moved up and down this time. It sounded alive!",
+    full_volume: "You let your volume rise and fall. That pulled me in!",
+    no_hesitation: "Fewer pauses this time. It flowed!",
+    settled_pitch: "Your voice sat lower and calmer. That sounds sure!",
+    kept_moving: "You kept the pace going, no slowing down. Great!",
+    landed_ending: "You brought the ending down. It landed!",
+    opened_strong: "You started strong. The first words had real energy!",
+    general: "That sounded more confident than before!",
+  },
+  notYet: {
+    wide_range: "Your voice stayed on one note this time. Let it go up and down.",
+    full_volume: "Your volume stayed flat. Let a few words come out louder.",
+    no_hesitation: "There were more pauses this time. Try it in one breath.",
+    settled_pitch: "Your voice went a bit higher. Let it settle lower and calmer.",
+    kept_moving: "You slowed down this time. Keep it moving.",
+    landed_ending: "Your ending went up, like a question. Bring the last word down.",
+    opened_strong: "The start was quieter. Give the first words more energy.",
+    general: "Not quite yet. Let's try it once more!",
+  },
+  movedOn: "Great effort! Let's move on and come back to this one later.",
+} as const;
+
+export type PractiseCueKey = Exclude<keyof typeof PRACTISE_LINES.better, "general">;
+
 export const WALK_LINE_BANK = {
   /* sounded surer (general) */
   B01: {

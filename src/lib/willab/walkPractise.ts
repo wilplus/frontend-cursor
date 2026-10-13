@@ -7,7 +7,7 @@
 /*  backend), and these functions lay its answer into the plan:               */
 /*                                                                            */
 /*    Stop            → checking (the breathing voice mark)                    */
-/*    praise          → the praise after a try, from the signed bank, then     */
+/*    praise          → the line for the reading that moved (option A), then    */
 /*                      helper words tapped from the try's own words           */
 /*    again           → "It was better, …" when something moved between tries */
 /*                      (key "step"), else a rotating NX3a line (key          */
@@ -23,8 +23,7 @@
 /*  WALK_LINE_BANK); this file only picks among them.                        */
 /* -------------------------------------------------------------------------- */
 
-import { WALK_COPY, WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
-import { bankLine } from "./feedbackWalkModel";
+import { PRACTISE_LINES, type PractiseCueKey } from "@/components/willab/idealEditCopy";
 import type { SayLine } from "./walkLines";
 import { WALK_MAX_TRIES, afterTry, type WalkStep, type WalkStepKey } from "./walkPlan";
 
@@ -129,7 +128,7 @@ export function withRead(
     .map((s): WalkStep => {
       if (s.key === "helpers") return { ...s, kind: "try" };
       if (s.key === "improved") return { ...s, kind: read.key ?? undefined };
-      if (s.key === "encourage") return { ...s, kind: read.key === "step" ? "step" : "effort" };
+      if (s.key === "encourage") return { ...s, kind: read.key ?? "effort" };
       return s;
     });
   return [...head, ...next, ...rest];
@@ -146,56 +145,30 @@ export function withRetry(plan: readonly WalkStep[], at: number, practise: WalkS
  *  is left (CM3a A, up to three). */
 export const triesLeft = (late: WalkStep): boolean => (late.attempt ?? 1) <= WALK_MAX_TRIES;
 
-/** How many screens of this kind come before `at`: the turn its lines
- *  rotate by, so two in a row never share a line (N54). */
-function turnOf(plan: readonly WalkStep[], at: number, match: (s: WalkStep) => boolean): number {
-  return plan.slice(0, Math.max(0, at)).filter(match).length;
+/** The reading a key names: "cue:x" (it moved toward confident) or
+ *  "miss:x" (it went the other way); null for any other key. */
+function cueOf(key: string | null | undefined, prefix: "cue:" | "miss:"): PractiseCueKey | null {
+  if (!key?.startsWith(prefix)) return null;
+  const cue = key.slice(prefix.length);
+  return cue in PRACTISE_LINES.better && cue !== "general" ? (cue as PractiseCueKey) : null;
 }
 
-/** The praise bank for a delivery cue (backend services/line_bank.py
- *  CUE_BANK, mirrored): an unknown or missing cue is the gentle general
- *  line, B09, never an invented one. */
-export const PRACTISE_CUE_BANK: Readonly<Record<string, keyof typeof WALK_LINE_BANK>> = {
-  wide_range: "B02",
-  full_volume: "B03",
-  no_hesitation: "B04",
-  settled_pitch: "B05",
-  kept_moving: "B06",
-  landed_ending: "B07",
-  opened_strong: "B08",
-  confident: "B01",
-  tentative: "B09",
-};
-
-/** The bank a praise after a try says, from the check's key
- *  (services/after_practice.py): "cue:<cue>" names its cue's bank; the
- *  machine's own read of more assurance is the general "sounded surer" bank
- *  (B01); anything else is B09. */
-export function practisePraiseBank(key: string | null | undefined): keyof typeof WALK_LINE_BANK {
-  if (key?.startsWith("cue:")) return PRACTISE_CUE_BANK[key.slice(4)] ?? "B09";
-  if (key === "more_assured") return "B01";
-  return "B09";
+/** The praise after a try at `at`: the line for the reading that moved
+ *  toward confident, else the general one (founder 2026-10-13, option A:
+ *  one line per reading, never a rotation). */
+export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+  const cue = cueOf(plan[at]?.kind, "cue:");
+  return cue ? PRACTISE_LINES.better[cue] : PRACTISE_LINES.better.general;
 }
 
-/** The praise after a try at `at`. With `say` (the walk's memory, D-FW-3)
- *  the bank's next line for this speaker; without, its turn in the plan. */
-export function improvedLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
-  const bank = practisePraiseBank(plan[at]?.kind);
-  if (say && plan[at]) return say(plan[at], bank);
-  return bankLine(WALK_LINE_BANK[bank].lines, turnOf(plan, at, (s) => s.key === "improved"));
+/** The "not yet" at `at`: the line for the reading that went the wrong way,
+ *  else the general one (option A). */
+export function encourageLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
+  const cue = cueOf(plan[at]?.kind, "miss:");
+  return cue ? PRACTISE_LINES.notYet[cue] : PRACTISE_LINES.notYet.general;
 }
 
-/** The encouragement at `at`: the founder's own line when something moved
- *  (NX3 A), else the NX3a lines in turn. */
-export function encourageLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
-  if (plan[at]?.kind === "step") return WALK_COPY.encourage;
-  if (say && plan[at]) return say(plan[at], "NX3a");
-  const turn = turnOf(plan, at, (s) => s.key === "encourage" && s.kind !== "step");
-  return bankLine(WALK_COPY.encourageNothingMoved, turn);
-}
-
-/** The thank-you after the third try that is not praise (CM3b A). */
-export function thanksLine(plan: readonly WalkStep[], at: number, say?: SayLine): string {
-  if (say && plan[at]) return say(plan[at], "CM3b");
-  return bankLine(WALK_COPY.afterThirdTry, turnOf(plan, at, (s) => s.key === "thanks"));
+/** The line after the third try that is not praise (CM3b A): one line. */
+export function thanksLine(_plan: readonly WalkStep[], _at: number, _say?: SayLine): string {
+  return PRACTISE_LINES.movedOn;
 }

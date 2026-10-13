@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WALK_LINE_BANK } from "@/components/willab/idealEditCopy";
+import { PRACTISE_LINES } from "@/components/willab/idealEditCopy";
 import { buildWalkPlan, type WalkStep } from "./walkPlan";
 import {
   encourageLine,
@@ -23,8 +23,8 @@ function tryOnce(plan: readonly WalkStep[], at: number, read: PractiseRead | nul
 
 describe("the practise loop's plan", () => {
 
-  it("every line is a signed one with no number in it (AC-9)", () => {
-    const first = tryOnce(PLAN, PRACTISE_AT, { next: "again", key: "effort" }, 1);
+  it("each try's line is the one for the reading that moved, never a number (option A, AC-9)", () => {
+    const first = tryOnce(PLAN, PRACTISE_AT, { next: "again", key: "miss:settled_pitch" }, 1);
     const praised = tryOnce(PLAN, PRACTISE_AT, { next: "praise", key: "cue:kept_moving" }, 1);
     const capped = tryOnce(PLAN, PRACTISE_AT, { next: "moved_on", key: "CM3b" }, 3);
     const lines = [
@@ -33,6 +33,6 @@ describe("the practise loop's plan", () => {
       thanksLine(capped.plan, capped.at),
     ];
     for (const line of lines) expect(line).not.toMatch(/\d/);
-    expect(WALK_LINE_BANK.B06.lines).toContain(lines[1]);
+    expect(lines).toEqual([PRACTISE_LINES.notYet.settled_pitch, PRACTISE_LINES.better.kept_moving, PRACTISE_LINES.movedOn]);
   });
 });
