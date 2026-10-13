@@ -23,6 +23,12 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // Carry "where to go after" (e.g. the booking page) through to sign-up.
+  const [signupHref, setSignupHref] = useState("/signup");
+  useEffect(() => {
+    const back = new URLSearchParams(window.location.search).get("redirectTo");
+    if (back) setSignupHref(`/signup?redirectTo=${encodeURIComponent(back)}`);
+  }, []);
 
   // Show error toast if redirected here after failed OAuth
   useEffect(() => {
@@ -210,7 +216,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
       <div className="mt-4 space-y-2 text-center text-base sm:text-sm">
         <p>
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-orange-500 hover:underline">
+          <Link href={signupHref} className="text-orange-500 hover:underline">
             Sign up
           </Link>
         </p>

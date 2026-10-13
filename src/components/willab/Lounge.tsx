@@ -77,7 +77,9 @@ import {
   WhatsAppOfferActions,
   type WhatsAppOffer,
 } from "./WillabWhatsAppPrompt";
+import { useRouter } from "next/navigation";
 import SymmetricPair from "./SymmetricPair";
+import { useAdminAsk } from "./useAdminAsk";
 import OfferBubble from "./OfferBubble";
 import {
   offerDraft,
@@ -1003,7 +1005,7 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { joke: 2, install: 1, whatsapp: 0 };
+    const rank: Record<OfferType, number> = { joke: 2, install: 1, consent: 1, whatsapp: 0 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -1041,6 +1043,19 @@ export default function Lounge({
     }
   }, [thread.loading]);
 
+  // Step 2 (founder 2026-10-13): an ask the admin sent this person shows after
+  // the next fresh Take; while one is open the automatic offers hold back.
+  const adminAsk = useAdminAsk({
+    state,
+    messages,
+    threadLoading: thread.loading,
+    append: thread.append,
+    settleTimeRef,
+    installCanOffer: install.canOffer,
+    activeOffer,
+    openOffer,
+  });
+
   // F2 — surface the install offer once, post-send, on an installable platform.
   // Gated on a FRESH in-session recording (a recording_summary minted after the
   // settle stamp) so a plain reload / status reconcile that lands on
@@ -1049,6 +1064,7 @@ export default function Lounge({
   useEffect(() => {
     if (thread.loading || settleTimeRef.current === null) return;
     if (state !== "review_pending" || !install.canOffer) return;
+    if (adminAsk.held) return;
     if (installHandledRef.current || hasOffer(messages, "install")) return;
     const settle = settleTimeRef.current;
     const freshSend = messages.some(
@@ -1061,6 +1077,7 @@ export default function Lounge({
   }, [
     state,
     install.canOffer,
+    adminAsk.held,
     thread.loading,
     messages,
     thread.append,
@@ -1077,6 +1094,7 @@ export default function Lounge({
     append: thread.append,
     settleTimeRef,
     installCanOffer: install.canOffer,
+    held: adminAsk.held,
     activeOffer,
     openOffer,
   });
@@ -1399,6 +1417,7 @@ export default function Lounge({
           type={activeOffer}
           install={install}
           whatsapp={whatsapp}
+          onConsentOpen={adminAsk.opened}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1691,18 +1710,36 @@ function OfferActions({
   type,
   install,
   whatsapp,
+  onConsentOpen,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
   whatsapp: WhatsAppOffer;
+  onConsentOpen: () => void;
   onResolve: () => void;
 }) {
+  const router = useRouter();
   if (type === "install") {
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
   if (type === "whatsapp") {
     return <WhatsAppOfferActions offer={whatsapp} onResolve={onResolve} />;
+  }
+  if (type === "consent") {
+    // The answer itself is given on the locked Data & consent page.
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={onResolve}
+        actionLabel="Open"
+        onAction={() => {
+          onConsentOpen();
+          onResolve();
+          router.push("/account/data-consent");
+        }}
+      />
+    );
   }
   // The legacy joke offer is the only other type. Its onboarding was deleted
   // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
