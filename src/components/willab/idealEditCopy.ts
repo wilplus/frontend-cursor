@@ -448,18 +448,53 @@ export const WALK_COPY = {
    loudness, pauses, pitch, pace, ending, start) and says the line for what
    moved, never a rotation and never a number (AC-9). The key is the
    confident direction's; under notYet it names the reading that went the
-   other way ("settled_pitch": the pitch went higher). DRAFT 2026-10-13:
-   the founder is curating these 17 lines; not to ship until signed. */
+   other way ("settled_pitch": the pitch went higher). The Good job lines
+   are signed; the "not yet" lines and movedOn are DRAFTS until the founder
+   signs them, not to ship before. */
 export const PRACTISE_LINES = {
+  /* Signed by the founder 2026-10-13 ("accepted"): three per reading, said
+     in turn within that reading only. */
   better: {
-    wide_range: "Your voice moved up and down this time. It sounded alive!",
-    full_volume: "You let your volume rise and fall. That pulled me in!",
-    no_hesitation: "Fewer pauses this time. It flowed!",
-    settled_pitch: "Your voice sat lower and calmer. That sounds sure!",
-    kept_moving: "You kept the pace going, no slowing down. Great!",
-    landed_ending: "You brought the ending down. It landed!",
-    opened_strong: "You started strong. The first words had real energy!",
-    general: "That sounded more confident than before!",
+    wide_range: [
+      "I liked the variety in your voice. It sounded alive! 🎶",
+      "Up and down, high and low. Your voice sounded alive! 🎶",
+      "So much colour in your voice. That's what alive sounds like! ✨",
+    ],
+    full_volume: [
+      "It wasn't too quiet. It was the volume that pulled me in. 🔊",
+      "Loud where it mattered. That's what pulled me in! 🔊",
+      "Your volume rose and fell, and it pulled me right in. 🔊",
+    ],
+    no_hesitation: [
+      "It flowed like a river. Without the pauses, it was great 😏",
+      "Smooth as a river. No stopping, no doubting. 🌊",
+      "No pauses, just flow. That was great 😏",
+    ],
+    settled_pitch: [
+      "Good: calm and smooth, a low voice, a nice sound. 😌",
+      "Low and calm. That's the sound of someone who's sure. 😌",
+      "Your voice settled down low. Calm, smooth and nice to hear. 🎧",
+    ],
+    kept_moving: [
+      "You shot it out fast like a machine gun, and it was good. Exactly what we wanted! 🔥",
+      "Rat-a-tat! You kept the pace and never slowed down. Exactly what we wanted. 🔥",
+      "No slowing down at all. You kept it moving, just like we wanted! ⚡",
+    ],
+    landed_ending: [
+      "You nailed it. Calm and smooth, like you know you're the boss here. 😎",
+      "That ending landed. Calm, smooth, the boss's voice. 😎",
+      "You brought the last word down like you own the room. 👑",
+    ],
+    opened_strong: [
+      "You started this like a rocket launching into outer space! 🚀",
+      "Liftoff! What a strong start. 🚀",
+      "That opening had rocket fuel in it! 🚀",
+    ],
+    general: [
+      "You know that I know that you know: that was freaking confident! 💪",
+      "No doubt about it, that was freaking confident! 💪",
+      "That one? Pure confidence. You know it, I know it. 💪",
+    ],
   },
   notYet: {
     wide_range: "Your voice stayed on one note this time. Let it go up and down.",

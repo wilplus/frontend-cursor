@@ -153,12 +153,15 @@ function cueOf(key: string | null | undefined, prefix: "cue:" | "miss:"): Practi
   return cue in PRACTISE_LINES.better && cue !== "general" ? (cue as PractiseCueKey) : null;
 }
 
-/** The praise after a try at `at`: the line for the reading that moved
- *  toward confident, else the general one (founder 2026-10-13, option A:
- *  one line per reading, never a rotation). */
+/** The praise after a try at `at`: a line for the reading that moved
+ *  toward confident, else a general one (founder 2026-10-13, option A:
+ *  the reading decides; its own three lines take turns). */
 export function improvedLine(plan: readonly WalkStep[], at: number, _say?: SayLine): string {
   const cue = cueOf(plan[at]?.kind, "cue:");
-  return cue ? PRACTISE_LINES.better[cue] : PRACTISE_LINES.better.general;
+  const lines = PRACTISE_LINES.better[cue ?? "general"];
+  // The reading's three lines in turn, counted over its earlier praises.
+  const turn = plan.slice(0, Math.max(0, at)).filter((s) => s.key === "improved" && (cueOf(s.kind, "cue:") ?? "general") === (cue ?? "general")).length;
+  return lines[turn % lines.length];
 }
 
 /** The line for the reading a "not yet" named, or null when none clearly
