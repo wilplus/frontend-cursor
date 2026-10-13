@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import Logo from "@/components/Logo";
 import {
   allZones, city, dayKey, detectedZone, fmtDay, fmtShortDay, fmtTime, gmtLabel, money, parts,
@@ -43,6 +45,11 @@ const ERRORS: Record<string, string> = {
   PAYMENTS_OFF: "Payments aren't set up yet. Try again later.",
   RATE_LIMITED: "Too many tries. Wait a few minutes and try again.",
 };
+
+/* Stripe's card form inside the page. Without the publishable key on Vercel the
+ * page falls back to Stripe's own checkout page, so payment never breaks. */
+const STRIPE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -94,6 +101,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
   const [offer, setOffer] = useState<Offer | "signed-out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const timesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -165,9 +173,16 @@ export default function BookingPage({ info }: { info: PageInfo }) {
         const res = await fetch(`/api/v2/booking/${info.slug}/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ start: new Date(slot).toISOString(), name, note: form.note, timezone: tz }),
+          body: JSON.stringify({
+            start: new Date(slot).toISOString(), name, note: form.note, timezone: tz, embedded: !!stripePromise,
+          }),
         });
-        const body = (await res.json().catch(() => ({}))) as { url?: string; code?: string };
+        const body = (await res.json().catch(() => ({}))) as { url?: string; client_secret?: string; code?: string };
+        if (res.ok && body.client_secret) {
+          setClientSecret(body.client_secret);
+          setSending(false);
+          return;
+        }
         if (res.ok && body.url) {
           window.location.href = body.url;
           return;
@@ -200,9 +215,16 @@ export default function BookingPage({ info }: { info: PageInfo }) {
             </div>
           </Meta>
           <div className="min-w-0 border-t border-border p-5 md:border-l md:border-t-0 md:p-7">
-            <button className="mb-3.5 text-sm text-muted-foreground" onClick={() => { setSlot(null); setError(null); }}>
+            <button className="mb-3.5 text-sm text-muted-foreground" onClick={() => { setSlot(null); setError(null); setClientSecret(null); }}>
               ← Back
             </button>
+            {clientSecret && stripePromise ? (
+              <div className="min-w-0">
+                <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
+              </div>
+            ) : (
             <form className="grid max-w-[460px] gap-4" onSubmit={submit} noValidate>
               <label className="grid gap-1.5 text-[13px] font-medium" htmlFor="bk-name">
                 Your name
@@ -231,6 +253,7 @@ export default function BookingPage({ info }: { info: PageInfo }) {
                 You&apos;ll get a calendar invite with the Google Meet link by email.
               </p>
             </form>
+            )}
           </div>
         </div>
       </Shell>
