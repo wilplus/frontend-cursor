@@ -27,6 +27,7 @@ import {
   readoutView,
 } from "./loungeReports";
 import ArcActionPrice from "@/components/tokens/ArcActionPrice";
+import SnippetWavePlayer from "./SnippetWavePlayer";
 
 /* -------------------------------------------------------------------------- */
 /*  ReportCard — persisted Readout / Insight / Ideal-Text cards (C2 taxonomy)   */
@@ -533,21 +534,37 @@ function renderInsightOrRecordingSummaryReportCard(
   // recording_summary — USER: short ORANGE voice-message bubble, right-aligned.
   const v = readoutView(message.metadata);
   const detail = detailLine(v.topic, v.takeIndex, date);
+  // The whole Take plays here, as a moment's clip plays in its bubble (the
+  // Lounge read signs the speaker's own recording).
+  const takeSrc = takeAudioOf(message.metadata);
   return (
     <div
       role={openable ? "button" : undefined}
       tabIndex={openable ? 0 : undefined}
       onClick={openable ? open : undefined}
       onKeyDown={openKeyDown}
-      className={`my-1 ml-auto flex max-w-[80%] items-center gap-2 rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-primary-foreground ${openable ? "cursor-pointer" : ""}`}
+      className={`my-1 ml-auto flex max-w-[80%] flex-col gap-1 rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-primary-foreground ${takeSrc ? "w-[78%]" : ""} ${openable ? "cursor-pointer" : ""}`}
     >
-      <Mic className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
-      <p className="text-[15px] leading-snug">
-        <span className="font-semibold">Your Recording</span>
-        {detail ? <span> {detail}</span> : null}
-      </p>
+      <span className="flex items-center gap-2">
+        <Mic className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+        <p className="text-[15px] leading-snug">
+          <span className="font-semibold">Your Recording</span>
+          {detail ? <span> {detail}</span> : null}
+        </p>
+      </span>
+      {takeSrc ? (
+        <span onClick={(e) => e.stopPropagation()}>
+          <SnippetWavePlayer seed={message.client_id} src={takeSrc} size="compact" tone="me" label="Your Recording" />
+        </span>
+      ) : null}
     </div>
   );
+}
+
+/** The Take's own recording, signed by the Lounge read; null without one. */
+function takeAudioOf(meta: LoungeMessage["metadata"]): string | null {
+  const audio = (meta as { audio?: { src?: unknown } } | null | undefined)?.audio;
+  return typeof audio?.src === "string" && audio.src ? audio.src : null;
 }
 
 export default function ReportCard({

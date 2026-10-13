@@ -440,7 +440,14 @@ export default function FeedbackWalk<R = unknown>({
 
   return (
     <div data-feedback-walk data-walk-step={step.key}>
-      <WalkStage screen={stage} dir={dir} render={(s) => renderScreen(ctx, s.real, backFromPractise)} />
+      {/* Phone width on a wide screen, centred, as the coach panel. */}
+      {step.overlay !== false ? <div aria-hidden="true" className="fixed inset-0 z-50 hidden bg-background md:block" /> : null}
+      <WalkStage
+        screen={stage}
+        dir={dir}
+        render={(s) => renderScreen(ctx, s.real, backFromPractise)}
+        className="md:mx-auto md:max-w-[430px]"
+      />
     </div>
   );
 }
