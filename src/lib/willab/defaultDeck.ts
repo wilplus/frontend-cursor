@@ -17,8 +17,8 @@
 /*  the same shape the uploaded-deck path produces. Nothing downstream needs   */
 /*  to know which kind of deck it was.                                        */
 /*                                                                            */
-/*  The headings are the MVP contract: Main premise, Development, Conclusion.  */
-/*  The supporting guidance retains the previously approved three-part talk.  */
+/*  The headings (founder 2026-10-13, the demo deck): Opening (blue), Main    */
+/*  points (orange, three numbered tiles), Summary (green). Minimum text.     */
 /* -------------------------------------------------------------------------- */
 
 export interface DeckSlide {
@@ -35,28 +35,20 @@ export interface DeckSlide {
  * newlines. */
 export const DEFAULT_DECK: readonly DeckSlide[] = [
   {
-    title: "Main premise",
-    artworkSrc: "/presentation/default-deck/main-premise.jpg",
-    body:
-      "Grab attention (question, surprising fact, story), state why it " +
-      "matters to them, and tell them the one thing they'll get.\n" +
-      "Rule: say what you're going to say.",
+    title: "Opening",
+    artworkSrc: "/presentation/default-deck/opening.jpg",
+    body: "What you'll talk about, in one line.",
   },
   {
-    title: "Development",
-    artworkSrc: "/presentation/default-deck/development.jpg",
-    body:
-      "Make a single argument, back it with ~3 points, each with " +
-      "evidence/example.\n" +
-      "Rule: say it — tell, show, prove.",
+    title: "Main points",
+    artworkSrc: "/presentation/default-deck/main-points.jpg",
+    // Drawn as three numbered tiles (MockPresentationSlide).
+    body: "1\n2\n3",
   },
   {
-    title: "Conclusion",
-    artworkSrc: "/presentation/default-deck/conclusion.jpg",
-    body:
-      "Restate the one takeaway, then tell them exactly what to do/feel/" +
-      "remember next.\n" +
-      "Rule: say what you said, and close with a clear ask.",
+    title: "Summary",
+    artworkSrc: "/presentation/default-deck/summary.jpg",
+    body: "What you said, and what's next.",
   },
 ];
 
