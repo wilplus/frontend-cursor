@@ -122,7 +122,9 @@ function practiseOpening(m: WalkMoment, practiceOn: boolean): WalkStep[] {
   if (m.exercise) {
     return [momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "instruction", attempt: 1 })];
   }
-  if (m.practise) return [momentStep(m, "practise", { kind: "moment", attempt: 1 })];
+  // With nothing attached, the Exercise screen is the locked one with Line A,
+  // its Practise and Skip before the mic opens (lock 2026-10-12, 2.4).
+  if (m.practise) return [momentStep(m, "exVideo"), momentStep(m, "practise", { kind: "moment", attempt: 1 })];
   return [];
 }
 

@@ -213,7 +213,7 @@ export function shownStep(
       return moment?.clearer?.say ? titled(COPY.cardClearerVersion, `${say("B13")}\n${moment.clearer.say}`) : null;
     case "exVideo": {
       const ex = moment?.exercise;
-      if (!ex) return null;
+      if (!ex) return moment ? titled(COPY.titleExercise, WALK_COPY.lineA) : null;
       // The video's thumb in the bubble (prototype v31 `vthumb`): the
       // exercise's stored link (a library or coach upload's public address).
       return {
@@ -222,14 +222,6 @@ export function shownStep(
         ...(ex.video ? { extra: { video: ex.video } } : {}),
       };
     }
-    case "practise":
-      return app(
-        step.kind === "words"
-          ? moment?.clearer?.say
-          : step.kind === "instruction"
-            ? moment?.exercise?.say
-            : moment?.paragraphText,
-      );
     case "improved":
       return titled(COPY.titlePraise, improvedLine(one, 0));
     case "encourage":

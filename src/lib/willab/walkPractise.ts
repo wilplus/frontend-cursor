@@ -67,16 +67,20 @@ export function threadStart(plan: readonly WalkStep[], at: number): number {
   const moment = plan[at]?.moment;
   if (moment == null || !THREAD.has(plan[at].key)) return -1;
   let start = -1;
+  // The moment said again joins a thread only under its Exercise screen
+  // (lock 2026-10-12, 2.4); on its own it keeps its own recorder.
+  let underExercise = false;
   for (let i = at; i >= 0; i -= 1) {
     const s = plan[i];
-    if (s.moment !== moment || !THREAD.has(s.key)) return start;
+    if (s.moment !== moment || !THREAD.has(s.key)) return underExercise ? -1 : start;
     if (s.key === "exVideo") return i;
     if (s.key === "practise") {
-      if (s.kind !== "instruction") return start;
-      start = i;
+      if (s.kind === "moment") underExercise = true;
+      else if (s.kind !== "instruction") return underExercise ? -1 : start;
+      else start = i;
     }
   }
-  return start;
+  return underExercise ? -1 : start;
 }
 
 /** Stop on the try at `at`: the checking screen follows it, and whatever

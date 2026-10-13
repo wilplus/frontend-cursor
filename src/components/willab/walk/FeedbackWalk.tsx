@@ -699,7 +699,6 @@ function Clearer<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMomen
  *  is one (the coach's, else the library's), the instruction (else Line A);
  *  Practise with the red dot, Skip. Nothing here waits on a coach (WQ2 B). */
 function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
-  if (!moment.exercise) return null;
   return (
     <WalkOverlay
       testId={testId(step)}
@@ -734,23 +733,23 @@ function ExerciseFooter<R>({ ctx, step, outline = false }: { ctx: ScreenCtx<R>; 
   );
 }
 
-/** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise. */
+/** The Exercise's bubbles: the clip, then the AI clip or the locked Exercise
+ *  (with no exercise served, the locked screen with Line A). */
 function ExerciseBody<R>({ ctx, step, moment }: { ctx: ScreenCtx<R>; step: WalkStep; moment: FeedbackWalkMoment<R> }) {
   const exercise = moment.exercise;
-  if (!exercise) return null;
   return (
     <>
       <Clip moment={moment} />
       {aiExercise(ctx, step, moment) ?? (
-        <WalkMessage coach={exercise.byCoach} wide>
+        <WalkMessage coach={exercise?.byCoach === true} wide>
           <span>{COPY.titleExercise}</span>
-          {exercise.video ? (
+          {exercise?.video ? (
             <CoachVideo
               src={exercise.video}
               className="my-2 w-full max-h-[300px] flex-none [&>video]:aspect-[4/5] [&>video]:max-h-[300px] [&>video]:object-cover"
             />
           ) : null}
-          <span>{exercise.instruction ?? WALK_COPY.lineA}</span>
+          <span>{exercise?.instruction ?? WALK_COPY.lineA}</span>
         </WalkMessage>
       )}
     </>
@@ -814,9 +813,11 @@ function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMo
   );
 }
 
-/** Other speakers' moments, one per practise try before this step. */
+/** Other speakers' moments, one per recorded try before this step (lock
+ *  2026-10-12, 2.6): each Stop lays in a checking screen, so a try queued
+ *  after a "Not yet" and skipped is not counted. */
 function Others(ctx: ScreenCtx, step: WalkStep) {
-  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "practise").length;
+  const tries = ctx.walk.plan.slice(0, ctx.at(step)).filter((s) => s.key === "processing").length;
   return (
     <WalkOthers
       testId={testId(step)}
