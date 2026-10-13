@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { postReviewSummaryText } from "@/services/api/reviewSummaryText";
 import { useLoungeThreadMaybe } from "./LoungeThreadContext";
-import { answerBody, momentChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
+import { answerBody, momentChat, othersChat, shownStep, walkStepDraft, type WalkThreadEntry } from "@/lib/willab/walkThread";
 import type { WalkStep } from "@/lib/willab/walkPlan";
+import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
@@ -728,7 +729,38 @@ export function useDeckFeedbackWalk(args: {
   const skipJudging = useCallback((items: DocumentSuggestion[]) => {
     skipJudgements(items, (item) => live.current.onJudged?.(item, "dismissed"));
   }, []);
-  const practise = useMemo(() => walkPractiseIO<DocumentSuggestion>(suggestionSource), []);
+  const practise = useMemo(() => {
+    const io = walkPractiseIO<DocumentSuggestion>(suggestionSource);
+    // Each try, once uploaded, is the speaker's orange bubble "Practise N"
+    // with its voice (prototype v31 `try`); the practice and attempt ids
+    // find the signed link again.
+    const upload: typeof io.upload = async (practiceId, ...rest) => {
+      const sent = await io.upload(practiceId, ...rest);
+      if (sent) {
+        post({
+          key: `try:${practiceId}`,
+          moment: null,
+          attempt: sent.attempt,
+          author: "speaker",
+          body: WALK_COPY.practiseN(sent.attempt),
+          extra: sent.audio
+            ? {
+                clip: {
+                  src: sent.audio.url,
+                  start_ms: null,
+                  duration_ms: sent.audio.durationMs,
+                  practice_id: practiceId,
+                  attempt_id: sent.attemptId,
+                  words: null,
+                },
+              }
+            : undefined,
+        });
+      }
+      return sent;
+    };
+    return { ...io, upload };
+  }, [post]);
   // The closing summary, the walk's last step (lock 2026-10-12, sections
   // 2.7 and 3): written once per Take and read back for the bubble, then
   // the thread reloads so it shows in the Lounge too. Null: the step is
@@ -756,17 +788,14 @@ export function useDeckFeedbackWalk(args: {
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
-    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null) => {
+    (step: WalkStep, moment: FeedbackWalkMoment<DocumentSuggestion> | null, say: (bank: WalkBankKey) => string) => {
       const { chunks: now, pendingOf: openOf, coachMessage: coach } = live.current;
       const at = { moment: step.moment ?? null, attempt: step.attempt ?? null };
-      const said = shownStep(step, moment, coach?.text ?? null);
+      const said = shownStep(step, moment, coach?.text ?? null, say);
       // The label above a moment, and the speaker's clip before its bubble.
       const chat = said ? momentChat(walkModel.plan, step, moment) : null;
       if (chat?.clip) post({ key: `clip:${step.key}`, ...at, author: "speaker", body: "", extra: { ...chat.label, clip: chat.clip } });
-      if (said) post({ key: step.key, ...at, ...said, extra: chat?.clip ? undefined : chat?.label });
-      if (step.key === "processing") {
-        post({ key: "try", ...at, author: "speaker", body: WALK_COPY.practiseN(step.attempt ?? 1) });
-      }
+      if (said) post({ key: step.key, ...at, ...said, extra: { ...(chat?.clip ? {} : chat?.label), ...said.extra } });
       const parts = moment ? (walkModel.partsOf[moment.index] ?? []) : [];
       const openOn = now.filter((c) => parts.includes(c.part.id)).flatMap((c) => openOf(c));
       for (const shown of coachShownOn(step, moment, coach, openOn)) {
@@ -777,6 +806,15 @@ export function useDeckFeedbackWalk(args: {
       }
     },
     [walkModel, post],
+  );
+
+  /** Another speaker's moment, shown or answered: in the chat. */
+  const onOthers = useCallback(
+    (at: number, of: number, from: string | null, answer: string | null) => {
+      const entry = othersChat(at, of, from, answer);
+      if (entry) post(entry);
+    },
+    [post],
   );
 
   /** The speaker answered a step: their own bubble in the chat. */
@@ -809,6 +847,7 @@ export function useDeckFeedbackWalk(args: {
           lines={lineBankIO}
           onShown={onShown}
           onAnswer={onAnswer}
+          onOthers={onOthers}
         />
     ),
     [
@@ -829,6 +868,7 @@ export function useDeckFeedbackWalk(args: {
       onEnd,
       onShown,
       onAnswer,
+      onOthers,
     ],
   );
 

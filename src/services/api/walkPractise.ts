@@ -39,7 +39,13 @@ export type WalkPractisePassage = { kind: "rewrite"; say: string } | { kind: "ex
 
 /** One uploaded try: its id for the check, and its number as the server
  *  counts it (a position, never a score). */
-export type WalkPractiseTry = { attemptId: string; attempt: number };
+export type WalkPractiseTry = {
+  attemptId: string;
+  attempt: number;
+  /** The try's voice as the attempts route serves it (signed; the practice
+   *  and attempt ids find it again). */
+  audio?: { url: string; durationMs: number } | null;
+};
 
 export interface WalkPractiseIO<R> {
   open(item: R, passage: WalkPractisePassage): Promise<string | null>;
@@ -89,7 +95,11 @@ export function walkPractiseIO<R>(source: (item: R) => WalkPractiseSource | null
       if (!result.ok) return null;
       const latest = [...result.practice.attempts].sort((a, b) => b.attemptIndex - a.attemptIndex)[0];
       if (!latest) return null;
-      return { attemptId: latest.id, attempt: result.practice.attempts.length };
+      return {
+        attemptId: latest.id,
+        attempt: result.practice.attempts.length,
+        audio: latest.audioRef ? { url: latest.audioRef, durationMs: latest.durationMs } : null,
+      };
     },
     async check(practiceId, attemptId) {
       const result = await checkPracticeAttempt(practiceId, attemptId);

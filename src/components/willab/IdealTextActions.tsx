@@ -32,9 +32,12 @@ export default function IdealTextActions({
   canRecordTake = null,
   onNewTake,
   takeCount = null,
+  arcId = null,
   endCard = false,
   onClose = null,
 }: {
+  /** The project, for the sharing question's chat bubbles. */
+  arcId?: string | null;
   /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
    *  explicit false; null / absent leaves the button available. */
   canRecordTake?: boolean | null;
@@ -96,6 +99,7 @@ export default function IdealTextActions({
       {asking ? (
         <NextTakeShareScreen
           takeCount={takeCount}
+          arcId={arcId}
           onDone={() => {
             setAsking(false);
             onNewTake();

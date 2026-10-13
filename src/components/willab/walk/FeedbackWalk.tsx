@@ -18,7 +18,7 @@ import WalkAiVoice, { aiOnExercise, aiPendingOnExercise } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
-import type { SayLine, WalkLinesIO } from "@/lib/willab/walkLines";
+import type { SayLine, WalkBankKey, WalkLinesIO } from "@/lib/willab/walkLines";
 import { walkSig, type WalkDir } from "@/lib/willab/walkMotion";
 import type { WalkStep } from "@/lib/willab/walkPlan";
 import { loopEnd } from "@/lib/willab/walkPractise";
@@ -150,10 +150,13 @@ type Props<R> = {
   /** A screen of the walk is on: the coach's note, or a screen of moment
    *  `moment`. The host tells the server what was shown (the Lounge's
    *  "new", D-FW-19). Nothing is drawn from it. */
-  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null) => void;
+  onShown?: (step: WalkStep, moment: FeedbackWalkMoment<R> | null, say: (bank: WalkBankKey) => string) => void;
   /** The speaker answered a step (not a replay): the host shows the answer
    *  as their own bubble in the chat. Nothing is drawn from it. */
   onAnswer?: (step: WalkStep, value: string) => void;
+  /** Another speaker's moment shown (`answer` null) or answered: the host
+   *  posts it to the chat. Nothing is drawn from it. */
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -189,6 +192,7 @@ export default function FeedbackWalk<R = unknown>({
   lines: linesIO = null,
   onShown,
   onAnswer,
+  onOthers,
 }: Props<R>) {
   const liveModel = useRef(model);
   liveModel.current = model;
@@ -219,15 +223,6 @@ export default function FeedbackWalk<R = unknown>({
   const plan = walk.plan;
   const step = plan[at] ?? plan[0];
 
-  // What the speaker now sees, for the host (D-FW-19): only once the walk
-  // was asked open, and only an overlay screen.
-  const shownRef = useRef(onShown);
-  shownRef.current = onShown;
-  useEffect(() => {
-    if (seq === null || !step || step.overlay === false) return;
-    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
-    shownRef.current?.(step, moment);
-  }, [seq, step, walk.moments]);
 
   const go = useCallback(
     (to: number, how: WalkDir | undefined) => {
@@ -304,6 +299,16 @@ export default function FeedbackWalk<R = unknown>({
   useEffect(() => {
     if (seq !== null && step && step.overlay !== false) onScreen(step);
   }, [seq, step, onScreen]);
+  // What the speaker now sees, for the host (D-FW-19): only once the walk
+  // was asked open, and only an overlay screen; with the lines it said.
+  const shownRef = useRef(onShown);
+  shownRef.current = onShown;
+  const { say: sayLine } = walkLines;
+  useEffect(() => {
+    if (seq === null || !step || step.overlay === false) return;
+    const moment = step.moment != null ? (walk.moments[step.moment] ?? null) : null;
+    shownRef.current?.(step, moment, (bank) => sayLine(step, bank));
+  }, [seq, step, walk.moments, sayLine]);
   const close = useCallback(() => {
     practise.cancel();
     go(0, undefined);
@@ -421,6 +426,7 @@ export default function FeedbackWalk<R = unknown>({
     summary,
     nav: (s, moment) => stepNav(ctx, s, moment),
     say: walkLines.say,
+    onOthers,
   };
 
   return (
@@ -473,6 +479,7 @@ type ScreenCtx<R = unknown> = {
   nav: (step: WalkStep, moment: FeedbackWalkMoment<unknown>) => WalkNav;
   /** The signed line a screen says (D-FW-3). */
   say: SayLine;
+  onOthers?: (at: number, of: number, from: string | null, answer: string | null) => void;
 };
 
 /** The top bar's words for a step (prototype `navOf`): "Slide N · moment n
@@ -750,6 +757,7 @@ function Others(ctx: ScreenCtx, step: WalkStep) {
       skip={Boolean(step.readOnly || step.replay)}
       onDone={() => ctx.forwardFrom(step)}
       onClose={ctx.close}
+      onChat={ctx.onOthers}
     />
   );
 }
