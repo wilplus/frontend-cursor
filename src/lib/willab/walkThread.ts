@@ -203,7 +203,8 @@ export function shownStep(
   const one = [step];
   switch (step.key) {
     case "coachnote":
-      return coachText ? { author: "coach", body: coachText } : null;
+      // "Your coach" over the words, as the prototype's chat writes it.
+      return coachText ? { author: "coach", body: `${COPY.titleCoach}\n${coachText}` } : null;
     case "praise":
       return titled(COPY.titlePraise, moment?.praiseWords.join(" "));
     case "helpers":

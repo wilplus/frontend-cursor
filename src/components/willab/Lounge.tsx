@@ -2098,7 +2098,8 @@ function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () =>
   const meta = message.metadata ?? {};
   const hint = typeof meta.hint === "string" ? meta.hint : null;
   const video = typeof meta.video === "string" && meta.video ? meta.video : null;
-  const cut = video ? message.body.indexOf("\n") : -1;
+  const nl = message.body.indexOf("\n");
+  const cut = video ? (nl >= 0 ? nl : message.body.length) : -1;
   return (
     <div className="mr-auto flex max-w-[88%] items-end gap-1.5">
       <ChatAvatar coach={meta.author === "coach"} />
@@ -2111,7 +2112,7 @@ function AppStepBubble({ message, open }: { message: LoungeMessage; open?: () =>
         {cut > 0 ? (
           <>
             {message.body.slice(0, cut)}
-            <ExerciseThumb />
+            <ExerciseThumb src={video as string} />
             {message.body.slice(cut + 1)}
           </>
         ) : (
@@ -2189,12 +2190,25 @@ function ClipBubble({ clip, seed, caption = null }: { clip: WalkChatClip; seed: 
 
 /** The exercise video's thumb in its chat bubble (prototype v31 `vthumb`):
  *  a dark 16:9 box with the play mark; the tap opens the lens, which plays. */
-function ExerciseThumb() {
+function ExerciseThumb({ src }: { src: string }) {
+  // Its length in the corner ("0:42"), read from the video's metadata only.
+  const [len, setLen] = useState<string | null>(null);
   return (
-    <span aria-hidden="true" className="my-1.5 flex aspect-video w-[150px] items-center justify-center rounded-[10px] bg-gradient-to-br from-[#30343c] to-[#17191e]">
+    <span aria-hidden="true" className="relative my-1.5 flex aspect-video w-[150px] items-center justify-center rounded-[10px] bg-gradient-to-br from-[#30343c] to-[#17191e]">
       <span className="relative h-[26px] w-[26px] rounded-full bg-white/[0.94]">
         <span className="absolute left-[10px] top-[7px] border-y-[6px] border-l-[9px] border-y-transparent border-l-[#121212]" />
       </span>
+      {len ? <span className="absolute bottom-1 right-1.5 text-[10px] text-white">{len}</span> : null}
+      <video
+        src={src}
+        preload="metadata"
+        muted
+        className="hidden"
+        onLoadedMetadata={(e) => {
+          const t = Math.round(e.currentTarget.duration);
+          if (Number.isFinite(t) && t > 0) setLen(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`);
+        }}
+      />
     </span>
   );
 }
