@@ -13,6 +13,8 @@ import type { FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import { encourageLine, improvedLine, thanksLine, triesLeft } from "@/lib/willab/walkPractise";
 import type { WalkTry } from "./useWalkPractise";
 import type { SayLine } from "@/lib/willab/walkLines";
+import type { AiVoiceState } from "@/services/api/aiVoice";
+import WalkAiVoice, { AI_VOICE_MAX, aiOnExercise, aiShownBefore, inVoiceLane } from "./WalkAiVoice";
 
 /* -------------------------------------------------------------------------- */
 /*  The practise loop's screens (build plan D-FW-16; founder lock 2026-10-12,  */
@@ -57,6 +59,9 @@ export type PractiseScreenCtx = {
   /** The signed line a screen says, never the one said just before
    *  (D-FW-3). Absent: the plan's own turn. */
   say?: SayLine;
+  /** The AI version of the speaker's voice for a voice Exercise moment (N71). */
+  aiVoiceOf?: (moment: number) => AiVoiceState | undefined;
+  aiVoicePlayed?: (moment: number) => void;
 };
 
 const testId = (step: WalkStep) => `walk-screen-${step.key}`;
@@ -227,11 +232,35 @@ function Encourage(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkM
       }
     >
       <TryBubble ctx={ctx} moment={moment} attempt={step.attempt} />
-      <WalkMessage>
-        <span>{COPY.titlePractise}</span>
-        <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
-      </WalkMessage>
+      {aiInstead(ctx, step, moment) ?? (
+        <WalkMessage>
+          <span>{COPY.titlePractise}</span>
+          <span>{encourageLine(ctx.plan, ctx.at(step), ctx.say)}</span>
+        </WalkMessage>
+      )}
     </WalkOverlay>
+  );
+}
+
+/** In the voice Exercise, a ready AI clip takes the encouragement's place,
+ *  at most AI_VOICE_MAX per exercise (N71): L4 and L3 the first time after
+ *  a try, L5 every later time. Anything else: the locked encouragement. */
+function aiInstead(ctx: PractiseScreenCtx, step: WalkStep, moment: FeedbackWalkMoment<unknown>) {
+  const at = ctx.at(step);
+  const state = ctx.aiVoiceOf?.(moment.index);
+  if (state?.clip?.state !== "ready" || !inVoiceLane(ctx.plan, at, moment.index)) return null;
+  const onExercise = aiOnExercise(state);
+  const shown = aiShownBefore(ctx.plan, at, moment.index, onExercise);
+  if (shown >= AI_VOICE_MAX) return null;
+  const first = shown === 0;
+  return (
+    <WalkAiVoice
+      seed={`ai-${moment.index}-${step.attempt ?? 1}`}
+      state={state}
+      line={first ? WALK_COPY.aiVoiceFirst : WALK_COPY.aiVoiceAgain}
+      then={first ? WALK_COPY.aiVoiceNow : undefined}
+      onPlay={() => ctx.aiVoicePlayed?.(moment.index)}
+    />
   );
 }
 

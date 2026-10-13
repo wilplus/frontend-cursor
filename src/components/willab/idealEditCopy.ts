@@ -399,6 +399,17 @@ export const WALK_COPY = {
   shareAdd: "Add",
   /* The practise (founder lock 2026-10-12, sections 2.5 and 8). */
   lineA: "Say this one like your confident moment.",
+  /* The AI version of your voice (founder lock 2026-10-12, N71; L1-L5
+     signed 2026-10-12). L1 labels every AI clip; L2 and L3 on the Exercise
+     screen when no video fits; L4 and L3 on the first "not yet"; L5 on
+     every later one. */
+  aiVoiceLabel: "AI version of your voice",
+  /* The small mark beside L1, as the prototype draws it. */
+  aiVoiceBadge: "AI",
+  aiVoiceExercise: "Here’s how you could say it.",
+  aiVoiceNow: "Now try saying it like that.",
+  aiVoiceFirst: "That was good. But what if you said it more like this?",
+  aiVoiceAgain: "Not yet. Listen to how you sound and how you might sound. Keep calm and try again.",
   practiseN: (n: number) => `Practise ${n}`,
   /* The lens, one to one with the locked prototype (v31, 2026-10-12): the
      top bar's words, the judging answers, the answered lines. */

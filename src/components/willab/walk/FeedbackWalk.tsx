@@ -14,6 +14,7 @@ import { renderPractiseScreen, type PractiseScreenCtx } from "./WalkPractiseScre
 import { useWalkPractise, type WalkPractise } from "./useWalkPractise";
 import WalkOthers from "./WalkOthers";
 import WalkSummary from "./WalkSummary";
+import WalkAiVoice, { aiOnExercise, aiPendingOnExercise } from "./WalkAiVoice";
 import { useWalkLines } from "./useWalkLines";
 import type { WalkJudgementSave } from "./useWalkJudging";
 import type { WalkJournalPost } from "./WalkJudgementScreens";
@@ -706,6 +707,7 @@ function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMome
       }
     >
       <Clip moment={moment} />
+      {aiExercise(ctx, step, moment) ?? (
       <WalkMessage coach={exercise.byCoach} wide>
         <span>{COPY.titleExercise}</span>
         {exercise.video ? (
@@ -716,7 +718,25 @@ function Exercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMome
         ) : null}
         <span>{exercise.instruction ?? WALK_COPY.lineA}</span>
       </WalkMessage>
+      )}
     </WalkOverlay>
+  );
+}
+
+/** No video fits this problem: the AI clip in the video's place (N71), the
+ *  breathing mark while it is being made. Otherwise the locked Exercise. */
+function aiExercise<R>(ctx: ScreenCtx<R>, step: WalkStep, moment: FeedbackWalkMoment<R>) {
+  const state = ctx.practise.aiVoiceOf(moment.index);
+  if (!aiOnExercise(state) && !aiPendingOnExercise(state)) return null;
+  return (
+    <WalkAiVoice
+      seed={`ai-ex-${moment.index}`}
+      state={state}
+      title={COPY.titleExercise}
+      line={WALK_COPY.aiVoiceExercise}
+      then={WALK_COPY.aiVoiceNow}
+      onPlay={() => ctx.practise.aiVoicePlayed(moment.index)}
+    />
   );
 }
 
