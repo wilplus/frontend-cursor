@@ -48,9 +48,6 @@ const UPLOAD_LIMIT_MS = 60_000;
 /** One moment's latest try, as its screens show it. */
 export type WalkTry = {
   practiceId: string;
-  /** The try's own words, back from a praise: helper words are tapped from
-   *  them. */
-  words: string | null;
   /** The try's voice, played on the screens after it. */
   audio: { url: string; durationMs: number } | null;
   /** Each try's own voice by its number: the thread keeps every try. */
@@ -262,7 +259,7 @@ export function useWalkPractise<R>(args: {
   // stays where it is while the mark breathes and the answer arrives.
   const late = useCallback((processingAt: number, tried: WalkStep, retry: number) => {
     const { plan: p, relay: lay } = live.current;
-    lay(withRead(p, processingAt, tried, null, { words: false, retryAttempt: retry }), processingAt + 1, "none");
+    lay(withRead(p, processingAt, tried, null, { retryAttempt: retry }), processingAt + 1, "none");
   }, []);
 
   /** Upload the try, ask the machine, lay its answer in. */
@@ -286,7 +283,6 @@ export function useWalkPractise<R>(args: {
         ...t,
         [moment]: {
           practiceId: t[moment]?.practiceId ?? "",
-          words: null,
           audio: { url, durationMs: Math.round(durationSec * 1000) },
           audios: { ...t[moment]?.audios, [attempt]: { url, durationMs: Math.round(durationSec * 1000) } },
         },
@@ -309,9 +305,8 @@ export function useWalkPractise<R>(args: {
         late(checkingAt, tried, sent.attempt + 1);
         return;
       }
-      setTries((t) => ({ ...t, [moment]: { ...t[moment], practiceId, words: read.attemptWords } }));
       const { plan: p, relay: lay } = live.current;
-      lay(withRead(p, checkingAt, tried, read.check, { words: read.attemptWords !== null }), checkingAt + 1, "none");
+      lay(withRead(p, checkingAt, tried, read.check), checkingAt + 1, "none");
     },
     [late],
   );
@@ -337,7 +332,7 @@ export function useWalkPractise<R>(args: {
     const here = p[i];
     if (here?.key !== "practise") return;
     const checking = withChecking(p, i);
-    lay(withRead(checking, i + 1, here, null, { words: false, retryAttempt: here.attempt ?? 1 }), i + 2, "none");
+    lay(withRead(checking, i + 1, here, null, { retryAttempt: here.attempt ?? 1 }), i + 2, "none");
   }, [mic.state]);
 
   const stop = useCallback(() => {

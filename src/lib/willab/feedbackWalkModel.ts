@@ -287,7 +287,7 @@ export function buildFeedbackWalk<R = unknown>(input: {
     return (
       WALK_PHASE_SCREENS.has(step.key) &&
       drawnPractise(step, moment) &&
-      (step.key !== "exVideo" || moment?.exercise != null) &&
+      (step.key !== "exVideo" || moment?.exercise != null || moment?.practiseItem != null) &&
       (step.key !== "clearer" || moment?.clearer != null) &&
       (step.key !== "judge" || moment?.judgeItem != null)
     );

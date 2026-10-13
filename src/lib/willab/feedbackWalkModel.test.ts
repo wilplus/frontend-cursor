@@ -34,11 +34,11 @@ describe("the exercise (D-FW-17; walk lock flow 8, WQ2 B, Q-B15 A)", () => {
       s.key === "practise" ? `practise:${s.kind}` : s.key,
     );
 
-  it("never waits for a coach: a moment still with the coach is said again, with no screen of its own", () => {
+  it("never waits for a coach: a moment with nothing served still gets the locked Exercise screen, then is said again", () => {
     const waiting = item({ partId: "p6", start: 300, blockId: "b6", openCard: "coach_request", item: "s-wait" }) as FeedbackWalkItem<string>;
     const plan = buildFeedbackWalk({ items: [waiting], coachNote: false, practiceOn: true, guest: false }).plan;
     expect(plan.map((s) => (s.key === "practise" ? `practise:${s.kind}` : s.key))).toEqual([
-      "page", "practise:moment", "others", "summary", "end",
+      "page", "exVideo", "practise:moment", "others", "summary", "end",
     ]);
     // The coach's exercise, once shared, takes the moment's place: no other
     // state lies between them. The exercise step stands with or without a

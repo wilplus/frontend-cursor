@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
-  type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
 } from "@/components/willab/walk/FeedbackWalk";
 import { walkPractiseIO, type WalkPractiseSource } from "@/services/api/walkPractise";
@@ -209,7 +208,6 @@ export default function LiveWalk({
   const [signUp, setSignUp] = useState(false);
   const [saved, setSaved] = useState<FeedbackWalkHelperWords[]>(() => (startFinished ? finishedSaved() : []));
   const [decided, setDecided] = useState<string[]>([]);
-  const [practised, setPractised] = useState<FeedbackWalkPractiseWords[]>([]);
   const [judged, setJudged] = useState<string[]>(() => (startFinished ? FINISHED_JUDGED : []));
   const [finished, setFinished] = useState(startFinished);
   const [replaying, setReplaying] = useState(false);
@@ -268,7 +266,6 @@ export default function LiveWalk({
       data-walk-harness="live"
       data-walk-saved={saved.map((s) => s.span.text).join("|")}
       data-walk-decided={decided.join("|")}
-      data-walk-practised={practised.map((p) => p.phrase).join("|")}
       data-walk-judged={judged.join("|")}
     >
       <PageStandIn
@@ -287,7 +284,6 @@ export default function LiveWalk({
         onAcceptClearer={(item) => setDecided((list) => [...list, `accept:${item}`])}
         onKeepWords={(item) => setDecided((list) => [...list, `keep:${item}`])}
         practise={practise}
-        onSavePractiseWords={(save) => setPractised((list) => [...list, save])}
         onJudge={(save) => setJudged((list) => [...list, `${save.item}:${save.answer}${save.earlier ? `<${save.earlier}` : ""}`])}
         onSkipJudging={(items) => setJudged((list) => [...list, ...items.map((item) => `${item}:skipped`)])}
         journal={journal}

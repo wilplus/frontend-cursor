@@ -8,7 +8,7 @@
 /*                                                                            */
 /*    Stop            → checking (the breathing voice mark)                    */
 /*    praise          → the line for the reading that moved (option A), then    */
-/*                      helper words tapped from the try's own words           */
+/*                      on to judging others (lock 2026-10-12, section 2.5)    */
 /*    again           → "It was better, …" when something moved between tries */
 /*                      (key "step"), else a rotating NX3a line (key          */
 /*                      "effort"), then the next try                          */
@@ -48,18 +48,11 @@ const LOOP: ReadonlySet<WalkStepKey> = new Set<WalkStepKey>([
 ]);
 
 /** The index after the practise loop that `at` sits in (or the clearer
- *  version that opens it): Skip, "Keep my words" and "Next" go there. A
- *  helper-words screen laid in after a praised try belongs to the loop too. */
+ *  version that opens it): Skip, "Keep my words" and "Next" go there. */
 export function loopEnd(plan: readonly WalkStep[], at: number): number {
   const moment = plan[at]?.moment;
   let to = at + 1;
-  while (
-    to < plan.length &&
-    plan[to].moment === moment &&
-    (LOOP.has(plan[to].key) || (plan[to].key === "helpers" && plan[to].kind === "try"))
-  ) {
-    to += 1;
-  }
+  while (to < plan.length && plan[to].moment === moment && LOOP.has(plan[to].key)) to += 1;
   return Math.min(to, plan.length - 1);
 }
 
@@ -74,16 +67,20 @@ export function threadStart(plan: readonly WalkStep[], at: number): number {
   const moment = plan[at]?.moment;
   if (moment == null || !THREAD.has(plan[at].key)) return -1;
   let start = -1;
+  // The moment said again joins a thread only under its Exercise screen
+  // (lock 2026-10-12, 2.4); on its own it keeps its own recorder.
+  let underExercise = false;
   for (let i = at; i >= 0; i -= 1) {
     const s = plan[i];
-    if (s.moment !== moment || !THREAD.has(s.key)) return start;
+    if (s.moment !== moment || !THREAD.has(s.key)) return underExercise ? -1 : start;
     if (s.key === "exVideo") return i;
     if (s.key === "practise") {
-      if (s.kind !== "instruction") return start;
-      start = i;
+      if (s.kind === "moment") underExercise = true;
+      else if (s.kind !== "instruction") return underExercise ? -1 : start;
+      else start = i;
     }
   }
-  return start;
+  return underExercise ? -1 : start;
 }
 
 /** Stop on the try at `at`: the checking screen follows it, and whatever
@@ -103,15 +100,13 @@ export function withChecking(plan: readonly WalkStep[], at: number): WalkStep[] 
 /** The machine's answer laid in after the checking screen at `at`.
  *  `practise` is the try that was checked, its `attempt` the try's number as
  *  the server counts it. A null read is a late or failed one (O5): the
- *  "late" screen, whose `attempt` is the try "Practise again" records.
- *  `words`: the try's own words came back, so helper words can follow a
- *  praise; without them no helper-words screen is laid in. */
+ *  "late" screen, whose `attempt` is the try "Practise again" records. */
 export function withRead(
   plan: readonly WalkStep[],
   at: number,
   practise: WalkStep,
   read: PractiseRead | null,
-  opts: { words: boolean; retryAttempt?: number },
+  opts: { retryAttempt?: number } = {},
 ): WalkStep[] {
   const head = plan.slice(0, at + 1);
   const rest = plan.slice(loopEnd(plan, at));
@@ -124,9 +119,7 @@ export function withRead(
   const asked = read.next === "moved_on" ? { ...practise, attempt: Math.max(attempt, WALK_MAX_TRIES) } : practise;
   const next = afterTry(asked, read.next === "praise" ? "praise" : "again")
     .filter((s) => s.key !== "processing")
-    .filter((s) => s.key !== "helpers" || opts.words)
     .map((s): WalkStep => {
-      if (s.key === "helpers") return { ...s, kind: "try" };
       if (s.key === "improved") return { ...s, kind: read.key ?? undefined };
       if (s.key === "encourage") return { ...s, kind: read.key ?? "effort" };
       return s;

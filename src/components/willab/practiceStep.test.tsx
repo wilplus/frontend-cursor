@@ -74,7 +74,6 @@ const practiceApi = vi.hoisted(() => ({
   startConfidencePractice: vi.fn(),
   uploadConfidencePracticeAttempt: vi.fn(),
   fetchConfidencePractice: vi.fn(async () => ({ ok: false, error: null })),
-  savePracticeHelperWords: vi.fn(async () => true),
 }));
 vi.mock("@/services/api/confidentVoicePractice", () => practiceApi);
 

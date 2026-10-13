@@ -776,13 +776,13 @@ export default function Lounge({
           version: take.takeIndex,
         }));
       }
-      // LEAVE AND COME BACK (J2, founder 2026-09-29; Phase 7): the text no
-      // longer opens by itself when the Take settles -- the speaker may be
-      // anywhere. The reload brings the Take's bubble with its button to the
-      // text, where "Review feedback" waits (J1). On Takes 1-3 a signed-in
-      // speaker's journey message is posted first, so the same reload brings
-      // it (Q-IT643 A).
+      // THE REVIEW OPENS BY ITSELF when the Take's feedback is ready, even
+      // if the speaker left the processing screen for the chat (founder lock
+      // 2026-10-12, moment and feedback chat, section 1; prototype v31
+      // start()). On Takes 1-3 a signed-in speaker's journey message is
+      // posted first, so the reload brings it (Q-IT643 A).
       void postJourneyForSavedTake(take, thread.signedIn).then(() => reload().catch(() => undefined));
+      if (take.arcId) openIdealText(take.arcId, "review");
     },
     onExpired: (take) => {
       if (take.arcId && take.takeIndex === 1) {
@@ -2036,11 +2036,14 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
 }
 
 /** The project whose review waits in the thread: the newest walk step's,
- *  unless it is the review's end. Null: nothing to continue. */
+ *  unless it is the review's end or its closing summary (the summary is the
+ *  last step: seen, the review is finished). Null: nothing to continue. */
 export function continueReviewArc(items: readonly ThreadItem[]): string | null {
   for (let i = items.length - 1; i >= 0; i -= 1) {
     const item = items[i];
-    if (item.kind !== "message" || item.message.kind !== "walk_step") continue;
+    if (item.kind !== "message") continue;
+    if (item.message.metadata?.summary === true) return null;
+    if (item.message.kind !== "walk_step") continue;
     const meta = item.message.metadata ?? {};
     if (meta.step === "share") continue;
     if (meta.step === "end") return null;
