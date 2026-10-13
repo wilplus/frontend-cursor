@@ -179,53 +179,33 @@ function revisionDate(createdAt: string | null): string | null {
   });
 }
 
-/** The revision timeline sheet: newest first as served, each row a
- *  qualitative reason line + a date — revision NUMBERS never render (they
- *  are restore keys, not progress). Tapping a non-head row unfolds the
- *  restore action with the reassurance line; restore repoints what that
- *  revision recorded and never deletes. */
+/** The History under ⋯ (lock 2026-10-12, section 4): every version of the
+ *  document, newest first as served, each row its Take and a date — revision
+ *  NUMBERS never render. Tapping an older row unfolds its words. Read only:
+ *  rule 5 — the Ideal Text is what the latest Take said, so an old version
+ *  is shown, never brought back. */
 export function RevisionTimelineSheet({
   open,
   revisions,
-  onRestore,
   onClose,
 }: {
   open: boolean;
   revisions: IdealTextRevision[];
-  /** Resolves when the restore round-trip settles; false = show the retry
-   *  line and stay open (the host closes on every other outcome). */
-  onRestore: (revision: number) => Promise<boolean>;
   onClose: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  /** The row unfolded to its restore action (a revision number — plumbing). */
-  const [armed, setArmed] = useState<number | null>(null);
+  /** The row unfolded to its words (a revision number — plumbing). */
+  const [unfoldedAt, setUnfoldedAt] = useState<number | null>(null);
   useEffect(() => {
-    setBusy(false);
-    setFailed(false);
-    setArmed(null);
+    setUnfoldedAt(null);
   }, [open]);
   if (!open) return null;
-  const close = () => {
-    if (!busy) onClose();
-  };
-  const restore = (revision: number) => {
-    if (busy) return;
-    setBusy(true);
-    setFailed(false);
-    void onRestore(revision).then((ok) => {
-      setBusy(false);
-      if (!ok) setFailed(true);
-    });
-  };
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      onClick={close}
+      onClick={onClose}
       role="presentation"
     >
-      <SheetBackDismiss onClose={onClose} consume={() => busy} />
+      <SheetBackDismiss onClose={onClose} consume={() => false} />
       <div
         className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-2xl border border-border bg-card p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -236,12 +216,12 @@ export function RevisionTimelineSheet({
           <p className="text-[14px] font-semibold text-foreground">
             {BLOCK_VARIANT_COPY.timelineTitle}
           </p>
-          <OverlayCloseButton onClick={close} ariaLabel="Close history" />
+          <OverlayCloseButton onClick={onClose} ariaLabel="Close history" />
         </div>
         <div className="scrollbar-none flex flex-col gap-2 overflow-y-auto">
           {revisions.map((r) => {
             const date = revisionDate(r.createdAt);
-            const unfolded = armed === r.revision;
+            const unfolded = unfoldedAt === r.revision;
             return (
               <div
                 key={r.revision}
@@ -251,17 +231,18 @@ export function RevisionTimelineSheet({
               >
                 <button
                   type="button"
-                  // The head row has nothing to bring back — it is what is
-                  // live now — so it never unfolds.
+                  // The head row is what is on the page now, so it never
+                  // unfolds.
                   onClick={() =>
-                    r.isHead ? undefined : setArmed(unfolded ? null : r.revision)
+                    r.isHead ? undefined : setUnfoldedAt(unfolded ? null : r.revision)
                   }
-                  disabled={busy}
                   className="flex w-full items-center justify-between gap-2 text-left"
                 >
                   <span className="flex flex-col">
                     <span className="text-[14px] text-foreground">
-                      {BLOCK_VARIANT_COPY.reason[r.reason]}
+                      {r.takeIndex !== null
+                        ? BLOCK_VARIANT_COPY.takeBadge(r.takeIndex)
+                        : BLOCK_VARIANT_COPY.takeBadgeUnknown}
                     </span>
                     {date ? (
                       <span className="text-[12px] text-muted-foreground">
@@ -276,30 +257,15 @@ export function RevisionTimelineSheet({
                   ) : null}
                 </button>
                 {unfolded && !r.isHead ? (
-                  <div className="mt-2 flex flex-col gap-2">
-                    {/* The honest framing (§4.4): bring back that version's
-                        CHOICES. Blocks added since stay; nothing deletes. */}
-                    <p className="text-[12px] leading-relaxed text-muted-foreground">
-                      {BLOCK_VARIANT_COPY.restoreReassurance}
-                    </p>
-                    <Button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => restore(r.revision)}
-                      className="h-9 rounded-full bg-foreground text-[13px] text-background hover:bg-foreground/90"
-                    >
-                      {BLOCK_VARIANT_COPY.restore}
-                    </Button>
+                  <div className="mt-2 flex flex-col gap-3 text-[14px] leading-relaxed text-foreground">
+                    {r.text.split("\n\n").map((paragraph, i) => (
+                      <p key={i}>{paragraph}</p>
+                    ))}
                   </div>
                 ) : null}
               </div>
             );
           })}
-          {failed ? (
-            <p className="text-[12px] text-muted-foreground">
-              {BLOCK_VARIANT_COPY.restoreFailed}
-            </p>
-          ) : null}
         </div>
       </div>
     </div>

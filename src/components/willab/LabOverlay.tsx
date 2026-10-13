@@ -1031,7 +1031,9 @@ export default function LabOverlay({
   });
 
   // Processing completion is a state transition, not a second decision. The
-  // result opens directly into Ideal Text; its document-settle gate still
+  // wait holds until the review (the lens) opens by itself; ✕ on it shows the
+  // chat, and the Ideal Text opens after the summary (lock 2026-10-12,
+  // sections 1 and 4; useReadoutLanding). Its document-settle gate still
   // prevents stale words from appearing while assembly finishes.
   useEffect(() => {
     if (state === "lab_processing" && processingReady && !uploadError) {

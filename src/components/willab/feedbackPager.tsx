@@ -127,14 +127,6 @@ export function helperWordsDeleted(
   return deletedHere || (part.locked !== true && (part.iteration ?? 0) > 0);
 }
 
-/** Where the email and the chat bubble land (Q28 A, Q29): the first coach-
- *  reviewed bookmark in text order; failing that, the first coach moment.
- *  Never a bookmark that only waits for a judgement. -1 when there is none. */
-export function landingIndex(bookmarks: readonly Bookmark[]): number {
-  const coach = bookmarks.findIndex((b) => b.coach);
-  return coach >= 0 ? coach : bookmarks.findIndex((b) => b.bundleId !== null);
-}
-
 /** ONE NAVIGATION, AT THE TOP (founder 2026-09-26, Ideal Text redesign B).
  *  It used to be an outlined Back and a black Next at the bottom of every
  *  sheet, under the step's own black button — two black buttons stacked, and
@@ -184,10 +176,6 @@ export function useFeedbackPager(args: {
   bookmarks: readonly Bookmark[];
   open: (bookmark: Bookmark) => void;
   closeAll: () => void;
-  /** Land on the coach's feedback once the deck is ready (the email link and
-   *  the chat bubble). */
-  openFeedback: boolean;
-  ready: boolean;
   /** Where a bookmark sits ("Slide 2"), shown in the header. */
   labelOf?: (bookmark: Bookmark) => string | null;
 }): {
@@ -199,10 +187,9 @@ export function useFeedbackPager(args: {
    *  arrow returns to change it"); any other opening clears it. */
   cameBack: boolean;
 } {
-  const { bookmarks, open, closeAll, openFeedback, ready, labelOf } = args;
+  const { bookmarks, open, closeAll, labelOf } = args;
   const [at, setAt] = useState<number | null>(null);
   const [cameBack, setCameBack] = useState(false);
-  const landed = useRef(false);
   /* THE LIST IS FROZEN FOR THE WALK (audit 2026-09-29). The host rebuilds
      its bookmarks from every re-read of the document — after Apply, after an
      answer — and the walk is positional, so a rebuild under an open sheet
@@ -242,14 +229,6 @@ export function useFeedbackPager(args: {
     },
     [bookmarks, openAt],
   );
-
-  useEffect(() => {
-    if (!openFeedback || landed.current || !ready) return;
-    const index = landingIndex(bookmarks);
-    if (index < 0) return;
-    landed.current = true;
-    openAt(index);
-  }, [openFeedback, ready, bookmarks, openAt]);
 
   const pager = useMemo<Pager | null>(() => {
     if (at === null || list.length === 0) return null;

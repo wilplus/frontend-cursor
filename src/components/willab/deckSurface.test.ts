@@ -36,9 +36,9 @@ describe("the deck surface the founder specced (2026-08-11)", () => {
     expect(DECK).not.toMatch(/Nothing waiting/);
     expect(DECK).not.toMatch(/words/);
     expect(DECK).not.toMatch(/Slide \$\{atSlide/);
-    // The dots rail is the surviving "where am I" — it must NOT go with it.
-    expect(DECK).toMatch(/screens\.length > 1/);
-    expect(DECK).toMatch(/aria-current/);
+    // No dots rail either: top bar, slide row, paragraphs, foot (lock
+    // 2026-10-12, section 4).
+    expect(DECK).not.toMatch(/aria-current/);
   });
 
   /* ── THE KEYBOARD (founder 2026-09-22) ──────────────────────────────────

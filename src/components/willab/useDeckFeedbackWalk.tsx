@@ -41,7 +41,7 @@ import {
 import type { DeckChunk } from "@/lib/willab/deckChunks";
 import type { PractiseCard } from "@/lib/willab/paragraphOverlay";
 import { clearerPieces } from "@/lib/willab/clearerPieces";
-import { quoteSpan } from "@/lib/willab/phraseTokens";
+import { phraseSelection, quoteSpan } from "@/lib/willab/phraseTokens";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { practiseOfferedNow, readPractiseOffered } from "@/services/api/consentChoices";
@@ -443,14 +443,19 @@ export function paragraphPractise(args: {
 /** One paragraph's helper-words step on its own (lock 2026-10-12, section
  *  4): what a tap on orange helper words opens when this Take's walk has no
  *  such step for the paragraph (no moment on it, or the walk is done and no
- *  replay holds it). Pure. */
+ *  replay holds it). The saved words open picked, with "Keep these"
+ *  (helper-words lock B10). Pure. */
 export function paragraphHelpers(args: {
   partId: string;
   paragraphText: string;
   slideLabel: string | null;
+  /** The helper words saved on the paragraph; null: none. */
+  helperWords?: string | null;
 }): FeedbackWalkModel<DocumentSuggestion> {
   const { partId, paragraphText, slideLabel } = args;
+  const saved = phraseSelection(paragraphText, args.helperWords ?? null);
   return {
+    replay: { picks: saved ? { 0: saved } : {}, answers: {} },
     plan: [
       { key: "page", overlay: false },
       { key: "helpers", moment: 0, slide: 0 },
@@ -505,6 +510,10 @@ export function useDeckFeedbackWalk(args: {
   /** The walk ran out onto the page. Nothing else: the old end card is
    *  retired for this flow (lock 2026-10-12, section 2.7). */
   onEnd?: () => void;
+  /** ✕ on the review (the lens) turns it off and shows the chat (lock
+   *  2026-10-12, section 1). A step opened from the page closes onto the
+   *  page instead. */
+  onLensClose?: () => void;
   /** The answered items on a paragraph (the replay reads them with the
    *  waiting ones, Q-IT643b A). */
   answeredOf?: (chunk: DeckChunk) => readonly DocumentSuggestion[];
@@ -623,9 +632,12 @@ export function useDeckFeedbackWalk(args: {
   // This opening is a paragraph's practise: its end is the page, not the
   // walk's end card.
   const practisingRef = useRef(false);
-  const openAt = useCallback((at: number | null, practising = false): boolean => {
+  // This opening is the review itself (the lens), not a step from the page.
+  const lensRef = useRef(false);
+  const openAt = useCallback((at: number | null, practising = false, lens = false): boolean => {
     if (at === null) return false;
     practisingRef.current = practising;
+    lensRef.current = lens;
     toldRef.current = new Set<string>();
     seqRef.current += 1;
     setRequest({ seq: seqRef.current, at });
@@ -636,7 +648,7 @@ export function useDeckFeedbackWalk(args: {
   coachSeenRef.current = coachSeen;
   const review = useCallback((target?: WalkStepTarget | null): boolean => {
     setReplaying(null);
-    const opened = openAt(walkStepAt(model, target) ?? walkStart(model));
+    const opened = openAt(walkStepAt(model, target) ?? walkStart(model), false, true);
     if (opened && model.plan.some((step) => step.key === "coachnote")) coachSeenRef.current();
     return opened;
   }, [model, openAt]);
@@ -658,7 +670,7 @@ export function useDeckFeedbackWalk(args: {
       if (at === null) return;
       setOwnAnswers(answers);
       setReplaying(again);
-      openAt(at);
+      openAt(at, false, true);
     });
     return true;
   }, [canReplay, pageTake, buildReplay, openAt]);
@@ -695,7 +707,12 @@ export function useDeckFeedbackWalk(args: {
       const chunk = live.current.chunks.find((c) => c.part.id === partId);
       if (!chunk) return false;
       setReplaying(
-        paragraphHelpers({ partId, paragraphText: chunk.part.text, slideLabel: live.current.slideLabel(partId) }),
+        paragraphHelpers({
+          partId,
+          paragraphText: chunk.part.text,
+          slideLabel: live.current.slideLabel(partId),
+          helperWords: live.current.helperWordsOf?.(partId) ?? null,
+        }),
       );
       return openAt(1, true);
     },
@@ -827,6 +844,9 @@ export function useDeckFeedbackWalk(args: {
     post({ key: "end", moment: null, attempt: null, author: "app", body: "" });
     live.current.onEnd?.();
   }, [post]);
+  const onClose = useCallback(() => {
+    if (lensRef.current) live.current.onLensClose?.();
+  }, []);
   /** The walk showed the coach's note or a moment: the server hears it once
    *  per opening, behind the screen, and the Lounge's "new" clears. */
   const onShown = useCallback(
@@ -897,6 +917,7 @@ export function useDeckFeedbackWalk(args: {
           journal={journal}
           summary={summary}
           onEnd={onEnd}
+          onClose={onClose}
           lines={lineBankIO}
           onShown={onShown}
           onAnswer={onAnswer}
@@ -919,6 +940,7 @@ export function useDeckFeedbackWalk(args: {
       skipJudging,
       journal,
       onEnd,
+      onClose,
       onShown,
       onAnswer,
       onOthers,

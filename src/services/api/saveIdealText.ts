@@ -1,16 +1,9 @@
 import { bffFetch } from "@/lib/api/bffFetch";
 
 /* -------------------------------------------------------------------------- */
-/*  saveIdealText — MASTER DOCUMENT, "Save the ideal text" (BE-3, founder      */
-/*  2026-07-22).                                                              */
-/*                                                                            */
-/*  Save is ACCEPT-AND-FREEZE, not a second copy: it resolves the pending     */
-/*  state (anything the student left unactioned is dismissed-and-remembered), */
-/*  stamps the saved version and writes the frozen snapshot. There is exactly */
-/*  ONE source of truth afterwards — the master, with no offers outstanding.  */
-/*                                                                            */
-/*  Saving is also the gate for the re-read: you read aloud what you have     */
-/*  settled on, never a script still carrying open suggestions.               */
+/*  saveIdealText — "Save the ideal text", the last item under ⋯. It stamps   */
+/*  the version on screen as saved and changes no word (rule 5); the reads   */
+/*  then serve `is_saved: true` for that version.                            */
 /* -------------------------------------------------------------------------- */
 
 export type SaveIdealTextResult =
