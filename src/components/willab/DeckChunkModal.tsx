@@ -20,7 +20,6 @@ import type { ConfidenceRatingValue } from "@/services/api/stateRatings";
 import type { RootGateAnswer } from "@/lib/willab/chunkSteps";
 import ConfidenceLabelChips from "@/components/willab/ConfidenceLabelChips";
 import {
-  acceptOutcome,
   saveTakeFeedbackResponse,
   type FeedbackResponse,
 } from "@/services/api/takeFeedback";
@@ -520,7 +519,6 @@ export default function DeckChunkModal({
    *  footer becomes the way on. No judgement is recorded, so no orange. */
   const [superseded, setSuperseded] = useState(false);
   // What the server did with an accepted rewrite (Phase 4, P1-1).
-  const lastTextUpdate = useRef<string | undefined>(undefined);
   const [rewriteCollisionConfirmed, setRewriteCollisionConfirmed] =
     useState(false);
   /** THE BRIEF, REAL UNDO after an accepted rewrite. The ladder has no editor
@@ -602,7 +600,6 @@ export default function DeckChunkModal({
 
 
   async function recordFeedbackResponse(response: FeedbackResponse): Promise<boolean> {
-    lastTextUpdate.current = undefined;
     if (guestBlock()) return false;
     if (!suggestion?.takeSessionId || !suggestion.feedbackFamily) return false;
     const result = await saveTakeFeedbackResponse({
@@ -619,7 +616,6 @@ export default function DeckChunkModal({
       else setError(result.error ?? COPY.failResponse);
       return false;
     }
-    lastTextUpdate.current = result.textUpdate;
     return true;
   }
 
@@ -667,10 +663,8 @@ export default function DeckChunkModal({
     setError(null);
     const responseSaved = await recordFeedbackResponse("apply_suggestion");
     // P1-1 (Phase 4): the server writes the accepted V3 rewrite itself.
-    const outcome = responseSaved ? acceptOutcome(lastTextUpdate.current) : "refused";
-    const applied = outcome === "refused"
-      ? false
-      : await onAccept(outcome === "server" ? { ...suggestion, acceptedOnServer: true } : suggestion);
+    // Rule 5: the answer is recorded; the Ideal Text keeps the speaker's words.
+    const applied = responseSaved ? await onAccept({ ...suggestion, acceptedOnServer: true }) : false;
     setBusy(false);
     if (!responseSaved || !applied) {
       if (responseSaved && !applied) {

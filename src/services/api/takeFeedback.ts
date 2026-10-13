@@ -34,9 +34,6 @@ export const FROZEN_SET_MISMATCH =
 export type SaveTakeFeedbackResult =
   | {
       ok: true;
-      /** An accepted V3 rewrite only: what the server did to the Paragraph
-       *  (F1 Repair Plan Phase 4, P1-1) -- see `acceptOutcome`. */
-      textUpdate?: string;
       /** A CHANGED JUDGEMENT (founder QA1 A, D-FW-9; backend migration
        *  0440): the server kept the first Confident Voice answer and stored
        *  this one beside it. Present only when it says so; the latest answer
@@ -105,27 +102,8 @@ function savedResult(
 ): Extract<SaveTakeFeedbackResult, { ok: true }> {
   return {
     ok: true,
-    ...(typeof body?.text_update === "string" ? { textUpdate: body.text_update } : {}),
     ...(body?.revised === true ? { revised: true as const } : {}),
     ...(typeof body?.follow_up === "string" ? { followUp: body.follow_up } : {}),
   };
 }
 
-/** What an accepted rewrite's answer means for the page (F1 Repair Plan
- *  Phase 4, P1-1; contract 29b). The server writes the accepted words as a
- *  new Paragraph version from the V3 freeze that served the item:
- *
- *  - "server": it did (or already had) -- the page refetches and sends no
- *    ledger decision of its own;
- *  - "refused": it could not (helper words or a lock on the Paragraph, the
- *    words moved, a writer failure) and no word changed -- the sheet says
- *    the accept was not saved;
- *  - "legacy": the item is not a V3 rewrite the server knows, or an older
- *    backend answered -- the page decides as before. */
-export function acceptOutcome(
-  textUpdate: string | undefined,
-): "server" | "refused" | "legacy" {
-  if (textUpdate === "applied" || textUpdate === "already_applied") return "server";
-  if (textUpdate === undefined || textUpdate === "not_found") return "legacy";
-  return "refused";
-}

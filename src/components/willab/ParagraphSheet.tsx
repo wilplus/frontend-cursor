@@ -23,7 +23,7 @@ import {
   machineReadOf,
   type MachineRead,
 } from "@/lib/willab/paragraphOverlay";
-import { acceptOutcome, saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
+import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 
 /** How Practise was reached (29b): the card as shown; the rewrite just
  *  accepted (the heading says so); or the speaker's own words after "Keep
@@ -332,10 +332,8 @@ function useAcceptRewrite(
           feedbackExposureId: item.feedbackExposureId,
         })
       : { ok: true as const };
-    const outcome = saved.ok ? acceptOutcome(saved.textUpdate) : "refused";
-    const applied = outcome === "refused"
-      ? false
-      : await onAccept(outcome === "server" ? { ...item, acceptedOnServer: true } : item);
+    // Rule 5: the answer is recorded; the Ideal Text keeps the speaker's words.
+    const applied = saved.ok ? await onAccept({ ...item, acceptedOnServer: true }) : false;
     setAccepting(false);
     if (!saved.ok || !applied) {
       setFailed(true);
