@@ -27,7 +27,7 @@ import {
 import { DATA_CONSENT_COPY as COPY } from "@/lib/legal/dataConsentCopy";
 
 const BUTTON =
-  "inline-flex h-10 items-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground";
+  "inline-flex h-10 items-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground hover:bg-muted";
 const PRIMARY =
   "inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background";
 
