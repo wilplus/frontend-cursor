@@ -440,6 +440,40 @@ export function paragraphPractise(args: {
   };
 }
 
+/** One paragraph's helper-words step on its own (lock 2026-10-12, section
+ *  4): what a tap on orange helper words opens when this Take's walk has no
+ *  such step for the paragraph (no moment on it, or the walk is done and no
+ *  replay holds it). Pure. */
+export function paragraphHelpers(args: {
+  partId: string;
+  paragraphText: string;
+  slideLabel: string | null;
+}): FeedbackWalkModel<DocumentSuggestion> {
+  const { partId, paragraphText, slideLabel } = args;
+  return {
+    plan: [
+      { key: "page", overlay: false },
+      { key: "helpers", moment: 0, slide: 0 },
+      { key: "end", overlay: false },
+    ],
+    moments: [
+      {
+        index: 0,
+        partId,
+        paragraphText,
+        slideLabel,
+        praiseWords: [],
+        clip: null,
+        clearer: null,
+        practiseItem: null,
+        exercise: null,
+        judgeItem: null,
+      },
+    ],
+    partsOf: [[partId]],
+  };
+}
+
 export function useDeckFeedbackWalk(args: {
   chunks: readonly DeckChunk[];
   groups: readonly SlideGroup[];
@@ -651,12 +685,19 @@ export function useDeckFeedbackWalk(args: {
         setReplaying(null);
         return openAt(liveAt);
       }
-      if (!replayReady) return false;
-      const now = buildReplay(ownAnswers);
-      const at = walkHelpersForPart(now, partId);
-      if (at === null) return false;
-      setReplaying(now);
-      return openAt(at);
+      const now = replayReady ? buildReplay(ownAnswers) : null;
+      const at = now ? walkHelpersForPart(now, partId) : null;
+      if (now && at !== null) {
+        setReplaying(now);
+        return openAt(at);
+      }
+      // No step for it in this Take's walk: the helper words on their own.
+      const chunk = live.current.chunks.find((c) => c.part.id === partId);
+      if (!chunk) return false;
+      setReplaying(
+        paragraphHelpers({ partId, paragraphText: chunk.part.text, slideLabel: live.current.slideLabel(partId) }),
+      );
+      return openAt(1, true);
     },
     [model, replayReady, buildReplay, ownAnswers, openAt],
   );
