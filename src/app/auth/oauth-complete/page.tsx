@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { takeAfterSignIn } from "@/lib/auth/startOAuth";
 import LoadingState from "@/components/willab/LoadingState";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -59,7 +60,7 @@ function OAuthCompleteInner() {
 
     const run = async () => {
       const code = searchParams?.get("code");
-      const next = searchParams?.get("next") || "/chat";
+      const next = searchParams?.get("next") || takeAfterSignIn() || "/chat";
 
       if (!code) {
         setErrorMessage("Missing OAuth authorization code.");

@@ -2,6 +2,19 @@ import { createClient } from "@/lib/supabase/client";
 import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
 import type { OAuthProvider } from "@/lib/auth/oauthRetry";
 
+export const AFTER_SIGN_IN_KEY = "willab_after_sign_in";
+
+/** The page saved by startOAuth, read once. */
+export function takeAfterSignIn(): string | null {
+  try {
+    const back = window.localStorage.getItem(AFTER_SIGN_IN_KEY);
+    window.localStorage.removeItem(AFTER_SIGN_IN_KEY);
+    return back && back.startsWith("/") && !back.startsWith("//") ? back : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Start a Supabase OAuth sign-in and navigate to the provider.
  *
@@ -23,6 +36,19 @@ export async function startOAuth(
   // the callback page (which can land in a separate browser tab) can tell
   // the user they can head back to the app. No-op for plain web sign-in.
   if (isStandalonePwa()) markOAuthFromPwa();
+
+  // The callback URL carries no query string (below), so the page to come
+  // back to (e.g. the booking page) waits here for /auth/oauth-complete.
+  try {
+    const back = new URLSearchParams(window.location.search).get("redirectTo");
+    if (back && back.startsWith("/") && !back.startsWith("//")) {
+      window.localStorage.setItem(AFTER_SIGN_IN_KEY, back);
+    } else {
+      window.localStorage.removeItem(AFTER_SIGN_IN_KEY);
+    }
+  } catch {
+    /* storage blocked: they land on /chat as before */
+  }
 
   // No query string deliberately: Supabase's redirect-URL allow-list can
   // refuse query strings even with `**` wildcards and silently fall back to
