@@ -130,6 +130,11 @@ export function getCspDirectives(nonce: string): string {
   const scriptSrc = ["'self'", `'nonce-${nonce}'`];
   if (isDev) scriptSrc.push("'unsafe-eval'");
 
+  // Stripe's card form on the booking page (Embedded Checkout, founder
+  // 2026-10-13): its script, its iframes and its API, and nothing else.
+  scriptSrc.push(...STRIPE_ORIGINS);
+  connectSrc.push(...STRIPE_ORIGINS, "https://api.stripe.com");
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -161,10 +166,13 @@ export function getCspDirectives(nonce: string): string {
     // else. Shipping the directive before then just reintroduces the outage.
     "style-src 'self' 'unsafe-inline'",
     `script-src ${scriptSrc.join(" ")}`,
+    `frame-src 'self' ${STRIPE_ORIGINS.join(" ")} https://hooks.stripe.com`,
     // Same-origin workers only: the bundled pdf.js worker and /sw.js.
     "worker-src 'self'",
   ].join("; ");
 }
+
+const STRIPE_ORIGINS = ["https://js.stripe.com", "https://checkout.stripe.com"];
 
 /** Stamp the enforced CSP (+ legacy alias) onto an outgoing response. */
 function applyCsp(res: NextResponse, csp: string): NextResponse {

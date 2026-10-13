@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   for (const key of ["start", "name", "timezone", "note"]) {
     if (typeof body[key] === "string") forwarded[key] = body[key];
   }
+  if (body.embedded === true) forwarded.embedded = true;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
   if (ip) headers["X-Forwarded-For"] = ip;
