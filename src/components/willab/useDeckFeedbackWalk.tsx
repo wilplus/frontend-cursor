@@ -201,7 +201,7 @@ function walkItemOf(
     slideLabel: label,
     praiseWords: praise ? praiseWordsOf(item) : null,
     clip: item.snippetAudioRef
-      ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs }
+      ? { src: item.snippetAudioRef, startOffsetMs: item.startOffsetMs, durationMs: item.durationMs, snippetId: item.snippetId }
       : null,
     rewrite,
     item: suggestionSource(item) ? item : null,
@@ -383,7 +383,7 @@ export function paragraphPractise(args: {
   const source = practiseSourceOf(card.item, moment);
   if (!source) return null;
   const clip = moment?.snippetAudioRef
-    ? { src: moment.snippetAudioRef, startOffsetMs: moment.startOffsetMs, durationMs: moment.durationMs }
+    ? { src: moment.snippetAudioRef, startOffsetMs: moment.startOffsetMs, durationMs: moment.durationMs, snippetId: moment.snippetId }
     : null;
   const base: FeedbackWalkMoment<DocumentSuggestion> = {
     index: 0,

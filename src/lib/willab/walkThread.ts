@@ -89,6 +89,7 @@ export function momentChat(
           src: moment.clip?.src ?? null,
           start_ms: moment.clip?.startOffsetMs ?? null,
           duration_ms: moment.clip?.durationMs ?? null,
+          snippet_id: moment.clip?.snippetId ?? null,
           words,
         }
       : null;

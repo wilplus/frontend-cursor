@@ -38,6 +38,8 @@ export type WalkClip = {
   src: string;
   startOffsetMs: number | null;
   durationMs: number | null;
+  /** The moment's recording, so the chat can ask for a fresh link later. */
+  snippetId?: string | null;
 };
 
 /** One feedback item as the walk needs it. `R` is the served item a
