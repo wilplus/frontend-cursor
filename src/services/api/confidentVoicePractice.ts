@@ -286,27 +286,3 @@ export async function fetchConfidencePractice(
     return { ok: false, error: null };
   }
 }
-
-/** Helper words tapped from the practice's words, for when they could not
- *  be adopted into the paragraph (Q10 B). Stored on the Slide; the Lock step
- *  locks them like any other pick. */
-export async function savePracticeHelperWords(
-  practiceId: string,
-  partId: string,
-  phrase: string,
-): Promise<boolean> {
-  const headers = await tokenHeaders(true);
-  if (!headers) return false;
-  try {
-    const res = await fetch(
-      `/api/v2/user/confidence-practice/${encodeURIComponent(practiceId)}/helper-words`,
-      {
-        method: "PUT", headers, cache: "no-store",
-        body: JSON.stringify({ part_id: partId, phrase }),
-      },
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
-}

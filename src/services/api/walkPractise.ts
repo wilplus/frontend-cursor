@@ -13,8 +13,7 @@ import { checkPracticeAttempt, type PracticeCheckResult } from "@/services/api/p
 /*  route; an exercise's practise on the exercise the item carries, D-FW-17), */
 /*  upload each try (the attempts route) and ask the machine about   */
 /*  it (the check route; only `next` and the line's `key` come back, AC-9).   */
-/*  Helper words tapped from a praised try are saved by the host, with the    */
-/*  paragraph's lock (savePracticeHelperWords). Each call resolves to null on */
+/*  Each call resolves to null on                                             */
 /*  any failure: the walk then offers Next or Practise again (O5) and never   */
 /*  waits.                                                                    */
 /* -------------------------------------------------------------------------- */

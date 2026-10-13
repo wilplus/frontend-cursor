@@ -25,7 +25,7 @@ import { loopEnd, threadStart } from "@/lib/willab/walkPractise";
 import type { WalkPractiseIO } from "@/services/api/walkPractise";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import type { ClearerPiece } from "@/lib/willab/clearerPieces";
-import { phraseTokens, selectionSpan, selectionText, type PhraseSelection } from "@/lib/willab/phraseTokens";
+import { phraseTokens, selectionSpan, type PhraseSelection } from "@/lib/willab/phraseTokens";
 import type { RootPhraseSpan } from "@/services/api/partLock";
 
 /* -------------------------------------------------------------------------- */
@@ -92,14 +92,6 @@ export type FeedbackWalkHelperWords = {
   paragraphText: string;
 };
 
-/** Helper words tapped from a praised try's own words (not the
- *  paragraph's): saved on the practice, then the paragraph is locked. */
-export type FeedbackWalkPractiseWords = {
-  practiceId: string;
-  partId: string;
-  phrase: string;
-};
-
 type Props<R> = {
   /** The walk, live. It is held still from the moment the walk opens until
    *  it closes, so a re-read of the page cannot move the screen under the
@@ -127,8 +119,6 @@ type Props<R> = {
   /** The practise's calls (open, upload, check). Without them a practise
    *  screen is never reached: "Accept and practise" goes past it. */
   practise?: WalkPractiseIO<R> | null;
-  /** Helper words picked from a praised try. */
-  onSavePractiseWords?: (save: FeedbackWalkPractiseWords) => void;
   /** O5's limit on the machine's read; tests shorten it. */
   readLimitMs?: number;
   /** Judging one's own moments is gone from the walk (lock 2026-10-12,
@@ -194,7 +184,6 @@ export default function FeedbackWalk<R = unknown>({
   onAcceptClearer,
   onKeepWords,
   practise: practiseIO = null,
-  onSavePractiseWords,
   readLimitMs,
   summary = null,
   onEnd,
@@ -392,13 +381,6 @@ export default function FeedbackWalk<R = unknown>({
       if (blocked(s)) return;
       answer(s, "use");
       const picked = picks[pickKey(s)] ?? null;
-      const tried = s.kind === "try" ? practise.tryOf(moment.index) : undefined;
-      if (tried?.words) {
-        const phrase = selectionText(tried.words, phraseTokens(tried.words), picked);
-        if (phrase) onSavePractiseWords?.({ practiceId: tried.practiceId, partId: moment.partId, phrase });
-        forward();
-        return;
-      }
       const span = selectionSpan(moment.paragraphText, phraseTokens(moment.paragraphText), picked);
       if (span) {
         onSaveHelperWords({ partId: moment.partId, span, paragraphText: moment.paragraphText });
@@ -622,7 +604,7 @@ function Praise(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
  *  of the screen. */
 function Helpers(ctx: ScreenCtx, step: WalkStep, moment: FeedbackWalkMoment) {
   const picked = ctx.picks[pickKey(step)] ?? null;
-  const words = (step.kind === "try" ? ctx.practise.tryOf(moment.index)?.words : null) ?? moment.paragraphText;
+  const words = moment.paragraphText;
   const given = ctx.answered(step) !== null || picked !== null && Boolean(ctx.walk.replay);
   const skip = () => {
     ctx.answer(step, "skip");

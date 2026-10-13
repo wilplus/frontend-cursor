@@ -9,7 +9,6 @@ import type { WalkBankKey } from "@/lib/willab/walkLines";
 import type { FeedbackWalkModel, FeedbackWalkMoment } from "@/lib/willab/feedbackWalkModel";
 import FeedbackWalk, {
   type FeedbackWalkHelperWords,
-  type FeedbackWalkPractiseWords,
   type FeedbackWalkRequest,
   type WalkAiShown,
 } from "./walk/FeedbackWalk";
@@ -22,7 +21,6 @@ import {
   acceptRewriteBehind,
   helperWordsBehind,
   keepWordsBehind,
-  practiseWordsBehind,
   type SaveBehind,
 } from "./saveBehind";
 import { answerChanged, latestAnswerOf, reopensJudgement } from "@/lib/willab/changeJudgement";
@@ -46,7 +44,6 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { PRAISE_LEAD, praiseLines } from "@/lib/willab/trackedChangeWhy";
 import { practiseOfferedNow, readPractiseOffered } from "@/services/api/consentChoices";
 import type { CoachMessage, DocumentSuggestion } from "@/services/api/idealText";
-import { savePracticeHelperWords } from "@/services/api/confidentVoicePractice";
 import { suggestionSource, walkPractiseIO } from "@/services/api/walkPractise";
 import { saveTakeFeedbackResponse } from "@/services/api/takeFeedback";
 import { reportMomentEvent } from "@/services/api/momentEvents";
@@ -96,11 +93,10 @@ import type { LockResult } from "./DeckChunkModal";
 /*  and orange words are the served rewrite's own `quote` and `proposedText`.*/
 /*                                                                            */
 /*  The practise (D-FW-16) is opened on the served item's own snippet and     */
-/*  evidence (walkPractiseIO), the same routes today's practise sheet uses;   */
-/*  helper words from a praised try go on the practice, then the lock, behind */
-/*  the screen (`practiseWordsBehind`). An exercise (D-FW-17) is the served   */
-/*  offer the Feedback sheet's Exercise step plays: its video (the coach's,   */
-/*  else the library's), its instruction and its words (`exerciseOf`).        */
+/*  evidence (walkPractiseIO), the same routes today's practise sheet uses.   */
+/*  An exercise (D-FW-17) is the served offer the Feedback sheet's Exercise   */
+/*  step plays: its video (the coach's, else the library's), its instruction  */
+/*  and its words (`exerciseOf`).                                             */
 /*                                                                            */
 /*  The judgements (D-FW-18) are saved as the Feedback sheet saves them: the  */
 /*  speaker's own answer on the Confident Voice item (L3), through the        */
@@ -745,22 +741,6 @@ export function useDeckFeedbackWalk(args: {
     const { onKeepMine, saveBehind } = live.current;
     saveBehind(() => keepWordsBehind(onKeepMine, item), CHUNK_SHEET_COPY.failKeep);
   }, [post]);
-  const savePractiseWords = useCallback((save: FeedbackWalkPractiseWords) => {
-    post({ key: `try-words:${save.practiceId}`, moment: null, attempt: null, author: "speaker", body: save.phrase });
-    const { chunks: now, lockPart, saveBehind } = live.current;
-    const chunk = now.find((c) => c.part.id === save.partId);
-    if (!chunk) return;
-    saveBehind(
-      () =>
-        practiseWordsBehind(
-          (phrase) => savePracticeHelperWords(save.practiceId, save.partId, phrase),
-          lockPart,
-          chunk,
-          save.phrase,
-        ),
-      CHUNK_SHEET_COPY.failWordsBehind,
-    );
-  }, [post]);
   const judge = useCallback((save: WalkJudgementSave<DocumentSuggestion>) => {
     const { saveBehind, onJudged } = live.current;
     const { item, answer } = save;
@@ -891,7 +871,6 @@ export function useDeckFeedbackWalk(args: {
           onAcceptClearer={acceptClearer}
           onKeepWords={keepWords}
           practise={practise}
-          onSavePractiseWords={savePractiseWords}
           onJudge={judge}
           onSkipJudging={skipJudging}
           journal={journal}
@@ -914,7 +893,6 @@ export function useDeckFeedbackWalk(args: {
       acceptClearer,
       keepWords,
       practise,
-      savePractiseWords,
       judge,
       skipJudging,
       journal,

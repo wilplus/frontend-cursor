@@ -149,7 +149,8 @@ export function buildWalkPlan(input: WalkPlanInput): WalkStep[] {
 }
 
 /** The screens that follow one answer from the machine on a practise try.
- *  Praise: the praise after a try, then helper words. Again: encouragement,
+ *  Praise: the praise after a try, then on (helper words come only after
+ *  green moments; lock 2026-10-12, section 2.5). Again: encouragement,
  *  then the next try; after the last allowed try that is not praise, the
  *  signed thank-you (CM3b) and the walk moves on. */
 export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
@@ -157,7 +158,7 @@ export function afterTry(practise: WalkStep, outcome: TryOutcome): WalkStep[] {
   const base = { moment: practise.moment, slide: practise.slide, ...(practise.readOnly ? { readOnly: true } : {}) };
   const checking: WalkStep = { key: "processing", ...base, attempt };
   if (outcome === "praise") {
-    return [checking, { key: "improved", ...base, attempt }, { key: "helpers", ...base }];
+    return [checking, { key: "improved", ...base, attempt }];
   }
   if (attempt >= WALK_MAX_TRIES) return [checking, { key: "thanks", ...base, attempt }];
   return [
