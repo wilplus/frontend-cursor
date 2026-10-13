@@ -61,7 +61,7 @@ export default function NextTakeShareScreen({
     void fetchCommunities().then((res) => {
       if (!live) return;
       if (!res.ok) {
-        (onCancel ?? onDone)();
+        onDone();
         return;
       }
       const own = res.data.filter((c) => c.kind === "private");
