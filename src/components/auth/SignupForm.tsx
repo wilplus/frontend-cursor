@@ -122,7 +122,15 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
         return;
       }
 
-      // ── 4. Smart redirect ─────────────────────────────────────────────
+      // ── 4. Back to where they came from (e.g. the booking page) ──────
+      // Only same-site paths, so a crafted link cannot send them elsewhere.
+      const back = new URLSearchParams(window.location.search).get("redirectTo");
+      if (back && back.startsWith("/") && !back.startsWith("//")) {
+        window.location.replace(back);
+        return;
+      }
+
+      // ── 5. Smart redirect ─────────────────────────────────────────────
       // Hit /api/results/state to learn whether this user has any session.
       // Every branch lands on /chat now — the standalone /results
       // surface was retired and /chat's phase machine handles the rest:
